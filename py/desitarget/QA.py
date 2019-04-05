@@ -28,7 +28,7 @@ from astropy.coordinates import SkyCoord
 from desiutil import brick
 from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
-from desitarget.targetmask import desi_mask, mws_mask, bgs_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targets import main_cmx_or_sv
 from desitarget.io import read_targets_in_box, target_columns_from_header
 from desitarget.geomask import pixarea2nside
@@ -158,12 +158,12 @@ def _load_targdens(tcnames=None, bit_mask=None):
     tcnames : :class:`list`
         A list of strings, e.g. "['QSO','LRG','ALL'] If passed, return only a dictionary
         for those specific bits.
-    bit_mask : :class:`~numpy.array`, optional, defaults to ``None``
+    bit_mask : :class:`list` or `~numpy.array`, optional, defaults to ``None``
         If passed, load the bit names from this mask (with no associated expected
         densities) rather than loading the main survey bits and densities. Must be a
         desi mask object, e.g., loaded as `from desitarget.targetmask import desi_mask`.
         Any bit names that contain "NORTH" or "SOUTH" or calibration bits will be
-        removed.
+        removed. A list of serveral masks can be passed rather than a single mask.
 
     Returns
     -------
@@ -202,10 +202,14 @@ def _load_targdens(tcnames=None, bit_mask=None):
         targdens['MWS_WD'] = 0.
         targdens['MWS_NEARBY'] = 0.
     else:
-        # ADM this is the list of words contained in bits that we don't want to consider for QA.
-        badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY", "BRIGHT_OBJECT", "SKY"]
-        names = [name for name in bit_mask.names() if not any(badname in name for badname in badnames)]
-        targdens = {k: 0. for k in names}
+        bit_masks = np.atleast_1d(bit_mask)
+        names = []
+        for bit_mask in bit_masks:
+            # ADM this is the list of words contained in bits that we don't want to consider for QA.
+            badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY", "BRIGHT_OBJECT", "SKY"]
+            names.append([name for name in bit_mask.names()
+                          if not any(badname in name for badname in badnames)])
+        targdens = {k: 0. for k in np.concatenate(names)}
 
     if tcnames is None:
         return targdens
@@ -1538,9 +1542,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     cmx : :class:`boolean`, defaults to ``False``
         Pass as ``True`` to operate on commissioning bits instead of SV or main survey
         bits. Commissioning files have no MWS or BGS columns.
-    bit_mask : :class:`~numpy.array`, optional, defaults to ``None``
-        Load the bit names from this passed mask (with zero density constraints)
-        instead of the main survey bits.
+    bit_mask : :class:`list` or `~numpy.array`, optional, defaults to ``None``
+        Load the bit names from this passed mask or list of masks (with zero density
+        constraints) instead of the main survey bits.
     mocks : :class:`boolean`, optional, default=False
         If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
 
@@ -1633,9 +1637,12 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     # ADM by rejecting highly dense outliers.
     upclipdict = {k: 5000. for k in targdens}
     if bit_mask is not None:
-        main_mask = bit_mask
+        if cmx:
+            d_mask = bit_mask[0]
+        else:
+            d_mask, b_mask, m_mask = bit_mask
     else:
-        main_mask = desi_mask
+        d_mask, b_mask, m_mask = desi_mask, bgs_mask, mws_mask
         upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
                       'STD_FAINT': 300, 'STD_BRIGHT': 300,
                       # 'STD_FAINT': 200, 'STD_BRIGHT': 50,
@@ -1649,11 +1656,11 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             ii = np.ones(len(targs)).astype('bool')
         else:
             if ('BGS' in objtype) and not('ANY' in objtype) and not(cmx):
-                ii = targs["BGS_TARGET"] & bgs_mask[objtype] != 0
+                ii = targs["BGS_TARGET"] & b_mask[objtype] != 0
             elif ('MWS' in objtype) and not('ANY' in objtype) and not(cmx):
-                ii = targs["MWS_TARGET"] & mws_mask[objtype] != 0
+                ii = targs["MWS_TARGET"] & m_mask[objtype] != 0
             else:
-                ii = targs["DESI_TARGET"] & main_mask[objtype] != 0
+                ii = targs["DESI_TARGET"] & d_mask[objtype] != 0
 
         if np.any(ii):
             # ADM make RA/Dec skymaps.
@@ -1809,7 +1816,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     if svs == "MAIN":
         targdens = _load_targdens(tcnames=tcnames)
     else:
-        targdens = _load_targdens(tcnames=tcnames, bit_mask=masks[0])
+        targdens = _load_targdens(tcnames=tcnames, bit_mask=masks)
 
     # ADM set up the html file and write preamble to it.
     htmlfile = makepath(os.path.join(qadir, 'index.html'))
@@ -1979,7 +1986,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths,
                                     qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
                                     weight=weight, imaging_map_file=imaging_map_file,
-                                    cmx=cmx, bit_mask=masks[0], mocks=mocks)
+                                    cmx=cmx, bit_mask=masks, mocks=mocks)
 
         # ADM add a correlation matrix recording the overlaps between different target
         # ADM classes as a density.
