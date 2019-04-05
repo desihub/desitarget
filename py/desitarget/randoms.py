@@ -18,7 +18,7 @@ from glob import glob
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
-from desitarget.targets import resolve
+from desitarget.targets import resolve, main_cmx_or_sv
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
 
@@ -662,7 +662,7 @@ def stellar_density(nside=256):
     return pixout/pixarea
 
 
-def get_targ_dens(targets, nside=256):
+def get_targ_dens(targets, nside=256, bit_mask=None):
     """The density of targets in HEALPixels.
 
     Parameters
@@ -672,6 +672,12 @@ def get_targ_dens(targets, nside=256):
         e.g., :func:`desitarget.cuts.select_targets()`, or the name of such a file.
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map (NESTED scheme).
+    bit_mask : :class:`list` or `~numpy.array`, optional, defaults to ``None``
+        If passed, load the bit names from this mask (with no associated expected
+        densities) rather than loading the main survey bits and densities. Must be a
+        desi mask object, e.g., loaded as `from desitarget.targetmask import desi_mask`.
+        Any bit names that contain "NORTH" or "SOUTH" or calibration bits will be
+        removed. A list of serveral masks can be passed rather than a single mask.
 
     Returns
     -------
@@ -695,7 +701,7 @@ def get_targ_dens(targets, nside=256):
 
     # ADM retrieve the bit names of interest
     from desitarget.QA import _load_targdens
-    bitnames = np.array(list(_load_targdens().keys()))
+    bitnames = np.array(list(_load_targdens(bit_mask=bit_mask).keys()))
 
     # ADM and set up an array to hold the output target densities
     targdens = np.zeros(npix, dtype=[(bitname, 'f4') for bitname in bitnames])
@@ -761,6 +767,9 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                                 the median of GALDEPTH values in the passed random catalog.
             - One column for every bit returned by :func:`desitarget.QA._load_targdens()`.
               Each column contains the density of targets in pixels at the passed `nside`
+    :class:`str`
+        The type of survey to which `targets` corresponds, e.g., 'main', 'sv1', etc.
+
     Notes
     -----
         - If `gaialoc` is ``None`` then the environment variable $GAIA_DIR must be set.
@@ -777,6 +786,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         targcols = target_columns_from_header(targets)
         cols = np.concatenate([["RA", "DEC"], targcols])
         targets = read_targets_in_box(targets, columns=cols)
+    # ADM change target column names, and retrieve associated survey information.
+    _, bit_mask, survey, targets = main_cmx_or_sv(targets, rename=True)
 
     # ADM determine the areal coverage of the randoms at this nside.
     log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
@@ -785,7 +796,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
     # ADM get the target densities.
     log.info('Calculating target densities...t = {:.1f}s'.format(time()-start))
-    targdens = get_targ_dens(targets, nside=nside)
+    targdens = get_targ_dens(targets, nside=nside, bit_mask=bit_mask)
 
     # ADM set up the output array.
     datamodel = [('HPXPIXEL', '>i4'), ('FRACAREA', '>f4'), ('STARDENS', '>f4'), ('EBV', '>f4'),
@@ -838,7 +849,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
-    return hpxinfo
+    return hpxinfo, survey
 
 
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
