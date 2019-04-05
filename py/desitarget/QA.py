@@ -31,7 +31,7 @@ from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.sv1.sv1_targetmask import desi_mask as sv1_desi_mask
-from desitarget.io import read_targets_in_box
+from desitarget.io import read_targets_in_box, target_columns_from_header
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
@@ -358,13 +358,7 @@ def read_data(targfile, mocks=False):
 
     # ADM from the header of the input files, retrieve the appropriate
     # ADM names for the SV, main, or cmx _TARGET columns.
-    targcols = []
-    fn = targfile
-    if os.path.isdir(targfile):
-        fn = next(iglob(os.path.join(targfile, '*fits')))
-    hdr = fitsio.read_header(fn, "TARGETS")
-    allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
-    targcols = allcols[['_TARGET' in col for col in allcols]]
+    targcols = target_columns_from_header(targfile)
 
     # ADM limit to the data columns used by the QA code to save memory.
     colnames = ["RA", "DEC", "RELEASE", "PARALLAX", "PMRA", "PMDEC"]
