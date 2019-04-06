@@ -1229,7 +1229,7 @@ def check_hp_target_dir(hpdirname):
     return nside[0], pixdict
 
 
-def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, 
+def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
                        header=False):
     """Read in targets in a set of HEALPixels.
 
@@ -1292,7 +1292,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
             targs, hdr = fitsio.read(infile, 'TARGETS',
                                      columns=columnscopy, header=True)
             targets.append(targs)
-        targets = np.concatenate(targets)            
+        targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
         targets, hdr = fitsio.read_header(hpdirname, 'TARGETS',

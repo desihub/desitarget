@@ -163,13 +163,13 @@ def _load_targdens(tcnames=None, bit_mask=None):
         densities) rather than loading the main survey bits and densities. Must be a
         desi mask object, e.g., loaded as `from desitarget.targetmask import desi_mask`.
         Any bit names that contain "NORTH" or "SOUTH" or calibration bits will be
-        removed. A list of serveral masks can be passed rather than a single mask.
+        removed. A list of several masks can be passed rather than a single mask.
 
     Returns
     -------
     :class:`dictionary`
         A dictionary where the keys are the bit names and the values are the densities.
-    
+
     Notes
     -----
         If `bit_mask` happens to correpond to the main survey masks, then the default
@@ -211,7 +211,7 @@ def _load_targdens(tcnames=None, bit_mask=None):
         names = []
         for bit_mask in bit_masks:
             # ADM this is the list of words contained in bits that we don't want to consider for QA.
-            badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY", "BRIGHT_OBJECT", "SKY"]
+            badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY", "BRIGHT_OBJECT", "SKY", "KNOWN"]
             names.append([name for name in bit_mask.names()
                           if not any(badname in name for badname in badnames)])
         targdens = {k: 0. for k in np.concatenate(names)}
@@ -1660,9 +1660,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         if 'ALL' in objtype:
             ii = np.ones(len(targs)).astype('bool')
         else:
-            if ('BGS' in objtype) and not('ANY' in objtype) and not(cmx):
+            if ('BGS' in objtype) and not('S_ANY' in objtype) and not(cmx):
                 ii = targs["BGS_TARGET"] & b_mask[objtype] != 0
-            elif ('MWS' in objtype) and not('ANY' in objtype) and not(cmx):
+            elif ('MWS' in objtype) and not('S_ANY' in objtype) and not(cmx):
                 ii = targs["MWS_TARGET"] & m_mask[objtype] != 0
             else:
                 ii = targs["DESI_TARGET"] & d_mask[objtype] != 0

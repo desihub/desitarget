@@ -17,7 +17,6 @@ import fitsio
 from glob import glob
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targets import resolve, main_cmx_or_sv
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
@@ -662,7 +661,7 @@ def stellar_density(nside=256):
     return pixout/pixarea
 
 
-def get_targ_dens(targets, nside=256, bit_mask=None):
+def get_targ_dens(targets, Mx, nside=256):
     """The density of targets in HEALPixels.
 
     Parameters
@@ -670,14 +669,11 @@ def get_targ_dens(targets, nside=256, bit_mask=None):
     targets : :class:`~numpy.ndarray` or `str`
         A corresponding (same Legacy Surveys Data Release) target catalog as made by,
         e.g., :func:`desitarget.cuts.select_targets()`, or the name of such a file.
+    Mx : :class:`list` or `~numpy.array`
+        The targeting bitmasks associated with the passed targets, assumed to be 
+        a desi, bgs and mws mask in that order (for either SV or the main survey).
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map (NESTED scheme).
-    bit_mask : :class:`list` or `~numpy.array`, optional, defaults to ``None``
-        If passed, load the bit names from this mask (with no associated expected
-        densities) rather than loading the main survey bits and densities. Must be a
-        desi mask object, e.g., loaded as `from desitarget.targetmask import desi_mask`.
-        Any bit names that contain "NORTH" or "SOUTH" or calibration bits will be
-        removed. A list of serveral masks can be passed rather than a single mask.
 
     Returns
     -------
@@ -691,6 +687,14 @@ def get_targ_dens(targets, nside=256, bit_mask=None):
         log.info('Reading in target catalog...t = {:.1f}s'.format(time()-start))
         targets = fitsio.read(targets)
 
+    # ADM retrieve the bitmasks.
+    if Mx[0]._name == 'cmx_mask':
+        msg = 'generating target densities does NOT work for CMX files!!!'
+        log.critical(msg)
+        raise ValueError(msg)
+    else:
+        desi_mask, bgs_mask, mws_mask = Mx
+
     # ADM the number of pixels and the pixel area at the passed nside
     npix = hp.nside2npix(nside)
     pixarea = hp.nside2pixarea(nside, degrees=True)
@@ -701,26 +705,26 @@ def get_targ_dens(targets, nside=256, bit_mask=None):
 
     # ADM retrieve the bit names of interest
     from desitarget.QA import _load_targdens
-    bitnames = np.array(list(_load_targdens(bit_mask=bit_mask).keys()))
+    bitnames = np.array(list(_load_targdens(bit_mask=Mx).keys()))
 
     # ADM and set up an array to hold the output target densities
     targdens = np.zeros(npix, dtype=[(bitname, 'f4') for bitname in bitnames])
 
     for bitname in bitnames:
         if 'ALL' in bitname:
-            wbit = np.arange(len(targets))
+            ii = np.ones(len(targets)).astype('bool')
         else:
-            if ('BGS' in bitname) & ~('ANY' in bitname):
-                wbit = np.where(targets["BGS_TARGET"] & bgs_mask[bitname])[0]
-            elif ('MWS' in bitname) & ~('ANY' in bitname):
-                wbit = np.where(targets["MWS_TARGET"] & mws_mask[bitname])[0]
+            if ('BGS' in bitname) and not('S_ANY' in bitname):
+                ii = targets["BGS_TARGET"] & bgs_mask[bitname] != 0
+            elif ('MWS' in bitname) and not('S_ANY' in bitname):
+                ii = targets["MWS_TARGET"] & mws_mask[bitname] != 0
             else:
-                wbit = np.where(targets["DESI_TARGET"] & desi_mask[bitname])[0]
+                ii = targets["DESI_TARGET"] & desi_mask[bitname] != 0
 
-        if len(wbit) > 0:
+        if np.any(ii):
             # ADM calculate the number of objects in each pixel for the
             # ADM targets of interest
-            pixnum, pixcnt = np.unique(pixnums[wbit], return_counts=True)
+            pixnum, pixcnt = np.unique(pixnums[ii], return_counts=True)
             targdens[bitname][pixnum] = pixcnt/pixarea
 
     return targdens
@@ -787,7 +791,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         cols = np.concatenate([["RA", "DEC"], targcols])
         targets = read_targets_in_box(targets, columns=cols)
     # ADM change target column names, and retrieve associated survey information.
-    _, bit_mask, survey, targets = main_cmx_or_sv(targets, rename=True)
+    _, Mx, survey, targets = main_cmx_or_sv(targets, rename=True)
 
     # ADM determine the areal coverage of the randoms at this nside.
     log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
@@ -796,7 +800,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
     # ADM get the target densities.
     log.info('Calculating target densities...t = {:.1f}s'.format(time()-start))
-    targdens = get_targ_dens(targets, nside=nside, bit_mask=bit_mask)
+    targdens = get_targ_dens(targets, Mx, nside=nside)
 
     # ADM set up the output array.
     datamodel = [('HPXPIXEL', '>i4'), ('FRACAREA', '>f4'), ('STARDENS', '>f4'), ('EBV', '>f4'),
