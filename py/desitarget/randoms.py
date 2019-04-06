@@ -246,7 +246,7 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
 
 
 def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
-    """Return NOBS, GALDEPTH, PSFDEPTH (per-band) at positions in one brick of the Legacy Surveys
+    """Observational quantities (per-band) at positions in a Legacy Surveys brick.
 
     Parameters
     ----------
@@ -263,8 +263,9 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     Returns
     -------
     :class:`dictionary`
-       The number of observations (NOBS_X), PSF depth (PSFDEPTH_X) and Galaxy depth (GALDEPTH_X)
-       at each passed position in the Legacy Surveys in each band X. In addition, the MASKBITS
+       The number of observations (NOBS_X), PSF depth (PSFDEPTH_X)
+       Galaxy depth (GALDEPTH_X) and PSF size (PSFSIZE_X) at each
+       at each passed position in each band X. Plus, , the MASKBITS
        information at each passed position for the brick.
 
     Notes
@@ -291,9 +292,9 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     for filt in ['g', 'r', 'z']:
         # ADM the input file labels, and output column names and output formats
         # ADM for each of the quantities of interest.
-        qnames = zip(['nexp', 'depth', 'galdepth'],
-                     ['nobs', 'psfdepth', 'galdepth'],
-                     ['i2', 'f4', 'f4'])
+        qnames = zip(['nexp', 'depth', 'galdepth', 'psfsize'],
+                     ['nobs', 'psfdepth', 'galdepth', 'psfsize'],
+                     ['i2', 'f4', 'f4', 'f4'])
         for qin, qout, qform in qnames:
             fn = os.path.join(
                 rootdir, 'legacysurvey-{}-{}-{}.fits.{}'.format(brickname, qin, filt, extn)
@@ -474,21 +475,15 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the following columns:
-            RA: Right Ascension of a random point
-            DEC: Declination of a random point
-            BRICKNAME: Passed brick name
-            NOBS_G: Number of observations at this location in the g-band
-            NOBS_R: Number of observations at this location in the r-band
-            NOBS_Z: Number of observations at this location in the z-band
-            PSFDEPTH_G: PSF depth at this location in the g-band
-            PSFDEPTH_R: PSF depth at this location in the r-band
-            PSFDEPTH_Z: PSF depth at this location in the z-band
-            GALDEPTH_G: Galaxy depth at this location in the g-band
-            GALDEPTH_R: Galaxy depth at this location in the r-band
-            GALDEPTH_Z: Galaxy depth at this location in the z-band
+            RA, DEC: Right Ascension, Declination of a random location.
+            BRICKNAME: Passed brick name.
+            NOBS_G, R, Z: Number of observations at this location in g, r, z-band.
+            PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
+            GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
+            PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec) in g, r, z.
             MASKBITS: Extra mask bits info as stored in the header of e.g.,
               dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
-            EBV: E(B-V) at this location from the SFD dust maps
+            EBV: E(B-V) at this location from the SFD dust maps.
     """
     # ADM this is only intended to work on one brick, so die if a larger array is passed.
     if not isinstance(brickname, str):
@@ -516,6 +511,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                             ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                             ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                             ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
+                            ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
                             ('MASKBITS', 'i2'), ('EBV', 'f4'), ('PHOTSYS', '|S1')])
     # ADM store each quantity of interest in the structured array
     # ADM remembering that the dictionary keys are in lower case text.
@@ -769,6 +765,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                                 the median of PSFDEPTH values in the passed random catalog.
             - GALDEPTH_G, R, Z: The galaxy depth in g, r, z-band in the pixel, derived from
                                 the median of GALDEPTH values in the passed random catalog.
+            - PSFSIZE_G, R, Z: The weighted average PSF FWHM, in arcsec, in g, r, z in the pixel, 
+                               from the median of PSFSIZE values in the passed random catalog.
             - One column for every bit returned by :func:`desitarget.QA._load_targdens()`.
               Each column contains the density of targets in pixels at the passed `nside`
     :class:`str`
@@ -805,7 +803,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM set up the output array.
     datamodel = [('HPXPIXEL', '>i4'), ('FRACAREA', '>f4'), ('STARDENS', '>f4'), ('EBV', '>f4'),
                  ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'),
-                 ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4')]
+                 ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'),
+                 ('PSFSIZE_G', '>f4'), ('PSFSIZE_R', '>f4'), ('PSFSIZE_Z', '>f4')]
     datamodel += targdens.dtype.descr
     hpxinfo = np.zeros(npix, dtype=datamodel)
     # ADM set initial values to -1 so that they can easily be clipped.
@@ -843,8 +842,10 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
     # ADM work through the ordered pixels to populate the median for
     # ADM each quantity of interest.
-    cols = ['EBV', 'PSFDEPTH_G', 'GALDEPTH_G', 'PSFDEPTH_R', 'GALDEPTH_R',
-            'PSFDEPTH_Z', 'GALDEPTH_Z']
+    cols = ['EBV',
+            'PSFDEPTH_G', 'GALDEPTH_G', 'PSFSIZE_G',
+            'PSFDEPTH_R', 'GALDEPTH_R', 'PSFSIZE_R',
+            'PSFDEPTH_Z', 'GALDEPTH_Z', 'PSFSIZE_Z']
     for i in range(len(pixcnts)-1):
         inds = pixorder[pixcnts[i]:pixcnts[i+1]]
         pix = pixnums[inds][0]
@@ -902,21 +903,15 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the following columns:
-            RA: Right Ascension of a random point
-            DEC: Declination of a random point
-            BRICKNAME: Passed brick name
-            NOBS_G: Number of observations at this location in the g-band
-            NOBS_R: Number of observations at this location in the r-band
-            NOBS_Z: Number of observations at this location in the z-band
-            PSFDEPTH_G: PSF depth at this location in the g-band
-            PSFDEPTH_R: PSF depth at this location in the r-band
-            PSFDEPTH_Z: PSF depth at this location in the z-band
-            GALDEPTH_G: Galaxy depth at this location in the g-band
-            GALDEPTH_R: Galaxy depth at this location in the r-band
-            GALDEPTH_Z: Galaxy depth at this location in the z-band
+            RA, DEC: Right Ascension, Declination of a random location.
+            BRICKNAME: Passed brick name.
+            NOBS_G, R, Z: Number of observations at this location in g, r, z-band.
+            PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
+            GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
+            PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec) in g, r, z.
             MASKBITS: Extra mask bits info as stored in the header of e.g.,
-              dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
-            EBV: E(B-V) at this location from the SFD dust maps
+              dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'.
+            EBV: E(B-V) at this location from the SFD dust maps.
     """
     # ADM grab brick information for this data release. Depending on whether this
     # ADM is pre-or-post-DR8 we need to find the correct directory or directories.
