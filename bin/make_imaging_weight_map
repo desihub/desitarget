@@ -43,7 +43,7 @@ if not os.path.exists(ns.targets):
     log.critical('Input directory does not exist: {}'.format(ns.targets))
     sys.exit(1)
 
-hdr = fitsio.read_header(ns.randoms,"RANDOMS")
+hdr = fitsio.read_header(ns.randoms, "RANDOMS")
 #ADM add HEALPixel and gaialoc information to the header
 hdr['GAIALOC'] = ns.gaialoc
 hdr['HPXNSIDE'] = ns.nside
