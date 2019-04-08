@@ -1518,7 +1518,7 @@ def _in_desi_footprint(targs):
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
                   imaging_map_file=None, truths=None, objtruths=None, tcnames=None,
-                  cmx=False, bit_mask=None, mocks=False, numproc=32):
+                  cmx=False, bit_mask=None, mocks=False, numproc=8):
     """Make DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -1556,7 +1556,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         constraints) instead of the main survey bits.
     mocks : :class:`boolean`, optional, default=False
         If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
-    numproc : :class:`int`, optional, defaults to 32
+    numproc : :class:`int`, optional, defaults to 8
         The number of parallel processes to use to generate plots.
 
     Returns
@@ -1746,7 +1746,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
                  clip2foot=False, weight=True, imaging_map_file=None,
-                 tcnames=None, systematics=True, numproc=32):
+                 tcnames=None, systematics=True, numproc=8):
     """Create a directory containing a webpage structure in which to embed QA plots.
 
     Parameters
@@ -1781,7 +1781,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         for those specific bits. A useful speed-up when testing
     systematics : :class:`boolean`, optional, defaults to ``True``
         If sent, then add plots of systematics to the front page.
-    numproc : :class:`int`, optional, defaults to 32
+    numproc : :class:`int`, optional, defaults to 8
         The number of parallel processes to use to generate plots.
 
     Returns
