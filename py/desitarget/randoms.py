@@ -216,7 +216,8 @@ def _pre_or_post_dr8(drdir):
     return drdirs
 
 
-def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
+def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
+                                           aprad=0.75):
     """Wrapper on `quantities_at_positions_in_a_brick` for DR8 imaging and beyond.
 
     Notes
@@ -233,7 +234,7 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     # ADM determine the dictionary of quantities for one or two directories.
     qall = []
     for dd in drdirs:
-        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd)
+        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd, aprad=aprad)
         # ADM don't count bricks where we never read a file header.
         if q is not None:
             qall.append(q)
@@ -267,16 +268,22 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     Returns
     -------
     :class:`dictionary`
-       The number of observations (NOBS_X), PSF depth (PSFDEPTH_X)
-       Galaxy depth (GALDEPTH_X) and PSF size (PSFSIZE_X) at each
-       at each passed position in each band X. Plus, , the MASKBITS
+       The number of observations (`nobs_x`), PSF depth (`psfdepth_x`)
+       Galaxy depth (`galdepth_x`), PSF size (`psfsize_x`), and sky
+       background (`apflux_x`) and inverse variance (`apflux_ivar_x`)
+       at each passed position in each band X. Plus, the `maskbits`
        information at each passed position for the brick.
 
     Notes
     -----
         - First version copied shamelessly from Anand Raichoor.
     """
+    # ADM guard against too low a density of random locations.
     npts = len(ras)
+    if npts == 0:
+        msg = 'brick {} is empty. Increase the density of random points!'.format(brickname)
+        log.critical(msg)
+        raise ValueError(msg)
 
     # ADM determine whether the coadd files have extension .gz or .fz based on the DR directory.
     extn, extn_nb = dr_extension(drdir)
@@ -298,25 +305,25 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         # ADM the input file labels, and output column names and output formats
         # ADM for each of the quantities of interest.
         qnames = zip(['nexp', 'depth', 'galdepth', 'psfsize', 'image'],
-                     ['nobs', 'psfdepth', 'galdepth', 'psfsize', 'sky'],
+                     ['nobs', 'psfdepth', 'galdepth', 'psfsize', 'apflux'],
                      ['i2', 'f4', 'f4', 'f4', 'f4'])
         for qin, qout, qform in qnames:
             fn = fileform.format(brickname, qin, filt, extn)
             # ADM only process the WCS if there is a file corresponding to this filter.
             if os.path.exists(fn):
-                img = fits.open(fn)
+                img = fits.open(fn)[extn_nb]
                 if not iswcs:
                     # ADM also store the instrument name, if it isn't yet stored.
-                    instrum = img[extn_nb].header["INSTRUME"].lower().strip()
-                    w = WCS(img[extn_nb].header)
+                    instrum = img.header["INSTRUME"].lower().strip()
+                    w = WCS(img.header)
                     x, y = w.all_world2pix(ras, decs, 0)
                     iswcs = True
                 # ADM determine the quantity of interest at each passed location
                 # ADM and store in a dictionary with the filter and quantity name.
-                if qout == 'sky':
+                if qout == 'apflux':
                     # ADM special treatment to photometer sky. Read in the ivar image.
                     fnivar = fileform.format(brickname, 'invvar', filt, extn)
-                    ivar = fits.open(fnivar)
+                    ivar = fits.open(fnivar)[extn_nb].data
                     with np.errstate(divide='ignore', invalid='ignore'):
                         # ADM transform ivars to errors, guarding against 1/0.
                         imsigma = 1./np.sqrt(ivar)
@@ -324,41 +331,38 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                     # ADM perform aperture photometry at the requested radius (aprad).
                     apxy = np.vstack((x, y)).T
                     aper = photutils.CircularAperture(apxy, aprad)
-                    p = photutils.aperture_photometry(img, aper, error=imsigma)
+                    p = photutils.aperture_photometry(img.data, aper, error=imsigma)
                     # ADM store the results.
-                    qdict[qout+'apflux_'+filt] = p.field('aperture_sum') 
+                    qdict[qout+'_'+filt] = np.array(p.field('aperture_sum'))
                     err = p.field('aperture_sum_err')
                     with np.errstate(divide='ignore', invalid='ignore'):
                         # ADM transform errors to ivars, guarding against 1/0.
                         ivar = 1./err**2.
                         ivar[err == 0] = 0.
-                    qdict[qout+'apflux_ivar_'+filt] = ivar
+                    qdict[qout+'_ivar_'+filt] = np.array(ivar)
                 else:
-                    qdict[qout+'_'+filt] = img[extn_nb].data[y.astype("int"), x.astype("int")]
-                
+                    qdict[qout+'_'+filt] = img.data[y.astype("int"), x.astype("int")]
+            # ADM if the file doesn't exist, set the relevant quantities to zero.
             else:
-                # ADM if the file doesn't exist, set the relevant quantities to zero.
-                if qout == 'sky':
-                    qdict[qout+'apflux_'+filt] = np.zeros(npts, dtype=qform)
-                    qdict[qout+'apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
-                else:
-                    qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
+                if qout == 'apflux':
+                    qdict['apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
+                qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
 
     # ADM add the mask bits information.
     fn = os.path.join(rootdir,
                       'legacysurvey-{}-maskbits.fits.{}'.format(brickname, extn))
     # ADM only process the WCS if there is a file corresponding to this filter.
     if os.path.exists(fn):
-        img = fits.open(fn)
+        img = fits.open(fn)[extn_nb]
         # ADM use the WCS calculated for the per-filter quantities above, if it exists.
         if not iswcs:
             # ADM also store the instrument name, if it isn't yet stored.
-            instrum = img[extn_nb].header["INSTRUME"].lower().strip()
-            w = WCS(img[extn_nb].header)
+            instrum = img.header["INSTRUME"].lower().strip()
+            w = WCS(img.header)
             x, y = w.all_world2pix(ras, decs, 0)
             iswcs = True
         # ADM add the maskbits to the dictionary.
-        qdict['maskbits'] = img[extn_nb].data[y.astype("int"), x.astype("int")]
+        qdict['maskbits'] = img.data[y.astype("int"), x.astype("int")]
     else:
         # ADM if there is no maskbits file, populate with zeros.
         qdict['maskbits'] = np.zeros(npts, dtype='i2')
@@ -471,7 +475,7 @@ def get_dust(ras, decs, scaling=1, dustdir=None):
 
 
 def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
-                              density=100000, dustdir=None):
+                              density=100000, dustdir=None, aprad=0.75):
     """NOBS, DEPTHS etc. (per-band) for random points in a brick of the Legacy Surveys
 
     Parameters
@@ -495,6 +499,9 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     dustdir : :class:`str`, optional, defaults to $DUST_DIR+'/maps'
         The root directory pointing to SFD dust maps. If not
         sent the code will try to use $DUST_DIR+'/maps' before failing.
+    aprad : :class:`float`, optional, defaults to 0.75
+        Radii in arcsec of aperture for which to derive sky fluxes
+        defaults to the DESI fiber radius.
 
     Returns
     -------
@@ -506,6 +513,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
             PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
             GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
             PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec) in g, r, z.
+            APFLUX_G, R, Z: Sky background extracted in `aprad` in g, r, z.
+            APFLUX_IVAR_G, R, Z: Inverse variance of sky background in g, r, z.
             MASKBITS: Extra mask bits info as stored in the header of e.g.,
               dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
             EBV: E(B-V) at this location from the SFD dust maps.
@@ -519,7 +528,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=density)
 
     # ADM retrieve the dictionary of quantities for each random point.
-    qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir)
+    qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir, aprad=aprad)
 
     # ADM if we detected different cameras corresponding to 2 Data Releases
     # ADM for this brick then we need to duplicate the ras, decs as well.
@@ -537,6 +546,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                             ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                             ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
                             ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
+                            ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_Z', 'f4'),
+                            ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
                             ('MASKBITS', 'i2'), ('EBV', 'f4'), ('PHOTSYS', '|S1')])
     # ADM store each quantity of interest in the structured array
     # ADM remembering that the dictionary keys are in lower case text.
@@ -691,7 +702,7 @@ def get_targ_dens(targets, Mx, nside=256):
         A corresponding (same Legacy Surveys Data Release) target catalog as made by,
         e.g., :func:`desitarget.cuts.select_targets()`, or the name of such a file.
     Mx : :class:`list` or `~numpy.array`
-        The targeting bitmasks associated with the passed targets, assumed to be 
+        The targeting bitmasks associated with the passed targets, assumed to be
         a desi, bgs and mws mask in that order (for either SV or the main survey).
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map (NESTED scheme).
@@ -884,7 +895,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5,
-                   dustdir=None, resolverands=True):
+                   dustdir=None, resolverands=True, aprad=0.75):
     """NOBS, DEPTHs, MASKBITs (per-band) for random points in a Legacy Surveys DR.
 
     Parameters
@@ -923,20 +934,16 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     resolverands : :class:`boolean`, optional, defaults to ``True``
         If ``True``, resolve randoms into northern randoms in northern regions
         and southern randoms in southern regions.
+    aprad : :class:`float`, optional, defaults to 0.75
+        Radii in arcsec of aperture for which to derive sky fluxes
+        defaults to the DESI fiber radius.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        a numpy structured array with the following columns:
-            RA, DEC: Right Ascension, Declination of a random location.
-            BRICKNAME: Passed brick name.
-            NOBS_G, R, Z: Number of observations at this location in g, r, z-band.
-            PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
-            GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
-            PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec) in g, r, z.
-            MASKBITS: Extra mask bits info as stored in the header of e.g.,
-              dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'.
-            EBV: E(B-V) at this location from the SFD dust maps.
+        a numpy structured array with the same columns as returned by
+        :func:`~desitarget.randoms.get_quantities_in_a_brick`.
+
     """
     # ADM grab brick information for this data release. Depending on whether this
     # ADM is pre-or-post-DR8 we need to find the correct directory or directories.
@@ -989,8 +996,8 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
 
         # ADM populate the brick with random points, and retrieve the quantities
         # ADM of interest at those points.
-        return get_quantities_in_a_brick(bramin, bramax, bdecmin, bdecmax, brickname,
-                                         drdir, density=density, dustdir=dustdir)
+        return get_quantities_in_a_brick(bramin, bramax, bdecmin, bdecmax, brickname, drdir,
+                                         density=density, dustdir=dustdir, aprad=aprad)
 
     # ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')
