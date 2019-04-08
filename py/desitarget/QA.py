@@ -109,6 +109,9 @@ def _load_systematics():
     sysdict['GALDEPTH_G'] = [63., 6300., 'Galaxy Depth in g-band']
     sysdict['GALDEPTH_R'] = [25., 2500., 'Galaxy Depth in r-band']
     sysdict['GALDEPTH_Z'] = [4., 400., 'Galaxy Depth in z-band']
+    sysdict['PSFSIZE_G'] = [0., 3., 'PSF Size in g-band']
+    sysdict['PSFSIZE_R'] = [0., 3., 'PSF Size in r-band']
+    sysdict['PSFSIZE_Z'] = [0., 3., 'PSF Size in z-band']
 
     return sysdict
 
@@ -1664,8 +1667,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        log.info('Done {}/{} bitnames...t = {:.1f}s'.format(nbit, nbits, time()-t0))
-        nbit[...] += 1    # this is an in-place modification                                                                                                                                                
+        log.info('Done {}/{} bit names...t = {:.1f}s'.format(nbit, nbits, time()-t0))
+        nbit[...] += 1    # this is an in-place modification.
         return result
 
     def _generate_plots(objtype):
