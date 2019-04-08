@@ -9,7 +9,7 @@ desitarget Change Log
     * Resolve sky locations and SV targets by North/South regions.
     * Update sky and SV slurming for DR8-style input (two directories).
     * Write both of two input directories to output file headers.
-    * Parallelize plot production to speed-up QA by factors of ~8-16.
+    * Parallelize plot production to speed-up QA by factors of 8.
     * Add ``PSFSIZE`` to randoms, pixweight maps and QA plots.
     * QA and pixweight maps work fully for SV-style files and bits.
     * Pixweight code can now take HEALpixel-split targets as input.
