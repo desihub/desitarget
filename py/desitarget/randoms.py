@@ -14,6 +14,7 @@ from astropy.wcs import WCS
 from time import time
 import healpy as hp
 import fitsio
+import photutils
 from glob import glob
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
@@ -245,7 +246,8 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     return qcombine
 
 
-def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
+def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
+                                       aprad=0.75):
     """Observational quantities (per-band) at positions in a Legacy Surveys brick.
 
     Parameters
@@ -259,7 +261,9 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     drdir : :class:`str`
        The root directory pointing to a Data Release from the Legacy Surveys
        e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
-
+    aprad : :class:`float`, optional, defaults to 0.75
+        Radii in arcsec of aperture for which to derive sky fluxes
+        defaults to the DESI fiber radius.
     Returns
     -------
     :class:`dictionary`
@@ -287,18 +291,17 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     instrum = None
 
     rootdir = os.path.join(drdir, 'coadd', brickname[:3], brickname)
+    fileform = os.path.join(rootdir, 'legacysurvey-{}-{}-{}.fits.{}')
     # ADM loop through each of the filters and store the number of observations at the
     # ADM RA and Dec positions of the passed points.
     for filt in ['g', 'r', 'z']:
         # ADM the input file labels, and output column names and output formats
         # ADM for each of the quantities of interest.
-        qnames = zip(['nexp', 'depth', 'galdepth', 'psfsize'],
-                     ['nobs', 'psfdepth', 'galdepth', 'psfsize'],
-                     ['i2', 'f4', 'f4', 'f4'])
+        qnames = zip(['nexp', 'depth', 'galdepth', 'psfsize', 'image'],
+                     ['nobs', 'psfdepth', 'galdepth', 'psfsize', 'sky'],
+                     ['i2', 'f4', 'f4', 'f4', 'f4'])
         for qin, qout, qform in qnames:
-            fn = os.path.join(
-                rootdir, 'legacysurvey-{}-{}-{}.fits.{}'.format(brickname, qin, filt, extn)
-                )
+            fn = fileform.format(brickname, qin, filt, extn)
             # ADM only process the WCS if there is a file corresponding to this filter.
             if os.path.exists(fn):
                 img = fits.open(fn)
@@ -310,14 +313,36 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
                     iswcs = True
                 # ADM determine the quantity of interest at each passed location
                 # ADM and store in a dictionary with the filter and quantity name.
-                qdict[qout+'_'+filt] = img[extn_nb].data[y.astype("int"), x.astype("int")]
-                # log.info('Determined {} using WCS for {}...t = {:.1f}s'
-                #          .format(qout+'_'+filt,fn,time()-start))
+                if qout == 'sky':
+                    # ADM special treatment to photometer sky. Read in the ivar image.
+                    fnivar = fileform.format(brickname, 'invvar', filt, extn)
+                    ivar = fits.open(fnivar)
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        # ADM transform ivars to errors, guarding against 1/0.
+                        imsigma = 1./np.sqrt(ivar)
+                        imsigma[ivar == 0] = 0
+                    # ADM perform aperture photometry at the requested radius (aprad).
+                    apxy = np.vstack((x, y)).T
+                    aper = photutils.CircularAperture(apxy, aprad)
+                    p = photutils.aperture_photometry(img, aper, error=imsigma)
+                    # ADM store the results.
+                    qdict[qout+'apflux_'+filt] = p.field('aperture_sum') 
+                    err = p.field('aperture_sum_err')
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        # ADM transform errors to ivars, guarding against 1/0.
+                        ivar = 1./err**2.
+                        ivar[err == 0] = 0.
+                    qdict[qout+'apflux_ivar_'+filt] = ivar
+                else:
+                    qdict[qout+'_'+filt] = img[extn_nb].data[y.astype("int"), x.astype("int")]
+                
             else:
-                # log.info('no {} file at {}...t = {:.1f}s'
-                #          .format(qin+'_'+filt,fn,time()-start))
                 # ADM if the file doesn't exist, set the relevant quantities to zero.
-                qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
+                if qout == 'sky':
+                    qdict[qout+'apflux_'+filt] = np.zeros(npts, dtype=qform)
+                    qdict[qout+'apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
+                else:
+                    qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
 
     # ADM add the mask bits information.
     fn = os.path.join(rootdir,
@@ -765,7 +790,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                                 the median of PSFDEPTH values in the passed random catalog.
             - GALDEPTH_G, R, Z: The galaxy depth in g, r, z-band in the pixel, derived from
                                 the median of GALDEPTH values in the passed random catalog.
-            - PSFSIZE_G, R, Z: The weighted average PSF FWHM, in arcsec, in g, r, z in the pixel, 
+            - PSFSIZE_G, R, Z: Weighted average PSF FWHM, in arcsec, in g, r, z in the pixel,
                                from the median of PSFSIZE values in the passed random catalog.
             - One column for every bit returned by :func:`desitarget.QA._load_targdens()`.
               Each column contains the density of targets in pixels at the passed `nside`
