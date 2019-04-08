@@ -341,7 +341,7 @@ def read_tractor(filename, header=False, columns=None):
         for col in dr7datamodel.dtype.names:
             readcolumns.append(col)
         # ADM deal with some custom files I made that don't contain WISEMASK.
-        if 'WISEMASK_W1' not in fxcolnames:
+        if ('WISEMASK_W1' not in fxcolnames) and ('wisemask_w1' not in fxcolnames):
             readcolumns.remove('WISEMASK_W1')
             readcolumns.remove('WISEMASK_W2')
     # ADM if BRIGHTBLOB exists (it does for DR8, not for DR7) add it and
