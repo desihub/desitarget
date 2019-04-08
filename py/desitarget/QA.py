@@ -2030,7 +2030,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         headerlist.sort()
         # ADM edit SV target categories to their initial letters to squeeze space.
         hl = headerlist.copy()
-        if svs == 'SV':
+        if svs[0:2] == 'SV':
             for tc in 'QSO', 'ELG', 'LRG', 'BGS', 'MWS':
                 hl = [h.replace(tc, tc[0]) for h in hl]
         # ADM truncate the bit names at "trunc" characters to pack them more easily.
