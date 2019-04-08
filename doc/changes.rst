@@ -5,6 +5,19 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* Further updates and enhancements for DR8 [`PR #490`_]. Includes:
+    * Resolve sky locations and SV targets by North/South regions.
+    * Update sky and SV slurming for DR8-style input (two directories).
+    * Write both of two input directories to output file headers.
+    * Parallelize plot production to speed-up QA by factors of ~8-16.
+    * Add ``PSFSIZE`` to randoms, pixweight maps and QA plots.
+    * QA and pixweight maps work fully for SV-style files and bits.
+    * Pixweight code can now take HEALpixel-split targets as input.
+    * Add aperture-photometered background flux to randoms catalogs.
+    * Additional unit test module (:func:`test.test_geomask`).
+    * Deprecate `make_hpx_density_file`; use `make_imaging_weight_map`.
+    * :func:`io.read_targets_in_a_box` can now read headers.
+    * Update unit test data for new DR8 columns and functionality.
 * Update QSO targeting algorithms for DR8 [`PR #489`_]. Includes:
     * Update baseline quasar selection for the main survey.
     * Update QSO bits and selection algorithms for SV.
@@ -18,6 +31,7 @@ desitarget Change Log
 .. _`PR #484`: https://github.com/desihub/desitarget/pull/484
 .. _`PR #488`: https://github.com/desihub/desitarget/pull/488
 .. _`PR #489`: https://github.com/desihub/desitarget/pull/489
+.. _`PR #490`: https://github.com/desihub/desitarget/pull/490
 
 0.29.1 (2019-03-26)
 -------------------
