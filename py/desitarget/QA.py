@@ -28,6 +28,7 @@ from astropy.coordinates import SkyCoord
 from desiutil import brick
 from desiutil.log import get_logger
 from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
+from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targets import main_cmx_or_sv
 from desitarget.io import read_targets_in_box, target_columns_from_header
@@ -1514,7 +1515,7 @@ def _in_desi_footprint(targs):
 
 def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True,
                   imaging_map_file=None, truths=None, objtruths=None, tcnames=None,
-                  cmx=False, bit_mask=None, mocks=False):
+                  cmx=False, bit_mask=None, mocks=False, numproc=32):
     """Make DESI targeting QA plots given a passed set of targets.
 
     Parameters
@@ -1552,6 +1553,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         constraints) instead of the main survey bits.
     mocks : :class:`boolean`, optional, default=False
         If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
+    numproc : :class:`int`, optional, defaults to 32
+        The number of parallel processes to use to generate plots.
 
     Returns
     -------
@@ -1564,7 +1567,6 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
           target densities.
         - On execution, a set of .png plots for target QA are written to `qadir`.
     """
-
     # ADM set up the default logger from desiutil.
     log = get_logger()
 
@@ -1656,7 +1658,19 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                       'MWS_ANY': 2000, 'MWS_BROAD': 2000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
                       'MWS_MAIN_RED': 2000, 'MWS_MAIN_BLUE': 2000}
 
-    for objtype in targdens:
+    nbits = len(targdens)
+    nbit = np.ones((), dtype='i8')
+    t0 = time()
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        log.info('Done {}/{} bitnames...t = {:.1f}s'.format(nbit, nbits, time()-t0))
+        nbit[...] += 1    # this is an in-place modification                                                                                                                                                
+        return result
+
+    def _generate_plots(objtype):
+        """Make relevant plots for each bit name in objtype"""
+
         if 'ALL' in objtype:
             ii = np.ones(len(targs)).astype('bool')
         else:
@@ -1714,13 +1728,21 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 log.info('Made Gaia-based plots for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
 
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            pool.map(_generate_plots, list(targdens.keys()), reduce=_update_status)
+    else:
+        for objtype in targdens:
+            _update_status(_generate_plots(objtype))
+
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
                  clip2foot=False, weight=True, imaging_map_file=None,
-                 tcnames=None, systematics=True):
+                 tcnames=None, systematics=True, numproc=32):
     """Create a directory containing a webpage structure in which to embed QA plots.
 
     Parameters
@@ -1755,6 +1777,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         for those specific bits. A useful speed-up when testing
     systematics : :class:`boolean`, optional, defaults to ``True``
         If sent, then add plots of systematics to the front page.
+    numproc : :class:`int`, optional, defaults to 32
+        The number of parallel processes to use to generate plots.
 
     Returns
     -------
@@ -1981,11 +2005,11 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM make the QA plots, if requested:
     if makeplots:
         if svs == "MAIN":
-            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths,
+            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths, numproc=numproc,
                                     qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
                                     weight=weight, imaging_map_file=imaging_map_file, mocks=mocks)
         else:
-            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths,
+            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths, numproc=numproc,
                                     qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
                                     weight=weight, imaging_map_file=imaging_map_file,
                                     cmx=cmx, bit_mask=masks, mocks=mocks)
@@ -2000,17 +2024,22 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         # ADM write out a list of the target categories.
         headerlist = list(settargdens)
         headerlist.sort()
+        # ADM edit SV target categories to their initial letters to squeeze space.
+        hl = headerlist.copy()
+        if svs == 'SV':
+            for tc in 'QSO', 'ELG', 'LRG', 'BGS', 'MWS':
+                hl = [h.replace(tc, tc[0]) for h in hl]
         # ADM truncate the bit names at "trunc" characters to pack them more easily.
-        trunc = 9
+        trunc = 8
         truncform = '{:>'+str(trunc)+'s}'
-        headerwrite = [bitname[:trunc] for bitname in headerlist]
+        headerwrite = [bitname[:trunc] for bitname in hl]
         headerwrite.insert(0, " ")
         header = " ".join([truncform.format(i) for i in headerwrite])+'\n\n'
         htmlmain.write(header)
         # ADM for each pair of target classes, determine how many targets per unit area
         # ADM have the relevant target bit set for both target classes in the pair.
         for i, objtype1 in enumerate(headerlist):
-            overlaps = [objtype1[:trunc]]
+            overlaps = [hl[i][:trunc]]
             for j, objtype2 in enumerate(headerlist):
                 if j < i:
                     overlaps.append(" ")
