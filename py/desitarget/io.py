@@ -700,7 +700,7 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
 
 
 def write_randoms(filename, data, indir=None, hdr=None, nside=None,
-                  density=None, resolve=True):
+                  density=None, resolve=True, aprad=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -722,7 +722,8 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None,
         write to header of the output file if not None.
     resolve : :class:`bool`, optional, defaults to ``True``
         Written to the output file header as `RESOLVE`.
-
+    aprad : :class:`float, optional, defaults to ``None``
+        If passes, written to the outpue header as `APRAD`.
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
@@ -750,6 +751,10 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None,
     # ADM add density of points if requested by input.
     if density is not None:
         hdr['DENSITY'] = density
+
+    # ADM add aperture radius (in arcsec) if requested by input.
+    if aprad is not None:
+        hdr['APRAD'] = aprad
 
     # ADM add whether or not the randoms were resolved to the header.
     hdr["RESOLVE"] = resolve
