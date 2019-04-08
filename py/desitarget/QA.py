@@ -1664,6 +1664,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     nbits = len(targdens)
     nbit = np.ones((), dtype='i8')
     t0 = time()
+
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
