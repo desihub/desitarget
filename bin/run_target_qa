@@ -12,6 +12,9 @@ from desitarget.io import read_targets_in_box_header
 from desiutil.log import get_logger
 log = get_logger()
 
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
 from argparse import ArgumentParser
 ap = ArgumentParser()
 ap.add_argument("src", 
@@ -30,6 +33,9 @@ ap.add_argument('-t','--tcnames', default=None,
                 help="Names of specific target classes for which to make the QA pages. (e.g. QSO,LRG,ALL)")
 ap.add_argument('--nosystematics', action='store_true', 
                 help="Don't make systematics plots on the front page (perhaps because the weightmapfile was not passed)")
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use when generating plots [defaults to {}]'.format(nproc),
+                default=nproc)
 
 ns = ap.parse_args()
 
@@ -64,7 +70,8 @@ if ns.nside:
 else:
     max_bin_area = 1.0
 
-make_qa_page(ns.src, qadir=ns.dest,
+log.info("generating plots on {} processors".format(ns.numproc))
+make_qa_page(ns.src, qadir=ns.dest, numproc=ns.numproc,
              mocks=ns.mocks, makeplots=makeplots, max_bin_area=max_bin_area, 
              imaging_map_file=ns.weightmapfile, tcnames=tcnames, systematics=systematics)
 log.info('Targeting QA pages and plots written to {}'.format(ns.dest))

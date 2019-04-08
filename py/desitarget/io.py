@@ -723,7 +723,7 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None,
     resolve : :class:`bool`, optional, defaults to ``True``
         Written to the output file header as `RESOLVE`.
     aprad : :class:`float, optional, defaults to ``None``
-        If passes, written to the outpue header as `APRAD`.
+        If passed, written to the outpue header as `APRAD`.
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
