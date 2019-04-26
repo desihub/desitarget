@@ -6,7 +6,7 @@ desitarget Change Log
 -------------------
 
 * Further updates and enhancements for DR8 [`PR #490`_]. Includes:
-    * Resolve sky locations and SV targets into North/South regions.
+    * Resolve sky locations and SV targets by North/South regions.
     * Update sky and SV slurming for DR8-style input (two directories).
     * Write both of two input directories to output file headers.
     * Parallelize plot production to speed-up QA by factors of 8.
