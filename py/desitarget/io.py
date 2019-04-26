@@ -277,7 +277,13 @@ def add_photsys(indata):
     # ADM only add the PHOTSYS column if RELEASE exists.
     if 'RELEASE' in indata.dtype.names:
         # ADM add PHOTSYS to the data model.
-        pdt = [('PHOTSYS', '|S1')]
+        # ADM the fitsio check is a hack for the v0.9 to v1.0 transition
+        # ADM (v1.0 now converts all byte strings to unicode strings).
+        from distutils.version import LooseVersion
+        if LooseVersion(fitsio.__version__) >= LooseVersion('1'):
+            pdt = [('PHOTSYS', '<U1')]
+        else:
+            pdt = [('PHOTSYS', '|S1')]
         dt = indata.dtype.descr + pdt
 
         # ADM create a new numpy array with the fields from the new data model...
@@ -319,7 +325,8 @@ def read_tractor(filename, header=False, columns=None):
 
     fx = fitsio.FITS(filename, upper=True)
     fxcolnames = fx[1].get_colnames()
-    hdr = fx[1].read_header()
+    if header:
+        hdr = fx[1].read_header()
 
     if columns is None:
         readcolumns = list(tsdatamodel.dtype.names)
@@ -1485,8 +1492,7 @@ def target_columns_from_header(hpdirname):
         fn = next(iglob(os.path.join(hpdirname, '*fits')))
 
     # ADM read in the header and find any columns matching _TARGET.
-    hdr = fitsio.read_header(fn, "TARGETS")
-    allcols = np.array([hdr[name] if isinstance(hdr[name], str) else 'BLAT' for name in hdr])
+    allcols = np.array(fitsio.FITS(fn)["TARGETS"].get_colnames())
     targcols = allcols[['_TARGET' in col for col in allcols]]
 
-    return targcols
+    return list(targcols)
