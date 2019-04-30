@@ -14,11 +14,13 @@ from astropy.wcs import WCS
 from time import time
 import healpy as hp
 import fitsio
+import photutils
 from glob import glob
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
-from desitarget.targets import resolve
+from desitarget.targets import resolve, main_cmx_or_sv
+from desitarget.skyfibers import get_brick_info
+from desitarget.io import read_targets_in_box, target_columns_from_header
 
 # ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -214,7 +216,8 @@ def _pre_or_post_dr8(drdir):
     return drdirs
 
 
-def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
+def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
+                                           aprad=0.75):
     """Wrapper on `quantities_at_positions_in_a_brick` for DR8 imaging and beyond.
 
     Notes
@@ -231,7 +234,7 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     # ADM determine the dictionary of quantities for one or two directories.
     qall = []
     for dd in drdirs:
-        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd)
+        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd, aprad=aprad)
         # ADM don't count bricks where we never read a file header.
         if q is not None:
             qall.append(q)
@@ -244,8 +247,9 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     return qcombine
 
 
-def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
-    """Return NOBS, GALDEPTH, PSFDEPTH (per-band) at positions in one brick of the Legacy Surveys
+def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
+                                       aprad=0.75):
+    """Observational quantities (per-band) at positions in a Legacy Surveys brick.
 
     Parameters
     ----------
@@ -258,19 +262,28 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     drdir : :class:`str`
        The root directory pointing to a Data Release from the Legacy Surveys
        e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
-
+    aprad : :class:`float`, optional, defaults to 0.75
+        Radii in arcsec of aperture for which to derive sky fluxes
+        defaults to the DESI fiber radius.
     Returns
     -------
     :class:`dictionary`
-       The number of observations (NOBS_X), PSF depth (PSFDEPTH_X) and Galaxy depth (GALDEPTH_X)
-       at each passed position in the Legacy Surveys in each band X. In addition, the MASKBITS
+       The number of observations (`nobs_x`), PSF depth (`psfdepth_x`)
+       Galaxy depth (`galdepth_x`), PSF size (`psfsize_x`), and sky
+       background (`apflux_x`) and inverse variance (`apflux_ivar_x`)
+       at each passed position in each band X. Plus, the `maskbits`
        information at each passed position for the brick.
 
     Notes
     -----
         - First version copied shamelessly from Anand Raichoor.
     """
+    # ADM guard against too low a density of random locations.
     npts = len(ras)
+    if npts == 0:
+        msg = 'brick {} is empty. Increase the density of random points!'.format(brickname)
+        log.critical(msg)
+        raise ValueError(msg)
 
     # ADM determine whether the coadd files have extension .gz or .fz based on the DR directory.
     extn, extn_nb = dr_extension(drdir)
@@ -285,36 +298,54 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
     instrum = None
 
     rootdir = os.path.join(drdir, 'coadd', brickname[:3], brickname)
+    fileform = os.path.join(rootdir, 'legacysurvey-{}-{}-{}.fits.{}')
     # ADM loop through each of the filters and store the number of observations at the
     # ADM RA and Dec positions of the passed points.
     for filt in ['g', 'r', 'z']:
         # ADM the input file labels, and output column names and output formats
         # ADM for each of the quantities of interest.
-        qnames = zip(['nexp', 'depth', 'galdepth'],
-                     ['nobs', 'psfdepth', 'galdepth'],
-                     ['i2', 'f4', 'f4'])
+        qnames = zip(['nexp', 'depth', 'galdepth', 'psfsize', 'image'],
+                     ['nobs', 'psfdepth', 'galdepth', 'psfsize', 'apflux'],
+                     ['i2', 'f4', 'f4', 'f4', 'f4'])
         for qin, qout, qform in qnames:
-            fn = os.path.join(
-                rootdir, 'legacysurvey-{}-{}-{}.fits.{}'.format(brickname, qin, filt, extn)
-                )
+            fn = fileform.format(brickname, qin, filt, extn)
             # ADM only process the WCS if there is a file corresponding to this filter.
             if os.path.exists(fn):
-                img = fits.open(fn)
+                img = fits.open(fn)[extn_nb]
                 if not iswcs:
                     # ADM also store the instrument name, if it isn't yet stored.
-                    instrum = img[extn_nb].header["INSTRUME"].lower().strip()
-                    w = WCS(img[extn_nb].header)
+                    instrum = img.header["INSTRUME"].lower().strip()
+                    w = WCS(img.header)
                     x, y = w.all_world2pix(ras, decs, 0)
                     iswcs = True
                 # ADM determine the quantity of interest at each passed location
                 # ADM and store in a dictionary with the filter and quantity name.
-                qdict[qout+'_'+filt] = img[extn_nb].data[y.astype("int"), x.astype("int")]
-                # log.info('Determined {} using WCS for {}...t = {:.1f}s'
-                #          .format(qout+'_'+filt,fn,time()-start))
+                if qout == 'apflux':
+                    # ADM special treatment to photometer sky. Read in the ivar image.
+                    fnivar = fileform.format(brickname, 'invvar', filt, extn)
+                    ivar = fits.open(fnivar)[extn_nb].data
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        # ADM transform ivars to errors, guarding against 1/0.
+                        imsigma = 1./np.sqrt(ivar)
+                        imsigma[ivar == 0] = 0
+                    # ADM perform aperture photometry at the requested radius (aprad).
+                    apxy = np.vstack((x, y)).T
+                    aper = photutils.CircularAperture(apxy, aprad)
+                    p = photutils.aperture_photometry(img.data, aper, error=imsigma)
+                    # ADM store the results.
+                    qdict[qout+'_'+filt] = np.array(p.field('aperture_sum'))
+                    err = p.field('aperture_sum_err')
+                    with np.errstate(divide='ignore', invalid='ignore'):
+                        # ADM transform errors to ivars, guarding against 1/0.
+                        ivar = 1./err**2.
+                        ivar[err == 0] = 0.
+                    qdict[qout+'_ivar_'+filt] = np.array(ivar)
+                else:
+                    qdict[qout+'_'+filt] = img.data[y.astype("int"), x.astype("int")]
+            # ADM if the file doesn't exist, set the relevant quantities to zero.
             else:
-                # log.info('no {} file at {}...t = {:.1f}s'
-                #          .format(qin+'_'+filt,fn,time()-start))
-                # ADM if the file doesn't exist, set the relevant quantities to zero.
+                if qout == 'apflux':
+                    qdict['apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
                 qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
 
     # ADM add the mask bits information.
@@ -322,16 +353,16 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir):
                       'legacysurvey-{}-maskbits.fits.{}'.format(brickname, extn))
     # ADM only process the WCS if there is a file corresponding to this filter.
     if os.path.exists(fn):
-        img = fits.open(fn)
+        img = fits.open(fn)[extn_nb]
         # ADM use the WCS calculated for the per-filter quantities above, if it exists.
         if not iswcs:
             # ADM also store the instrument name, if it isn't yet stored.
-            instrum = img[extn_nb].header["INSTRUME"].lower().strip()
-            w = WCS(img[extn_nb].header)
+            instrum = img.header["INSTRUME"].lower().strip()
+            w = WCS(img.header)
             x, y = w.all_world2pix(ras, decs, 0)
             iswcs = True
         # ADM add the maskbits to the dictionary.
-        qdict['maskbits'] = img[extn_nb].data[y.astype("int"), x.astype("int")]
+        qdict['maskbits'] = img.data[y.astype("int"), x.astype("int")]
     else:
         # ADM if there is no maskbits file, populate with zeros.
         qdict['maskbits'] = np.zeros(npts, dtype='i2')
@@ -444,7 +475,7 @@ def get_dust(ras, decs, scaling=1, dustdir=None):
 
 
 def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
-                              density=100000, dustdir=None):
+                              density=100000, dustdir=None, aprad=0.75):
     """NOBS, DEPTHS etc. (per-band) for random points in a brick of the Legacy Surveys
 
     Parameters
@@ -468,26 +499,25 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     dustdir : :class:`str`, optional, defaults to $DUST_DIR+'/maps'
         The root directory pointing to SFD dust maps. If not
         sent the code will try to use $DUST_DIR+'/maps' before failing.
+    aprad : :class:`float`, optional, defaults to 0.75
+        Radii in arcsec of aperture for which to derive sky fluxes
+        defaults to the DESI fiber radius.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the following columns:
-            RA: Right Ascension of a random point
-            DEC: Declination of a random point
-            BRICKNAME: Passed brick name
-            NOBS_G: Number of observations at this location in the g-band
-            NOBS_R: Number of observations at this location in the r-band
-            NOBS_Z: Number of observations at this location in the z-band
-            PSFDEPTH_G: PSF depth at this location in the g-band
-            PSFDEPTH_R: PSF depth at this location in the r-band
-            PSFDEPTH_Z: PSF depth at this location in the z-band
-            GALDEPTH_G: Galaxy depth at this location in the g-band
-            GALDEPTH_R: Galaxy depth at this location in the r-band
-            GALDEPTH_Z: Galaxy depth at this location in the z-band
+            RA, DEC: Right Ascension, Declination of a random location.
+            BRICKNAME: Passed brick name.
+            NOBS_G, R, Z: Number of observations at this location in g, r, z-band.
+            PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
+            GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
+            PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec) in g, r, z.
+            APFLUX_G, R, Z: Sky background extracted in `aprad` in g, r, z.
+            APFLUX_IVAR_G, R, Z: Inverse variance of sky background in g, r, z.
             MASKBITS: Extra mask bits info as stored in the header of e.g.,
               dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
-            EBV: E(B-V) at this location from the SFD dust maps
+            EBV: E(B-V) at this location from the SFD dust maps.
     """
     # ADM this is only intended to work on one brick, so die if a larger array is passed.
     if not isinstance(brickname, str):
@@ -498,7 +528,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=density)
 
     # ADM retrieve the dictionary of quantities for each random point.
-    qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir)
+    qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir, aprad=aprad)
 
     # ADM if we detected different cameras corresponding to 2 Data Releases
     # ADM for this brick then we need to duplicate the ras, decs as well.
@@ -515,6 +545,9 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                             ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                             ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                             ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
+                            ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
+                            ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_Z', 'f4'),
+                            ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
                             ('MASKBITS', 'i2'), ('EBV', 'f4'), ('PHOTSYS', '|S1')])
     # ADM store each quantity of interest in the structured array
     # ADM remembering that the dictionary keys are in lower case text.
@@ -531,7 +564,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     return qinfo
 
 
-def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outarea=True):
+def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outarea=True):
     """Fraction of area covered in HEALPixels by a random catalog
 
     Parameters
@@ -551,9 +584,6 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outa
         than -1) in r-band and z-band.
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel NESTED nside number) at which to build the map.
-    outplot : :class:`str`, optional, defaults to not making a plot
-        Create a plot and write it to a file named `outplot` (this is passed to
-        the `savefig` routine from `matplotlib.pyplot`.
     outarea : :class:`boolean`, optional, defaults to True
         Print the total area of the survey for these values of `nobsgrz` to screen.
 
@@ -572,8 +602,6 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outa
         - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
         - The index of the array is the HEALPixel integer.
     """
-    import matplotlib.pyplot as plt
-
     # ADM if a file name was passed for the random catalog, read it in
     if isinstance(randoms, str):
         randoms = fitsio.read(randoms)
@@ -600,12 +628,6 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outplot=None, outa
     expected_cnt = hp.nside2pixarea(nside, degrees=True)*density
     # ADM create a weight map based on the actual counts divided by the expected counts
     pix_weight = pix_cnt/expected_cnt
-
-    # ADM if outplot was passed, make a plot of the weights in Mollweide projection
-    if outplot is not None:
-        log.info('Plotting pixel map and writing to {}'.format(outplot))
-        hp.mollview(pix_weight, nest=True)
-        plt.savefig(outplot)
 
     # ADM if requested, print the total area of the survey to screen
     if outarea:
@@ -671,14 +693,17 @@ def stellar_density(nside=256):
     return pixout/pixarea
 
 
-def get_targ_dens(targets, nside=256):
-    """The density of targets in HEALPixels
+def get_targ_dens(targets, Mx, nside=256):
+    """The density of targets in HEALPixels.
 
     Parameters
     ----------
     targets : :class:`~numpy.ndarray` or `str`
         A corresponding (same Legacy Surveys Data Release) target catalog as made by,
         e.g., :func:`desitarget.cuts.select_targets()`, or the name of such a file.
+    Mx : :class:`list` or `~numpy.array`
+        The targeting bitmasks associated with the passed targets, assumed to be
+        a desi, bgs and mws mask in that order (for either SV or the main survey).
     nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
         The resolution (HEALPixel nside number) at which to build the map (NESTED scheme).
 
@@ -694,6 +719,14 @@ def get_targ_dens(targets, nside=256):
         log.info('Reading in target catalog...t = {:.1f}s'.format(time()-start))
         targets = fitsio.read(targets)
 
+    # ADM retrieve the bitmasks.
+    if Mx[0]._name == 'cmx_mask':
+        msg = 'generating target densities does NOT work for CMX files!!!'
+        log.critical(msg)
+        raise ValueError(msg)
+    else:
+        desi_mask, bgs_mask, mws_mask = Mx
+
     # ADM the number of pixels and the pixel area at the passed nside
     npix = hp.nside2npix(nside)
     pixarea = hp.nside2pixarea(nside, degrees=True)
@@ -704,26 +737,26 @@ def get_targ_dens(targets, nside=256):
 
     # ADM retrieve the bit names of interest
     from desitarget.QA import _load_targdens
-    bitnames = np.array(list(_load_targdens().keys()))
+    bitnames = np.array(list(_load_targdens(bit_mask=Mx).keys()))
 
     # ADM and set up an array to hold the output target densities
     targdens = np.zeros(npix, dtype=[(bitname, 'f4') for bitname in bitnames])
 
     for bitname in bitnames:
         if 'ALL' in bitname:
-            wbit = np.arange(len(targets))
+            ii = np.ones(len(targets)).astype('bool')
         else:
-            if ('BGS' in bitname) & ~('ANY' in bitname):
-                wbit = np.where(targets["BGS_TARGET"] & bgs_mask[bitname])[0]
-            elif ('MWS' in bitname) & ~('ANY' in bitname):
-                wbit = np.where(targets["MWS_TARGET"] & mws_mask[bitname])[0]
+            if ('BGS' in bitname) and not('S_ANY' in bitname):
+                ii = targets["BGS_TARGET"] & bgs_mask[bitname] != 0
+            elif ('MWS' in bitname) and not('S_ANY' in bitname):
+                ii = targets["MWS_TARGET"] & mws_mask[bitname] != 0
             else:
-                wbit = np.where(targets["DESI_TARGET"] & desi_mask[bitname])[0]
+                ii = targets["DESI_TARGET"] & desi_mask[bitname] != 0
 
-        if len(wbit) > 0:
+        if np.any(ii):
             # ADM calculate the number of objects in each pixel for the
             # ADM targets of interest
-            pixnum, pixcnt = np.unique(pixnums[wbit], return_counts=True)
+            pixnum, pixcnt = np.unique(pixnums[ii], return_counts=True)
             targdens[bitname][pixnum] = pixcnt/pixarea
 
     return targdens
@@ -738,8 +771,10 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         A random catalog as made by, e.g., :func:`select_randoms()` or
         :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
     targets : :class:`~numpy.ndarray` or `str`
-        A corresponding (same Legacy Surveys Data Release) target catalog as made by,
-        e.g., :func:`desitarget.cuts.select_targets()`, or the name of such a file.
+        A corresponding (i.e. same Data Release) target catalog as made by, e.g.,
+        :func:`desitarget.cuts.select_targets()`, or a file name of such targets,
+        or the name of a directory containing HEALPixel-split targets that can
+        be read by :func:`desitarget.io.read_targets_in_box()`.
     rand_density : :class:`int`
         The number of random points per sq. deg. At which the random catalog was
         generated (see also :func:`select_randoms()`).
@@ -766,8 +801,13 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                                 the median of PSFDEPTH values in the passed random catalog.
             - GALDEPTH_G, R, Z: The galaxy depth in g, r, z-band in the pixel, derived from
                                 the median of GALDEPTH values in the passed random catalog.
+            - PSFSIZE_G, R, Z: Weighted average PSF FWHM, in arcsec, in g, r, z in the pixel,
+                               from the median of PSFSIZE values in the passed random catalog.
             - One column for every bit returned by :func:`desitarget.QA._load_targdens()`.
               Each column contains the density of targets in pixels at the passed `nside`
+    :class:`str`
+        The type of survey to which `targets` corresponds, e.g., 'main', 'sv1', etc.
+
     Notes
     -----
         - If `gaialoc` is ``None`` then the environment variable $GAIA_DIR must be set.
@@ -780,27 +820,33 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM if a file name was passed for the targets catalog, read it in
     if isinstance(targets, str):
         log.info('Reading in target catalog...t = {:.1f}s'.format(time()-start))
-        targets = fitsio.read(targets)
+        # ADM grab appropriate columns for an SV/cmx/main survey file.
+        targcols = target_columns_from_header(targets)
+        cols = np.concatenate([["RA", "DEC"], targcols])
+        targets = read_targets_in_box(targets, columns=cols)
+    # ADM change target column names, and retrieve associated survey information.
+    _, Mx, survey, targets = main_cmx_or_sv(targets, rename=True)
 
-    # ADM determine the areal coverage at of the randoms at this nside
+    # ADM determine the areal coverage of the randoms at this nside.
     log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
     pw = pixweight(randoms, rand_density, nside=nside)
     npix = len(pw)
 
-    # ADM get the target densities
+    # ADM get the target densities.
     log.info('Calculating target densities...t = {:.1f}s'.format(time()-start))
-    targdens = get_targ_dens(targets, nside=nside)
+    targdens = get_targ_dens(targets, Mx, nside=nside)
 
-    # ADM set up the output array
+    # ADM set up the output array.
     datamodel = [('HPXPIXEL', '>i4'), ('FRACAREA', '>f4'), ('STARDENS', '>f4'), ('EBV', '>f4'),
                  ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'),
-                 ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4')]
+                 ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'),
+                 ('PSFSIZE_G', '>f4'), ('PSFSIZE_R', '>f4'), ('PSFSIZE_Z', '>f4')]
     datamodel += targdens.dtype.descr
     hpxinfo = np.zeros(npix, dtype=datamodel)
-    # ADM set initial values to -1 so that they can easily be clipped
+    # ADM set initial values to -1 so that they can easily be clipped.
     hpxinfo[...] = -1
 
-    # ADM add the areal coverage, pixel information and target densities
+    # ADM add the areal coverage, pixel information and target densities.
     hpxinfo['HPXPIXEL'] = np.arange(npix)
     hpxinfo['FRACAREA'] = pw
     for col in targdens.dtype.names:
@@ -818,22 +864,24 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                          .format(gaialoc, nside))
     hpxinfo["STARDENS"] = sd
 
-    # ADM add the median values of all of the other systematics
+    # ADM add the median values of all of the other systematics.
     log.info('Calculating medians of systematics from random catalog...t = {:.1f}s'
              .format(time()-start))
     ras, decs = randoms["RA"], randoms["DEC"]
     pixnums = hp.ang2pix(nside, np.radians(90.-decs), np.radians(ras), nest=True)
 
-    # ADM some sorting to order the values to extract the medians
+    # ADM some sorting to order the values to extract the medians.
     pixorder = np.argsort(pixnums)
     pixels, pixcnts = np.unique(pixnums, return_counts=True)
     pixcnts = np.insert(pixcnts, 0, 0)
     pixcnts = np.cumsum(pixcnts)
 
     # ADM work through the ordered pixels to populate the median for
-    # ADM each quantity of interest
-    cols = ['EBV', 'PSFDEPTH_G', 'GALDEPTH_G', 'PSFDEPTH_R', 'GALDEPTH_R',
-            'PSFDEPTH_Z', 'GALDEPTH_Z']
+    # ADM each quantity of interest.
+    cols = ['EBV',
+            'PSFDEPTH_G', 'GALDEPTH_G', 'PSFSIZE_G',
+            'PSFDEPTH_R', 'GALDEPTH_R', 'PSFSIZE_R',
+            'PSFDEPTH_Z', 'GALDEPTH_Z', 'PSFSIZE_Z']
     for i in range(len(pixcnts)-1):
         inds = pixorder[pixcnts[i]:pixcnts[i+1]]
         pix = pixnums[inds][0]
@@ -842,12 +890,12 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
-    return hpxinfo
+    return hpxinfo, survey
 
 
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5,
-                   dustdir=None, resolverands=True):
+                   dustdir=None, resolverands=True, aprad=0.75):
     """NOBS, DEPTHs, MASKBITs (per-band) for random points in a Legacy Surveys DR.
 
     Parameters
@@ -886,65 +934,38 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     resolverands : :class:`boolean`, optional, defaults to ``True``
         If ``True``, resolve randoms into northern randoms in northern regions
         and southern randoms in southern regions.
+    aprad : :class:`float`, optional, defaults to 0.75
+        Radii in arcsec of aperture for which to derive sky fluxes
+        defaults to the DESI fiber radius.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        a numpy structured array with the following columns:
-            RA: Right Ascension of a random point
-            DEC: Declination of a random point
-            BRICKNAME: Passed brick name
-            NOBS_G: Number of observations at this location in the g-band
-            NOBS_R: Number of observations at this location in the r-band
-            NOBS_Z: Number of observations at this location in the z-band
-            PSFDEPTH_G: PSF depth at this location in the g-band
-            PSFDEPTH_R: PSF depth at this location in the r-band
-            PSFDEPTH_Z: PSF depth at this location in the z-band
-            GALDEPTH_G: Galaxy depth at this location in the g-band
-            GALDEPTH_R: Galaxy depth at this location in the r-band
-            GALDEPTH_Z: Galaxy depth at this location in the z-band
-            MASKBITS: Extra mask bits info as stored in the header of e.g.,
-              dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
-            EBV: E(B-V) at this location from the SFD dust maps
+        a numpy structured array with the same columns as returned by
+        :func:`~desitarget.randoms.get_quantities_in_a_brick`.
+
     """
-    # ADM read in the survey bricks file, which lists the bricks of interest for this DR.
-    # ADM if this is pre-or-post-DR8 we need to find the correct directory or directories.
+    # ADM grab brick information for this data release. Depending on whether this
+    # ADM is pre-or-post-DR8 we need to find the correct directory or directories.
     drdirs = _pre_or_post_dr8(drdir)
-    bricknames = []
-    for dd in drdirs:
-        sbfile = glob(dd+'/*bricks-dr*')
-        if len(sbfile) > 0:
-            sbfile = sbfile[0]
-            hdu = fits.open(sbfile)
-            bricknames.append(hdu[1].data['BRICKNAME'])
-        else:
-            # ADM hack for test bricks where we didn't generate the bricks file.
-            from desitarget.io import brickname_from_filename
-            fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
-            bricknames.append([brickname_from_filename(fn) for fn in fns])
-    # ADM don't count bricks twice.
-    bricknames = np.unique(np.concatenate(bricknames))
-    # ADM initialize the bricks class, retrieve the brick information look-up table,
-    # ADM turn it into a fast look-up dictionary.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
-    brickdict = {}
-    for b in bricktable:
-        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
-                                     b["RA1"], b["RA2"], b["DEC1"], b["DEC2"]]
+    brickdict = get_brick_info(drdirs, counts=True)
+    # ADM this is just the UNIQUE brick names across all surveys.
+    bricknames = np.array(list(brickdict.keys()))
 
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
-        bra, bdec, bramin, bramax, bdecmin, bdecmax = np.vstack(
-            [np.array(brickdict[bn]) for bn in bricknames]).T
+        bra, bdec, _, _, _, _, cnts = np.vstack(brickdict.values()).T
         theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
     # ADM if the bundlebricks option was sent, call the packing code.
     if bundlebricks is not None:
-        bundle_bricks(pixnum, bundlebricks, nside, brickspersec=brickspersec,
-                      prefix='randoms', surveydir=drdir)
+        # ADM pixnum only contains unique bricks, need to add duplicates.
+        allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
+                                    for cnt, pix in zip(cnts.astype(int), pixnum)])
+        bundle_bricks(allpixnum, bundlebricks, nside, brickspersec=brickspersec,
+                      prefix='randoms', surveydirs=[drdir])
         return
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested.
@@ -952,9 +973,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         # ADM if an integer was passed, turn it into a list.
         if isinstance(pixlist, int):
             pixlist = [pixlist]
-        wbricks = np.where([pix in pixlist for pix in pixnum])[0]
-        bricknames = bricknames[wbricks]
-        if len(wbricks) == 0:
+        ii = [pix in pixlist for pix in pixnum]
+        bricknames = bricknames[ii]
+        if len(bricknames) == 0:
             log.warning('ZERO bricks in passed pixel list!!!')
         log.info("Processing bricks in (nside={}, pixel numbers={}) HEALPixels"
                  .format(nside, pixlist))
@@ -971,12 +992,12 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     def _get_quantities(brickname):
         '''wrapper on nobs_positions_in_a_brick_from_edges() given a brick name'''
         # ADM retrieve the edges for the brick that we're working on
-        bra, bdec, bramin, bramax, bdecmin, bdecmax = brickdict[brickname]
+        bra, bdec, bramin, bramax, bdecmin, bdecmax, _ = brickdict[brickname]
 
         # ADM populate the brick with random points, and retrieve the quantities
         # ADM of interest at those points.
-        return get_quantities_in_a_brick(bramin, bramax, bdecmin, bdecmax, brickname,
-                                         drdir, density=density, dustdir=dustdir)
+        return get_quantities_in_a_brick(bramin, bramax, bdecmin, bdecmax, brickname, drdir,
+                                         density=density, dustdir=dustdir, aprad=aprad)
 
     # ADM this is just to count bricks in _update_status
     nbrick = np.zeros((), dtype='i8')

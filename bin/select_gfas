@@ -14,7 +14,7 @@ log = get_logger()
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
-nside = 64 #ADM default HEALPix Nside used throughout desitarget
+nside = io.desitarget_nside()   # ADM default HEALPix Nside used throughout desitarget
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates a file of GFA (Guide/Focus/Alignment) targets via matching to Gaia')
@@ -51,17 +51,14 @@ if ns.cmx:
     survey = 'cmx'
 
 infiles = io.list_sweepfiles(ns.surveydir)
-indir = ns.surveydir
 if ns.surveydir2 is not None:
     infiles2 = io.list_sweepfiles(ns.surveydir2)
     infiles += infiles2
-    indir = "{} {}".format(ns.surveydir, ns.surveydir2)
 if len(infiles) == 0:
     infiles = io.list_tractorfiles(ns.surveydir)
     if ns.surveydir2 is not None:
         infiles2 = io.list_tractorfiles(ns.surveydir2)
         infiles += infiles2
-        indir = "{} {}".format(ns.surveydir, ns.surveydir2)
 if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
@@ -79,6 +76,6 @@ gfas = gfas[decgood]
 bbad = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
 gfas = gfas[~bbad]
 
-io.write_gfas(ns.dest, gfas, indir=indir, nside=nside, survey=survey)
+io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2, nside=nside, survey=survey)
 
 log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))

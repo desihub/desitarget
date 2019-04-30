@@ -604,8 +604,8 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
     return np.hstack(ras), np.hstack(decs)
 
 
-def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', gather=True,
-                  surveydir="/global/project/projectdirs/cosmo/data/legacysurvey/dr6"):
+def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
+                  gather=True, surveydirs=None):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
@@ -629,9 +629,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
         files into one large file. If ``False``, comment out that command.
-    surveydir : :class:`str`, optional, defaults to the DR6 directory at NERSC
-        The root directory pointing to a Data Release from the Legacy Surveys,
-        (e.g. "/global/project/projectdirs/cosmo/data/legacysurvey/dr6").
+    surveydirs : :class:`list`
+        Root directories for a Legacy Surveys Data Release. The first element of the
+        list is interpreted as the main directory. IF the list is of length two
+        then the second directory is supplied as "-s2" in the output script.
+        (e.g. ["/global/project/projectdirs/cosmo/data/legacysurvey/dr6"]).
 
     Returns
     -------
@@ -643,6 +645,12 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     -----
     h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
     """
+    # ADM interpret the passed directories.
+    surveydir = surveydirs[0]
+    surveydir2 = None
+    if len(surveydirs) == 2:
+        surveydir2 = surveydirs[1]
+
     # ADM the number of pixels (numpix) in each pixel (pix)
     pix, numpix = np.unique(pixnum, return_counts=True)
 
@@ -738,6 +746,10 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
     if prefix[0:2] == "sv":
         prefix2 = "sv_targets"
 
+    s2 = ""
+    if surveydir2 is not None:
+        s2 = "-s2 {}".format(surveydir2)
+
     outfiles = []
     for bin in bins:
         num = np.array(bin)[:, 0]
@@ -750,8 +762,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets', 
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
             outfiles.append(outfile)
-            print("srun -N 1 select_{} {} {} --numproc 32 --nside {} --healpixels {} &"
-                  .format(prefix2, surveydir, outfile, nside, strgoodpix))
+            print("srun -N 1 select_{} {} {} {} --numproc 32 --nside {} --healpixels {} &"
+                  .format(prefix2, surveydir, outfile, s2, nside, strgoodpix))
     print("wait")
     print("")
     print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"
@@ -839,10 +851,10 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     leeway = 1e-5
     if decmax > 90-leeway:
         decmax = 90-leeway
-        log.warning('Max Dec too close to pole; set to {}o'.format(decmax))
+        log.warning('Max Dec too close to pole; setting to {}o'.format(decmax))
     if decmin < -90+leeway:
         decmin = -90+leeway
-        log.warning('Min Dec too close to pole; set to {}o'.format(decmin))
+        log.warning('Min Dec too close to pole; setting to {}o'.format(decmin))
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
     if np.abs(ramax-ramin) > 180.:

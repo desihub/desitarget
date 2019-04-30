@@ -53,10 +53,12 @@ ap.add_argument("--dustdir",
                 default=None)
 ap.add_argument("--noresolve", action='store_true',
                 help="Do NOT resolve into northern randoms in northern regions and southern randoms in southern regions")
+ap.add_argument("--aprad", type=float,
+                help="Radius of aperture in arcsec in which to generated sky background flux levels (defaults to 0.75; the DESI fiber radius)",
+                default=0.75)
 
 
 ns = ap.parse_args()
-
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels
 if pixlist is not None:
@@ -90,12 +92,12 @@ if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
             hdr[record] = rmhdr['_record_map'][record]
 
 randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
-                         nside=ns.nside, pixlist=pixlist,
+                         nside=ns.nside, pixlist=pixlist, aprad=ns.aprad,
                          bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
                          dustdir=ns.dustdir, resolverands=not(ns.noresolve))
 
 if ns.bundlebricks is None:
-    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, 
+    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, aprad=ns.aprad,
                      hdr=hdr, nside=nside, density=ns.density, resolve=not(ns.noresolve))
     log.info('wrote file of {} randoms to {}...t = {:.1f}s'
              .format(len(randoms), ns.dest,time()-start))

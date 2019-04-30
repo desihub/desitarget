@@ -16,7 +16,7 @@ import re
 from . import __version__ as desitarget_version
 import numpy.lib.recfunctions as rfn
 import healpy as hp
-from glob import glob
+from glob import glob, iglob
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -277,7 +277,13 @@ def add_photsys(indata):
     # ADM only add the PHOTSYS column if RELEASE exists.
     if 'RELEASE' in indata.dtype.names:
         # ADM add PHOTSYS to the data model.
-        pdt = [('PHOTSYS', '|S1')]
+        # ADM the fitsio check is a hack for the v0.9 to v1.0 transition
+        # ADM (v1.0 now converts all byte strings to unicode strings).
+        from distutils.version import LooseVersion
+        if LooseVersion(fitsio.__version__) >= LooseVersion('1'):
+            pdt = [('PHOTSYS', '<U1')]
+        else:
+            pdt = [('PHOTSYS', '|S1')]
         dt = indata.dtype.descr + pdt
 
         # ADM create a new numpy array with the fields from the new data model...
@@ -319,7 +325,8 @@ def read_tractor(filename, header=False, columns=None):
 
     fx = fitsio.FITS(filename, upper=True)
     fxcolnames = fx[1].get_colnames()
-    hdr = fx[1].read_header()
+    if header:
+        hdr = fx[1].read_header()
 
     if columns is None:
         readcolumns = list(tsdatamodel.dtype.names)
@@ -341,7 +348,7 @@ def read_tractor(filename, header=False, columns=None):
         for col in dr7datamodel.dtype.names:
             readcolumns.append(col)
         # ADM deal with some custom files I made that don't contain WISEMASK.
-        if 'WISEMASK_W1' not in fxcolnames:
+        if ('WISEMASK_W1' not in fxcolnames) and ('wisemask_w1' not in fxcolnames):
             readcolumns.remove('WISEMASK_W1')
             readcolumns.remove('WISEMASK_W2')
     # ADM if BRIGHTBLOB exists (it does for DR8, not for DR7) add it and
@@ -475,9 +482,9 @@ def release_to_photsys(release):
     return r2p[release]
 
 
-def write_targets(filename, data, indir=None, qso_selection=None,
-                  sandboxcuts=False, nside=None, survey="?",
-                  nsidefile=None, hpxlist=None, resolve=True):
+def write_targets(filename, data, indir=None, indir2=None,
+                  qso_selection=None, sandboxcuts=False, nside=None,
+                  survey="?", nsidefile=None, hpxlist=None, resolve=True):
     """Write a target catalogue.
 
     Parameters
@@ -486,9 +493,9 @@ def write_targets(filename, data, indir=None, qso_selection=None,
         output target selection file.
     data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
-    indir, qso_selection : :class:`str`, optional, default to `None`
-        If passed, note these as the input directory and
-        quasar selection method in the output file header.
+    indir, indir2, qso_selection : :class:`str`, optional, default to `None`
+        If passed, note these as the input directory, an additional input
+        directory, and the QSO selection method in the output file header.
     sandboxcuts : :class:`bool`, optional, defaults to ``False``
         Written to the output file header as `sandboxcuts`.
     nside : :class:`int`, optional, defaults to `None`
@@ -527,6 +534,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
 
     if indir is not None:
         depend.setdep(hdr, 'tractor-files', indir)
+    if indir2 is not None:
+        depend.setdep(hdr, 'tractor-files-2', indir2)
 
     if qso_selection is None:
         log.warning('qso_selection method not specified for output file')
@@ -567,8 +576,8 @@ def write_targets(filename, data, indir=None, qso_selection=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
-def write_skies(filename, data, indir=None, apertures_arcsec=None,
-                nskiespersqdeg=None, nside=None):
+def write_skies(filename, data, indir=None, indir2=None,
+                apertures_arcsec=None, nskiespersqdeg=None, nside=None):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -577,9 +586,9 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         Output target selection file name
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
-    indir : :class:`str`, optional
-        Name of input Legacy Survey Data Release directory, write to header
-        of output file if passed (and if not None).
+    indir, indir2 : :class:`str`, optional
+        Name of input Legacy Survey Data Release directory or directories,
+        write to header of output file if passed (and if not None).
     apertures_arcsec : :class:`list` or `float`, optional
         list of aperture radii in arcseconds to write each aperture as an
         individual line in the header, if passed (and if not None).
@@ -608,6 +617,8 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
         # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
+    if indir2 is not None:
+        depend.setdep(hdr, 'input-data-release-2', indir2)
 
     if apertures_arcsec is not None:
         for i, ap in enumerate(apertures_arcsec):
@@ -634,8 +645,8 @@ def write_skies(filename, data, indir=None, apertures_arcsec=None,
     fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
 
 
-def write_gfas(filename, data, indir=None, nside=None, survey="?",
-               gaiaepoch=None):
+def write_gfas(filename, data, indir=None, indir2=None, nside=None,
+               survey="?", gaiaepoch=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -644,9 +655,9 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
         Output file name.
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
-    indir : :class:`str`, optional, defaults to None.
-        Name of input Legacy Survey Data Release directory, write to header
-        of output file if passed (and if not None).
+    indir, indir2 : :class:`str`, optional, defaults to None.
+        Name of input Legacy Survey Data Release directory or directories,
+        write to header of output file if passed (and if not None).
     nside: :class:`int`, defaults to None.
         If passed, add a column to the GFAs array popluated with HEALPixels
         at resolution `nside`.
@@ -671,6 +682,8 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
         # ADM be rewritten gracefully in the header.
         drstring = 'dr'+indir.split('dr')[-1][0]
         depend.setdep(hdr, 'photcat', drstring)
+    if indir2 is not None:
+        depend.setdep(hdr, 'input-data-release-2', indir2)
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
@@ -694,7 +707,7 @@ def write_gfas(filename, data, indir=None, nside=None, survey="?",
 
 
 def write_randoms(filename, data, indir=None, hdr=None, nside=None,
-                  density=None, resolve=True):
+                  density=None, resolve=True, aprad=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -716,7 +729,8 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None,
         write to header of the output file if not None.
     resolve : :class:`bool`, optional, defaults to ``True``
         Written to the output file header as `RESOLVE`.
-
+    aprad : :class:`float, optional, defaults to ``None``
+        If passed, written to the outpue header as `APRAD`.
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
@@ -744,6 +758,10 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None,
     # ADM add density of points if requested by input.
     if density is not None:
         hdr['DENSITY'] = density
+
+    # ADM add aperture radius (in arcsec) if requested by input.
+    if aprad is not None:
+        hdr['APRAD'] = aprad
 
     # ADM add whether or not the randoms were resolved to the header.
     hdr["RESOLVE"] = resolve
@@ -1223,7 +1241,8 @@ def check_hp_target_dir(hpdirname):
     return nside[0], pixdict
 
 
-def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
+def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
+                       header=False):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -1239,11 +1258,19 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
         Return targets in these HEALPixels at the passed `nside`.
     columns : :class:`list`, optional
         Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         An array of targets in the passed pixels.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
@@ -1274,22 +1301,28 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None):
         # ADM read in the files and concatenate the resulting targets.
         targets = []
         for infile in infiles:
-            targets.append(fitsio.read(infile, columns=columnscopy))
+            targs, hdr = fitsio.read(infile, 'TARGETS',
+                                     columns=columnscopy, header=True)
+            targets.append(targs)
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
-        targets = fitsio.read(hpdirname, columns=columnscopy)
+        targets, hdr = fitsio.read_header(hpdirname, 'TARGETS',
+                                          columns=columnscopy,
+                                          header=True)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
     # ADM ...and remove RA/Dec columns if we added them.
     targets = rfn.drop_fields(targets[ii], addedcols)
 
+    if header:
+        return targets, hdr
     return targets
 
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
-                        columns=None):
+                        columns=None, header=False):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -1304,11 +1337,19 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         forming the edges of a box in RA/Dec (degrees).
     columns : :class:`list`, optional
         Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         An array of targets in the passed RA/Dec box.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
@@ -1330,17 +1371,22 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         pixlist = hp_in_box(nside, radecbox)
 
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist,
-                                     columns=columnscopy)
+        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
+                                          columns=columnscopy,
+                                          header=True)
     # ADM ...otherwise just read in the targets.
     else:
-        targets = fitsio.read(hpdirname, columns=columnscopy)
+        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
+                                   columns=columnscopy,
+                                   header=True)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
     # ADM ...and remove RA/Dec columns if we added them.
     targets = rfn.drop_fields(targets[ii], addedcols)
 
+    if header:
+        return targets, hdr
     return targets
 
 
@@ -1397,3 +1443,56 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     targets = rfn.drop_fields(targets[ii], addedcols)
 
     return targets
+
+
+def read_targets_in_box_header(hpdirname):
+    """Read in targets in an RA/Dec box.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+
+    Returns
+    -------
+    :class:`FITSHDR`
+        The header of `hpdirname` if it is a file, or the header
+        of the first file encountered in `hpdirname`
+    """
+    if os.path.isdir(hpdirname):
+        gen = iglob(os.path.join(hpdirname, '*fits'))
+        hpdirname = next(gen)
+
+    return fitsio.read_header(hpdirname, 'TARGETS')
+
+
+def target_columns_from_header(hpdirname):
+    """Grab the _TARGET column names from a target file or directory.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+
+    Returns
+    -------
+    :class:`list`
+        The names of the _TARGET columns, notably whether they are
+        SV, main, or cmx _TARGET columns.
+    """
+    # ADM determine whether we're dealing with a file or directory.
+    fn = hpdirname
+    if os.path.isdir(hpdirname):
+        fn = next(iglob(os.path.join(hpdirname, '*fits')))
+
+    # ADM read in the header and find any columns matching _TARGET.
+    allcols = np.array(fitsio.FITS(fn)["TARGETS"].get_colnames())
+    targcols = allcols[['_TARGET' in col for col in allcols]]
+
+    return list(targcols)
