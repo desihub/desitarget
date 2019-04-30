@@ -3,10 +3,13 @@
 from __future__ import print_function, division
 
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
-from desitarget.skyfibers import select_skies, density_of_sky_fibers
-from desitarget.io import write_skies
+from desitarget.skyfibers import select_skies, density_of_sky_fibers, get_brick_info
+from desitarget import io
+from desitarget.geomask import bundle_bricks
+from desitarget.targets import resolve
 
 import numpy as np
+import healpy as hp
 
 #import warnings
 #warnings.simplefilter('error')
@@ -15,7 +18,7 @@ import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 # ADM default HEALPix Nside used throughout desitarget.
 # ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
-nside = 64 
+nside = io.desitarget_nside()
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -26,6 +29,9 @@ ap.add_argument("surveydir",
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC")
 ap.add_argument("dest", 
                 help="Output sky targets file (e.g. /project/projectdirs/desi/target/catalogs/skies-dr4-0.20.0.fits)")
+ap.add_argument('-s2', "--surveydir2",
+                help='Additional Legacy Surveys directory (useful for combining, e.g., DR8 into one file of sky locations)',
+                default=None)
 ap.add_argument("--nskiespersqdeg", 
                 help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
                 default=None)
@@ -73,18 +79,42 @@ nskiesfloat = area*nskiespersqdeg
 nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
 log.info('Generating {} sky positions in each brick'.format(nskies))
 
-survey = LegacySurveyData(survey_dir=ns.surveydir)
+surveys = [LegacySurveyData(survey_dir=ns.surveydir)]
+if ns.surveydir2 is not None:
+    surveys.append(LegacySurveyData(survey_dir=ns.surveydir2))
 
-skies = select_skies(survey, numproc=ns.numproc, nskiespersqdeg=nskiespersqdeg, 
-                     bands=bands, apertures_arcsec=apertures,
-                     nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks,
-                     bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec)
+# ADM if bundlebricks is set, grab the HEALPixel number for each brick.
+if ns.bundlebricks is not None:
+    drdirs = [survey.survey_dir for survey in surveys]
+    brickdict = get_brick_info(drdirs, counts=True)
+    bra, bdec, _, _, _, _, cnts = np.vstack(brickdict.values()).T
+    theta, phi = np.radians(90-bdec), np.radians(bra)
+    pixnum = hp.ang2pix(ns.nside, theta, phi, nest=True)
+    # ADM pixnum only contains unique bricks, need to add duplicates.
+    allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
+                        for cnt, pix in zip(cnts.astype(int), pixnum)])
+    bundle_bricks(allpixnum, ns.bundlebricks, ns.nside, prefix='skies',
+                  surveydirs=drdirs, brickspersec=ns.brickspersec)
+else:
+    # ADM run the main sky selection code over the passed surveys.
+    skies = []
+    for survey in surveys:
+        skies.append(select_skies(
+            survey, numproc=ns.numproc, nskiespersqdeg=nskiespersqdeg,
+            bands=bands, apertures_arcsec=apertures,
+            nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks)
+        )
+    # ADM redact empty output (where there were no bricks in a survey).
+    skies = np.array(skies) 
+    ii = [sk is not None for sk in skies]
+    skies = np.concatenate(skies[ii])
 
-# ADM if skies is None then the bundlebricks informational option was sent.
-if skies is not None:
+    # ADM resolve any duplicates between imaging data releases. 
+    skies = resolve(skies)
+
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
-    write_skies(ns.dest, skies, indir=ns.surveydir, nside=nside,
-                apertures_arcsec=apertures, nskiespersqdeg=nskiespersqdeg)
+    io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2,
+                   nside=nside, apertures_arcsec=apertures, nskiespersqdeg=nskiespersqdeg)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))
