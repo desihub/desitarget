@@ -5,8 +5,7 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
-* Yet more updates and enhancements for DR8 [`PR #493`_]. Includes:
-    * Add ``REF_CAT`` and ``GAIA_PHOT_BP(RP)_MEAN_MAG`` columns to GFAs.
+* Yet more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
     * Deprecate ``BRIGHTBLOB`` in favor of ``MASKBITS`` for targets.
 * Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_].
@@ -38,7 +37,7 @@ desitarget Change Log
 .. _`PR #488`: https://github.com/desihub/desitarget/pull/488
 .. _`PR #489`: https://github.com/desihub/desitarget/pull/489
 .. _`PR #490`: https://github.com/desihub/desitarget/pull/490
-.. _`PR #493`: https://github.com/desihub/desitarget/pull/493
+.. _`PR #494`: https://github.com/desihub/desitarget/pull/494
 
 0.29.1 (2019-03-26)
 -------------------
