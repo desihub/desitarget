@@ -272,7 +272,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
        Galaxy depth (`galdepth_x`), PSF size (`psfsize_x`), and sky
        background (`apflux_x`) and inverse variance (`apflux_ivar_x`)
        at each passed position in each band X. Plus, the `maskbits`
-       information at each passed position for the brick.
+       `wisemask_w1` and `wisemask_w2` information at each passed
+       position for the brick.
 
     Notes
     -----
@@ -348,24 +349,28 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                     qdict['apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
                 qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
 
-    # ADM add the mask bits information.
+    # ADM add the MASKBITS and WISEMASK information.
     fn = os.path.join(rootdir,
                       'legacysurvey-{}-maskbits.fits.{}'.format(brickname, extn))
     # ADM only process the WCS if there is a file corresponding to this filter.
     if os.path.exists(fn):
-        img = fits.open(fn)[extn_nb]
-        # ADM use the WCS calculated for the per-filter quantities above, if it exists.
-        if not iswcs:
-            # ADM also store the instrument name, if it isn't yet stored.
-            instrum = img.header["INSTRUME"].lower().strip()
-            w = WCS(img.header)
-            x, y = w.all_world2pix(ras, decs, 0)
-            iswcs = True
-        # ADM add the maskbits to the dictionary.
-        qdict['maskbits'] = img.data[y.astype("int"), x.astype("int")]
+        mnames = zip([extn_nb, extn_nb+1, extn_nb+2]
+                     ['maskbits', 'wisemask_w1', 'wisemask_w2'],
+                     ['>i2', '|u1', '|u1'])
+        for mextn, mout, mform in mnames:
+            img = fits.open(fn)[mextn]
+            # ADM use the WCS calculated for the per-filter quantities above, if it exists.
+            if not iswcs:
+                # ADM also store the instrument name, if it isn't yet stored.
+                instrum = img.header["INSTRUME"].lower().strip()
+                w = WCS(img.header)
+                x, y = w.all_world2pix(ras, decs, 0)
+                iswcs = True
+            # ADM add the maskbits to the dictionary.
+            qdict[mout] = img.data[y.astype("int"), x.astype("int")]
     else:
         # ADM if there is no maskbits file, populate with zeros.
-        qdict['maskbits'] = np.zeros(npts, dtype='i2')
+        qdict[mout] = np.zeros(npts, dtype=mform)
 
     # ADM finally, populate the photometric system in the quantity dictionary.
     if instrum is None:
@@ -515,8 +520,12 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
             PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec) in g, r, z.
             APFLUX_G, R, Z: Sky background extracted in `aprad` in g, r, z.
             APFLUX_IVAR_G, R, Z: Inverse variance of sky background in g, r, z.
-            MASKBITS: Extra mask bits info as stored in the header of e.g.,
-              dr7dir + 'coadd/111/1116p210/legacysurvey-1116p210-maskbits.fits.gz'
+            MASKBITS: Extra mask bits info as stored in the header of extension 1 of e.g.,
+              dr8dir + 'decam/coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz"'
+            WISEMASK_W1: Extra mask bits info as stored in the header of extension 2 of e.g.,
+              dr8dir + 'decam/coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz"'
+            WISEMASK_W2: Extra mask bits info as stored in the header of extension 3 of e.g.,
+              dr8dir + 'decam/coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz"'
             EBV: E(B-V) at this location from the SFD dust maps.
     """
     # ADM this is only intended to work on one brick, so die if a larger array is passed.
@@ -548,7 +557,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                             ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
                             ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_Z', 'f4'),
                             ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
-                            ('MASKBITS', 'i2'), ('EBV', 'f4'), ('PHOTSYS', '|S1')])
+                            ('MASKBITS', 'i2'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
+                            ('EBV', 'f4'), ('PHOTSYS', '|S1')])
     # ADM store each quantity of interest in the structured array
     # ADM remembering that the dictionary keys are in lower case text.
     cols = qdict.keys()
@@ -896,7 +906,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5,
                    dustdir=None, resolverands=True, aprad=0.75):
-    """NOBS, DEPTHs, MASKBITs (per-band) for random points in a Legacy Surveys DR.
+    """NOBS, DEPTHs (per-band), MASKs for random points in a Legacy Surveys DR.
 
     Parameters
     ----------
