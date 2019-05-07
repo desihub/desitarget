@@ -529,9 +529,9 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx,
                              tiles=tiles)
 
-    # ADM a final clean-up to remove columns that are NaN (from
-    # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
-    for col in ["PMRA", "PMDEC", "GAIA_PHOT_BP_MEAN_MAG", "GAIA_PHOT_RP_MEAN_MAG"]:
+    # ADM remove columns that are NaN (from Gaia-matching
+    # ADM or that are exactly 0 (in the sweeps).
+    for col in ["PMRA", "PMDEC"]:
         ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
         gfas = gfas[ii]
 
