@@ -16,6 +16,7 @@ import numpy as np
 from desitarget import io
 from desitarget.cmx import cmx_cuts as cuts
 
+
 class TestCMX(unittest.TestCase):
 
     @classmethod
@@ -29,11 +30,11 @@ class TestCMX(unittest.TestCase):
         """Test cuts work with either data or filenames
         """
         # ADM test for tractor files
-        cmx, pshift = cuts.apply_cuts(self.tractorfiles[0], 
+        cmx, pshift = cuts.apply_cuts(self.tractorfiles[0],
                                       cmxdir=self.cmxdir)
         data = io.read_tractor(self.tractorfiles[0])
-        cmx2, pshift2  = cuts.apply_cuts(data,
-                                         cmxdir=self.cmxdir)
+        cmx2, pshift2 = cuts.apply_cuts(data,
+                                        cmxdir=self.cmxdir)
         self.assertTrue(np.all(cmx == cmx2))
         self.assertTrue(np.all(pshift == pshift2))
 
@@ -42,13 +43,18 @@ class TestCMX(unittest.TestCase):
                                       cmxdir=self.cmxdir)
         data = io.read_tractor(self.sweepfiles[0])
         cmx2, pshift2 = cuts.apply_cuts(data,
-                                      cmxdir=self.cmxdir)
+                                        cmxdir=self.cmxdir)
         self.assertTrue(np.all(cmx == cmx2))
         self.assertTrue(np.all(pshift == pshift2))
 
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
         """
+        # ADM add the DR7/DR8 data columns if they aren't there yet.
+        # ADM can remove this once DR8 is finalized.
+        if "BRIGHTBLOB" not in targets.dtype.names:
+            targets = io.add_dr8_columns(targets)
+
         cmx, pshift = cuts.apply_cuts(targets,
                                       cmxdir=self.cmxdir)
         self.assertEqual(len(cmx), len(targets))
@@ -80,37 +86,39 @@ class TestCMX(unittest.TestCase):
         """
         for filelist in [self.tractorfiles, self.sweepfiles]:
             targets = cuts.select_targets(filelist, numproc=1,
-                                      cmxdir=self.cmxdir)
+                                          cmxdir=self.cmxdir)
             t1 = cuts.select_targets(filelist[0:1], numproc=1,
-                                      cmxdir=self.cmxdir)
+                                     cmxdir=self.cmxdir)
             t2 = cuts.select_targets(filelist[0], numproc=1,
-                                      cmxdir=self.cmxdir)
+                                     cmxdir=self.cmxdir)
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
-                except TypeError:  #- can't check string columns for NaN
+                except TypeError:  # - can't check string columns for NaN
                     notNaN = np.ones(len(t1), dtype=bool)
 
-                self.assertTrue(np.all(t1[col][notNaN]==t2[col][notNaN]))
+                self.assertTrue(np.all(t1[col][notNaN] == t2[col][notNaN]))
 
     def test_missing_files(self):
         """Test the code will die gracefully if input files are missing
         """
         with self.assertRaises(ValueError):
-            targets = cuts.select_targets(['blat.foo1234',], numproc=1)
+            targets = cuts.select_targets(['blat.foo1234', ], numproc=1)
 
     def test_parallel_select(self):
         """Test multiprocessing parallelization works
         """
-        for nproc in [1,2]:
+        for nproc in [1, 2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
                 targets = cuts.select_targets(filelist, numproc=nproc,
-                                      cmxdir=self.cmxdir)
+                                              cmxdir=self.cmxdir)
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['CMX_TARGET']))
 
+
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:

@@ -4,45 +4,78 @@ import sys
 import numpy as np
 import argparse
 from desitarget.gfa import select_gfas
+from desitarget.geomask import is_in_gal_box, is_in_box
 from desitarget import io
 from time import time
-time0 = time()
+t0 = time()
 
 from desiutil.log import get_logger
 log = get_logger()
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
-nside = 64 #ADM default HEALPix Nside used throughout desitarget
+nside = io.desitarget_nside()   # ADM default HEALPix Nside used throughout desitarget
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates a file of GFA (Guide/Focus/Alignment) targets via matching to Gaia')
-ap.add_argument("surveydir", 
+ap.add_argument("surveydir",
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC)")
-ap.add_argument("dest", 
+ap.add_argument("dest",
                 help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits' at NERSC)")
-ap.add_argument('-m', '--maglim', type=float, 
-                help='Magnitude limit on GFA targets in Gaia G-band (defaults to [18])',
+ap.add_argument('-m', '--maglim', type=float,
+                help="Magnitude limit on GFA targets in Gaia G-band (defaults to [18])",
                 default=18)
-ap.add_argument("--gaiamatch", action='store_true',
-                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for the GFA locations")
 ap.add_argument('-n', "--numproc", type=int,
-                help='number of concurrent processes to use (defaults to [{}])'.format(nproc),
+                help="number of concurrent processes to use (defaults to [{}])".format(nproc),
                 default=nproc)
+ap.add_argument('-s2', "--surveydir2",
+                help='Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR8 into one file of GFAs)',
+                default=None)
+ap.add_argument('-t', "--tiles",
+                help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
+                default=None)
+ap.add_argument('-dec', "--mindec", type=float,
+                help="Minimum declination to include in output file (degrees; defaults to [-30])",
+                default=-30)
+ap.add_argument('-b', "--mingalb", type=float,
+                help="Closest latitude to Galactic plane to output (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
+                default=10)
+ap.add_argument("--cmx", action='store_true',
+                help="If sent, then create a commissioning file. Commissioning files are not restricted by any tiling pattern, even if --tiles is sent")
 
 ns = ap.parse_args()
 
+survey = 'main'
+if ns.cmx:
+    log.info('Making a cmx-style file. No restrictions on tiling')
+    survey = 'cmx'
+
 infiles = io.list_sweepfiles(ns.surveydir)
+if ns.surveydir2 is not None:
+    infiles2 = io.list_sweepfiles(ns.surveydir2)
+    infiles += infiles2
 if len(infiles) == 0:
     infiles = io.list_tractorfiles(ns.surveydir)
+    if ns.surveydir2 is not None:
+        infiles2 = io.list_tractorfiles(ns.surveydir2)
+        infiles += infiles2
 if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
-log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
+log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, gaiamatch=ns.gaiamatch)
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles, cmx=ns.cmx)
 
-io.write_gfas(ns.dest, gfas, indir=ns.surveydir, nside=nside)
+log.info('limiting to Dec > {}o and areas beyond -{}o <= Galactic b < {}o...t = {:.1f} mins'
+         .format(ns.mindec, ns.mingalb, ns.mingalb, (time()-t0)/60.))
+# ADM limit by Dec first to speed transformation to Galactic coordinates.
+decgood = is_in_box(gfas, [0., 360., ns.mindec, 90.])
+gfas = gfas[decgood]
+# ADM limit to requesed Galactic latitude range.
+bbad = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
+gfas = gfas[~bbad]
 
-log.info('{} GFAs written to {}...t={:.1f}mins'.format(len(gfas), ns.dest, (time()-time0)/60.))
+io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2, nside=nside, survey=survey)
+
+log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))

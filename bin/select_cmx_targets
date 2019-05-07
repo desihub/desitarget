@@ -3,6 +3,8 @@
 from __future__ import print_function, division
 
 import sys
+import numpy as np
+import fitsio
 
 from desitarget import io
 from desitarget.cmx.cmx_cuts import select_targets
@@ -37,6 +39,25 @@ if len(infiles) == 0:
 if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
+
+# ADM Only coded for objects with Gaia matches
+# ADM (e.g. DR6 or above). Fail for earlier Data Releases.
+# ADM Guard against a single file being passed.
+fn = infiles
+if ~isinstance(infiles, str):
+    fn = infiles[0]
+data = fitsio.read(fn, columns=["RELEASE","PMRA"])
+if np.any(data["RELEASE"] < 6000):
+    log.critical('Commissioning cuts only coded for DR6 or above')
+    raise ValueError
+if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
+    d = "/project/projectdirs/desi/target/gaia_dr2_match_dr6"
+    log.info("Zero objects have a proper motion.")
+    log.critical(
+        "Did you mean to send the Gaia-matched sweeps in, e.g., {}?"
+        .format(d)
+    )
+    raise IOError
 
 log.info("running on {} processors".format(ns.numproc))
 

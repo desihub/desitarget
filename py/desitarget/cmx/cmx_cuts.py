@@ -36,6 +36,7 @@ log = get_logger()
 # ADM start the clock
 start = time()
 
+
 def _get_cmxdir(cmxdir=None):
     """Retrieve the base cmx directory with appropriate error checking.
 
@@ -96,7 +97,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
-        
+
     std = primary.copy()
 
     # ADM A point source with a Gaia match.
@@ -106,7 +107,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     # ADM An Isolated source.
     fracflux = [gfracflux, rfracflux, zfracflux]
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore') # fracflux can be Inf/NaN.
+        warnings.simplefilter('ignore')  # fracflux can be Inf/NaN.
         for bandint in (0, 1, 2):  # g, r, z.
             std &= fracflux[bandint] < 0.01
 
@@ -229,7 +230,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     Parameters
     ----------
     rflux, obs_rflux : :class:`array_like` or :class:`None`
-        Flux in nano-maggies in r-band, with (`rflux`) and 
+        Flux in nano-maggies in r-band, with (`rflux`) and
         without (`obs_rflux`) Galactic extinction correction.
     objtype : :class:`array_like` or :class:`None`
         The Legacy Surveys `TYPE` to restrict to point sources.
@@ -320,8 +321,8 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     if astrometricsigma5dmax is not None:
         # ADM Reject white dwarfs that have really poor astrometry while.
         # ADM retaining white dwarfs that only have relatively poor astrometry.
-        iswd &= ( (astrometricsigma5dmax < 1.5) |
-                 ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)) )
+        iswd &= ((astrometricsigma5dmax < 1.5) |
+                 ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
     # ADM return any object that passes any of the MWS cuts.
     return ismws | isnear | iswd
@@ -396,11 +397,11 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     Notes
     -----
     - Current version (08/30/18) is version 4 on `the cmx wiki`_.
-    - See also `the Gaia data model`_.       
+    - See also `the Gaia data model`_.
     """
     if primary is None:
         primary = np.ones_like(obs_rflux, dtype='?')
-        
+
     istest = primary.copy()
     # ADM passes all of the default logic cuts.
     istest &= isgood
@@ -445,7 +446,7 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
     # ADM get the CALSPEC objects.
-    cmxfile =  os.path.join(cmxdir,'calspec.fits')
+    cmxfile = os.path.join(cmxdir, 'calspec.fits')
     cals = io.read_external_file(cmxfile)
 
     # ADM match the calspec and sweeps objects.
@@ -459,13 +460,13 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
         # ADM set matching objects to True.
         calmatch = np.any(sep < matchrad*u.arcsec)
     else:
-# ADM This triggers a (non-malicious) Cython RuntimeWarning on search_around_sky:
-# RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
-# ADM Caused by importing a scipy compiled against an older numpy than is installed?
-# e.g. stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
+        # ADM This triggers a (non-malicious) Cython RuntimeWarning on search_around_sky:
+        # RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
+        # ADM Caused by importing a scipy compiled against an older numpy than is installed?
+        # e.g. stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            idobjs, idcals, _, _ = ccals.search_around_sky(cobjs,matchrad*u.arcsec)
+            idobjs, idcals, _, _ = ccals.search_around_sky(cobjs, matchrad*u.arcsec)
         # ADM set matching objects to True.
         calmatch[idobjs] = True
 
@@ -494,10 +495,10 @@ def apply_cuts(objects, cmxdir=None):
 
     See desitarget.cmx.cmx_targetmask.cmx_mask for the definition of each bit
     """
-    #- Check if objects is a filename instead of the actual data
+    # -Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
-    #- Ensure uppercase column names if astropy Table
+    # -Ensure uppercase column names if astropy Table
     if isinstance(objects, (Table, Row)):
         for col in list(objects.columns.values()):
             if not col.name.isupper():
@@ -509,13 +510,13 @@ def apply_cuts(objects, cmxdir=None):
     # ADM As we need the column names.
     colnames = _get_colnames(objects)
 
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,              \
-        w1flux, w2flux, objtype, release, gfluxivar, rfluxivar, zfluxivar,     \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                  \
-        gfracmasked, rfracmasked, zfracmasked,                                 \
-        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,               \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =  \
-                            _prepare_optical_wise(objects, colnames=colnames)
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                      \
+        w1flux, w2flux, rfiberflux, objtype, release, gfluxivar, rfluxivar, zfluxivar, \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                          \
+        gfracmasked, rfracmasked, zfracmasked,                                         \
+        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                       \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =          \
+        _prepare_optical_wise(objects, colnames=colnames)
 
     # ADM in addition, cmx needs ra and dec.
     ra, dec = objects["RA"], objects["DEC"]
@@ -536,8 +537,8 @@ def apply_cuts(objects, cmxdir=None):
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,   \
-      gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor, \
-      gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
+        gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor, \
+        gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
 
     # ADM a couple of extra columns; the observed g/z fluxes.
     obs_gflux, obs_zflux = objects['FLUX_G'], objects['FLUX_Z']
@@ -603,7 +604,7 @@ def apply_cuts(objects, cmxdir=None):
     )
 
     # ADM Construct the targetflag bits.
-    cmx_target  = std_dither * cmx_mask.STD_GAIA
+    cmx_target = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= sv0_std_bright * cmx_mask.SV0_STD_BRIGHT
@@ -613,7 +614,7 @@ def apply_cuts(objects, cmxdir=None):
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.
     priority_shift[std_dither] = shift_dither[std_dither]
-    
+
     return cmx_target, priority_shift
 
 
@@ -622,7 +623,7 @@ def select_targets(infiles, numproc=4, cmxdir=None):
 
     Parameters
     ----------
-    infiles : :class:`list` or `str` 
+    infiles : :class:`list` or `str`
         A list of input filenames (tractor or sweep files) OR a single filename.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
@@ -644,11 +645,11 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     from desiutil.log import get_logger
     log = get_logger()
 
-    #- Convert single file to list of files.
-    if isinstance(infiles,str):
-        infiles = [infiles,]
+    # -Convert single file to list of files.
+    if isinstance(infiles, str):
+        infiles = [infiles, ]
 
-    #- Sanity check that files exist before going further.
+    # -Sanity check that files exist before going further.
     for filename in infiles:
         if not os.path.exists(filename):
             raise ValueError("{} doesn't exist".format(filename))
@@ -657,14 +658,14 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     cmxdir = _get_cmxdir(cmxdir)
 
     def _finalize_targets(objects, cmx_target, priority_shift):
-        #- desi_target includes BGS_ANY and MWS_ANY, so we can filter just
-        #- on desi_target != 0
+        # -desi_target includes BGS_ANY and MWS_ANY, so we can filter just
+        # -on desi_target != 0
         keep = (cmx_target != 0)
         objects = objects[keep]
         cmx_target = cmx_target[keep]
         priority_shift = priority_shift[keep]
 
-        #- Add *_target mask columns
+        # -Add *_target mask columns
         # ADM note that only cmx_target is defined for commissioning
         # ADM so just pass that around
         targets = finalize(objects, cmx_target, cmx_target, cmx_target,
@@ -674,7 +675,7 @@ def select_targets(infiles, numproc=4, cmxdir=None):
 
         return targets
 
-    #- functions to run on every brick/sweep file
+    # -functions to run on every brick/sweep file
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
@@ -688,17 +689,18 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     nbrick = np.zeros((), dtype='i8')
 
     t0 = time()
+
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if nbrick%50 == 0 and nbrick>0:
+        if nbrick % 50 == 0 and nbrick > 0:
             rate = nbrick / (time() - t0)
             log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
 
-    #- Parallel process input files
+    # -Parallel process input files
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:

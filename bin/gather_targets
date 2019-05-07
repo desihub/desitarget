@@ -21,7 +21,7 @@ ap.add_argument("infiles",
                 help="SEMI-COLON separated list of input files, which may have to be enclosed by quotes (e.g. 'file1;file2;file3;file4')")
 ap.add_argument("outfile", 
                 help="Output file name")
-ap.add_argument("targtype",choices=['skies','randoms'],
+ap.add_argument("targtype", choices=['skies', 'randoms', 'targets'],
                 help="Type of target run with parallelization/multiprocessing code to gather")
 
 ns = ap.parse_args()
