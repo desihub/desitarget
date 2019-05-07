@@ -31,7 +31,7 @@ ap.add_argument("--nside", type=int,
                 help='The resolution (HEALPixel nside number) at which to build the map (defaults to 256)',
                 default="256")
 ap.add_argument("--gaialoc",
-                help='Directory of Gaia "chunks" files (to derive stellar density). A FITS file that already contains the Gaia stellar densities at nside can be passed as a speed-up')
+                help='A FITS file that already contains the Gaia stellar densities at nside to speed-up density calculations')
 
 ns = ap.parse_args()
 
@@ -43,12 +43,14 @@ if not os.path.exists(ns.targets):
     log.critical('Input directory does not exist: {}'.format(ns.targets))
     sys.exit(1)
 
-hdr = fitsio.read_header(ns.randoms,"RANDOMS")
-#ADM add HEALPixel information to the header
+hdr = fitsio.read_header(ns.randoms, "RANDOMS")
+#ADM add HEALPixel and gaialoc information to the header
+hdr['GAIALOC'] = ns.gaialoc
 hdr['HPXNSIDE'] = ns.nside
 hdr['HPXNEST'] = True
 
-pixmap = pixmap(ns.randoms, ns.targets, hdr["DENSITY"], nside=ns.nside, gaialoc=ns.gaialoc)
+pixmap, survey = pixmap(ns.randoms, ns.targets, hdr["DENSITY"], nside=ns.nside, gaialoc=ns.gaialoc)
+hdr["SURVEY"] = survey
 
 #ADM write out the map
 log.info('Writing pixel map to {}'.format(ns.dest))

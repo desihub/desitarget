@@ -2,24 +2,132 @@
 desitarget Change Log
 =====================
 
-0.27.1 (unreleased)
+0.29.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Further updates and enhancements for DR8 [`PR #490`_]. Includes:
+    * Resolve sky locations and SV targets in North/South regions.
+    * Update sky and SV slurming for DR8-style input (two directories).
+    * Write both of two input directories to output file headers.
+    * Parallelize plot production to speed-up QA by factors of 8.
+    * Add ``PSFSIZE`` to randoms, pixweight maps and QA plots.
+    * QA and pixweight maps work fully for SV-style files and bits.
+    * Pixweight code can now take HEALpixel-split targets as input.
+    * Add aperture-photometered background flux to randoms catalogs.
+    * Additional unit test module (:func:`test.test_geomask`).
+    * Deprecate `make_hpx_density_file`; use `make_imaging_weight_map`.
+    * :func:`io.read_targets_in_a_box` can now read headers.
+    * Update unit test data for new DR8 columns and functionality.
+* Update QSO targeting algorithms for DR8 [`PR #489`_]. Includes:
+    * Update baseline quasar selection for the main survey.
+    * Update QSO bits and selection algorithms for SV.
+* Remove GFA/Gaia duplicates on ``REF_ID`` not ``BRICKID`` [`PR #488`_].
+* Various bug and feature fixes [`PR #484`_]. Includes:
+    * Fix crash when using sv_select_targets with `--tcnames`.
+    * Only import matplotlib where explicitly needed.
+* Update `select_mock_targets` to (current) DR8 data model [`PR #480`_].
+
+.. _`PR #480`: https://github.com/desihub/desitarget/pull/480
+.. _`PR #484`: https://github.com/desihub/desitarget/pull/484
+.. _`PR #488`: https://github.com/desihub/desitarget/pull/488
+.. _`PR #489`: https://github.com/desihub/desitarget/pull/489
+.. _`PR #490`: https://github.com/desihub/desitarget/pull/490
+
+0.29.1 (2019-03-26)
+-------------------
+
+* Add ``REF_CAT``, ``WISEMASK_W1/W2`` to DR8 data model [`PR #479`_].
+* Use speed of light from scipy [`PR #478`_].
+
+.. _`PR #478`: https://github.com/desihub/desitarget/pull/478
+.. _`PR #479`: https://github.com/desihub/desitarget/pull/479
+
+0.29.0 (2019-03-22)
+-------------------
+* Update SV selection for DR8 [`PR #477`_]. Includes:
+    * New SV targeting bits for QSOs and LRGs.
+    * New SV selection algorithms for QSOs, ELGs and LRGs.
+    * MTL fixes to handle SV LRGs (which are now not 1PASS/2PASS).
+    * QA can now interpret HEALPixel-split targeting files.
+    * Updated test files for the quasi-DR8 imaging data model.
+    * SKY and BAD_SKY added to commissioning bits yaml file.
+    * Randoms in overlap regions, and for DR8 dual directory structure.
+    * Write overlap regions in addition to resolve for targets/randoms.
+* Change instances of `yaml.load` to `yaml.safe_load` [`PR #475`_].
+* Fix Gaia files format in doc string (healpix not healpy) [`PR #474`_].
+* Write Gaia morphologies and allow custom tilings for GFAs [`PR #467`_].
+* Initial updates for DR8 [`PR #466`_]. Includes:
+    * DR8 data model updates (e.g BRIGHTSTARBLOB -> bitmask BRIGHTBLOB).
+    * Apply resolve capability to targets and randoms.
+    * Handle BASS/MzLS and DECaLS existing in the same input directory.
+* New resolve capability for post-DR7 imaging [`PR #462`_]. Includes:
+    * Add ``RELEASE`` to GFA data model to help resolve duplicates.
+    * Resolve N/S duplicates by combining ``RELEASE`` and areal cuts.
+    * Apply the new resolve code (:func:`targets.resolve`) to GFAs.
+    * Deprecate Gaia-matching code for GFAs, as we no longer need it.
+* Add code to select GFAs for cmx across wider sky areas [`PR #461`_].
+
+.. _`PR #461`: https://github.com/desihub/desitarget/pull/461
+.. _`PR #462`: https://github.com/desihub/desitarget/pull/462
+.. _`PR #466`: https://github.com/desihub/desitarget/pull/466
+.. _`PR #467`: https://github.com/desihub/desitarget/pull/467
+.. _`PR #474`: https://github.com/desihub/desitarget/pull/474
+.. _`PR #475`: https://github.com/desihub/desitarget/pull/475
+.. _`PR #477`: https://github.com/desihub/desitarget/pull/477
+
+0.28.0 (2019-02-28)
+-------------------
+
+* `desitarget.mock.build.targets_truth` fixes for new priority calcs [`PR #460`_].
+* Updates to GFAs and skies for some cmx issues [`PR #459`_]. Includes:
+    * Assign ``BADSKY`` using ``BLOBDIST`` rather than aperture fluxes.
+    * Increase default density at which sky locations are generated.
+    * Store only aperture fluxes that match the DESI fiber radius.
+    * Ensure GFAs exist throughout the spectroscopic footprint.
+* Refactor SV/main targeting for spatial queries [`PR #458`_]. Includes:
+    * Many new spatial query capabilities in :mod:`desitarget.geomask`.
+    * Parallelize target selection by splitting across HEALPixels.
+    * Wrappers to read in HEALPix-split target files split by:
+        * HEALPixels, RA/Dec boxes, RA/Dec/radius caps, column names.
+    * Only process subsets of targets in regions of space, again including:
+        * HEALPixels, RA/Dec boxes, RA/Dec/radius caps.
+    * New unit tests to check these spatial queries.
+    * Updated notebook including tutorials on spatial queries.
+* Update the SV selections for BGS [`PR #457`_].
+* Update MTL to work for SV0-like cmx and SV1 tables [`PR #456`_]. Includes:
+    * Make SUBPRIORITY a random number (0->1) in skies output.
+    * New :func:`targets.main_cmx_or_sv` to parse flavor of survey.
+    * Update :func:`targets.calc_priority` for SV0-like cmx and SV1 inputs.
+    * :func:`mtl.make_mtl` can now process SV0-like cmx and SV1 inputs.
+    * New unit tests for SV0-like cmx and SV1 inputs to MTL.
+* Deprecate :func:`targets.calc_priority` that had table copy [`PR #452`_].
+* Update SV QSO selections, add seed and DUST_DIR for randoms [`PR #449`_].
+* Style changes to conform to PEP 8 [`PR #446`_], [`PR #447`_], [`PR #448`_].
+
+.. _`PR #446`: https://github.com/desihub/desitarget/pull/446
+.. _`PR #447`: https://github.com/desihub/desitarget/pull/447
+.. _`PR #448`: https://github.com/desihub/desitarget/pull/448
+.. _`PR #449`: https://github.com/desihub/desitarget/pull/449
+.. _`PR #452`: https://github.com/desihub/desitarget/pull/452
+.. _`PR #456`: https://github.com/desihub/desitarget/pull/456
+.. _`PR #457`: https://github.com/desihub/desitarget/pull/457
+.. _`PR #458`: https://github.com/desihub/desitarget/pull/458
+.. _`PR #459`: https://github.com/desihub/desitarget/pull/459
+.. _`PR #460`: https://github.com/desihub/desitarget/pull/460
 
 0.27.0 (2018-12-14)
 -------------------
 
-* Move `select-mock-targets.yaml` configuration file to an installable location
-  for use by `desitest` [`PR #436`_].
-* Significant enhancement and refactor of `select_mock_targets` to include
-  stellar and extragalactic contaminants [`PR #427`_].
 * Remove reliance on Legacy Surveys for Gaia data [`PR #438`_]. Includes:
     * Use ``$GAIA_DIR`` environment variable instead of passing a directory.
     * Functions to wget Gaia DR2 CSV files and convert them to FITS.
     * Function to reorganize Gaia FITS files into (NESTED) HEALPixels.
     * Use the NESTED HEALPix scheme for Gaia files throughout desitarget.
     * Change output column ``TYPE`` to ``MORPHTYPE`` for GFAs.
+* Move `select-mock-targets.yaml` configuration file to an installable location
+  for use by `desitest` [`PR #436`_].
+* Significant enhancement and refactor of `select_mock_targets` to include
+  stellar and extragalactic contaminants [`PR #427`_].
 
 .. _`PR #427`: https://github.com/desihub/desitarget/pull/427
 .. _`PR #436`: https://github.com/desihub/desitarget/pull/436
