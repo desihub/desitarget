@@ -38,9 +38,11 @@ gfadatamodel = np.array([], dtype=[
     ('TYPE', 'S4'),
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),
-    ('REF_ID', 'i8'),
+    ('REF_ID', 'i8'), ('REF_CAT', 'S2'),
     ('PMRA', 'f4'), ('PMDEC', 'f4'), ('PMRA_IVAR', 'f4'), ('PMDEC_IVAR', 'f4'),
     ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4')
 ])
 
@@ -294,7 +296,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     # ADM remove the TARGETID and BRICK_OBJID columns and populate them later
     # ADM as they require special treatment.
     cols = list(gfadatamodel.dtype.names)
-    for col in ["TARGETID", "BRICK_OBJID"]:
+    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT"]:
         cols.remove(col)
     for col in cols:
         gfas[col] = objects[col]
@@ -302,6 +304,9 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     gfas["TARGETID"] = targetid
     # ADM populate the BRICK_OBJID column.
     gfas["BRICK_OBJID"] = objects["OBJID"]
+    # ADM REF_CAT didn't exist before DR8.
+    if "REF_CAT" in objects.dtype.names:
+        gfas["REF_CAT"] = objects["REF_CAT"]
 
     # ADM cut the GFAs by a hard limit on magnitude.
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
