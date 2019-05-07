@@ -353,11 +353,11 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     fn = os.path.join(rootdir,
                       'legacysurvey-{}-maskbits.fits.{}'.format(brickname, extn))
     # ADM only process the WCS if there is a file corresponding to this filter.
-    if os.path.exists(fn):
-        mnames = zip([extn_nb, extn_nb+1, extn_nb+2]
-                     ['maskbits', 'wisemask_w1', 'wisemask_w2'],
-                     ['>i2', '|u1', '|u1'])
-        for mextn, mout, mform in mnames:
+    mnames = zip([extn_nb, extn_nb+1, extn_nb+2],
+                 ['maskbits', 'wisemask_w1', 'wisemask_w2'],
+                 ['>i2', '|u1', '|u1'])
+    for mextn, mout, mform in mnames:
+        if os.path.exists(fn):
             img = fits.open(fn)[mextn]
             # ADM use the WCS calculated for the per-filter quantities above, if it exists.
             if not iswcs:
@@ -368,9 +368,9 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                 iswcs = True
             # ADM add the maskbits to the dictionary.
             qdict[mout] = img.data[y.astype("int"), x.astype("int")]
-    else:
-        # ADM if there is no maskbits file, populate with zeros.
-        qdict[mout] = np.zeros(npts, dtype=mform)
+        else:
+            # ADM if there is no maskbits file, populate with zeros.
+            qdict[mout] = np.zeros(npts, dtype=mform)
 
     # ADM finally, populate the photometric system in the quantity dictionary.
     if instrum is None:
