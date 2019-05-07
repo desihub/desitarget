@@ -5,7 +5,7 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
-* Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_]. 
+* Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_].
 * Further updates and enhancements for DR8 [`PR #490`_]. Includes:
     * Resolve sky locations and SV targets in North/South regions.
     * Update sky and SV slurming for DR8-style input (two directories).
