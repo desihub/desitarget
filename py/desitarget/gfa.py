@@ -293,6 +293,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
     # ADM make sure all columns initially have "ridiculous" numbers.
     gfas[...] = -99.
+    gfas["REF_CAT"] = ""
     # ADM remove the TARGETID and BRICK_OBJID columns and populate them later
     # ADM as they require special treatment.
     cols = list(gfadatamodel.dtype.names)
@@ -528,16 +529,9 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx,
                              tiles=tiles)
 
-    # ADM remove any duplicates. Order is important here, as np.unique
-    # ADM keeps the first occurence, and we want to retain sweeps
-    # ADM information as much as possible.
-    gfas = np.concatenate([gfas, gaia])
-    _, ind = np.unique(gfas["REF_ID"], return_index=True)
-    gfas = gfas[ind]
-
     # ADM a final clean-up to remove columns that are NaN (from
     # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
-    for col in ["PMRA", "PMDEC"]:
+    for col in ["PMRA", "PMDEC", "GAIA_PHOT_BP_MEAN_MAG", "GAIA_PHOT_RP_MEAN_MAG"]:
         ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
         gfas = gfas[ii]
 
@@ -546,4 +540,10 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
         ii = is_point_in_desi(tiles, gfas["RA"], gfas["DEC"])
         gfas = gfas[ii]
 
-    return gfas
+    # ADM remove any duplicates. Order is important here, as np.unique
+    # ADM keeps the first occurence, and we want to retain sweeps
+    # ADM information as much as possible.
+    gfas = np.concatenate([gfas, gaia])
+    _, ind = np.unique(gfas["REF_ID"], return_index=True)
+
+    return gfas[ind]
