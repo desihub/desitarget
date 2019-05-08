@@ -5,7 +5,7 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
-* Yet more updates and enhancements for DR8 [`PR #494`_]. Includes:
+* A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
     * Deprecate ``BRIGHTBLOB`` in favor of ``MASKBITS`` for targets.
 * Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_].
