@@ -35,10 +35,10 @@ ap.add_argument('-t', "--tiles",
                 help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
                 default=None)
 ap.add_argument('-dec', "--mindec", type=float,
-                help="Minimum declination to include in output file (degrees; defaults to [-30])",
+                help="Minimum declination to include in output file for NON-LEGACY-SURVEYS sources (degrees; defaults to [-30])",
                 default=-30)
 ap.add_argument('-b', "--mingalb", type=float,
-                help="Closest latitude to Galactic plane to output (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
+                help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
                 default=10)
 ap.add_argument("--cmx", action='store_true',
                 help="If sent, then create a commissioning file. Commissioning files are not restricted by any tiling pattern, even if --tiles is sent")
@@ -65,16 +65,8 @@ if len(infiles) == 0:
 
 log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles, cmx=ns.cmx)
-
-log.info('limiting to Dec > {}o and areas beyond -{}o <= Galactic b < {}o...t = {:.1f} mins'
-         .format(ns.mindec, ns.mingalb, ns.mingalb, (time()-t0)/60.))
-# ADM limit by Dec first to speed transformation to Galactic coordinates.
-decgood = is_in_box(gfas, [0., 360., ns.mindec, 90.])
-gfas = gfas[decgood]
-# ADM limit to requesed Galactic latitude range.
-bbad = is_in_gal_box(gfas, [0., 360., -ns.mingalb, ns.mingalb])
-gfas = gfas[~bbad]
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles,
+                   cmx=ns.cmx, mindec=ns.mindec, mingalb=ns.mingalb)
 
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2, nside=nside, survey=survey)
 

@@ -5,7 +5,7 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
-* Add ``REF_CAT`` and ``GAIA_PHOT_BP(RP)_MEAN_MAG`` to GFAs [`PR #493`_].
+* Add ``REF_CAT`` and Gaia BP and RP mags and errors to GFAs [`PR #493`_].
 * Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_].
 * Further updates and enhancements for DR8 [`PR #490`_]. Includes:
     * Resolve sky locations and SV targets in North/South regions.
