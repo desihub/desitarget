@@ -8,6 +8,8 @@ desitarget Change Log
 * A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
     * Deprecate ``BRIGHTBLOB`` in favor of ``MASKBITS`` for targets.
+    * Add ``qso_selection==colorcuts`` in :func:`set_target_bits.sv1_cuts`
+        * This should facilitate QSO selection for SV mocks.
 * Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_].
 * Further updates and enhancements for DR8 [`PR #490`_]. Includes:
     * Resolve sky locations and SV targets in North/South regions.
