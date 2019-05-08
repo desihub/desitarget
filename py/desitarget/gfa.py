@@ -387,9 +387,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         entire sky (i.e. return *all* Gaia objects across the sky).
     tiles : :class:`~numpy.ndarray`, optional, defaults to ``None``
         Array of DESI tiles. If None, then load the entire footprint.
-    mindec : :class:``float`, optional, defaults to -30
+    mindec : :class:`float`, optional, defaults to -30
         Minimum declination (o) to include for output Gaia objects.
-    mingalb : :class:``float`, optional, defaults to 10
+    mingalb : :class:`float`, optional, defaults to 10
         Closest latitude to Galactic plane for output Gaia objects
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o)"
 
@@ -474,10 +474,10 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
     cmx : :class:`bool`,  defaults to ``False``
         If ``True``, do not limit output to DESI tiling footprint.
         Used for selecting wider-ranging commissioning targets.
-    mindec : :class:``float`, optional, defaults to -30
+    mindec : :class:`float`, optional, defaults to -30
         Minimum declination (o) for output sources that do NOT match
         an object in the passed `infiles`.
-    mingalb : :class:``float`, optional, defaults to 10
+    mingalb : :class:`float`, optional, defaults to 10
         Closest latitude to Galactic plane for output sources that
         do NOT match an object in the passed `infiles` (e.g. send
         10 to limit to regions beyond -10o <= b < 10o)".
