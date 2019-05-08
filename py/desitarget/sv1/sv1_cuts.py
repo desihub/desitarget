@@ -1353,7 +1353,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     south=south
                 )
             )
-            # ADM SV mock selection may only wsh to apply the color cuts
+            # ADM SV mock selection needs to apply only the color cuts
             # ADM and ignore the Random Forest selections.
             if qso_selection == 'colorcuts':
                 qso_classes.append(~primary)
@@ -1374,7 +1374,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                         dchisq=dchisq, brightstarinblob=brightstarinblob,
                         objtype=objtype, south=south
                     )
-            )
+                )
             qso_classes.append(
                 isQSO_color_high_z(
                     gflux=gflux, rflux=rflux, zflux=zflux,
