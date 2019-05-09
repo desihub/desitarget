@@ -769,8 +769,8 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
     return targets, truth, objtruth, trueflux
 
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',
-                  seed=None, nproc=1, nside_chunk=128, verbose=False,
-                  no_spectra=False):
+                  seed=None, nproc=1, nside_chunk=128, survey='main',
+                  verbose=False, no_spectra=False):
     """Generate truth and targets catalogs, and noiseless spectra.
 
     Parameters
@@ -792,6 +792,9 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     nside_chunk : :class:`int`, optional
         Healpix resolution for chunking the sample to avoid memory problems.
         (NB: nside_chunk must be <= nside).  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
     verbose : :class:`bool`, optional
         Be verbose. Defaults to False.
     no_spectra : :class:`bool`, optional
