@@ -32,13 +32,16 @@ try:
 except TypeError: # This can happen during documentation builds.
     C_LIGHT = 299792458.0/1000.0
 
-def empty_targets_table(nobj=1):
+def empty_targets_table(nobj=1, survey='main'):
     """Initialize an empty 'targets' table.
 
     Parameters
     ----------
     nobj : :class:`int`
         Number of objects.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     Returns
     -------
@@ -157,11 +160,17 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
 
-    
-    
-    targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+    if survey == 'main':
+        targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
+        targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
+        targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
+    elif survey == 'sv1':
+        targets.add_column(Column(name='SV1_DESI_TARGET', length=nobj, dtype='i8'))
+        targets.add_column(Column(name='SV1_BGS_TARGET', length=nobj, dtype='i8'))
+        targets.add_column(Column(name='SV1_MWS_TARGET', length=nobj, dtype='i8'))
+    else:
+        log.warning('Survey {} not recognized!'.format(survey))
+        raise ValueError
 
     targets.add_column(Column(name='PRIORITY_INIT', length=nobj, dtype='i8'))
     targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
@@ -315,7 +324,7 @@ class SelectTargets(object):
         ------
 
         """
-        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113, W3=0.0241, W4=0.00910)
         data['EBV'] = self.SFDMap.ebv(data['RA'], data['DEC'], scaling=1.0)
 
         for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
@@ -988,7 +997,7 @@ class SelectTargets(object):
         nobj = len(indx)
 
         # Initialize the tables.
-        targets = empty_targets_table(nobj)
+        targets = empty_targets_table(nobj, survey=self.survey)
         truth, objtruth = empty_truth_table(nobj, templatetype=templatetype,
                                             use_simqso=use_simqso)
 
