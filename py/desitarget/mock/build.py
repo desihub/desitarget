@@ -1137,10 +1137,15 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
 
     if nobj > 0:
         # Write out the dark- and bright-time standard stars.
+        if survey == 'main':
+            bitname = 'DESI_TARGET'
+        elif survey == 'sv1':
+            bitname = 'SV1_DESI_TARGET'
+            
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FAINT', 'STD_BRIGHT')):
             stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix, basedir=output_dir)
-            istd = ( (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-                     (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0
+            istd = ( (targets[bitname] & desi_mask.mask(stdbit)) |
+                     (targets[bitname] & desi_mask.mask('STD_WD')) ) != 0
 
             if np.count_nonzero(istd) > 0:
                 log.info('Writing {} {} standards to {}'.format(np.sum(istd), stdsuffix.upper(), stdfile))
