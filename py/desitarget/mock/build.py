@@ -936,7 +936,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         # Finally, write the results to disk.
         write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
                             skytargets, skytruth,  healpix, nside, log, output_dir, 
-                            seed=healseed)
+                            seed=healseed, survey=survey)
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None, survey='main'):
@@ -995,6 +995,21 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
     subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
 
+    # Rename some columns!
+    def _rename_bysurvey(targ, survey='main'):
+        targ.rename_column('TYPE', 'MORPHTYPE') # Rename TYPE --> MORPHTYPE
+
+        if survey == 'main':
+            pass
+        elif survey == 'sv1':
+            targ.rename_column('DESI_TARGET', 'SV1_DESI_TARGET')
+            targ.rename_column('BGS_TARGET', 'SV1_BGS_TARGET')
+            targ.rename_column('MWS_TARGET', 'SV1_MWS_TARGET')
+        else:
+            log.warning('Survey {} not recognized!'.format(survey))
+            raise ValueError
+        return targ
+
     if nobj > 0:
         #targets['BRICKID'][:] = healpix # use the derived BRICKID values
         targets['HPXPIXEL'][:] = healpix
@@ -1019,9 +1034,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = \
                 initial_priority_numobs(targets)
 
-        # Rename TYPE --> MORPHTYPE
-        targets.rename_column('TYPE', 'MORPHTYPE')
-
+        targets = _rename_bysurvey(targets, survey=survey)
+        
         assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
 
     if nsky > 0:
@@ -1034,24 +1048,13 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         skytargets['PRIORITY_INIT'], skytargets['NUMOBS_INIT'] = \
                 initial_priority_numobs(skytargets)
 
-        # Rename TYPE --> MORPHTYPE
-        skytargets.rename_column('TYPE', 'MORPHTYPE')
+        skytargets = _rename_bysurvey(skytargets, survey=survey)
 
-    # Rename the bit-mask columns!
-    if survey == 'main':
-        pass
-    elif survey == 'sv1':
-        skytargets.rename_column('DESI_TARGET', 'SV1_DESI_TARGET')
-        skytargets.rename_column('BGS_TARGET', 'SV1_BGS_TARGET')
-        skytargets.rename_column('MWS_TARGET', 'SV1_MWS_TARGET')
-    else:
-        log.warning('Survey {} not recognized!'.format(survey))
-        raise ValueError
-    
     return targets, truth, objtruth, skytargets, skytruth
 
 def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets,
-                        skytruth, healpix, nside, log, output_dir, seed=None):
+                        skytruth, healpix, nside, log, output_dir, seed=None,
+                        survey='main'):
     """Writes all the final catalogs to disk.
     
     Parameters
@@ -1080,6 +1083,9 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
         Seed for the random number generation.  Defaults to None.
     output_dir : :class:`str`
         Output directory.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
             
     Returns
     -------
