@@ -3154,9 +3154,16 @@ class QSOMaker(SelectTargets):
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
 
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
 
 class LYAMaker(SelectTargets):
     """Read LYA mocks, generate spectra, and select targets.
@@ -3475,9 +3482,16 @@ class LYAMaker(SelectTargets):
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
 
 class LRGMaker(SelectTargets):
     """Read LRG mocks, generate spectra, and select targets.
@@ -3703,9 +3717,16 @@ class LRGMaker(SelectTargets):
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
 
 class ELGMaker(SelectTargets):
     """Read ELG mocks, generate spectra, and select targets.
@@ -3925,9 +3946,16 @@ class ELGMaker(SelectTargets):
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
 
 class BGSMaker(SelectTargets):
     """Read BGS mocks, generate spectra, and select targets.
@@ -4145,10 +4173,17 @@ class BGSMaker(SelectTargets):
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
-        
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
+
 class STARMaker(SelectTargets):
     """Lower-level Class for preparing for stellar spectra to be generated,
     selecting standard stars, and selecting stars as contaminants for
@@ -4521,9 +4556,16 @@ class MWS_MAINMaker(STARMaker):
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
 
 class MWS_NEARBYMaker(STARMaker):
     """Read MWS_NEARBY mocks, generate spectra, and select targets.
@@ -4700,9 +4742,16 @@ class MWS_NEARBYMaker(STARMaker):
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
 
 class WDMaker(SelectTargets):
     """Read WD mocks, generate spectra, and select targets.
@@ -5033,9 +5082,16 @@ class WDMaker(SelectTargets):
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
 
 class SKYMaker(SelectTargets):
     """Read SKY mocks, generate spectra, and select targets.
@@ -5181,7 +5237,14 @@ class SKYMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        targets['DESI_TARGET'] |= self.desi_mask.mask(targetname)
+        desi_target = self.desi_mask.mask(targetname)
+        
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+        else:
+            pass
 
 class BuzzardMaker(SelectTargets):
     """Read Buzzard mocks, generate spectra, and select targets.
@@ -5513,6 +5576,14 @@ class BuzzardMaker(SelectTargets):
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
-        targets['DESI_TARGET'] |= desi_target
-        targets['BGS_TARGET'] |= bgs_target
-        targets['MWS_TARGET'] |= mws_target
+        if survey == 'main':
+            targets['DESI_TARGET'] |= desi_target
+            targets['BGS_TARGET'] |= bgs_target
+            targets['MWS_TARGET'] |= mws_target
+        elif survey == 'sv1':
+            targets['SV1_DESI_TARGET'] |= desi_target
+            targets['SV1_BGS_TARGET'] |= bgs_target
+            targets['SV1_MWS_TARGET'] |= mws_target
+        else:
+            pass
+
