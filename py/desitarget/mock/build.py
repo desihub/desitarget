@@ -931,7 +931,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         # Finish up.
         targets, truth, objtruth, skytargets, skytruth = finish_catalog(
             targets, truth, objtruth, skytargets, skytruth, healpix,
-            nside, log, seed=healseed)
+            nside, log, seed=healseed, survey=survey)
 
         # Finally, write the results to disk.
         write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
@@ -939,7 +939,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                             seed=healseed)
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
-                   nside, log, seed=None):
+                   nside, log, seed=None, survey='main'):
     """Add hpxpixel, brick_objid, targetid, subpriority, priority, and numobs to the
     target catalog.
     
@@ -963,6 +963,9 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
        Logger object.
     seed : :class:`int`, optional
         Seed for the random number generation.  Defaults to None.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     Returns
     -------
@@ -1034,6 +1037,17 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         # Rename TYPE --> MORPHTYPE
         skytargets.rename_column('TYPE', 'MORPHTYPE')
 
+    # Rename the bit-mask columns!
+    if survey == 'main':
+        pass
+    elif survey == 'sv1':
+        skytargets.rename_column('DESI_TARGET', 'SV1_DESI_TARGET')
+        skytargets.rename_column('BGS_TARGET', 'SV1_BGS_TARGET')
+        skytargets.rename_column('MWS_TARGET', 'SV1_MWS_TARGET')
+    else:
+        log.warning('Survey {} not recognized!'.format(survey))
+        raise ValueError
+    
     return targets, truth, objtruth, skytargets, skytruth
 
 def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets,
