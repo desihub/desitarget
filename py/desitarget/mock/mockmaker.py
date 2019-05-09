@@ -60,24 +60,31 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
     targets.add_column(Column(name='DEC_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
     targets.add_column(Column(name='DCHISQ', length=nobj, dtype='f4', data=np.zeros( (nobj, 5) )))
+    targets['DCHISQ'][:, 0] = 1.0 # initialize
     
     targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W3', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W4', length=nobj, dtype='f4', unit='nanomaggies'))
     
     targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W3', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W4', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W3', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W4', length=nobj, dtype='f4'))
 
     targets.add_column(Column(name='NOBS_G', length=nobj, dtype='i2'))
     targets.add_column(Column(name='NOBS_R', length=nobj, dtype='i2'))
@@ -144,7 +151,7 @@ def empty_targets_table(nobj=1):
 
     targets.add_column(Column(name='WISEMASK_W1', length=nobj, dtype='|u1'))
     targets.add_column(Column(name='WISEMASK_W2', length=nobj, dtype='|u1'))
-    targets.add_column(Column(name='BRIGHTBLOB', length=nobj, dtype='>i2'))
+    targets.add_column(Column(name='MASKBITS', length=nobj, dtype='>i2'))
 
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
@@ -199,6 +206,8 @@ def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
     truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W3', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W4', length=nobj, dtype='f4', unit='nanomaggies'))
 
     _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype, simqso=use_simqso)
     if len(objtruth) == 0:
@@ -306,7 +315,7 @@ class SelectTargets(object):
         extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
         data['EBV'] = self.SFDMap.ebv(data['RA'], data['DEC'], scaling=1.0)
 
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
             data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
 
     def mw_dust_extinction(self, Rv=3.1):
@@ -1010,7 +1019,7 @@ class SelectTargets(object):
         targets['DCHISQ'][:] = np.tile( [0.0, 100, 200, 300, 400], (nobj, 1)) # for QSO selection
 
         # Add dust, depth, and nobs.
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
 
@@ -1045,8 +1054,9 @@ class SelectTargets(object):
         # for Galactic extinction.
         self.scatter_photometry(data, truth, targets, indx=indx, seed=seed)
 
-        for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
-                              ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'),
+                              ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
+                               'FLUX_W2', 'FLUX_W3', 'FLUX_W4') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
 
         # Attenuate the spectra for extinction, too.
