@@ -243,19 +243,30 @@ class SelectTargets(object):
     bricksize : :class:`float`, optional
         Brick diameter used in the imaging surveys; needed to assign a brickname
         and brickid to each object.  Defaults to 0.25 deg.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
-    def __init__(self, bricksize=0.25):
+    def __init__(self, bricksize=0.25, survey='main'):
         from astropy.io import fits
 
         from speclite import filters
         from desiutil.dust import SFDMap
         from desiutil.brick import Bricks
         from specsim.fastfiberacceptance import FastFiberAcceptance
-        from ..targetmask import desi_mask, bgs_mask, mws_mask
-        
+
+        self.survey = survey
+        if survey == 'main':
+            from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+        elif survey == 'sv1':
+            from desitarget.sv1.sv1_targetmask import desi_mask, bgs_mask, mws_mask
+        else:
+            log.warning('Survey {} not recognized!'.format(survey))
+            raise ValueError
+            
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
@@ -3097,11 +3108,12 @@ class QSOMaker(SelectTargets):
         """
         if self.use_simqso:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                                  qso_selection='colorcuts')
+                                                                  qso_selection='colorcuts',
+                                                                  survey=self.survey)
         else:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(
                 targets, tcnames=targetname, qso_selection='colorcuts',
-                qso_optical_cuts=True)
+                qso_optical_cuts=True, survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
 
@@ -3417,7 +3429,8 @@ class LYAMaker(SelectTargets):
             tcnames = targetname
             
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts')
+                                                              qso_selection='colorcuts',
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -3641,7 +3654,8 @@ class LRGMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -3859,7 +3873,8 @@ class ELGMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -4075,7 +4090,8 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -4426,7 +4442,8 @@ class MWS_MAINMaker(STARMaker):
         # Note: We pass qso_selection to cuts.apply_cuts because MWS_MAIN
         # targets can be used as QSO contaminants.
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts')
+                                                              qso_selection='colorcuts',
+                                                              survey=self.survey)
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
@@ -4603,7 +4620,8 @@ class MWS_NEARBYMaker(STARMaker):
             Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
 
         # Subtract out *all* the MWS targeting bits except MWS_NEARBY since
         # those are separately handled in the MWS_MAINMaker and WDMaker classes.
@@ -4944,7 +4962,8 @@ class WDMaker(SelectTargets):
         # Assume that MWS_MAIN and MWS_NEARBY objects are *never* selected from
         # the WD mock.
         
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
+                                                              survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -5416,7 +5435,8 @@ class BuzzardMaker(SelectTargets):
         # file...we should be setting optical=True.
         
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                              qso_selection='colorcuts')
+                                                              qso_selection='colorcuts',
+                                                              survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
