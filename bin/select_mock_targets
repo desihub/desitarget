@@ -24,7 +24,8 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-c', '--config', default='input.yaml')
 parser.add_argument('-O', '--output_dir', help='Path to write the outputs', type=str, default='./')
 parser.add_argument('-s', '--seed', help='Seed for random number generation', type=int, default=None)
-parser.add_argument('-n', '--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
+parser.add_argument('-n', '--nproc', type=int, help='Number of concurrent processes to use [{}]'.format(nproc), default=nproc)
+parser.add_argument('--survey', type=str, choices=['main', 'sv'], help='Survey to simulate.', default='main')
 parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=None)
 parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
 parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
@@ -106,6 +107,6 @@ with open(args.config, 'r') as pfile:
 log.info('Calling targets_truth at {}'.format(time.asctime()))
 targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 
               output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,
-              no_spectra=args.no_spectra)
+              no_spectra=args.no_spectra, survey=args.survey)
 log.info('All done at {}'.format(time.asctime()))
 
