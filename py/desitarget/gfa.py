@@ -20,6 +20,7 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
 from desitarget.targets import encode_targetid, resolve
+from desitarget.geomask import is_in_gal_box, is_in_box
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -38,9 +39,11 @@ gfadatamodel = np.array([], dtype=[
     ('TYPE', 'S4'),
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),
-    ('REF_ID', 'i8'),
+    ('REF_ID', 'i8'), ('REF_CAT', 'S2'),
     ('PMRA', 'f4'), ('PMDEC', 'f4'), ('PMRA_IVAR', 'f4'), ('PMDEC_IVAR', 'f4'),
     ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4')
 ])
 
@@ -291,10 +294,11 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
     # ADM make sure all columns initially have "ridiculous" numbers.
     gfas[...] = -99.
+    gfas["REF_CAT"] = ""
     # ADM remove the TARGETID and BRICK_OBJID columns and populate them later
     # ADM as they require special treatment.
     cols = list(gfadatamodel.dtype.names)
-    for col in ["TARGETID", "BRICK_OBJID"]:
+    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT"]:
         cols.remove(col)
     for col in cols:
         gfas[col] = objects[col]
@@ -302,6 +306,9 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     gfas["TARGETID"] = targetid
     # ADM populate the BRICK_OBJID column.
     gfas["BRICK_OBJID"] = objects["OBJID"]
+    # ADM REF_CAT didn't exist before DR8.
+    if "REF_CAT" in objects.dtype.names:
+        gfas["REF_CAT"] = objects["REF_CAT"]
 
     # ADM cut the GFAs by a hard limit on magnitude.
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
@@ -365,7 +372,8 @@ def gaia_in_file(infile, maglim=18):
     return gfas
 
 
-def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False, tiles=None):
+def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
+                      tiles=None, mindec=-30, mingalb=10):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -379,12 +387,17 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False, tiles=None):
         entire sky (i.e. return *all* Gaia objects across the sky).
     tiles : :class:`~numpy.ndarray`, optional, defaults to ``None``
         Array of DESI tiles. If None, then load the entire footprint.
+    mindec : :class:`float`, optional, defaults to -30
+        Minimum declination (o) to include for output Gaia objects.
+    mingalb : :class:`float`, optional, defaults to 10
+        Closest latitude to Galactic plane for output Gaia objects
+        (e.g. send 10 to limit to areas beyond -10o <= b < 10o)"
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        All Gaia objects in the DESI tiling footprint brighter than
-        `maglim`, formatted according to `desitarget.gfa.gfadatamodel`.
+        Gaia objects within the passed geometric constraints brighter
+        than `maglim`, formatted like `desitarget.gfa.gfadatamodel`.
 
     Notes
     -----
@@ -392,7 +405,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False, tiles=None):
     """
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
-        infiles = find_gaia_files_box([0, 360, -90, 90])
+        infiles = find_gaia_files_box([0, 360, mindec, 90])
     else:
         infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False)
     nfiles = len(infiles)
@@ -429,11 +442,23 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False, tiles=None):
 
     gfas = np.concatenate(gfas)
 
+    log.info('limit to Dec > {}o and |Gal b| > {}o...t = {:.1f} mins'
+             .format(mindec, mingalb, (time()-t0)/60.))
+    # ADM limit by Dec first to speed transform to Galactic coordinates.
+    decgood = is_in_box(gfas, [0., 360., mindec, 90.])
+    gfas = gfas[decgood]
+    # ADM limit to requesed Galactic latitude range.
+    bbad = is_in_gal_box(gfas, [0., 360., -mingalb, mingalb])
+    gfas = gfas[~bbad]
+    log.info('Retrieved {} Gaia objects...t = {:.1f} mins'
+             .format(len(gfas), (time()-t0)/60.))
+
     return gfas
 
 
-def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
-    """Create a set of GFA locations using Gaia.
+def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
+                cmx=False, mindec=-30, mingalb=10):
+    """Create a set of GFA locations using Gaia and matching to sweeps.
 
     Parameters
     ----------
@@ -449,12 +474,20 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     cmx : :class:`bool`,  defaults to ``False``
         If ``True``, do not limit output to DESI tiling footprint.
         Used for selecting wider-ranging commissioning targets.
+    mindec : :class:`float`, optional, defaults to -30
+        Minimum declination (o) for output sources that do NOT match
+        an object in the passed `infiles`.
+    mingalb : :class:`float`, optional, defaults to 10
+        Closest latitude to Galactic plane for output sources that
+        do NOT match an object in the passed `infiles` (e.g. send
+        10 to limit to regions beyond -10o <= b < 10o)".
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        GFA objects from Gaia across all of the passed input files, formatted
-        according to `desitarget.gfa.gfadatamodel`.
+        GFA objects from Gaia with the passed geometric constraints
+        limited to the passed maglim and matched to the passed input
+        files, formatted according to `desitarget.gfa.gfadatamodel`.
 
     Notes
     -----
@@ -521,7 +554,7 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None, cmx=False):
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx,
-                             tiles=tiles)
+                             tiles=tiles, mindec=mindec, mingalb=mingalb)
 
     # ADM remove any duplicates. Order is important here, as np.unique
     # ADM keeps the first occurence, and we want to retain sweeps
