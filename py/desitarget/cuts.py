@@ -1391,7 +1391,10 @@ def _prepare_optical_wise(objects, colnames=None):
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
 
     # For BGS target selection.
-    brightstarinblob = (objects['BRIGHTBLOB'] & 2**0) != 0
+    # ADM in DR7 BRIGHTSTARINBLOB was True (2**0) for bright
+    # ADM stars (BRIGHT) but for DR8 MASKBITS is 2**1 for BRIGHT.
+    # ADM see also how we recast the DR7 data model in io.py.
+    brightstarinblob = (objects['MASKBITS'] & 2**1) != 0
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']

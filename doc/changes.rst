@@ -5,6 +5,12 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
+    * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
+    * Deprecate ``BRIGHTBLOB`` in favor of ``MASKBITS`` for targets.
+    * Add ``qso_selection==colorcuts`` in :func:`set_target_bits.sv1_cuts`
+        * This should facilitate QSO selection for SV mocks.
+* Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_].
 * Further updates and enhancements for DR8 [`PR #490`_]. Includes:
     * Resolve sky locations and SV targets in North/South regions.
     * Update sky and SV slurming for DR8-style input (two directories).
@@ -27,11 +33,13 @@ desitarget Change Log
     * Only import matplotlib where explicitly needed.
 * Update `select_mock_targets` to (current) DR8 data model [`PR #480`_].
 
+.. _`PR #444`: https://github.com/desihub/desitarget/pull/444
 .. _`PR #480`: https://github.com/desihub/desitarget/pull/480
 .. _`PR #484`: https://github.com/desihub/desitarget/pull/484
 .. _`PR #488`: https://github.com/desihub/desitarget/pull/488
 .. _`PR #489`: https://github.com/desihub/desitarget/pull/489
 .. _`PR #490`: https://github.com/desihub/desitarget/pull/490
+.. _`PR #494`: https://github.com/desihub/desitarget/pull/494
 
 0.29.1 (2019-03-26)
 -------------------

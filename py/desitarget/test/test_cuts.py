@@ -107,7 +107,7 @@ class TestCuts(unittest.TestCase):
         gfracin = targets['FRACIN_G']
         rfracin = targets['FRACIN_R']
         zfracin = targets['FRACIN_Z']
-        brightstarinblob = (targets['BRIGHTBLOB'] & 2**0) != 0
+        brightstarinblob = (targets['MASKBITS'] & 2**1) != 0
 
         gaiagmag = targets['GAIA_PHOT_G_MEAN_MAG']
         Grr = gaiagmag - 22.5 + 2.5*np.log10(targets['FLUX_R'])
@@ -188,7 +188,7 @@ class TestCuts(unittest.TestCase):
         tc = ["ELG"]
         # ADM add the DR7/DR8 data columns if they aren't there yet.
         # ADM can remove this once DR8 is finalized.
-        if "BRIGHTBLOB" not in targets.dtype.names:
+        if "MASKBITS" not in targets.dtype.names:
             targets = io.add_dr8_columns(targets)
 
         self.assertFalse(cuts._is_row(targets))
