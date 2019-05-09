@@ -5,6 +5,7 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* Add SV support to select_mock_targets [`PR #496`_]
 * A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
     * Deprecate ``BRIGHTBLOB`` in favor of ``MASKBITS`` for targets.
@@ -40,6 +41,7 @@ desitarget Change Log
 .. _`PR #489`: https://github.com/desihub/desitarget/pull/489
 .. _`PR #490`: https://github.com/desihub/desitarget/pull/490
 .. _`PR #494`: https://github.com/desihub/desitarget/pull/494
+.. _`PR #496`: https://github.com/desihub/desitarget/pull/496
 
 0.29.1 (2019-03-26)
 -------------------
