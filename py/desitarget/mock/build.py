@@ -826,7 +826,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
             use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
-            no_spectra=no_spectra))
+            no_spectra=no_spectra, survey=survey))
 
     # Are we adding contaminants?  If so, cache the relevant classes here.
     if 'contaminants' in params.keys():
@@ -837,7 +837,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 raise ValueError
             star_name, _ = list(params['contaminants']['stars'].items())[0]
             ContamStarsMock = getattr(mockmaker, '{}Maker'.format(star_name))(
-                seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra)
+                seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra,
+                survey=survey)
         else:
             ContamStarsMock = None
                 
@@ -849,7 +850,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             galaxies_name, _ = list(params['contaminants']['galaxies'].items())[0]
             ContamGalaxiesMock = getattr(mockmaker, '{}Maker'.format(galaxies_name))(
                 seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra,
-                target_name='CONTAM_GALAXY')
+                target_name='CONTAM_GALAXY', survey=survey)
         else:
             ContamGalaxiesMock = None
             
