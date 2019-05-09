@@ -250,7 +250,7 @@ class SelectTargets(object):
     """
     GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
-    def __init__(self, bricksize=0.25, survey='main'):
+    def __init__(self, bricksize=0.25, survey='main', **kwargs):
         from astropy.io import fits
 
         from speclite import filters
@@ -2926,15 +2926,18 @@ class QSOMaker(SelectTargets):
     use_simqso : :class:`bool`, optional
         Use desisim.templates.SIMQSO to generated templates rather than
         desisim.templates.QSO.  Defaults to True.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker, GMM_QSO = None, None, None
     
-    def __init__(self, seed=None, use_simqso=True, **kwargs):
+    def __init__(self, seed=None, use_simqso=True, survey='main', **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(QSOMaker, self).__init__()
+        super(QSOMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'QSO'
@@ -3132,15 +3135,19 @@ class LYAMaker(SelectTargets):
         Probability of a including one or more BALs.  Defaults to 0.0. 
     add_dla : :class:`bool`, optional
         Statistically include DLAs along the line of sight.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
 
-    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False, **kwargs):
+    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False,
+                 survey='main', **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LYAMaker, self).__init__()
+        super(LYAMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'LYA'
@@ -3448,16 +3455,19 @@ class LRGMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
     GMM_LRG, KDTree_north, KDTree_south = None, None, None
 
-    def __init__(self, seed=None, nside_chunk=128, **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LRGMaker, self).__init__()
+        super(LRGMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -3673,16 +3683,19 @@ class ELGMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
     GMM_ELG, KDTree_north, KDTree_south = None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(ELGMaker, self).__init__()
+        super(ELGMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -3892,12 +3905,15 @@ class BGSMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker, GMM_BGS, KDTree = None, None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, **kwargs):
-        super(BGSMaker, self).__init__()
+    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
+        super(BGSMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -4110,17 +4126,20 @@ class STARMaker(SelectTargets):
         Seed for reproducibility and random number generation.
     no_spectra : :class:`bool`, optional
         Initialize and cache template photometry.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker, KDTree = None, None, None
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
-    def __init__(self, seed=None, no_spectra=False, **kwargs):
+    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
         from speclite import filters
         from desisim.templates import STAR
 
-        super(STARMaker, self).__init__()
+        super(STARMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'STAR'
@@ -4271,10 +4290,15 @@ class MWS_MAINMaker(STARMaker):
         Defaults to False.
     no_spectra : :class:`bool`, optional
         Initialize and cache template photometry.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
-    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
-        super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra)
+    def __init__(self, seed=None, calib_only=False, no_spectra=False,
+                 survey='main', **kwargs):
+        super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra,
+                                            survey=survey)
 
         self.seed = seed
         self.calib_only = calib_only
@@ -4476,10 +4500,14 @@ class MWS_NEARBYMaker(STARMaker):
         Seed for reproducibility and random number generation.
     no_spectra : :class:`bool`, optional
         Do not initialize template photometry.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
-    def __init__(self, seed=None, no_spectra=False, **kwargs):
-        super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra)
+    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
+        super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra,
+                                              survey=survey)
 
     def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
              nside=None, mock_density=False, **kwargs):
@@ -4653,6 +4681,9 @@ class WDMaker(SelectTargets):
         Do not initialize template photometry.  Defaults to False.
     calib_only : :class:`bool`, optional
         Use WDs as calibration (standard star) targets, only.  Defaults to False. 
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
@@ -4660,11 +4691,12 @@ class WDMaker(SelectTargets):
     wd_maggies_da_north, wd_maggies_da_north = None, None
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
-    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, no_spectra=False,
+                 survey='main', **kwargs):
         from speclite import filters
         from desisim.templates import WD
         
-        super(WDMaker, self).__init__()
+        super(WDMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'WD'
@@ -4978,12 +5010,15 @@ class SKYMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave = None
     
-    def __init__(self, seed=None, **kwargs):
-        super(SKYMaker, self).__init__()
+    def __init__(self, seed=None, survey='main', **kwargs):
+        super(SKYMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'SKY'
@@ -5123,12 +5158,16 @@ class BuzzardMaker(SelectTargets):
         Seed for reproducibility and random number generation.
     no_spectra : :class:`bool`, optional
         Do not pre-select extragalactic contaminants.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, no_spectra=False, **kwargs):
-        super(BuzzardMaker, self).__init__()
+    def __init__(self, seed=None, nside_chunk=128, no_spectra=False,
+                 survey='main', **kwargs):
+        super(BuzzardMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'BGS'
