@@ -10,6 +10,7 @@ desitarget Change Log
     * Deprecate ``BRIGHTBLOB`` in favor of ``MASKBITS`` for targets.
     * Add ``qso_selection==colorcuts`` in :func:`set_target_bits.sv1_cuts`
         * This should facilitate QSO selection for SV mocks.
+* Add ``REF_CAT`` and Gaia BP and RP mags and errors to GFAs [`PR #493`_].
 * Minor bug fix in how `select_mock_targets` handles Lya targets [`PR #444`_].
 * Further updates and enhancements for DR8 [`PR #490`_]. Includes:
     * Resolve sky locations and SV targets in North/South regions.
@@ -39,6 +40,7 @@ desitarget Change Log
 .. _`PR #488`: https://github.com/desihub/desitarget/pull/488
 .. _`PR #489`: https://github.com/desihub/desitarget/pull/489
 .. _`PR #490`: https://github.com/desihub/desitarget/pull/490
+.. _`PR #493`: https://github.com/desihub/desitarget/pull/493
 .. _`PR #494`: https://github.com/desihub/desitarget/pull/494
 
 0.29.1 (2019-03-26)
