@@ -101,6 +101,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='ALLMASK_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='ALLMASK_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='ALLMASK_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='WISEMASK_W1', length=nobj, dtype='|u1'))
+    targets.add_column(Column(name='WISEMASK_W2', length=nobj, dtype='|u1'))
     
     targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
@@ -132,7 +134,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='>f4'))
 
     # Gaia columns
-    targets.add_column(Column(name='REF_CAT', length=nobj, dtype='U2'))
+    targets.add_column(Column(name='REF_CAT', length=nobj, dtype='S2'))
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
@@ -149,13 +151,14 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='PMDEC', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PMDEC_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
 
-    targets.add_column(Column(name='WISEMASK_W1', length=nobj, dtype='|u1'))
-    targets.add_column(Column(name='WISEMASK_W2', length=nobj, dtype='|u1'))
     targets.add_column(Column(name='MASKBITS', length=nobj, dtype='>i2'))
 
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
     targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+
+    
+    
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
