@@ -15,6 +15,7 @@ parser.add_argument('-c', '--config', default='input.yaml')
 parser.add_argument('-O', '--output_dir', help='Path to write the outputs', type=str, default='./')
 parser.add_argument('-s', '--seed', help='Seed for random number generation', type=int, default=None)
 parser.add_argument('-n', '--nproc', type=int, help='number of concurrent processes to use [{}]'.format(nproc), default=nproc)
+parser.add_argument('--survey', type=str, choices=['main', 'sv1'], help='Survey to simulate.', default='main')
 parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=64)
 parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
 parser.add_argument('--npix', help='Number of healpix per process', type=int, default=1)
@@ -167,7 +168,8 @@ if len(rankpix) > 0:
                 log.info('  healpixels {}'.format(rankpix[i:i+n]))
                 targets_truth(params, output_dir=args.output_dir, seed=rankseeds[i],
                               nside=args.nside, nproc=args.nproc, verbose=args.verbose,
-                              healpixels=rankpix[i:i+n], no_spectra=args.no_spectra)
+                              healpixels=rankpix[i:i+n], no_spectra=args.no_spectra,
+                              survey=args.survey)
 
             runtime = (time.time()-t0) / 60
             log.info('Pixels {} took {:.1f} minutes'.format(rankpix[i:i+n], runtime))
