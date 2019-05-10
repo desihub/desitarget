@@ -60,24 +60,31 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='RA_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
     targets.add_column(Column(name='DEC_IVAR', length=nobj, dtype='f4', unit='1/degree**2'))
     targets.add_column(Column(name='DCHISQ', length=nobj, dtype='f4', data=np.zeros( (nobj, 5) )))
+    targets['DCHISQ'][:, 0] = 1.0 # initialize
     
     targets.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     targets.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W3', length=nobj, dtype='f4', unit='nanomaggies'))
+    targets.add_column(Column(name='FLUX_W4', length=nobj, dtype='f4', unit='nanomaggies'))
     
     targets.add_column(Column(name='FLUX_IVAR_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_Z', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_W1', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='FLUX_IVAR_W2', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W3', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
+    targets.add_column(Column(name='FLUX_IVAR_W4', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     
     targets.add_column(Column(name='MW_TRANSMISSION_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_Z', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W1', length=nobj, dtype='f4'))
     targets.add_column(Column(name='MW_TRANSMISSION_W2', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W3', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='MW_TRANSMISSION_W4', length=nobj, dtype='f4'))
 
     targets.add_column(Column(name='NOBS_G', length=nobj, dtype='i2'))
     targets.add_column(Column(name='NOBS_R', length=nobj, dtype='i2'))
@@ -94,6 +101,8 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='ALLMASK_G', length=nobj, dtype='f4'))
     targets.add_column(Column(name='ALLMASK_R', length=nobj, dtype='f4'))
     targets.add_column(Column(name='ALLMASK_Z', length=nobj, dtype='f4'))
+    targets.add_column(Column(name='WISEMASK_W1', length=nobj, dtype='|u1'))
+    targets.add_column(Column(name='WISEMASK_W2', length=nobj, dtype='|u1'))
     
     targets.add_column(Column(name='PSFDEPTH_G', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
     targets.add_column(Column(name='PSFDEPTH_R', length=nobj, dtype='f4', unit='1/nanomaggies**2'))
@@ -125,7 +134,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='>f4'))
 
     # Gaia columns
-    targets.add_column(Column(name='REF_CAT', length=nobj, dtype='U2'))
+    targets.add_column(Column(name='REF_CAT', length=nobj, dtype='S2'))
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_MAG', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
@@ -142,9 +151,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='PMDEC', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PMDEC_IVAR', data=np.ones(nobj, dtype='f4'))) # default is unity
 
-    targets.add_column(Column(name='WISEMASK_W1', length=nobj, dtype='|u1'))
-    targets.add_column(Column(name='WISEMASK_W2', length=nobj, dtype='|u1'))
-    targets.add_column(Column(name='BRIGHTBLOB', length=nobj, dtype='>i2'))
+    targets.add_column(Column(name='MASKBITS', length=nobj, dtype='>i2'))
 
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
@@ -199,6 +206,8 @@ def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
     truth.add_column(Column(name='FLUX_Z', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W1', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_W2', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W3', length=nobj, dtype='f4', unit='nanomaggies'))
+    truth.add_column(Column(name='FLUX_W4', length=nobj, dtype='f4', unit='nanomaggies'))
 
     _, objtruth = empty_metatable(nmodel=nobj, objtype=templatetype, simqso=use_simqso)
     if len(objtruth) == 0:
@@ -243,19 +252,30 @@ class SelectTargets(object):
     bricksize : :class:`float`, optional
         Brick diameter used in the imaging surveys; needed to assign a brickname
         and brickid to each object.  Defaults to 0.25 deg.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
-    def __init__(self, bricksize=0.25):
+    def __init__(self, bricksize=0.25, survey='main', **kwargs):
         from astropy.io import fits
 
         from speclite import filters
         from desiutil.dust import SFDMap
         from desiutil.brick import Bricks
         from specsim.fastfiberacceptance import FastFiberAcceptance
-        from ..targetmask import desi_mask, bgs_mask, mws_mask
-        
+
+        self.survey = survey
+        if survey == 'main':
+            from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+        elif survey == 'sv1':
+            from desitarget.sv1.sv1_targetmask import desi_mask, bgs_mask, mws_mask
+        else:
+            log.warning('Survey {} not recognized!'.format(survey))
+            raise ValueError
+            
         self.desi_mask = desi_mask
         self.bgs_mask = bgs_mask
         self.mws_mask = mws_mask
@@ -292,10 +312,10 @@ class SelectTargets(object):
         ------
 
         """
-        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113)
+        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113, W3 = 0.0241, W4 = 0.00910)
         data['EBV'] = self.SFDMap.ebv(data['RA'], data['DEC'], scaling=1.0)
 
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
             data['MW_TRANSMISSION_{}'.format(band)] = 10**(-0.4 * extcoeff[band] * data['EBV'])
 
     def mw_dust_extinction(self, Rv=3.1):
@@ -999,7 +1019,7 @@ class SelectTargets(object):
         targets['DCHISQ'][:] = np.tile( [0.0, 100, 200, 300, 400], (nobj, 1)) # for QSO selection
 
         # Add dust, depth, and nobs.
-        for band in ('G', 'R', 'Z', 'W1', 'W2'):
+        for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
 
@@ -1034,8 +1054,9 @@ class SelectTargets(object):
         # for Galactic extinction.
         self.scatter_photometry(data, truth, targets, indx=indx, seed=seed)
 
-        for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2'),
-                              ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2') ):
+        for band, key in zip( ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'),
+                              ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1',
+                               'FLUX_W2', 'FLUX_W3', 'FLUX_W4') ):
             targets[key][:] = targets[key] * data['MW_TRANSMISSION_{}'.format(band)][indx]
 
         # Attenuate the spectra for extinction, too.
@@ -2927,15 +2948,18 @@ class QSOMaker(SelectTargets):
     use_simqso : :class:`bool`, optional
         Use desisim.templates.SIMQSO to generated templates rather than
         desisim.templates.QSO.  Defaults to True.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker, GMM_QSO = None, None, None
     
-    def __init__(self, seed=None, use_simqso=True, **kwargs):
+    def __init__(self, seed=None, use_simqso=True, survey='main', **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(QSOMaker, self).__init__()
+        super(QSOMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'QSO'
@@ -3109,11 +3133,12 @@ class QSOMaker(SelectTargets):
         """
         if self.use_simqso:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                                  qso_selection='colorcuts')
+                                                                  qso_selection='colorcuts',
+                                                                  survey=self.survey)
         else:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(
                 targets, tcnames=targetname, qso_selection='colorcuts',
-                qso_optical_cuts=True)
+                qso_optical_cuts=True, survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
 
@@ -3132,15 +3157,19 @@ class LYAMaker(SelectTargets):
         Probability of a including one or more BALs.  Defaults to 0.0. 
     add_dla : :class:`bool`, optional
         Statistically include DLAs along the line of sight.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
 
-    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False, **kwargs):
+    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False,
+                 survey='main', **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LYAMaker, self).__init__()
+        super(LYAMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'LYA'
@@ -3429,7 +3458,8 @@ class LYAMaker(SelectTargets):
             tcnames = targetname
             
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts')
+                                                              qso_selection='colorcuts',
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -3447,16 +3477,19 @@ class LRGMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
     GMM_LRG, KDTree_north, KDTree_south = None, None, None
 
-    def __init__(self, seed=None, nside_chunk=128, **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LRGMaker, self).__init__()
+        super(LRGMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -3653,7 +3686,8 @@ class LRGMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -3671,16 +3705,19 @@ class ELGMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
     GMM_ELG, KDTree_north, KDTree_south = None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(ELGMaker, self).__init__()
+        super(ELGMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -3871,7 +3908,8 @@ class ELGMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -3889,12 +3927,15 @@ class BGSMaker(SelectTargets):
     nside_chunk : :class:`int`, optional
         Healpixel nside for further subdividing the sample when assigning
         velocity dispersion to targets.  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker, GMM_BGS, KDTree = None, None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, **kwargs):
-        super(BGSMaker, self).__init__()
+    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
+        super(BGSMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -4087,7 +4128,8 @@ class BGSMaker(SelectTargets):
             Corresponding truth table.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -4106,17 +4148,20 @@ class STARMaker(SelectTargets):
         Seed for reproducibility and random number generation.
     no_spectra : :class:`bool`, optional
         Initialize and cache template photometry.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker, KDTree = None, None, None
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
-    def __init__(self, seed=None, no_spectra=False, **kwargs):
+    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
         from speclite import filters
         from desisim.templates import STAR
 
-        super(STARMaker, self).__init__()
+        super(STARMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'STAR'
@@ -4267,10 +4312,15 @@ class MWS_MAINMaker(STARMaker):
         Defaults to False.
     no_spectra : :class:`bool`, optional
         Initialize and cache template photometry.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
-    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
-        super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra)
+    def __init__(self, seed=None, calib_only=False, no_spectra=False,
+                 survey='main', **kwargs):
+        super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra,
+                                            survey=survey)
 
         self.seed = seed
         self.calib_only = calib_only
@@ -4438,7 +4488,8 @@ class MWS_MAINMaker(STARMaker):
         # Note: We pass qso_selection to cuts.apply_cuts because MWS_MAIN
         # targets can be used as QSO contaminants.
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts')
+                                                              qso_selection='colorcuts',
+                                                              survey=self.survey)
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
         # those are handled in the MWS_NEARBYMaker and WDMaker classes,
@@ -4471,10 +4522,14 @@ class MWS_NEARBYMaker(STARMaker):
         Seed for reproducibility and random number generation.
     no_spectra : :class:`bool`, optional
         Do not initialize template photometry.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
-    def __init__(self, seed=None, no_spectra=False, **kwargs):
-        super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra)
+    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
+        super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra,
+                                              survey=survey)
 
     def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
              nside=None, mock_density=False, **kwargs):
@@ -4615,7 +4670,8 @@ class MWS_NEARBYMaker(STARMaker):
             Target selection cuts to apply.
 
         """
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
+                                                              survey=self.survey)
 
         # Subtract out *all* the MWS targeting bits except MWS_NEARBY since
         # those are separately handled in the MWS_MAINMaker and WDMaker classes.
@@ -4647,6 +4703,9 @@ class WDMaker(SelectTargets):
         Do not initialize template photometry.  Defaults to False.
     calib_only : :class:`bool`, optional
         Use WDs as calibration (standard star) targets, only.  Defaults to False. 
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, da_template_maker, db_template_maker = None, None, None
@@ -4654,11 +4713,12 @@ class WDMaker(SelectTargets):
     wd_maggies_da_north, wd_maggies_da_north = None, None
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
-    def __init__(self, seed=None, calib_only=False, no_spectra=False, **kwargs):
+    def __init__(self, seed=None, calib_only=False, no_spectra=False,
+                 survey='main', **kwargs):
         from speclite import filters
         from desisim.templates import WD
         
-        super(WDMaker, self).__init__()
+        super(WDMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'WD'
@@ -4956,7 +5016,8 @@ class WDMaker(SelectTargets):
         # Assume that MWS_MAIN and MWS_NEARBY objects are *never* selected from
         # the WD mock.
         
-        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames)
+        desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
+                                                              survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         
@@ -4971,12 +5032,15 @@ class SKYMaker(SelectTargets):
     ----------
     seed : :class:`int`, optional
         Seed for reproducibility and random number generation.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave = None
     
-    def __init__(self, seed=None, **kwargs):
-        super(SKYMaker, self).__init__()
+    def __init__(self, seed=None, survey='main', **kwargs):
+        super(SKYMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'SKY'
@@ -5116,12 +5180,16 @@ class BuzzardMaker(SelectTargets):
         Seed for reproducibility and random number generation.
     no_spectra : :class:`bool`, optional
         Do not pre-select extragalactic contaminants.  Defaults to False.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
     wave, template_maker = None, None
     
-    def __init__(self, seed=None, nside_chunk=128, no_spectra=False, **kwargs):
-        super(BuzzardMaker, self).__init__()
+    def __init__(self, seed=None, nside_chunk=128, no_spectra=False,
+                 survey='main', **kwargs):
+        super(BuzzardMaker, self).__init__(survey=survey)
 
         self.seed = seed
         self.objtype = 'BGS'
@@ -5428,7 +5496,8 @@ class BuzzardMaker(SelectTargets):
         # file...we should be setting optical=True.
         
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                              qso_selection='colorcuts')
+                                                              qso_selection='colorcuts',
+                                                              survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
         

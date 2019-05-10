@@ -769,8 +769,8 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
     return targets, truth, objtruth, trueflux
 
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',
-                  seed=None, nproc=1, nside_chunk=128, verbose=False,
-                  no_spectra=False):
+                  seed=None, nproc=1, nside_chunk=128, survey='main',
+                  verbose=False, no_spectra=False):
     """Generate truth and targets catalogs, and noiseless spectra.
 
     Parameters
@@ -792,6 +792,9 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     nside_chunk : :class:`int`, optional
         Healpix resolution for chunking the sample to avoid memory problems.
         (NB: nside_chunk must be <= nside).  Defaults to 128.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
     verbose : :class:`bool`, optional
         Be verbose. Defaults to False.
     no_spectra : :class:`bool`, optional
@@ -823,7 +826,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
             use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
-            no_spectra=no_spectra))
+            no_spectra=no_spectra, survey=survey))
 
     # Are we adding contaminants?  If so, cache the relevant classes here.
     if 'contaminants' in params.keys():
@@ -834,7 +837,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 raise ValueError
             star_name, _ = list(params['contaminants']['stars'].items())[0]
             ContamStarsMock = getattr(mockmaker, '{}Maker'.format(star_name))(
-                seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra)
+                seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra,
+                survey=survey)
         else:
             ContamStarsMock = None
                 
@@ -846,7 +850,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             galaxies_name, _ = list(params['contaminants']['galaxies'].items())[0]
             ContamGalaxiesMock = getattr(mockmaker, '{}Maker'.format(galaxies_name))(
                 seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra,
-                target_name='CONTAM_GALAXY')
+                target_name='CONTAM_GALAXY', survey=survey)
         else:
             ContamGalaxiesMock = None
             
@@ -927,15 +931,15 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         # Finish up.
         targets, truth, objtruth, skytargets, skytruth = finish_catalog(
             targets, truth, objtruth, skytargets, skytruth, healpix,
-            nside, log, seed=healseed)
+            nside, log, seed=healseed, survey=survey)
 
         # Finally, write the results to disk.
         write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
                             skytargets, skytruth,  healpix, nside, log, output_dir, 
-                            seed=healseed)
+                            seed=healseed, survey=survey)
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
-                   nside, log, seed=None):
+                   nside, log, seed=None, survey='main'):
     """Add hpxpixel, brick_objid, targetid, subpriority, priority, and numobs to the
     target catalog.
     
@@ -959,6 +963,9 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
        Logger object.
     seed : :class:`int`, optional
         Seed for the random number generation.  Defaults to None.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     Returns
     -------
@@ -988,6 +995,21 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
     subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
 
+    # Rename some columns!
+    def _rename_bysurvey(targ, survey='main'):
+        targ.rename_column('TYPE', 'MORPHTYPE') # Rename TYPE --> MORPHTYPE
+
+        if survey == 'main':
+            pass
+        elif survey == 'sv1':
+            targ.rename_column('DESI_TARGET', 'SV1_DESI_TARGET')
+            targ.rename_column('BGS_TARGET', 'SV1_BGS_TARGET')
+            targ.rename_column('MWS_TARGET', 'SV1_MWS_TARGET')
+        else:
+            log.warning('Survey {} not recognized!'.format(survey))
+            raise ValueError
+        return targ
+
     if nobj > 0:
         #targets['BRICKID'][:] = healpix # use the derived BRICKID values
         targets['HPXPIXEL'][:] = healpix
@@ -1012,9 +1034,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = \
                 initial_priority_numobs(targets)
 
-        # Rename TYPE --> MORPHTYPE
-        targets.rename_column('TYPE', 'MORPHTYPE')
-
+        targets = _rename_bysurvey(targets, survey=survey)
+        
         assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
 
     if nsky > 0:
@@ -1027,13 +1048,13 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         skytargets['PRIORITY_INIT'], skytargets['NUMOBS_INIT'] = \
                 initial_priority_numobs(skytargets)
 
-        # Rename TYPE --> MORPHTYPE
-        skytargets.rename_column('TYPE', 'MORPHTYPE')
+        skytargets = _rename_bysurvey(skytargets, survey=survey)
 
     return targets, truth, objtruth, skytargets, skytruth
 
 def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets,
-                        skytruth, healpix, nside, log, output_dir, seed=None):
+                        skytruth, healpix, nside, log, output_dir, seed=None,
+                        survey='main'):
     """Writes all the final catalogs to disk.
     
     Parameters
@@ -1062,6 +1083,9 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
         Seed for the random number generation.  Defaults to None.
     output_dir : :class:`str`
         Output directory.
+    survey : :class:`str`, optional
+        Specify which target masks yaml file to use.  The options are `main`
+        (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
             
     Returns
     -------
@@ -1113,10 +1137,15 @@ def write_targets_truth(targets, truth, objtruth, trueflux, truewave, skytargets
 
     if nobj > 0:
         # Write out the dark- and bright-time standard stars.
+        if survey == 'main':
+            bitname = 'DESI_TARGET'
+        elif survey == 'sv1':
+            bitname = 'SV1_DESI_TARGET'
+            
         for stdsuffix, stdbit in zip(('dark', 'bright'), ('STD_FAINT', 'STD_BRIGHT')):
             stdfile = mockio.findfile('standards-{}'.format(stdsuffix), nside, healpix, basedir=output_dir)
-            istd = ( (targets['DESI_TARGET'] & desi_mask.mask(stdbit)) |
-                     (targets['DESI_TARGET'] & desi_mask.mask('STD_WD')) ) != 0
+            istd = ( (targets[bitname] & desi_mask.mask(stdbit)) |
+                     (targets[bitname] & desi_mask.mask('STD_WD')) ) != 0
 
             if np.count_nonzero(istd) > 0:
                 log.info('Writing {} {} standards to {}'.format(np.sum(istd), stdsuffix.upper(), stdfile))
