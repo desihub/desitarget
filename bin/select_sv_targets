@@ -117,7 +117,7 @@ for i, inlist in enumerate(inlists):
 # ADM if specific bit names were passed, use them, otherwise run all target classes
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
-targets = select_targets(infiles, numproc=ns.numproc, 
+targets = select_targets(infiles, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist,
                          bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
                          radecbox=inlists[0], radecrad=inlists[1],

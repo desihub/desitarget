@@ -87,7 +87,7 @@ dr8datamodel = np.array([], dtype=[
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
     ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
-    ('BRIGHTBLOB', '>i2')
+    ('MASKBITS', '>i2')
     ])
 
 
@@ -231,11 +231,11 @@ def add_dr8_columns(indata):
         - DR8 columns are stored in :mod:`desitarget.io.dr8datamodel`.
         - The returned columns are set to all ``0`` or ``False``.
     """
-    # ADM if BRIGHSTARINBLOB was sent (the dr7 version of BRIGHTBLOB)
+    # ADM if BRIGHSTARINBLOB was sent (the dr7 version of MASKBITS)
     # ADM then we need to update that column.
     if 'BRIGHTSTARINBLOB' in indata.dtype.names:
-        newt = dr8datamodel["BRIGHTBLOB"].dtype.str
-        newdt = ("BRIGHTBLOB", newt)
+        newt = dr8datamodel["MASKBITS"].dtype.str
+        newdt = ("MASKBITS", newt)
         dt = [fld if fld[0] != 'BRIGHTSTARINBLOB' else newdt
               for fld in indata.dtype.descr]
     else:
@@ -249,7 +249,9 @@ def add_dr8_columns(indata):
     # ADM ...and populate them with the passed columns of data.
     for col in indata.dtype.names:
         if col == "BRIGHTSTARINBLOB":
-            outdata["BRIGHTBLOB"] = indata["BRIGHTSTARINBLOB"].astype(newt)
+            # ADM we have to bit-shift (<<) as, in MASKBITS, BRIGHT is 2**1
+            # ADM but in BRIGHTSTARINBLOB it was True (2**0).
+            outdata["MASKBITS"] = indata["BRIGHTSTARINBLOB"].astype(newt) << 1
         else:
             outdata[col] = indata[col]
 
@@ -351,11 +353,11 @@ def read_tractor(filename, header=False, columns=None):
         if ('WISEMASK_W1' not in fxcolnames) and ('wisemask_w1' not in fxcolnames):
             readcolumns.remove('WISEMASK_W1')
             readcolumns.remove('WISEMASK_W2')
-    # ADM if BRIGHTBLOB exists (it does for DR8, not for DR7) add it and
+    # ADM if MASKBITS exists (it does for DR8, not for DR7) add it and
     # ADM the other DR6->DR8 data model updates.
     else:
         if (columns is None) and \
-           (('BRIGHTBLOB' in fxcolnames) or ('brightblob' in fxcolnames)):
+           (('MASKBITS' in fxcolnames) or ('maskbits' in fxcolnames)):
             for col in dr8datamodel.dtype.names:
                 readcolumns.append(col)
 
@@ -392,7 +394,7 @@ def read_tractor(filename, header=False, columns=None):
 
     # ADM add DR8 data model updates (with zero/False) columns if not passed.
     if (columns is None) and \
-       (('BRIGHTBLOB' not in fxcolnames) and ('brightblob' not in fxcolnames)):
+       (('MASKBITS' not in fxcolnames) and ('maskbits' not in fxcolnames)):
         data = add_dr8_columns(data)
 
     # ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname.
