@@ -1254,8 +1254,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         Apply just optical color-cuts when selecting QSOs with
         ``qso_selection="colorcuts"``. This has no effect in SV!!!
     qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
-        The algorithm to use for QSO selection; valid options are
-        ``'colorcuts'`` and ``'randomforest'``. This has no effect in SV!!!
+        If set to ``'colorcuts'``, then only the color-cut-based QSO
+        selections are run (to facilitate mock selection for SV). Passing
+        any other value runs both color cuts AND Random Forest selections.
     brightstarinblob: boolean array_like or None
         ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
     Grr: array_like or None
@@ -1352,22 +1353,28 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     south=south
                 )
             )
-            qso_classes.append(
-                isQSO_randomforest(
-                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                    w1flux=w1flux, w2flux=w2flux,
-                    dchisq=dchisq, brightstarinblob=brightstarinblob,
-                    objtype=objtype, south=south
+            # ADM SV mock selection needs to apply only the color cuts
+            # ADM and ignore the Random Forest selections.
+            if qso_selection == 'colorcuts':
+                qso_classes.append(~primary)
+                qso_classes.append(~primary)
+            else:
+                qso_classes.append(
+                    isQSO_randomforest(
+                        primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                        w1flux=w1flux, w2flux=w2flux,
+                        dchisq=dchisq, brightstarinblob=brightstarinblob,
+                        objtype=objtype, south=south
+                    )
                 )
-            )
-            qso_classes.append(
-                isQSO_highz_faint(
-                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                    w1flux=w1flux, w2flux=w2flux,
-                    dchisq=dchisq, brightstarinblob=brightstarinblob,
-                    objtype=objtype, south=south
+                qso_classes.append(
+                    isQSO_highz_faint(
+                        primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                        w1flux=w1flux, w2flux=w2flux,
+                        dchisq=dchisq, brightstarinblob=brightstarinblob,
+                        objtype=objtype, south=south
+                    )
                 )
-            )
             qso_classes.append(
                 isQSO_color_high_z(
                     gflux=gflux, rflux=rflux, zflux=zflux,
