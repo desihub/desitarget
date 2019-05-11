@@ -1741,7 +1741,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             )
     mws_broad_n, mws_red_n, mws_blue_n = mws_classes[0]
     mws_broad_s, mws_red_s, mws_blue_s = mws_classes[1]
-    
+
     # ADM treat the MWS WD selection specially, as we have to run the
     # ADM white dwarfs for standards and MWS science targets.
     mws_wd = ~primary
