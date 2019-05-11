@@ -1743,7 +1743,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_broad_s, mws_red_s, mws_blue_s = mws_classes[1]
     
     # ADM treat the MWS WD selection specially, as we have to run the
-    # ADM white dwarfs for standards and MWS science targets
+    # ADM white dwarfs for standards and MWS science targets.
     mws_wd = ~primary
     if "MWS" in tcnames or "STD" in tcnames:
         mws_wd = isMWS_WD(
@@ -1756,6 +1756,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM initially set everything to False for the standards.
     std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
     if "STD" in tcnames:
+        # ADM run the MWS_MAIN target types for both faint and bright.
         # ADM Make sure to pass all of the needed columns! At one point we stopped
         # ADM passing objtype, which meant no standards were being returned.
         std_classes = []
@@ -1773,7 +1774,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
             )
         std_faint, std_bright = std_classes
-        # ADM the standard WDs are currently identical to the MWS WDs
+        # ADM the standard WDs are currently identical to the MWS WDs.
         std_wd = mws_wd
 
     # ADM combine the north/south MWS bits.
