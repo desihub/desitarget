@@ -172,9 +172,9 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         # ADM optical sliding cut, e.g. in the south:
         # (z-17.18)/2 < r-z  ->  3z < 17.18 + 2r
         # (z-15.11)/2 > r-z  ->  3z > 15.11 + 2r
-        lrg &= ((zflux**complex(1.+osc_div)).real > 
+        lrg &= ((zflux**complex(1.+osc_div)).real >
                 (10**(0.4*(22.5-osc_lo))*rflux**complex(osc_div)).real)
-        lrg &= ((zflux**complex(1.+osc_div)).real < 
+        lrg &= ((zflux**complex(1.+osc_div)).real <
                 (10**(0.4*(22.5-osc_hi))*rflux**complex(osc_div)).real)
 
         # ADM redshift cut with elbow, e.g. in the south:

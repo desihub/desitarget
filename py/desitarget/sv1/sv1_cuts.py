@@ -503,7 +503,7 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # ADM when wflux is -ve qso_hz is always True.
     # ADM So, I've hardcoded that logic to prevent NaN.
     qso_hz = (wflux < 0) & (gflux >= 0) & (rflux >= 0) & (zflux >= 0)
-    ii = (wflux >= 0) & (gflux >=0) & (rflux >= 0) & (zflux >= 0)
+    ii = (wflux >= 0) & (gflux >= 0) & (rflux >= 0) & (zflux >= 0)
     qso_hz[ii] = ((wflux[ii] < gflux[ii]*10**(2.0/2.5)) |
                   (rflux[ii]*(gflux[ii]**0.4) >
                    gflux[ii]*(wflux[ii]**0.4)*10**(0.3/2.5)))  # (g-w<2.0 or g-r>O.4*(g-w)+0.3)
@@ -671,9 +671,9 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
     # ADM "color_cut" isn't used. If it WAS to be used, we'd need to guard against raising
     # ADM negative fluxes to fractional powers, e.g. (-0.11)**0.3 is a complex number!
-    #color_cut = ((wflux < gflux*10**(2.7/2.5)) |
-    #             (rflux*(gflux**0.3) > gflux*(wflux**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
-    #color_cut &= (wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
+    # color_cut = ((wflux < gflux*10**(2.7/2.5)) |
+    #              (rflux*(gflux**0.3) > gflux*(wflux**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
+    # color_cut &= (wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
     # preSelection &= color_cut
 
     # Standard morphology cut.
@@ -941,16 +941,16 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None,
     # ADM note that there is currently no north/south split
     # ADM FDR box
     elgfdr[ii] &= (g >= 20.00) & (g < 23.45) & (rz > 0.3) & (rz < 1.6) & \
-              (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
+                  (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
     # ADM FDR box faint
     elgfdrfaint[ii] &= (g >= 23.45) & (g < 23.65) & (rz > 0.3) & (rz < 1.6) & \
-                   (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
+                       (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
     # ADM blue rz box extension
     elgrzblue[ii] &= (g >= 20.00) & (g < 23.65) & \
-                 (rz > 0.0) & (rz < 0.3) & (gr < 0.2)
+                     (rz > 0.0) & (rz < 0.3) & (gr < 0.2)
     # ADM red rz box extension
     elgrzred[ii] &= (g >= 20.00) & (g < 23.65) & \
-                (gr < 1.15*rz-0.15) & ((rz > 1.6) | (gr > 1.6-1.2*rz)) & (gr < 2.5-1.2*rz)
+                    (gr < 1.15*rz-0.15) & ((rz > 1.6) | (gr > 1.6-1.2*rz)) & (gr < 2.5-1.2*rz)
 
     return elgfdr, elgfdrfaint, elgrzblue, elgrzred
 
