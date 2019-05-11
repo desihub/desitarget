@@ -409,10 +409,15 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     qso &= ~brightstarinblob
 
     # ADM relaxed morphology cut for SV.
+    # ADM we never target sources with dchisq[..., 0] = 0, so force
+    # ADM those to have large values of morph2 to avoid divide-by-zero.
+    d1, d0 = dchisq[..., 1], dchisq[..., 0]
+    bigmorph = np.zeros_like(d0)+1e9
+    dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
     if south:
-        morph2 = (dchisq[..., 1] - dchisq[..., 0])/dchisq[..., 0] < 0.01
+        morph2 = dcs < 0.01
     else:
-        morph2 = (dchisq[..., 1] - dchisq[..., 0])/dchisq[..., 0] < 0.005
+        morph2 = dcs < 0.005
     qso &= _psflike(objtype) | morph2
 
     # ADM SV cuts are different for WISE SNR.
@@ -491,12 +496,23 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     wflux = 0.75*w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-    qso_hz = ((wflux < gflux*10**(2.0/2.5)) |
-              (rflux*(gflux**0.4) > gflux*(wflux**0.4)*10**(0.3/2.5)))  # (g-w<2.0 or g-r>O.4*(g-w)+0.3)
+
+    # ADM we raise -ve fluxes to fractional powers, here, which produces NaN as
+    # ADM e.g. -ve**0.4 is only defined for complex numbers! After testing, I find
+    # ADM when gflux, rflux or zflux are -ve qso_hz is always False
+    # ADM when wflux is -ve qso_hz is always True.
+    # ADM So, I've hardcoded that logic to prevent NaN.
+    qso_hz = (wflux < 0) & (gflux >= 0) & (rflux >= 0) & (zflux >= 0)
+    ii = (wflux >= 0) & (gflux >=0) & (rflux >= 0) & (zflux >= 0)
+    qso_hz[ii] = ((wflux[ii] < gflux[ii]*10**(2.0/2.5)) |
+                  (rflux[ii]*(gflux[ii]**0.4) >
+                   gflux[ii]*(wflux[ii]**0.4)*10**(0.3/2.5)))  # (g-w<2.0 or g-r>O.4*(g-w)+0.3)
     if south:
-        qso_hz &= (wflux * (rflux**1.2) < (zflux**1.2) * grzflux * 10**(+0.8/2.5))  # (grz-W) < (r-z)*1.2+0.8
+        qso_hz[ii] &= (wflux[ii] * (rflux[ii]**1.2) <
+                       (zflux[ii]**1.2) * grzflux[ii] * 10**(+0.8/2.5))  # (grz-W) < (r-z)*1.2+0.8
     else:
-        qso_hz &= (wflux * (rflux**1.2) < (zflux**1.2) * grzflux * 10**(+0.7/2.5))  # (grz-W) < (r-z)*1.2+0.7
+        qso_hz[ii] &= (wflux[ii] * (rflux[ii]**1.2) <
+                       (zflux[ii]**1.2) * grzflux[ii] * 10**(+0.7/2.5))  # (grz-W) < (r-z)*1.2+0.7
 
     return qso_hz
 
@@ -543,7 +559,12 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
     # ADM relaxed morphology cut for SV.
-    morph2 = (dchisq[..., 1] - dchisq[..., 0])/dchisq[..., 0] < 0.015
+    # ADM we never target sources with dchisq[..., 0] = 0, so force
+    # ADM those to have large values of morph2 to avoid divide-by-zero.
+    d1, d0 = dchisq[..., 1], dchisq[..., 0]
+    bigmorph = np.zeros_like(d0)+1e9
+    dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
+    morph2 = dcs < 0.015
     preSelection &= _psflike(objtype) | morph2
 
     # CAC Reject objects flagged inside a blob.
@@ -648,9 +669,11 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # Color Selection of QSO with z>2.0.
     wflux = 0.75*w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-    color_cut = ((wflux < gflux*10**(2.7/2.5)) |
-                 (rflux*(gflux**0.3) > gflux*(wflux**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
-    color_cut &= (wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
+    # ADM "color_cut" isn't used. If it WAS to be used, we'd need to guard against raising
+    # ADM negative fluxes to fractional powers, e.g. (-0.11)**0.3 is a complex number!
+    #color_cut = ((wflux < gflux*10**(2.7/2.5)) |
+    #             (rflux*(gflux**0.3) > gflux*(wflux**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
+    #color_cut &= (wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
     # preSelection &= color_cut
 
     # Standard morphology cut.
@@ -899,21 +922,34 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, primary=None,
 
     # ADM determine colors and magnitudes
     g = 22.5-2.5*np.log10(gflux.clip(1e-16))  # ADM clip is safe as we never target g < 20
-    gr = -2.5*np.log10(gflux/rflux)
-    rz = -2.5*np.log10(rflux/zflux)
+    # ADM NaNs, here for -ve and zero combinations. I checked we NEVER target
+    # ADM sources with gr, rz of NaN or rflux, zflux <=0, so I hardcoded that.
+    pos = (rflux > 0) & (zflux > 0)
+    ii = pos.copy()
+    ii[pos] = (gflux[pos]/rflux[pos] > 0) & (rflux[pos]/zflux[pos] > 0)
+
+    # Only target positive rflux, zflux, defined gr, rz
+    elgfdr &= ii
+    elgfdrfaint &= ii
+    elgrzblue &= ii
+    elgrzred &= ii
+
+    gr = -2.5*np.log10(gflux[ii]/rflux[ii])
+    rz = -2.5*np.log10(rflux[ii]/zflux[ii])
+    g = g[ii]
 
     # ADM note that there is currently no north/south split
     # ADM FDR box
-    elgfdr &= (g >= 20.00) & (g < 23.45) & (rz > 0.3) & (rz < 1.6) & \
+    elgfdr[ii] &= (g >= 20.00) & (g < 23.45) & (rz > 0.3) & (rz < 1.6) & \
               (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
     # ADM FDR box faint
-    elgfdrfaint &= (g >= 23.45) & (g < 23.65) & (rz > 0.3) & (rz < 1.6) & \
+    elgfdrfaint[ii] &= (g >= 23.45) & (g < 23.65) & (rz > 0.3) & (rz < 1.6) & \
                    (gr < 1.15*rz-0.15) & (gr < 1.6-1.2*rz)
     # ADM blue rz box extension
-    elgrzblue &= (g >= 20.00) & (g < 23.65) & \
+    elgrzblue[ii] &= (g >= 20.00) & (g < 23.65) & \
                  (rz > 0.0) & (rz < 0.3) & (gr < 0.2)
     # ADM red rz box extension
-    elgrzred &= (g >= 20.00) & (g < 23.65) & \
+    elgrzred[ii] &= (g >= 20.00) & (g < 23.65) & \
                 (gr < 1.15*rz-0.15) & ((rz > 1.6) | (gr > 1.6-1.2*rz)) & (gr < 2.5-1.2*rz)
 
     return elgfdr, elgfdrfaint, elgrzblue, elgrzred
