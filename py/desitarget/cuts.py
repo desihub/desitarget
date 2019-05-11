@@ -172,8 +172,10 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         # ADM optical sliding cut, e.g. in the south:
         # (z-17.18)/2 < r-z  ->  3z < 17.18 + 2r
         # (z-15.11)/2 > r-z  ->  3z > 15.11 + 2r
-        lrg &= (zflux**(1.+osc_div) > 10**(0.4*(22.5-osc_lo))*rflux**osc_div)
-        lrg &= (zflux**(1.+osc_div) < 10**(0.4*(22.5-osc_hi))*rflux**osc_div)
+        lrg &= ((zflux**complex(1.+osc_div)).real > 
+                (10**(0.4*(22.5-osc_lo))*rflux**complex(osc_div)).real)
+        lrg &= ((zflux**complex(1.+osc_div)).real < 
+                (10**(0.4*(22.5-osc_hi))*rflux**complex(osc_div)).real)
 
         # ADM redshift cut with elbow, e.g. in the south:
         # (r-z > 1.15) OR (g-r > 1.65 and FLUX_IVAR_G > 0)
@@ -1450,8 +1452,12 @@ def _prepare_gaia(objects, colnames=None):
         if len(set(np.atleast_1d(gaiadupsource)) - set([0, 1])) == 0:
             gaiadupsource = objects['GAIA_DUPLICATED_SOURCE'].astype(bool)
 
-    # For BGS target selection
-    Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
+    # For BGS target selection.
+    # ADM first guard against FLUX_R < 0 (I've checked this generates
+    # ADM the same set of targets as Grr = NaN).
+    Grr = gaiagmag - 22.5 + 2.5*np.log10(1e-16)
+    ii = objects['FLUX_R'] > 0
+    Grr[ii] = gaiagmag[ii] - 22.5 + 2.5*np.log10(objects['FLUX_R'][ii])
 
     # ADM If proper motion is not NaN, 31 parameters were solved for
     # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
