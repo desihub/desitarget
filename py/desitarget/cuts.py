@@ -1330,8 +1330,10 @@ def _prepare_optical_wise(objects, colnames=None):
     # ADM flag whether we're using northen (BASS/MZLS) or
     # ADM southern (DECaLS) photometry
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
-    photsys_south = ~_isonnorthphotsys(objects["PHOTSYS"])
-
+    photsys_south = ~photsys_north
+    # ADM catch case where single object or row is passed.
+    if isinstance(photsys_north, bool):
+        photsys_south = not(photsys_north)
     # ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
     # ADM system to approximate the southern system
     # ADM turn off shifting the northern photometry to match the southern
@@ -1457,7 +1459,12 @@ def _prepare_gaia(objects, colnames=None):
     # ADM the same set of targets as Grr = NaN).
     Grr = gaiagmag - 22.5 + 2.5*np.log10(1e-16)
     ii = objects['FLUX_R'] > 0
-    Grr[ii] = gaiagmag[ii] - 22.5 + 2.5*np.log10(objects['FLUX_R'][ii])
+    # ADM catch the case where Grr is a scalar.
+    if isinstance(Grr, np.float):
+        if ii:
+            Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
+    else:
+        Grr[ii] = gaiagmag[ii] - 22.5 + 2.5*np.log10(objects['FLUX_R'][ii])
 
     # ADM If proper motion is not NaN, 31 parameters were solved for
     # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
@@ -1632,7 +1639,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     if resolvetargs:
         # ADM if only southern objects were sent this will be [True], if
         # ADM only northern it will be [False], else it wil be both.
-        south_cuts = list(set(photsys_south))
+        south_cuts = list(set(np.atleast_1d(photsys_south)))
 
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
