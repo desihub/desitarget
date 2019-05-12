@@ -861,7 +861,7 @@ def brickname_from_filename(filename):
     # Match filename tractor-0003p027.fits -> brickname 0003p027.
     # Also match tractor-00003p0027.fits, just in case.
     #
-    match = re.search('tractor-(\d{4,5}[pm]\d{3,4})\.fits',
+    match = re.search(r"tractor-(\d{4,5}[pm]\d{3,4})\.fits",
                       os.path.basename(filename))
 
     if match is None:
@@ -895,7 +895,7 @@ def brickname_from_filename_with_prefix(filename, prefix=''):
     # Match filename tractor-0003p027.fits -> brickname 0003p027.
     # Also match tractor-00003p0027.fits, just in case.
     #
-    match = re.search('%s_(\d{4,5}[pm]\d{3,4})\.fits'%(prefix),
+    match = re.search(r"%s_(\d{4,5}[pm]\d{3,4})\.fits" % (prefix),
                       os.path.basename(filename))
 
     if match is None:
