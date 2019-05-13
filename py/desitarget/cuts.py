@@ -1466,13 +1466,19 @@ def _prepare_gaia(objects, colnames=None):
     else:
         Grr[ii] = gaiagmag[ii] - 22.5 + 2.5*np.log10(objects['FLUX_R'][ii])
 
-    # ADM If proper motion is not NaN, 31 parameters were solved for
-    # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
-    # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
-    # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
+    # ADM Add extra Gaia columns if they exist, or set them to None.
+    # ADM These columnss are in the data model but are set to all 0s
+    # ADM as of DR7, as they aren't in the DR7 Tractor/sweeps files.
+    nogaps = True
     if 'GAIA_ASTROMETRIC_PARAMS_SOLVED' in colnames:
-        gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
-    else:
+        if np.any(objects['GAIA_ASTROMETRIC_PARAMS_SOLVED'] != 0):
+            gaiaparamssolved = objects['GAIA_ASTROMETRIC_PARAMS_SOLVED']
+            nogaps = False
+    if nogaps:
+        # ADM If proper motion is not NaN, 31 parameters were solved for
+        # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
+        # ADM In the sweeps, NaN has not been preserved...but PMRA_IVAR == 0
+        # ADM in the sweeps is equivalent to PMRA of NaN in Gaia.
         gaiaparamssolved = np.zeros_like(gaia) + 31
         w = np.where(np.isnan(pmra) | (pmraivar == 0))[0]
         if len(w) > 0:
@@ -1481,15 +1487,14 @@ def _prepare_gaia(objects, colnames=None):
                 gaiaparamsolved = 3
             else:
                 gaiaparamssolved[w] = 3
-
-    # ADM Add these columns if they exist, or set them to none.
-    # ADM They aren't in the Tractor files as of DR7.
     gaiabprpfactor = None
     gaiasigma5dmax = None
     if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in colnames:
-        gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
+        if np.any(objects['GAIA_ASTROMETRIC_SIGMA5D_MAX'] != 0):
+            gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
     if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in colnames:
-        gaiasigma5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
+        if np.any(objects['GAIA_ASTROMETRIC_SIGMA5D_MAX'] != 0):
+            gaiasigma5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
 
     # ADM Mily Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"], objects["DEC"])
