@@ -1489,7 +1489,7 @@ def _prepare_gaia(objects, colnames=None):
     if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in colnames:
         gaiabprpfactor = objects['GAIA_PHOT_BP_RP_EXCESS_FACTOR']
     if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in colnames:
-        gaiasig5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
+        gaiasigma5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
 
     # ADM Mily Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"], objects["DEC"])
