@@ -147,8 +147,12 @@ def read_tractor(filename, header=False, columns=None):
     """
     check_fitsio_version()
 
-    # ADM read in the file information.
-    indata, hdr = fitsio.read(filename, upper=True, header=True, columns=columns)
+    # ADM read in the file information. Due to fitsio header bugs
+    # ADM near v1.0.0, make absolutely sure the user wants the header.
+    if header:
+        indata, hdr = fitsio.read(filename, upper=True, header=True, columns=columns)
+    else:
+        indata = fitsio.read(filename, upper=True, columns=columns)
 
     # ADM the full data model including Gaia columns.
     from desitarget.gaiamatch import gaiadatamodel

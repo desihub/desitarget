@@ -109,10 +109,14 @@ class TestIO(unittest.TestCase):
         # ADM use fits read wrapper in io to correctly handle whitespace.
         d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
         self.assertEqual(list(data.dtype.names)+["HPXPIXEL"], list(d2.dtype.names))
-        print(tractorfile, sweepfile)
         for column in data.dtype.names:
-            print(column, data[column], d2[column])
-            self.assertTrue(np.all(data[column] == d2[column]))
+            kind = data[column].dtype.kind
+            # ADM whitespace_fits_read() doesn't convert string data
+            # ADM types identically for every version of fitsio.
+            if kind == 'U' or kind == 'S':
+                self.assertTrue(np.all(data[column] == d2[column].astype(data[column].dtype)))
+            else:
+                self.assertTrue(np.all(data[column] == d2[column]))
 
     def test_brickname(self):
         self.assertEqual(io.brickname_from_filename('tractor-3301m002.fits'), '3301m002')
