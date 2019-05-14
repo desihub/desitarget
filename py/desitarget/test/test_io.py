@@ -74,11 +74,10 @@ class TestIO(unittest.TestCase):
             ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
              'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
         )
-        # ADM BRICK_PRIMARY, PHOTSYS get added on input.
+        # ADM PHOTSYS gets added on input.
         tscolumns = list(io.tsdatamodel.dtype.names)     \
-            + ['BRICK_PRIMARY', 'PHOTSYS']               \
-            + list(gaiadatamodel.dtype.names)            \
-            + list(io.dr8datamodel.dtype.names)
+            + ['PHOTSYS']                                \
+            + list(gaiadatamodel.dtype.names)
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))
