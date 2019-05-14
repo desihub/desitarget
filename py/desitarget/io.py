@@ -151,8 +151,15 @@ def read_tractor(filename, header=False, columns=None):
     indata, hdr = fitsio.read(filename, upper=True, header=True, columns=columns)
 
     # ADM the full data model including Gaia columns.
-    from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
+    from desitarget.gaiamatch import gaiadatamodel
+    from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
     gaiadatamodel = pop_gaia_coords(gaiadatamodel)
+    # ADM special handling of the pre-DR7 Data Model.
+    for gaiacol in ['GAIA_PHOT_BP_RP_EXCESS_FACTOR',
+                    'GAIA_ASTROMETRIC_SIGMA5D_MAX',
+                    'GAIA_ASTROMETRIC_PARAMS_SOLVED', 'REF_CAT']:
+        if gaiacol not in indata.dtype.names:
+            gaiadatamodel = pop_gaia_columns(gaiadatamodel, [gaiacol])
     dt = tsdatamodel.dtype.descr + gaiadatamodel.dtype.descr
     dtnames = tsdatamodel.dtype.names + gaiadatamodel.dtype.names
     # ADM limit to just passed columns.
