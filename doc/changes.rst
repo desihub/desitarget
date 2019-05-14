@@ -5,6 +5,13 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* General clean-up of target selection code [`PR #497`_]. Includes:
+    * Deprecate old functions in :mod:`desitarget.gfa`.
+    * Greatly simplify :func:`io.read_tractor`.
+        * Backwards-compatability is now only guaranteed for DR6-8.
+    * Guard against warnings (e.g. divide-by-zero) in cuts and SV cuts.
+    * Default to only passing North (S) sources through North (S) cuts.
+        * Retain previous behavior if ``--noresolve`` flag is passed.
 * Add SV support to select_mock_targets [`PR #496`_]
 * A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
@@ -43,6 +50,7 @@ desitarget Change Log
 .. _`PR #490`: https://github.com/desihub/desitarget/pull/490
 .. _`PR #493`: https://github.com/desihub/desitarget/pull/493
 .. _`PR #494`: https://github.com/desihub/desitarget/pull/494
+.. _`PR #496`: https://github.com/desihub/desitarget/pull/496
 .. _`PR #496`: https://github.com/desihub/desitarget/pull/496
 
 0.29.1 (2019-03-26)
