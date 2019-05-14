@@ -109,8 +109,9 @@ class TestIO(unittest.TestCase):
         # ADM use fits read wrapper in io to correctly handle whitespace.
         d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
         self.assertEqual(list(data.dtype.names)+["HPXPIXEL"], list(d2.dtype.names))
-
+        print(tractorfile, sweepfile)
         for column in data.dtype.names:
+            print(column, data[column], d2[column])
             self.assertTrue(np.all(data[column] == d2[column]))
 
     def test_brickname(self):
