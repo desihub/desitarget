@@ -5,6 +5,10 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* Add information to GFA files [`PR #498`_]. Includes:
+    * Add columns ``PARALLAX``, ``PARALLAX_IVAR``, ``REF_EPOCH``.
+    * Remove ``REF_EPOCH`` from GFA file header, as it's now a column.
+    * Sensible defaults for Gaia-only ``REF_EPOCH``, ``RA/DEC_IVAR``.
 * Add SV support to select_mock_targets [`PR #496`_]
 * A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
@@ -44,6 +48,7 @@ desitarget Change Log
 .. _`PR #493`: https://github.com/desihub/desitarget/pull/493
 .. _`PR #494`: https://github.com/desihub/desitarget/pull/494
 .. _`PR #496`: https://github.com/desihub/desitarget/pull/496
+.. _`PR #498`: https://github.com/desihub/desitarget/pull/498
 
 0.29.1 (2019-03-26)
 -------------------
