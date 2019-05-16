@@ -1089,9 +1089,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = fitsio.read_header(hpdirname, 'TARGETS',
-                                          columns=columnscopy,
-                                          header=True)
+        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
+                                   columns=columnscopy, header=True)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
@@ -1159,8 +1158,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     # ADM ...otherwise just read in the targets.
     else:
         targets, hdr = fitsio.read(hpdirname, 'TARGETS',
-                                   columns=columnscopy,
-                                   header=True)
+                                   columns=columnscopy, header=True)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
