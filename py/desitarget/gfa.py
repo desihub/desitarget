@@ -270,7 +270,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
         GFA objects from Gaia, formatted according to `desitarget.gfa.gfadatamodel`.
     """
     # ADM read in the objects.
-    objects = desitarget.io.read_tractor(filename)
+    objects = fitsio.read(filename)
 
     # ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     # ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
