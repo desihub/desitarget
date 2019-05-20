@@ -93,7 +93,7 @@ sv1_desi_mask:
     #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set",  {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set",  {obsconditions: BRIGHT}]
-    - [SECONDARY_ANY,       62, "Any secondary bit is set",
+    - [SCND_ANY,       62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     
 #- Bright Galaxy Survey SV targets
@@ -250,7 +250,7 @@ priorities:
         NEAR_BRIGHT_OBJECT: -1
         BGS_ANY: -1
         MWS_ANY: -1
-        SECONDARY_ANY: -1
+        SCND_ANY: -1
 
     #- Bright Galaxy Survey: priorities 2000-2997
     # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
@@ -368,7 +368,7 @@ numobs:
         NEAR_BRIGHT_OBJECT: -1
         BGS_ANY: -1
         MWS_ANY: -1
-        SECONDARY_ANY: -1
+        SCND_ANY: -1
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
     sv1_bgs_mask:
