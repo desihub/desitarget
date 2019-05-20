@@ -113,7 +113,7 @@ mws_mask:
 
 #- ADM secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
-#- ADM directory that corresponds to the $SECONDARY_DIR environment 
+#- ADM directory that corresponds to the $SECONDARY_DIR environment
 #- ADM variable, e.g. $SECONDARY_DIR/backstop.fits for BACKSTOP targets.
 scnd_mask:
     - [BACKSTOP,    0, "Gaia-selected targets of last resort",
