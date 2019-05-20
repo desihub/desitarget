@@ -62,6 +62,13 @@ indatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('OVERRIDE', '?')
 ])
 
+# ADM the columns not in the primary target files are:
+#  OVERRIDE - If True/1 force as a target even if there is a primary.
+#           - If False/0 allow this to be replaced by a primary target.
+#  SCND_TARGET - The bit mask from data/targetmask.yaml (scnd_mask).
+#  SCND_ORDER - Row number in the input secondary file for this target.
+# ADM Note that TARGETID for secondary-only targets is unique because
+# ADM RELEASE is 0 for secondary-only targets.
 outdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('OVERRIDE', '?'),
     ('TARGETID', '>i8'), ('SCND_TARGET', '>i8'),
