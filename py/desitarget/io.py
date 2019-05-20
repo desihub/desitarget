@@ -428,7 +428,7 @@ def write_skies(filename, data, indir=None, indir2=None,
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
-               survey="?", gaiaepoch=None):
+               survey="?"):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -445,9 +445,6 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         at resolution `nside`.
     survey : :class:`str`, optional, defaults to "?"
         Written to output file header as the keyword `SURVEY`.
-    gaiaepoch: :class:`float`, defaults to None
-        Gaia proper motion reference epoch. If not None, write to header of
-        output file. If None, default to an epoch of 2015.5.
     """
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
@@ -477,13 +474,6 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
 
     # ADM add the type of survey (main, or commissioning "cmx") to the header.
     hdr["SURVEY"] = survey
-
-    # ADM add the Gaia reference epoch, or pass 2015.5 if not included.
-    hdr['REFEPOCH'] = {'name': 'REFEPOCH',
-                       'value': 2015.5,
-                       'comment': "Gaia Proper Motion Reference Epoch"}
-    if gaiaepoch is not None:
-        hdr['REFEPOCH'] = gaiaepoch
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
