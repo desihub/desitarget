@@ -64,7 +64,7 @@ indatamodel = np.array([], dtype=[
 
 outdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('OVERRIDE', '?'),
-    ('TARGETID', '>i8'), ('SECONDARY_TARGET', '>i8'),
+    ('TARGETID', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
     ('NUMOBS_INIT', '>i8'), ('SCND_ORDER', '>i4')
 ])
@@ -228,7 +228,7 @@ def read_files(scxdir):
         scxout = np.zeros(len(scxin), dtype=outdatamodel.dtype)
         for col in indatamodel.dtype.names:
             scxout[col] = scxin[col]
-        scxout["SECONDARY_TARGET"] = scnd_mask[name]
+        scxout["SCND_TARGET"] = scnd_mask[name]
         scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
         scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
         scxout["TARGETID"] = -1
@@ -252,7 +252,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
         The separation at which to match in ARCSECONDS.
     scxdir : :class:`str`, optional, defaults to `None`
         Name of the directory that hosts secondary targets. If passed,
-        this is written to the output primary file header as `SCXDIR`.
+        this is written to the output primary file header as `SCNDDIR`.
 
     Returns
     -------
@@ -263,26 +263,26 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     Notes
     -----
         - The primary target `infiles` are written back to their
-          original path with `.fits` changed to `-wscx.fits` and the
-          `SECONDARY_TARGET` bit populated for matching targets.
+          original path with `.fits` changed to `-wscnd.fits` and the
+          `SCND_TARGET` bit populated for matching targets.
     """
     # ADM read in the primary targets.
     log.info('Reading primary targets file {}...t={:.1f}s'
              .format(infile, time()-start))
     intargs, hdr = fitsio.read(infile, "TARGETS", header=True)
     intargs = intargs[:5000]
-#    log.info('Adding "SECONDARY_TARGET" column to {}...t={:.1f}s'
+#    log.info('Adding "SCND_TARGET" column to {}...t={:.1f}s'
 #             .format(infile, time()-start))
     # ADM fail if file's already been matched to secondary targets.
-    if "SCXDIR" in hdr:
+    if "SCNDDIR" in hdr:
         msg = "{} already matched to secondary targets!!!".format(infile)
         log.critical(msg)
         raise ValueError(msg)
-    # ADM add the SCXDIR to the primary targets file header.
-    hdr["SCXDIR"] = scxdir
-    # ADM add a SECONDARY_TARGET column to the primary targets.
+    # ADM add the SCNDDIR to the primary targets file header.
+    hdr["SCNDDIR"] = scxdir
+    # ADM add a SCND_TARGET column to the primary targets.
     dt = intargs.dtype.descr
-    dt.append(('SECONDARY_TARGET', '>i8'))
+    dt.append(('SCND_TARGET', '>i8'))
     targs = np.zeros(len(intargs), dtype=dt)
     for col in intargs.dtype.names:
         targs[col] = intargs[col]
@@ -294,7 +294,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
              .format(sep, time()-start))
     mtargs, mscx = radec_match_to(targs, scxtargs, sep=sep)
 
-    # ADM loop through the matches and update the SECONDARY_TARGET
+    # ADM loop through the matches and update the SCND_TARGET
     # ADM column in the primary target list. The np.unique is a
     # ADM speed-up to assign singular matches first.
     umtargs, inv, cnt = np.unique(mtargs,
@@ -304,10 +304,10 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     nmtargs = cnt[inv]
     # ADM assign anything with nmtargs = 1 directly.
     singular = nmtargs == 1
-    targs["SECONDARY_TARGET"][mtargs[singular]] = scxtargs["SECONDARY_TARGET"][mscx[singular]]
+    targs["SCND_TARGET"][mtargs[singular]] = scxtargs["SCND_TARGET"][mscx[singular]]
     # ADM loop through things with nmtargs > 1 and combine the bits.
     for i in range(len((mtargs[~singular]))):
-        targs["SECONDARY_TARGET"][mtargs[~singular][i]] |= scxtargs["SECONDARY_TARGET"][mscx[~singular][i]]
+        targs["SCND_TARGET"][mtargs[~singular][i]] |= scxtargs["SCND_TARGET"][mscx[~singular][i]]
     # ADM also assign the SECONDARY_ANY bit to the primary targets.
     desicols, desimasks, _ = main_cmx_or_sv(targs)
     targs[desicols[0]][umtargs] |= desimasks[0].SECONDARY_ANY
@@ -317,7 +317,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
 
     # ADM form the output primary file name and write the file.
     base, ext = os.path.splitext(infile)
-    outfile = "{}{}{}".format(base, '-wscx', ext)
+    outfile = "{}{}{}".format(base, '-wscnd', ext)
     log.info('Writing updated primary targets to {}...t={:.1f}s'
              .format(outfile, time()-start))
     fitsio.write(outfile, targs, extname='TARGETS', header=hdr, clobber=True)
@@ -397,15 +397,15 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None):
     -------
     :class:`~numpy.ndarray`
         All secondary targets from `scxdir` with columns ``TARGETID``,
-        ``SECONDARY_TARGET``, ``PRIORITY_INIT``, ``SUBPRIORITY`` and 
+        ``SCND_TARGET``, ``PRIORITY_INIT``, ``SUBPRIORITY`` and 
         ``NUMOBS_INIT`` added. These columns are also populated,
         excepting ``SUBPRIORITY``.
 
     Notes
     -----
         - In addition, the primary target `infiles` are written back to
-          their original path with `.fits` changed to `-wscx.fits` and
-          the ``SECONDARY_TARGET`` and ``SECONDARY_ANY`` columns
+          their original path with `.fits` changed to `-wscnd.fits` and
+          the ``SCND_TARGET`` and ``SCND_ANY`` columns
           populated for matching targets.
     """
     # ADM if a single primary file was passed, convert it to a list.
