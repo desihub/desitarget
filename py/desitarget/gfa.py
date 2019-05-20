@@ -39,7 +39,8 @@ gfadatamodel = np.array([], dtype=[
     ('TYPE', 'S4'),
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),
-    ('REF_ID', 'i8'), ('REF_CAT', 'S2'),
+    ('REF_ID', 'i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', 'f4'),
+    ('PARALLAX', 'f4'), ('PARALLAX_IVAR', 'f4'),
     ('PMRA', 'f4'), ('PMDEC', 'f4'), ('PMRA_IVAR', 'f4'), ('PMDEC_IVAR', 'f4'),
     ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
@@ -96,7 +97,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
         GFA objects from Gaia, formatted according to `desitarget.gfa.gfadatamodel`.
     """
     # ADM read in the objects.
-    objects = desitarget.io.read_tractor(filename)
+    objects = fitsio.read(filename)
 
     # ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     # ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
@@ -122,10 +123,11 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     # ADM make sure all columns initially have "ridiculous" numbers.
     gfas[...] = -99.
     gfas["REF_CAT"] = ""
-    # ADM remove the TARGETID and BRICK_OBJID columns and populate them later
-    # ADM as they require special treatment.
+    gfas["REF_EPOCH"] = 2015.5
+    # ADM remove the TARGETID, BRICK_OBJID, REF_CAT, REF_EPOCH columns
+    # ADM and populate them later as they require special treatment.
     cols = list(gfadatamodel.dtype.names)
-    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT"]:
+    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT", "REF_EPOCH"]:
         cols.remove(col)
     for col in cols:
         gfas[col] = objects[col]
@@ -133,9 +135,10 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     gfas["TARGETID"] = targetid
     # ADM populate the BRICK_OBJID column.
     gfas["BRICK_OBJID"] = objects["OBJID"]
-    # ADM REF_CAT didn't exist before DR8.
-    if "REF_CAT" in objects.dtype.names:
-        gfas["REF_CAT"] = objects["REF_CAT"]
+    # ADM REF_CAT and REF_EPOCH didn't exist before DR8.
+    for refcol in ["REF_CAT", "REF_EPOCH"]:
+        if refcol in objects.dtype.names:
+            gfas[refcol] = objects[refcol]
 
     # ADM cut the GFAs by a hard limit on magnitude.
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
@@ -184,6 +187,10 @@ def gaia_in_file(infile, maglim=18):
             gfas[col] = 'U'
         if isinstance(gfas[col][0].item(), int):
             gfas[col] = -1
+    # ADM some default special cases. Default to REF_EPOCH of Gaia DR2,
+    # ADM make RA/Dec very precise for Gaia measurements.
+    gfas["REF_EPOCH"] = 2015.5
+    gfas["RA_IVAR"], gfas["DEC_IVAR"] = 1e16, 1e16
 
     # ADM populate the common columns in the Gaia/GFA data models.
     cols = set(gfas.dtype.names).intersection(set(objs.dtype.names))

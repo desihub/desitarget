@@ -5,6 +5,12 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* Add information to GFA files [`PR #498`_]. Includes:
+    * Add columns ``PARALLAX``, ``PARALLAX_IVAR``, ``REF_EPOCH``.
+    * Remove ``REF_EPOCH`` from GFA file header, as it's now a column.
+    * Sensible defaults for Gaia-only ``REF_EPOCH``, ``RA/DEC_IVAR``.
+    * Use fitsio.read() instead of :func:`desitarget.io.read_tractor()`.
+        * It's faster and special handling of input files isn't needed.
 * General clean-up of target selection code [`PR #497`_]. Includes:
     * Deprecate old functions in :mod:`desitarget.gfa`.
     * Greatly simplify :func:`io.read_tractor`.
@@ -52,6 +58,7 @@ desitarget Change Log
 .. _`PR #494`: https://github.com/desihub/desitarget/pull/494
 .. _`PR #496`: https://github.com/desihub/desitarget/pull/496
 .. _`PR #497`: https://github.com/desihub/desitarget/pull/497
+.. _`PR #498`: https://github.com/desihub/desitarget/pull/498
 
 0.29.1 (2019-03-26)
 -------------------
