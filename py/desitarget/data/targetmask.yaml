@@ -116,9 +116,11 @@ mws_mask:
 #- ADM directory that corresponds to the $SECONDARY_DIR environment
 #- ADM variable, e.g. $SECONDARY_DIR/backstop.fits for BACKSTOP targets.
 scnd_mask:
-    - [BACKSTOP,    0, "Gaia-selected targets of last resort",
+    - [VETO,        0, "Never observe, even if a primary target bit is set",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+    - [BACKSTOP,    1, "Gaia-selected targets of last resort",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
-    - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
+    - [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
 
 #- Observing conditions
@@ -243,6 +245,7 @@ priorities:
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     scnd_mask:
+        VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         BACKSTOP:                     {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
@@ -323,5 +326,6 @@ numobs:
 
     # ADM initial number of observations for secondary targets
     scnd_mask:
+        VETO: 1
         BACKSTOP: 1
         DR16Q: 1
