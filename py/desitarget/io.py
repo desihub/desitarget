@@ -358,6 +358,78 @@ def write_targets(filename, data, indir=None, indir2=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
+def write_secondary(filename, data, primhdr=None, scxdir=None):
+    """Write a catalogue of secondary targets.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        output file for secondary targets that do not match a primary.
+    data : :class:`~numpy.ndarray`
+        numpy structured array of secondary targets to write.
+    primhdr : :class:`str`, optional, defaults to `None`
+        If passed, added to the header of the output `filename`.
+    scxdir : :class:`str`, optional, defaults to :envvar:`SECONDARY_DIR`
+        Name of the directory that hosts secondary targets.  The
+        secondary targets are written back out to this directory in the
+        sub-directory "outdata" and the `scxdir` is added to the
+        header of the output `filename`.
+
+    Returns
+    -------
+    Nothing, but two files are written:
+        - The file of secondary targets that do not match a primary
+          target is written to `filename`. Such secondary targets
+          are determined from having `RELEASE==0` in the `TARGETID`.
+        - Each secondary target that, presumably, was initially drawn
+          from the "indata" subdirectory of `scxdir` is written to
+          the "outdata" subdirectory of `scxdir`.
+    """
+    # ADM grab the scxdir, it it wasn't passed.
+    from desitarget.secondary import _get_scxdir
+    scxdir = _get_scxdir(scxdir)
+
+    # ADM if the primary header was passed, use it, if not
+    # ADM then create a new header.
+    hdr = primhdr
+    if primhdr is None:
+        hdr = fitsio.FITSHDR()
+    # ADM add the SCXDIR to the file header.
+    hdr["SCXDIR"] = scxdir
+
+    # ADM add the SCX dependencies to the file header.
+    depend.setdep(hdr, 'scx-desitarget', desitarget_version)
+    depend.setdep(hdr, 'scx-desitarget-git', gitversion())
+
+    # ADM populate SUBPRIORITY with a reproducible random float.
+    if "SUBPRIORITY" in data.dtype.names:
+        ntargs = len(data)
+        np.random.seed(616)
+        data["SUBPRIORITY"] = np.random.random(ntargs)
+
+    # ADM write out the file of matches for every secondary bit.
+    from desitarget.targetmask import secondary_mask as scx_mask
+    for name in scx_mask.names():
+        # ADM construct the output file name.
+        fn = "{}.fits".format(scx_mask[name].filename)
+        scxfile = os.path.join(scxdir, 'outdata', fn)
+        # ADM retrieve just the data with this bit set.
+        ii = data["SECONDARY_TARGET"] == scx_mask[name]
+        # ADM to reorder to match the original input order.
+        order = np.argsort(data["SCX_ORDER"][ii])
+        # ADM write to file.
+        fitsio.write(scxfile, data[ii][order],
+                     extname='TARGETS', header=hdr, clobber=True)
+
+    # ADM standalone secondary targets have RELEASE==0...
+    from desitarget.targets import decode_targetid
+    objid, brickid, release, mock, sky = decode_targetid(data["TARGETID"])
+    ii = release == 0
+    # ADM ...write them out.
+    fitsio.write(filename, data[ii],
+                 extname='TARGETS', header=hdr, clobber=True)
+
+
 def write_skies(filename, data, indir=None, indir2=None,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None):
     """Write a target catalogue of sky locations.
@@ -1266,3 +1338,4 @@ def target_columns_from_header(hpdirname):
     targcols = allcols[['_TARGET' in col for col in allcols]]
 
     return list(targcols)
+

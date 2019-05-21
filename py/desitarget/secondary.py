@@ -45,7 +45,7 @@ from astropy.table import Table, Row
 from time import time
 
 from desitarget.internal import sharedmem
-from desitarget.targetmask import secondary_mask as scnd_mask
+from desitarget.targetmask import scnd_mask
 from desitarget.geomask import radec_match_to
 from desitarget.targets import main_cmx_or_sv, encode_targetid
 
