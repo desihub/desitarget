@@ -231,6 +231,8 @@ def read_files(scxdir):
         else:
             scxin = fitsio.read(fn+'.fits',
                               columns=indatamodel.dtype.names)
+        # ADM ensure this is a properly constructed numpy array.
+        scxin = np.atleast_1d(scxin)
         # ADM add the other output columns.
         scxout = np.zeros(len(scxin), dtype=outdatamodel.dtype)
         for col in indatamodel.dtype.names:
