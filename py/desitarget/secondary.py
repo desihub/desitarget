@@ -4,10 +4,10 @@ desitarget.secondary
 
 Modules dealing with target selection for secondary targets.
 
-Note that the environment variable SECONDARY_DIR should be set, and that
+Note that the environment variable SCND_DIR should be set, and that
 directory should contain files of two flavors:
 
-(1) In $SECONDARY_DIR/indata: .fits or .txt files defining the secondary
+(1) In $SCND_DIR/indata: .fits or .txt files defining the secondary
     targets with columns corresponding to secondary.indatamodel.
 
     For .txt files the first N columns must correspond to the N columns
@@ -17,12 +17,12 @@ directory should contain files of two flavors:
     For .fits files, a subset of the columns must correspond to the
     columns in secondary.indatamodel, other columns can be anything.
 
-(2) In $SECONDARY_DIR/docs: .ipynb (notebook) or .txt files containing
+(2) In $SCND_DIR/docs: .ipynb (notebook) or .txt files containing
     a description of how each input data file was constructed.
 
 Only one secondary target file of each type should be in the indata and
-docs directories. So, if, e.g. $SECONDARY_DIR/indata/blat.fits exists
-then $SECONDARY_DIR/indata/blat.txt should not.
+docs directories. So, if, e.g. $SCND_DIR/indata/blat.fits exists
+then $SCND_DIR/indata/blat.txt should not.
 
 Example files can be found in the NERSC directory:
 
@@ -82,10 +82,10 @@ def _get_scxdir(scxdir=None):
 
     Parameters
     ----------
-    scxdir : :class:`str`, optional, defaults to :envvar:`SECONDARY_DIR`
+    scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         Directory containing secondary target files to which to match.
         If not specified, the directory is taken to be the value of
-        the :envvar:`SECONDARY_DIR` environment variable.
+        the :envvar:`SCND_DIR` environment variable.
 
     Returns
     -------
@@ -94,11 +94,11 @@ def _get_scxdir(scxdir=None):
     """
     # ADM if scxdir was not passed, default to environment variable.
     if scxdir is None:
-        scxdir = os.environ.get('SECONDARY_DIR')
+        scxdir = os.environ.get('SCND_DIR')
 
     # ADM fail if the scx directory is not set or passed.
     if scxdir is None or not os.path.exists(scxdir):
-        log.info('pass scxdir or set $SECONDARY_DIR...')
+        log.info('pass scxdir or set $SCND_DIR...')
         msg = 'Secondary target files not found in {}'.format(scxdir)
         log.critical(msg)
         raise ValueError(msg)
@@ -315,9 +315,9 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     # ADM loop through things with nmtargs > 1 and combine the bits.
     for i in range(len((mtargs[~singular]))):
         targs["SCND_TARGET"][mtargs[~singular][i]] |= scxtargs["SCND_TARGET"][mscx[~singular][i]]
-    # ADM also assign the SECONDARY_ANY bit to the primary targets.
+    # ADM also assign the SCND_ANY bit to the primary targets.
     desicols, desimasks, _ = main_cmx_or_sv(targs)
-    targs[desicols[0]][umtargs] |= desimasks[0].SECONDARY_ANY
+    targs[desicols[0]][umtargs] |= desimasks[0].SCND_ANY
 
     # ADM update the secondary targets with the primary TARGETID.
     scxtargs["TARGETID"][mscx] = targs["TARGETID"][mtargs]
@@ -371,7 +371,7 @@ def finalize_secondary(scxtargs):
         isinbrx = brxid == brx
         objid[isinbrx] = np.arange(nobjs)
 
-    # ADM assemble the TARGETID, SECONDARY objects have RELEASE==0.
+    # ADM assemble the TARGETID, SCND objects have RELEASE==0.
     targetid = encode_targetid(objid=objid, brickid=brxid)
 
     # ADM a check that the generated TARGETIDs are unique.
@@ -397,7 +397,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None):
         The number of parallel processes to use.
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match in ARCSECONDS.
-    scxdir : :class:`str`, optional, defaults to :envvar:`SECONDARY_DIR`
+    scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         The name of the directory that hosts secondary targets.
 
     Returns
