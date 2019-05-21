@@ -369,7 +369,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         numpy structured array of secondary targets to write.
     primhdr : :class:`str`, optional, defaults to `None`
         If passed, added to the header of the output `filename`.
-    scxdir : :class:`str`, optional, defaults to :envvar:`SECONDARY_DIR`
+    scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         Name of the directory that hosts secondary targets.  The
         secondary targets are written back out to this directory in the
         sub-directory "outdata" and the `scxdir` is added to the
@@ -414,9 +414,9 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         fn = "{}.fits".format(scx_mask[name].filename)
         scxfile = os.path.join(scxdir, 'outdata', fn)
         # ADM retrieve just the data with this bit set.
-        ii = data["SECONDARY_TARGET"] == scx_mask[name]
+        ii = data["SCND_TARGET"] == scx_mask[name]
         # ADM to reorder to match the original input order.
-        order = np.argsort(data["SCX_ORDER"][ii])
+        order = np.argsort(data["SCND_ORDER"][ii])
         # ADM write to file.
         fitsio.write(scxfile, data[ii][order],
                      extname='TARGETS', header=hdr, clobber=True)
