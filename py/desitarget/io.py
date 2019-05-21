@@ -646,6 +646,21 @@ def iter_sweepfiles(root):
     return iter_files(root, prefix='sweep', ext='fits')
 
 
+def list_targetfiles(root):
+    """Return a list of target files found under `root` directory.
+    """
+    allfns = glob(os.path.join(root, '*target*fits'))
+    fns, nfns = np.unique(allfns, return_counts=True)
+    if np.any(nfns > 1):
+        badfns = fns[nfns > 1]
+        msg = "Duplicate target files ({}) beneath root directory {}:".format(
+            badfns, root)
+        log.error(msg)
+        raise SyntaxError(msg)
+
+    return allfns
+
+
 def list_tractorfiles(root):
     """Return a list of tractor files found under `root` directory.
     """
