@@ -394,12 +394,12 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
     hdr = primhdr
     if primhdr is None:
         hdr = fitsio.FITSHDR()
-    # ADM add the SCXDIR to the file header.
-    hdr["SCXDIR"] = scxdir
+    # ADM add the SCNDDIR to the file header.
+    hdr["SCNDDIR"] = scxdir
 
-    # ADM add the SCX dependencies to the file header.
-    depend.setdep(hdr, 'scx-desitarget', desitarget_version)
-    depend.setdep(hdr, 'scx-desitarget-git', gitversion())
+    # ADM add the secondary dependencies to the file header.
+    depend.setdep(hdr, 'scnd-desitarget', desitarget_version)
+    depend.setdep(hdr, 'scnd-desitarget-git', gitversion())
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names:
@@ -408,13 +408,13 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
     # ADM write out the file of matches for every secondary bit.
-    from desitarget.targetmask import secondary_mask as scx_mask
-    for name in scx_mask.names():
+    from desitarget.targetmask import scnd_mask
+    for name in scnd_mask.names():
         # ADM construct the output file name.
-        fn = "{}.fits".format(scx_mask[name].filename)
+        fn = "{}.fits".format(scnd_mask[name].filename)
         scxfile = os.path.join(scxdir, 'outdata', fn)
         # ADM retrieve just the data with this bit set.
-        ii = data["SCND_TARGET"] == scx_mask[name]
+        ii = data["SCND_TARGET"] == scnd_mask[name]
         # ADM to reorder to match the original input order.
         order = np.argsort(data["SCND_ORDER"][ii])
         # ADM write to file.
