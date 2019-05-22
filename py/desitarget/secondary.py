@@ -279,7 +279,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     log.info('Reading primary targets file {}...t={:.1f}s'
              .format(infile, time()-start))
     intargs, hdr = fitsio.read(infile, "TARGETS", header=True)
-    intargs = intargs[:5000]
+
 #    log.info('Adding "SCND_TARGET" column to {}...t={:.1f}s'
 #             .format(infile, time()-start))
     # ADM fail if file's already been matched to secondary targets.
