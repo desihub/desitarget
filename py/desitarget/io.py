@@ -22,6 +22,7 @@ from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
+from desitarget.targets import main_cmx_or_sv
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -414,7 +415,9 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         fn = "{}.fits".format(scnd_mask[name].filename)
         scxfile = os.path.join(scxdir, 'outdata', fn)
         # ADM retrieve just the data with this bit set.
-        ii = data["SCND_TARGET"] == scnd_mask[name]
+        # ADM guard against column names like "SV1_SCND_TARGET".
+        stcol = [c for c in data.dtype.names if c[-6:] == 'TARGET'][0]
+        ii = data[stcol] == scnd_mask[name]
         # ADM to reorder to match the original input order.
         order = np.argsort(data["SCND_ORDER"][ii])
         # ADM write to file.

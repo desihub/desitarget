@@ -330,6 +330,8 @@ def main_cmx_or_sv(targets, rename=False, scnd=False):
     if np.any(notmain):
         outcolnames = list(incolnames[notmain])
         survey = outcolnames[0].split('_')[0].lower()
+    if survey[0:2] == 'sv':
+        outcolnames = ["{}_{}".format(survey.upper(), col) for col in maincolnames]
 
     # ADM retrieve the correct masks, depending on the survey type.
     if survey == 'cmx':
