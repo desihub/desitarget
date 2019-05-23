@@ -45,9 +45,8 @@ from astropy.table import Table, Row
 from time import time
 
 from desitarget.internal import sharedmem
-from desitarget.targetmask import scnd_mask
 from desitarget.geomask import radec_match_to
-from desitarget.targets import main_cmx_or_sv, encode_targetid
+from desitarget.targets import encode_targetid, main_cmx_or_sv
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -65,7 +64,8 @@ indatamodel = np.array([], dtype=[
 # ADM the columns not in the primary target files are:
 #  OVERRIDE - If True/1 force as a target even if there is a primary.
 #           - If False/0 allow this to be replaced by a primary target.
-#  SCND_TARGET - The bit mask from data/targetmask.yaml (scnd_mask).
+#  SCND_TARGET - The bit mask from data/targetmask.yaml or 
+#                sv1/data/sv1_targetmask.yaml (scnd_mask).
 #  SCND_ORDER - Row number in the input secondary file for this target.
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is 0 for secondary-only targets.
@@ -279,7 +279,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     log.info('Reading primary targets file {}...t={:.1f}s'
              .format(infile, time()-start))
     intargs, hdr = fitsio.read(infile, "TARGETS", header=True)
-
+    intargs = intargs[:50000]
 #    log.info('Adding "SCND_TARGET" column to {}...t={:.1f}s'
 #             .format(infile, time()-start))
     # ADM fail if file's already been matched to secondary targets.

@@ -10,7 +10,8 @@ import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
 
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, targetid_mask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask 
+from desitarget.targetmask import scnd_mask, targetid_mask
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -283,7 +284,7 @@ def decode_targetid(targetid):
     return objid, brickid, release, mock, sky
 
 
-def main_cmx_or_sv(targets, rename=False):
+def main_cmx_or_sv(targets, rename=False, scnd=False):
     """determine whether a target array is main survey, commissioning, or SV
 
     Parameters
@@ -295,6 +296,8 @@ def main_cmx_or_sv(targets, rename=False):
     rename : :class:`bool`, optional, defaults to ``False``
         If ``True`` then also return a copy of `targets` with the input `_TARGET`
         columns renamed to reflect the main survey format.
+    scnd : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then add the secondary target information to the output.
 
     Returns
     -------
@@ -302,10 +305,11 @@ def main_cmx_or_sv(targets, rename=False):
         A list of strings corresponding to the target columns names. For the main survey
         this would be [`DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`], for commissioning it
         would just be [`CMX_TARGET`], for SV1 it would be [`SV1_DESI_TARGET`,
-        `SV1_BGS_TARGET`, `SV1_MWS_TARGET`].
+        `SV1_BGS_TARGET`, `SV1_MWS_TARGET`]. Also includes, e.g. `SCND_TARGET`, if
+        `scnd` is passed as ``True``.
     :class:`list`
         A list of the masks that correspond to each column from the relevant main/cmx/sv
-        yaml file.
+        yaml file. Also includes the relevant SCND_MASK, if `scnd` is passed as True.
     :class:`str`
         The string 'main', 'cmx' or 'svX' (where X = 1, 2, 3 etc.) for the main survey,
         commissioning and an iteration of SV. Specifies which type of file was sent.
@@ -314,9 +318,9 @@ def main_cmx_or_sv(targets, rename=False):
         `DESI_TARGET`, and (if they exist) `BGS_TARGET`, `MWS_TARGET`.
     """
     # ADM default to the main survey.
-    maincolnames = ["DESI_TARGET", "BGS_TARGET", "MWS_TARGET"]
+    maincolnames = ["DESI_TARGET", "BGS_TARGET", "MWS_TARGET", "SCND_TARGET"]
     outcolnames = maincolnames.copy()
-    masks = [desi_mask, bgs_mask, mws_mask]
+    masks = [desi_mask, bgs_mask, mws_mask, scnd_mask]
     survey = 'main'
 
     # ADM set survey to correspond to commissioning or SV if those columns exist
@@ -336,7 +340,8 @@ def main_cmx_or_sv(targets, rename=False):
             import desitarget.sv1.sv1_targetmask as targmask
         if survey == 'sv2':
             import desitarget.sv2.sv2_targetmask as targmask
-        masks = [targmask.desi_mask, targmask.bgs_mask, targmask.mws_mask]
+        masks = [targmask.desi_mask, targmask.bgs_mask,
+                 targmask.mws_mask, targmask.scnd_mask]
     elif survey != 'main':
         msg = "input target file must be 'main', 'cmx' or 'sv', not {}!!!".format(survey)
         log.critical(msg)
@@ -348,6 +353,10 @@ def main_cmx_or_sv(targets, rename=False):
         for i, col in enumerate(outcolnames):
             mapper[col] = maincolnames[i]
         return outcolnames, masks, survey, rfn.rename_fields(targets, mapper)
+
+    if not scnd:
+        outcolnames = outcolnames[:3]
+        masks = masks[:3]
 
     return outcolnames, masks, survey
 
