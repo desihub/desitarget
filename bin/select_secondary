@@ -47,6 +47,7 @@ log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-ti
 # ADM check if this is an SV or main survey file.
 chk = fitsio.read(infiles[0],rows=0)
 cols, mx, surv = main_cmx_or_sv(chk, scnd=True)
+log.info('running on the {} survey...'.format(surv))
 
 # ADM retrieve the SECONDARY_DIR, in case it wasn't passed and it's stored as an environment variable.
 scxdir = _get_scxdir(ns.scnddir)

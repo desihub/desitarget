@@ -38,6 +38,8 @@ import os
 import fitsio
 import numpy as np
 
+import numpy.lib.recfunctions as rfn
+
 import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
@@ -241,6 +243,7 @@ def read_files(scxdir, scnd_mask):
                               columns=indatamodel.dtype.names)
         # ADM ensure this is a properly constructed numpy array.
         scxin = np.atleast_1d(scxin)
+
         # ADM add the other output columns.
         scxout = np.zeros(len(scxin), dtype=outdatamodel.dtype)
         for col in indatamodel.dtype.names:
@@ -292,7 +295,8 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
 #             .format(infile, time()-start))
     # ADM fail if file's already been matched to secondary targets.
     if "SCNDDIR" in hdr:
-        msg = "{} already matched to secondary targets!!!".format(infile)
+        msg = "{} already matched to secondary targets".format(infile) \
+        + " (did you mean to remove {}?)!!!".format(infile)
         log.critical(msg)
         raise ValueError(msg)
     # ADM add the SCNDDIR to the primary targets file header.
@@ -326,8 +330,11 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     for i in range(len((mtargs[~singular]))):
         targs["SCND_TARGET"][mtargs[~singular][i]] |= scxtargs["SCND_TARGET"][mscx[~singular][i]]
     # ADM also assign the SCND_ANY bit to the primary targets.
-    desicols, desimasks, _ = main_cmx_or_sv(targs)
+    desicols, desimasks, _ = main_cmx_or_sv(targs, scnd=True)
     targs[desicols[0]][umtargs] |= desimasks[0].SCND_ANY
+
+    # ADM rename the SCND_TARGET column, in case this is an SV file.
+    targs = rfn.rename_fields(targs, {'SCND_TARGET': desicols[3]})
 
     # ADM update the secondary targets with the primary TARGETID.
     scxtargs["TARGETID"][mscx] = targs["TARGETID"][mtargs]
@@ -344,8 +351,8 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     return scxtargs
 
 
-def finalize_secondary(scxtargs):
-    """Assign secondary targets a realistic TARGETID.
+def finalize_secondary(scxtargs, scnd_mask):
+    """Assign secondary targets a realistic TARGETID, finalize columns.
 
     Parameters
     ----------
@@ -353,12 +360,18 @@ def finalize_secondary(scxtargs):
         An array of secondary targets, must contain the columns `RA`,
         `DEC` and `TARGETID`. `TARGETID` should be -1 for objects 
         that lack a `TARGETID`.
+    scnd_mask : :class:`desiutil.bitmask.BitMask`
+        A mask corresponding to a set of secondary targets, e.g, could
+        be ``from desitarget.targetmask import scnd_mask`` for the
+        main survey mask.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         The array of secondary targets, with the `TARGETID` bit
-        updated to a unique and reasonable `TARGETID`.
+        updated to a unique and reasonable `TARGETID` and the
+        `SCND_TARGET` column renamed based on the flavor of
+        `scnd_mask`.
 
     Notes
     -----
@@ -392,6 +405,14 @@ def finalize_secondary(scxtargs):
 
     # ADM assign the TARGETIDs to the secondary objects
     scxtargs["TARGETID"][nomatch] = targetid
+
+    # ADM change the data model depending on whether the mask
+    # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
+    # ADM change if the mask has no preamble.
+    prepend = scnd_mask._name[:-9].upper()
+    scxtargs = rfn.rename_fields(
+        scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
+        )
 
     return scxtargs
 
@@ -450,7 +471,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
     scxdir = _get_scxdir(scxdir)
     _check_files(scxdir, scnd_mask)
     # ADM ...and read in all of the secondary targets.
-    scxtargs = read_files(scxdir)
+    scxtargs = read_files(scxdir, scnd_mask)
 
     # ADM split off any scx targets that have requested an OVERRIDE.
     scxover = scxtargs[scxtargs["OVERRIDE"]]
@@ -500,6 +521,6 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
     # ADM now we're done matching, bring the override targets back...
     scxout = np.concatenate([scxtargs, scxover])
     # ADM ...and assign TARGETIDs to non-matching secondary targets.
-    scxout = finalize_secondary(scxout)
+    scxout = finalize_secondary(scxout, scnd_mask)
 
     return scxout
