@@ -45,12 +45,15 @@ log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-ti
 
 # ADM check if this is an SV or main survey file.
 chk = fitsio.read(infiles[0],rows=0)
-cols, mx, surv = main_cmx_or_sv(chk)
+cols, mx, surv = main_cmx_or_sv(chk, scnd=True)
 
 # ADM retrieve the SECONDARY_DIR, in case it wasn't passed and it's stored as an environment variable.
 scxdir = _get_scxdir(ns.scnddir)
+# ADM and augment the scxdir if this is an SV set of primary files.
+if surv != 'main':
+    scxdir = os.path.join(scxdir, surv)
 
-scx = select_secondary(infiles, numproc=ns.numproc, sep=ns.separation, scxdir=scxdir)
+scx = select_secondary(infiles, numproc=ns.numproc, sep=ns.separation, scxdir=scxdir, scnd_mask=mx[3])
 
 # ADM start the header with that of the first primary file, the primary directory and the separation.
 hdr = fitsio.read_header(infiles[0], 'TARGETS')
