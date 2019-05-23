@@ -6,6 +6,19 @@ desitarget Change Log
 -------------------
 
 * Apply the same declination cut to the mocks as to the data [`PR #501`_]. 
+* Add information to GFA files [`PR #498`_]. Includes:
+    * Add columns ``PARALLAX``, ``PARALLAX_IVAR``, ``REF_EPOCH``.
+    * Remove ``REF_EPOCH`` from GFA file header, as it's now a column.
+    * Sensible defaults for Gaia-only ``REF_EPOCH``, ``RA/DEC_IVAR``.
+    * Use fitsio.read() instead of :func:`desitarget.io.read_tractor()`.
+        * It's faster and special handling of input files isn't needed.
+* General clean-up of target selection code [`PR #497`_]. Includes:
+    * Deprecate old functions in :mod:`desitarget.gfa`.
+    * Greatly simplify :func:`io.read_tractor`.
+        * Backwards-compatability is now only guaranteed for DR6-8.
+    * Guard against warnings (e.g. divide-by-zero) in cuts and SV cuts.
+    * Default to only passing North (S) sources through North (S) cuts.
+        * Retain previous behavior if ``--noresolve`` flag is passed.
 * Add SV support to select_mock_targets [`PR #496`_]
 * A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
@@ -45,6 +58,9 @@ desitarget Change Log
 .. _`PR #493`: https://github.com/desihub/desitarget/pull/493
 .. _`PR #494`: https://github.com/desihub/desitarget/pull/494
 .. _`PR #496`: https://github.com/desihub/desitarget/pull/496
+.. _`PR #497`: https://github.com/desihub/desitarget/pull/497
+.. _`PR #498`: https://github.com/desihub/desitarget/pull/498
+.. _`PR #501`: https://github.com/desihub/desitarget/pull/501
 
 0.29.1 (2019-03-26)
 -------------------
