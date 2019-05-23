@@ -1204,7 +1204,8 @@ class SelectTargets(object):
             Declination of candidate targets (decimal degrees). 
 
         """
-        return dec <= 32.125
+        from desitarget.io import desitarget_resolve_dec
+        return dec <= desitarget_resolve_dec()
 
     def remove_north_south_bits(self, desi_target, bgs_target, mws_target):
         """Remove all the "north" and "south" targeting bits.  See the discussion here

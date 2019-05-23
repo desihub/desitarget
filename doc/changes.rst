@@ -5,6 +5,7 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* Apply the same declination cut to the mocks as to the data [`PR #501`_]. 
 * Add information to GFA files [`PR #498`_]. Includes:
     * Add columns ``PARALLAX``, ``PARALLAX_IVAR``, ``REF_EPOCH``.
     * Remove ``REF_EPOCH`` from GFA file header, as it's now a column.
@@ -59,6 +60,7 @@ desitarget Change Log
 .. _`PR #496`: https://github.com/desihub/desitarget/pull/496
 .. _`PR #497`: https://github.com/desihub/desitarget/pull/497
 .. _`PR #498`: https://github.com/desihub/desitarget/pull/498
+.. _`PR #501`: https://github.com/desihub/desitarget/pull/501
 
 0.29.1 (2019-03-26)
 -------------------
