@@ -1195,16 +1195,16 @@ def radec_match_to(matchto, objs, sep=1., radec=False):
           matched to, in that we are looking for all the instances where `objs`
           has a match in `matchto`. The returned indexes thus can never be longer
           than `objs`. Consider this example:
-              ```
-              mainra, maindec = [100], [30]
-              ras, decs = [100, 100, 100], [30, 30, 30]
 
-              radec_match_to([mainra, maindec], [ras, decs], radec=True)
-                  Out: (array([0, 0, 0]), array([0, 1, 2]))
+          >>> mainra, maindec = [100], [30]
+          >>> ras, decs = [100, 100, 100], [30, 30, 30]
+          >>>
+          >>> radec_match_to([mainra, maindec], [ras, decs], radec=True)
+          >>> Out: (array([0, 0, 0]), array([0, 1, 2]))
+          >>>
+          >>> radec_match_to([ras, decs], [mainra, maindec], radec=True)
+          >>> Out: (array([0]), array([0]))
 
-              radec_match_to([ras, decs], [mainra, maindec], radec=True)
-                  Out: (array([0]), array([0]))
-              ```
         - Only returns the CLOSEST match within `sep` arcseconds.
     """
     if radec:
