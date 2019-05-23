@@ -5,6 +5,7 @@ import fitsio
 import numpy as np
 import argparse
 from desitarget.secondary import select_secondary, _get_scxdir
+from desitarget.targets import main_cmx_or_sv
 from desitarget import io
 from glob import glob
 from time import time
@@ -20,7 +21,8 @@ from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate file of secondary-only targets from $SECONDARY_DIR, write matches to primary targets back to $SECONDARY_DIR')
 ap.add_argument("surveydir",
                 help="Base directory of primary target files (e.g. '/project/projectdirs/desi/target/catalogs/dr7.1/0.22.0/' at NERSC). "+ 
-                "All files that contain the string 'target' or 'targets' in their names will be considered a target file.")
+                "All files that contain the string 'target' or 'targets' in their names will be considered a target file." +
+                "Whether the file is an SV file is derived from the DESI_TARGET column in the first file detected in this directory.")
 ap.add_argument("dest",
                 help="Output secondary-only targets file (e.g. '/project/projectdirs/desi/target/catalogs/secondary-dr6-0.20.0.fits' at NERSC)")
 ap.add_argument('-n', "--numproc", type=int,
@@ -40,6 +42,10 @@ if len(infiles) == 0:
     sys.exit(1)
 
 log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
+
+# ADM check if this is an SV or main survey file.
+chk = fitsio.read(infiles[0],rows=0)
+cols, mx, surv = main_cmx_or_sv(chk)
 
 # ADM retrieve the SECONDARY_DIR, in case it wasn't passed and it's stored as an environment variable.
 scxdir = _get_scxdir(ns.scnddir)
