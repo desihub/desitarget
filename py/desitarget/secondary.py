@@ -433,7 +433,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
     # ADM import the default (main survey) mask.
     if scnd_mask == None:
         from desitarget.targetmask import scnd_mask
-    
+
     # ADM if a single primary file was passed, convert it to a list.
     if isinstance(infiles, str):
         infiles = [infiles, ]

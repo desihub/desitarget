@@ -7,6 +7,7 @@ import argparse
 from desitarget.secondary import select_secondary, _get_scxdir
 from desitarget.targets import main_cmx_or_sv
 from desitarget import io
+import os
 from glob import glob
 from time import time
 time0 = time()
