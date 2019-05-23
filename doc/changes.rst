@@ -5,6 +5,7 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* Apply the same declination cut to the mocks as to the data [`PR #501`_]. 
 * Add SV support to select_mock_targets [`PR #496`_]
 * A few more updates and enhancements for DR8 [`PR #494`_]. Includes:
     * Add ``WISEMASK_W1`` and ``WISEMASK_W2`` to random catalogs.
