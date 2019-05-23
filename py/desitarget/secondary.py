@@ -64,8 +64,8 @@ indatamodel = np.array([], dtype=[
 # ADM the columns not in the primary target files are:
 #  OVERRIDE - If True/1 force as a target even if there is a primary.
 #           - If False/0 allow this to be replaced by a primary target.
-#  SCND_TARGET - The bit mask from data/targetmask.yaml or 
-#                sv1/data/sv1_targetmask.yaml (scnd_mask).
+#  SCND_TARGET - Corresponds to the bit mask from data/targetmask.yaml
+#                or sv1/data/sv1_targetmask.yaml (scnd_mask).
 #  SCND_ORDER - Row number in the input secondary file for this target.
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is 0 for secondary-only targets.
@@ -114,13 +114,17 @@ def _get_scxdir(scxdir=None):
     return scxdir
 
 
-def _check_files(scxdir):
+def _check_files(scxdir, scnd_mask):
     """Retrieve input files from the scx directory with error checking.
 
     Parameters
     ----------
     scxdir : :class:`str`
         Directory produced by :func:`~secondary._check_files()`.
+    scnd_mask : :class:`desiutil.bitmask.BitMask`
+        A mask corresponding to a set of secondary targets, e.g, could
+        be ``from desitarget.targetmask import scnd_mask`` for the
+        main survey mask.
 
     Returns
     -------
@@ -201,13 +205,17 @@ def _check_files(scxdir):
     return
 
 
-def read_files(scxdir):
+def read_files(scxdir, scnd_mask):
     """Read in all secondary files and concatenate them into one array.
 
     Parameters
     ----------
     scxdir : :class:`str`
         Directory produced by :func:`~secondary._check_files()`.
+    scnd_mask : :class:`desiutil.bitmask.BitMask`, optional
+        A mask corresponding to a set of secondary targets, e.g, could
+        be ``from desitarget.targetmask import scnd_mask`` for the
+        main survey mask. Defaults to the main survey mask.
 
     Returns
     -------
@@ -388,7 +396,8 @@ def finalize_secondary(scxtargs):
     return scxtargs
 
 
-def select_secondary(infiles, numproc=4, sep=1., scxdir=None):
+def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
+                     scnd_mask=None):
     """Process secondary targets and update relevant bits.
 
     Parameters
@@ -401,6 +410,10 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None):
         The separation at which to match in ARCSECONDS.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         The name of the directory that hosts secondary targets.
+    scnd_mask : :class:`desiutil.bitmask.BitMask`, optional
+        A mask corresponding to a set of secondary targets, e.g, could
+        be ``from desitarget.targetmask import scnd_mask`` for the
+        main survey mask. Defaults to the main survey mask.
 
     Returns
     -------
@@ -417,6 +430,10 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None):
           the ``SCND_TARGET`` and ``SCND_ANY`` columns
           populated for matching targets.
     """
+    # ADM import the default (main survey) mask.
+    if scnd_mask == None:
+        from desitarget.targetmask import scnd_mask
+    
     # ADM if a single primary file was passed, convert it to a list.
     if isinstance(infiles, str):
         infiles = [infiles, ]
@@ -431,7 +448,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None):
 
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)
-    _check_files(scxdir)
+    _check_files(scxdir, scnd_mask)
     # ADM ...and read in all of the secondary targets.
     scxtargs = read_files(scxdir)
 
