@@ -34,20 +34,6 @@ log = get_logger()
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
                8000: 'S', 8001: 'N'}
 
-oldtscolumns = [
-    'BRICKID', 'BRICKNAME', 'OBJID', 'TYPE',
-    'RA', 'RA_IVAR', 'DEC', 'DEC_IVAR',
-    'DECAM_FLUX', 'DECAM_MW_TRANSMISSION',
-    'DECAM_FRACFLUX', 'DECAM_FLUX_IVAR', 'DECAM_NOBS', 'DECAM_DEPTH', 'DECAM_GALDEPTH',
-    'WISE_FLUX', 'WISE_MW_TRANSMISSION',
-    'WISE_FLUX_IVAR',
-    'SHAPEDEV_R', 'SHAPEDEV_E1', 'SHAPEDEV_E2',
-    'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1_IVAR', 'SHAPEDEV_E2_IVAR',
-    'SHAPEEXP_R', 'SHAPEEXP_E1', 'SHAPEEXP_E2',
-    'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1_IVAR', 'SHAPEEXP_E2_IVAR',
-    'DCHISQ'
-    ]
-
 # ADM this is an empty array of the full TS data model columns and dtypes
 # ADM other columns can be added in read_tractor.
 tsdatamodel = np.array([], dtype=[
@@ -73,17 +59,7 @@ tsdatamodel = np.array([], dtype=[
     ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
     ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
     ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
-    ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4')
-    ])
-
-dr7datamodel = np.array([], dtype=[
-    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
-    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
-    ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
-    ('BRIGHTSTARINBLOB', '?')
-    ])
-
-dr8datamodel = np.array([], dtype=[
+    ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
     ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
@@ -101,161 +77,6 @@ def desitarget_resolve_dec():
     """Default Dec cut to separate targets in BASS/MzLS from DECaLS."""
     dec = 32.375
     return dec
-
-
-def convert_from_old_data_model(fx, columns=None):
-    """Read data from open Tractor/sweeps file and convert to DR4+ data model.
-
-    Parameters
-    ----------
-    fx : :class:`str`
-        Open file object corresponding to one Tractor or sweeps file.
-    columns: :class:`list`, optional
-        the desired Tractor catalog columns to read
-
-    Returns
-    -------
-    :class:`~numpy.ndarray`
-        Array with the tractor schema, uppercase field names.
-
-    Notes
-    -----
-        - Anything pre-DR3 is assumed to be DR3 (we'd already broken
-          backwards-compatability with DR1 because of DECAM_DEPTH but
-          this now breaks backwards-compatability with DR2)
-    """
-    indata = fx[1].read(columns=columns)
-
-    # ADM the number of objects in the input rec array.
-    nrows = len(indata)
-
-    # ADM the column names that haven't changed between the current and the old data model.
-    tscolumns = list(tsdatamodel.dtype.names)
-    sharedcols = list(set(tscolumns).intersection(oldtscolumns))
-
-    # ADM the data types for the new data model.
-    dt = tsdatamodel.dtype
-
-    # ADM need to add BRICKPRIMARY and its data type, if it was passed as a column of interest.
-    if ('BRICK_PRIMARY' in columns):
-        sharedcols.append('BRICK_PRIMARY')
-        dd = dt.descr
-        dd.append(('BRICK_PRIMARY', '?'))
-        dt = np.dtype(dd)
-
-    # ADM create a new numpy array with the fields from the new data model...
-    outdata = np.empty(nrows, dtype=dt)
-
-    # ADM ...and populate them with the passed columns of data.
-    for col in sharedcols:
-        outdata[col] = indata[col]
-
-    # ADM change the DECAM columns from the old (2-D array) to new (named 1-D array) data model.
-    decamcols = ['FLUX', 'MW_TRANSMISSION', 'FRACFLUX', 'FLUX_IVAR', 'NOBS', 'GALDEPTH']
-    decambands = 'UGRIZ'
-    for bandnum in [1, 2, 4]:
-        for colstring in decamcols:
-            outdata[colstring+"_"+decambands[bandnum]] = indata["DECAM_"+colstring][:, bandnum]
-        # ADM treat DECAM_DEPTH separately as the syntax is slightly different.
-        outdata["PSFDEPTH_"+decambands[bandnum]] = indata["DECAM_DEPTH"][:, bandnum]
-
-    # ADM change the WISE columns from the old (2-D array) to new (named 1-D array) data model.
-    wisecols = ['FLUX', 'MW_TRANSMISSION', 'FLUX_IVAR']
-    for bandnum in [1, 2, 3, 4]:
-        for colstring in wisecols:
-            outdata[colstring+"_W"+str(bandnum)] = indata["WISE_"+colstring][:, bandnum-1]
-
-    # ADM we also need to include the RELEASE, which we'll always assume is DR3
-    # ADM (deprecating anything from before DR3).
-    outdata['RELEASE'] = 3000
-
-    return outdata
-
-
-def add_gaia_columns(indata):
-    """Add columns needed for MWS targeting to a sweeps-style array.
-
-    Parameters
-    ----------
-    indata : :class:`~numpy.ndarray`
-        Numpy structured array to which to add Gaia-relevant columns.
-
-    Returns
-    -------
-    :class:`~numpy.ndarray`
-        Input array with the Gaia columns added.
-
-    Notes
-    -----
-        - Gaia columns resemble the data model in :mod:`desitarget.gaiamatch`
-          but with "GAIA_RA" and "GAIA_DEC" removed.
-    """
-    # ADM remove the Gaia coordinates from the Gaia data model as they aren't
-    # ADM in the imaging surveys data model.
-    from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords
-    gaiadatamodel = pop_gaia_coords(gaiadatamodel)
-
-    # ADM create the combined data model.
-    dt = indata.dtype.descr + gaiadatamodel.dtype.descr
-
-    # ADM create a new numpy array with the fields from the new data model...
-    nrows = len(indata)
-    outdata = np.zeros(nrows, dtype=dt)
-
-    # ADM ...and populate them with the passed columns of data.
-    for col in indata.dtype.names:
-        outdata[col] = indata[col]
-
-    # ADM set REF_ID to -1 to indicate nothing has a Gaia match (yet).
-    outdata['REF_ID'] = -1
-
-    return outdata
-
-
-def add_dr8_columns(indata):
-    """Add columns that are in dr7/dr8 that weren't in dr6.
-
-    Parameters
-    ----------
-    indata : :class:`~numpy.ndarray`
-        Numpy structured array to which to add DR7/DR8 columns.
-
-    Returns
-    -------
-    :class:`~numpy.ndarray`
-        Input array with DR7/DR8 columns added.
-
-    Notes
-    -----
-        - DR7 columns are stored in :mod:`desitarget.io.dr7datamodel`.
-        - DR8 columns are stored in :mod:`desitarget.io.dr8datamodel`.
-        - The returned columns are set to all ``0`` or ``False``.
-    """
-    # ADM if BRIGHSTARINBLOB was sent (the dr7 version of MASKBITS)
-    # ADM then we need to update that column.
-    if 'BRIGHTSTARINBLOB' in indata.dtype.names:
-        newt = dr8datamodel["MASKBITS"].dtype.str
-        newdt = ("MASKBITS", newt)
-        dt = [fld if fld[0] != 'BRIGHTSTARINBLOB' else newdt
-              for fld in indata.dtype.descr]
-    else:
-        # ADM otherwise, create the combined data model.
-        dt = indata.dtype.descr + dr8datamodel.dtype.descr
-
-    # ADM create a new numpy array with the fields from the new data model...
-    nrows = len(indata)
-    outdata = np.zeros(nrows, dtype=dt)
-
-    # ADM ...and populate them with the passed columns of data.
-    for col in indata.dtype.names:
-        if col == "BRIGHTSTARINBLOB":
-            # ADM we have to bit-shift (<<) as, in MASKBITS, BRIGHT is 2**1
-            # ADM but in BRIGHTSTARINBLOB it was True (2**0).
-            outdata["MASKBITS"] = indata["BRIGHTSTARINBLOB"].astype(newt) << 1
-        else:
-            outdata[col] = indata[col]
-
-    return outdata
 
 
 def add_photsys(indata):
@@ -306,7 +127,7 @@ def add_photsys(indata):
 
 
 def read_tractor(filename, header=False, columns=None):
-    """Read a tractor catalogue file.
+    """Read a tractor catalogue or sweeps file.
 
     Parameters
     ----------
@@ -316,7 +137,8 @@ def read_tractor(filename, header=False, columns=None):
         If ``True``, return (data, header) instead of just data.
     columns: :class:`list`, optional
         Specify the desired Tractor catalog columns to read; defaults to
-        desitarget.io.tsdatamodel.dtype.names.
+        desitarget.io.tsdatamodel.dtype.names + most of the columns in
+        desitarget.gaiamatch.gaiadatamodel.dtype.names.
 
     Returns
     -------
@@ -325,84 +147,45 @@ def read_tractor(filename, header=False, columns=None):
     """
     check_fitsio_version()
 
-    fx = fitsio.FITS(filename, upper=True)
-    fxcolnames = fx[1].get_colnames()
+    # ADM read in the file information. Due to fitsio header bugs
+    # ADM near v1.0.0, make absolutely sure the user wants the header.
     if header:
-        hdr = fx[1].read_header()
-
-    if columns is None:
-        readcolumns = list(tsdatamodel.dtype.names)
-        # ADM if RELEASE doesn't exist, then we're pre-DR3 and need the old data model.
-        if (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
-            readcolumns = list(oldtscolumns)
+        indata, hdr = fitsio.read(filename, upper=True, header=True, columns=columns)
     else:
-        readcolumns = list(columns)
+        indata = fitsio.read(filename, upper=True, columns=columns)
 
-    # - tractor files have BRICK_PRIMARY; sweep files don't
-    if (columns is None) and \
-       (('BRICK_PRIMARY' in fxcolnames) or ('brick_primary' in fxcolnames)):
-        readcolumns.append('BRICK_PRIMARY')
+    # ADM the full data model including Gaia columns.
+    from desitarget.gaiamatch import gaiadatamodel
+    from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
+    gaiadatamodel = pop_gaia_coords(gaiadatamodel)
+    # ADM special handling of the pre-DR7 Data Model.
+    for gaiacol in ['GAIA_PHOT_BP_RP_EXCESS_FACTOR',
+                    'GAIA_ASTROMETRIC_SIGMA5D_MAX',
+                    'GAIA_ASTROMETRIC_PARAMS_SOLVED', 'REF_CAT']:
+        if gaiacol not in indata.dtype.names:
+            gaiadatamodel = pop_gaia_columns(gaiadatamodel, [gaiacol])
+    dt = tsdatamodel.dtype.descr + gaiadatamodel.dtype.descr
+    dtnames = tsdatamodel.dtype.names + gaiadatamodel.dtype.names
+    # ADM limit to just passed columns.
+    if columns is not None:
+        dt = [d for d, name in zip(dt, dtnames) if name in columns]
 
-    # ADM if BRIGHTSTARINBLOB exists (it does for DR7, not for DR6) add it and
-    # ADM the other DR6->DR7 data model updates.
-    if (columns is None) and \
-       (('BRIGHTSTARINBLOB' in fxcolnames) or ('brightstarinblob' in fxcolnames)):
-        for col in dr7datamodel.dtype.names:
-            readcolumns.append(col)
-        # ADM deal with some custom files I made that don't contain WISEMASK.
-        if ('WISEMASK_W1' not in fxcolnames) and ('wisemask_w1' not in fxcolnames):
-            readcolumns.remove('WISEMASK_W1')
-            readcolumns.remove('WISEMASK_W2')
-    # ADM if MASKBITS exists (it does for DR8, not for DR7) add it and
-    # ADM the other DR6->DR8 data model updates.
-    else:
-        if (columns is None) and \
-           (('MASKBITS' in fxcolnames) or ('maskbits' in fxcolnames)):
-            for col in dr8datamodel.dtype.names:
-                readcolumns.append(col)
+    # ADM set-up the output array.
+    nrows = len(indata)
+    data = np.zeros(nrows, dtype=dt)
+    # ADM if REF_ID was requested, set it to -1 in case there is no Gaia data.
+    if "REF_ID" in data.dtype.names:
+        data['REF_ID'] = -1
 
-    # ADM if Gaia information was passed, add it to the columns to read.
-    if (columns is None):
-        if (('REF_ID' in fxcolnames) or ('ref_id' in fxcolnames)):
-            # ADM remove the Gaia coordinates as they aren't in the imaging data model.
-            from desitarget.gaiamatch import gaiadatamodel, pop_gaia_coords, pop_gaia_columns
-            gaiadatamodel = pop_gaia_coords(gaiadatamodel)
-            # ADM the DR7 sweeps don't contain these columns, but DR8 should.
-            if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' not in fxcolnames:
-                gaiadatamodel = pop_gaia_columns(
-                    gaiadatamodel,
-                    ['GAIA_PHOT_BP_RP_EXCESS_FACTOR',
-                     'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
-                )
-                if 'REF_CAT' not in fxcolnames:
-                    gaiadatamodel = pop_gaia_columns(gaiadatamodel, ['REF_CAT'])
-            gaiacols = gaiadatamodel.dtype.names
-            readcolumns += gaiacols
+    # ADM populate the common input/output columns.
+    for col in set(indata.dtype.names).intersection(set(data.dtype.names)):
+        data[col] = indata[col]
 
-    if (columns is None) and \
-       (('RELEASE' not in fxcolnames) and ('release' not in fxcolnames)):
-        # ADM Rewrite the data completely to correspond to the DR4+ data model.
-        # ADM we default to writing RELEASE = 3000 ("DR3, or before, data")
-        data = convert_from_old_data_model(fx, columns=readcolumns)
-    else:
-        data = fx[1].read(columns=readcolumns)
-
-    # ADM add Gaia columns if not passed.
-    if (columns is None) and \
-       (('REF_ID' not in fxcolnames) and ('ref_id' not in fxcolnames)):
-        data = add_gaia_columns(data)
-
-    # ADM add DR8 data model updates (with zero/False) columns if not passed.
-    if (columns is None) and \
-       (('MASKBITS' not in fxcolnames) and ('maskbits' not in fxcolnames)):
-        data = add_dr8_columns(data)
-
-    # ADM Empty (length 0) files have dtype='>f8' instead of 'S8' for brickname.
-    if len(data) == 0:
-        log.warning('WARNING: Empty file>', filename)
-        dt = data.dtype.descr
-        dt[1] = ('BRICKNAME', 'S8')
-        data = data.astype(np.dtype(dt))
+    # ADM MASKBITS used to be BRIGHTSTARINBLOB which was set to True/False
+    # ADM and which represented the SECOND bit of MASKBITS.
+    if "BRIGHTSTARINBLOB" in indata.dtype.names:
+        if "MASKBITS" in data.dtype.names:
+            data["MASKBITS"] = indata["BRIGHTSTARINBLOB"] << 1
 
     # ADM To circumvent whitespace bugs on I/O from fitsio.
     # ADM need to strip any white space from string columns.
@@ -410,17 +193,14 @@ def read_tractor(filename, header=False, columns=None):
         kind = data[colname].dtype.kind
         if kind == 'U' or kind == 'S':
             data[colname] = np.char.rstrip(data[colname])
-
+    
     # ADM add the PHOTSYS column to unambiguously check whether we're using imaging
     # ADM from the "North" or "South".
     data = add_photsys(data)
 
     if header:
-        fx.close()
         return data, hdr
-    else:
-        fx.close()
-        return data
+    return data
 
 
 def fix_tractor_dr1_dtype(objects):
@@ -648,7 +428,7 @@ def write_skies(filename, data, indir=None, indir2=None,
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
-               survey="?", gaiaepoch=None):
+               survey="?"):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -665,9 +445,6 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         at resolution `nside`.
     survey : :class:`str`, optional, defaults to "?"
         Written to output file header as the keyword `SURVEY`.
-    gaiaepoch: :class:`float`, defaults to None
-        Gaia proper motion reference epoch. If not None, write to header of
-        output file. If None, default to an epoch of 2015.5.
     """
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
@@ -697,13 +474,6 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
 
     # ADM add the type of survey (main, or commissioning "cmx") to the header.
     hdr["SURVEY"] = survey
-
-    # ADM add the Gaia reference epoch, or pass 2015.5 if not included.
-    hdr['REFEPOCH'] = {'name': 'REFEPOCH',
-                       'value': 2015.5,
-                       'comment': "Gaia Proper Motion Reference Epoch"}
-    if gaiaepoch is not None:
-        hdr['REFEPOCH'] = gaiaepoch
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
@@ -861,7 +631,7 @@ def brickname_from_filename(filename):
     # Match filename tractor-0003p027.fits -> brickname 0003p027.
     # Also match tractor-00003p0027.fits, just in case.
     #
-    match = re.search('tractor-(\d{4,5}[pm]\d{3,4})\.fits',
+    match = re.search(r"tractor-(\d{4,5}[pm]\d{3,4})\.fits",
                       os.path.basename(filename))
 
     if match is None:
@@ -895,7 +665,7 @@ def brickname_from_filename_with_prefix(filename, prefix=''):
     # Match filename tractor-0003p027.fits -> brickname 0003p027.
     # Also match tractor-00003p0027.fits, just in case.
     #
-    match = re.search('%s_(\d{4,5}[pm]\d{3,4})\.fits'%(prefix),
+    match = re.search(r"%s_(\d{4,5}[pm]\d{3,4})\.fits" % (prefix),
                       os.path.basename(filename))
 
     if match is None:
@@ -1309,9 +1079,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = fitsio.read_header(hpdirname, 'TARGETS',
-                                          columns=columnscopy,
-                                          header=True)
+        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
+                                   columns=columnscopy, header=True)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
@@ -1379,8 +1148,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     # ADM ...otherwise just read in the targets.
     else:
         targets, hdr = fitsio.read(hpdirname, 'TARGETS',
-                                   columns=columnscopy,
-                                   header=True)
+                                   columns=columnscopy, header=True)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)

@@ -74,11 +74,10 @@ class TestIO(unittest.TestCase):
             ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
              'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
         )
-        # ADM BRICK_PRIMARY, PHOTSYS get added on input.
+        # ADM PHOTSYS gets added on input.
         tscolumns = list(io.tsdatamodel.dtype.names)     \
-            + ['BRICK_PRIMARY', 'PHOTSYS']               \
-            + list(gaiadatamodel.dtype.names)            \
-            + list(io.dr8datamodel.dtype.names)
+            + ['PHOTSYS']                                \
+            + list(gaiadatamodel.dtype.names)
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
         self.assertEqual(set(data.dtype.names), set(tscolumns))
@@ -110,9 +109,14 @@ class TestIO(unittest.TestCase):
         # ADM use fits read wrapper in io to correctly handle whitespace.
         d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
         self.assertEqual(list(data.dtype.names)+["HPXPIXEL"], list(d2.dtype.names))
-
         for column in data.dtype.names:
-            self.assertTrue(np.all(data[column] == d2[column]))
+            kind = data[column].dtype.kind
+            # ADM whitespace_fits_read() doesn't convert string data
+            # ADM types identically for every version of fitsio.
+            if kind == 'U' or kind == 'S':
+                self.assertTrue(np.all(data[column] == d2[column].astype(data[column].dtype)))
+            else:
+                self.assertTrue(np.all(data[column] == d2[column]))
 
     def test_brickname(self):
         self.assertEqual(io.brickname_from_filename('tractor-3301m002.fits'), '3301m002')
