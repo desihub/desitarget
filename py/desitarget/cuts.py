@@ -82,12 +82,11 @@ def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
     """
 
-    gshift = gflux * 10**(-0.4*0.029) * (gflux/rflux)**(-0.068)
-    rshift = rflux * 10**(+0.4*0.012) * (rflux/zflux)**(-0.029)
-    zshift = zflux * 10**(-0.4*0.000) * (rflux/zflux)**(+0.009)
+    gshift = gflux * 10**(-0.4*0.013) * (gflux/rflux)**(-0.059)
+    rshift = rflux * 10**(-0.4*0.007) * (rflux/zflux)**(-0.027)
+    zshift = zflux * 10**(+0.4*0.022) * (rflux/zflux)**(+0.019)
 
     return gshift, rshift, zshift
-
 
 def shift_photo_north(gflux=None, rflux=None, zflux=None):
     """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system.
@@ -107,18 +106,18 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     """
 
     # ADM only use the g-band color shift when r and g are non-zero
-    gshift = gflux * 10**(-0.4*0.029)
+    gshift = gflux * 10**(-0.4*0.013)
     w = np.where((gflux != 0) & (rflux != 0))
-    gshift[w] = (gflux[w] * 10**(-0.4*0.029) * (gflux[w]/rflux[w])**complex(-0.068)).real
+    gshift[w] = (gflux[w] * 10**(-0.4*0.013) * (gflux[w]/rflux[w])**complex(-0.059)).real
 
     # ADM only use the r-band color shift when r and z are non-zero
     # ADM and only use the z-band color shift when r and z are non-zero
     w = np.where((rflux != 0) & (zflux != 0))
-    rshift = rflux * 10**(+0.4*0.012)
-    zshift = zflux * 10**(-0.4*0.000)
+    rshift = rflux * 10**(-0.4*0.007)
+    zshift = zflux * 10**(+0.4*0.022)
 
-    rshift[w] = (rflux[w] * 10**(+0.4*0.012) * (rflux[w]/zflux[w])**complex(-0.029)).real
-    zshift[w] = (zflux[w] * 10**(-0.4*0.000) * (rflux[w]/zflux[w])**complex(+0.009)).real
+    rshift[w] = (rflux[w] * 10**(-0.4*0.007) * (rflux[w]/zflux[w])**complex(-0.027)).real
+    zshift[w] = (zflux[w] * 10**(+0.4*0.022) * (rflux[w]/zflux[w])**complex(+0.019)).real
 
     return gshift, rshift, zshift
 
