@@ -10,6 +10,7 @@ Useful Gaia matching routines, in case Gaia isn't absorbed into the Legacy Surve
 import os
 import sys
 import numpy as np
+import numpy.lib.recfunctions as rfn
 import fitsio
 import requests
 import pickle
@@ -472,33 +473,18 @@ def pop_gaia_coords(inarr):
     :class:`~numpy.ndarray`
         Input array with columns called "GAIA_RA" and/or "GAIA_DEC" removed.
     """
-    # ADM list of the column names of the passed array
-    names = list(inarr.dtype.names)
 
-    # ADM pop off any instances of GAIA_RA, GAIA_DEC be forgiving if they
-    # ADM aren't in the array.
-    try:
-        names.remove("GAIA_RA")
-    except ValueError:
-        pass
-
-    try:
-        names.remove("GAIA_DEC")
-    except ValueError:
-        pass
-
-    # ADM return the array without GAIA_RA, GAIA_DEC
-    return inarr[names]
+    return rfn.drop_fields(inarr, ['GAIA_RA', 'GAIA_DEC'])
 
 
-def pop_gaia_columns(inarr, cols):
+def pop_gaia_columns(inarr, popcols):
     """Convenience function to pop columns of an input array.
 
     Parameters
     ----------
     inarr : :class:`~numpy.ndarray`
         Structured array with various column names.
-    cols : :class:`list`
+    popcols : :class:`list`
         List of columns to remove from the input array.
 
     Returns
@@ -506,19 +492,8 @@ def pop_gaia_columns(inarr, cols):
     :class:`~numpy.ndarray`
         Input array with columns in cols removed.
     """
-    # ADM list of the column names of the passed array
-    names = list(inarr.dtype.names)
 
-    # ADM pop off any instances of GAIA_RA, GAIA_DEC be forgiving if they
-    # ADM aren't in the array.
-    for col in cols:
-        try:
-            names.remove(col)
-        except ValueError:
-            pass
-
-    # ADM return the array without GAIA_RA, GAIA_DEC
-    return inarr[names]
+    return rfn.drop_fields(inarr, popcols)
 
 
 def read_gaia_file(filename, header=False):

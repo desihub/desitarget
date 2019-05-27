@@ -158,6 +158,7 @@ def read_tractor(filename, header=False, columns=None):
     from desitarget.gaiamatch import gaiadatamodel
     from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
     gaiadatamodel = pop_gaia_coords(gaiadatamodel)
+
     # ADM special handling of the pre-DR7 Data Model.
     for gaiacol in ['GAIA_PHOT_BP_RP_EXCESS_FACTOR',
                     'GAIA_ASTROMETRIC_SIGMA5D_MAX',
