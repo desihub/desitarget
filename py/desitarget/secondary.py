@@ -144,12 +144,12 @@ def _check_files(scxdir, scnd_mask):
     """
     # ADM the allowed extensions in each directory.
     extdic = {'indata': {'.txt', '.fits'},
-               'docs': {'.txt', '.ipynb'}}
+              'docs': {'.txt', '.ipynb'}}
     # ADM the full paths to the indata/docs directories.
     dirdic = {'indata': os.path.join(scxdir, 'indata'),
-               'docs': os.path.join(scxdir, 'docs')}
+              'docs': os.path.join(scxdir, 'docs')}
 
-    # ADM setdic will contain the set of file names, without 
+    # ADM setdic will contain the set of file names, without
     # ADM extensions in each of the indata and docs directories.
     setdic = {}
     for subdir in 'indata', 'docs':
@@ -236,11 +236,11 @@ def read_files(scxdir, scnd_mask):
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
             scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2],
-                             dtype=indatamodel.dtype)
+                               dtype=indatamodel.dtype)
         # ADM otherwise it's a fits file, read it in.
         else:
             scxin = fitsio.read(fn+'.fits',
-                              columns=indatamodel.dtype.names)
+                                columns=indatamodel.dtype.names)
         # ADM ensure this is a properly constructed numpy array.
         scxin = np.atleast_1d(scxin)
 
@@ -296,7 +296,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     # ADM fail if file's already been matched to secondary targets.
     if "SCNDDIR" in hdr:
         msg = "{} already matched to secondary targets".format(infile) \
-        + " (did you mean to remove {}?)!!!".format(infile)
+              + " (did you mean to remove {}?)!!!".format(infile)
         log.critical(msg)
         raise ValueError(msg)
     # ADM add the SCNDDIR to the primary targets file header.
@@ -358,7 +358,7 @@ def finalize_secondary(scxtargs, scnd_mask):
     ----------
     scxtargs : :class:`~numpy.ndarray`
         An array of secondary targets, must contain the columns `RA`,
-        `DEC` and `TARGETID`. `TARGETID` should be -1 for objects 
+        `DEC` and `TARGETID`. `TARGETID` should be -1 for objects
         that lack a `TARGETID`.
     scnd_mask : :class:`desiutil.bitmask.BitMask`
         A mask corresponding to a set of secondary targets, e.g, could
@@ -382,7 +382,7 @@ def finalize_secondary(scxtargs, scnd_mask):
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
 
-    # ADM get BRICKIDs, retrieve the list of unique bricks and the 
+    # ADM get BRICKIDs, retrieve the list of unique bricks and the
     # ADM number of sources in each unique brick.
     brxid = bricks.brickid(scxtargs["RA"][nomatch],
                            scxtargs["DEC"][nomatch])
@@ -440,7 +440,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
     -------
     :class:`~numpy.ndarray`
         All secondary targets from `scxdir` with columns ``TARGETID``,
-        ``SCND_TARGET``, ``PRIORITY_INIT``, ``SUBPRIORITY`` and 
+        ``SCND_TARGET``, ``PRIORITY_INIT``, ``SUBPRIORITY`` and
         ``NUMOBS_INIT`` added. These columns are also populated,
         excepting ``SUBPRIORITY``.
 
@@ -452,7 +452,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
           populated for matching targets.
     """
     # ADM import the default (main survey) mask.
-    if scnd_mask == None:
+    if scnd_mask is None:
         from desitarget.targetmask import scnd_mask
 
     # ADM if a single primary file was passed, convert it to a list.
@@ -487,7 +487,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
     # ADM this is just to count files in _update_status.
     nfile = np.array(1)
     t0 = time()
-        
+
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
@@ -517,10 +517,12 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
         for infile in infiles:
             scxall.append(_update_status(_match_scx_file(infile)))
         scxtargs = scxall[-1]
-
+    print("one")
     # ADM now we're done matching, bring the override targets back...
     scxout = np.concatenate([scxtargs, scxover])
+    print("two")
     # ADM ...and assign TARGETIDs to non-matching secondary targets.
     scxout = finalize_secondary(scxout, scnd_mask)
+    print("three")
 
     return scxout
