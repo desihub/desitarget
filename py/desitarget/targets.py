@@ -10,7 +10,7 @@ import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
 
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask 
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targetmask import scnd_mask, targetid_mask
 
 # ADM set up the DESI default logger.
