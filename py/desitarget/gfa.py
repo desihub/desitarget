@@ -147,7 +147,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     return gfas
 
 
-def gaia_in_file(infile, maglim=18):
+def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.):
     """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
 
     Parameters
@@ -156,6 +156,11 @@ def gaia_in_file(infile, maglim=18):
         File name of a single Gaia "healpix" file.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
+    mindec : :class:`float`, optional, defaults to -30
+        Minimum declination (o) to include for output Gaia objects.
+    mingalb : :class:`float`, optional, defaults to 10
+        Closest latitude to Galactic plane for output Gaia objects
+        (e.g. send 10 to limit to areas beyond -10o <= b < 10o)"
 
     Returns
     -------
@@ -203,6 +208,13 @@ def gaia_in_file(infile, maglim=18):
     # ADM populate the BRICKID columns.
     gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
 
+    # ADM limit by Dec first to speed transform to Galactic coordinates.
+    decgood = is_in_box(gfas, [0., 360., mindec, 90.])
+    gfas = gfas[decgood]
+    # ADM now limit to requesed Galactic latitude range.
+    bbad = is_in_gal_box(gfas, [0., 360., -mingalb, mingalb])
+    gfas = gfas[~bbad]
+
     return gfas
 
 
@@ -247,7 +259,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     # ADM the critical function to run on every file.
     def _get_gaia_gfas(fn):
         '''wrapper on gaia_in_file() given a file name'''
-        return gaia_in_file(fn, maglim=maglim)
+        return gaia_in_file(fn, maglim=maglim,
+                            mindec=mindec, mingalb=mingalb)
 
     # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
@@ -276,14 +289,6 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
 
     gfas = np.concatenate(gfas)
 
-    log.info('limit to Dec > {}o and |Gal b| > {}o...t = {:.1f} mins'
-             .format(mindec, mingalb, (time()-t0)/60.))
-    # ADM limit by Dec first to speed transform to Galactic coordinates.
-    decgood = is_in_box(gfas, [0., 360., mindec, 90.])
-    gfas = gfas[decgood]
-    # ADM limit to requesed Galactic latitude range.
-    bbad = is_in_gal_box(gfas, [0., 360., -mingalb, mingalb])
-    gfas = gfas[~bbad]
     log.info('Retrieved {} Gaia objects...t = {:.1f} mins'
              .format(len(gfas), (time()-t0)/60.))
 
