@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.29.2 (unreleased)
+0.30.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.30.0 (2019-05-30)
 -------------------
 
 * Drop Gaia fields with np.rfn to fix Python 3.6/macOS bug [`PR #502`_].
