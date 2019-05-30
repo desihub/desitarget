@@ -381,18 +381,22 @@ def finalize_secondary(scxtargs, scnd_mask):
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
-
     # ADM get BRICKIDs, retrieve the list of unique bricks and the
     # ADM number of sources in each unique brick.
     brxid = bricks.brickid(scxtargs["RA"][nomatch],
                            scxtargs["DEC"][nomatch])
-    ubrx, un = np.unique(brxid, return_counts=True)
 
     # ADM build the OBJIDs from the number of sources per brick.
-    objid = np.zeros_like(brxid)
-    for brx, nobjs in zip(ubrx, un):
-        isinbrx = brxid == brx
-        objid[isinbrx] = np.arange(nobjs)
+    # ADM the for loop doesn't seem the smartest way, but it is O(n).
+    t0 = time()
+    log.info("Begin assigning OBJIDs to bricks...")
+    cntr = np.zeros(np.max(brxid)+1, dtype=int)
+    objid = []
+    for ibrx in brxid:
+        cntr[ibrx] += 1
+        objid.append(cntr[ibrx])
+    objid = np.array(objid)
+    log.info("Assigned OBJIDs to bricks in {:.1f}s".format(time()-t0))
 
     # ADM assemble the TARGETID, SCND objects have RELEASE==0.
     targetid = encode_targetid(objid=objid, brickid=brxid)
@@ -517,12 +521,11 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
         for infile in infiles:
             scxall.append(_update_status(_match_scx_file(infile)))
         scxtargs = scxall[-1]
-    print("one")
+
     # ADM now we're done matching, bring the override targets back...
     scxout = np.concatenate([scxtargs, scxover])
-    print("two")
+
     # ADM ...and assign TARGETIDs to non-matching secondary targets.
     scxout = finalize_secondary(scxout, scnd_mask)
-    print("three")
 
     return scxout
