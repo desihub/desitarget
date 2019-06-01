@@ -652,6 +652,9 @@ def iter_sweepfiles(root):
 def list_targetfiles(root):
     """Return a list of target files found under `root` directory.
     """
+    # ADM catch case where a file was sent instead of a directory.
+    if os.path.isfile(root):
+        return [root]
     allfns = glob(os.path.join(root, '*target*fits'))
     fns, nfns = np.unique(allfns, return_counts=True)
     if np.any(nfns > 1):

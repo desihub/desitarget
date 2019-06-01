@@ -58,7 +58,7 @@ if surv != 'main':
 scx = select_secondary(infiles, numproc=ns.numproc, sep=ns.separation, scxdir=scxdir, scnd_mask=mx[3])
 
 # ADM start the header with that of the first primary file, the primary directory and the separation.
-hdr = fitsio.read_header(infiles[0], 'TARGETS')
+hdr = fitsio.read_header(infiles[0], extension='TARGETS')
 hdr['PRIMDIR'] = ns.surveydir
 hdr['SEP'] = float(ns.separation)
 

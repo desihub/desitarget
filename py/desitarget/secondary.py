@@ -37,6 +37,7 @@ loaded from the text file as the corresponding Boolean.
 import os
 import fitsio
 import numpy as np
+import healpy as hp
 
 import numpy.lib.recfunctions as rfn
 
@@ -47,7 +48,8 @@ from astropy.table import Table, Row
 from time import time
 
 from desitarget.internal import sharedmem
-from desitarget.geomask import radec_match_to
+from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
+
 from desitarget.targets import encode_targetid, main_cmx_or_sv
 
 from desiutil import brick
@@ -286,17 +288,17 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
           original path with `.fits` changed to `-wscnd.fits` and the
           `SCND_TARGET` bit populated for matching targets.
     """
+    # ADM just the file name for logging.
+    fn = os.path.basename(infile)
     # ADM read in the primary targets.
     log.info('Reading primary targets file {}...t={:.1f}s'
              .format(infile, time()-start))
-    intargs, hdr = fitsio.read(infile, "TARGETS", header=True)
-    intargs = intargs[:50000]
-#    log.info('Adding "SCND_TARGET" column to {}...t={:.1f}s'
-#             .format(infile, time()-start))
+    intargs, hdr = fitsio.read(infile, extension="TARGETS", header=True)
+
     # ADM fail if file's already been matched to secondary targets.
     if "SCNDDIR" in hdr:
-        msg = "{} already matched to secondary targets".format(infile) \
-              + " (did you mean to remove {}?)!!!".format(infile)
+        msg = "{} already matched to secondary targets".format(fn) \
+              + " (did you mean to remove {}?)!!!".format(fn)
         log.critical(msg)
         raise ValueError(msg)
     # ADM add the SCNDDIR to the primary targets file header.
@@ -308,12 +310,39 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     for col in intargs.dtype.names:
         targs[col] = intargs[col]
 
-    # ADM for every secondary target, determine if there is a match
+    # ADM match to all secondary targets for non-custom primary files.
+    inhp = np.ones(len(scxtargs), dtype="?")
+    # ADM as a speed-up, save memory by limiting the secondary targets
+    # ADM to just HEALPixels that could touch the primary targets.
+    if 'FILEHPX' in hdr:
+        nside, pix = hdr['FILENSID'], hdr['FILEHPX']
+        # ADM remember to grab adjacent pixels in case of edge effects.
+        allpix = add_hp_neighbors(nside, pix)
+        inhp = is_in_hp(scxtargs, nside, allpix)
+        # ADM it's unlikely that the matching separation is comparable
+        # ADM to the HEALPixel resolution, but guard against that anyway.
+        halfpix = np.degrees(hp.max_pixrad(nside))*3600.
+        if sep > halfpix:
+            msg = 'sep ({}") exceeds (half) HEALPixel size ({}")'.format(
+                sep, halfpix)
+            log.critical(msg)
+            raise ValueError(msg)
+    # ADM warn the user if the secondary and primary samples are "large".
+    big = 500000
+    if np.sum(inhp) > big and len(intargs) > big:
+        log.warning('Large secondary (N={}) and primary (N={}) samples'
+                    .format(np.sum(inhp), len(intargs)))
+        log.warning('The code may run slowly')
+
+    # ADM for each secondary target, determine if there is a match
     # ADM with a primary target. Note that sense is important, here
     # ADM (the primary targets must be passed first).
-    log.info('Matching primary and secondary targets at {}"...t={:.1f}s'
-             .format(sep, time()-start))
-    mtargs, mscx = radec_match_to(targs, scxtargs, sep=sep)
+    log.info('Matching primary and secondary targets for {} at {}"...t={:.1f}s'
+             .format(fn, sep, time()-start))
+    mtargs, mscx = radec_match_to(targs, scxtargs[inhp], sep=sep)
+    # ADM recast the indices to the full set of secondary targets,
+    # ADM instead of just those that were in the relevant HEALPixels.
+    mscx = np.where(inhp)[0][mscx]
 
     # ADM loop through the matches and update the SCND_TARGET
     # ADM column in the primary target list. The np.unique is a
@@ -346,7 +375,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
              .format(outfile, time()-start))
     fitsio.write(outfile, targs, extname='TARGETS', header=hdr, clobber=True)
 
-    log.info('Done...t={:.1f}s'.format(time()-start))
+    log.info('Done for {}...t={:.1f}s'.format(fn, time()-start))
 
     return scxtargs
 
@@ -498,8 +527,8 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
         if nfile % 1 == 0 and nfile > 0:
             elapsed = (time()-t0)/60.
             rate = nfile/elapsed/60.
-            log.info('{}/{} files; {:.1f} files/sec...t = {:.1f} mins'
-                     .format(nfile, nfiles, rate, elapsed))
+            log.info('{}/{} files; {:.1f} sec/file...t = {:.1f} mins'
+                     .format(nfile, nfiles, 1./rate, elapsed))
         nfile[...] += 1    # this is an in-place modification.
         return result
 
