@@ -1961,6 +1961,7 @@ class ReadGalaxia(SelectTargets):
 
         if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
             ref_id = mockid
+            ref_cat = np.repeat('G2', len(mockid))
             gaia_g = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4')
             gaia_pmra = data['PMRA'].astype('f4')
             gaia_pmdec = data['PMDEC'].astype('f4')
@@ -1970,6 +1971,7 @@ class ReadGalaxia(SelectTargets):
             gaia_parallax_ivar = data['PARALLAX_IVAR'].astype('f4')
         else:
             ref_id = np.zeros(nobj).astype('f4')-1 # no data is -1
+            ref_cat = np.repeat('', len(mockid))
             gaia_g = np.zeros(nobj).astype('f4')
             gaia_pmra = np.zeros(nobj).astype('f4')
             gaia_pmdec = np.zeros(nobj).astype('f4')
@@ -1999,6 +2001,7 @@ class ReadGalaxia(SelectTargets):
                 feh = feh[cut]
 
                 ref_id = ref_id[cut]
+                ref_cat = ref_cat[cut]
                 gaia_g = gaia_g[cut]
                 gaia_pmra = gaia_pmra[cut]
                 gaia_pmdec = gaia_pmdec[cut]
@@ -2024,6 +2027,7 @@ class ReadGalaxia(SelectTargets):
                'SOUTH': self.is_south(dec), 'TYPE': np.repeat('PSF', nobj),
 
                'REF_ID': ref_id,
+               'REF_CAT': ref_cat,
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
@@ -2758,6 +2762,7 @@ class ReadMWS_WD(SelectTargets):
                'TEMPLATESUBTYPE': templatesubtype,
 
                'REF_ID': mockid,
+               'REF_CAT': np.repeat('G2', len(mockid)),
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
@@ -2912,6 +2917,7 @@ class ReadMWS_NEARBY(SelectTargets):
                'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
 
                'REF_ID': mockid,
+               'REF_CAT': np.repeat('G2', len(mockid)),
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
