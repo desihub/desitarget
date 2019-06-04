@@ -1039,8 +1039,12 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                        w1flux=w1flux, w2flux=w2flux,
                        optical=optical, south=south)
 
-    qso &= w1snr > 4
-    qso &= w2snr > 2
+    if south:
+        qso &= w1snr > 4
+        qso &= w2snr > 2
+    else:
+        qso &= w1snr > 4
+        qso &= w2snr > 3
 
     # ADM default to RELEASE of 6000 if nothing is passed.
     if release is None:
@@ -1076,11 +1080,15 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+#    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
+    qso &= zflux > rflux * 10**(-0.4/2.5)   # (r-z)>-0.4
     qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
 
     if not optical:
-        qso &= w2flux > w1flux * 10**(-0.4/2.5)                   # (W1-W2)>-0.4
+        if south:
+            qso &= w2flux > w1flux * 10**(-0.4/2.5)                   # (W1-W2)>-0.4
+        else:
+            qso &= w2flux > w1flux * 10**(-0.3/2.5)                   # (W1-W2)>-0.3
         qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)   # (grz-W)>(g-z)-1.0
 
     # Harder cut on stellar contamination
@@ -1089,8 +1097,8 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-    mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
+    mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.100+0.20)/2.5)
+    mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.100+0.20)/2.5)
     if not optical:
         mainseq &= w2flux < w1flux * 10**(0.3/2.5)
     qso &= ~mainseq
@@ -1203,20 +1211,12 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            if south:
-                pcut = np.where(tmp_r_Reduced > 20.8,
+            pcut = np.where(tmp_r_Reduced > 20.8,
                                 0.83 - (tmp_r_Reduced - 20.8) * 0.025, 0.83)
-                pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
-                pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
-                pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
-                                      0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
-            else:
-                pcut = np.where(tmp_r_Reduced > 20.8,
-                                0.90 - (tmp_r_Reduced - 20.8) * 0.025, 0.90)
-                pcut[tmp_r_Reduced > 21.5] = 0.8825 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
-                pcut[tmp_r_Reduced > 22.3] = 0.7625 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
-                pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
-                                      0.70 - (tmp_r_Reduced - 20.5) * 0.025, 0.70)
+            pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+            pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+            pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
+                                0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
