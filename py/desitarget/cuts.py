@@ -1080,7 +1080,6 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17)/2.5)    # grz>17
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-#    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z)>-0.3
     qso &= zflux > rflux * 10**(-0.4/2.5)   # (r-z)>-0.4
     qso &= zflux < rflux * 10**(1.1/2.5)    # (r-z)<1.1
 
@@ -1092,7 +1091,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)   # (grz-W)>(g-z)-1.0
 
     # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5)
+    mainseq = rflux > gflux * 10**(0.20/2.5) # g-r>0.2
 
     # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
