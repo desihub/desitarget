@@ -3132,9 +3132,14 @@ class QSOMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
+            
         if self.use_simqso:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                                  qso_selection='colorcuts',
+                                                                  qso_selection=qso_selection,
                                                                   survey=self.survey)
         else:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(
@@ -3457,9 +3462,14 @@ class LYAMaker(SelectTargets):
             tcnames = 'QSO'
         else:
             tcnames = targetname
+
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
             
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts',
+                                                              qso_selection=qso_selection,
                                                               survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
@@ -4486,10 +4496,15 @@ class MWS_MAINMaker(STARMaker):
         else:
             tcnames = targetname
 
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
+            
         # Note: We pass qso_selection to cuts.apply_cuts because MWS_MAIN
         # targets can be used as QSO contaminants.
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts',
+                                                              qso_selection=qso_selection,
                                                               survey=self.survey)
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
@@ -5495,9 +5510,13 @@ class BuzzardMaker(SelectTargets):
         """
         # There's an inconsistency here if use_simqso=False in the configuration
         # file...we should be setting optical=True.
-        
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
+            
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                              qso_selection='colorcuts',
+                                                              qso_selection=qso_selection,
                                                               survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
