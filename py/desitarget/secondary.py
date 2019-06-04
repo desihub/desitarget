@@ -47,6 +47,8 @@ from astropy.table import Table, Row
 
 from time import time
 
+from collections import defaultdict
+
 from desitarget.internal import sharedmem
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
 
@@ -79,6 +81,35 @@ outdatamodel = np.array([], dtype=[
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
     ('NUMOBS_INIT', '>i8'), ('SCND_ORDER', '>i4')
 ])
+
+def duplicates(seq):
+    """Locations of duplicates in an array or list.
+
+    Parameters
+    ----------
+    seq : :class:`list` or `~numpy.ndarray` or `str`
+        A sequence, e.g., [1, 2, 3, 2] or "adfgtarga"
+
+    Returns
+    -------
+    :class:`generator`
+        A generator of the duplicated values in the sequence
+        and an array of the indexes for each duplicate, e.g.
+        for i in duplicates("adfgtarga"):
+            print(i)
+        returns
+            ('a', array([0, 5, 8]))
+            ('g', array([3, 7]))
+
+    Notes
+    -----
+        - h/t https://stackoverflow.com/questions/5419204/index-of-duplicates-items-in-a-python-list
+    """
+    tally = defaultdict(list)
+    for i, item in enumerate(seq):
+        tally[item].append(i)
+
+    return ((key, np.array(locs)) for key, locs in tally.items() if len(locs) > 1)
 
 
 def _get_scxdir(scxdir=None):
@@ -400,16 +431,16 @@ def finalize_secondary(scxtargs, scnd_mask):
         The array of secondary targets, with the `TARGETID` bit
         updated to a unique and reasonable `TARGETID` and the
         `SCND_TARGET` column renamed based on the flavor of
-        `scnd_mask`.
-
-    Notes
-    -----
-        - The resulting values of `TARGETID` will be unique across
-          the input `scxtargs` list. They will not share a `TARGETID`
-          with a primary target beacuse they will have `RELEASE`==0.
+        `scnd_mask`. Secondary targets that do not have `OVERRIDE`
+        set are also matched to themselves to make sure they
+        share a `TARGETID` and `SCND_TARGET`.
     """
-    # ADM assign new TARGETIDs to targets without a primary match.
+    # ADM distinguish targets that did not match a primary object...
     nomatch = scxtargs["TARGETID"] == -1
+    # ADM ...from those that did.
+    match = ~nomatch
+
+    # ADM assign new TARGETIDs to targets without a primary match.
     # ADM get BRICKIDs, retrieve the list of unique bricks and the
     # ADM number of sources in each unique brick.
     brxid = bricks.brickid(scxtargs["RA"][nomatch],
@@ -446,6 +477,28 @@ def finalize_secondary(scxtargs, scnd_mask):
     scxtargs = rfn.rename_fields(
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
         )
+
+    # ADM Ensure secondary targets that matched a primary
+    # ADM have the same TARGETID and full SCND_TARGET bits.
+    w = np.where(match)[0]
+    if len(w) > 0:
+        for _, ind in duplicates(scxtargs["TARGETID"][w]):
+            bitwiseor = np.sum(np.unique((scxtargs["SCND_TARGET"][w][ind])))
+            scxtargs["SCND_TARGET"][w[ind]] = bitwiseor
+
+    # ADM match secondary targets to themselves, to update
+    # ADM SCND_TARGET and to ensure duplicates share a TARGETID.
+    log.info("Matching secondary targets to themselves...t={:.1f}s"
+             .format(time()-t0))
+    # ADM use astropy for the matching. At NERSC, astropy matches
+    # ADM ~20M objects to themselves in about 10 minutes.
+    c = SkyCoord(scxtargs["RA"]*u.degree, scxtargs["DEC"]*u.degree)
+    m1, m2, _, _ = c.search_around_sky(c, sep*u.arcsec)
+    log.info("Done with matching...t={:.1f}s".format(time()-t0))
+    # ADM restrict only to unique matches (and exclude self-matches).
+    uniq = m1 > m2
+    m1, m2 = m1[uniq], m2[uniq]
+
 
     return scxtargs
 
