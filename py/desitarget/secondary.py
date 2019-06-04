@@ -428,19 +428,16 @@ def finalize_secondary(scxtargs, scnd_mask):
     Returns
     -------
     :class:`~numpy.ndarray`
-        The array of secondary targets, with the `TARGETID` bit
-        updated to a unique and reasonable `TARGETID` and the
-        `SCND_TARGET` column renamed based on the flavor of
-        `scnd_mask`. Secondary targets that do not have `OVERRIDE`
-        set are also matched to themselves to make sure they
-        share a `TARGETID` and `SCND_TARGET`.
+        The array of secondary targets, with the `TARGETID` bit updated
+        to be unique and reasonable and the `SCND_TARGET` column renamed
+        based on the flavor of `scnd_mask`. Secondary targets that do not 
+        have `OVERRIDE` set are also matched to themselves to make sure
+        they share a `TARGETID` and `SCND_TARGET`, and `SCND_TARGET` is
+        updated where multiple secondary targets match a primary target.
     """
-    # ADM distinguish targets that did not match a primary object...
-    nomatch = scxtargs["TARGETID"] == -1
-    # ADM ...from those that did.
-    match = ~nomatch
-
     # ADM assign new TARGETIDs to targets without a primary match.
+    nomatch = scxtargs["TARGETID"] == -1
+
     # ADM get BRICKIDs, retrieve the list of unique bricks and the
     # ADM number of sources in each unique brick.
     brxid = bricks.brickid(scxtargs["RA"][nomatch],
@@ -463,11 +460,11 @@ def finalize_secondary(scxtargs, scnd_mask):
 
     # ADM a check that the generated TARGETIDs are unique.
     if len(set(targetid)) != len(targetid):
-        msg = "duplicate TARGETIDs for secondary targets!!!"
+        msg = "duplicate TARGETIDs generated for secondary targets!!!"
         log.critical(msg)
         raise ValueError(msg)
 
-    # ADM assign the TARGETIDs to the secondary objects
+    # ADM assign the unique TARGETIDs to the secondary objects.
     scxtargs["TARGETID"][nomatch] = targetid
 
     # ADM change the data model depending on whether the mask
@@ -478,27 +475,34 @@ def finalize_secondary(scxtargs, scnd_mask):
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
         )
 
-    # ADM Ensure secondary targets that matched a primary
-    # ADM have the same TARGETID and full SCND_TARGET bits.
-    w = np.where(match)[0]
+    # ADM match secondaries to themselves, to ensure duplicates 
+    # ADM share a TARGETID. Don't match special (OVERRIDE) targets
+    # ADM or sources that have already been matched to a primary.
+    w = np.where(~scxtargs["OVERRIDE"] & nomatch)[0]
     if len(w) > 0:
-        for _, ind in duplicates(scxtargs["TARGETID"][w]):
-            bitwiseor = np.sum(np.unique((scxtargs["SCND_TARGET"][w][ind])))
-            scxtargs["SCND_TARGET"][w[ind]] = bitwiseor
+        log.info("Matching secondary targets to themselves...t={:.1f}s"
+                 .format(time()-t0))
+        # ADM use astropy for the matching. At NERSC, astropy matches
+        # ADM ~20M objects to themselves in about 10 minutes.
+        c = SkyCoord(scxtargs["RA"][w]*u.deg, scxtargs["DEC"][w]*u.deg)
+        m1, m2, _, _ = c.search_around_sky(c, sep*u.arcsec)
+        log.info("Done with matching...t={:.1f}s".format(time()-t0))
+        # ADM restrict only to unique matches (and exclude self-matches).
+        uniq = m1 > m2
+        m1, m2 = m1[uniq], m2[uniq]
+        # ADM set same TARGETID for any matches. m2 must come first, here.
+        scxtargs["TARGETID"][w[m2]] = scxtargs["TARGETID"][w[m1]]
 
-    # ADM match secondary targets to themselves, to update
-    # ADM SCND_TARGET and to ensure duplicates share a TARGETID.
-    log.info("Matching secondary targets to themselves...t={:.1f}s"
-             .format(time()-t0))
-    # ADM use astropy for the matching. At NERSC, astropy matches
-    # ADM ~20M objects to themselves in about 10 minutes.
-    c = SkyCoord(scxtargs["RA"]*u.degree, scxtargs["DEC"]*u.degree)
-    m1, m2, _, _ = c.search_around_sky(c, sep*u.arcsec)
-    log.info("Done with matching...t={:.1f}s".format(time()-t0))
-    # ADM restrict only to unique matches (and exclude self-matches).
-    uniq = m1 > m2
-    m1, m2 = m1[uniq], m2[uniq]
-
+    # ADM Ensure secondary targets with matching TARGETIDs have the
+    # ADM full combination of SCND_TARGET bits set. By definition,
+    # ADM Targets with OVERRIDE set never have matching TARGETIDs.
+    wnoov = np.where(~scxtargs["OVERRIDE"])[0]
+    if len(wnoov) > 0:
+        for _, ind in duplicates(scxtargs["TARGETID"][wnoov]):
+            bitwiseor = np.sum(np.unique(
+                scxtargs["SCND_TARGET"][wnoov][ind]
+            ))
+            scxtargs["SCND_TARGET"][wnoov[ind]] = bitwiseor
 
     return scxtargs
 
