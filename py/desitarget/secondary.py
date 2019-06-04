@@ -411,7 +411,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     return scxtargs
 
 
-def finalize_secondary(scxtargs, scnd_mask):
+def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     """Assign secondary targets a realistic TARGETID, finalize columns.
 
     Parameters
@@ -424,6 +424,9 @@ def finalize_secondary(scxtargs, scnd_mask):
         A mask corresponding to a set of secondary targets, e.g, could
         be ``from desitarget.targetmask import scnd_mask`` for the
         main survey mask.
+    sep : :class:`float`, defaults to 1 arcsecond
+        The separation at which to match secondary targets to
+        themselves in ARCSECONDS.
 
     Returns
     -------
@@ -612,6 +615,6 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
     scxout = np.concatenate([scxtargs, scxover])
 
     # ADM ...and assign TARGETIDs to non-matching secondary targets.
-    scxout = finalize_secondary(scxout, scnd_mask)
+    scxout = finalize_secondary(scxout, scnd_mask, sep=sep)
 
     return scxout
