@@ -1961,6 +1961,7 @@ class ReadGalaxia(SelectTargets):
 
         if target_name.upper() == 'MWS_MAIN' or target_name.upper() == 'CONTAM_STAR':
             ref_id = mockid
+            ref_cat = np.repeat('G2', len(mockid))
             gaia_g = data['GAIA_PHOT_G_MEAN_MAG'].astype('f4')
             gaia_pmra = data['PMRA'].astype('f4')
             gaia_pmdec = data['PMDEC'].astype('f4')
@@ -1970,6 +1971,7 @@ class ReadGalaxia(SelectTargets):
             gaia_parallax_ivar = data['PARALLAX_IVAR'].astype('f4')
         else:
             ref_id = np.zeros(nobj).astype('f4')-1 # no data is -1
+            ref_cat = np.repeat('', len(mockid))
             gaia_g = np.zeros(nobj).astype('f4')
             gaia_pmra = np.zeros(nobj).astype('f4')
             gaia_pmdec = np.zeros(nobj).astype('f4')
@@ -1999,6 +2001,7 @@ class ReadGalaxia(SelectTargets):
                 feh = feh[cut]
 
                 ref_id = ref_id[cut]
+                ref_cat = ref_cat[cut]
                 gaia_g = gaia_g[cut]
                 gaia_pmra = gaia_pmra[cut]
                 gaia_pmdec = gaia_pmdec[cut]
@@ -2024,6 +2027,7 @@ class ReadGalaxia(SelectTargets):
                'SOUTH': self.is_south(dec), 'TYPE': np.repeat('PSF', nobj),
 
                'REF_ID': ref_id,
+               'REF_CAT': ref_cat,
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': np.zeros(nobj).astype('f4'), # placeholder
@@ -2758,6 +2762,7 @@ class ReadMWS_WD(SelectTargets):
                'TEMPLATESUBTYPE': templatesubtype,
 
                'REF_ID': mockid,
+               'REF_CAT': np.repeat('G2', len(mockid)),
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
@@ -2912,6 +2917,7 @@ class ReadMWS_NEARBY(SelectTargets):
                'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
 
                'REF_ID': mockid,
+               'REF_CAT': np.repeat('G2', len(mockid)),
                'GAIA_PHOT_G_MEAN_MAG': gaia_g,
                #'GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_BP_MEAN_MAG': gaia_bp,
@@ -3132,9 +3138,14 @@ class QSOMaker(SelectTargets):
             Target selection cuts to apply.
 
         """
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
+            
         if self.use_simqso:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                                  qso_selection='colorcuts',
+                                                                  qso_selection=qso_selection,
                                                                   survey=self.survey)
         else:
             desi_target, bgs_target, mws_target = cuts.apply_cuts(
@@ -3457,9 +3468,14 @@ class LYAMaker(SelectTargets):
             tcnames = 'QSO'
         else:
             tcnames = targetname
+
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
             
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts',
+                                                              qso_selection=qso_selection,
                                                               survey=self.survey)
         
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
@@ -4486,10 +4502,15 @@ class MWS_MAINMaker(STARMaker):
         else:
             tcnames = targetname
 
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
+            
         # Note: We pass qso_selection to cuts.apply_cuts because MWS_MAIN
         # targets can be used as QSO contaminants.
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=tcnames,
-                                                              qso_selection='colorcuts',
+                                                              qso_selection=qso_selection,
                                                               survey=self.survey)
 
         # Subtract out the MWS_NEARBY and MWS_WD/STD_WD targeting bits, since
@@ -5495,9 +5516,13 @@ class BuzzardMaker(SelectTargets):
         """
         # There's an inconsistency here if use_simqso=False in the configuration
         # file...we should be setting optical=True.
-        
+        if self.survey == 'sv1':
+            qso_selection = 'randomforest'
+        else:
+            qso_selection = 'colorcuts'
+            
         desi_target, bgs_target, mws_target = cuts.apply_cuts(targets, tcnames=targetname,
-                                                              qso_selection='colorcuts',
+                                                              qso_selection=qso_selection,
                                                               survey=self.survey)
 
         self.remove_north_south_bits(desi_target, bgs_target, mws_target)
