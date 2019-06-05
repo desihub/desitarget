@@ -82,6 +82,12 @@ outdatamodel = np.array([], dtype=[
     ('NUMOBS_INIT', '>i8'), ('SCND_ORDER', '>i4')
 ])
 
+# ADM extra columns that are used during processing but are
+# ADM not an official part of the read or written data model.
+suppdatamodel = np.array([], dtype=[
+    ('SCND_TARGET_INIT', '>i8')
+])
+
 def duplicates(seq):
     """Locations of duplicates in an array or list.
 
@@ -278,10 +284,12 @@ def read_files(scxdir, scnd_mask):
         scxin = np.atleast_1d(scxin)
 
         # ADM add the other output columns.
-        scxout = np.zeros(len(scxin), dtype=outdatamodel.dtype)
+        dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
+        scxout = np.zeros(len(scxin), dtype=dt)
         for col in indatamodel.dtype.names:
             scxout[col] = scxin[col]
         scxout["SCND_TARGET"] = scnd_mask[name]
+        scxout["SCND_TARGET_INIT"] = scnd_mask[name]
         scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
         scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
         scxout["TARGETID"] = -1
@@ -433,7 +441,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     :class:`~numpy.ndarray`
         The array of secondary targets, with the `TARGETID` bit updated
         to be unique and reasonable and the `SCND_TARGET` column renamed
-        based on the flavor of `scnd_mask`. Secondary targets that do not 
+        based on the flavor of `scnd_mask`. Secondary targets that do not
         have `OVERRIDE` set are also matched to themselves to make sure
         they share a `TARGETID` and `SCND_TARGET`, and `SCND_TARGET` is
         updated where multiple secondary targets match a primary target.
@@ -478,7 +486,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
         )
 
-    # ADM match secondaries to themselves, to ensure duplicates 
+    # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
     # ADM or sources that have already been matched to a primary.
     w = np.where(~scxtargs["OVERRIDE"] & nomatch)[0]
