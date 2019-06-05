@@ -408,6 +408,10 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
+    # ADM remove the SCND_TARGET_INIT column.
+    scnd_target_init = data["SCND_TARGET_INIT"]
+    data = rfn.drop_fields(data, ["SCND_TARGET_INIT"])
+
     # ADM write out the file of matches for every secondary bit.
     from desitarget.targetmask import scnd_mask
     for name in scnd_mask.names():
@@ -415,9 +419,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         fn = "{}.fits".format(scnd_mask[name].filename)
         scxfile = os.path.join(scxdir, 'outdata', fn)
         # ADM retrieve just the data with this bit set.
-        # ADM guard against column names like "SV1_SCND_TARGET".
-        stcol = [c for c in data.dtype.names if c[-6:] == 'TARGET'][0]
-        ii = data[stcol] == scnd_mask[name]
+        ii = (scnd_target_init & scnd_mask[name]) != 0
         # ADM to reorder to match the original input order.
         order = np.argsort(data["SCND_ORDER"][ii])
         # ADM write to file.
