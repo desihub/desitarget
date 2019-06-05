@@ -451,15 +451,15 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM perform the magnitude cuts.
     if south:
-        qso &= rflux > 10**((22.5-23.)/2.5)    # r < 23.0 (different for SV)
+        qso &= rflux > 10**((22.5-23.)/2.5)    # r<23.0 (different for SV)
     else:
-        qso &= rflux > 10**((22.5-22.7)/2.5)    # r < 22.7
-    qso &= grzflux < 10**((22.5-17.)/2.5)    # grz > 17
+        qso &= rflux > 10**((22.5-22.8)/2.5)    # r<22.7
+    qso &= grzflux < 10**((22.5-17.)/2.5)    # grz>17
 
     # ADM the optical color cuts.
-    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r) < 1.3
-    qso &= zflux > rflux * 10**(-0.3/2.5)   # (r-z) > -0.3
-    qso &= zflux < rflux * 10**(3.0/2.5)    # (r-z) < 3.0 (different for SV)
+    qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
+    qso &= zflux > rflux * 10**(-0.4/2.5)   # (r-z)>-0.4 
+    qso &= zflux < rflux * 10**(3.0/2.5)    # (r-z)<3.0 (different for SV)
 
     # ADM the WISE-optical color cut.
     if south:
@@ -473,13 +473,13 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM Stricter WISE cuts on stellar contamination for objects on Main Sequence.
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
-    mainseq = rflux > gflux * 10**(0.2/2.5)  # ADM g-r > 0.2
+    mainseq = rflux > gflux * 10**(0.2/2.5)  # g-r > 0.2
     if south:
-        mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.075+0.175)/2.5)
-        mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.075+0.175)/2.5)
+        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.075+0.20)/2.5)
+        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.075+0.20)/2.5)
     else:
-        mainseq &= rflux**(1+1.5) > gflux * zflux**1.5 * 10**((-0.100+0.175)/2.5)
-        mainseq &= rflux**(1+1.5) < gflux * zflux**1.5 * 10**((+0.100+0.175)/2.5)
+        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.075+0.20)/2.5)
+        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.075+0.20)/2.5)
 
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)  # ADM W1 - W2 !(NOT) > 0.3
     qso &= ~mainseq
@@ -564,7 +564,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     d1, d0 = dchisq[..., 1], dchisq[..., 0]
     bigmorph = np.zeros_like(d0)+1e9
     dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
-    morph2 = dcs < 0.015
+    if south:
+        morph2 = dcs < 0.015
+    else:
+        morph2 = dcs < 0.02
     preSelection &= _psflike(objtype) | morph2
 
     # CAC Reject objects flagged inside a blob.
@@ -607,10 +610,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             pcut_HighZ = 0.40
         else:
             pcut = np.where(r_Reduced > 20.0,
-                            0.80 - (r_Reduced - 20.0) * 0.075, 0.80)
-            pcut[r_Reduced > 22.0] = 0.65 - 0.25 * (r_Reduced[r_Reduced > 22.0] - 22.0)
+                            0.65 - (r_Reduced - 20.0) * 0.075, 0.65)
+            pcut[r_Reduced > 22.0] = 0.50 - 0.25 * (r_Reduced[r_Reduced > 22.0] - 22.0)
             pcut_HighZ = np.where(r_Reduced > 20.5,
-                                  0.55 - (r_Reduced - 20.5) * 0.025, 0.55)
+                                  0.5 - (r_Reduced - 20.5) * 0.025, 0.5)
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = \
@@ -714,7 +717,8 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         if south:
             pcut = 0.30
         else:
-            pcut = 0.35
+#            pcut = 0.35
+            pcut = 0.30
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
