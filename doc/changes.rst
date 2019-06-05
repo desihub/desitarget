@@ -7,6 +7,7 @@ desitarget Change Log
 
 * First implementation for secondary targets [`PR #507`_]. Includes:
     * Framework and design for secondary targeting process.
+    * Works automatically for both Main Survey and SV files.
     * New bitmasks for secondaries that populate ``SCND_TARGET`` column.
         * can have any ``PRIORITY_INIT`` and ``NUMOBS_INIT``.
     * A reserved "veto" bit to categorically reject targets.
