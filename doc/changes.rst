@@ -5,6 +5,22 @@ desitarget Change Log
 0.29.2 (unreleased)
 -------------------
 
+* First implementation for secondary targets [`PR #507`_]. Includes:
+    * Framework and design for secondary targeting process.
+    * New bitmasks for secondaries that populate ``SCND_TARGET`` column.
+        * can have any ``PRIORITY_INIT`` and ``NUMOBS_INIT``.
+    * A reserved "veto" bit to categorically reject targets.
+    * Rigorous checking of file formats...
+        * ...and that files correspond to secondary bits.
+    * Example files and file structure (at NERSC) in ``SCND_DIR``.
+        * /project/projectdirs/desi/target/secondary.
+    * Secondary targets are matched to primary targets on RA/Dec.
+        * unless a (per-source) ``OVERRIDE`` column is set to ``True``.
+    * Secondary-primary matches share the primary ``TARGETID``.
+    * Non-matches and overrides have their own ``TARGETID``.
+        * with ``RELEASE == 0``.
+    * Non-override secondary targets are also matched to themselves.
+        * ``TARGETID`` and ``SCND_TARGET`` correspond for matches.
 * Add information to GFA files [`PR #498`_]. Includes:
     * Add columns ``PARALLAX``, ``PARALLAX_IVAR``, ``REF_EPOCH``.
     * Remove ``REF_EPOCH`` from GFA file header, as it's now a column.
@@ -59,6 +75,7 @@ desitarget Change Log
 .. _`PR #496`: https://github.com/desihub/desitarget/pull/496
 .. _`PR #497`: https://github.com/desihub/desitarget/pull/497
 .. _`PR #498`: https://github.com/desihub/desitarget/pull/498
+.. _`PR #507`: https://github.com/desihub/desitarget/pull/507
 
 0.29.1 (2019-03-26)
 -------------------
