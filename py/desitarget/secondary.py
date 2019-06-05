@@ -88,6 +88,7 @@ suppdatamodel = np.array([], dtype=[
     ('SCND_TARGET_INIT', '>i8')
 ])
 
+
 def duplicates(seq):
     """Locations of duplicates in an array or list.
 
@@ -333,7 +334,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     log.info('Reading primary targets file {}...t={:.1f}s'
              .format(infile, time()-start))
     intargs, hdr = fitsio.read(infile, extension="TARGETS", header=True)
-    intargs = intargs[:10000]
+
     # ADM fail if file's already been matched to secondary targets.
     if "SCNDDIR" in hdr:
         msg = "{} already matched to secondary targets".format(fn) \
