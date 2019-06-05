@@ -30,7 +30,6 @@ parser.add_argument('--nside', help='Divide the DESI footprint into this healpix
 parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
 parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
 parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
-parser.add_argument('--qa', action='store_true', help='Generate QA plots from the joined target and truth files in output_dir.')
 parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
 parser.add_argument('--no-spectra', action='store_true', help='Do not generate spectra.')
 parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files.')
@@ -86,14 +85,7 @@ else:
 if args.join:
     from desitarget.mock.build import join_targets_truth
     join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, overwrite=args.overwrite)
-    if not args.qa:
-        sys.exit(1)
 
-if args.qa:
-    from desitarget.QA import qa_targets_truth
-    qa_targets_truth(args.output_dir, verbose=args.verbose)
-    sys.exit(1)
-    
 # Construct Targets and Truth files
 if not os.path.exists(args.config):
     log.fatal('No configuration file {} found.'.format(args.config))

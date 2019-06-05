@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.29.2 (unreleased)
+0.30.1 (unreleased)
 -------------------
 
 * First implementation for secondary targets [`PR #507`_]. Includes:
@@ -22,6 +22,21 @@ desitarget Change Log
         * with ``RELEASE == 0``.
     * Non-override secondary targets are also matched to themselves.
         * ``TARGETID`` and ``SCND_TARGET`` correspond for matches.
+* Tune "Northern" QSO selection and color shifts for Main and SV [`PR #506`_]
+* Follow-up PR to `PR #496`_ with two changes and bug fixes [`PR #505`_]:
+    * Select QSO targets using random forest by default.
+    * Bug fix: Correctly populate ``REF_CAT`` column (needed to correctly set
+      MWS targeting bits).  
+
+.. _`PR #505`: https://github.com/desihub/desitarget/pull/505
+.. _`PR #506`: https://github.com/desihub/desitarget/pull/506
+.. _`PR #507`: https://github.com/desihub/desitarget/pull/507
+
+0.30.0 (2019-05-30)
+-------------------
+   
+* Drop Gaia fields with np.rfn to fix Python 3.6/macOS bug [`PR #502`_].
+* Apply the same declination cut to the mocks as to the data [`PR #501`_].
 * Add information to GFA files [`PR #498`_]. Includes:
     * Add columns ``PARALLAX``, ``PARALLAX_IVAR``, ``REF_EPOCH``.
     * Remove ``REF_EPOCH`` from GFA file header, as it's now a column.
@@ -76,7 +91,8 @@ desitarget Change Log
 .. _`PR #496`: https://github.com/desihub/desitarget/pull/496
 .. _`PR #497`: https://github.com/desihub/desitarget/pull/497
 .. _`PR #498`: https://github.com/desihub/desitarget/pull/498
-.. _`PR #507`: https://github.com/desihub/desitarget/pull/507
+.. _`PR #501`: https://github.com/desihub/desitarget/pull/501
+.. _`PR #502`: https://github.com/desihub/desitarget/pull/502
 
 0.29.1 (2019-03-26)
 -------------------
