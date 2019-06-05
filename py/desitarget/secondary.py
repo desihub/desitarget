@@ -333,7 +333,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     log.info('Reading primary targets file {}...t={:.1f}s'
              .format(infile, time()-start))
     intargs, hdr = fitsio.read(infile, extension="TARGETS", header=True)
-
+    intargs = intargs[:10000]
     # ADM fail if file's already been matched to secondary targets.
     if "SCNDDIR" in hdr:
         msg = "{} already matched to secondary targets".format(fn) \
@@ -478,14 +478,6 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     # ADM assign the unique TARGETIDs to the secondary objects.
     scxtargs["TARGETID"][nomatch] = targetid
 
-    # ADM change the data model depending on whether the mask
-    # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
-    # ADM change if the mask has no preamble.
-    prepend = scnd_mask._name[:-9].upper()
-    scxtargs = rfn.rename_fields(
-        scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
-        )
-
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
     # ADM or sources that have already been matched to a primary.
@@ -514,6 +506,14 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
                 scxtargs["SCND_TARGET"][wnoov][ind]
             ))
             scxtargs["SCND_TARGET"][wnoov[ind]] = bitwiseor
+
+    # ADM change the data model depending on whether the mask
+    # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
+    # ADM change if the mask has no preamble.
+    prepend = scnd_mask._name[:-9].upper()
+    scxtargs = rfn.rename_fields(
+        scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
+        )
 
     return scxtargs
 
