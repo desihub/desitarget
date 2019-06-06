@@ -10,6 +10,7 @@ desitarget Change Log
 0.30.0 (2019-05-30)
 -------------------
 
+* Fix normalization bug in QSO tracer/Lya mock target densities [`PR #509`_].  
 * Follow-up PR to `PR #496`_ with two changes and bug fixes [`PR #505`_]:
     * Select QSO targets using random forest by default.
     * Bug fix: Correctly populate ``REF_CAT`` column (needed to correctly set
@@ -73,6 +74,7 @@ desitarget Change Log
 .. _`PR #501`: https://github.com/desihub/desitarget/pull/501
 .. _`PR #502`: https://github.com/desihub/desitarget/pull/502
 .. _`PR #505`: https://github.com/desihub/desitarget/pull/505
+.. _`PR #509`: https://github.com/desihub/desitarget/pull/509
 
 0.29.1 (2019-03-26)
 -------------------
