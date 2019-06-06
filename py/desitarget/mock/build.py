@@ -182,7 +182,6 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
             raise ValueError
         
         data['DENSITY'] = params['density']
-        data['DENSITY_FACTOR'] = data['DENSITY'] / data['MOCK_DENSITY']
 
         # Note: the tracer and Lya QSO target densities are defined relative to
         # a z=2.1 redshift cut-off which, in general, is different from the
@@ -190,9 +189,20 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
         # ZMAX_QSO and ZMIN_LYA).  So we need to adjust the desired target
         # densities here by the appropriate ratio given by the desired redshift
         # distribution.
+        if target_type == 'QSO' and target_type in dndz.keys():
+            zbins = np.arange(0, 5, 0.1)
+            qsodndz = np.interp(zbins, dndz[target_type]['z'], dndz[target_type]['dndz'], left=0, right=0)
+            qsodndz *= np.sum(dndz[target_type]['dndz']) / np.sum(qsodndz)
 
-        import pdb ; pdb.set_trace()
-        
+            if target_name == 'QSO' and 'zmax_qso' in params.keys():
+                extrafactor = np.sum(qsodndz[zbins >= 2.1]) / np.sum(qsodndz[zbins >= params['zmax_qso']])
+            if target_name == 'LYA' and 'zmin_lya' in params.keys():
+                extrafactor = np.sum(qsodndz[zbins >= params['zmin_lya']]) / np.sum(qsodndz[zbins >= 2.1])
+        else:
+            extrafactor = 1.0
+            
+        data['DENSITY_FACTOR'] = extrafactor * data['DENSITY'] / data['MOCK_DENSITY']
+            
         if data['DENSITY_FACTOR'] > 1:
             log.warning('Density factor {} should not be > 1!'.format(data['DENSITY_FACTOR']))
             data['DENSITY_FACTOR'] = 1.0
