@@ -97,7 +97,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     return log, healpixseeds
     
 def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
-              nside=None, nside_chunk=128, MakeMock=None):
+              nside=None, nside_chunk=128, MakeMock=None, dndz=None):
     """Read a mock catalog.
     
     Parameters
@@ -118,6 +118,9 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     nside_chunk : :class:`int`, optional
         Healpix resolution for chunking the sample to avoid memory problems.
         (NB: nside_chunk must be <= nside).  Defaults to 128.
+    dndz : :class:`dict`, optional
+        Expected redshift distributions for all target classes.  Defaults to
+        None.
             
     Returns
     -------
@@ -179,7 +182,27 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
             raise ValueError
         
         data['DENSITY'] = params['density']
-        data['DENSITY_FACTOR'] = data['DENSITY'] / data['MOCK_DENSITY']
+
+        # Note: the tracer and Lya QSO target densities are defined relative to
+        # a z=2.1 redshift cut-off which, in general, is different from the
+        # cut-offs defined in the select_mock_targets parameter file (typically
+        # ZMAX_QSO and ZMIN_LYA).  So we need to adjust the desired target
+        # densities here by the appropriate ratio given by the desired redshift
+        # distribution.
+        if target_type == 'QSO' and target_type in dndz.keys():
+            zbins = np.arange(0, 5, 0.1)
+            qsodndz = np.interp(zbins, dndz[target_type]['z'], dndz[target_type]['dndz'], left=0, right=0)
+            qsodndz *= np.sum(dndz[target_type]['dndz']) / np.sum(qsodndz)
+
+            if target_name == 'QSO' and 'zmax_qso' in params.keys():
+                extrafactor = np.sum(qsodndz[zbins >= 2.1]) / np.sum(qsodndz[zbins >= params['zmax_qso']])
+            if target_name == 'LYA' and 'zmin_lya' in params.keys():
+                extrafactor = np.sum(qsodndz[zbins >= params['zmin_lya']]) / np.sum(qsodndz[zbins >= 2.1])
+        else:
+            extrafactor = 1.0
+            
+        data['DENSITY_FACTOR'] = extrafactor * data['DENSITY'] / data['MOCK_DENSITY']
+            
         if data['DENSITY_FACTOR'] > 1:
             log.warning('Density factor {} should not be > 1!'.format(data['DENSITY_FACTOR']))
             data['DENSITY_FACTOR'] = 1.0
@@ -808,10 +831,12 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
     """
     from desitarget.mock import mockmaker
+    from desitarget.QA import _load_dndz
 
     log, healpixseeds = initialize_targets_truth(
         params, verbose=verbose, seed=seed, nside=nside,
         output_dir=output_dir, healpixels=healpixels)
+    dndz = _load_dndz()
 
     # Read (and cache) the MockMaker classes we need.
     log.info('Initializing and caching all MockMaker classes.')
@@ -873,7 +898,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             data, MakeMock = read_mock(params['targets'][target_name], log, target_name,
                                        seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
-                                       MakeMock=AllMakeMock[ii])
+                                       MakeMock=AllMakeMock[ii], dndz=dndz)
             
             if not bool(data):
                 continue
