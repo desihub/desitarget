@@ -820,3 +820,44 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     log.info('Done...t={:.1f}s'.format(time()-start))
 
     return skies
+
+
+def supplement_skies(nskiespersqdeg=None, numproc=16, mindec=-30, mingalb=10):
+    """Generate supplemental sky locations using Gaia-G-band avoidance.
+
+    Parameters
+    ----------
+    nskiespersqdeg : :class:`float`, optional
+        The minimum DENSITY of sky fibers to generate. Defaults to
+        reading from :func:`~desimodel.io` with a margin of 4x.
+    numproc : :class:`int`, optional, defaults to 16
+        The number of processes over which to parallelize.
+    mindec : :class:`float`, optional, defaults to -30
+        Minimum declination (o) to include for output sky locations.
+    mingalb : :class:`float`, optional, defaults to 10
+        Closest latitude to Galactic plane for output sky locations
+        (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        a structured array of supplemental sky positions in the DESI sky
+        target format within the passed `mindec` and `mingalb` limits.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+    """
+    # ADM if needed, determine the density of sky fibers to generate.
+    if nskiespersqdeg is None:
+        nskiespersqdeg = density_of_sky_fibers(margin=4)
+
+    # ADM determine which Gaia HEALPixels are needed.
+    infiles = find_gaia_files_box([0, 360, mindec, 90])
+
+    # ADM determine the number of sky locations to generate based
+    # ADM on the HEALPixel size.
+    hdr = fitsio.read_header(infile[0], "GAIAHPX")
+    nside = hdr["HPXNSIDE"]
+    sqdeg = hp.nside2pixarea(nside, degrees=True)
+
