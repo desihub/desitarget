@@ -5,7 +5,7 @@
 desitarget.gaiamatch
 ====================
 
-Useful Gaia matching routines, in case Gaia isn't absorbed into the Legacy Surveys
+Useful Gaia matching and manipulation routines.
 """
 import os
 import sys
@@ -21,9 +21,8 @@ from os.path import basename
 from desitarget import io
 from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
-from desitarget.geomask import hp_in_box
+from desitarget.geomask import hp_in_box, add_hp_neighbors, hp_beyond_gal_b
 from desimodel.footprint import radec2pix
-from desitarget.geomask import add_hp_neighbors
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.io import ascii
@@ -548,7 +547,7 @@ def read_gaia_file(filename, header=False):
 
 
 def find_gaia_files(objs, neighbors=True):
-    """Find full paths to all relevant Gaia healpix files for an object array.
+    """Find full paths to Gaia healpix files for objects by RA/Dec.
 
     Parameters
     ----------
@@ -593,7 +592,7 @@ def find_gaia_files(objs, neighbors=True):
 
 
 def find_gaia_files_box(gaiabounds, neighbors=True):
-    """Find full paths to all relevant Gaia healpix files in an RA/Dec box.
+    """Find full paths to Gaia healpix files in an RA/Dec box.
 
     Parameters
     ----------
@@ -636,6 +635,54 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
 
     # ADM reformat in the Gaia healpix format used by desitarget.
     gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+
+    return gaiafiles
+
+
+def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
+    """Find full paths to Gaia healpix files beyond a Galactic b.
+
+    Parameters
+    ----------
+    mingalb : :class:`float`
+        Closest latitude to Galactic plane to return HEALPixels
+        (e.g. send 10 to limit to pixels beyond -10o <= b < 10o).
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        Also return files corresponding to neighboring pixels that touch
+        in order to prevent edge effects (e.g. if a Gaia source might be
+        1 arcsec beyond mingalb and so in an adjacent pixel).
+
+    Returns
+    -------
+    :class:`list`
+        All Gaia files that need to be read in to account for objects
+        further from the Galactic plane than `mingalb`.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+        - :func:`desitarget.geomask.hp_beyond_gal_b()` is already quite
+          inclusive, so you may retrieve some extra files along the
+          `mingalb` boundary.
+    """
+    # ADM the resolution at which the healpix files are stored.
+    nside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+    hpxdir = os.path.join(gaiadir, 'healpix')
+
+    # ADM determine the pixels beyond mingalb.
+    pixnum = hp_beyond_gal_b(nside, mingalb, neighbors=True)
+
+    # ADM if neighbors was sent, retrieve all pixels that touch each
+    # ADM retrieved, to prevent edge effects...
+    if neighbors:
+        pixnum = add_hp_neighbors(nside, pixnum)
+
+    # ADM reformat in the Gaia healpix format used by desitarget.
+    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn))
+                 for pn in pixnum]
 
     return gaiafiles
 
