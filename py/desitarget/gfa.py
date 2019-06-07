@@ -225,7 +225,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         Minimum declination (o) to include for output Gaia objects.
     mingalb : :class:`float`, optional, defaults to 10
         Closest latitude to Galactic plane for output Gaia objects
-        (e.g. send 10 to limit to areas beyond -10o <= b < 10o)"
+        (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
 
     Returns
     -------
@@ -264,7 +264,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         nfile[...] += 1    # this is an in-place modification.
         return result
 
-    # - Parallel process input files.
+    # - Parallel process Gaia files.
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:

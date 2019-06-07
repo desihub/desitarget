@@ -781,8 +781,8 @@ def add_hp_neighbors(nside, pixnum):
     ----------
     nside : :class:`int`
         (NESTED) HEALPixel nside.
-    pixnum : :class:`list` or `int`
-        list of HEALPixel numbers (or a single HEALPixel number).
+    pixnum : :class:`list` or `int` or `~numpy.ndarray`
+        HEALPixel numbers (or a single HEALPixel number).
 
     Returns
     -------
@@ -824,8 +824,8 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     nside : :class:`int`
         (NESTED) HEALPixel nside.
     radecbox : :class:`list`
-        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
-        edges of a box in RA/Dec (degrees).
+        4-entry list of coordinates [ramin, ramax, decmin, decmax]
+        forming the edges of a box in RA/Dec (degrees).
     inclusive : :class:`bool`, optional, defaults to ``True``
         see documentation for `healpy.query_polygon()`.
     fact : :class:`int`, optional defaults to 4
@@ -834,16 +834,17 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     Returns
     -------
     :class:`list`
-        A list of HEALPixels at the passed `nside` that touch the passed RA/Dec box.
+        HEALPixels at the passed `nside` that touch the RA/Dec box.
 
     Notes
     -----
         - Just syntactic sugar around `healpy.query_polygon()`.
-        - If -90o or 90o are passed, then decmin and decmax are moved slightly away
-          from the poles.
-        - When the RA range exceeds 180o, `healpy.query_polygon()` defines the box as
-          that with the smallest area (i.e the box can wrap-around in RA). To avoid
-          any ambiguity, this function will return ALL HEALPixels in such cases.
+        - If -90o or 90o are passed, then decmin and decmax are moved
+          slightly away from the poles.
+        - When the RA range exceeds 180o, `healpy.query_polygon()`
+          defines the box as that with the smallest area (i.e the box
+          can wrap-around in RA). To avoid any ambiguity, this function
+          will return ALL HEALPixels in such cases.
     """
     ramin, ramax, decmin, decmax = radecbox
 
@@ -878,6 +879,49 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
                               inclusive=inclusive, fact=fact, nest=True)
 
     return pixnum
+
+
+def hp_beyond_gal_b(nside, mingalb, neighbors=True):
+    """Find all HEALPixels with centers and neigbors beyond a Galactic b.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    mingalb : :class:`float`
+        Closest latitude to Galactic plane to return HEALPixels
+        (e.g. send 10 to limit to pixels beyond -10o <= b < 10o).
+    neighbors :class:`bool`, optional, defaults to ``True``
+        If ``False``, return all HEALPixels with *centers* beyond the
+        passed `mingalb`. If ``True`` also return the neighbors of these
+        pixels (to avoid edge effects).
+
+    Returns
+    -------
+    :class:`list`
+        HEALPixels at the passed `nside` that lie north and south of the
+        passed `mingalb`.
+    Notes
+    -----
+        - Pixels are in the NESTED scheme.
+    """
+    # ADM retrieve all pixels at this nside.
+    allpix = np.arange(hp.nside2npix(nside))
+
+    # ADM convert pixels to RA/Dec centers.
+    theta, phi = hp.pix2ang(nside, allpix, nest=True)
+    ra, dec = np.degrees(phi), 90-np.degrees(theta)
+
+    # ADM combine pixels north and south of passed mingalb into one set.
+    isnpix = is_in_gal_box([ra, dec], [0., 360., mingalb, 90.], radec=True)
+    isspix = is_in_gal_box([ra, dec], [0., 360., -90, -mingalb], radec=True)
+    pix = list(allpix[isnpix | isspix])
+
+    # ADM add neighbors, if requested.
+    if neighbors:
+        pix = add_hp_neighbors(nside, pix)
+
+    return pix
 
 
 def is_in_box(objs, radecbox):
