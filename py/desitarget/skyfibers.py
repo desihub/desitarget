@@ -861,3 +861,4 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, mindec=-30, mingalb=10):
     nside = hdr["HPXNSIDE"]
     sqdeg = hp.nside2pixarea(nside, degrees=True)
 
+    # ADM recover the HEALPixels of interest.
