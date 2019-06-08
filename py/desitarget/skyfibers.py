@@ -27,6 +27,8 @@ from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.io import brickname_from_filename
+from desitarget.gaiamatch import find_gaia_files
+from desitarget.geomask import hp_in_box, hp_beyond_gal_b, add_hp_neighbors
 
 # ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -852,13 +854,23 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, mindec=-30, mingalb=10):
     if nskiespersqdeg is None:
         nskiespersqdeg = density_of_sky_fibers(margin=4)
 
-    # ADM determine which Gaia HEALPixels are needed.
-    infiles = find_gaia_files_box([0, 360, mindec, 90])
-
-    # ADM determine the number of sky locations to generate based
-    # ADM on the HEALPixel size.
-    hdr = fitsio.read_header(infile[0], "GAIAHPX")
+    # ADM determine the HEALPixel nside, and the number of sky locations
+    # ADM to generate based on the HEALPixel size.
+    anyfiles = find_gaia_files([0,0], radec=True)
+    hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
     nside = hdr["HPXNSIDE"]
     sqdeg = hp.nside2pixarea(nside, degrees=True)
 
-    # ADM recover the HEALPixels of interest.
+    # ADM determine which HEALPixels are touched in Dec. The three 120o
+    # ADM steps are to circumvent RA wrap-arounds.
+    decpix = []
+    for step in range(3):
+        ramin, ramax = step*120., step*120.+120.
+        decpix.append(hp_in_box(nside, [ramin, ramax, mindec, 90.]))
+    decpix = np.unique(np.concatenate(decpix))
+    # ADM guard against edge effects.
+    decpix = add_hp_neighbors(nside, decpix)
+    # ADM determine which HEALPixels are touched in Galactic b.
+    bpix = hp_beyond_gal_b(nside, mingalb, neighbors=True)
+    # ADM retrieve the HEALPixels that meet BOTH the Dec and b criteria.
+    pix = list(set(bpix).intersection(set(decpix)))
