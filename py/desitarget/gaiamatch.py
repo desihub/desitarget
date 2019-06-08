@@ -546,7 +546,7 @@ def read_gaia_file(filename, header=False):
         return outdata
 
 
-def find_gaia_files(objs, neighbors=True):
+def find_gaia_files(objs, neighbors=True, radec=False):
     """Find full paths to Gaia healpix files for objects by RA/Dec.
 
     Parameters
@@ -557,6 +557,9 @@ def find_gaia_files(objs, neighbors=True):
         Also return all neighboring pixels that touch the files of interest
         in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
         away from a primary source and so in an adjacent pixel)
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead of
+        a rec array.
 
     Returns
     -------
@@ -575,8 +578,14 @@ def find_gaia_files(objs, neighbors=True):
     gaiadir = _get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
+    # ADM which flavor of RA/Dec was passed.
+    if radec:
+        ra, dec = objs
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+
     # ADM convert RA/Dec to co-latitude and longitude in radians.
-    theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+    theta, phi = np.radians(90-dec), np.radians(ra)
 
     # ADM retrieve the pixels in which the locations lie.
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
