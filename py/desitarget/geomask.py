@@ -838,24 +838,15 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
 
     Notes
     -----
-        - Just syntactic sugar around `healpy.query_polygon()`.
-        - If -90o or 90o are passed, then decmin and decmax are moved
-          slightly away from the poles.
+        - Uses `healpy.query_polygon()` to retrieve the RA geodesics
+          and then :func:`hp_in_dec_range()` to limit by Dec.
         - When the RA range exceeds 180o, `healpy.query_polygon()`
-          defines the box as that with the smallest area (i.e the box
+          defines the range as that with the smallest area (i.e the box
           can wrap-around in RA). To avoid any ambiguity, this function
           will return ALL HEALPixels in such cases.
+        - Only strictly correct for Decs from -90+1e-5(o) to 90-1e5(o).
     """
     ramin, ramax, decmin, decmax = radecbox
-
-    # ADM handle some edge cases. Don't be too close to the poles.
-    leeway = 1e-5
-    if decmax > 90-leeway:
-        decmax = 90-leeway
-        log.warning('Max Dec too close to pole; setting to {}o'.format(decmax))
-    if decmin < -90+leeway:
-        decmin = -90+leeway
-        log.warning('Min Dec too close to pole; setting to {}o'.format(decmin))
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
     if np.abs(ramax-ramin) > 180.:
@@ -865,18 +856,26 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
                     .format(nside))
         return np.arange(hp.nside2npix(nside))
 
+    # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
+    npole, spole = 90-1e-5, -90+1e-5
     # ADM convert RA/Dec to co-latitude and longitude in radians.
     rapairs = np.array([ramin, ramin, ramax, ramax])
-    decpairs = np.array([decmin, decmax, decmax, decmin])
+    decpairs = np.array([spole, npole, npole, spole])
     thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
 
-    # ADM convert the colatitudes to Cartesian vectors remembering to
-    # ADM transpose to pass the array to query_polygon in the correct order.
+    # ADM convert to Cartesian vectors remembering to transpose
+    # ADM to pass the array to query_polygon in the correct order.
     vecs = hp.dir2vec(thetapairs, phipairs).T
 
-    # ADM determine the pixels that touch the box.
-    pixnum = hp.query_polygon(nside, vecs,
-                              inclusive=inclusive, fact=fact, nest=True)
+    # ADM determine the pixels that touch the RA range.
+    pixra = hp.query_polygon(nside, vecs,
+                             inclusive=inclusive, fact=fact, nest=True)
+
+    # ADM determine the pixels that touch the Dec range.
+    pixdec = hp_in_dec_range(nside, decmin, decmax, inclusive=inclusive)
+
+    # ADM return the pixels in the box.
+    pixnum = list(set(pixra).intersection(set(pixdec)))
 
     return pixnum
 
