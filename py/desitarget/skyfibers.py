@@ -28,7 +28,7 @@ from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.io import brickname_from_filename
 from desitarget.gaiamatch import find_gaia_files
-from desitarget.geomask import hp_in_box, hp_beyond_gal_b, add_hp_neighbors
+from desitarget.geomask import is_in_gal_box
 
 # ADM the parallelization script
 from desitarget.internal import sharedmem
@@ -854,23 +854,30 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, mindec=-30, mingalb=10):
     if nskiespersqdeg is None:
         nskiespersqdeg = density_of_sky_fibers(margin=4)
 
-    # ADM determine the HEALPixel nside, and the number of sky locations
-    # ADM to generate based on the HEALPixel size.
+    # ADM determine the HEALPixel nside of the standard Gaia files.
     anyfiles = find_gaia_files([0,0], radec=True)
     hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
     nside = hdr["HPXNSIDE"]
-    sqdeg = hp.nside2pixarea(nside, degrees=True)
 
-    # ADM determine which HEALPixels are touched in Dec. The three 120o
-    # ADM steps are to circumvent RA wrap-arounds.
-    decpix = []
-    for step in range(3):
-        ramin, ramax = step*120., step*120.+120.
-        decpix.append(hp_in_box(nside, [ramin, ramax, mindec, 90.]))
-    decpix = np.unique(np.concatenate(decpix))
-    # ADM guard against edge effects.
-    decpix = add_hp_neighbors(nside, decpix)
-    # ADM determine which HEALPixels are touched in Galactic b.
-    bpix = hp_beyond_gal_b(nside, mingalb, neighbors=True)
-    # ADM retrieve the HEALPixels that meet BOTH the Dec and b criteria.
-    pix = list(set(bpix).intersection(set(decpix)))
+    # ADM create a set of random locations accounting for mindec.
+    log.info("Generating random locations above Dec={}o...t={:.1f}s"
+             .format(mindec, time()-start))
+    from desitarget.randoms import randoms_in_a_brick_from_edges
+    ras, decs = randoms_in_a_brick_from_edges(
+        0., 360., -20., 90., density=nskiespersqdeg, wrap=False)
+
+    # ADM limit randoms by mingalb.
+    log.info("Limiting randoms to |b| > {}o...t={:.1f}s"
+             .format(mingalb, time()-start))
+    bnorth = is_in_gal_box([ras, decs], [0, 360, mingalb, 90], radec=True)
+    bsouth = is_in_gal_box([ras, decs], [0, 360, -90, -mingalb], radec=True)
+    ras, decs = ras[bnorth | bsouth], decs[bnorth | bsouth]
+
+    # ADM find HEALPixels for the random points.
+    log.info("Determining which HEALPixels contain randoms...t={:.1f}s"
+             .format(time()-start))
+    theta, phi = np.radians(90-decs), np.radians(ras)
+    pix = hp.ang2pix(nside, theta, phi, nest=True)
+    upix = np.unique(pix)
+
+    return ras, decs, pix
