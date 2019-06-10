@@ -881,6 +881,43 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     return pixnum
 
 
+def hp_in_dec_range(nside, decmin, decmax, inclusive=True):
+    """HEALPixels in a specified range of Declination.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    decmin, decmax : :class:`float`
+        Declination range (degrees).
+    inclusive : :class:`bool`, optional, defaults to ``True``
+        see documentation for `healpy.query_strip()`.
+
+    Returns
+    -------
+    :class:`list`
+        (Nested) HEALPixels at `nside` in the specified Dec range.
+
+    Notes
+    -----
+        - Just syntactic sugar around `healpy.query_strip()`.
+        - `healpy.query_strip()` isn't implemented for the NESTED scheme
+          in early healpy versions, so this queries in the RING scheme
+          and then converts to the NESTED scheme.
+    """
+    # ADM convert Dec to co-latitude in radians.
+    # ADM remember that, min/max swap because of the -ve sign.
+    thetamin = np.radians(90.-decmax)
+    thetamax = np.radians(90.-decmin)
+
+    # ADM determine the pixels that touch the box.
+    pixring = hp.query_strip(nside, thetamin, thetamax,
+                            inclusive=inclusive, nest=False)
+    pixnest = hp.ring2nest(nside, pixring)
+
+    return pixnest
+
+
 def hp_beyond_gal_b(nside, mingalb, neighbors=True):
     """Find all HEALPixels with centers and neigbors beyond a Galactic b.
 
@@ -984,7 +1021,7 @@ def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
     """
     ra, dec, radius = radecrad
 
-    # ADM convert RA/Dec to co-latitude/longitude and everything to radians.
+    # ADM RA/Dec to co-latitude/longitude, everything to radians.
     theta, phi, rad = np.radians(90.-dec), np.radians(ra), np.radians(radius)
 
     # ADM convert the colatitudes to Cartesian vectors remembering to
