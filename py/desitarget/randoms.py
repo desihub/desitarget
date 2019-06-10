@@ -67,33 +67,36 @@ def dr_extension(drdir):
 
 
 def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
-                                  density=100000, poisson=True):
-    """For given brick edges, return random (RA/Dec) positions in the brick
+                                  density=100000, poisson=True, wrap=True):
+    """For brick edges, return random (RA/Dec) positions in the brick.
 
     Parameters
     ----------
     ramin : :class:`float`
-        The minimum "edge" of the brick in Right Ascension.
+        The minimum "edge" of the brick in Right Ascension (degrees).
     ramax : :class:`float`
-        The maximum "edge" of the brick in Right Ascension.
+        The maximum "edge" of the brick in Right Ascension (degrees).
     decmin : :class:`float`
-        The minimum "edge" of the brick in Declination.
+        The minimum "edge" of the brick in Declination (degrees).
     decmax : :class:`float`
-        The maximum "edge" of the brick in Declination.
+        The maximum "edge" of the brick in Declination (degrees).
     density : :class:`int`, optional, defaults to 100,000
-        The number of random points to return per sq. deg. As a typical brick is
-        ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned.
-    poisson : :class:`boolean`, optional, defaults to True
-        Modify the number of random points in the brick so that instead of simply
-        being the brick area x the density, it is a number drawn from a Poisson
-        distribution with the expectation being the brick area x the density.
+        The number of random points to return per sq. deg.
+    poisson : :class:`boolean`, optional, defaults to ``True``
+        Modify the number of random points so that instead of simply
+        being brick area x density, the number is drawn from a Poisson
+        distribution with an expectation of brick area x density.
+    wrap : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, bricks with `ramax`-`ramin` > 350o are assumed to
+        wrap, which is corrected by subtracting 360o from `ramax`, as is
+        reasonable for small bricks. ``False`` turns of this correction.
 
     Returns
     -------
     :class:`~numpy.array`
-        Right Ascensions of random points in brick
+        Right Ascensions of random points in brick (degrees).
     :class:`~numpy.array`
-        Declinations of random points in brick
+        Declinations of random points in brick (degrees).
     """
     # ADM create a unique random seed on the basis of the brick.
     # ADM note this is only unique for bricksize=0.25 for bricks
@@ -103,9 +106,10 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
 
     # ADM generate random points within the brick at the requested density
     # ADM guard against potential wraparound bugs (assuming bricks are typical
-    # ADM sizes of 0.25 x 0.25 sq. deg., or not much larger than that
-    if ramax - ramin > 350.:
-        ramax -= 360.
+    # ADM sizes of 0.25 x 0.25 sq. deg., or not much larger than that.
+    if wrap:
+        if ramax - ramin > 350.:
+            ramax -= 360.
     spharea = box_area([ramin, ramax, decmin, decmax])
 
     if poisson:
