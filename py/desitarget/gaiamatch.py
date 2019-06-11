@@ -556,7 +556,7 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     neighbors : :class:`bool`, optional, defaults to ``True``
         Also return all neighboring pixels that touch the files of interest
         in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
-        away from a primary source and so in an adjacent pixel)
+        away from a primary source and so in an adjacent pixel).
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` then the passed `objs` is an [RA, Dec] list instead of
         a rec array.

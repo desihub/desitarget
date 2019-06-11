@@ -246,53 +246,53 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
 
 
 def is_in_circle(ras, decs, RAcens, DECcens, r):
-    """Determine whether a set of points is in a set of circular masks on the sky
+    """Whether a set of points is in a set of circular masks on the sky.
 
     Parameters
     ----------
     ras : :class:`~numpy.ndarray`
-        Array of Right Ascensions to test
+        Array of Right Ascensions to test.
     decs : :class:`~numpy.ndarray`
-        Array of Declinations to test
+        Array of Declinations to test.
     RAcen : :class:`~numpy.ndarray`
-        Right Ascension of the centers of the circles (DEGREES)
+        Right Ascension of the centers of the circles (DEGREES).
     DECcen : :class:`~numpy.ndarray`
-        Declination of the centers of the circles (DEGREES)
+        Declination of the centers of the circles (DEGREES).
     r : :class:`~numpy.ndarray`
-        Radius of the circles (ARCSECONDS)
+        Radius of the circles (ARCSECONDS).
 
     Returns
     -------
     :class:`boolean`
-        An array that is the same length as RA/Dec that is True
-        for points that are in any of the masks and False for points that
-        are not in any of the masks
+        An array that is the same length as RA/Dec that is ``True``
+        for points that are in any of the masks and False for points
+        that are not in any of the masks.
     """
 
-    # ADM initialize an array of all False (nothing is yet in a circular mask)
+    # ADM all matches start as False (nothing is yet in a circular mask).
     in_mask = np.zeros(len(ras), dtype=bool)
 
-    # ADM turn the coordinates of the masks and the targets into SkyCoord objects
+    # ADM coordinates of masks and targets into SkyCoord objects.
     ctargs = SkyCoord(ras*u.degree, decs*u.degree)
     cstars = SkyCoord(RAcens*u.degree, DECcens*u.degree)
 
     # ADM this is the largest search radius we should need to consider
     # ADM in the future an obvious speed up is to split on radius
-    # ADM as large radii are rarer but take longer
+    # ADM as large radii are rarer but take longer.
     maxrad = max(r)*u.arcsec
 
-    # ADM coordinate match the star masks and the targets
+    # ADM coordinate match the star masks and the targets.
     idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs, maxrad)
 
-    # ADM catch the case where nothing fell in a mask
+    # ADM catch the case where nothing fell in a mask.
     if len(idstars) == 0:
         return in_mask
 
-    # ADM for a matching star mask, find the angular separations that are less than the mask radius
+    # ADM for a match, find separations less than the mask radius.
     w_in = np.where(d2d.arcsec < r[idstars])
 
-    # ADM any matching idtargs that meet this separation criterion are in a mask (at least one)
-    in_mask[idtargs[w_in]] = 'True'
+    # ADM matches at less than the radius are in a mask (at least one).
+    in_mask[idtargs[w_in]] = True
 
     return in_mask
 
