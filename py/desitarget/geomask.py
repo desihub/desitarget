@@ -927,7 +927,7 @@ def hp_beyond_gal_b(nside, mingalb, neighbors=True):
     mingalb : :class:`float`
         Closest latitude to Galactic plane to return HEALPixels
         (e.g. send 10 to limit to pixels beyond -10o <= b < 10o).
-    neighbors :class:`bool`, optional, defaults to ``True``
+    neighbors : :class:`bool`, optional, defaults to ``True``
         If ``False``, return all HEALPixels with *centers* beyond the
         passed `mingalb`. If ``True`` also return the neighbors of these
         pixels (to avoid edge effects).
@@ -937,6 +937,7 @@ def hp_beyond_gal_b(nside, mingalb, neighbors=True):
     :class:`list`
         HEALPixels at the passed `nside` that lie north and south of the
         passed `mingalb`.
+
     Notes
     -----
         - Pixels are in the NESTED scheme.
