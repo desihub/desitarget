@@ -55,7 +55,7 @@ desi_mask:
     #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
-    - [SECONDARY_ANY,       62, "Any secondary bit is set",
+    - [SCND_ANY     ,       62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     
 #- Bright Galaxy Survey
@@ -110,6 +110,18 @@ mws_mask:
     - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",              {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT|GRAY|DARK}]
+
+#- ADM secondary survey targets bit mask.
+#- ADM note that the 'filenames', here, should all be present in the
+#- ADM directory that corresponds to the $SECONDARY_DIR environment
+#- ADM variable, e.g. $SECONDARY_DIR/backstop.fits for BACKSTOP targets.
+scnd_mask:
+    - [VETO,        0, "Never observe, even if a primary target bit is set",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+    - [BACKSTOP,    1, "Gaia-selected targets of last resort",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
+    - [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
 
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
@@ -194,7 +206,7 @@ priorities:
         NEAR_BRIGHT_OBJECT: -1
         BGS_ANY: -1
         MWS_ANY: -1
-        SECONDARY_ANY: -1
+        SCND_ANY: -1
 
     #- Bright Galaxy Survey: priorities 2000-2997
     # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
@@ -230,6 +242,13 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
+
+    # ADM secondary target priorities. Probably all have very low UNOBS
+    scnd_mask:
+        VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        BACKSTOP:                     {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -271,7 +290,7 @@ numobs:
         NEAR_BRIGHT_OBJECT: -1
         BGS_ANY: -1
         MWS_ANY: -1
-        SECONDARY_ANY: -1
+        SCND_ANY: -1
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
     bgs_mask:
@@ -305,3 +324,8 @@ numobs:
         MWS_MAIN_RED_NORTH:           0
         MWS_MAIN_RED_SOUTH:           0
 
+    # ADM initial number of observations for secondary targets
+    scnd_mask:
+        VETO: 1
+        BACKSTOP: 1
+        DR16Q: 1
