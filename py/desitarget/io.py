@@ -359,7 +359,7 @@ def write_targets(filename, data, indir=None, indir2=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
-def write_skies(filename, data, indir=None, indir2=None,
+def write_skies(filename, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None):
     """Write a target catalogue of sky locations.
 
@@ -370,8 +370,12 @@ def write_skies(filename, data, indir=None, indir2=None,
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
     indir, indir2 : :class:`str`, optional
-        Name of input Legacy Survey Data Release directory or directories,
+        Name of input Legacy Survey Data Release directory/directories,
         write to header of output file if passed (and if not None).
+    supp : :class:`bool`, optional, defaults to ``False``
+        Written to the header of the output file to indicate whether
+        this is a file of supplemental skies (sky locations that are
+        outside the Legacy Surveys footprint).
     apertures_arcsec : :class:`list` or `float`, optional
         list of aperture radii in arcseconds to write each aperture as an
         individual line in the header, if passed (and if not None).
@@ -379,8 +383,8 @@ def write_skies(filename, data, indir=None, indir2=None,
         Number of sky locations generated per sq. deg., write to header
         of output file if passed (and if not None).
     nside: :class:`int`, optional
-        If passed, add a column to the skies array popluated with HEALPixels
-        at resolution `nside`.
+        If passed, add a column to the skies array popluated with
+        HEALPixels at resolution `nside`.
     """
     nskies = len(data)
 
@@ -408,6 +412,8 @@ def write_skies(filename, data, indir=None, indir2=None,
             apname = "AP{}".format(i)
             apsize = ap
             hdr[apname] = apsize
+
+    hdr['SUPP'] = supp
 
     if nskiespersqdeg is not None:
         hdr['NPERSDEG'] = nskiespersqdeg

@@ -715,7 +715,7 @@ def plot_good_bad_skies(survey, brickname, skies,
 
 
 def get_supp_skies(ras, decs, radius=2.):
-    """Match to avoid Gaia, format and return supplemental skies
+    """Random locations, avoid Gaia, format, return supplemental skies.
 
     Parameters
     ----------
@@ -724,7 +724,7 @@ def get_supp_skies(ras, decs, radius=2.):
     decs : :class:`~numpy.ndarray`
         Declinations of sky locations (degrees).
     radius : :class:`float`, optional, defaults to 2
-        Radius at which to avoid Gaia sources (arcseconds).
+        Radius at which to avoid (all) Gaia sources (arcseconds).
 
     Returns
     -------
@@ -766,8 +766,8 @@ def get_supp_skies(ras, decs, radius=2.):
     return supsky
 
 
-def supplement_skies(nskiespersqdeg=None, numproc=16,
-                     mindec=-30, mingalb=10, radius=2.):
+def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
+                     mindec=-30., mingalb=10., radius=2.):
     """Generate supplemental sky locations using Gaia-G-band avoidance.
 
     Parameters
@@ -777,13 +777,16 @@ def supplement_skies(nskiespersqdeg=None, numproc=16,
         reading from :func:`~desimodel.io` with a margin of 4x.
     numproc : :class:`int`, optional, defaults to 16
         The number of processes over which to parallelize.
+    gaiadir : :class:`str`, optional, defaults to $GAIA_DIR
+        The GAIA_DIR environment variable is set to this directory.
+        If None is passed, then it's assumed to already exist.
     mindec : :class:`float`, optional, defaults to -30
         Minimum declination (o) to include for output sky locations.
     mingalb : :class:`float`, optional, defaults to 10
         Closest latitude to Galactic plane for output sky locations
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
     radius : :class:`float`, optional, defaults to 2
-        Radius at which to avoid Gaia sources (arcseconds).
+        Radius at which to avoid (all) Gaia sources (arcseconds).
 
     Returns
     -------
@@ -793,8 +796,13 @@ def supplement_skies(nskiespersqdeg=None, numproc=16,
 
     Notes
     -----
-        - The environment variable $GAIA_DIR must be set.
+        - The environment variable $GAIA_DIR must be set, or `gaiadir`
+          must be passed.
     """
+    # ADM if the GAIA directory was passed, set it.
+    if gaiadir is not None:
+        os.environ["GAIA_DIR"] = gaiadir
+
     # ADM if needed, determine the density of sky fibers to generate.
     if nskiespersqdeg is None:
         nskiespersqdeg = density_of_sky_fibers(margin=4)
