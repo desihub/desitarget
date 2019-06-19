@@ -1163,3 +1163,63 @@ def is_in_gal_box(objs, lbbox, radec=False):
           & (gal.b.value >= bmin) & (gal.b.value < bmax))
 
     return ii
+
+
+def radec_match_to(matchto, objs, sep=1., radec=False):
+    """Match objects to a catalog list on RA/Dec.
+
+    Parameters
+    ----------
+    matchto : :class:`~numpy.ndarray` or `list`
+        Coordinates to match TO. Must include the columns "RA" and "DEC".
+    objs : :class:`~numpy.ndarray` or `list`
+        Objects that will be matched to `matchto`. Must include "RA" and "DEC".
+    sep : :class:`float`, defaults to 1 arcsecond
+        The separation at which to match `objs` to `matchto` in ARCSECONDS.
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then `objs` and `matchto` are [RA, Dec] lists instead of
+        rec arrays.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` (of integers)
+        The indexes in `match2` for which `objs` matches `match2` at < `sep`.
+    :class:`~numpy.ndarray` (of integers)
+        The indexes in `objs` for which `objs` matches `match2` at < `sep`.
+
+    Notes
+    -----
+        - Sense is important, here. Every coordinate pair in `objs` is matched
+          to `matchto`, but NOT every coordinate pair in `matchto` is matched to
+          `objs`. `matchto` should be thought of as the parent catalog being
+          matched to, in that we are looking for all the instances where `objs`
+          has a match in `matchto`. The returned indexes thus can never be longer
+          than `objs`. Consider this example:
+
+          >>> mainra, maindec = [100], [30]
+          >>> ras, decs = [100, 100, 100], [30, 30, 30]
+          >>>
+          >>> radec_match_to([mainra, maindec], [ras, decs], radec=True)
+          >>> Out: (array([0, 0, 0]), array([0, 1, 2]))
+          >>>
+          >>> radec_match_to([ras, decs], [mainra, maindec], radec=True)
+          >>> Out: (array([0]), array([0]))
+
+        - Only returns the CLOSEST match within `sep` arcseconds.
+    """
+    if radec:
+        ram, decm = matchto
+        ra, dec = objs
+    else:
+        ram, decm = matchto["RA"], matchto["DEC"]
+        ra, dec = objs["RA"], objs["DEC"]
+
+    cmatchto = SkyCoord(ram*u.degree, decm*u.degree)
+    cobjs = SkyCoord(ra*u.degree, dec*u.degree)
+
+    idmatchto, d2d, _ = cobjs.match_to_catalog_sky(cmatchto)
+    idobjs = np.arange(len(cobjs))
+
+    ii = d2d < sep*u.arcsec
+
+    return idmatchto[ii], idobjs[ii]
