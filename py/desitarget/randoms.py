@@ -322,7 +322,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                 # ADM get the quantity of interest at each location and
                 # ADM store in a dictionary with the filter and quantity.
                 if qout == 'apflux':
-                    # ADM special treatment to photometer sky. 
+                    # ADM special treatment to photometer sky.
                     # ADM Read in the ivar image.
                     fnivar = fileform.format(brickname, 'invvar', filt, extn)
                     ivar = fits.open(fnivar)[extn_nb].data
@@ -410,7 +410,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                 # decam-chatter mailing list on 06/20/19, 1:59PM MST:
                 # psfdepth_Wx_AB = invvar_Wx * norm_Wx**2 / fluxfactor_Wx**2
                 # where fluxfactor = 10.** (dm / -2.5), dm = vega_to_ab[band]
-                ff = 10.** (vega_to_ab[band] / -2.5)
+                ff = 10.**(vega_to_ab[band] / -2.5)
                 # ADM store in a dictionary with the band and quantity.
                 qdict[qout+'_'+band] = ivar * norm[band]**2 / ff**2
             # ADM if the file doesn't exist, set quantities to zero.
@@ -817,7 +817,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         Catalog or file of randoms as made by :func:`select_randoms()` or
         :func:`quantities_at_positions_in_a_brick()`.
     targets : :class:`~numpy.ndarray` or `str`
-        Corresponding (i.e. same Data Release) catalog or file of targets 
+        Corresponding (i.e. same Data Release) catalog or file of targets
         as made by, e.g., :func:`desitarget.cuts.select_targets()`, or
         the the name of a directory containing HEALPix-split targets that
         can be read by :func:`desitarget.io.read_targets_in_box()`.
