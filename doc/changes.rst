@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.30.1 (unreleased)
+0.30.2 (unreleased)
 -------------------
 
 * Add "supplemental" (outside-of-footprint) skies [`PR #510`_]:
@@ -10,17 +10,44 @@ desitarget Change Log
     * Then avoids all Gaia sources at some specified radius.
     * Fixes a bug where :func:`geomask.hp_in_box` used geodesics for Dec.
         * Dec cuts should be small circles, not geodesics.
+* First implementation for secondary targets [`PR #507`_]. Includes:
+    * Framework and design for secondary targeting process.
+    * Works automatically for both Main Survey and SV files.
+    * New bitmasks for secondaries that populate ``SCND_TARGET`` column.
+        * can have any ``PRIORITY_INIT`` and ``NUMOBS_INIT``.
+    * A reserved "veto" bit to categorically reject targets.
+    * Rigorous checking of file formats...
+        * ...and that files correspond to secondary bits.
+    * Example files and file structure (at NERSC) in ``SCND_DIR``.
+        * /project/projectdirs/desi/target/secondary.
+    * Secondary targets are matched to primary targets on RA/Dec.
+        * unless a (per-source) ``OVERRIDE`` column is set to ``True``.
+    * Secondary-primary matches share the primary ``TARGETID``.
+    * Non-matches and overrides have their own ``TARGETID``.
+        * with ``RELEASE == 0``.
+    * Non-override secondary targets are also matched to themselves.
+        * ``TARGETID`` and ``SCND_TARGET`` correspond for matches.
 
+.. _`PR #507`: https://github.com/desihub/desitarget/pull/507
 .. _`PR #510`: https://github.com/desihub/desitarget/pull/510
+
+0.30.1 (2019-06-18)
+-------------------
+
+* Fix normalization bug in QSO tracer/Lya mock target densities [`PR #509`_].  
+* Tune "Northern" QSO selection and color shifts for Main and SV [`PR #506`_]
+* Follow-up PR to `PR #496`_ with two changes and bug fixes [`PR #505`_]:
+    * Select QSO targets using random forest by default.
+    * Bug fix: Correctly populate ``REF_CAT`` column (needed to correctly set
+      MWS targeting bits).
+
+.. _`PR #505`: https://github.com/desihub/desitarget/pull/505
+.. _`PR #506`: https://github.com/desihub/desitarget/pull/506
+.. _`PR #509`: https://github.com/desihub/desitarget/pull/509
 
 0.30.0 (2019-05-30)
 -------------------
 
-* Fix normalization bug in QSO tracer/Lya mock target densities [`PR #509`_].  
-* Follow-up PR to `PR #496`_ with two changes and bug fixes [`PR #505`_]:
-    * Select QSO targets using random forest by default.
-    * Bug fix: Correctly populate ``REF_CAT`` column (needed to correctly set
-      MWS targeting bits).     
 * Drop Gaia fields with np.rfn to fix Python 3.6/macOS bug [`PR #502`_].
 * Apply the same declination cut to the mocks as to the data [`PR #501`_].
 * Add information to GFA files [`PR #498`_]. Includes:
@@ -79,8 +106,6 @@ desitarget Change Log
 .. _`PR #498`: https://github.com/desihub/desitarget/pull/498
 .. _`PR #501`: https://github.com/desihub/desitarget/pull/501
 .. _`PR #502`: https://github.com/desihub/desitarget/pull/502
-.. _`PR #505`: https://github.com/desihub/desitarget/pull/505
-.. _`PR #509`: https://github.com/desihub/desitarget/pull/509
 
 0.29.1 (2019-03-26)
 -------------------
@@ -93,6 +118,7 @@ desitarget Change Log
 
 0.29.0 (2019-03-22)
 -------------------
+
 * Update SV selection for DR8 [`PR #477`_]. Includes:
     * New SV targeting bits for QSOs and LRGs.
     * New SV selection algorithms for QSOs, ELGs and LRGs.
@@ -394,7 +420,6 @@ bit names and selection function names.
 
 .. _`PR #334`: https://github.com/desihub/desitarget/pull/334
 
-
 0.21.0 (2018-07-18)
 -------------------
 
@@ -463,7 +488,6 @@ bit names and selection function names.
 .. _`PR #329`: https://github.com/desihub/desitarget/pull/329
 .. _`PR #331`: https://github.com/desihub/desitarget/pull/331
 .. _`PR #332`: https://github.com/desihub/desitarget/pull/332
-
 
 0.20.1 (2018-03-29)
 -------------------
