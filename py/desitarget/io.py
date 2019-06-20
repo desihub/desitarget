@@ -22,6 +22,7 @@ from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
+from desitarget.targets import main_cmx_or_sv
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -359,6 +360,82 @@ def write_targets(filename, data, indir=None, indir2=None,
     fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
 
 
+def write_secondary(filename, data, primhdr=None, scxdir=None):
+    """Write a catalogue of secondary targets.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        output file for secondary targets that do not match a primary.
+    data : :class:`~numpy.ndarray`
+        numpy structured array of secondary targets to write.
+    primhdr : :class:`str`, optional, defaults to `None`
+        If passed, added to the header of the output `filename`.
+    scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
+        Name of the directory that hosts secondary targets.  The
+        secondary targets are written back out to this directory in the
+        sub-directory "outdata" and the `scxdir` is added to the
+        header of the output `filename`.
+
+    Returns
+    -------
+    Nothing, but two files are written:
+        - The file of secondary targets that do not match a primary
+          target is written to `filename`. Such secondary targets
+          are determined from having `RELEASE==0` in the `TARGETID`.
+        - Each secondary target that, presumably, was initially drawn
+          from the "indata" subdirectory of `scxdir` is written to
+          the "outdata" subdirectory of `scxdir`.
+    """
+    # ADM grab the scxdir, it it wasn't passed.
+    from desitarget.secondary import _get_scxdir
+    scxdir = _get_scxdir(scxdir)
+
+    # ADM if the primary header was passed, use it, if not
+    # ADM then create a new header.
+    hdr = primhdr
+    if primhdr is None:
+        hdr = fitsio.FITSHDR()
+    # ADM add the SCNDDIR to the file header.
+    hdr["SCNDDIR"] = scxdir
+
+    # ADM add the secondary dependencies to the file header.
+    depend.setdep(hdr, 'scnd-desitarget', desitarget_version)
+    depend.setdep(hdr, 'scnd-desitarget-git', gitversion())
+
+    # ADM populate SUBPRIORITY with a reproducible random float.
+    if "SUBPRIORITY" in data.dtype.names:
+        ntargs = len(data)
+        np.random.seed(616)
+        data["SUBPRIORITY"] = np.random.random(ntargs)
+
+    # ADM remove the SCND_TARGET_INIT column.
+    scnd_target_init = data["SCND_TARGET_INIT"]
+    data = rfn.drop_fields(data, ["SCND_TARGET_INIT"])
+
+    # ADM write out the file of matches for every secondary bit.
+    from desitarget.targetmask import scnd_mask
+    for name in scnd_mask.names():
+        # ADM construct the output file name.
+        fn = "{}.fits".format(scnd_mask[name].filename)
+        scxfile = os.path.join(scxdir, 'outdata', fn)
+        # ADM retrieve just the data with this bit set.
+        ii = (scnd_target_init & scnd_mask[name]) != 0
+        # ADM to reorder to match the original input order.
+        order = np.argsort(data["SCND_ORDER"][ii])
+        # ADM write to file.
+        fitsio.write(scxfile, data[ii][order],
+                     extname='TARGETS', header=hdr, clobber=True)
+
+    # ADM standalone secondary targets have RELEASE==0...
+    from desitarget.targets import decode_targetid
+    objid, brickid, release, mock, sky = decode_targetid(data["TARGETID"])
+    ii = release == 0
+    # ADM ...write them out.
+    fitsio.write(filename, data[ii],
+                 extname='TARGETS', header=hdr, clobber=True)
+
+
 def write_skies(filename, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None):
     """Write a target catalogue of sky locations.
@@ -579,6 +656,24 @@ def iter_sweepfiles(root):
     """Iterator over all sweep files found under root directory.
     """
     return iter_files(root, prefix='sweep', ext='fits')
+
+
+def list_targetfiles(root):
+    """Return a list of target files found under `root` directory.
+    """
+    # ADM catch case where a file was sent instead of a directory.
+    if os.path.isfile(root):
+        return [root]
+    allfns = glob(os.path.join(root, '*target*fits'))
+    fns, nfns = np.unique(allfns, return_counts=True)
+    if np.any(nfns > 1):
+        badfns = fns[nfns > 1]
+        msg = "Duplicate target files ({}) beneath root directory {}:".format(
+            badfns, root)
+        log.error(msg)
+        raise SyntaxError(msg)
+
+    return allfns
 
 
 def list_tractorfiles(root):
