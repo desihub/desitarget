@@ -808,7 +808,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         nskiespersqdeg = density_of_sky_fibers(margin=4)
 
     # ADM determine the HEALPixel nside of the standard Gaia files.
-    anyfiles = find_gaia_files([0,0], radec=True)
+    anyfiles = find_gaia_files([0, 0], radec=True)
     hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
     nside = hdr["HPXNSIDE"]
 
@@ -844,6 +844,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     # ADM this is just to count pixels in _update_status.
     npix = np.zeros((), dtype='i8')
     t0 = time()
+
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""

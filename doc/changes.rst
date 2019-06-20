@@ -5,7 +5,13 @@ desitarget Change Log
 0.30.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add "supplemental" (outside-of-footprint) skies [`PR #510`_]:
+    * Randomly populates sky area beyond some minimum Dec and Galactic b.
+    * Then avoids all Gaia sources at some specified radius.
+    * Fixes a bug where :func:`geomask.hp_in_box` used geodesics for Dec.
+        * Dec cuts should be small circles, not geodesics.
+
+.. _`PR #510`: https://github.com/desihub/desitarget/pull/510
 
 0.30.0 (2019-05-30)
 -------------------
