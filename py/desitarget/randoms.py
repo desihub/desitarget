@@ -218,23 +218,24 @@ def _pre_or_post_dr8(drdir):
 
 def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                                            aprad=0.75):
-    """Wrapper on `quantities_at_positions_in_a_brick` for DR8 imaging and beyond.
+    """Wrap `quantities_at_positions_in_a_brick` for DR8 and beyond.
 
     Notes
     -----
-        - See :func:`~desitarget.randoms.quantities_at_positions_in_a_brick`
-          for details. This function detects whether we have TWO coadd directories
-          in the `drdir` (e.g. one for DECaLS and one for MzLS/BASS) and, if so,
-          creates randoms for both surveys within the the passed brick. If not, it
-          defaults to the behavior for only having one survey.
+    - See :func:`~desitarget.randoms.quantities_at_positions_in_a_brick`
+      for details. This wrapper looks for TWO coadd directories in
+      `drdir` (one for DECaLS, one for MzLS/BASS) and, if it finds two,
+      creates randoms for both surveys within the the passed brick. The
+      wrapper also defaults to the behavior for only having one survey.
     """
-    # ADM determine whether we have to traverse two sets of brick directories.
+    # ADM determine if we must traverse two sets of brick directories.
     drdirs = _pre_or_post_dr8(drdir)
 
-    # ADM determine the dictionary of quantities for one or two directories.
+    # ADM make the dictionary of quantities for one or two directories.
     qall = []
     for dd in drdirs:
-        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd, aprad=aprad)
+        q = quantities_at_positions_in_a_brick(ras, decs, brickname, dd,
+                                               aprad=aprad)
         # ADM don't count bricks where we never read a file header.
         if q is not None:
             qall.append(q)
