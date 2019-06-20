@@ -809,35 +809,35 @@ def get_targ_dens(targets, Mx, nside=256):
 
 
 def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
-    """A HEALPixel map of useful quantities for analyzing a Legacy Surveys Data Release
+    """HEALPix map of useful quantities for a Legacy Surveys Data Release
 
     Parameters
     ----------
     randoms : :class:`~numpy.ndarray` or `str`
-        A random catalog as made by, e.g., :func:`select_randoms()` or
-        :func:`quantities_at_positions_in_a_brick()`, or the name of such a file.
+        Catalog or file of randoms as made by :func:`select_randoms()` or
+        :func:`quantities_at_positions_in_a_brick()`.
     targets : :class:`~numpy.ndarray` or `str`
-        A corresponding (i.e. same Data Release) target catalog as made by, e.g.,
-        :func:`desitarget.cuts.select_targets()`, or a file name of such targets,
-        or the name of a directory containing HEALPixel-split targets that can
-        be read by :func:`desitarget.io.read_targets_in_box()`.
+        Corresponding (i.e. same Data Release) catalog or file of targets 
+        as made by, e.g., :func:`desitarget.cuts.select_targets()`, or
+        the the name of a directory containing HEALPix-split targets that
+        can be read by :func:`desitarget.io.read_targets_in_box()`.
     rand_density : :class:`int`
-        The number of random points per sq. deg. At which the random catalog was
-        generated (see also :func:`select_randoms()`).
-    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
-        The resolution (HEALPixel nside number) at which to build the map (NESTED scheme).
+        Number of random points per sq. deg. at which the random catalog
+        was generated (see also :func:`select_randoms()`).
+    nside : :class:`int`, optional, defaults to nside=256
+        Resolution (HEALPix nside) at which to build the (NESTED) map.
+        The default corresponds to ~0.0525 sq. deg. (or "brick-sized")
     gaialoc : :class:`str`, optional, defaults to ``None``
-        If a file is passed it is assumed to be a FITS file that already contains the
-        column "STARDENS", which is simply read in. Otherwise, the stellar density is
-        constructed from the files stored in the default location indicated by the
-        $GAIA_DIR environment variable.
+        Name of a FITS file that already contains a column "STARDENS",
+        which is simply read in. If ``None``, the stellar density is
+        constructed from files in $GAIA_DIR.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         An array of useful information that includes
             - HPXPIXEL: HEALPixel integers at the passed `nside`.
-            - FRACAREA: The fraction of the pixel with at least one observation in any
+            - FRACAREA: Fraction of the pixel with at least one observation in any
                         band according to `randoms`. Made with :func:`pixweight()`.
             - STARDENS: The stellar density in a pixel from Gaia. Made with
                         :func:`stellar_density()`.
