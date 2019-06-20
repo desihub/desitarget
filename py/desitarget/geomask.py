@@ -911,7 +911,7 @@ def hp_in_dec_range(nside, decmin, decmax, inclusive=True):
 
     # ADM determine the pixels that touch the box.
     pixring = hp.query_strip(nside, thetamin, thetamax,
-                            inclusive=inclusive, nest=False)
+                             inclusive=inclusive, nest=False)
     pixnest = hp.ring2nest(nside, pixring)
 
     return pixnest

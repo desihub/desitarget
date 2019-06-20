@@ -194,7 +194,7 @@ def read_tractor(filename, header=False, columns=None):
         kind = data[colname].dtype.kind
         if kind == 'U' or kind == 'S':
             data[colname] = np.char.rstrip(data[colname])
-    
+
     # ADM add the PHOTSYS column to unambiguously check whether we're using imaging
     # ADM from the "North" or "South".
     data = add_photsys(data)
