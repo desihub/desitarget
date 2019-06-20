@@ -847,6 +847,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                                 the median of PSFDEPTH values in the passed random catalog.
             - GALDEPTH_G, R, Z: The galaxy depth in g, r, z-band in the pixel, derived from
                                 the median of GALDEPTH values in the passed random catalog.
+            - PSFDEPTH_W1, W2: (PSF) depth in W1, W2 (AB mag system) in the pixel, derived
+                               from the median of PSFDEPTH values in the passed random catalog..
             - PSFSIZE_G, R, Z: Weighted average PSF FWHM, in arcsec, in g, r, z in the pixel,
                                from the median of PSFSIZE values in the passed random catalog.
             - One column for every bit returned by :func:`desitarget.QA._load_targdens()`.
@@ -886,6 +888,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     datamodel = [('HPXPIXEL', '>i4'), ('FRACAREA', '>f4'), ('STARDENS', '>f4'), ('EBV', '>f4'),
                  ('PSFDEPTH_G', '>f4'), ('PSFDEPTH_R', '>f4'), ('PSFDEPTH_Z', '>f4'),
                  ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'),
+                 ('PSFDEPTH_W1', '>f4'), ('PSFDEPTH_W2', '>f4'),
                  ('PSFSIZE_G', '>f4'), ('PSFSIZE_R', '>f4'), ('PSFSIZE_Z', '>f4')]
     datamodel += targdens.dtype.descr
     hpxinfo = np.zeros(npix, dtype=datamodel)
@@ -924,7 +927,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
     # ADM work through the ordered pixels to populate the median for
     # ADM each quantity of interest.
-    cols = ['EBV',
+    cols = ['EBV', 'PSFDEPTH_W1', 'PSFDEPTH_W2',
             'PSFDEPTH_G', 'GALDEPTH_G', 'PSFSIZE_G',
             'PSFDEPTH_R', 'GALDEPTH_R', 'PSFSIZE_R',
             'PSFDEPTH_Z', 'GALDEPTH_Z', 'PSFSIZE_Z']
@@ -1054,11 +1057,15 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
         if nbrick % 50 == 0 and nbrick > 0:
-            rate = nbrick / (time() - t0)
-            log.info('{}/{} bricks; {:.1f} bricks/sec'.format(nbrick, nbricks, rate))
+            elapsed = time() - t0
+            rate = nbrick / elapsed
+            log.info('{}/{} bricks; {:.1f} bricks/sec; {:.1f} total mins elapsed'
+                     .format(nbrick, nbricks, rate, elapsed/60.))
             # ADM if we're going to exceed 4 hours, warn the user
             if nbricks/rate > 4*3600.:
-                log.error("May take > 4 hours to run. Try running with bundlebricks instead.")
+                msg = 'May take > 4 hours to run. Run with bundlebricks instead.'
+                log.critical(msg)
+                raise IOError(msg)
 
         nbrick[...] += 1    # this is an in-place modification
         return result
