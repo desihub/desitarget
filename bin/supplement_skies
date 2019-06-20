@@ -57,12 +57,12 @@ if nskiespersqdeg is None:
 log.info('Generating sky positions at a density of {}'.format(nskiespersqdeg))
 
 # ADM generate the supplemental sky locations.
-supp = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
-                        gaiadir=gaiadir, radius=ns.radius,
-                        mindec=ns.mindec, mingalb=ns.mingalb)
+skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
+                         gaiadir=gaiadir, radius=ns.radius,
+                         mindec=ns.mindec, mingalb=ns.mingalb)
 
 # ADM write to file.
-io.write_skies(ns.dest, supp=True, indir=gaiadir,
+io.write_skies(ns.dest, skies, supp=True, indir=gaiadir,
                nside=nside, nskiespersqdeg=nskiespersqdeg)
 
 log.info('{} supplemental skies written to {}'.format(len(skies), ns.dest))

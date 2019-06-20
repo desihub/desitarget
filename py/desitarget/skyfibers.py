@@ -813,7 +813,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     nside = hdr["HPXNSIDE"]
 
     # ADM create a set of random locations accounting for mindec.
-    log.info("Generating supplemental sky locations at Dec>{}o...t={:.1f}s"
+    log.info("Generating supplemental sky locations at Dec > {}o...t={:.1f}s"
              .format(mindec, time()-start))
     from desitarget.randoms import randoms_in_a_brick_from_edges
     ras, decs = randoms_in_a_brick_from_edges(
