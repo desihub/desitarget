@@ -837,28 +837,30 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     :class:`~numpy.ndarray`
         An array of useful information that includes
             - HPXPIXEL: HEALPixel integers at the passed `nside`.
-            - FRACAREA: Fraction of the pixel with at least one observation in any
-                        band according to `randoms`. Made with :func:`pixweight()`.
-            - STARDENS: The stellar density in a pixel from Gaia. Made with
-                        :func:`stellar_density()`.
-            - EBV: The E(B-V) in the pixel from the SFD dust map, derived from the
-                   median of EBV values in the passed random catalog.
-            - PSFDEPTH_G, R, Z: The PSF depth in g, r, z-band in the pixel, derived from
-                                the median of PSFDEPTH values in the passed random catalog.
-            - GALDEPTH_G, R, Z: The galaxy depth in g, r, z-band in the pixel, derived from
-                                the median of GALDEPTH values in the passed random catalog.
-            - PSFDEPTH_W1, W2: (PSF) depth in W1, W2 (AB mag system) in the pixel, derived
-                               from the median of PSFDEPTH values in the passed random catalog..
-            - PSFSIZE_G, R, Z: Weighted average PSF FWHM, in arcsec, in g, r, z in the pixel,
-                               from the median of PSFSIZE values in the passed random catalog.
-            - One column for every bit returned by :func:`desitarget.QA._load_targdens()`.
-              Each column contains the density of targets in pixels at the passed `nside`
+            - FRACAREA: Fraction of pixel with at least one observation
+                        in any band. Made with :func:`pixweight()`.
+            - STARDENS: The stellar density in a pixel from Gaia. Made
+                        with :func:`stellar_density()`.
+            - EBV: E(B-V) in pixel from the SFD dust map, from the
+                   median of EBV values in the passed `randoms`.
+            - PSFDEPTH_G, R, Z: PSF depth in the pixel, from the median
+                                of PSFDEPTH values in `randoms`.
+            - GALDEPTH_G, R, Z: Galaxy depth in the pixel, from the
+                                median of GALDEPTH values in `randoms`.
+            - PSFDEPTH_W1, W2: (AB PSF) depth in the pixel, from the
+                               median of values in the passed `randoms`.
+            - PSFSIZE_G, R, Z: Weighted average PSF FWHM, in arcsec, in
+                               the pixel, from the median of PSFSIZE
+                               values in the passed random catalog.
+            - One column for every bit that is returned by
+              :func:`desitarget.QA._load_targdens()`. Each column
+              contains the target density in the pixel.
     :class:`str`
-        The type of survey to which `targets` corresponds, e.g., 'main', 'sv1', etc.
+        Survey to which `targets` corresponds, e.g., 'main', 'sv1', etc.
 
     Notes
     -----
-        - If `gaialoc` is ``None`` then the environment variable $GAIA_DIR must be set.
+        - If `gaialoc` is ``None`` then $GAIA_DIR must be set.
     """
     # ADM if a file name was passed for the random catalog, read it in
     if isinstance(randoms, str):
