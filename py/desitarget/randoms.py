@@ -269,11 +269,11 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     -------
     :class:`dictionary`
        The number of observations (`nobs_x`), PSF depth (`psfdepth_x`)
-       Galaxy depth (`galdepth_x`), PSF size (`psfsize_x`), and sky
+       Galaxy depth (`galdepth_x`), PSF size (`psfsize_x`), sky
        background (`apflux_x`) and inverse variance (`apflux_ivar_x`)
-       at each passed position in each band X. Plus, the `maskbits`
-       `wisemask_w1` and `wisemask_w2` information at each passed
-       position for the brick.
+       at each passed position in each band x=g,r,z. Plus, the
+       `psfdepth_w1` and `_w2` depths and the `maskbits`, `wisemask_w1`
+       and `_w2` information at each passed position for the brick.
 
     Notes
     -----
@@ -300,36 +300,37 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
 
     rootdir = os.path.join(drdir, 'coadd', brickname[:3], brickname)
     fileform = os.path.join(rootdir, 'legacysurvey-{}-{}-{}.fits.{}')
-    # ADM loop through each of the filters and store the number of observations at the
-    # ADM RA and Dec positions of the passed points.
+    # ADM loop through the filters and store the number of observations
+    # ADM etc. at the RA and Dec positions of the passed points.
     for filt in ['g', 'r', 'z']:
-        # ADM the input file labels, and output column names and output formats
-        # ADM for each of the quantities of interest.
+        # ADM the input file labels, and output column names and output
+        # ADM formats for each of the quantities of interest.
         qnames = zip(['nexp', 'depth', 'galdepth', 'psfsize', 'image'],
                      ['nobs', 'psfdepth', 'galdepth', 'psfsize', 'apflux'],
                      ['i2', 'f4', 'f4', 'f4', 'f4'])
         for qin, qout, qform in qnames:
             fn = fileform.format(brickname, qin, filt, extn)
-            # ADM only process the WCS if there is a file corresponding to this filter.
+            # ADM only process the WCS if there's a file for this filter.
             if os.path.exists(fn):
                 img = fits.open(fn)[extn_nb]
                 if not iswcs:
-                    # ADM also store the instrument name, if it isn't yet stored.
+                    # ADM store the instrument name, if it isn't stored.
                     instrum = img.header["INSTRUME"].lower().strip()
                     w = WCS(img.header)
                     x, y = w.all_world2pix(ras, decs, 0)
                     iswcs = True
-                # ADM determine the quantity of interest at each passed location
-                # ADM and store in a dictionary with the filter and quantity name.
+                # ADM get the quantity of interest at each location and
+                # ADM store in a dictionary with the filter and quantity.
                 if qout == 'apflux':
-                    # ADM special treatment to photometer sky. Read in the ivar image.
+                    # ADM special treatment to photometer sky. 
+                    # ADM Read in the ivar image.
                     fnivar = fileform.format(brickname, 'invvar', filt, extn)
                     ivar = fits.open(fnivar)[extn_nb].data
                     with np.errstate(divide='ignore', invalid='ignore'):
-                        # ADM transform ivars to errors, guarding against 1/0.
+                        # ADM ivars->errors, guard against 1/0.
                         imsigma = 1./np.sqrt(ivar)
                         imsigma[ivar == 0] = 0
-                    # ADM perform aperture photometry at the requested radius (aprad).
+                    # ADM aperture photometry at requested radius (aprad).
                     apxy = np.vstack((x, y)).T
                     aper = photutils.CircularAperture(apxy, aprad)
                     p = photutils.aperture_photometry(img.data, aper, error=imsigma)
@@ -337,13 +338,13 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                     qdict[qout+'_'+filt] = np.array(p.field('aperture_sum'))
                     err = p.field('aperture_sum_err')
                     with np.errstate(divide='ignore', invalid='ignore'):
-                        # ADM transform errors to ivars, guarding against 1/0.
+                        # ADM errors->ivars, guard against 1/0.
                         ivar = 1./err**2.
                         ivar[err == 0] = 0.
                     qdict[qout+'_ivar_'+filt] = np.array(ivar)
                 else:
                     qdict[qout+'_'+filt] = img.data[y.astype("int"), x.astype("int")]
-            # ADM if the file doesn't exist, set the relevant quantities to zero.
+            # ADM if the file doesn't exist, set quantities to zero.
             else:
                 if qout == 'apflux':
                     qdict['apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
@@ -352,16 +353,16 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     # ADM add the MASKBITS and WISEMASK information.
     fn = os.path.join(rootdir,
                       'legacysurvey-{}-maskbits.fits.{}'.format(brickname, extn))
-    # ADM only process the WCS if there is a file corresponding to this filter.
+    # ADM only process the WCS if there's a file for this filter.
     mnames = zip([extn_nb, extn_nb+1, extn_nb+2],
                  ['maskbits', 'wisemask_w1', 'wisemask_w2'],
                  ['>i2', '|u1', '|u1'])
     for mextn, mout, mform in mnames:
         if os.path.exists(fn):
             img = fits.open(fn)[mextn]
-            # ADM use the WCS calculated for the per-filter quantities above, if it exists.
+            # ADM use the WCS for the per-filter quantities if it exists.
             if not iswcs:
-                # ADM also store the instrument name, if it isn't yet stored.
+                # ADM store the instrument name, if it isn't yet stored.
                 instrum = img.header["INSTRUME"].lower().strip()
                 w = WCS(img.header)
                 x, y = w.all_world2pix(ras, decs, 0)
@@ -372,7 +373,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
             # ADM if there is no maskbits file, populate with zeros.
             qdict[mout] = np.zeros(npts, dtype=mform)
 
-    # ADM finally, populate the photometric system in the quantity dictionary.
+    # ADM populate the photometric system in the quantity dictionary.
     if instrum is None:
         # ADM don't count bricks where we never read a file header.
         return
@@ -382,6 +383,39 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         qdict['photsys'] = np.array([b"N" for x in range(npts)], dtype='|S1')
 #    log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
 #                  .format(brickname,time()-start))
+
+    # ADM calculate and add WISE depths. The WCS is different for WISE.
+    iswcs = False
+    # ADM a dictionary of scalings from invvar to depth:
+    norm = {'W1': 0.240, 'W2': 0.255}
+    # ADM a dictionary of Vega-to-AB conversions:
+    vega_to_ab = {'W1': 2.699, 'W2': 3.339}
+    for band in ['W1', 'W2']:
+        # ADM the input file labels, and output column names and output
+        # ADM formats for each of the quantities of interest.
+        qnames = zip(['invvar'], ['psfdepth'], ['f4'])
+        for qin, qout, qform in qnames:
+            fn = fileform.format(brickname, qin, band, extn)
+            # ADM only process the WCS if there's a file for this band.
+            if os.path.exists(fn):
+                img = fits.open(fn)[extn_nb]
+                # ADM calculate the WCS if it wasn't, already.
+                if not iswcs:
+                    w = WCS(img.header)
+                    x, y = w.all_world2pix(ras, decs, 0)
+                    iswcs = True
+                # ADM get the inverse variance at each location.
+                ivar = img.data[y.astype("int"), x.astype("int")]
+                # ADM convert to WISE depth in AB. From Dustin Lang on the
+                # decam-chatter mailing list on 06/20/19, 1:59PM MST:
+                # psfdepth_Wx_AB = invvar_Wx * norm_Wx**2 / fluxfactor_Wx**2
+                # where fluxfactor = 10.** (dm / -2.5), dm = vega_to_ab[band]
+                ff = 10.** (vega_to_ab[band] / -2.5)
+                # ADM store in a dictionary with the band and quantity.
+                qdict[qout+'_'+band] = ivar * norm[band]**2 / ff**2
+            # ADM if the file doesn't exist, set quantities to zero.
+            else:
+                qdict[qout+'_'+band] = np.zeros(npts, dtype=qform)
 
     return qdict
 
@@ -514,18 +548,19 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
         a numpy structured array with the following columns:
             RA, DEC: Right Ascension, Declination of a random location.
             BRICKNAME: Passed brick name.
-            NOBS_G, R, Z: Number of observations at this location in g, r, z-band.
+            NOBS_G, R, Z: Number of observations in g, r, z-band.
             PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
             GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
-            PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec) in g, r, z.
-            APFLUX_G, R, Z: Sky background extracted in `aprad` in g, r, z.
-            APFLUX_IVAR_G, R, Z: Inverse variance of sky background in g, r, z.
-            MASKBITS: Extra mask bits info as stored in the header of extension 1 of e.g.,
-              dr8dir + 'decam/coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz"'
-            WISEMASK_W1: Extra mask bits info as stored in the header of extension 2 of e.g.,
-              dr8dir + 'decam/coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz"'
-            WISEMASK_W2: Extra mask bits info as stored in the header of extension 3 of e.g.,
-              dr8dir + 'decam/coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz"'
+            PSFDEPTH_W1, W2: (PSF) depth in W1, W2 (AB mag system).
+            PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec).
+            APFLUX_G, R, Z: Sky background extracted in `aprad`.
+            APFLUX_IVAR_G, R, Z: Inverse variance of sky background.
+            MASKBITS: mask information. See header of extension 1 of e.g.
+              'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
+            WISEMASK_W1: mask info. See header of extension 2 of e.g.
+              'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
+            WISEMASK_W2: mask info. See header of extension 3 of e.g.
+              'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
             EBV: E(B-V) at this location from the SFD dust maps.
     """
     # ADM this is only intended to work on one brick, so die if a larger array is passed.
@@ -554,6 +589,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
                             ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                             ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                             ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
+                            ('PSFDEPTH_W1', 'f4'), ('PSFDEPTH_W2', 'f4'),
                             ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
                             ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_Z', 'f4'),
                             ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
