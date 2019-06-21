@@ -557,7 +557,7 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
 
 
 def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
-                  rancatfn=None, density=None, resolve=True, aprad=None):
+                  density=None, resolve=True, aprad=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -578,9 +578,6 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
         Written to the header of the output file to indicate whether
         this is a supplemental file (i.e. random locations that are
         outside the Legacy Surveys footprint).
-    rancatfn : :class:`book`, optional
-        File name of the random catalog that is being "supplemented". Only
-        written to the output file header if `supp` is True.
     density: :class:`int`
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
@@ -597,12 +594,15 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
     depend.setdep(hdr, 'desitarget-git', gitversion())
 
     if indir is not None:
-        depend.setdep(hdr, 'input-data-release', indir)
-        # ADM note that if 'dr' is not in the indir DR
-        # ADM directory structure, garbage will
-        # ADM be rewritten gracefully in the header.
-        drstring = 'dr'+indir.split('dr')[-1][0]
-        depend.setdep(hdr, 'photcat', drstring)
+        if supp:
+            depend.setdep(hdr, 'input-random-catalog', indir)
+        else:
+            depend.setdep(hdr, 'input-data-release', indir)
+            # ADM note that if 'dr' is not in the indir DR
+            # ADM directory structure, garbage will
+            # ADM be rewritten gracefully in the header.
+            drstring = 'dr'+indir.split('dr')[-1][0]
+            depend.setdep(hdr, 'photcat', drstring)
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
@@ -614,8 +614,6 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
 
     # ADM note if this is a supplemental (outside-of-footprint) file.
     hdr['SUPP'] = supp
-    if supp:
-        hdr['RANCATFN'] = rancatfn
 
     # ADM add density of points if requested by input.
     if density is not None:

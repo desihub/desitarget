@@ -549,7 +549,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     zeros : :class:`bool`, optional, defaults to ``False``
         If ``True`` then don't look up pixel-level information for the
         brick, just return zeros. The only quantities populated are
-        those that don't need pixels (`BRICKNAME`, `RA`, `DEC`, `EBV`).
+        those that don't need pixels (`RA`, `DEC`, `BRICKNAME`, `EBV`)
+        and the `NOBS_` quantities (which are set to zero).
     drdir : :class:`str`, optional, defaults to None
         The root directory pointing to a DR from the Legacy Surveys
         e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
@@ -597,21 +598,30 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
             ras = np.concatenate([ras, ras])
             decs = np.concatenate([decs, decs])
 
+        # ADM the structured array to output.
+        qinfo = np.zeros(
+            len(ras),
+            dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKNAME', 'S8'),
+                   ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
+                   ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
+                   ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
+                   ('PSFDEPTH_W1', 'f4'), ('PSFDEPTH_W2', 'f4'),
+                   ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
+                   ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_Z', 'f4'),
+                   ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
+                   ('MASKBITS', 'i2'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
+                   ('EBV', 'f4'), ('PHOTSYS', '|S1')]
+        )
+    else:
+        qinfo = np.zeros(
+            len(ras),
+            dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKNAME', 'S8'),
+                   ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
+                   ('EBV', 'f4')]
+        )
+
     # ADM retrieve the E(B-V) values for each random point.
     ebv = get_dust(ras, decs, dustdir=dustdir)
-
-    # ADM the structured array to output.
-    qinfo = np.zeros(len(ras),
-                     dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKNAME', 'S8'),
-                            ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
-                            ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
-                            ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
-                            ('PSFDEPTH_W1', 'f4'), ('PSFDEPTH_W2', 'f4'),
-                            ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
-                            ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_Z', 'f4'),
-                            ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
-                            ('MASKBITS', 'i2'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
-                            ('EBV', 'f4'), ('PHOTSYS', '|S1')])
 
     # ADM we only looked up pixel-level quantities if zeros wasn't sent.
     if not zeros:
@@ -1070,9 +1080,9 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
     Returns
     -------
     :class:`~numpy.ndarray`
-        a numpy structured array with the same columns as returned by
-        :func:`~desitarget.randoms.get_quantities_in_a_brick`.
-        Specifically, what that function returns when passed zeros=True.
+        a numpy structured array with the same columns returned by
+        :func:`~desitarget.randoms.get_quantities_in_a_brick`
+        when that function is passed zeros=True.
 
     Notes
     -----
@@ -1088,6 +1098,10 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
     qzeros = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
                                    zeros=True, cnts=False, density=density,
                                    dustdir=dustdir)
+
+    # ADM one last shuffle to randomize across brick boundaries.
+    np.random.seed(616)
+    np.random.shuffle(qzeros)
 
     return qzeros
 
