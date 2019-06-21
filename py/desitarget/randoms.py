@@ -995,13 +995,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     :class:`~numpy.ndarray`
         a numpy structured array with the same columns as returned by
         :func:`~desitarget.randoms.get_quantities_in_a_brick`.
-
     """
-    # ADM grab brick information for this data release. Depending on whether this
-    # ADM is pre-or-post-DR8 we need to find the correct directory or directories.
-    drdirs = _pre_or_post_dr8(drdir)
-    brickdict = get_brick_info(drdirs, counts=True)
-    # ADM this is just the UNIQUE brick names across all surveys.
+    # ADM retrieve the table of all bricks as a dictionary.
+    brickdict = get_brick_info(drdirs, allbricks=True)
     bricknames = np.array(list(brickdict.keys()))
 
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel

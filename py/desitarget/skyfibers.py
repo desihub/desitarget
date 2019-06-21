@@ -49,7 +49,7 @@ skydatamodel = np.array([], dtype=[
     ('OBSCONDITIONS', '>i4')])
 
 
-def get_brick_info(drdirs, counts=False):
+def get_brick_info(drdirs, counts=False, allbricks=False):
     """Retrieve brick names and coordinates from Legacy Surveys directories.
 
     Parameters
@@ -61,6 +61,9 @@ def get_brick_info(drdirs, counts=False):
     counts : :class:`bool`, optional, defaults to ``False``
         If ``True`` also return a count of the number of times each brick
         appears ([RAcen, DECcen, RAmin, RAmax, DECmin, DECmax, CNT]).
+    allbricks : :class:`bool`, optional, defaults to ``False``
+        If ``True`` ignore `drdirs` and simply return a dictionary of ALL
+        of the bricks.
 
     Returns
     -------
@@ -74,6 +77,20 @@ def get_brick_info(drdirs, counts=False):
         - Tries a few different ways in case the survey bricks files have
           not ywt been created.
     """
+    # ADM initialize the bricks class, retrieve the brick information look-up
+    # ADM table and turn it into a fast look-up dictionary.
+    from desiutil import brick
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
+    brickdict = {}
+    for b in bricktable:
+        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
+                                     b["RA1"], b["RA2"],
+                                     b["DEC1"], b["DEC2"]]
+
+    # ADM if requested, return the dictionary of ALL bricks.
+    if allbricks:
+        return brickdict
+
     bricknames = []
     for dd in drdirs:
         # ADM in the simplest case, read in the survey bricks file, which lists
@@ -90,16 +107,6 @@ def get_brick_info(drdirs, counts=False):
 
     # ADM don't count bricks twice, but record number of duplicate bricks.
     bricknames, cnts = np.unique(np.concatenate(bricknames), return_counts=True)
-
-    # ADM initialize the bricks class, retrieve the brick information look-up
-    # ADM table and turn it into a fast look-up dictionary.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
-    brickdict = {}
-    for b in bricktable:
-        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
-                                     b["RA1"], b["RA2"],
-                                     b["DEC1"], b["DEC2"]]
 
     # ADM only return the subset of the dictionary with bricks in the DR.
     if counts:
