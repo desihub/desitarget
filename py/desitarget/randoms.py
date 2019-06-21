@@ -1017,8 +1017,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
     # ADM this is just to count bricks in _update_status.
     nbrick = np.zeros((), dtype='i8')
     t0 = time()
-    # ADM determine how often to write a message.
-    interval = nbricks // 100
+    # ADM write a total of 25 output messages during processing.
+    interval = nbricks // 25
 
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
@@ -1054,8 +1054,7 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
     return qinfo
 
 
-def supplement_randoms(donebns, density=10000, numproc=32,
-                       dustdir=None, aprad=0.75):
+def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
     """Random catalogs of "zeros" for missing bricks.
 
     Parameters
@@ -1063,6 +1062,7 @@ def supplement_randoms(donebns, density=10000, numproc=32,
     donebns : :class:`~numpy.ndarray`
         Names of bricks that have been "completed". Bricks NOT in
         `donebns` will be returned without any pixel-level quantities.
+        Need not be a unique set (bricks can be repeated in `donebns`).
     density : :class:`int`, optional, defaults to 10,000
         Number of random points per sq. deg. A typical brick is ~0.25 x
         0.25 sq. deg. so ~(0.0625*density) points will be returned.
@@ -1077,7 +1077,7 @@ def supplement_randoms(donebns, density=10000, numproc=32,
     Notes
     -----
     - See :func:`~desitarget.randoms.select_randoms` for definitions of
-      `dustdir`, `aprad`.
+      `numproc`, `dustdir`.
     """
     # ADM find the missing bricks.
     brickdict = get_brick_info(None, allbricks=True)
@@ -1087,7 +1087,7 @@ def supplement_randoms(donebns, density=10000, numproc=32,
 
     qzeros = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
                                    zeros=True, cnts=False, density=density,
-                                   dustdir=dustdir, aprad=aprad)
+                                   dustdir=dustdir)
 
     return qzeros
 
@@ -1127,9 +1127,8 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         a chosen number of nodes). Used in conjunction with `bundlebricks` for the code
         to estimate time to completion when parallelizing across pixels.
     dustdir : :class:`str`, optional, defaults to $DUST_DIR+'maps'
-        The root directory pointing to SFD dust maps. If not
-        sent the code will try to use $DUST_DIR+'maps')
-        before failing.
+        The root directory pointing to SFD dust maps. If None the code
+        will try to use $DUST_DIR+'maps') before failing.
     resolverands : :class:`boolean`, optional, defaults to ``True``
         If ``True``, resolve randoms into northern randoms in northern regions
         and southern randoms in southern regions.

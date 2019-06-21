@@ -54,7 +54,7 @@ ap.add_argument("--dustdir",
 ap.add_argument("--noresolve", action='store_true',
                 help="Do NOT resolve into northern randoms in northern regions and southern randoms in southern regions")
 ap.add_argument("--aprad", type=float,
-                help="Radius of aperture in arcsec in which to generated sky background flux levels (defaults to 0.75; the DESI fiber radius)",
+                help="Radius of aperture in arcsec in which to generate sky background flux levels (defaults to 0.75; the DESI fiber radius)",
                 default=0.75)
 
 
@@ -69,7 +69,7 @@ if not os.path.exists(ns.surveydir):
     sys.exit(1)
 
 if ns.bundlebricks is None:
-    log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc,time()-start))
+    log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc, time()-start))
 
 # ADM go looking for a maskbits file to steal the header for the
 # ADM bit names. Try a couple of configurations (pre/post DR8).
