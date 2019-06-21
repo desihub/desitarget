@@ -557,7 +557,7 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
 
 
 def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
-                  rcfn=None, density=None, resolve=True, aprad=None):
+                  rancatfn=None, density=None, resolve=True, aprad=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
