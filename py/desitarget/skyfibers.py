@@ -58,6 +58,7 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
         A list of strings, each of which corresponds to a directory pointing
         to a Data Release from the Legacy Surveys. Can be of length one.
         e.g. ['/global/project/projectdirs/cosmo/data/legacysurvey/dr7'].
+        Can be None if `allbricks` is passed.
     counts : :class:`bool`, optional, defaults to ``False``
         If ``True`` also return a count of the number of times each brick
         appears ([RAcen, DECcen, RAmin, RAmax, DECmin, DECmax, CNT]).
