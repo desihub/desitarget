@@ -556,8 +556,8 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
-def write_randoms(filename, data, indir=None, hdr=None, nside=None,
-                  density=None, resolve=True, aprad=None):
+def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
+                  rcfn=None, density=None, resolve=True, aprad=None):
     """Write a catalogue of randoms and associated pixel-level information.
 
     Parameters
@@ -574,6 +574,13 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None,
     nside: :class:`int`
         If passed, add a column to the randoms array popluated with HEALPixels
         at resolution `nside`.
+    supp : :class:`bool`, optional, defaults to ``False``
+        Written to the header of the output file to indicate whether
+        this is a supplemental file (i.e. random locations that are
+        outside the Legacy Surveys footprint).
+    rancatfn : :class:`book`, optional
+        File name of the random catalog that is being "supplemented". Only
+        written to the output file header if `supp` is True.
     density: :class:`int`
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
@@ -604,6 +611,11 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None,
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
+
+    # ADM note if this is a supplemental (outside-of-footprint) file.
+    hdr['SUPP'] = supp
+    if supp:
+        hdr['RANCATFN'] = rancatfn
 
     # ADM add density of points if requested by input.
     if density is not None:
