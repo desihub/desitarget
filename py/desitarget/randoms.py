@@ -67,33 +67,36 @@ def dr_extension(drdir):
 
 
 def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
-                                  density=100000, poisson=True):
-    """For given brick edges, return random (RA/Dec) positions in the brick
+                                  density=100000, poisson=True, wrap=True):
+    """For brick edges, return random (RA/Dec) positions in the brick.
 
     Parameters
     ----------
     ramin : :class:`float`
-        The minimum "edge" of the brick in Right Ascension.
+        The minimum "edge" of the brick in Right Ascension (degrees).
     ramax : :class:`float`
-        The maximum "edge" of the brick in Right Ascension.
+        The maximum "edge" of the brick in Right Ascension (degrees).
     decmin : :class:`float`
-        The minimum "edge" of the brick in Declination.
+        The minimum "edge" of the brick in Declination (degrees).
     decmax : :class:`float`
-        The maximum "edge" of the brick in Declination.
+        The maximum "edge" of the brick in Declination (degrees).
     density : :class:`int`, optional, defaults to 100,000
-        The number of random points to return per sq. deg. As a typical brick is
-        ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned.
-    poisson : :class:`boolean`, optional, defaults to True
-        Modify the number of random points in the brick so that instead of simply
-        being the brick area x the density, it is a number drawn from a Poisson
-        distribution with the expectation being the brick area x the density.
+        The number of random points to return per sq. deg.
+    poisson : :class:`boolean`, optional, defaults to ``True``
+        Modify the number of random points so that instead of simply
+        being brick area x density, the number is drawn from a Poisson
+        distribution with an expectation of brick area x density.
+    wrap : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, bricks with `ramax`-`ramin` > 350o are assumed to
+        wrap, which is corrected by subtracting 360o from `ramax`, as is
+        reasonable for small bricks. ``False`` turns of this correction.
 
     Returns
     -------
     :class:`~numpy.array`
-        Right Ascensions of random points in brick
+        Right Ascensions of random points in brick (degrees).
     :class:`~numpy.array`
-        Declinations of random points in brick
+        Declinations of random points in brick (degrees).
     """
     # ADM create a unique random seed on the basis of the brick.
     # ADM note this is only unique for bricksize=0.25 for bricks
@@ -103,9 +106,10 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
 
     # ADM generate random points within the brick at the requested density
     # ADM guard against potential wraparound bugs (assuming bricks are typical
-    # ADM sizes of 0.25 x 0.25 sq. deg., or not much larger than that
-    if ramax - ramin > 350.:
-        ramax -= 360.
+    # ADM sizes of 0.25 x 0.25 sq. deg., or not much larger than that.
+    if wrap:
+        if ramax - ramin > 350.:
+            ramax -= 360.
     spharea = box_area([ramin, ramax, decmin, decmax])
 
     if poisson:
@@ -116,7 +120,8 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
 #              .format(spharea,time()-start))
     ras = np.random.uniform(ramin, ramax, nrand)
     sindecmin, sindecmax = np.sin(np.radians(decmin)), np.sin(np.radians(decmax))
-    decs = np.degrees(np.arcsin(1.-np.random.uniform(1-sindecmax, 1-sindecmin, nrand)))
+    decs = np.degrees(
+        np.arcsin(1.-np.random.uniform(1-sindecmax, 1-sindecmin, nrand)))
 
     nrand = len(ras)
 
@@ -470,7 +475,8 @@ def hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     hpxinfo = np.zeros(0, dtype=[('HPXPIXEL', '>i4'), ('HPXCOUNT', '>i4')])
 
     # ADM generate random points within the brick at the requested density.
-    ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=density)
+    ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
+                                              density=density, wrap=False)
 
     # ADM retrieve the number of observations for each random point.
     nobs_g, nobs_r, nobs_z = nobs_at_positions_in_a_brick(ras, decs, brickname, drdir=drdir)
@@ -570,7 +576,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
         raise ValueError
 
     # ADM generate random points within the brick at the requested density.
-    ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=density)
+    ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
+                                              density=density, wrap=False)
 
     # ADM retrieve the dictionary of quantities for each random point.
     qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir, aprad=aprad)
@@ -996,8 +1003,11 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         a numpy structured array with the same columns as returned by
         :func:`~desitarget.randoms.get_quantities_in_a_brick`.
     """
-    # ADM retrieve the table of all bricks as a dictionary.
-    brickdict = get_brick_info(drdirs, allbricks=True)
+    # ADM grab brick information for this data release. Depending on whether this
+    # ADM is pre-or-post-DR8 we need to find the correct directory or directories.
+    drdirs = _pre_or_post_dr8(drdir)
+    brickdict = get_brick_info(drdirs, counts=True)
+    # ADM this is just the UNIQUE brick names across all surveys.
     bricknames = np.array(list(brickdict.keys()))
 
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
@@ -1060,7 +1070,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
             rate = nbrick / elapsed
             log.info('{}/{} bricks; {:.1f} bricks/sec; {:.1f} total mins elapsed'
                      .format(nbrick, nbricks, rate, elapsed/60.))
-            # ADM if we're going to exceed 4 hours, warn the user
+            # ADM if we're going to exceed 4 hours, warn the user.
             if nbricks/rate > 4*3600.:
                 msg = 'May take > 4 hours to run. Run with bundlebricks instead.'
                 log.critical(msg)
