@@ -1196,8 +1196,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     # ADM recover the pixel-level quantities in the DR bricks.
-    qinfo = select_randoms_bricks(brickdict, bricknames, drdir, numproc=numproc,
-                                  density=density, dustdir=dustdir, aprad=aprad)
+    qinfo = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
+                                  drdir=drdir, density=density, dustdir=dustdir,
+                                  aprad=aprad)
     # ADM remove bricks that overlap between two surveys, if requested.
     if resolverands:
         qinfo = resolve(qinfo)
