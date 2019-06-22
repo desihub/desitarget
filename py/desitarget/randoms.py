@@ -247,8 +247,12 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
 
     # ADM concatenate everything in qall into one dictionary.
     qcombine = {}
-    for k in qall[0].keys():
-        qcombine[k] = np.concatenate([q[k] for q in qall])
+    # ADM catch the case where a coadd directory is completely missing.
+    if len(qall) == 0:
+        log.warning("missing brick: {}".format(brickname))
+    else:
+        for k in qall[0].keys():
+            qcombine[k] = np.concatenate([q[k] for q in qall])
 
     return qcombine
 
@@ -592,11 +596,13 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
         qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname,
                                                        drdir, aprad=aprad)
 
-        # ADM if 2 different camera combinations overlapped a brick
-        # ADM then we need to duplicate the ras, decs as well.
-        if len(qdict['photsys']) == 2*len(ras):
-            ras = np.concatenate([ras, ras])
-            decs = np.concatenate([decs, decs])
+        # ADM catch the case where a coadd directory is completely missing.
+        if len(qdict) > 0:
+            # ADM if 2 different camera combinations overlapped a brick
+            # ADM then we need to duplicate the ras, decs as well.
+            if len(qdict['photsys']) == 2*len(ras):
+                ras = np.concatenate([ras, ras])
+                decs = np.concatenate([decs, decs])
 
         # ADM the structured array to output.
         qinfo = np.zeros(
@@ -625,11 +631,13 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
 
     # ADM we only looked up pixel-level quantities if zeros wasn't sent.
     if not zeros:
-        # ADM store each quantity of interest in the structured array
-        # ADM remembering that the dictionary keys are lower-case text.
-        cols = qdict.keys()
-        for col in cols:
-            qinfo[col.upper()] = qdict[col]
+        # ADM catch the case where a coadd directory was missing.
+        if len(qdict) > 0:
+            # ADM store each quantity of interest in the structured array
+            # ADM remembering that the dictionary keys are lower-case text.
+            cols = qdict.keys()
+            for col in cols:
+                qinfo[col.upper()] = qdict[col]
 
     # ADM add the RAs/Decs and brick name.
     qinfo["RA"], qinfo["DEC"], qinfo["BRICKNAME"] = ras, decs, brickname

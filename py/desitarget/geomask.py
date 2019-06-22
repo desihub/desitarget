@@ -686,6 +686,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     margin = 30
     if prefix == 'skies':
         margin = 5
+    if prefix == 'randoms':
+        margin = 75
     margin /= 60.
 
     maxeta = 0
