@@ -37,7 +37,7 @@ ap.add_argument("--dustdir",
 ns = ap.parse_args()
 
 if not os.path.exists(ns.randomcat):
-    log.critical('Input directory does not exist: {}'.format(ns.surveydir))
+    log.critical('Input directory does not exist: {}'.format(ns.randomcat))
     sys.exit(1)
 
 log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc, time()-start))
