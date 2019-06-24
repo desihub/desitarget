@@ -7,8 +7,9 @@ desitarget Change Log
 
 * Further updates to generating randoms for DR8. [`PR #512`_]. Includes:
     * Add WISE depth maps to random catalogs and pixweight files.
-    * Executable to generate additional files of supplemental randoms.
-        * "Supplemental" randoms fill the sky outside of the footprint.
+    * Code to generate additional supplemental randoms catalogs.
+        * Supplemental, here, means (all-sky) outside of the footprint.
+    * Executable to split a random catalog into N smaller catalogs.
     * Fixes a bug in :func:`targets.main_cmx_or_sv()`.
         * Secondary columns now aren't the default if rename is ``True``.
     * Better aligns data model with expected DR8 directory structure.
