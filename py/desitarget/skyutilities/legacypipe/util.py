@@ -208,6 +208,8 @@ class LegacySurveyData(object):
             check = os.path.basename(os.path.dirname(basedir))
             if check[:2] == 'dr' and int(check[-1]) >= 8:
                 truebasedir = os.path.dirname(basedir)
+            else:
+                truebasedir = basedir
 
         if brick is not None:
             codir = os.path.join(basedir, 'coadd', brickpre, brick)
