@@ -378,7 +378,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     fn = survey.find_file('blobmap', brick=brickname)
     # ADM if the file doesn't exist, warn and return immediately.
     if not os.path.exists(fn):
-        log.warning('blobmap {} does not exist!!!'.format{fn})
+        log.warning('blobmap {} does not exist!!!'.format(fn))
         return None
     blobs = fitsio.read(fn)
     # log.info('Blob maximum value and minimum value in brick {}: {} {}'
