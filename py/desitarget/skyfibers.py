@@ -787,10 +787,10 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         bricknames = bricknames[ii]
         # ADM if there are no bricks to process, then die immediately.
         if len(bricknames) == 0:
-            log.warning('ZERO bricks in passed pixels (nside={}, pixels={}))!!!'
-                        .format(nside, pixlist))
+            log.warning('NO bricks found (nside={}, HEALPixels={}, DRdir={})!'
+                        .format(nside, pixlist, survey.survey_dir))
             return
-        log.info("Processing bricks in (nside={}, pixel numbers={}) HEALPixels"
+        log.info("Processing bricks (nside={}, HEALPixels={})"
                  .format(nside, pixlist))
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
