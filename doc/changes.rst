@@ -5,6 +5,14 @@ desitarget Change Log
 0.30.2 (unreleased)
 -------------------
 
+* Further updates to generating randoms for DR8. [`PR #512`_]. Includes:
+    * Add WISE depth maps to random catalogs and pixweight files.
+    * Executable to generate additional files of supplemental randoms.
+        * "Supplemental" randoms fill the sky outside of the footprint.
+    * Fixes a bug in :func:`targets.main_cmx_or_sv()`.
+        * Secondary columns now aren't the default if rename is ``True``.
+    * Better aligns data model with expected DR8 directory structure.
+        * Also fixes directory-not-found bugs when generating skies.
 * First implementation for secondary targets [`PR #507`_]. Includes:
     * Framework and design for secondary targeting process.
     * Works automatically for both Main Survey and SV files.
@@ -24,6 +32,7 @@ desitarget Change Log
         * ``TARGETID`` and ``SCND_TARGET`` correspond for matches.
 
 .. _`PR #507`: https://github.com/desihub/desitarget/pull/507
+.. _`PR #512`: https://github.com/desihub/desitarget/pull/512
 
 0.30.1 (2019-06-18)
 -------------------
