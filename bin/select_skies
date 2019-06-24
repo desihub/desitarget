@@ -104,6 +104,7 @@ else:
             bands=bands, apertures_arcsec=apertures,
             nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks)
         )
+
     # ADM redact empty output (where there were no bricks in a survey).
     skies = np.array(skies) 
     ii = [sk is not None for sk in skies]

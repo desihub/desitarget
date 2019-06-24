@@ -787,11 +787,11 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         bricknames = bricknames[ii]
         # ADM if there are no bricks to process, then die immediately.
         if len(bricknames) == 0:
-            log.warning('ZERO bricks in passed pixel list!!!')
+            log.warning('ZERO bricks in passed pixels (nside={}, pixels={}))!!!'
+                        .format(nside, pixlist))
             return
         log.info("Processing bricks in (nside={}, pixel numbers={}) HEALPixels"
                  .format(nside, pixlist))
-
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks, survey.survey_dir, time()-start))
@@ -818,8 +818,10 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
         if nbrick % 500 == 0 and nbrick > 0:
-            rate = nbrick / (time() - t0)
-            log.info('{}/{} bricks; {:.1f} bricks/sec'.format(nbrick, nbricks, rate))
+            elapsed = time() - t0
+            rate = nbrick / elapsed
+            log.info('{}/{} bricks; {:.1f} bricks/sec; {:.1f} total mins elapsed'
+                     .format(nbrick, nbricks, rate, elapsed/60.))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
@@ -835,7 +837,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
             skies.append(_update_status(_get_skies(brickname)))
 
     # ADM some missing blobs may have contaminated the array.
-    skies = [i for i in skies if i is not None]
+    skies = [sk for sk in skies if sk is not None]
     # ADM Concatenate the parallelized results into one rec array of sky information
     skies = np.concatenate(skies)
 
