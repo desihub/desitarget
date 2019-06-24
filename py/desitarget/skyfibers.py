@@ -20,21 +20,26 @@ from scipy.ndimage.morphology import binary_dilation, binary_erosion
 from scipy.ndimage.measurements import label, find_objects, center_of_mass
 from scipy.ndimage.filters import gaussian_filter
 
-# ADM some utility code taken from legacypipe and astrometry.net
+# ADM some utility code taken from legacypipe and astrometry.net.
 from desitarget.skyutilities.astrometry.fits import fits_table
 from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.io import brickname_from_filename
+from desitarget.gaiamatch import find_gaia_files
+from desitarget.geomask import is_in_gal_box, is_in_circle
 
-# ADM the parallelization script
+# ADM the parallelization script.
 from desitarget.internal import sharedmem
 
-# ADM set up the DESI default logger
+from desiutil import brick
 from desiutil.log import get_logger
 
-# ADM initialize the logger
+# ADM set up the Legacy Surveys bricks object.
+bricks = brick.Bricks(bricksize=0.25)
+
+# ADM initialize the DESI logger.
 log = get_logger()
 
 # ADM start the clock
@@ -221,7 +226,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     # ADM which would be 0.25x0.25 at the equator.
     area = 0.25*0.25
 
-    # ADM the number of sky fibers to be generated. Must be a square number
+    # ADM the number of sky fibers to be generated. Must be a square number.
     nskiesfloat = area*nskiespersqdeg
     nskies = (np.sqrt(nskiesfloat).astype('int16') + 1)**2
     # log.info('Generating {} sky positions in brick {}...t = {:.1f}s'
@@ -729,9 +734,168 @@ def plot_good_bad_skies(survey, brickname, skies,
     plt.savefig(outplotname)
 
 
+def get_supp_skies(ras, decs, radius=2.):
+    """Random locations, avoid Gaia, format, return supplemental skies.
+
+    Parameters
+    ----------
+    ras : :class:`~numpy.ndarray`
+        Right Ascensions of sky locations (degrees).
+    decs : :class:`~numpy.ndarray`
+        Declinations of sky locations (degrees).
+    radius : :class:`float`, optional, defaults to 2
+        Radius at which to avoid (all) Gaia sources (arcseconds).
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured array of supplemental sky positions in the DESI sky
+        target format that avoid Gaia sources by `radius`.
+
+    Notes
+    -----
+        - Written to be used when `ras` and `decs` are within a single
+          Gaia-file HEALPixel, but should work for all cases.
+    """
+    # ADM determine Gaia files of interest and read the RAs/Decs.
+    fns = find_gaia_files([ras, decs], neighbors=True, radec=True)
+    gobjs = np.concatenate(
+        [fitsio.read(fn, columns=["RA", "DEC"]) for fn in fns])
+
+    # ADM convert radius to an array.
+    r = np.zeros(len(gobjs))+radius
+
+    # ADM determine matches between Gaia and the passed RAs/Decs.
+    isin = is_in_circle(ras, decs, gobjs["RA"], gobjs["DEC"], r)
+    good = ~isin
+
+    # ADM build the output array from the sky targets data model.
+    nskies = np.sum(good)
+    supsky = np.zeros(nskies, dtype=skydatamodel.dtype)
+    # ADM populate output array with the RA/Dec of the sky locations.
+    supsky["RA"], supsky["DEC"] = ras[good], decs[good]
+    # ADM add the brickid and name.
+    supsky["BRICKID"] = bricks.brickid(ras[good], decs[good])
+    supsky["BRICKNAME"] = bricks.brickname(ras[good], decs[good])
+    supsky["BLOBDIST"] = 2.
+    # ADM set all fluxes and IVARs to -1, so they're ill-defined.
+    for name in skydatamodel.dtype.names:
+        if "FLUX" in name:
+            supsky[name] = -1.
+
+    return supsky
+
+
+def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
+                     mindec=-30., mingalb=10., radius=2.):
+    """Generate supplemental sky locations using Gaia-G-band avoidance.
+
+    Parameters
+    ----------
+    nskiespersqdeg : :class:`float`, optional
+        The minimum DENSITY of sky fibers to generate. Defaults to
+        reading from :func:`~desimodel.io` with a margin of 4x.
+    numproc : :class:`int`, optional, defaults to 16
+        The number of processes over which to parallelize.
+    gaiadir : :class:`str`, optional, defaults to $GAIA_DIR
+        The GAIA_DIR environment variable is set to this directory.
+        If None is passed, then it's assumed to already exist.
+    mindec : :class:`float`, optional, defaults to -30
+        Minimum declination (o) to include for output sky locations.
+    mingalb : :class:`float`, optional, defaults to 10
+        Closest latitude to Galactic plane for output sky locations
+        (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
+    radius : :class:`float`, optional, defaults to 2
+        Radius at which to avoid (all) Gaia sources (arcseconds).
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        a structured array of supplemental sky positions in the DESI sky
+        target format within the passed `mindec` and `mingalb` limits.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set, or `gaiadir`
+          must be passed.
+    """
+    # ADM if the GAIA directory was passed, set it.
+    if gaiadir is not None:
+        os.environ["GAIA_DIR"] = gaiadir
+
+    # ADM if needed, determine the density of sky fibers to generate.
+    if nskiespersqdeg is None:
+        nskiespersqdeg = density_of_sky_fibers(margin=4)
+
+    # ADM determine the HEALPixel nside of the standard Gaia files.
+    anyfiles = find_gaia_files([0, 0], radec=True)
+    hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
+    nside = hdr["HPXNSIDE"]
+
+    # ADM create a set of random locations accounting for mindec.
+    log.info("Generating supplemental sky locations at Dec > {}o...t={:.1f}s"
+             .format(mindec, time()-start))
+    from desitarget.randoms import randoms_in_a_brick_from_edges
+    ras, decs = randoms_in_a_brick_from_edges(
+        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False)
+
+    # ADM limit randoms by mingalb.
+    log.info("Generated {} sky locations. Limiting to |b| > {}o...t={:.1f}s"
+             .format(len(ras), mingalb, time()-start))
+    bnorth = is_in_gal_box([ras, decs], [0, 360, mingalb, 90], radec=True)
+    bsouth = is_in_gal_box([ras, decs], [0, 360, -90, -mingalb], radec=True)
+    ras, decs = ras[bnorth | bsouth], decs[bnorth | bsouth]
+
+    # ADM find HEALPixels for the random points.
+    log.info("Cut to {} sky locations. Finding their HEALPixels...t={:.1f}s"
+             .format(len(ras), time()-start))
+    theta, phi = np.radians(90-decs), np.radians(ras)
+    pixels = hp.ang2pix(nside, theta, phi, nest=True)
+    upixels = np.unique(pixels)
+    npixels = len(upixels)
+    log.info("Running across {} HEALPixels.".format(npixels))
+
+    # ADM parallelize across pixels. The function to run on every pixel.
+    def _get_supp(pix):
+        """wrapper on get_supp_skies() given a HEALPixel"""
+        ii = (pixels == pix)
+        return get_supp_skies(ras[ii], decs[ii], radius=radius)
+
+    # ADM this is just to count pixels in _update_status.
+    npix = np.zeros((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        if npix % 500 == 0 and npix > 0:
+            rate = npix / (time() - t0)
+            log.info('{}/{} HEALPixels; {:.1f} pixels/sec'.
+                     format(npix, npixels, rate))
+        npix[...] += 1    # this is an in-place modification.
+        return result
+
+    # - Parallel process across the unique pixels.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            supp = pool.map(_get_supp, upixels, reduce=_update_status)
+    else:
+        supp = []
+        for upix in upixels:
+            supp.append(_update_status(_get_supp(upix)))
+
+    # ADM Concatenate the parallelized results into one rec array.
+    supp = np.concatenate(supp)
+
+    log.info('Done...t={:.1f}s'.format(time()-start))
+
+    return supp
+
+
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
                  apertures_arcsec=[0.75], nside=2, pixlist=None, writebricks=False):
-    """Generate skies in parallel for all bricks in a Legacy Surveys Data Release.
+    """Generate skies in parallel for bricks in a Legacy Surveys DR.
 
     Parameters
     ----------
@@ -796,11 +960,11 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks, survey.survey_dir, time()-start))
 
-    # ADM a little more information if we're slurming across nodes
+    # ADM a little more information if we're slurming across nodes.
     if os.getenv('SLURMD_NODENAME') is not None:
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
-    # ADM the critical function to run on every brick
+    # ADM the critical function to run on every brick.
     def _get_skies(brickname):
         '''wrapper on make_skies_for_a_brick() given a brick name'''
 
@@ -809,7 +973,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
                                       apertures_arcsec=apertures_arcsec,
                                       write=writebricks)
 
-    # ADM this is just in order to count bricks in _update_status
+    # ADM this is just in order to count bricks in _update_status.
     nbrick = np.zeros((), dtype='i8')
 
     t0 = time()
@@ -823,10 +987,10 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
             log.info('{}/{} bricks; {:.1f} bricks/sec; {:.1f} total mins elapsed'
                      .format(nbrick, nbricks, rate, elapsed/60.))
 
-        nbrick[...] += 1    # this is an in-place modification
+        nbrick[...] += 1    # this is an in-place modification.
         return result
 
-    # - Parallel process input files
+    # - Parallel process input files.
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
@@ -838,7 +1002,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
 
     # ADM some missing blobs may have contaminated the array.
     skies = [sk for sk in skies if sk is not None]
-    # ADM Concatenate the parallelized results into one rec array of sky information
+    # ADM Concatenate the parallelized results into one rec array.
     skies = np.concatenate(skies)
 
     log.info('Done...t={:.1f}s'.format(time()-start))

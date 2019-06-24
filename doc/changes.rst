@@ -14,6 +14,11 @@ desitarget Change Log
         * Secondary columns now aren't the default if rename is ``True``.
     * Better aligns data model with expected DR8 directory structure.
         * Also fixes directory-not-found bugs when generating skies.
+* Add "supplemental" (outside-of-footprint) skies [`PR #510`_]:
+    * Randomly populates sky area beyond some minimum Dec and Galactic b.
+    * Then avoids all Gaia sources at some specified radius.
+    * Fixes a bug where :func:`geomask.hp_in_box` used geodesics for Dec.
+        * Dec cuts should be small circles, not geodesics.
 * First implementation for secondary targets [`PR #507`_]. Includes:
     * Framework and design for secondary targeting process.
     * Works automatically for both Main Survey and SV files.
@@ -33,6 +38,7 @@ desitarget Change Log
         * ``TARGETID`` and ``SCND_TARGET`` correspond for matches.
 
 .. _`PR #507`: https://github.com/desihub/desitarget/pull/507
+.. _`PR #510`: https://github.com/desihub/desitarget/pull/510
 .. _`PR #512`: https://github.com/desihub/desitarget/pull/512
 
 0.30.1 (2019-06-18)
