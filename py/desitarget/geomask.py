@@ -246,53 +246,53 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
 
 
 def is_in_circle(ras, decs, RAcens, DECcens, r):
-    """Determine whether a set of points is in a set of circular masks on the sky
+    """Whether a set of points is in a set of circular masks on the sky.
 
     Parameters
     ----------
     ras : :class:`~numpy.ndarray`
-        Array of Right Ascensions to test
+        Array of Right Ascensions to test.
     decs : :class:`~numpy.ndarray`
-        Array of Declinations to test
+        Array of Declinations to test.
     RAcen : :class:`~numpy.ndarray`
-        Right Ascension of the centers of the circles (DEGREES)
+        Right Ascension of the centers of the circles (DEGREES).
     DECcen : :class:`~numpy.ndarray`
-        Declination of the centers of the circles (DEGREES)
+        Declination of the centers of the circles (DEGREES).
     r : :class:`~numpy.ndarray`
-        Radius of the circles (ARCSECONDS)
+        Radius of the circles (ARCSECONDS).
 
     Returns
     -------
     :class:`boolean`
-        An array that is the same length as RA/Dec that is True
-        for points that are in any of the masks and False for points that
-        are not in any of the masks
+        An array that is the same length as RA/Dec that is ``True``
+        for points that are in any of the masks and False for points
+        that are not in any of the masks.
     """
 
-    # ADM initialize an array of all False (nothing is yet in a circular mask)
+    # ADM all matches start as False (nothing is yet in a circular mask).
     in_mask = np.zeros(len(ras), dtype=bool)
 
-    # ADM turn the coordinates of the masks and the targets into SkyCoord objects
+    # ADM coordinates of masks and targets into SkyCoord objects.
     ctargs = SkyCoord(ras*u.degree, decs*u.degree)
     cstars = SkyCoord(RAcens*u.degree, DECcens*u.degree)
 
     # ADM this is the largest search radius we should need to consider
     # ADM in the future an obvious speed up is to split on radius
-    # ADM as large radii are rarer but take longer
+    # ADM as large radii are rarer but take longer.
     maxrad = max(r)*u.arcsec
 
-    # ADM coordinate match the star masks and the targets
+    # ADM coordinate match the star masks and the targets.
     idtargs, idstars, d2d, d3d = cstars.search_around_sky(ctargs, maxrad)
 
-    # ADM catch the case where nothing fell in a mask
+    # ADM catch the case where nothing fell in a mask.
     if len(idstars) == 0:
         return in_mask
 
-    # ADM for a matching star mask, find the angular separations that are less than the mask radius
+    # ADM for a match, find separations less than the mask radius.
     w_in = np.where(d2d.arcsec < r[idstars])
 
-    # ADM any matching idtargs that meet this separation criterion are in a mask (at least one)
-    in_mask[idtargs[w_in]] = 'True'
+    # ADM matches at less than the radius are in a mask (at least one).
+    in_mask[idtargs[w_in]] = True
 
     return in_mask
 
@@ -781,8 +781,8 @@ def add_hp_neighbors(nside, pixnum):
     ----------
     nside : :class:`int`
         (NESTED) HEALPixel nside.
-    pixnum : :class:`list` or `int`
-        list of HEALPixel numbers (or a single HEALPixel number).
+    pixnum : :class:`list` or `int` or `~numpy.ndarray`
+        HEALPixel numbers (or a single HEALPixel number).
 
     Returns
     -------
@@ -824,8 +824,8 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     nside : :class:`int`
         (NESTED) HEALPixel nside.
     radecbox : :class:`list`
-        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the
-        edges of a box in RA/Dec (degrees).
+        4-entry list of coordinates [ramin, ramax, decmin, decmax]
+        forming the edges of a box in RA/Dec (degrees).
     inclusive : :class:`bool`, optional, defaults to ``True``
         see documentation for `healpy.query_polygon()`.
     fact : :class:`int`, optional defaults to 4
@@ -834,27 +834,19 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
     Returns
     -------
     :class:`list`
-        A list of HEALPixels at the passed `nside` that touch the passed RA/Dec box.
+        HEALPixels at the passed `nside` that touch the RA/Dec box.
 
     Notes
     -----
-        - Just syntactic sugar around `healpy.query_polygon()`.
-        - If -90o or 90o are passed, then decmin and decmax are moved slightly away
-          from the poles.
-        - When the RA range exceeds 180o, `healpy.query_polygon()` defines the box as
-          that with the smallest area (i.e the box can wrap-around in RA). To avoid
-          any ambiguity, this function will return ALL HEALPixels in such cases.
+        - Uses `healpy.query_polygon()` to retrieve the RA geodesics
+          and then :func:`hp_in_dec_range()` to limit by Dec.
+        - When the RA range exceeds 180o, `healpy.query_polygon()`
+          defines the range as that with the smallest area (i.e the box
+          can wrap-around in RA). To avoid any ambiguity, this function
+          will return ALL HEALPixels in such cases.
+        - Only strictly correct for Decs from -90+1e-5(o) to 90-1e5(o).
     """
     ramin, ramax, decmin, decmax = radecbox
-
-    # ADM handle some edge cases. Don't be too close to the poles.
-    leeway = 1e-5
-    if decmax > 90-leeway:
-        decmax = 90-leeway
-        log.warning('Max Dec too close to pole; setting to {}o'.format(decmax))
-    if decmin < -90+leeway:
-        decmin = -90+leeway
-        log.warning('Min Dec too close to pole; setting to {}o'.format(decmin))
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
     if np.abs(ramax-ramin) > 180.:
@@ -864,20 +856,109 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
                     .format(nside))
         return np.arange(hp.nside2npix(nside))
 
+    # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
+    npole, spole = 90-1e-5, -90+1e-5
     # ADM convert RA/Dec to co-latitude and longitude in radians.
     rapairs = np.array([ramin, ramin, ramax, ramax])
-    decpairs = np.array([decmin, decmax, decmax, decmin])
+    decpairs = np.array([spole, npole, npole, spole])
     thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
 
-    # ADM convert the colatitudes to Cartesian vectors remembering to
-    # ADM transpose to pass the array to query_polygon in the correct order.
+    # ADM convert to Cartesian vectors remembering to transpose
+    # ADM to pass the array to query_polygon in the correct order.
     vecs = hp.dir2vec(thetapairs, phipairs).T
 
-    # ADM determine the pixels that touch the box.
-    pixnum = hp.query_polygon(nside, vecs,
-                              inclusive=inclusive, fact=fact, nest=True)
+    # ADM determine the pixels that touch the RA range.
+    pixra = hp.query_polygon(nside, vecs,
+                             inclusive=inclusive, fact=fact, nest=True)
+
+    # ADM determine the pixels that touch the Dec range.
+    pixdec = hp_in_dec_range(nside, decmin, decmax, inclusive=inclusive)
+
+    # ADM return the pixels in the box.
+    pixnum = list(set(pixra).intersection(set(pixdec)))
 
     return pixnum
+
+
+def hp_in_dec_range(nside, decmin, decmax, inclusive=True):
+    """HEALPixels in a specified range of Declination.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    decmin, decmax : :class:`float`
+        Declination range (degrees).
+    inclusive : :class:`bool`, optional, defaults to ``True``
+        see documentation for `healpy.query_strip()`.
+
+    Returns
+    -------
+    :class:`list`
+        (Nested) HEALPixels at `nside` in the specified Dec range.
+
+    Notes
+    -----
+        - Just syntactic sugar around `healpy.query_strip()`.
+        - `healpy.query_strip()` isn't implemented for the NESTED scheme
+          in early healpy versions, so this queries in the RING scheme
+          and then converts to the NESTED scheme.
+    """
+    # ADM convert Dec to co-latitude in radians.
+    # ADM remember that, min/max swap because of the -ve sign.
+    thetamin = np.radians(90.-decmax)
+    thetamax = np.radians(90.-decmin)
+
+    # ADM determine the pixels that touch the box.
+    pixring = hp.query_strip(nside, thetamin, thetamax,
+                             inclusive=inclusive, nest=False)
+    pixnest = hp.ring2nest(nside, pixring)
+
+    return pixnest
+
+
+def hp_beyond_gal_b(nside, mingalb, neighbors=True):
+    """Find all HEALPixels with centers and neigbors beyond a Galactic b.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    mingalb : :class:`float`
+        Closest latitude to Galactic plane to return HEALPixels
+        (e.g. send 10 to limit to pixels beyond -10o <= b < 10o).
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        If ``False``, return all HEALPixels with *centers* beyond the
+        passed `mingalb`. If ``True`` also return the neighbors of these
+        pixels (to avoid edge effects).
+
+    Returns
+    -------
+    :class:`list`
+        HEALPixels at the passed `nside` that lie north and south of the
+        passed `mingalb`.
+
+    Notes
+    -----
+        - Pixels are in the NESTED scheme.
+    """
+    # ADM retrieve all pixels at this nside.
+    allpix = np.arange(hp.nside2npix(nside))
+
+    # ADM convert pixels to RA/Dec centers.
+    theta, phi = hp.pix2ang(nside, allpix, nest=True)
+    ra, dec = np.degrees(phi), 90-np.degrees(theta)
+
+    # ADM combine pixels north and south of passed mingalb into one set.
+    isnpix = is_in_gal_box([ra, dec], [0., 360., mingalb, 90.], radec=True)
+    isspix = is_in_gal_box([ra, dec], [0., 360., -90, -mingalb], radec=True)
+    pix = list(allpix[isnpix | isspix])
+
+    # ADM add neighbors, if requested.
+    if neighbors:
+        pix = add_hp_neighbors(nside, pix)
+
+    return pix
 
 
 def is_in_box(objs, radecbox):
@@ -940,7 +1021,7 @@ def hp_in_cap(nside, radecrad, inclusive=True, fact=4):
     """
     ra, dec, radius = radecrad
 
-    # ADM convert RA/Dec to co-latitude/longitude and everything to radians.
+    # ADM RA/Dec to co-latitude/longitude, everything to radians.
     theta, phi, rad = np.radians(90.-dec), np.radians(ra), np.radians(radius)
 
     # ADM convert the colatitudes to Cartesian vectors remembering to
