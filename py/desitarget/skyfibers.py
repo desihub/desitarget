@@ -54,10 +54,11 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
 
     Parameters
     ----------
-    drdirs : :class:`list`
+    drdirs : :class:`list` or `str`
         A list of strings, each of which corresponds to a directory pointing
         to a Data Release from the Legacy Surveys. Can be of length one.
         e.g. ['/global/project/projectdirs/cosmo/data/legacysurvey/dr7'].
+        or '/global/project/projectdirs/cosmo/data/legacysurvey/dr7'
         Can be None if `allbricks` is passed.
     counts : :class:`bool`, optional, defaults to ``False``
         If ``True`` also return a count of the number of times each brick
@@ -76,8 +77,12 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
     Notes
     -----
         - Tries a few different ways in case the survey bricks files have
-          not ywt been created.
+          not yet been created.
     """
+    # ADM convert a single input string to a list.
+    if isinstance(drdirs, str):
+        drdirs = [drdirs, ]
+
     # ADM initialize the bricks class, retrieve the brick information look-up
     # ADM table and turn it into a fast look-up dictionary.
     from desiutil import brick
@@ -198,22 +203,22 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     than the number of bits reserved for OBJID in `desitarget.targetmask`.
     """
     # ADM this is only intended to work on one brick, so die if a larger array is passed
-    # ADM needs a hack on string type as Python 2 only considered bytes to be type str
+    # ADM needs a hack on string type as Python 2 only considered bytes to be type str.
     stringy = str
     if sys.version_info[0] == 2:
-        # ADM is this is Python 2, redefine the string type
+        # ADM is this is Python 2, redefine the string type.
         stringy = basestring
     if not isinstance(brickname, stringy):
         log.fatal("Only one brick can be passed at a time!")
         raise ValueError
 
-    # ADM if needed, determine the minimum density of sky fibers to generate
+    # ADM if needed, determine the minimum density of sky fibers to generate.
     if nskiespersqdeg is None:
         nskiespersqdeg = density_of_sky_fibers(margin=4)
 
     # ADM the hard-coded size of a DESI brick expressed as an area
     # ADM this is actually slightly larger than the largest brick size
-    # ADM which would be 0.25x0.25 at the equator
+    # ADM which would be 0.25x0.25 at the equator.
     area = 0.25*0.25
 
     # ADM the number of sky fibers to be generated. Must be a square number
@@ -222,37 +227,40 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     # log.info('Generating {} sky positions in brick {}...t = {:.1f}s'
     #         .format(nskies,brickname,time()-start))
 
-    # ADM generate sky fiber information for this brick name
+    # ADM generate sky fiber information for this brick name.
     skytable = sky_fibers_for_brick(survey, brickname, nskies=nskies, bands=bands,
                                     apertures_arcsec=apertures_arcsec)
+    # ADM if the blob file doesn't exist, skip it.
+    if skytable is None:
+        return None
 
     # ADM it's possible that a gridding could generate an unexpected
-    # ADM number of sky fibers, so reset nskies based on the output
+    # ADM number of sky fibers, so reset nskies based on the output.
     nskies = len(skytable)
 
     # ADM ensure the number of sky positions that were generated doesn't exceed
-    # ADM the largest possible OBJID (which is unlikely)
+    # ADM the largest possible OBJID (which is unlikely).
     if nskies > 2**targetid_mask.OBJID.nbits:
         log.fatal('{} sky locations requested in brick {}, but OBJID cannot exceed {}'
                   .format(nskies, brickname, 2**targetid_mask.OBJID.nbits))
         raise ValueError
 
-    # ADM retrieve the standard sky targets data model
+    # ADM retrieve the standard sky targets data model.
     dt = skydatamodel.dtype
-    # ADM and update it according to how many apertures were requested
+    # ADM and update it according to how many apertures were requested.
     naps = len(apertures_arcsec)
     apcolindices = np.where(['APFLUX' in colname for colname in dt.names])[0]
     desc = dt.descr
     for i in apcolindices:
         desc[i] += (naps,)
 
-    # ADM set up a rec array to hold all of the output information
+    # ADM set up a rec array to hold all of the output information.
     skies = np.zeros(nskies, dtype=desc)
 
-    # ADM populate the output recarray with the RA/Dec of the sky locations
+    # ADM populate the output recarray with the RA/Dec of the sky locations.
     skies["RA"], skies["DEC"] = skytable.ra, skytable.dec
 
-    # ADM create an array of target bits with the SKY information set
+    # ADM create an array of target bits with the SKY information set.
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SKY
 
@@ -368,6 +376,10 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     """
 
     fn = survey.find_file('blobmap', brick=brickname)
+    # ADM if the file doesn't exist, warn and return immediately.
+    if not os.path.exists(fn):
+        log.warning('blobmap {} does not exist!!!'.format{fn})
+        return None
     blobs = fitsio.read(fn)
     # log.info('Blob maximum value and minimum value in brick {}: {} {}'
     #         .format(brickname,blobs.min(),blobs.max()))
@@ -822,6 +834,8 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         for brickname in bricknames:
             skies.append(_update_status(_get_skies(brickname)))
 
+    # ADM some missing blobs may have contaminated the array.
+    skies = [i for i in skies if i is not None]
     # ADM Concatenate the parallelized results into one rec array of sky information
     skies = np.concatenate(skies)
 
