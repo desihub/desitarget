@@ -88,6 +88,7 @@ def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
 
     return gshift, rshift, zshift
 
+
 def shift_photo_north(gflux=None, rflux=None, zflux=None):
     """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system.
 
@@ -1028,7 +1029,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (12/07/18) is version 159 on `the wiki`_.
+    - Current version (06/05/19) is version 176 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
 
@@ -1091,7 +1092,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)   # (grz-W)>(g-z)-1.0
 
     # Harder cut on stellar contamination
-    mainseq = rflux > gflux * 10**(0.20/2.5) # g-r>0.2
+    mainseq = rflux > gflux * 10**(0.20/2.5)  # g-r>0.2
 
     # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
@@ -1122,7 +1123,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (10/16/18) is version 143 on `the wiki`_.
+    - Current version (04/05/19) is version 173 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
@@ -1211,11 +1212,11 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             pcut = np.where(tmp_r_Reduced > 20.8,
-                                0.83 - (tmp_r_Reduced - 20.8) * 0.025, 0.83)
+                            0.83 - (tmp_r_Reduced - 20.8) * 0.025, 0.83)
             pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
             pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
             pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
-                                0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
+                                  0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
