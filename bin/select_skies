@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function, division
+import os, sys
 
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 from desitarget.skyfibers import select_skies, density_of_sky_fibers, get_brick_info
@@ -60,6 +60,14 @@ ap.add_argument("--numproc", type=int,
                 default=nproc)
 
 ns = ap.parse_args()
+
+if not os.path.exists(ns.surveydir):
+    log.critical('Input directory ({}) does not exist'.format(ns.surveydir))
+    sys.exit(1)
+
+if not os.path.exists(ns.surveydir2) and ns.surveydir2 is not None:
+    log.critical('Input directory ({}) does not exist'.format(ns.surveydir2))
+    sys.exit(1)
 
 # ADM convert passed csv strings to lists.
 bands = [ band for band in ns.bands.split(',') ]
