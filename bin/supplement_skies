@@ -1,0 +1,68 @@
+#!/usr/bin/env python
+
+from desitarget.skyfibers import supplement_skies, density_of_sky_fibers
+from desitarget import io
+
+import numpy as np
+import healpy as hp
+
+#import warnings
+#warnings.simplefilter('error')
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+# ADM default HEALPix Nside used throughout desitarget.
+# ADM don't confuse this with the ns.nside parallelization input that is parsed below!!!
+nside = io.desitarget_nside()
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Generate supplemental sky locations using Gaia-G-band avoidance (for regions beyond the Legacy Surveys)')
+ap.add_argument("dest",
+                help="Output supplemental sky targets file (e.g. /project/projectdirs/desi/target/catalogs/supp-skies-dr4-0.20.0.fits)")
+ap.add_argument("--nskiespersqdeg",
+                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
+                default=None)
+ap.add_argument("--numproc", type=int,
+                help="number of concurrent processes to use (defaults to [{}])".format(nproc),
+                default=nproc)
+ap.add_argument("--gaiadir", type=str,
+                help="Pass to set the GAIA_DIR environment variable directly in the code (i.e. the input directory that stores Gaia files)",
+                default=None)
+ap.add_argument("--mindec", type=float,
+                help="Minimum declination to include in output file (degrees; defaults to [-30])",
+                default=-30.)
+ap.add_argument("--mingalb", type=float,
+                help="Closest latitude to Galactic plane to include in output file (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
+                default=10.)
+ap.add_argument("--radius", type=float,
+                help="Radius at which to avoid (all) Gaia sources (arcseconds; defaults to [2])",
+                default=2.)
+
+ns = ap.parse_args()
+
+# ADM if the GAIA directory was passed, set it...
+gaiadir = ns.gaiadir
+if gaiadir is None:
+    # ADM ...otherwise retrieve it from the environment variable.
+    from desitarget.gaiamatch import _get_gaia_dir
+    gaiadir = _get_gaia_dir()
+
+# ADM if needed, determine the minimum density of sky fibers to generate.
+nskiespersqdeg = ns.nskiespersqdeg
+if nskiespersqdeg is None:
+    nskiespersqdeg = density_of_sky_fibers(margin=4)
+log.info('Generating sky positions at a density of {}'.format(nskiespersqdeg))
+
+# ADM generate the supplemental sky locations.
+skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
+                         gaiadir=gaiadir, radius=ns.radius,
+                         mindec=ns.mindec, mingalb=ns.mingalb)
+
+# ADM write to file.
+io.write_skies(ns.dest, skies, supp=True, indir=gaiadir,
+               nside=nside, nskiespersqdeg=nskiespersqdeg)
+
+log.info('{} supplemental skies written to {}'.format(len(skies), ns.dest))
