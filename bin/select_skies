@@ -32,7 +32,7 @@ ap.add_argument("dest",
 ap.add_argument('-s2', "--surveydir2",
                 help='Additional Legacy Surveys directory (useful for combining, e.g., DR8 into one file of sky locations)',
                 default=None)
-ap.add_argument("--nskiespersqdeg", 
+ap.add_argument("--nskiespersqdeg", type=float,
                 help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
                 default=None)
 ap.add_argument("--bands", 
