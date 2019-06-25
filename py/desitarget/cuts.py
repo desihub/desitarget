@@ -138,15 +138,15 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     if south:
         # ADM intercept -ve, e.g. -0.6 on the wiki for
-        # (z-W1) > 0.8*(r-z) - 0.6
-        nsc_rzmult, nsc_inter = 0.8, 0.6  # non-stellar cut
-        b_lim, f_lim = 18.01, 20.41       # bright/faint limits
-        cbox_lo, cbox_hi = 0.75, 2.45     # broad color box
+        # (z-W1) > 0.8*(r-z) - 0.6.
+        nsc_rzmult, nsc_inter = 0.8, 0.6  # non-stellar cut.
+        b_lim, f_lim = 18.01, 20.41       # bright/faint limits.
+        cbox_lo, cbox_hi = 0.75, 2.45     # broad color box.
         # ADM cut limits are -ve, e.g. -17.18, -15.11 on the wiki for
-        # (z-17.18)/2 < r-z < (z-15.11)/2
-        osc_lo, osc_hi = 17.18, 15.11     # optical sliding cut
-        osc_div = 2.                      # denominator in optical sliding cut
-        elbow_rz, elbow_gr = 1.15, 1.65   # cut redshifts < 0.4, keep elbow at 0.4-0.5
+        # (z-17.18)/2 < r-z < (z-15.11)/2.
+        osc_lo, osc_hi = 17.18, 15.11     # optical sliding cut.
+        osc_div = 2.                      # denominator in optical sliding cut.
+        elbow_rz, elbow_gr = 1.15, 1.65   # cut redshifts < 0.4, keep elbow at 0.4-0.5.
     else:
         nsc_rzmult, nsc_inter = 0.8, 0.735
         b_lim, f_lim = 17.965, 20.365
@@ -156,10 +156,10 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         elbow_rz, elbow_gr = 1.25, 1.655
 
     # ADM Basic flux and color box cuts.
-    lrg &= (zflux > 10**(0.4*(22.5-f_lim)))   # z < 20.41  (south)
-    lrg &= (zflux < 10**(0.4*(22.5-b_lim)))   # z > 18.01  (south)
-    lrg &= (zflux < 10**(0.4*cbox_hi)*rflux)  # r-z < 2.45 (south)
-    lrg &= (zflux > 10**(0.4*cbox_lo)*rflux)  # r-z > 0.75 (south)
+    lrg &= (zflux > 10**(0.4*(22.5-f_lim)))   # z < 20.41  (south).
+    lrg &= (zflux < 10**(0.4*(22.5-b_lim)))   # z > 18.01  (south).
+    lrg &= (zflux < 10**(0.4*cbox_hi)*rflux)  # r-z < 2.45 (south).
+    lrg &= (zflux > 10**(0.4*cbox_lo)*rflux)  # r-z > 0.75 (south).
 
     # ADM code can overflow, since float32 arrays have a max of 3e38.
     with np.errstate(over='ignore'):
@@ -370,12 +370,12 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     std = primary.copy()
 
     # Clip to avoid warnings from negative numbers.
-    # ADM we're pretty bright for the STDs, so this should be safe
+    # ADM we're pretty bright for the STDs, so this should be safe.
     gflux = gflux.clip(1e-16)
     rflux = rflux.clip(1e-16)
     zflux = zflux.clip(1e-16)
 
-    # ADM optical colors for halo TO or bluer
+    # ADM optical colors for halo TO or bluer.
     grcolor = 2.5 * np.log10(rflux / gflux)
     rzcolor = 2.5 * np.log10(zflux / rflux)
     # Currently no difference in north vs south color-cuts.
@@ -1402,6 +1402,7 @@ def _prepare_optical_wise(objects, colnames=None):
     # ADM stars (BRIGHT) but for DR8 MASKBITS is 2**1 for BRIGHT.
     # ADM see also how we recast the DR7 data model in io.py.
     brightstarinblob = (objects['MASKBITS'] & 2**1) != 0
+    maskbits = objects['MASKBITS']
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
@@ -1414,11 +1415,13 @@ def _prepare_optical_wise(objects, colnames=None):
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
-            w1flux, w2flux, rfiberflux, objtype, release, gfluxivar, rfluxivar, zfluxivar,
+            w1flux, w2flux, rfiberflux, objtype, release,
+            gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
-            gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob)
+            gsnr, rsnr, zsnr, w1snr, w2snr,
+            dchisq, deltaChi2, brightstarinblob, maskbits)
 
 
 def _prepare_gaia(objects, colnames=None):
@@ -1948,12 +1951,14 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     colnames = _get_colnames(objects)
 
     # ADM process the Legacy Surveys columns for Target Selection.
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                      \
-        w1flux, w2flux, rfiberflux, objtype, release, gfluxivar, rfluxivar, zfluxivar, \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                          \
-        gfracmasked, rfracmasked, zfracmasked,                                         \
-        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                       \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, brightstarinblob =          \
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
+        w1flux, w2flux, rfiberflux, objtype, release,                                 \
+        gfluxivar, rfluxivar, zfluxivar,                                              \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
+        gfracmasked, rfracmasked, zfracmasked,                                        \
+        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
+        gsnr, rsnr, zsnr, w1snr, w2snr,                                               \
+        dchisq, deltaChi2, brightstarinblob, maskbits =                               \
         _prepare_optical_wise(objects, colnames=colnames)
 
     # Process the Gaia inputs for target selection.
