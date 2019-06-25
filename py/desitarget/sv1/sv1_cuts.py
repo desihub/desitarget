@@ -459,7 +459,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM the optical color cuts.
     qso &= rflux < gflux * 10**(1.3/2.5)    # (g-r)<1.3
-    qso &= zflux > rflux * 10**(-0.4/2.5)   # (r-z)>-0.4 
+    qso &= zflux > rflux * 10**(-0.4/2.5)   # (r-z)>-0.4
     qso &= zflux < rflux * 10**(3.0/2.5)    # (r-z)<3.0 (different for SV)
 
     # ADM the WISE-optical color cut.
@@ -718,7 +718,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         if south:
             pcut = 0.30
         else:
-#            pcut = 0.35
+            # pcut = 0.35
             pcut = 0.30
 
         # Add rf proba test result to "qso" mask

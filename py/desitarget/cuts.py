@@ -304,10 +304,10 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, south=True, primary=None):
 
     # ADM work in magnitudes instead of fluxes. NOTE THIS IS ONLY OK AS
     # ADM the snr masking in ALL OF g, r AND z ENSURES positive fluxes.
-    g = 22.5 - 2.5*np.log10(gflux.clip(0))
-    r = 22.5 - 2.5*np.log10(rflux.clip(0))
-    z = 22.5 - 2.5*np.log10(zflux.clip(0))
-    
+    g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
+    r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
+    z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
+
     # ADM cuts shared by the northern and southern selections.
     elg &= g > 20                       # bright cut.
     elg &= r - z > 0.3                  # blue cut.
@@ -318,7 +318,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, south=True, primary=None):
     if south:
         elg &= g < 23.5  # faint cut
         # ADM south has the FDR cut to remove stars and low-z galaxies.
-        elg &= g - r < 1.15*(r - z) - 0.15 
+        elg &= g - r < 1.15*(r - z) - 0.15
     else:
         elg &= g < 23.6  # faint cut
         elg &= g - r < 1.15*(r - z) - 0.35  # remove stars and low-z galaxies.
