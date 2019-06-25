@@ -422,36 +422,35 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     del U
 
     # ADM the minimum safe grid size is the number of pixels along an
-    # ADM axis divided by the number of sky locations along any axis
+    # ADM axis divided by the number of sky locations along any axis.
     gridsize = np.min(blobs.shape/np.sqrt(nskies)).astype('int16')
     # log.info('Gridding at {} pixels in brick {}...t = {:.1f}s'
     #         .format(gridsize,brickname,time()-start))
     x, y, blobdist = sky_fiber_locations(goodpix, gridsize=gridsize)
-
     skyfibers = fits_table()
     skyfibers.brickid = np.zeros(len(x), np.int32) + brick.brickid
     skyfibers.brickname = np.array([brickname] * len(x))
     skyfibers.x = x.astype(np.int16)
     skyfibers.y = y.astype(np.int16)
     skyfibers.blobdist = blobdist
-    # ADM start at pixel 0,0 in the top-left (the numpy standard)
+    # ADM start at pixel 0,0 in the top-left (the numpy standard).
     skyfibers.ra, skyfibers.dec = wcs.all_pix2world(x, y, 0)
 
     # ADM find the pixel scale using the square root of the determinant
-    # ADM of the CD matrix (and convert from degrees to arcseconds)
+    # ADM of the CD matrix (and convert from degrees to arcseconds).
     pixscale = np.sqrt(np.abs(np.linalg.det(wcs.wcs.cd)))*3600.
     apertures = np.array(apertures_arcsec) / pixscale
     naps = len(apertures)
 
-    # Now, do aperture photometry at these points in the coadd images
+    # Now, do aperture photometry at these points in the coadd images.
     for band in bands:
         imfn = survey.find_file('image',  brick=brickname, band=band)
         ivfn = survey.find_file('invvar', brick=brickname, band=band)
 
         # ADM set the apertures for every band regardless of whether
-        # ADM the file exists, so that we get zeros for missing bands
+        # ADM the file exists, so that we get zeros for missing bands.
         apflux = np.zeros((len(skyfibers), naps), np.float32)
-        # ADM set any zero flux to have an infinite error (zero ivar)
+        # ADM set any zero flux to have an infinite error (zero ivar).
         apiv = np.zeros((len(skyfibers), naps), np.float32)
         skyfibers.set('apflux_%s' % band, apflux)
         skyfibers.set('apflux_ivar_%s' % band, apiv)
@@ -473,7 +472,10 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
             err = p.field('aperture_sum_err')
             # ADM where the error is 0, that actually means infinite error
             # ADM so, in reality, set the ivar to 0 for those cases and
-            # ADM retain the true ivars where the error is non-zero
+            # ADM retain the true ivars where the error is non-zero.
+            # ADM also catch the occasional NaN (which are very rare).
+            ii = np.isnan(err)
+            err[ii] = 0.0
             wzero = np.where(err == 0)
             wnonzero = np.where(err > 0)
             apiv[:, irad][wnonzero] = 1./err[wnonzero]**2
@@ -954,8 +956,8 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
             log.warning('NO bricks found (nside={}, HEALPixels={}, DRdir={})!'
                         .format(nside, pixlist, survey.survey_dir))
             return
-        log.info("Processing bricks (nside={}, HEALPixels={})"
-                 .format(nside, pixlist))
+        log.info("Processing bricks (nside={}, HEALPixels={}, DRdir={})"
+                 .format(nside, pixlist, survey.survey_dir))
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks, survey.survey_dir, time()-start))
@@ -1005,6 +1007,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     # ADM Concatenate the parallelized results into one rec array.
     skies = np.concatenate(skies)
 
-    log.info('Done...t={:.1f}s'.format(time()-start))
+    log.info('Done with (nside={}, HEALPixels={}, DRdir={})...t={:.1f}s'
+             .format(nside, pixlist, survey.survey_dir, time()-start))
 
     return skies
