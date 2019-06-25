@@ -9,6 +9,7 @@ flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
 
 .. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
 .. _`the SV wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SurveyValidation
+.. _`Legacy Surveys mask`: http://www.legacysurvey.org/dr8/bitmasks/
 """
 
 import sys
@@ -58,7 +59,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     Notes
     -----
     - Current version (03/19/19) is version 56 on `the SV wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets, pass-based.
     if primary is None:
@@ -260,7 +261,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     Notes
     -----
     - Current version (11/05/18) is version 24 on `the SV wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -396,7 +397,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     Notes
     -----
     - Current version (06/05/19) is version 68 on `the SV wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
@@ -536,7 +537,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     Notes
     -----
     - Current version (06/05/19) is version 68 on `the SV wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
     if primary is None:
@@ -646,7 +647,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     Notes
     -----
     - Current version (04/05/19) is version 64 on `the SV wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
     if primary is None:
@@ -758,7 +759,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
     Notes
     -----
     - Current version (02/06/19) is version 36 on `the SV wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype_sv(targtype)
 
@@ -876,7 +877,7 @@ def isELG(gflux=None, rflux=None, zflux=None,
     Notes
     -----
     - Current version (03/19/19) is version 56 on `the SV wiki`_.
-    - See :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -1233,83 +1234,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
                     tcnames, qso_optical_cuts, qso_selection, brightstarinblob,
-                    Grr, primary, resolvetargs=True):
-    """Perform target selection on parameters, returning target mask arrays.
-
-    Parameters
-    ----------
-    photsys_north, photsys_south : :class:`~numpy.ndarray`
-        ``True`` for objects that were drawn from northern (MzLS/BASS) or
-        southern (DECaLS) imaging, respectively.
-    obs_rflux : :class:`~numpy.ndarray`
-        `rflux` but WITHOUT any Galactic extinction correction.
-    gflux, rflux, zflux, w1flux, w2flux : :class:`~numpy.ndarray`
-        The flux in nano-maggies of g, r, z, W1 and W2 bands.
-        Corrected for Galactic extinction.
-    rfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in r-band.
-        Corrected for Galactic extinction.
-    objtype, release : :class:`~numpy.ndarray`
-        `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
-    gfluxivar, rfluxivar, zfluxivar: :class:`~numpy.ndarray`
-        The flux inverse variances in g, r, and z bands.
-    gnobs, rnobs, znobs: :class:`~numpy.ndarray`
-        The number of observations (in the central pixel) in g, r and z.
-    gfracflux, rfracflux, zfracflux: :class:`~numpy.ndarray`
-        Profile-weighted fraction of the flux from other sources divided
-        by the total flux in g, r and z bands.
-    gfracmasked, rfracmasked, zfracmasked: :class:`~numpy.ndarray`
-        Fraction of masked pixels in the g, r and z bands.
-    gallmask, rallmask, zallmask: :class:`~numpy.ndarray`
-        Bitwise mask set if the central pixel from all images
-        satisfy each condition in g, r, z.
-    gsnr, rsnr, zsnr, w1snr, w2snr: :class:`~numpy.ndarray`
-        Signal-to-noise in g, r, z, W1 and W2 defined as the flux per
-        band divided by sigma (flux x sqrt of the inverse variance).
-    deltaChi2: :class:`~numpy.ndarray`
-        chi2 difference between PSF and SIMP, dchisq_PSF - dchisq_SIMP.
-    dchisq: :class:`~numpy.ndarray`
-        Difference in chi2  between successively more-complex model fits.
-        Columns are model fits, in order, of PSF, REX, EXP, DEV, COMP.
-    gaia: :class:`~numpy.ndarray`
-        ``True`` if there is a match between this object in
-        `the Legacy Surveys`_ and in Gaia.
-    pmra, pmdec, parallax, parallaxovererror: :class:`~numpy.ndarray`
-        Gaia-based proper motion in RA and Dec, and parallax and error.
-    gaiagmag, gaiabmag, gaiarmag: :class:`~numpy.ndarray`
-            Gaia-based g-, b- and r-band MAGNITUDES.
-    gaiaaen, gaiadupsource, gaiaparamssolved: :class:`~numpy.ndarray`
-        Gaia-based measures of Astrometric Excess Noise, whether the source
-        is a duplicate, and how many parameters were solved for.
-    gaiabprpfactor, gaiasigma5dmax: :class:`~numpy.ndarray`
-        Gaia_based BP/RP excess factor and longest semi-major axis
-        of 5-d error ellipsoid.
-    galb: :class:`~numpy.ndarray`
-        Galactic latitude (degrees).
-    tcnames : :class:`list`, defaults to running all target classes
-        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
-        for those specific target classes. A useful speed-up when testing.
-        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
-    qso_optical_cuts : :class:`boolean` defaults to ``False``
-        Apply just optical color-cuts when selecting QSOs with
-        ``qso_selection="colorcuts"``. This has no effect in SV!!!
-    qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
-        If set to ``'colorcuts'``, then only the color-cut-based QSO
-        selections are run (to facilitate mock selection for SV). Passing
-        any other value runs both color cuts AND Random Forest selections.
-    brightstarinblob: boolean array_like or None
-        ``True`` if the object shares a blob with a "bright" (Tycho-2) star.
-    Grr: array_like or None
-        Gaia G band magnitude minus observational r magnitude.
-    primary : :class:`~numpy.ndarray`
-        ``True`` for objects that should be considered when setting bits.
-    survey : :class:`str`, defaults to ``'main'``
-        Specifies which target masks yaml file and target selection cuts
-        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
-        for the main survey and different iterations of SV, respectively.
-    resolvetargs : :class:`boolean`, optional, defaults to ``True``
-        If ``True``, if only northern (southern) sources are passed then
-        only apply the northern (southern) cuts to those sources.
+                    maskbits, Grr, primary, resolvetargs=True):
+    """Perform target selection on parameters, return target mask arrays.
 
     Returns
     -------
@@ -1319,7 +1245,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     Notes
     -----
-    - Gaia quantities have units that are the same as `the Gaia data model`_.
+    - Units for Gaia quantities are the same as `the Gaia data model`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for parameters.
     """
 
     from desitarget.sv1.sv1_targetmask import desi_mask, bgs_mask, mws_mask
