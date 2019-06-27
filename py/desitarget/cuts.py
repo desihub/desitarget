@@ -296,7 +296,7 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
 
 def isELG_colors(gflux=None, rflux=None, zflux=None, south=True, primary=None):
     """Color cuts for ELG target selection classes
-    (see, e.g., :func:`~desitarget.cuts.isELG` for parameters).
+    (see, e.g., :func:`desitarget.cuts.set_target_bits` for parameters).
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -316,11 +316,11 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, south=True, primary=None):
 
     # ADM cuts that are unique to the north or south.
     if south:
-        elg &= g < 23.5  # faint cut
+        elg &= g < 23.5  # faint cut.
         # ADM south has the FDR cut to remove stars and low-z galaxies.
         elg &= g - r < 1.15*(r - z) - 0.15
     else:
-        elg &= g < 23.6  # faint cut
+        elg &= g < 23.6  # faint cut.
         elg &= g - r < 1.15*(r - z) - 0.35  # remove stars and low-z galaxies.
 
     return elg
