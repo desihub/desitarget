@@ -5,6 +5,8 @@ desitarget Change Log
 0.30.2 (unreleased)
 -------------------
 
+* Preliminary ELG cuts for DR8 imaging for main and SV [`PR #513`_].
+    * Don't deprecate wider SV bits, yet, ELGs may still need them.
 * Add "supplemental" (outside-of-footprint) skies [`PR #510`_]:
     * Randomly populates sky area beyond some minimum Dec and Galactic b.
     * Then avoids all Gaia sources at some specified radius.
@@ -30,6 +32,7 @@ desitarget Change Log
 
 .. _`PR #507`: https://github.com/desihub/desitarget/pull/507
 .. _`PR #510`: https://github.com/desihub/desitarget/pull/510
+.. _`PR #513`: https://github.com/desihub/desitarget/pull/513
 
 0.30.1 (2019-06-18)
 -------------------
