@@ -1660,7 +1660,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             )
     elg_north, elg_south = elg_classes
 
-    # ADM combine ELG target bits for an ELG target based on any imaging
+    # ADM combine ELG target bits for an ELG target based on any imaging.
     elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the QSO selection
