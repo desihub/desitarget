@@ -202,6 +202,14 @@ class LegacySurveyData(object):
             basedir = self.output_dir
         else:
             basedir = self.survey_dir
+            # ADM if you can't find the file, it's one
+            # ADM directory up. Assuming this is dr8+.
+            basedir = basedir.rstrip('/')
+            check = os.path.basename(os.path.dirname(basedir))
+            if check[:2] == 'dr' and int(check[-1]) >= 8:
+                truebasedir = os.path.dirname(basedir)
+            else:
+                truebasedir = basedir
 
         if brick is not None:
             codir = os.path.join(basedir, 'coadd', brickpre, brick)
@@ -220,20 +228,18 @@ class LegacySurveyData(object):
 
         if filetype == 'bricks':
             fn = 'survey-bricks.fits.gz'
-            if self.version in ['dr1','dr2']:
-                fn = 'decals-bricks.fits'
-            return swap(os.path.join(basedir, fn))
+            return swap(os.path.join(truebasedir, fn))
 
         elif filetype == 'ccds':
             if self.version in ['dr1','dr2']:
                 return swaplist([os.path.join(basedir, 'decals-ccds.fits.gz')])
             else:
                 return swaplist(
-                    glob(os.path.join(basedir, 'survey-ccds-*.fits.gz')))
+                    glob(os.path.join(truebasedir, 'survey-ccds-*.fits.gz')))
 
         elif filetype == 'ccd-kds':
             return swaplist(
-                glob(os.path.join(basedir, 'survey-ccds-*.kd.fits')))
+                glob(os.path.join(truebasedir, 'survey-ccds-*.kd.fits')))
 
         elif filetype == 'tycho2':
             return swap(os.path.join(basedir, 'tycho2.fits.gz'))
@@ -243,7 +249,7 @@ class LegacySurveyData(object):
                 return swaplist(
                     glob(os.path.join(basedir, 'decals-ccds-annotated.fits')))
             return swaplist(
-                glob(os.path.join(basedir, 'ccds-annotated-*.fits.gz')))
+                glob(os.path.join(truebasedir, 'ccds-annotated-*.fits.gz')))
 
         elif filetype == 'tractor':
             return swap(os.path.join(basedir, 'tractor', brickpre,

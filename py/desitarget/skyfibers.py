@@ -54,18 +54,23 @@ skydatamodel = np.array([], dtype=[
     ('OBSCONDITIONS', '>i4')])
 
 
-def get_brick_info(drdirs, counts=False):
+def get_brick_info(drdirs, counts=False, allbricks=False):
     """Retrieve brick names and coordinates from Legacy Surveys directories.
 
     Parameters
     ----------
-    drdirs : :class:`list`
+    drdirs : :class:`list` or `str`
         A list of strings, each of which corresponds to a directory pointing
         to a Data Release from the Legacy Surveys. Can be of length one.
         e.g. ['/global/project/projectdirs/cosmo/data/legacysurvey/dr7'].
+        or '/global/project/projectdirs/cosmo/data/legacysurvey/dr7'
+        Can be None if `allbricks` is passed.
     counts : :class:`bool`, optional, defaults to ``False``
         If ``True`` also return a count of the number of times each brick
         appears ([RAcen, DECcen, RAmin, RAmax, DECmin, DECmax, CNT]).
+    allbricks : :class:`bool`, optional, defaults to ``False``
+        If ``True`` ignore `drdirs` and simply return a dictionary of ALL
+        of the bricks.
 
     Returns
     -------
@@ -79,6 +84,24 @@ def get_brick_info(drdirs, counts=False):
         - Tries a few different ways in case the survey bricks files have
           not yet been created.
     """
+    # ADM convert a single input string to a list.
+    if isinstance(drdirs, str):
+        drdirs = [drdirs, ]
+
+    # ADM initialize the bricks class, retrieve the brick information look-up
+    # ADM table and turn it into a fast look-up dictionary.
+    from desiutil import brick
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
+    brickdict = {}
+    for b in bricktable:
+        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
+                                     b["RA1"], b["RA2"],
+                                     b["DEC1"], b["DEC2"]]
+
+    # ADM if requested, return the dictionary of ALL bricks.
+    if allbricks:
+        return brickdict
+
     bricknames = []
     for dd in drdirs:
         # ADM in the simplest case, read in the survey bricks file, which lists
@@ -95,16 +118,6 @@ def get_brick_info(drdirs, counts=False):
 
     # ADM don't count bricks twice, but record number of duplicate bricks.
     bricknames, cnts = np.unique(np.concatenate(bricknames), return_counts=True)
-
-    # ADM initialize the bricks class, retrieve the brick information look-up
-    # ADM table and turn it into a fast look-up dictionary.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
-    brickdict = {}
-    for b in bricktable:
-        brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
-                                     b["RA1"], b["RA2"],
-                                     b["DEC1"], b["DEC2"]]
 
     # ADM only return the subset of the dictionary with bricks in the DR.
     if counts:
@@ -195,10 +208,10 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     than the number of bits reserved for OBJID in `desitarget.targetmask`.
     """
     # ADM this is only intended to work on one brick, so die if a larger array is passed
-    # ADM needs a hack on string type as Python 2 only considered bytes to be type str
+    # ADM needs a hack on string type as Python 2 only considered bytes to be type str.
     stringy = str
     if sys.version_info[0] == 2:
-        # ADM is this is Python 2, redefine the string type
+        # ADM is this is Python 2, redefine the string type.
         stringy = basestring
     if not isinstance(brickname, stringy):
         log.fatal("Only one brick can be passed at a time!")
@@ -222,6 +235,9 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     # ADM generate sky fiber information for this brick name.
     skytable = sky_fibers_for_brick(survey, brickname, nskies=nskies, bands=bands,
                                     apertures_arcsec=apertures_arcsec)
+    # ADM if the blob file doesn't exist, skip it.
+    if skytable is None:
+        return None
 
     # ADM it's possible that a gridding could generate an unexpected
     # ADM number of sky fibers, so reset nskies based on the output.
@@ -365,6 +381,10 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     """
 
     fn = survey.find_file('blobmap', brick=brickname)
+    # ADM if the file doesn't exist, warn and return immediately.
+    if not os.path.exists(fn):
+        log.warning('blobmap {} does not exist!!!'.format(fn))
+        return None
     blobs = fitsio.read(fn)
     # log.info('Blob maximum value and minimum value in brick {}: {} {}'
     #         .format(brickname,blobs.min(),blobs.max()))
@@ -402,36 +422,35 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     del U
 
     # ADM the minimum safe grid size is the number of pixels along an
-    # ADM axis divided by the number of sky locations along any axis
+    # ADM axis divided by the number of sky locations along any axis.
     gridsize = np.min(blobs.shape/np.sqrt(nskies)).astype('int16')
     # log.info('Gridding at {} pixels in brick {}...t = {:.1f}s'
     #         .format(gridsize,brickname,time()-start))
     x, y, blobdist = sky_fiber_locations(goodpix, gridsize=gridsize)
-
     skyfibers = fits_table()
     skyfibers.brickid = np.zeros(len(x), np.int32) + brick.brickid
     skyfibers.brickname = np.array([brickname] * len(x))
     skyfibers.x = x.astype(np.int16)
     skyfibers.y = y.astype(np.int16)
     skyfibers.blobdist = blobdist
-    # ADM start at pixel 0,0 in the top-left (the numpy standard)
+    # ADM start at pixel 0,0 in the top-left (the numpy standard).
     skyfibers.ra, skyfibers.dec = wcs.all_pix2world(x, y, 0)
 
     # ADM find the pixel scale using the square root of the determinant
-    # ADM of the CD matrix (and convert from degrees to arcseconds)
+    # ADM of the CD matrix (and convert from degrees to arcseconds).
     pixscale = np.sqrt(np.abs(np.linalg.det(wcs.wcs.cd)))*3600.
     apertures = np.array(apertures_arcsec) / pixscale
     naps = len(apertures)
 
-    # Now, do aperture photometry at these points in the coadd images
+    # Now, do aperture photometry at these points in the coadd images.
     for band in bands:
         imfn = survey.find_file('image',  brick=brickname, band=band)
         ivfn = survey.find_file('invvar', brick=brickname, band=band)
 
         # ADM set the apertures for every band regardless of whether
-        # ADM the file exists, so that we get zeros for missing bands
+        # ADM the file exists, so that we get zeros for missing bands.
         apflux = np.zeros((len(skyfibers), naps), np.float32)
-        # ADM set any zero flux to have an infinite error (zero ivar)
+        # ADM set any zero flux to have an infinite error (zero ivar).
         apiv = np.zeros((len(skyfibers), naps), np.float32)
         skyfibers.set('apflux_%s' % band, apflux)
         skyfibers.set('apflux_ivar_%s' % band, apiv)
@@ -453,7 +472,10 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
             err = p.field('aperture_sum_err')
             # ADM where the error is 0, that actually means infinite error
             # ADM so, in reality, set the ivar to 0 for those cases and
-            # ADM retain the true ivars where the error is non-zero
+            # ADM retain the true ivars where the error is non-zero.
+            # ADM also catch the occasional NaN (which are very rare).
+            ii = np.isnan(err)
+            err[ii] = 0.0
             wzero = np.where(err == 0)
             wnonzero = np.where(err > 0)
             apiv[:, irad][wnonzero] = 1./err[wnonzero]**2
@@ -931,11 +953,11 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         bricknames = bricknames[ii]
         # ADM if there are no bricks to process, then die immediately.
         if len(bricknames) == 0:
-            log.warning('ZERO bricks in passed pixel list!!!')
+            log.warning('NO bricks found (nside={}, HEALPixels={}, DRdir={})!'
+                        .format(nside, pixlist, survey.survey_dir))
             return
-        log.info("Processing bricks in (nside={}, pixel numbers={}) HEALPixels"
-                 .format(nside, pixlist))
-
+        log.info("Processing bricks (nside={}, HEALPixels={}, DRdir={})"
+                 .format(nside, pixlist, survey.survey_dir))
     nbricks = len(bricknames)
     log.info('Processing {} bricks that have observations from DR at {}...t = {:.1f}s'
              .format(nbricks, survey.survey_dir, time()-start))
@@ -962,8 +984,10 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
         if nbrick % 500 == 0 and nbrick > 0:
-            rate = nbrick / (time() - t0)
-            log.info('{}/{} bricks; {:.1f} bricks/sec'.format(nbrick, nbricks, rate))
+            elapsed = time() - t0
+            rate = nbrick / elapsed
+            log.info('{}/{} bricks; {:.1f} bricks/sec; {:.1f} total mins elapsed'
+                     .format(nbrick, nbricks, rate, elapsed/60.))
 
         nbrick[...] += 1    # this is an in-place modification.
         return result
@@ -978,9 +1002,12 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         for brickname in bricknames:
             skies.append(_update_status(_get_skies(brickname)))
 
+    # ADM some missing blobs may have contaminated the array.
+    skies = [sk for sk in skies if sk is not None]
     # ADM Concatenate the parallelized results into one rec array.
     skies = np.concatenate(skies)
 
-    log.info('Done...t={:.1f}s'.format(time()-start))
+    log.info('Done with (nside={}, HEALPixels={}, DRdir={})...t={:.1f}s'
+             .format(nside, pixlist, survey.survey_dir, time()-start))
 
     return skies
