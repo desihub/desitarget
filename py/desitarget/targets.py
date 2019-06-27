@@ -349,16 +349,16 @@ def main_cmx_or_sv(targets, rename=False, scnd=False):
         log.critical(msg)
         raise ValueError(msg)
 
+    if not scnd:
+        outcolnames = outcolnames[:3]
+        masks = masks[:3]
+
     # ADM if requested, rename the columns.
     if rename:
         mapper = {}
         for i, col in enumerate(outcolnames):
             mapper[col] = maincolnames[i]
         return outcolnames, masks, survey, rfn.rename_fields(targets, mapper)
-
-    if not scnd:
-        outcolnames = outcolnames[:3]
-        masks = masks[:3]
 
     return outcolnames, masks, survey
 

@@ -5,6 +5,15 @@ desitarget Change Log
 0.30.2 (unreleased)
 -------------------
 
+* Further updates to generating randoms for DR8. [`PR #512`_]. Includes:
+    * Add WISE depth maps to random catalogs and pixweight files.
+    * Code to generate additional supplemental randoms catalogs.
+        * Supplemental, here, means (all-sky) outside of the footprint.
+    * Executable to split a random catalog into N smaller catalogs.
+    * Fixes a bug in :func:`targets.main_cmx_or_sv()`.
+        * Secondary columns now aren't the default if rename is ``True``.
+    * Better aligns data model with expected DR8 directory structure.
+        * Also fixes directory-not-found bugs when generating skies.
 * Add "supplemental" (outside-of-footprint) skies [`PR #510`_]:
     * Randomly populates sky area beyond some minimum Dec and Galactic b.
     * Then avoids all Gaia sources at some specified radius.
@@ -30,6 +39,7 @@ desitarget Change Log
 
 .. _`PR #507`: https://github.com/desihub/desitarget/pull/507
 .. _`PR #510`: https://github.com/desihub/desitarget/pull/510
+.. _`PR #512`: https://github.com/desihub/desitarget/pull/512
 
 0.30.1 (2019-06-18)
 -------------------
