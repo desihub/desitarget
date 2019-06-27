@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function, division
+import os, sys
 
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 from desitarget.skyfibers import select_skies, density_of_sky_fibers, get_brick_info
@@ -32,7 +32,7 @@ ap.add_argument("dest",
 ap.add_argument('-s2', "--surveydir2",
                 help='Additional Legacy Surveys directory (useful for combining, e.g., DR8 into one file of sky locations)',
                 default=None)
-ap.add_argument("--nskiespersqdeg", 
+ap.add_argument("--nskiespersqdeg", type=float,
                 help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
                 default=None)
 ap.add_argument("--bands", 
@@ -60,6 +60,14 @@ ap.add_argument("--numproc", type=int,
                 default=nproc)
 
 ns = ap.parse_args()
+
+if not os.path.exists(ns.surveydir):
+    log.critical('Input directory ({}) does not exist'.format(ns.surveydir))
+    sys.exit(1)
+
+if not os.path.exists(ns.surveydir2) and ns.surveydir2 is not None:
+    log.critical('Input directory ({}) does not exist'.format(ns.surveydir2))
+    sys.exit(1)
 
 # ADM convert passed csv strings to lists.
 bands = [ band for band in ns.bands.split(',') ]
@@ -104,6 +112,7 @@ else:
             bands=bands, apertures_arcsec=apertures,
             nside=ns.nside, pixlist=pixlist, writebricks=ns.writebricks)
         )
+
     # ADM redact empty output (where there were no bricks in a survey).
     skies = np.array(skies) 
     ii = [sk is not None for sk in skies]
