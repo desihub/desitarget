@@ -108,6 +108,7 @@ class TestCuts(unittest.TestCase):
         rfracin = targets['FRACIN_R']
         zfracin = targets['FRACIN_Z']
         brightstarinblob = (targets['MASKBITS'] & 2**1) != 0
+        maskbits = targets['MASKBITS']
 
         gaiagmag = targets['GAIA_PHOT_G_MEAN_MAG']
         Grr = gaiagmag - 22.5 + 2.5*np.log10(targets['FLUX_R'])
@@ -131,11 +132,11 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(np.all(lrg1 == lrg2))
 
         elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
-                          brightstarinblob=brightstarinblob, primary=primary)
+                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                          maskbits=maskbits, primary=primary)
         elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gallmask=gallmask, rallmask=rallmask, zallmask=zallmask,
-                          brightstarinblob=brightstarinblob, primary=None)
+                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                          maskbits=maskbits, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 
         elg1 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
