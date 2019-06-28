@@ -271,8 +271,8 @@ def isELG(gflux=None, rflux=None, zflux=None, gsnr=None, rsnr=None, zsnr=None,
     elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                          primary=primary)
 
-    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, south=south,
-                        primary=primary)
+    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=None,
+                        w2flux=None, south=south, primary=primary)
 
     return elg
 
@@ -294,7 +294,8 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, south=True, primary=None):
+def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 w2flux=None, south=True, primary=None):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`desitarget.cuts.set_target_bits` for parameters).
     """
