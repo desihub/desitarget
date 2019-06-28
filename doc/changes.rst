@@ -5,6 +5,8 @@ desitarget Change Log
 0.30.2 (unreleased)
 -------------------
 
+* Near-trivial fix for an unintended change to the isELG API introduced in `PR
+  #513`_ [`PR #514`_]. 
 * Preliminary ELG cuts for DR8 imaging for main and SV [`PR #513`_].
     * Don't deprecate wider SV bits, yet, ELGs may still need them.
 * Further updates to generating randoms for DR8. [`PR #512`_]. Includes:
@@ -43,6 +45,7 @@ desitarget Change Log
 .. _`PR #510`: https://github.com/desihub/desitarget/pull/510
 .. _`PR #512`: https://github.com/desihub/desitarget/pull/512
 .. _`PR #513`: https://github.com/desihub/desitarget/pull/513
+.. _`PR #514`: https://github.com/desihub/desitarget/pull/514
 
 0.30.1 (2019-06-18)
 -------------------
