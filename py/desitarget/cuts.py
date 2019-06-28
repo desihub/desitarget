@@ -256,8 +256,9 @@ def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return lrg, lrg1pass, lrg2pass
 
 
-def isELG(gflux=None, rflux=None, zflux=None, gsnr=None, rsnr=None, zsnr=None,
-          maskbits=None, south=True, primary=None):
+def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+          gsnr=None, rsnr=None, zsnr=None, maskbits=None, south=True,
+          primary=None):
     """Definition of ELG target classes. Returns a boolean array.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
@@ -271,8 +272,8 @@ def isELG(gflux=None, rflux=None, zflux=None, gsnr=None, rsnr=None, zsnr=None,
     elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                          primary=primary)
 
-    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=None,
-                        w2flux=None, south=south, primary=primary)
+    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                        w2flux=w2flux, south=south, primary=primary)
 
     return elg
 
