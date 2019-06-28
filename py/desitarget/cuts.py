@@ -1597,7 +1597,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     brightstarinblob: boolean array_like or None
         ``True`` for objects in blobs with a "bright" (Tycho-2) star.
     maskbits: boolean array_like or None
-        General _`Legacy Surveys mask` bits.
+        General `Legacy Surveys mask`_ bits.
     Grr: array_like or None
         Gaia G band magnitude minus observational r magnitude.
     primary : :class:`~numpy.ndarray`
