@@ -5,6 +5,7 @@ desitarget Change Log
 0.30.2 (unreleased)
 -------------------
 
+* MASKBITS of BAILOUT for randoms when no file is found [`PR #515`_].
 * Near-trivial fix for an unintended change to the isELG API introduced in `PR
   #513`_ [`PR #514`_]. 
 * Preliminary ELG cuts for DR8 imaging for main and SV [`PR #513`_].
@@ -46,6 +47,7 @@ desitarget Change Log
 .. _`PR #512`: https://github.com/desihub/desitarget/pull/512
 .. _`PR #513`: https://github.com/desihub/desitarget/pull/513
 .. _`PR #514`: https://github.com/desihub/desitarget/pull/514
+.. _`PR #515`: https://github.com/desihub/desitarget/pull/515
 
 0.30.1 (2019-06-18)
 -------------------
