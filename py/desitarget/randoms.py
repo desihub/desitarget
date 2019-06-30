@@ -380,8 +380,12 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
             # ADM add the maskbits to the dictionary.
             qdict[mout] = img.data[y.astype("int"), x.astype("int")]
         else:
-            # ADM if there is no maskbits file, populate with zeros.
+            # ADM if no files are found, populate with zeros.
             qdict[mout] = np.zeros(npts, dtype=mform)
+            # ADM if there was no maskbits file, populate with BAILOUT.
+            if mout == 'maskbits':
+                qdict[mout] |= 2**10
+
 
     # ADM populate the photometric system in the quantity dictionary.
     if instrum is None:
