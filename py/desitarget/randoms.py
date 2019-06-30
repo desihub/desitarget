@@ -386,7 +386,6 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
             if mout == 'maskbits':
                 qdict[mout] |= 2**10
 
-
     # ADM populate the photometric system in the quantity dictionary.
     if instrum is None:
         # ADM don't count bricks where we never read a file header.
