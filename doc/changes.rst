@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.30.2 (unreleased)
+0.31.1 (unreleased)
+-------------------
+
+* no changes yet
+
+0.31.0 (2019-06-30)
 -------------------
 
 * MASKBITS of BAILOUT for randoms when no file is found [`PR #515`_].
