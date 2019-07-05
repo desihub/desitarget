@@ -224,7 +224,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
               gaiagmag=None, gaiabmag=None, gaiarmag=None,
               pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
               photbprpexcessfactor=None, astrometricsigma5dmax=None,
-              galb=None, gaia=None, primary=None):
+              gaiaaen=None, galb=None, gaia=None, primary=None):
     """Initial SV-like Milky Way Survey selection (for MzLS/BASS imaging).
 
     Parameters
@@ -244,6 +244,8 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
         Gaia_based BP/RP excess factor.
     astrometricsigma5dmax : :class:`array_like` or :class:`None`
         Longest semi-major axis of 5-d error ellipsoid.
+    gaiaaen : :class:`array_like` or :class:`None`
+        Gaia-based measure of Astrometric Excess Noise.
     galb: : :class:`array_like` or :class:`None`
         Galactic latitude (degrees).
     gaia : :class:`boolean array_like` or :class:`None`
@@ -322,7 +324,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
         # ADM Reject white dwarfs that have really poor astrometry while.
         # ADM retaining white dwarfs that only have relatively poor astrometry.
         iswd &= ((astrometricsigma5dmax < 1.5) |
-                 ((astrometricexcessnoise < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
+                 ((gaiaaen < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
     # ADM return any object that passes any of the MWS cuts.
     return ismws | isnear | iswd
@@ -602,6 +604,7 @@ def apply_cuts(objects, cmxdir=None):
         parallaxovererror=parallaxovererror,
         photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax,
+        gaiaaen=gaiaaen,
         galb=galb, gaia=gaia, primary=primary
     )
 
