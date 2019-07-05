@@ -2,10 +2,12 @@
 desitarget Change Log
 =====================
 
-0.31.1 (unreleased)
+0.31.1 (2019-07-05)
 -------------------
 
-* no changes yet
+* Pass Gaia astrometric excess noise in cmx MWS SV0 [`PR #516`_].
+
+.. _`PR #516`: https://github.com/desihub/desitarget/pull/516
 
 0.31.0 (2019-06-30)
 -------------------
