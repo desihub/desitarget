@@ -382,7 +382,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
     Nothing, but two files are written:
         - The file of secondary targets that do not match a primary
           target is written to `filename`. Such secondary targets
-          are determined from having `RELEASE==0` in the `TARGETID`.
+          are determined from having `RELEASE==0` and `SKY==0`
+          in the `TARGETID`.
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
           the "outdata" subdirectory of `scxdir`.
@@ -505,7 +506,11 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names:
-        np.random.seed(616)
+        # ADM ensure different SUBPRIORITIES for supp/standard files.
+        if supp:
+            np.random.seed(626)
+        else:
+            np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(nskies)
 
     fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
