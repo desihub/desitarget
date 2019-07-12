@@ -1164,6 +1164,10 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         - If `header` is ``True``, then a second output (the file
           header is returned).
     """
+    # ADM allow an integer instead of a list to be passed.
+    if isinstance(pixlist, int):
+        pixlist = [pixlist]
+
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
