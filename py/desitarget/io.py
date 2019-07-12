@@ -1096,6 +1096,9 @@ def check_hp_target_dir(hpdirname):
         hdr = fitsio.read_header(fn, "TARGETS")
         nside.append(hdr["FILENSID"])
         pixels = hdr["FILEHPX"]
+        # ADM if this is a one-pixel file, convert to a list.
+        if isinstance(pixels, int):
+            pixels = [pixels]
         # ADM create a look-up dictionary of file-for-each-pixel.
         for pix in pixels:
             pixdict[pix] = fn
@@ -1177,6 +1180,13 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM check, and grab information from, the target directory.
         filenside, filedict = check_hp_target_dir(hpdirname)
 
+        # ADM read in the first file to grab the data model for
+        # ADM cases where we find no targets in the box.
+        fn0 = list(filedict.values())[0]
+        notargs, nohdr = fitsio.read(fn0, 'TARGETS',
+                                     columns=columnscopy, header=True)
+        notargs = np.zeros(0, dtype=notargs.dtype)
+
         # ADM change the passed pixels to the nside of the file schema.
         filepixlist = nside2nside(nside, filenside, pixlist)
 
@@ -1193,6 +1203,12 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
             targs, hdr = fitsio.read(infile, 'TARGETS',
                                      columns=columnscopy, header=True)
             targets.append(targs)
+        # ADM if targets is empty, return no targets.
+        if len(targets) == 0:
+            if header:
+                return notargs, nohdr
+            else:
+                return notargs
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
