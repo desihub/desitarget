@@ -757,18 +757,25 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     mws = primary.copy()
 
     # ADM do not target any objects for which entries are NaN
-    # ADM and turn off the NaNs for those entries
-    nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) |
-            np.isnan(parallax))
+    # ADM and turn off the NaNs for those entries.
+    if photbprpexcessfactor is not None:
+        nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) |
+                np.isnan(parallax) | np.isnan(photbprpexcessfactor))
+    else:
+        nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) |
+                np.isnan(parallax))
     w = np.where(nans)[0]
     if len(w) > 0:
         parallax, gaiagmag = parallax.copy(), gaiagmag.copy()
         gaiabmag, gaiarmag = gaiabmag.copy(), gaiarmag.copy()
-        parallax[w] = 0.
+        photbprpexcessfactor = photbprpexcessfactor.copy()
+        # ADM safe to make these zero regardless of cuts as...
+        parallax[w], photbprpexcessfactor[w] = 0., 0.
         gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
+        # ADM ...we'll turn off all bits here.
         mws &= ~nans
-        log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(w), len(mws), time()-start))
+#        log.info('{}/{} NaNs in file...t = {:.1f}s'
+#                 .format(len(w), len(mws), time()-start))
 
     # ADM apply the selection for all MWS-WD targets
     # ADM must be a Legacy Surveys object that matches a Gaia source
