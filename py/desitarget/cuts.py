@@ -2082,7 +2082,8 @@ def check_input_files(infiles, numproc=4):
         if nbrick % 25 == 0 and nbrick > 0:
             elapsed = time() - t0
             rate = nbrick / elapsed
-            log.info('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'.format(nbrick, rate, elapsed/60.))
+            log.info('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
+                     .format(nbrick, rate, elapsed/60.))
         nbrick[...] += 1    # this is an in-place modification
         return result
 
@@ -2319,8 +2320,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
         if nbrick % 50 == 0 and nbrick > 0:
-            rate = nbrick / (time() - t0)
-            log.info('{} files; {:.1f} files/sec'.format(nbrick, rate))
+            elapsed = time() - t0
+            rate = elapsed / nbrick
+            log.info('{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
+                     .format(nbrick, rate, elapsed/60.))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
