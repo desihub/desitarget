@@ -1149,9 +1149,11 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     if len(w) > 0:
         parallax, gaiagmag = parallax.copy(), gaiagmag.copy()
         gaiabmag, gaiarmag = gaiabmag.copy(), gaiarmag.copy()
-        photbprpexcessfactor = photbprpexcessfactor.copy()
+        if photbprpexcessfactor is not None:
+            photbprpexcessfactor = photbprpexcessfactor.copy()
         # ADM safe to make these zero regardless of cuts as...
-        parallax[w], photbprpexcessfactor[w] = 0., 0.
+            photbprpexcessfactor[w] = 0.
+        parallax[w] = 0.
         gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
         # ADM ...we'll turn off all bits here.
         mws &= ~nans
