@@ -5,7 +5,9 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Add ELG/LRG/QSO/STD selections for commissioning [`PR #519`_].
+
+.. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 
 0.31.1 (2019-07-05)
 -------------------
