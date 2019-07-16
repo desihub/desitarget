@@ -46,7 +46,7 @@ if len(infiles) == 0:
 fn = infiles
 if ~isinstance(infiles, str):
     fn = infiles[0]
-data = fitsio.read(fn, columns=["RELEASE","PMRA"])
+data = fitsio.read(fn, columns=["RELEASE", "PMRA"])
 if np.any(data["RELEASE"] < 6000):
     log.critical('Commissioning cuts only coded for DR6 or above')
     raise ValueError
@@ -63,7 +63,7 @@ log.info("running on {} processors".format(ns.numproc))
 
 targets = select_targets(infiles, numproc=ns.numproc)
 
-io.write_targets(ns.dest, targets, indir=ns.src, survey="cmx", nside=nside)
+io.write_targets(ns.dest, targets, indir=ns.src, survey="cmx", nside=nside, nchunks=20)
 
 log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
 
