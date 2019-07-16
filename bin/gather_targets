@@ -45,7 +45,6 @@ log.info('Working on file {}...t = {:.1f}s'.format(fns[0], time()-start))
 fits.write(data, extname=ns.targtype.upper(), header=hdr, clobber=True)
 
 # ADM add the other files.
-targets = []
 for fn in fns[1:]:
     log.info('Working on file {}...t = {:.1f}s'.format(fn, time()-start))
     data = fitsio.read(fn)
