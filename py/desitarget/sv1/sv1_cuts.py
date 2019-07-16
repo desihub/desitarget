@@ -1184,9 +1184,9 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     mws &= Gabs > 6*br*br*br - 21.77*br*br + 27.91*br + 0.897
     mws &= br < 1.7
 
-    # ADM Finite proper motion to reject quasars
+    # ADM Finite proper motion to reject quasars.
     # ADM Inexplicably I'm getting a Runtimewarning here for
-    # ADM a few values in the sqrt, so I'm catching it
+    # ADM a few values in the sqrt, so I'm catching it.
     with warnings.catch_warnings():
         warnings.simplefilter("ignore")
         pm = np.sqrt(pmra**2. + pmdec**2.)
@@ -1419,7 +1419,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM initially set everything to False for the standards.
     std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
     if "STD" in tcnames:
-        # ADM run the MWS_MAIN target types for both faint and bright.
+        # ADM run the STD target types for both faint and bright.
         # ADM Make sure to pass all of the needed columns! At one point we stopped
         # ADM passing objtype, which meant no standards were being returned.
         std_classes = []
