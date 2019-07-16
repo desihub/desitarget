@@ -457,8 +457,10 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    lrg = primary.copy()
-    lrg1, lrg2, lrg3, lrg4, lrg5 = np.tile(primary, [5, 1])
+    # ADM take care to explicitly copy these individually to guard
+    # ADM against accidentally changing the type of the bitmasks.
+    lrg, lrg1, lrg2 = primary.copy(), primary.copy(), primary.copy()
+    lrg3, lrg4, lrg5 = primary.copy(), primary.copy(), primary.copy()
 
     # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
@@ -566,7 +568,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM we never target sources with dchisq[..., 0] = 0, so force
     # ADM those to have large values of morph2 to avoid divide-by-zero.
     d1, d0 = dchisq[..., 1], dchisq[..., 0]
-    bigmorph = np.zeros_like(d0)+1e9
+    bigmorph = np.array(np.zeros_like(d0) + 1e9)
     dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
     morph2 = dcs < 0.02
     preSelection &= _psflike(objtype) | morph2

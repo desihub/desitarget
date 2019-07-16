@@ -11,12 +11,14 @@ from __future__ import (absolute_import, division)
 #
 import numpy as np
 import fitsio
+from fitsio import FITS
 import os
 import re
 from . import __version__ as desitarget_version
 import numpy.lib.recfunctions as rfn
 import healpy as hp
 from glob import glob, iglob
+from time import time
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -364,8 +366,12 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     if nchunks is None:
         fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
     else:
+        # ADM ensure that files are always overwritten.
+        if os.path.isfile(filename):
+            os.remove(filename)
+        start = time()
         # ADM open a file for writing.
-        outy = fitsio.FITS(filename, 'rw')
+        outy = FITS(filename, 'rw')
         # ADM write the chunks one-by-one.
         chunk = len(data)//nchunks
         for i in range(nchunks):
@@ -382,7 +388,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         datachunk = data[nchunks*chunk:]
         log.info("Writing final partial chunk from index {} to {}...t = {:.1f}s"
                  .format(nchunks*chunk, len(data)-1, time()-start))
-        outy[-1].append
+        outy[-1].append(datachunk)
         outy.close()
 
 
