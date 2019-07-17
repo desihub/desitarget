@@ -789,7 +789,7 @@ def get_supp_skies(ras, decs, radius=2.):
 
 
 def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
-                     mindec=-30., mingalb=10., radius=2.):
+                     mindec=-30., mingalb=10., radius=2., minobjid=0):
     """Generate supplemental sky locations using Gaia-G-band avoidance.
 
     Parameters
@@ -809,6 +809,10 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
     radius : :class:`float`, optional, defaults to 2
         Radius at which to avoid (all) Gaia sources (arcseconds).
+    minobjid : :class:`int`, optional, defaults to 0
+        The minimum OBJID to start counting from in a brick. Used
+        to make sure supplemental skies have different OBJIDs from
+        regular skies.
 
     Returns
     -------
@@ -821,6 +825,8 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         - The environment variable $GAIA_DIR must be set, or `gaiadir`
           must be passed.
     """
+    log.info("running on {} processors".format(numproc))
+
     # ADM if the GAIA directory was passed, set it.
     if gaiadir is not None:
         os.environ["GAIA_DIR"] = gaiadir
@@ -889,6 +895,32 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
 
     # ADM Concatenate the parallelized results into one rec array.
     supp = np.concatenate(supp)
+
+    # ADM build the OBJIDs from the number of sources per brick.
+    # ADM the for loop doesn't seem the smartest way, but it is O(n).
+    log.info("Begin assigning OBJIDs to bricks...t={:.1f}s".format(time()-start))
+    brxid = supp["BRICKID"]
+    # ADM start each brick counting from minobjid.
+    cntr = np.zeros(np.max(brxid)+1, dtype=int)+minobjid
+    objid = []
+    for ibrx in brxid:
+        cntr[ibrx] += 1
+        objid.append(cntr[ibrx])
+    # ADM ensure the number of sky positions that were generated doesn't exceed
+    # ADM the largest possible OBJID (which is unlikely).
+    if np.any(cntr > 2**targetid_mask.OBJID.nbits):
+        log.fatal('{} sky locations requested in brick {}, but OBJID cannot exceed {}'
+                  .format(nskies, brickname, 2**targetid_mask.OBJID.nbits))
+        raise ValueError
+    supp["OBJID"] = np.array(objid)
+    log.info("Assigned OBJIDs to bricks...t={:.1f}s".format(time()-start))
+
+    # ADM add the TARGETID, DESITARGET bits etc.
+    nskies = len(supp)
+    desi_target = np.zeros(nskies, dtype='>i8')
+    desi_target |= desi_mask.SKY
+    dum = np.zeros_like(desi_target)
+    supp = finalize(supp, desi_target, dum, dum, sky=1)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
