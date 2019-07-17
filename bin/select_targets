@@ -122,7 +122,9 @@ else:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     if ns.bundlefiles is None:
-        io.write_targets(ns.dest, targets, resolve=not(ns.noresolve), indir=ns.sweepdir,
-                         indir2=ns.sweepdir2, survey="main", nsidefile=ns.nside, hpxlist=pixlist,
-                         qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
+        # ADM only write out a targeting file if it's non-zero.
+        if len(targets) > 0:
+            io.write_targets(ns.dest, targets, resolve=not(ns.noresolve), indir=ns.sweepdir,
+                             indir2=ns.sweepdir2, survey="main", nsidefile=ns.nside, hpxlist=pixlist,
+                             qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
         log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
