@@ -382,7 +382,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
     Nothing, but two files are written:
         - The file of secondary targets that do not match a primary
           target is written to `filename`. Such secondary targets
-          are determined from having `RELEASE==0` in the `TARGETID`.
+          are determined from having `RELEASE==0` and `SKY==0`
+          in the `TARGETID`.
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
           the "outdata" subdirectory of `scxdir`.
@@ -505,7 +506,11 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names:
-        np.random.seed(616)
+        # ADM ensure different SUBPRIORITIES for supp/standard files.
+        if supp:
+            np.random.seed(626)
+        else:
+            np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(nskies)
 
     fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
@@ -1091,6 +1096,9 @@ def check_hp_target_dir(hpdirname):
         hdr = fitsio.read_header(fn, "TARGETS")
         nside.append(hdr["FILENSID"])
         pixels = hdr["FILEHPX"]
+        # ADM if this is a one-pixel file, convert to a list.
+        if isinstance(pixels, int):
+            pixels = [pixels]
         # ADM create a look-up dictionary of file-for-each-pixel.
         for pix in pixels:
             pixdict[pix] = fn
@@ -1156,6 +1164,10 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         - If `header` is ``True``, then a second output (the file
           header is returned).
     """
+    # ADM allow an integer instead of a list to be passed.
+    if isinstance(pixlist, int):
+        pixlist = [pixlist]
+
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
@@ -1171,6 +1183,13 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     if os.path.isdir(hpdirname):
         # ADM check, and grab information from, the target directory.
         filenside, filedict = check_hp_target_dir(hpdirname)
+
+        # ADM read in the first file to grab the data model for
+        # ADM cases where we find no targets in the box.
+        fn0 = list(filedict.values())[0]
+        notargs, nohdr = fitsio.read(fn0, 'TARGETS',
+                                     columns=columnscopy, header=True)
+        notargs = np.zeros(0, dtype=notargs.dtype)
 
         # ADM change the passed pixels to the nside of the file schema.
         filepixlist = nside2nside(nside, filenside, pixlist)
@@ -1188,6 +1207,12 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
             targs, hdr = fitsio.read(infile, 'TARGETS',
                                      columns=columnscopy, header=True)
             targets.append(targs)
+        # ADM if targets is empty, return no targets.
+        if len(targets) == 0:
+            if header:
+                return notargs, nohdr
+            else:
+                return notargs
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:

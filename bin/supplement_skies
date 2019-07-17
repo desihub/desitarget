@@ -5,6 +5,7 @@ from desitarget import io
 
 import numpy as np
 import healpy as hp
+import fitsio
 
 #import warnings
 #warnings.simplefilter('error')
@@ -20,6 +21,8 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate supplemental sky locations using Gaia-G-band avoidance (for regions beyond the Legacy Surveys)')
+ap.add_argument("source",
+                help="Input sky targets file (e.g. /project/projectdirs/desi/target/catalogs/dr8/0.31.0/skies/skies-dr8-0.31.0.fits). Used purely to set the minimum allowed OBJID.")
 ap.add_argument("dest",
                 help="Output supplemental sky targets file (e.g. /project/projectdirs/desi/target/catalogs/supp-skies-dr4-0.20.0.fits)")
 ap.add_argument("--nskiespersqdeg",
@@ -42,6 +45,9 @@ ap.add_argument("--radius", type=float,
                 default=2.)
 
 ns = ap.parse_args()
+# ADM determine the maximum OBJID in the file that's being supplemented.
+# ADM 1 + this will be the minimum allowed OBJID for supplemental skies.
+minobjid = np.max(fitsio.read(ns.source, columns="BRICK_OBJID"))
 
 # ADM if the GAIA directory was passed, set it...
 gaiadir = ns.gaiadir
@@ -59,7 +65,7 @@ log.info('Generating sky positions at a density of {}'.format(nskiespersqdeg))
 # ADM generate the supplemental sky locations.
 skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
                          gaiadir=gaiadir, radius=ns.radius,
-                         mindec=ns.mindec, mingalb=ns.mingalb)
+                         mindec=ns.mindec, mingalb=ns.mingalb, minobjid=minobjid)
 
 # ADM write to file.
 io.write_skies(ns.dest, skies, supp=True, indir=gaiadir,
