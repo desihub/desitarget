@@ -62,7 +62,8 @@ ap.add_argument('--radecrad',
                 default=None)
 ap.add_argument("--noresolve", action='store_true',
                 help="Do NOT resolve into northern targets in northern regions and southern targets in southern regions")
-
+ap.add_argument("--nomaskbits", action='store_true',
+                help="Do NOT apply information in MASKBITS column to target classes")
 
 ns = ap.parse_args()
 
@@ -121,12 +122,14 @@ targets = select_targets(infiles, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist,
                          bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
                          radecbox=inlists[0], radecrad=inlists[1],
-                         tcnames=tcnames, survey=survey, resolvetargs=not(ns.noresolve))
+                         tcnames=tcnames, survey=survey,
+                         resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits))
 if ns.mask:
     targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
 if ns.bundlefiles is None:
     io.write_targets(ns.dest, targets, indir=ns.sweepdir, indir2=ns.sweepdir2,
                      survey=survey, nsidefile=ns.nside, hpxlist=pixlist,
-                     qso_selection=survey, nside=nside, resolve=not(ns.noresolve))
+                     qso_selection=survey, nside=nside,
+                     resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits))
     log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
