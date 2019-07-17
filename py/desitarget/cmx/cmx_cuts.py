@@ -1026,8 +1026,7 @@ def apply_cuts(objects, cmxdir=None):
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr,                                               \
-        dchisq, deltaChi2, brightstarinblob, maskbits =                               \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits =                 \
         _prepare_optical_wise(objects, colnames=colnames)
 
     # ADM in addition, cmx needs ra and dec.
