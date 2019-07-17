@@ -1321,12 +1321,15 @@ def _get_colnames(objects):
     return colnames
 
 
-def _prepare_optical_wise(objects, colnames=None):
-    """Process the Legacy Surveys inputs for target selection."""
+def _prepare_optical_wise(objects, mask=True):
+    """Process the Legacy Surveys inputs for target selection.
 
-    if colnames is None:
-        colnames = _get_colnames(objects)
-
+    Parameters
+    ----------
+    mask : :class:`boolean`, optional, defaults to ``True``
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
+    """
     # ADM flag whether we're using northen (BASS/MZLS) or
     # ADM southern (DECaLS) photometry
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
@@ -1395,6 +1398,10 @@ def _prepare_optical_wise(objects, colnames=None):
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
 
     maskbits = objects['MASKBITS']
+    # ADM if we asked to turn off masking behavior, turn it off.
+    if not mask:
+        maskbits = objects['MASKBITS'].copy()
+        maskbits[...] = 0
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
@@ -1863,7 +1870,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-               qso_optical_cuts=False, survey='main', resolvetargs=True):
+               qso_optical_cuts=False, survey='main', resolvetargs=True,
+               mask=True):
     """Perform target selection on objects, returning target mask arrays.
 
     Parameters
@@ -1891,6 +1899,9 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
         If ``True``, if `objects` consists of all northern (southern) sources
         then only apply the northern (southern) cuts.
+    mask : :class:`boolean`, optional, defaults to ``True``
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
 
     Returns
     -------
@@ -1949,7 +1960,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits =                 \
-        _prepare_optical_wise(objects, colnames=colnames)
+        _prepare_optical_wise(objects, mask=mask)
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
@@ -2114,7 +2125,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
                    nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
-                   radecbox=None, radecrad=None,
+                   radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True):
     """Process input files in parallel to select targets.
@@ -2161,6 +2172,9 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     radecrad : :class:`list`, defaults to `None`
         3-entry list of coordinates [ra, dec, radius] forming a "circle" on the sky. For
         RA/Dec/radius in degrees. Only targets in this circle region will be processed.
+    mask : :class:`boolean`, optional, defaults to ``True``
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
@@ -2294,7 +2308,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         objects = io.read_tractor(filename)
         desi_target, bgs_target, mws_target = apply_cuts(
             objects, qso_selection=qso_selection, gaiamatch=gaiamatch,
-            tcnames=tcnames, survey=survey, resolvetargs=resolvetargs
+            tcnames=tcnames, survey=survey, resolvetargs=resolvetargs,
+            mask=mask
         )
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
