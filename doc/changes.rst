@@ -5,10 +5,12 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
+* Add ELG/LRG/QSO/STD selections for commissioning [`PR #519`_].
 * Add full set of columns to supplemental skies file [`PR #518`_]
 * Fix some corner cases when reading HEALPixel-split files [`PR #518`_]
 
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
+.. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 
 0.31.1 (2019-07-05)
 -------------------
