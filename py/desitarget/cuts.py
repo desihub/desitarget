@@ -2125,7 +2125,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
                    nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
-                   radecbox=None, radecrad=None, mask=True,
+                   extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True):
     """Process input files in parallel to select targets.
@@ -2162,10 +2162,13 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         files per node. So, for instance, if `bundlefiles` is 100 then commands would be
         returned with the correct `pixlist` values set to pass to the code to pack at
         about 100 files per node across all of the passed `infiles`.
-    filespersec : :class:`float`, optional, defaults to 1
+    filespersec : :class:`float`, optional, defaults to 0.12
         The rough number of files processed per second by the code (parallelized across
         a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
         to estimate time to completion when parallelizing across pixels.
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script. Used in conjunction with `bundlefiles`.
     radecbox : :class:`list`, defaults to `None`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
         of a box in RA/Dec (degrees). Only targets in this box region will be processed.
@@ -2269,7 +2272,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
         bundle_bricks(pixnum, bundlefiles, nside,
                       brickspersec=filespersec, gather=False,
-                      prefix=prefix, surveydirs=surveydirs)
+                      prefix=prefix, surveydirs=surveydirs, extra=extra)
         return
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.

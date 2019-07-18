@@ -77,6 +77,13 @@ ap.add_argument("--nomaskbits", action='store_true',
                 help="Do NOT apply information in MASKBITS column to target classes")
 
 ns = ap.parse_args()
+# ADM build the list of command line arguments as
+# ADM bundlefiles potentially needs to know about them.
+extra = " --numproc {}".format(ns.numproc)
+nsdict = vars(ns)
+for nskey in "noresolve", "nomaskbits":
+    if nsdict[nskey]:
+        extra += " --{}".format(nskey)
 
 infiles = io.list_sweepfiles(ns.sweepdir)
 if ns.sweepdir2 is not None:
@@ -116,7 +123,7 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             nside=ns.nside, pixlist=pixlist,
+                             nside=ns.nside, pixlist=pixlist, extra=extra,
                              bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
                              radecbox=inlists[0], radecrad=inlists[1],
                              tcnames=tcnames, survey='main',

@@ -605,7 +605,7 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=True, surveydirs=None):
+                  gather=True, surveydirs=None, extra=None):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
@@ -634,6 +634,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         list is interpreted as the main directory. IF the list is of length two
         then the second directory is supplied as "-s2" in the output script.
         (e.g. ["/global/project/projectdirs/cosmo/data/legacysurvey/dr6"]).
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script.
 
     Returns
     -------
@@ -703,7 +706,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM add the total across all of the pixels
             outnote.append('Total: {}'.format(np.sum(goodnum)))
             # ADM a crude estimate of how long the script will take to run
-            # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk
+            # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk.
             delta = 3./60.
             eta = delta + np.sum(goodnum)/brickspersec/3600
             outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
@@ -767,7 +770,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
             outfiles.append(outfile)
-            print("srun -N 1 select_{} {} {} {} --numproc 32 --nside {} --healpixels {} &"
+            if extra is not None:
+                strgoodpix += extra
+            print("srun -N 1 select_{} {} {} {} --nside {} --healpixels {} &"
                   .format(prefix2, surveydir, outfile, s2, nside, strgoodpix))
     print("wait")
     print("")
