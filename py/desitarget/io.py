@@ -11,12 +11,14 @@ from __future__ import (absolute_import, division)
 #
 import numpy as np
 import fitsio
+from fitsio import FITS
 import os
 import re
 from . import __version__ as desitarget_version
 import numpy.lib.recfunctions as rfn
 import healpy as hp
 from glob import glob, iglob
+from time import time
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -266,7 +268,7 @@ def release_to_photsys(release):
     return r2p[release]
 
 
-def write_targets(filename, data, indir=None, indir2=None,
+def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
                   survey="?", nsidefile=None, hpxlist=None, resolve=True):
     """Write a target catalogue.
@@ -280,6 +282,9 @@ def write_targets(filename, data, indir=None, indir2=None,
     indir, indir2, qso_selection : :class:`str`, optional, default to `None`
         If passed, note these as the input directory, an additional input
         directory, and the QSO selection method in the output file header.
+    nchunks : :class`int`, optional, defaults to `None`
+        The number of chunks in which to write the output file, to save
+        memory. Send `None` to write everything at once.
     sandboxcuts : :class:`bool`, optional, defaults to ``False``
         Written to the output file header as `sandboxcuts`.
     nside : :class:`int`, optional, defaults to `None`
@@ -357,7 +362,34 @@ def write_targets(filename, data, indir=None, indir2=None,
         hdr['FILENEST'] = True
         hdr['FILEHPX'] = hpxlist
 
-    fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
+    # ADM write in a series of chunks to save memory.
+    if nchunks is None:
+        fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
+    else:
+        # ADM ensure that files are always overwritten.
+        if os.path.isfile(filename):
+            os.remove(filename)
+        start = time()
+        # ADM open a file for writing.
+        outy = FITS(filename, 'rw')
+        # ADM write the chunks one-by-one.
+        chunk = len(data)//nchunks
+        for i in range(nchunks):
+            log.info("Writing chunk {}/{} from index {} to {}...t = {:.1f}s"
+                     .format(i+1, nchunks, i*chunk, (i+1)*chunk-1, time()-start))
+            datachunk = data[i*chunk:(i+1)*chunk]
+            # ADM if this is the first chunk, write the data and header...
+            if i == 0:
+                outy.write(datachunk, extname='TARGETS', header=hdr, clobber=True)
+            # ADM ...otherwise just append to the existing file object.
+            else:
+                outy[-1].append(datachunk)
+        # ADM append any remaining data.
+        datachunk = data[nchunks*chunk:]
+        log.info("Writing final partial chunk from index {} to {}...t = {:.1f}s"
+                 .format(nchunks*chunk, len(data)-1, time()-start))
+        outy[-1].append(datachunk)
+        outy.close()
 
 
 def write_secondary(filename, data, primhdr=None, scxdir=None):

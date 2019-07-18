@@ -26,26 +26,25 @@ ap.add_argument("targtype", choices=['skies', 'randoms', 'targets'],
 
 ns = ap.parse_args()
 
-#ADM convert passed csv strings to lists
+# ADM convert passed csv strings to lists.
 fns = [ fn for fn in ns.infiles.split(';') ]
 
-#ADM read the header from the first file
+# ADM read the header from the first file.
 fx = fitsio.FITS(fns[0])
 hdr = fx[1].read_header()
 
 log.info('Begin writing {} to {}...t = {:.1f}s'
          .format(ns.targtype, ns.outfile, time()-start))
 
-#ADM open the file for writing
-fits = FITS(ns.outfile,'rw')
+# ADM open the file for writing.
+fits = FITS(ns.outfile, 'rw')
 
-#ADM write the first file with the header
+# ADM write the first file with the header.
 data = fitsio.read(fns[0])
 log.info('Working on file {}...t = {:.1f}s'.format(fns[0], time()-start))
 fits.write(data, extname=ns.targtype.upper(), header=hdr, clobber=True)
 
-#ADM add the other files
-targets = []
+# ADM add the other files.
 for fn in fns[1:]:
     log.info('Working on file {}...t = {:.1f}s'.format(fn, time()-start))
     data = fitsio.read(fn)
