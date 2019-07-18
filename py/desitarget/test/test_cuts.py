@@ -107,7 +107,6 @@ class TestCuts(unittest.TestCase):
         gfracin = targets['FRACIN_G']
         rfracin = targets['FRACIN_R']
         zfracin = targets['FRACIN_Z']
-        brightstarinblob = (targets['MASKBITS'] & 2**1) != 0
         maskbits = targets['MASKBITS']
 
         gaiagmag = targets['GAIA_PHOT_G_MEAN_MAG']
@@ -153,7 +152,7 @@ class TestCuts(unittest.TestCase):
                                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
                                gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                               brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
+                               maskbits=maskbits, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
                                primary=primary, targtype=targtype)
                 )
             self.assertTrue(np.all(bgs[0] == bgs[1]))
@@ -163,11 +162,11 @@ class TestCuts(unittest.TestCase):
         # - Test that objtype and primary are optional
         psftype = targets['TYPE']
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                               deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                               deltaChi2=deltaChi2, maskbits=maskbits,
                                w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
                                release=release)
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                               deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                               deltaChi2=deltaChi2, maskbits=maskbits,
                                w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
                                release=release)
         self.assertTrue(np.all(qso1 == qso2))

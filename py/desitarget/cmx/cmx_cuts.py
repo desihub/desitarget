@@ -527,7 +527,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-              objtype=None, release=None, dchisq=None, brightstarinblob=None,
+              objtype=None, release=None, dchisq=None, maskbits=None,
               primary=None):
     """Early SV QSO target class using random forest. Returns a boolean array.
 
@@ -573,8 +573,11 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     morph2 = dcs < 0.02
     preSelection &= _psflike(objtype) | morph2
 
-    # CAC Reject objects flagged inside a blob.
-    preSelection &= ~brightstarinblob
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        for bit in [1, 10, 12, 13]:
+            preSelection &= ((maskbits & 2**bit) == 0)
 
     # "qso" mask initialized to "preSelection" mask
     qso = np.copy(preSelection)
@@ -1027,7 +1030,7 @@ def apply_cuts(objects, cmxdir=None):
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
         gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits =                 \
-        _prepare_optical_wise(objects, colnames=colnames)
+        _prepare_optical_wise(objects)
 
     # ADM in addition, cmx needs ra and dec.
     ra, dec = objects["RA"], objects["DEC"]
@@ -1132,7 +1135,7 @@ def apply_cuts(objects, cmxdir=None):
     sv0_qso = isSV0_QSO(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         w1flux=w1flux, w2flux=w2flux, objtype=objtype,
-        dchisq=dchisq, brightstarinblob=brightstarinblob
+        dchisq=dchisq, maskbits=maskbits
     )
 
     # ADM run the STD target types for both faint and bright.
