@@ -753,6 +753,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         s2 = "-s2 {}".format(surveydir2)
 
     outfiles = []
+    from desitarget.io import _check_hpx_length
     for bin in bins:
         num = np.array(bin)[:, 0]
         pix = np.array(bin)[:, 1]
@@ -760,6 +761,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         if len(wpix) > 0:
             goodpix = pix[wpix]
             goodpix.sort()
+            # ADM check that we won't overwhelm the pixel scheme.
+            _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
