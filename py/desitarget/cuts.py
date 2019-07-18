@@ -1156,7 +1156,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         for bit in [1, 10, 12, 13]:
             preSelection &= ((maskbits & 2**bit) == 0)
 
-    # "qso" mask initialized to "preSelection" mask
+    # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
 
     if np.any(preSelection):
