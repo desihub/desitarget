@@ -363,6 +363,8 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
             raise ValueError(msg)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
 
     # ADM write in a series of chunks to save memory.
@@ -1134,6 +1136,8 @@ def check_hp_target_dir(hpdirname):
         # ADM if this is a one-pixel file, convert to a list.
         if isinstance(pixels, int):
             pixels = [pixels]
+        # ADM check we haven't stored a pixel string that is too long.
+        _check_hpx_length(pixels)
         # ADM create a look-up dictionary of file-for-each-pixel.
         for pix in pixels:
             pixdict[pix] = fn
@@ -1438,3 +1442,16 @@ def target_columns_from_header(hpdirname):
     targcols = allcols[['_TARGET' in col for col in allcols]]
 
     return list(targcols)
+
+
+def _check_hpx_length(hpxlist, length=68, warning=False):
+    """Check a list expressed as a csv string won't exceed a length."""
+    pixstring = ",".join([str(i) for i in hpxlist])
+    if len(pixstring) > length:
+        msg = 'Pixel string is too long ({}). Can only store {}'   \
+            .format(pixstring, length)
+        if warning:
+            log.warning(msg)
+        else:
+            log.critical(msg)
+            raise ValueError(msg)
