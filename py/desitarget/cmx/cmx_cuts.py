@@ -989,24 +989,27 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     return iscalspec
 
 
-def apply_cuts(objects, cmxdir=None):
-    """Perform commissioning (cmx) target selection on objects, return target mask arrays
+def apply_cuts(objects, cmxdir=None, noqso=False):
+    """Commissioning (cmx) target selection, return target mask arrays.
 
     Parameters
     ----------
     objects: numpy structured array with UPPERCASE columns needed for
         target selection, OR a string tractor/sweep filename
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
-        Directory in which to find commmissioning files to which to match, such as the
-        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
-        the :envvar:`CMX_DIR` environment variable.
+        Directory to find commmissioning files to which to match, such
+        as the CALSPEC stars. If not specified, the cmx directory is
+        taken to be the value of :envvar:`CMX_DIR`.
+    noqso : :class:`boolean`, optional, defaults to ``False``
+        If passed, do not run the quasar selection. All QSO bits will be
+        set to zero. Intended use is to speed unit tests.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        commissioning target selection bitmask flags for each object
+        commissioning target selection bitmask flags for each object.
 
-    See desitarget.cmx.cmx_targetmask.cmx_mask for the definition of each bit
+    See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
     # -Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
@@ -1132,11 +1135,15 @@ def apply_cuts(objects, cmxdir=None):
     )
 
     # ADM determine if an object is SV0_QSO.
-    sv0_qso = isSV0_QSO(
-        primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-        w1flux=w1flux, w2flux=w2flux, objtype=objtype,
-        dchisq=dchisq, maskbits=maskbits
-    )
+    if noqso:
+        # ADM don't run quasar cuts if requested, for speed.
+        sv0_qso = ~primary
+    else:
+        sv0_qso = isSV0_QSO(
+            primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            w1flux=w1flux, w2flux=w2flux, objtype=objtype,
+            dchisq=dchisq, maskbits=maskbits
+        )
 
     # ADM run the STD target types for both faint and bright.
     # ADM Make sure to pass all of the needed columns! At one point we stopped
@@ -1177,19 +1184,22 @@ def apply_cuts(objects, cmxdir=None):
     return cmx_target, priority_shift
 
 
-def select_targets(infiles, numproc=4, cmxdir=None):
+def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
     ----------
     infiles : :class:`list` or `str`
-        A list of input filenames (tractor or sweep files) OR a single filename.
+        List of input filenames (tractor/sweep files) OR one filename.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
-        Directory in which to find commmissioning files to which to match, such as the
-        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
-        the :envvar:`CMX_DIR` environment variable.
+        Directory to find commmissioning files to which to match, such
+        as the CALSPEC stars. If not specified, the cmx directory is
+        taken to be the value of :envvar:`CMX_DIR`.
+    noqso : :class:`boolean`, optional, defaults to ``False``
+        If passed, do not run the quasar selection. All QSO bits will be
+        set to zero. Intended use is to speed unit tests.
 
     Returns
     -------
@@ -1238,7 +1248,8 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        cmx_target, priority_shift = apply_cuts(objects, cmxdir=cmxdir)
+        cmx_target, priority_shift = apply_cuts(objects,
+                                                cmxdir=cmxdir, noqso=noqso)
 
         return _finalize_targets(objects, cmx_target, priority_shift)
 
