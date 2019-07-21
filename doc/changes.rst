@@ -7,7 +7,7 @@ desitarget Change Log
 
 * Deprecate ``BRIGHTSTARINBLOB`` use ``MASKBITS`` instead [`PR #521`_].
 * Extra options/care when making/vetting bundling scripts [`PR #521`_].
-* Add ELG/LRG/QSO/STD selections for commissioning [`PR #519`_].
+* Add ELG/LRG/QSO/STD selection cuts for commissioning [`PR #519`_].
 * Add full set of columns to supplemental skies file [`PR #518`_].
 * Fix some corner cases when reading HEALPixel-split files [`PR #518`_].
 
