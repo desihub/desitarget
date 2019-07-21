@@ -5,8 +5,9 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
-* Deprecate ``BRIGHTSTARINBLOB`` use ``MASKBITS`` instead [`PR #521`_].
-* Extra options/care when making/vetting bundling scripts [`PR #521`_].
+* Use ``MASKBITS`` instead of ``BRIGHTSTARINBLOB`` [`PR #521`_]. Also:
+    * Extra options and checks when making and vetting bundling scripts.
+    * Option to turn off commissioning QSO cuts to speed unit tests.
 * Add ELG/LRG/QSO/STD selection cuts for commissioning [`PR #519`_].
 * Add full set of columns to supplemental skies file [`PR #518`_].
 * Fix some corner cases when reading HEALPixel-split files [`PR #518`_].
