@@ -5,12 +5,16 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
-* Add ELG/LRG/QSO/STD selections for commissioning [`PR #519`_].
-* Add full set of columns to supplemental skies file [`PR #518`_]
-* Fix some corner cases when reading HEALPixel-split files [`PR #518`_]
+* Use ``MASKBITS`` instead of ``BRIGHTSTARINBLOB`` [`PR #521`_]. Also:
+    * Extra options and checks when making and vetting bundling scripts.
+    * Option to turn off commissioning QSO cuts to speed unit tests.
+* Add ELG/LRG/QSO/STD selection cuts for commissioning [`PR #519`_].
+* Add full set of columns to supplemental skies file [`PR #518`_].
+* Fix some corner cases when reading HEALPixel-split files [`PR #518`_].
 
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
+.. _`PR #521`: https://github.com/desihub/desitarget/pull/521
 
 0.31.1 (2019-07-05)
 -------------------
@@ -22,7 +26,7 @@ desitarget Change Log
 0.31.0 (2019-06-30)
 -------------------
 
-* MASKBITS of BAILOUT for randoms when no file is found [`PR #515`_].
+* ``MASKBITS`` of ``BAILOUT`` for randoms when no file is found [`PR #515`_].
 * Near-trivial fix for an unintended change to the isELG API introduced in `PR
   #513`_ [`PR #514`_]. 
 * Preliminary ELG cuts for DR8 imaging for main and SV [`PR #513`_].

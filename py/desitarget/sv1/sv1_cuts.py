@@ -378,8 +378,8 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
 def isQSO_cuts(gflux=None, rflux=None, zflux=None,
                w1flux=None, w2flux=None, w1snr=None, w2snr=None,
-               dchisq=None, brightstarinblob=None,
-               objtype=None, primary=None, south=True):
+               dchisq=None, maskbits=None, objtype=None,
+               primary=None, south=True):
     """Definition of QSO target classes from color cuts. Returns a boolean array.
 
     Parameters
@@ -405,8 +405,11 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
         primary = np.ones_like(rflux, dtype='?')
     qso = primary.copy()
 
-    # ADM Reject objects flagged inside a bright star blob.
-    qso &= ~brightstarinblob
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        for bit in [1, 10, 12, 13]:
+            qso &= ((maskbits & 2**bit) == 0)
 
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
@@ -518,7 +521,7 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
 
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, dchisq=None, brightstarinblob=None,
+                       objtype=None, release=None, dchisq=None, maskbits=None,
                        primary=None, south=True):
     """Definition of QSO target class using random forest. Returns a boolean array.
 
@@ -570,8 +573,11 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
         morph2 = dcs < 0.02
     preSelection &= _psflike(objtype) | morph2
 
-    # CAC Reject objects flagged inside a blob.
-    preSelection &= ~brightstarinblob
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        for bit in [1, 10, 12, 13]:
+            preSelection &= ((maskbits & 2**bit) == 0)
 
     # "qso" mask initialized to "preSelection" mask
     qso = np.copy(preSelection)
@@ -628,7 +634,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
 
 def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      objtype=None, release=None, dchisq=None, brightstarinblob=None,
+                      objtype=None, release=None, dchisq=None, maskbits=None,
                       primary=None, south=True):
     """Definition of QSO target for highz (z>2.0) faint QSOs. Returns a boolean array.
 
@@ -682,8 +688,11 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # Standard morphology cut.
     preSelection &= _psflike(objtype)
 
-    #  Reject objects flagged inside a blob.
-    preSelection &= ~brightstarinblob
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        for bit in [1, 10, 12, 13]:
+            preSelection &= ((maskbits & 2**bit) == 0)
 
     # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
@@ -734,7 +743,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberflux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
-          gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None,
+          gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None, Grr=None,
           w1snr=None, gaiagmag=None, objtype=None, primary=None, south=True, targtype=None):
     """Definition of BGS target classes. Returns a boolean array.
 
@@ -772,7 +781,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, objtype=objtype, targtype=targtype)
+                         gaiagmag=gaiagmag, maskbits=maskbits, objtype=objtype, targtype=targtype)
 
     bgs &= isBGS_colors(rflux=rflux, rfiberflux=rfiberflux, south=south, targtype=targtype, primary=primary)
 
@@ -784,7 +793,7 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
                   gfracflux=None, rfracflux=None, zfracflux=None,
                   gfracin=None, rfracin=None, zfracin=None, w1snr=None,
                   gfluxivar=None, rfluxivar=None, zfluxivar=None, Grr=None,
-                  gaiagmag=None, brightstarinblob=None, objtype=None, targtype=None):
+                  gaiagmag=None, maskbits=None, objtype=None, targtype=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS_faint` for parameters).
     """
@@ -801,7 +810,7 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
     bgs_qcs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
     bgs_qcs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
-    bgs_qcs &= ~brightstarinblob
+    bgs_qcs &= (maskbits & 2**1) == 0
     # color box
     bgs_qcs &= rflux > gflux * 10**(-1.0/2.5)
     bgs_qcs &= rflux < gflux * 10**(4.0/2.5)
@@ -1217,7 +1226,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
-                    tcnames, qso_optical_cuts, qso_selection, brightstarinblob,
+                    tcnames, qso_optical_cuts, qso_selection,
                     maskbits, Grr, primary, resolvetargs=True):
     """Perform target selection on parameters, return target mask arrays.
 
@@ -1291,7 +1300,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
-                    dchisq=dchisq, brightstarinblob=brightstarinblob,
+                    dchisq=dchisq, maskbits=maskbits,
                     objtype=objtype, w1snr=w1snr, w2snr=w2snr,
                     south=south
                 )
@@ -1306,7 +1315,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     isQSO_randomforest(
                         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                         w1flux=w1flux, w2flux=w2flux,
-                        dchisq=dchisq, brightstarinblob=brightstarinblob,
+                        dchisq=dchisq, maskbits=maskbits,
                         objtype=objtype, south=south
                     )
                 )
@@ -1314,7 +1323,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     isQSO_highz_faint(
                         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                         w1flux=w1flux, w2flux=w2flux,
-                        dchisq=dchisq, brightstarinblob=brightstarinblob,
+                        dchisq=dchisq, maskbits=maskbits,
                         objtype=objtype, south=south
                     )
                 )
@@ -1366,7 +1375,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                        brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
+                        maskbits=maskbits, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
                         objtype=objtype, primary=primary, south=south, targtype=targtype
                     )
                 )

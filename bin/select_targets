@@ -73,8 +73,17 @@ ap.add_argument('--radecrad',
                 default=None)
 ap.add_argument("--noresolve", action='store_true',
                 help="Do NOT resolve into northern targets in northern regions and southern targets in southern regions")
+ap.add_argument("--nomaskbits", action='store_true',
+                help="Do NOT apply information in MASKBITS column to target classes")
 
 ns = ap.parse_args()
+# ADM build the list of command line arguments as
+# ADM bundlefiles potentially needs to know about them.
+extra = " --numproc {}".format(ns.numproc)
+nsdict = vars(ns)
+for nskey in "noresolve", "nomaskbits":
+    if nsdict[nskey]:
+        extra += " --{}".format(nskey)
 
 infiles = io.list_sweepfiles(ns.sweepdir)
 if ns.sweepdir2 is not None:
@@ -114,17 +123,20 @@ else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
                              sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             nside=ns.nside, pixlist=pixlist,
+                             nside=ns.nside, pixlist=pixlist, extra=extra,
                              bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
                              radecbox=inlists[0], radecrad=inlists[1],
-                             tcnames=tcnames, survey='main', resolvetargs=not(ns.noresolve))
+                             tcnames=tcnames, survey='main',
+                             resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits)
+    )
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     if ns.bundlefiles is None:
         # ADM only write out a targeting file if it's non-zero.
         if len(targets) > 0:
-            io.write_targets(ns.dest, targets, resolve=not(ns.noresolve), indir=ns.sweepdir,
-                             indir2=ns.sweepdir2, survey="main", nsidefile=ns.nside, hpxlist=pixlist,
+            io.write_targets(ns.dest, targets, resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
+                             indir=ns.sweepdir, indir2=ns.sweepdir2,
+                             survey="main", nsidefile=ns.nside, hpxlist=pixlist,
                              qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
         log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
