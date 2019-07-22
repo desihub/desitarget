@@ -3,7 +3,7 @@ sv1_desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
-    
+
     #- ADM LRG sub-classes
     - [LRG_INIT,     3, "LRG using initial optical and IR cuts", {obsconditions: DARK}]
     - [LRG_LOWZ,     4, "LRG with a low-z extension",            {obsconditions: DARK}]
@@ -95,7 +95,7 @@ sv1_desi_mask:
     - [MWS_ANY,             61, "Any MWS bit is set",  {obsconditions: BRIGHT}]
     - [SCND_ANY,       62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    
+
 #- Bright Galaxy Survey SV targets
 sv1_bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",              {obsconditions: BRIGHT}]
@@ -109,12 +109,12 @@ sv1_bgs_mask:
     - [BGS_BRIGHT_NORTH,    9, "BGS bright cuts tuned for Bok/Mosaic",          {obsconditions: BRIGHT}]
     - [BGS_FAINT_EXT_NORTH, 10, "BGS faint extended cuts tuned for Bok/Mosaic", {obsconditions: BRIGHT}]
     - [BGS_LOWQ_NORTH,      11, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}]
-    - [BGS_FIBMAG_NORTH,    12, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}] 
+    - [BGS_FIBMAG_NORTH,    12, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}]
     - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",               {obsconditions: BRIGHT}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",              {obsconditions: BRIGHT}]
     - [BGS_FAINT_EXT_SOUTH, 18, "BGS faint extended cuts tuned for DECam",      {obsconditions: BRIGHT}]
     - [BGS_LOWQ_SOUTH,      19, "BGS low quality cuts tuned for DECam",         {obsconditions: BRIGHT}]
-    - [BGS_FIBMAG_SOUTH,    20, "BGS fiber magnitude cuts tuned for DECam",     {obsconditions: BRIGHT}] 
+    - [BGS_FIBMAG_SOUTH,    20, "BGS fiber magnitude cuts tuned for DECam",     {obsconditions: BRIGHT}]
 
     - [BGS_KNOWN_ANY,       40, "Known target from another survey",    {obsconditions: BRIGHT}]
     - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided",  {obsconditions: BRIGHT}]
@@ -124,36 +124,40 @@ sv1_bgs_mask:
 #- Milky Way Survey SV targets
 sv1_mws_mask:
 
-    # First layer defines main samples -- these are expected to have distinct
-    # input catalogues. 
-   
     #- Bits 0-3 (7 ids)
-    - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SV,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_WD_SV,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_NEARBY_SV,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
-    # Second layer flags additional subclasses that could apply to any
-    # of the main classes. These sort targets in each input catalog into
-    # distinct groups for the purpose of assigning priorities and observing
-    # conditions.
-    
-    # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS 
-     
-    # => A main sample star at low galactic latitude, faint enough to be
-    # considered filler but with parallax factored into the subpriority and
-    # targeted for reobservation if possible.
-    
     #- 4: MWS_MAIN north/south splits
-    - [MWS_MAIN_NORTH,      4, "Milky Way Survey cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey cuts tuned for DECam",                   {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SV_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SV_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
 
-    #- 8: Sub-classes of MWS_MAIN
-    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",          {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample tuned for DECam",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",          {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",       {obsconditions: BRIGHT|GRAY|DARK}]
+    # Fainter MWS_MAIN extension for SV, selected on magnitude only
+    - [MWS_MAIN_SV_FAINT,           14, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SV_FAINT_NORTH,     15, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SV_FAINT_SOUTH,     16, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+
+    # Stars with existing data for pipeline calibration
+    # These may be implemented as secondary targets
+    - [MWS_CALIB_APOGEE,       20, "Stars with APOGEE data",    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_CALIB_BOSS,         21, "Stars with BOSS data",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_CALIB_SEGUE,        22, "Stars with SEGUE data",     {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_CALIB_GAIAESO,      23, "Stars with Gaia ESO data",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_CALIB_CLUSTER,      24, "Stars that are likely members of calibration clusters",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_CALIB_VERYBRIGHT,   25, "Very bright calibration stars",  {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+
+    # Preselected high-value sparse targets
+    # These may be implemented as secondary targets
+    - [MWS_SPECIAL_RRLYR,      30, "RR Lyrae, Gaia-selected",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_SPECIAL_BHB,        31, "BHB (colour-selected)",    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_SPECIAL_DDO,        32, "DDO-selected giants",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_SPECIAL_MP,         33, "Metal-poor stars",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_SPECIAL_WDBINARY,   34, "White dwarf binaries",     {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_SPECIAL_DRACO,      35, "Likely Draco members",     {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_SPECIAL_HYADES,     36, "Likely Hyades members",    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_SPECIAL_HYADES_VERYBRIGHT, 37, "Likely Hyades members r<16",     {obsconditions:POOR|TWILIGHT12|TWILIGHT18}]
+
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
@@ -292,18 +296,32 @@ priorities:
     #- Milky Way Survey: priorities 1000-1999
     # ADM WDs should be prioritized above BGS at 2998
     sv1_mws_mask:
-        MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD:                       {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        # CALIB ae top priority, always observe
+        MWS_CALIB_VERYBRIGHT:         {UNOBS: 2999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CALIB_APOGEE:             {UNOBS: 2998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CALIB_BOSS:               SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_CLUSTER:            {UNOBS: 2997, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        # Sparse targets
+        # NB DONE is not very relevant here since we assign "infinite" observations
+        MWS_WD_SV:                    {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
+        MWS_NEARBY_SV:                {UNOBS: 1600, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_RRLYR:            {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_BHB:              SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_DDO:              SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_MP:               SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_WDBINARY:         SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_DRACO:            SAME_AS_MWS_SPECIAL_RRLYR
+        # Main survey targets 
+        MWS_MAIN_SV:                  {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_SV_FAINT:            {UNOBS: 1050, DONE: 100, OBS: 1, DONOTOBSERVE: 0}
+        # Permutations
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        MWS_MAIN_NORTH:               {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_NORTH
+        MWS_MAIN_SV_NORTH:            {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_MAIN_SV_SOUTH:            SAME_AS_MWS_MAIN_SV_NORTH
+        MWS_MAIN_SV_FAINT_NORTH:      {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_MAIN_SV_FAINT_SOUTH:      SAME_AS_MWS_MAIN_SV_FAINT_NORTH
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
@@ -413,18 +431,26 @@ numobs:
 
     # ADM initial number of observations for targets in the Milky Way Survey
     sv1_mws_mask:
-        MWS_MAIN:                     1
-        MWS_WD:                       1
-        MWS_NEARBY:                   1
+        MWS_CALIB_VERYBRIGHT:         -1
+        MWS_CALIB_APOGEE:             -1
+        MWS_CALIB_BOSS:               SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_CLUSTER:            SAME_AS_MWS_CALIB_APOGEE
+        MWS_SPECIAL_RRLYR:            1
+        MWS_SPECIAL_BHB:              SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_DDO:              SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_MP:               SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_WDBINARY:         SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_MAIN_SV:                  1
+        MWS_MAIN_SV_FAINT:            1
+        MWS_WD_SV:                    -1
+        MWS_NEARBY_SV:                -1
         # ADM don't observe a N/S target if it doesn't have other bits set
-        MWS_MAIN_NORTH:               0
-        MWS_MAIN_SOUTH:               0
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          0
-        MWS_MAIN_BLUE_SOUTH:          0
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           0
-        MWS_MAIN_RED_SOUTH:           0
+        MWS_MAIN_SV_NORTH:            0
+        MWS_MAIN_SV_SOUTH:            0
+        MWS_MAIN_SV_FAINT_NORTH:      0
+        MWS_MAIN_SV_FAINT_SOUTH:      0
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
