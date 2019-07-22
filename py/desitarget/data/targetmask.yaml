@@ -7,7 +7,7 @@ desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
-    
+
     #- ADM allow the primary targets to be split by number of passes
     - [LRG_1PASS,   3, "LRG to be observed once",  {obsconditions: DARK}]
     - [LRG_2PASS,   4, "LRG to be observed twice", {obsconditions: DARK}]
@@ -57,9 +57,9 @@ desi_mask:
     - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
     - [SCND_ANY     ,       62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    
+
 #- Bright Galaxy Survey
-bgs_mask:    
+bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",  {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets", {obsconditions: BRIGHT}]
     - [BGS_WISE,            2, "BGS wise targets",   {obsconditions: BRIGHT}]     #GRAY and DARK?
@@ -82,7 +82,7 @@ mws_mask:
 
     # First layer defines main samples -- these are expected to have distinct
     # input catalogues. 
-   
+
     #- Bits 0-3 (7 ids)
     - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
@@ -92,13 +92,13 @@ mws_mask:
     # of the main classes. These sort targets in each input catalog into
     # distinct groups for the purpose of assigning priorities and observing
     # conditions.
-    
+
     # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS 
-     
+
     # => A main sample star at low galactic latitude, faint enough to be
     # considered filler but with parallax factored into the subpriority and
     # targeted for reobservation if possible.
-    
+
     #- 4: MWS_BROAD north/south splits
     - [MWS_BROAD_NORTH,     4, "Milky Way Survey cuts tuned for Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_BROAD_SOUTH,     5, "Milky Way Survey cuts tuned for DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
@@ -136,7 +136,7 @@ obsconditions:
     - [TWILIGHT18,  5, "Between 12 and 18 degree twilight"]
     - [DAY,         6, "Daytime calibrations"]
     - [CLOSED,      7, "Nighttime but dome is closed due to rain, wind, dew..."]
-    - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]    
+    - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -310,7 +310,7 @@ numobs:
         BGS_KNOWN_BOSS: 1
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
-    mws_mask: 
+    mws_mask:
         MWS_BROAD:                    1
         MWS_WD:                       1
         MWS_NEARBY:                   1
