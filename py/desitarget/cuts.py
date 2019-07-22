@@ -892,7 +892,7 @@ def _check_BGS_targtype_sv(targtype):
 def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
-          gfluxivar=None, rfluxivar=None, zfluxivar=None, brightstarinblob=None, Grr=None,
+          gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None, Grr=None,
           w1snr=None, gaiagmag=None, objtype=None, primary=None, south=True, targtype=None):
     """Definition of BGS target classes. Returns a boolean array.
 
@@ -925,7 +925,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                         gaiagmag=gaiagmag, brightstarinblob=brightstarinblob, targtype=targtype)
+                         gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
 
     bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                         south=south, targtype=targtype, primary=primary)
@@ -938,7 +938,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
                   gfracflux=None, rfracflux=None, zfracflux=None,
                   gfracin=None, rfracin=None, zfracin=None, w1snr=None,
                   gfluxivar=None, rfluxivar=None, zfluxivar=None, Grr=None,
-                  gaiagmag=None, brightstarinblob=None, targtype=None):
+                  gaiagmag=None, maskbits=None, targtype=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
@@ -954,7 +954,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
-    bgs &= ~brightstarinblob
+    bgs &= (maskbits & 2**1) == 0
 
     if targtype == 'bright':
         bgs &= ((Grr > 0.6) | (gaiagmag == 0))
@@ -1003,7 +1003,7 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-               w1snr=None, w2snr=None, deltaChi2=None, brightstarinblob=None,
+               w1snr=None, w2snr=None, deltaChi2=None, maskbits=None,
                release=None, objtype=None, primary=None, optical=False, south=True):
     """Definition of QSO target classes from color cuts. Returns a boolean array.
 
@@ -1052,9 +1052,11 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if objtype is not None:
         qso &= _psflike(objtype)
 
-    # CAC Reject objects flagged inside a blob.
-    if brightstarinblob is not None:
-        qso &= ~brightstarinblob
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        for bit in [1, 10, 12, 13]:
+            qso &= ((maskbits & 2**bit) == 0)
 
     return qso
 
@@ -1100,7 +1102,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, brightstarinblob=None,
+                       objtype=None, release=None, deltaChi2=None, maskbits=None,
                        primary=None, south=True):
     """Definition of QSO target classes from a Random Forest. Returns a boolean array.
 
@@ -1148,11 +1150,13 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if deltaChi2 is not None:
         deltaChi2 = np.atleast_1d(deltaChi2)
         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
-    # CAC Reject objects flagged inside a blob.
-    if brightstarinblob is not None:
-        preSelection &= ~brightstarinblob
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        for bit in [1, 10, 12, 13]:
+            preSelection &= ((maskbits & 2**bit) == 0)
 
-    # "qso" mask initialized to "preSelection" mask
+    # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
 
     if np.any(preSelection):
@@ -1317,12 +1321,15 @@ def _get_colnames(objects):
     return colnames
 
 
-def _prepare_optical_wise(objects, colnames=None):
-    """Process the Legacy Surveys inputs for target selection."""
+def _prepare_optical_wise(objects, mask=True):
+    """Process the Legacy Surveys inputs for target selection.
 
-    if colnames is None:
-        colnames = _get_colnames(objects)
-
+    Parameters
+    ----------
+    mask : :class:`boolean`, optional, defaults to ``True``
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
+    """
     # ADM flag whether we're using northen (BASS/MZLS) or
     # ADM southern (DECaLS) photometry
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
@@ -1390,12 +1397,11 @@ def _prepare_optical_wise(objects, colnames=None):
     w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
 
-    # For BGS target selection.
-    # ADM in DR7 BRIGHTSTARINBLOB was True (2**0) for bright
-    # ADM stars (BRIGHT) but for DR8 MASKBITS is 2**1 for BRIGHT.
-    # ADM see also how we recast the DR7 data model in io.py.
-    brightstarinblob = (objects['MASKBITS'] & 2**1) != 0
     maskbits = objects['MASKBITS']
+    # ADM if we asked to turn off masking behavior, turn it off.
+    if not mask:
+        maskbits = objects['MASKBITS'].copy()
+        maskbits[...] = 0
 
     # Delta chi2 between PSF and SIMP morphologies; note the sign....
     dchisq = objects['DCHISQ']
@@ -1414,7 +1420,7 @@ def _prepare_optical_wise(objects, colnames=None):
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
             gsnr, rsnr, zsnr, w1snr, w2snr,
-            dchisq, deltaChi2, brightstarinblob, maskbits)
+            dchisq, deltaChi2, maskbits)
 
 
 def _prepare_gaia(objects, colnames=None):
@@ -1541,7 +1547,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
-                    tcnames, qso_optical_cuts, qso_selection, brightstarinblob,
+                    tcnames, qso_optical_cuts, qso_selection,
                     maskbits, Grr, primary, resolvetargs=True):
     """Perform target selection on parameters, return target mask arrays.
 
@@ -1605,8 +1611,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qso_selection : :class:`str`, optional, defaults to `'randomforest'`
         The algorithm to use for QSO selection; valid options are
         `'colorcuts'` and `'randomforest'`
-    brightstarinblob: boolean array_like or None
-        ``True`` for objects in blobs with a "bright" (Tycho-2) star.
     maskbits: boolean array_like or None
         General `Legacy Surveys mask`_ bits.
     Grr: array_like or None
@@ -1684,7 +1688,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 qso_classes[int(south)] = isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
-                    deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                    deltaChi2=deltaChi2, maskbits=maskbits,
                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
                     optical=qso_optical_cuts, south=south
                 )
@@ -1693,7 +1697,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 qso_classes[int(south)] = isQSO_randomforest(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
-                    deltaChi2=deltaChi2, brightstarinblob=brightstarinblob,
+                    deltaChi2=deltaChi2, maskbits=maskbits,
                     objtype=objtype, release=release, south=south
                 )
             else:
@@ -1720,7 +1724,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                        brightstarinblob=brightstarinblob, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
+                        maskbits=maskbits, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
                         objtype=objtype, primary=primary, south=south, targtype=targtype
                     )
                 )
@@ -1866,7 +1870,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-               qso_optical_cuts=False, survey='main', resolvetargs=True):
+               qso_optical_cuts=False, survey='main', resolvetargs=True,
+               mask=True):
     """Perform target selection on objects, returning target mask arrays.
 
     Parameters
@@ -1894,6 +1899,9 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
         If ``True``, if `objects` consists of all northern (southern) sources
         then only apply the northern (southern) cuts.
+    mask : :class:`boolean`, optional, defaults to ``True``
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
 
     Returns
     -------
@@ -1951,9 +1959,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr,                                               \
-        dchisq, deltaChi2, brightstarinblob, maskbits =                               \
-        _prepare_optical_wise(objects, colnames=colnames)
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits =                 \
+        _prepare_optical_wise(objects, mask=mask)
 
     # Process the Gaia inputs for target selection.
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
@@ -1989,7 +1996,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
-        tcnames, qso_optical_cuts, qso_selection, brightstarinblob,
+        tcnames, qso_optical_cuts, qso_selection,
         maskbits, Grr, primary, resolvetargs=resolvetargs
     )
 
@@ -2118,7 +2125,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
                    nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
-                   radecbox=None, radecrad=None,
+                   extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True):
     """Process input files in parallel to select targets.
@@ -2155,16 +2162,22 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         files per node. So, for instance, if `bundlefiles` is 100 then commands would be
         returned with the correct `pixlist` values set to pass to the code to pack at
         about 100 files per node across all of the passed `infiles`.
-    filespersec : :class:`float`, optional, defaults to 1
+    filespersec : :class:`float`, optional, defaults to 0.12
         The rough number of files processed per second by the code (parallelized across
         a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
         to estimate time to completion when parallelizing across pixels.
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script. Used in conjunction with `bundlefiles`.
     radecbox : :class:`list`, defaults to `None`
         4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
         of a box in RA/Dec (degrees). Only targets in this box region will be processed.
     radecrad : :class:`list`, defaults to `None`
         3-entry list of coordinates [ra, dec, radius] forming a "circle" on the sky. For
         RA/Dec/radius in degrees. Only targets in this circle region will be processed.
+    mask : :class:`boolean`, optional, defaults to ``True``
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
@@ -2259,7 +2272,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
         bundle_bricks(pixnum, bundlefiles, nside,
                       brickspersec=filespersec, gather=False,
-                      prefix=prefix, surveydirs=surveydirs)
+                      prefix=prefix, surveydirs=surveydirs, extra=extra)
         return
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
@@ -2298,7 +2311,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         objects = io.read_tractor(filename)
         desi_target, bgs_target, mws_target = apply_cuts(
             objects, qso_selection=qso_selection, gaiamatch=gaiamatch,
-            tcnames=tcnames, survey=survey, resolvetargs=resolvetargs
+            tcnames=tcnames, survey=survey, resolvetargs=resolvetargs,
+            mask=mask
         )
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)

@@ -1118,7 +1118,7 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
 
 
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
-                   bundlebricks=None, brickspersec=2.5,
+                   bundlebricks=None, brickspersec=2.5, extra=None,
                    dustdir=None, resolverands=True, aprad=0.75):
     """NOBS, DEPTHs (per-band), MASKs for random points in a Legacy Surveys DR.
 
@@ -1151,6 +1151,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         The rough number of bricks processed per second by the code (parallelized across
         a chosen number of nodes). Used in conjunction with `bundlebricks` for the code
         to estimate time to completion when parallelizing across pixels.
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script. Used in conjunction with `bundlefiles`.
     dustdir : :class:`str`, optional, defaults to $DUST_DIR+'maps'
         The root directory pointing to SFD dust maps. If None the code
         will try to use $DUST_DIR+'maps') before failing.
@@ -1187,7 +1190,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
                                     for cnt, pix in zip(cnts.astype(int), pixnum)])
         bundle_bricks(allpixnum, bundlebricks, nside, brickspersec=brickspersec,
-                      prefix='randoms', surveydirs=[drdir])
+                      prefix='randoms', surveydirs=[drdir], extra=extra)
         return
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested.
