@@ -75,8 +75,7 @@ sv1_desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [STD_FAINT,   33, "Standard stars for dark/gray conditions", {obsconditions: DARK|GRAY}]
     - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions",
-        {obsconditions: BRIGHT}]
+    - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions", {obsconditions: BRIGHT}]
     - [BAD_SKY,     36, "Blank sky locations that are imperfect but still useable",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
@@ -123,7 +122,6 @@ sv1_bgs_mask:
 
 #- Milky Way Survey SV targets
 sv1_mws_mask:
-
     #- Bits 0-3 (7 ids)
     - [MWS_MAIN_SV,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_WD_SV,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
@@ -156,8 +154,7 @@ sv1_mws_mask:
     - [MWS_SPECIAL_WDBINARY,   34, "White dwarf binaries",     {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_SPECIAL_DRACO,      35, "Likely Draco members",     {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_SPECIAL_HYADES,     36, "Likely Hyades members",    {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_SPECIAL_HYADES_VERYBRIGHT, 37, "Likely Hyades members r<16",     {obsconditions:POOR|TWILIGHT12|TWILIGHT18}]
-
+    - [MWS_SPECIAL_HYADES_VERYBRIGHT, 37, "Likely Hyades members r<16",     {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
@@ -297,16 +294,19 @@ priorities:
     # ADM WDs should be prioritized above BGS at 2998
     sv1_mws_mask:
         # CALIB ae top priority, always observe
-        MWS_CALIB_VERYBRIGHT:         {UNOBS: 2999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_CALIB_APOGEE:             {UNOBS: 2998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_CALIB_BOSS:               SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_CLUSTER:            {UNOBS: 2997, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        # Sparse targets
+        MWS_CALIB_VERYBRIGHT:          {UNOBS: 2999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CALIB_APOGEE:              {UNOBS: 2998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CALIB_BOSS:                SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE:               SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GAIAESO:             SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_CLUSTER:             {UNOBS: 2997, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        # Special/Sparse targets
         # NB DONE is not very relevant here since we assign "infinite" observations
-        MWS_WD_SV:                    {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
-        MWS_NEARBY_SV:                {UNOBS: 1600, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_HYADES:            {UNOBS: 1650, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_HYADES_VERYBRIGHT: SAME_AS_MWS_SPECIAL_HYADES
+        MWS_NEARBY_SV:                 {UNOBS: 1600, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+
         MWS_SPECIAL_RRLYR:            {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_SPECIAL_BHB:              SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_DDO:              SAME_AS_MWS_SPECIAL_RRLYR
@@ -437,11 +437,15 @@ numobs:
         MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_CLUSTER:            SAME_AS_MWS_CALIB_APOGEE
+        MWS_SPECIAL_HYADES:            1
+        MWS_SPECIAL_HYADES_VERYBRIGHT: 1
+
         MWS_SPECIAL_RRLYR:            1
         MWS_SPECIAL_BHB:              SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_DDO:              SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_MP:               SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_WDBINARY:         SAME_AS_MWS_SPECIAL_RRLYR
+        MWS_SPECIAL_DRACO:            SAME_AS_MWS_SPECIAL_RRLYR
         MWS_MAIN_SV:                  1
         MWS_MAIN_SV_FAINT:            1
         MWS_WD_SV:                    -1
