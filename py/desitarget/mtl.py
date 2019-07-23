@@ -10,7 +10,7 @@ import sys
 from astropy.table import Table
 
 from desitarget.targetmask import obsmask, obsconditions
-from desitarget.targets import calc_priority, main_cmx_or_sv
+from desitarget.targets import calc_priority, main_cmx_or_sv, set_obsconditions
 
 
 def make_mtl(targets, zcat=None, trim=False):
@@ -120,14 +120,7 @@ def make_mtl(targets, zcat=None, trim=False):
     ztargets['NUMOBS_MORE'][ii] = 0
 
     # - Set the OBSCONDITIONS mask for each target bit.
-    obscon = np.zeros(n, dtype='i4')
-    for mask, xxx_target in zip(masks, colnames):
-        for name in mask.names():
-            # - which targets have this bit for this mask set?
-            ii = (targets[xxx_target] & mask[name]) != 0
-            # - under what conditions can that bit be observed?
-            if np.any(ii):
-                obscon[ii] |= obsconditions.mask(mask[name].obsconditions)
+    obscon = set_obsconditions(targets)
 
     # ADM set up the output mtl table.
     mtl = Table(targets)
