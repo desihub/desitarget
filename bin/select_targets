@@ -75,13 +75,15 @@ ap.add_argument("--noresolve", action='store_true',
                 help="Do NOT resolve into northern targets in northern regions and southern targets in southern regions")
 ap.add_argument("--nomaskbits", action='store_true',
                 help="Do NOT apply information in MASKBITS column to target classes")
+ap.add_argument("--writeall", action='store_true',
+                help="Default behavior is to split targets by bright/dark-time surveys. Send this to ALSO write a file of ALL targets")
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "noresolve", "nomaskbits":
+for nskey in "noresolve", "nomaskbits", "writeall":
     if nsdict[nskey]:
         extra += " --{}".format(nskey)
 
@@ -135,8 +137,12 @@ else:
     if ns.bundlefiles is None:
         # ADM only write out a targeting file if it's non-zero.
         if len(targets) > 0:
-            io.write_targets(ns.dest, targets, resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
-                             indir=ns.sweepdir, indir2=ns.sweepdir2,
-                             survey="main", nsidefile=ns.nside, hpxlist=pixlist,
-                             qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
+            obscons = ["BRIGHT", "DARK"]
+            if ns.writeall:
+                obscons.append(None)
+            for obscon in obscons:
+                io.write_targets(ns.dest, targets, resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
+                                 indir=ns.sweepdir, indir2=ns.sweepdir2, obscon=obscon,
+                                 survey="main", nsidefile=ns.nside, hpxlist=pixlist,
+                                 qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
         log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
