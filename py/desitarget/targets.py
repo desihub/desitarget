@@ -437,7 +437,8 @@ def initial_priority_numobs(targets, obscon=
 
     # ADM set up the output arrays.
     outpriority = np.zeros(len(targets), dtype='int')
-    outnumobs = np.zeros(len(targets), dtype='int')
+    # ADM remember that calibs have NUMOBS of -1.
+    outnumobs = np.zeros(len(targets), dtype='int')-1
 
     # ADM convert the passed obscon string to bits.
     obsbits = obsconditions.mask(obscon)

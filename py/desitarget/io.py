@@ -271,7 +271,7 @@ def release_to_photsys(release):
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
                   survey="?", nsidefile=None, hpxlist=None,
-                  resolve=True, maskbits=True):
+                  resolve=True, maskbits=True, obscon=None):
     """Write a target catalogue.
 
     Parameters
@@ -301,11 +301,16 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
-    resolve, maskbits : :class:`bool`, optional, default to ``True``
+    resolve, maskbits : :class:`bool`, optional, defaults to ``True``
         Written to the output file header as `RESOLVE`, `MASKBITS`.
+    obscon : :class:`str`, optional, defaults to `None`
+        Can pass one of "DARK" or "BRIGHT". If passed, don't write the
+        full set of data, rather only write targets appropriate for
+        "DARK|GRAY" or "BRIGHT" observing conditions. The relevant
+        `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
+        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
+        "dark" appended to the lowest DIRECTORY in the input `filename`.
     """
-    # FIXME: assert data and tsbits schema
-
     # ADM use RELEASE to determine the release string for the input targets.
     ntargs = len(data)
     if ntargs == 0:
@@ -367,6 +372,36 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
 
+    # ADM limit to just BRIGHT or DARK targets if requested.
+    if obscon is not None:
+        hdr["OBSCON"] = obscon
+        # ADM determine the bits for the OBSCONDITIONS.
+        from desitarget.targetmask import obsconditions
+        if obscon == "DARK":
+            obsbits = obsconditions.mask("DARK|GRAY")
+        else:
+            # ADM will flag an error if obscon is not, now BRIGHT.
+            obsbits = obsconditions.mask(obscon)
+        # ADM only retain targets appropriate to the conditions.
+        ii = (data["OBSCONDITIONS"] & obsbits) != 0
+        data = data[ii]
+
+        # ADM create the bright or dark directory.
+        newdir = os.path.join(os.path.dirname(filename), obscon.lower())
+        if not os.path.exists(newdir):
+            os.mkdir(newdir)
+        filename = os.path.join(newdir , os.path.basename(filename))
+
+        # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
+        for col in "NUMOBS_INIT", "PRIORITY_INIT":
+            rename = {"{}_{}".format(col, obscon.upper()): col}
+            data = rfn.rename_fields(data, rename)
+
+        # ADM remove the other BRIGHT/DARK NUMOBS, PRIORITY columns.
+        names = np.array(data.dtype.names)
+        dropem = list(names[['_INIT_' in col for col in names]])
+        data = rfn.drop_fields(data, dropem)
+        
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
         fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
