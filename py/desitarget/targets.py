@@ -828,17 +828,21 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         targets = rfn.append_fields(
             targets,
             ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET',
-             'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT', 'OBSCONDITIONS'],
+             'PRIORITY_INIT_B', 'PRIORITY_INIT_D', 'SUBPRIORITY',
+             'NUMOBS_INIT_B', 'NUMOBS_INIT_D', 'OBSCONDITIONS'],
             [targetid, desi_target, bgs_target, mws_target,
-             nodata, subpriority, nodata, nodata], usemask=False
+             nodata, nodata, subpriority,
+             nodata, nodata, nodata], usemask=False
         )
     elif survey == 'cmx':
         targets = rfn.append_fields(
             targets,
             ['TARGETID', 'CMX_TARGET',
-             'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT', 'OBSCONDITIONS'],
+             'PRIORITY_INIT_B', 'PRIORITY_INIT_D', 'SUBPRIORITY',
+             'NUMOBS_INIT_B', 'NUMOBS_INIT_D', 'OBSCONDITIONS'],
             [targetid, desi_target,
-             nodata, subpriority, nodata, nodata], usemask=False
+             nodata, nodata, subpriority,
+             nodata, nodata, nodata], usemask=False
         )
     elif survey[0:2] == 'sv':
         dt, bt, mt = ["{}_{}_TARGET".format(survey.upper(), tc)
@@ -846,9 +850,11 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         targets = rfn.append_fields(
             targets,
             ['TARGETID', dt, bt, mt,
-             'PRIORITY_INIT', 'SUBPRIORITY', 'NUMOBS_INIT', 'OBSCONDITIONS'],
+             'PRIORITY_INIT_B', 'PRIORITY_INIT_D', 'SUBPRIORITY',
+             'NUMOBS_INIT_B', 'NUMOBS_INIT_D', 'OBSCONDITIONS'],
             [targetid, desi_target, bgs_target, mws_target,
-             nodata, subpriority, nodata, nodata], usemask=False
+             nodata, nodata, subpriority,
+             nodata, nodata, nodata], usemask=False
         )
     else:
         msg = "survey must be either 'main', 'cmx' or start 'sv', not {}!"     \
@@ -857,8 +863,11 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         raise ValueError(msg)
 
     # ADM determine the initial priority and number of observations.
-    targets["PRIORITY_INIT"], targets["NUMOBS_INIT"] =                         \
-                                            initial_priority_numobs(targets)
+    # ADM in both dark and bright times.
+    targets["PRIORITY_INIT_D"], targets["NUMOBS_INIT_D"] =                         \
+                        initial_priority_numobs(targets, obscon="DARK|GRAY")
+    targets["PRIORITY_INIT_B"], targets["NUMOBS_INIT_B"] =                         \
+                        initial_priority_numobs(targets, obscon="BRIGHT")
 
     # ADM set the OBSCONDITIONS.
     targets["OBSCONDITIONS"] = set_obsconditions(targets)
