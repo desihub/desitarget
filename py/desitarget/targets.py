@@ -828,8 +828,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         targets = rfn.append_fields(
             targets,
             ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET',
-             'PRIORITY_INIT_B', 'PRIORITY_INIT_D', 'SUBPRIORITY',
-             'NUMOBS_INIT_B', 'NUMOBS_INIT_D', 'OBSCONDITIONS'],
+             'PRIORITY_INIT_BRIGHT', 'PRIORITY_INIT_DARK', 'SUBPRIORITY',
+             'NUMOBS_INIT_BRIGHT', 'NUMOBS_INIT_DARK', 'OBSCONDITIONS'],
             [targetid, desi_target, bgs_target, mws_target,
              nodata, nodata, subpriority,
              nodata, nodata, nodata], usemask=False
@@ -838,8 +838,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         targets = rfn.append_fields(
             targets,
             ['TARGETID', 'CMX_TARGET',
-             'PRIORITY_INIT_B', 'PRIORITY_INIT_D', 'SUBPRIORITY',
-             'NUMOBS_INIT_B', 'NUMOBS_INIT_D', 'OBSCONDITIONS'],
+             'PRIORITY_INIT_BRIGHT', 'PRIORITY_INIT_DARK', 'SUBPRIORITY',
+             'NUMOBS_INIT_BRIGHT', 'NUMOBS_INIT_DARK', 'OBSCONDITIONS'],
             [targetid, desi_target,
              nodata, nodata, subpriority,
              nodata, nodata, nodata], usemask=False
@@ -850,8 +850,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         targets = rfn.append_fields(
             targets,
             ['TARGETID', dt, bt, mt,
-             'PRIORITY_INIT_B', 'PRIORITY_INIT_D', 'SUBPRIORITY',
-             'NUMOBS_INIT_B', 'NUMOBS_INIT_D', 'OBSCONDITIONS'],
+             'PRIORITY_INIT_BRIGHT', 'PRIORITY_INIT_DARK', 'SUBPRIORITY',
+             'NUMOBS_INIT_BRIGHT', 'NUMOBS_INIT_DARK', 'OBSCONDITIONS'],
             [targetid, desi_target, bgs_target, mws_target,
              nodata, nodata, subpriority,
              nodata, nodata, nodata], usemask=False
@@ -864,9 +864,9 @@ def finalize(targets, desi_target, bgs_target, mws_target,
 
     # ADM determine the initial priority and number of observations.
     # ADM in both dark and bright times.
-    targets["PRIORITY_INIT_D"], targets["NUMOBS_INIT_D"] =                         \
+    targets["PRIORITY_INIT_DARK"], targets["NUMOBS_INIT_DARK"] =               \
                         initial_priority_numobs(targets, obscon="DARK|GRAY")
-    targets["PRIORITY_INIT_B"], targets["NUMOBS_INIT_B"] =                         \
+    targets["PRIORITY_INIT_BRIGHT"], targets["NUMOBS_INIT_BRIGHT"] =           \
                         initial_priority_numobs(targets, obscon="BRIGHT")
 
     # ADM set the OBSCONDITIONS.
