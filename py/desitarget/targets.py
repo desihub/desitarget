@@ -400,8 +400,8 @@ def set_obsconditions(targets):
     return obscon
 
 
-def initial_priority_numobs(targets, obscon=
-                            "DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"):
+def initial_priority_numobs(targets,
+                            obscon="DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"):
     """highest initial priority and numobs for an array of target bits.
 
     Parameters
@@ -864,11 +864,11 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         raise ValueError(msg)
 
     # ADM determine the initial priority and number of observations.
-    # ADM in both dark and bright times.
-    targets["PRIORITY_INIT_DARK"], targets["NUMOBS_INIT_DARK"] =               \
-                        initial_priority_numobs(targets, obscon="DARK|GRAY")
-    targets["PRIORITY_INIT_BRIGHT"], targets["NUMOBS_INIT_BRIGHT"] =           \
-                        initial_priority_numobs(targets, obscon="BRIGHT")
+    # ADM in both dark and bright time.
+    pp, nn = initial_priority_numobs(targets, obscon="DARK|GRAY")
+    targets["PRIORITY_INIT_DARK"], targets["NUMOBS_INIT_DARK"] = pp, nn
+    pp, nn = initial_priority_numobs(targets, obscon="BRIGHT")
+    targets["PRIORITY_INIT_BRIGHT"], targets["NUMOBS_INIT_BRIGHT"] = pp, nn
 
     # ADM set the OBSCONDITIONS.
     targets["OBSCONDITIONS"] = set_obsconditions(targets)

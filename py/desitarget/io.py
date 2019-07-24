@@ -339,7 +339,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         newdir = os.path.join(os.path.dirname(filename), obscon.lower())
         if not os.path.exists(newdir):
             os.mkdir(newdir)
-        filename = os.path.join(newdir , os.path.basename(filename))
+        filename = os.path.join(newdir, os.path.basename(filename))
 
         # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
         for col in "NUMOBS_INIT", "PRIORITY_INIT":
