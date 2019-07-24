@@ -272,7 +272,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
                   survey="?", nsidefile=None, hpxlist=None,
                   resolve=True, maskbits=True, obscon=None):
-    """Write a target catalogue.
+    """Write target catalogues.
 
     Parameters
     ----------
@@ -310,18 +310,57 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
-    """
-    # ADM use RELEASE to determine the release string for the input targets.
-    ntargs = len(data)
-    if ntargs == 0:
-        # ADM if there are no targets, then we don't know the Data Release.
-        drstring = 'unknowndr'
-    else:
-        drint = np.max(data['RELEASE']//1000)
-        drstring = 'dr'+str(drint)
 
-    # - Create header to include versions, etc.
+    Returns
+    -------
+    :class:`int`
+        The number of targets that were written to file.
+    :class:`str`
+        The name of the file to which targets were written.
+    """
+    # ADM create header.
     hdr = fitsio.FITSHDR()
+
+    # ADM limit to just BRIGHT or DARK targets, if requested.
+    if obscon is not None:
+        hdr["OBSCON"] = obscon
+        # ADM determine the bits for the OBSCONDITIONS.
+        from desitarget.targetmask import obsconditions
+        if obscon == "DARK":
+            obsbits = obsconditions.mask("DARK|GRAY")
+        else:
+            # ADM will flag an error if obscon is not, now BRIGHT.
+            obsbits = obsconditions.mask(obscon)
+        # ADM only retain targets appropriate to the conditions.
+        ii = (data["OBSCONDITIONS"] & obsbits) != 0
+        data = data[ii]
+
+        # ADM create the bright or dark directory.
+        newdir = os.path.join(os.path.dirname(filename), obscon.lower())
+        if not os.path.exists(newdir):
+            os.mkdir(newdir)
+        filename = os.path.join(newdir , os.path.basename(filename))
+
+        # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
+        for col in "NUMOBS_INIT", "PRIORITY_INIT":
+            rename = {"{}_{}".format(col, obscon.upper()): col}
+            data = rfn.rename_fields(data, rename)
+
+        # ADM remove the other BRIGHT/DARK NUMOBS, PRIORITY columns.
+        names = np.array(data.dtype.names)
+        dropem = list(names[['_INIT_' in col for col in names]])
+        data = rfn.drop_fields(data, dropem)
+
+    ntargs = len(data)
+    # ADM die immediately if there are no targets to write.
+    if ntargs == 0:
+        return, ntargs, ""
+
+    # ADM use RELEASE to determine the release string for the input targets.
+    drint = np.max(data['RELEASE']//1000)
+    drstring = 'dr'+str(drint)
+
+    # ADM write versions, etc. to the header.
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     depend.setdep(hdr, 'sandboxcuts', sandboxcuts)
@@ -372,36 +411,6 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
 
-    # ADM limit to just BRIGHT or DARK targets if requested.
-    if obscon is not None:
-        hdr["OBSCON"] = obscon
-        # ADM determine the bits for the OBSCONDITIONS.
-        from desitarget.targetmask import obsconditions
-        if obscon == "DARK":
-            obsbits = obsconditions.mask("DARK|GRAY")
-        else:
-            # ADM will flag an error if obscon is not, now BRIGHT.
-            obsbits = obsconditions.mask(obscon)
-        # ADM only retain targets appropriate to the conditions.
-        ii = (data["OBSCONDITIONS"] & obsbits) != 0
-        data = data[ii]
-
-        # ADM create the bright or dark directory.
-        newdir = os.path.join(os.path.dirname(filename), obscon.lower())
-        if not os.path.exists(newdir):
-            os.mkdir(newdir)
-        filename = os.path.join(newdir , os.path.basename(filename))
-
-        # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
-        for col in "NUMOBS_INIT", "PRIORITY_INIT":
-            rename = {"{}_{}".format(col, obscon.upper()): col}
-            data = rfn.rename_fields(data, rename)
-
-        # ADM remove the other BRIGHT/DARK NUMOBS, PRIORITY columns.
-        names = np.array(data.dtype.names)
-        dropem = list(names[['_INIT_' in col for col in names]])
-        data = rfn.drop_fields(data, dropem)
-        
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
         fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
@@ -430,6 +439,8 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                  .format(nchunks*chunk, len(data)-1, time()-start))
         outy[-1].append(datachunk)
         outy.close()
+
+    return ntargs, filename
 
 
 def write_secondary(filename, data, primhdr=None, scxdir=None):
