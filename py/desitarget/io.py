@@ -549,10 +549,6 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
     """
     nskies = len(data)
 
-    # ADM force OBSCONDITIONS to be 65535
-    # ADM (see https://github.com/desihub/desitarget/pull/313).
-    data["OBSCONDITIONS"] = 2**16-1
-
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
