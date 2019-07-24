@@ -135,14 +135,15 @@ else:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     if ns.bundlefiles is None:
-        # ADM only write out a targeting file if it's non-zero.
-        if len(targets) > 0:
-            obscons = ["BRIGHT", "DARK"]
-            if ns.writeall:
-                obscons.append(None)
-            for obscon in obscons:
-                io.write_targets(ns.dest, targets, resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
-                                 indir=ns.sweepdir, indir2=ns.sweepdir2, obscon=obscon,
-                                 survey="main", nsidefile=ns.nside, hpxlist=pixlist,
-                                 qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside)
-        log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
+        # ADM write out bright-time and dark-time targets separately.
+        obscons = ["BRIGHT", "DARK"]
+        if ns.writeall:
+            obscons.append(None)
+        for obscon in obscons:
+            ntargs, outfile = io.write_targets(
+                ns.dest, targets, resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
+                indir=ns.sweepdir, indir2=ns.sweepdir2, obscon=obscon,
+                survey="main", nsidefile=ns.nside, hpxlist=pixlist,
+                qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside
+            )
+            log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))
