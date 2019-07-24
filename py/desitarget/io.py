@@ -415,32 +415,58 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     if nchunks is None:
         fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
     else:
-        # ADM ensure that files are always overwritten.
-        if os.path.isfile(filename):
-            os.remove(filename)
-        start = time()
-        # ADM open a file for writing.
-        outy = FITS(filename, 'rw')
-        # ADM write the chunks one-by-one.
-        chunk = len(data)//nchunks
-        for i in range(nchunks):
-            log.info("Writing chunk {}/{} from index {} to {}...t = {:.1f}s"
-                     .format(i+1, nchunks, i*chunk, (i+1)*chunk-1, time()-start))
-            datachunk = data[i*chunk:(i+1)*chunk]
-            # ADM if this is the first chunk, write the data and header...
-            if i == 0:
-                outy.write(datachunk, extname='TARGETS', header=hdr, clobber=True)
-            # ADM ...otherwise just append to the existing file object.
-            else:
-                outy[-1].append(datachunk)
-        # ADM append any remaining data.
-        datachunk = data[nchunks*chunk:]
-        log.info("Writing final partial chunk from index {} to {}...t = {:.1f}s"
-                 .format(nchunks*chunk, len(data)-1, time()-start))
-        outy[-1].append(datachunk)
-        outy.close()
+        write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
 
     return ntargs, filename
+
+
+def write_in_chunks(filename, data, nchunks, extname=None, header=None):
+    """Write a FITS file in chunks to save memory.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The output file.
+    data : :class:`~numpy.ndarray`
+        The numpy structured array of data to write.
+    nchunks : :class`int`, optional, defaults to `None`
+        The number of chunks in which to write the output file.
+    extname, header, clobber, optional
+        Passed through to fitsio.write().
+
+    Returns
+    -------
+    Nothing, but writes the `data` to the `filename` in chunks.
+
+    Notes
+    -----
+        - Always OVERWRITES existing files!
+    """
+    # ADM ensure that files are always overwritten.
+    if os.path.isfile(filename):
+        os.remove(filename)
+    start = time()
+    # ADM open a file for writing.
+    outy = FITS(filename, 'rw')
+    # ADM write the chunks one-by-one.
+    chunk = len(data)//nchunks
+    for i in range(nchunks):
+        log.info("Writing chunk {}/{} from index {} to {}...t = {:.1f}s"
+                 .format(i+1, nchunks, i*chunk, (i+1)*chunk-1, time()-start))
+        datachunk = data[i*chunk:(i+1)*chunk]
+        # ADM if this is the first chunk, write the data and header...
+        if i == 0:
+            outy.write(datachunk, extname='TARGETS', header=header, clobber=True)
+        # ADM ...otherwise just append to the existing file object.
+        else:
+            outy[-1].append(datachunk)
+    # ADM append any remaining data.
+    datachunk = data[nchunks*chunk:]
+    log.info("Writing final partial chunk from index {} to {}...t = {:.1f}s"
+             .format(nchunks*chunk, len(data)-1, time()-start))
+    outy[-1].append(datachunk)
+    outy.close()
+    return
 
 
 def write_secondary(filename, data, primhdr=None, scxdir=None):
