@@ -354,7 +354,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
     if ntargs == 0:
-        return ntargs, ""
+        return ntargs, None
 
     # ADM use RELEASE to determine the release string for the input targets.
     drint = np.max(data['RELEASE']//1000)

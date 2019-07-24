@@ -33,7 +33,7 @@ log = get_logger()
 
 # Higher order bits encode source file and survey. Seems pointless since source
 # and survey are implcitiy in the *_TARGET columns which are propagated through
-# fibreassign anyway, so this is just a toy example.
+# fiberassign anyway, so this is just a toy example.
 
 # Number of bits allocated to each section
 USER_END = 52    # Free to use
@@ -764,7 +764,7 @@ def resolve(targets):
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,
-             sky=0, survey='main'):
+             sky=0, survey='main', darkbright=False):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -783,6 +783,11 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         Specifies which target masks yaml file to use. Options are `main`,
         `cmx` and `svX` (where X = 1, 2, 3 etc.) for the main survey,
         commissioning and an iteration of SV.
+    darkbright : :class:`bool`, optional, defaults to ``False``
+        If sent, then split `NUMOBS_INIT` and `PRIORITY_INIT` into
+        `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
+        and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
+        to "BRIGHT" and "DARK|GRAY" observing conditions.
 
     Returns
     -------
@@ -824,51 +829,39 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     nodata = np.zeros(ntargets, dtype='int')-1
     subpriority = np.zeros(ntargets, dtype='float')
 
-    # ADM add new columns, which are different depending on SV/cmx/main survey.
+    # ADM new columns are different depending on SV/cmx/main survey.
     if survey == 'main':
-        targets = rfn.append_fields(
-            targets,
-            ['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET',
-             'PRIORITY_INIT_BRIGHT', 'PRIORITY_INIT_DARK', 'SUBPRIORITY',
-             'NUMOBS_INIT_BRIGHT', 'NUMOBS_INIT_DARK', 'OBSCONDITIONS'],
-            [targetid, desi_target, bgs_target, mws_target,
-             nodata, nodata, subpriority,
-             nodata, nodata, nodata], usemask=False
-        )
+        colnames = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
     elif survey == 'cmx':
-        targets = rfn.append_fields(
-            targets,
-            ['TARGETID', 'CMX_TARGET',
-             'PRIORITY_INIT_BRIGHT', 'PRIORITY_INIT_DARK', 'SUBPRIORITY',
-             'NUMOBS_INIT_BRIGHT', 'NUMOBS_INIT_DARK', 'OBSCONDITIONS'],
-            [targetid, desi_target,
-             nodata, nodata, subpriority,
-             nodata, nodata, nodata], usemask=False
-        )
+        colnames = ['CMX_TARGET']
     elif survey[0:2] == 'sv':
-        dt, bt, mt = ["{}_{}_TARGET".format(survey.upper(), tc)
-                      for tc in ["DESI", "BGS", "MWS"]]
-        targets = rfn.append_fields(
-            targets,
-            ['TARGETID', dt, bt, mt,
-             'PRIORITY_INIT_BRIGHT', 'PRIORITY_INIT_DARK', 'SUBPRIORITY',
-             'NUMOBS_INIT_BRIGHT', 'NUMOBS_INIT_DARK', 'OBSCONDITIONS'],
-            [targetid, desi_target, bgs_target, mws_target,
-             nodata, nodata, subpriority,
-             nodata, nodata, nodata], usemask=False
-        )
+        colnames = ["{}_{}_TARGET".format(survey.upper(), tc)
+                    for tc in ["DESI", "BGS", "MWS"]]
     else:
-        msg = "survey must be either 'main', 'cmx' or start 'sv', not {}!"     \
+        msg = "survey must be 'main', 'cmx' or 'svX' (X=1,2..etc.), not {}!"   \
             .format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
-    # ADM determine the initial priority and number of observations.
-    # ADM in both dark and bright time.
-    pp, nn = initial_priority_numobs(targets, obscon="DARK|GRAY")
-    targets["PRIORITY_INIT_DARK"], targets["NUMOBS_INIT_DARK"] = pp, nn
-    pp, nn = initial_priority_numobs(targets, obscon="BRIGHT")
-    targets["PRIORITY_INIT_BRIGHT"], targets["NUMOBS_INIT_BRIGHT"] = pp, nn
+    # ADM the columns to write out and their values.
+    cols = ["TARGETID"] + colnames + ['SUBPRIORITY', 'OBSCONDITIONS']
+    vals = [targetid] + [desi_target, bgs_target, mws_target][:len(colnames)]  \
+        + [subpriority, nodata]
+
+    # ADM set the initial PRIORITY and NUMOBS.
+    if darkbright:
+        # ADM populate bright/dark if splitting by survey OBSCONDITIONS.
+        ender, obscon = ["_DARK", "_BRIGHT"], ["DARK|GRAY", "BRIGHT"]
+    else:
+        ender, obscon = [""], ["DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"]
+    for edr, oc in zip(ender, obscon):
+        cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
+        vals += [nodata, nodata]
+    # ADM write the output array then add PRIORITY/NUMOBS columns.
+    targets = rfn.append_fields(targets, cols, vals, usemask=False)
+    for edr, oc in zip(ender, obscon):
+        pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
+        targets[pc], targets[nc] = initial_priority_numobs(targets, obscon=oc)
 
     # ADM set the OBSCONDITIONS.
     targets["OBSCONDITIONS"] = set_obsconditions(targets)
@@ -880,7 +873,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         log.critical(msg)
         raise AssertionError(msg)
 
-    # ADM check that we have no LRG targets that don't have LRG_1PASS/2PASS set.
+    # ADM check all LRG targets have LRG_1PASS/2PASS set.
     if survey == 'main':
         lrgset = targets["DESI_TARGET"] & desi_mask.LRG != 0
         pass1lrgset = targets["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
