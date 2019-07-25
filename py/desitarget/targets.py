@@ -10,6 +10,8 @@ import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
 
+from time import time
+
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targetmask import scnd_mask, targetid_mask
 from desitarget.targetmask import obsconditions
@@ -385,17 +387,23 @@ def set_obsconditions(targets):
           data/targetmask.yaml. It can be retrieved using, for example,
           `obsconditions.mask(desi_mask["ELG"].obsconditions)`.
     """
+    start = time()
+    log.info("Begin assigning OBSCONDITIONS...t={:.1f}s".format(time()-start))
     colnames, masks, _ = main_cmx_or_sv(targets)
 
     n = len(targets)
     obscon = np.zeros(n, dtype='i4')
     for mask, xxx_target in zip(masks, colnames):
+        print(xxx_target, time()-start)
         for name in mask.names():
+            print(name, time()-start)
             # ADM which targets have this bit for this mask set?
             ii = (targets[xxx_target] & mask[name]) != 0
             # ADM under what conditions can that bit be observed?
             if np.any(ii):
                 obscon[ii] |= obsconditions.mask(mask[name].obsconditions)
+
+    log.info("Done assigning OBSCONDITIONS...t={:.1f}s".format(time()-start))
 
     return obscon
 
