@@ -1,9 +1,9 @@
-      PROGRAM v1dump 
+      PROGRAM v1dump
 C
 C  gfortran -o v1dump ADM-v1dump.f v1sub.f
 C
 C  - loop over range of zones
-C  - read individual URAT zone file (binary data) 
+C  - read individual URAT zone file (binary data)
 C  - output all data to ASCII file, no header lines
 C  - user select column separator character, no empty columns
 C  - for explanations of the 45 columns see "readme" file
@@ -15,7 +15,7 @@ C  150129 NZ change format item #6 I*3 -> I*4 due to neg.flag (no GSC match)
 C  100725 ADM Adapted for NERSC and hardcoded to skip interactive steps
       IMPLICIT NONE
       INTEGER    dimc, dims
-      PARAMETER (dimc = 45   ! number of URAT data columns 
+      PARAMETER (dimc = 45   ! number of URAT data columns
      .          ,dims = 45)  ! number of separators
 
       INTEGER      dv(dimc), mi(dimc), ma(dimc), is(dims)
@@ -94,4 +94,3 @@ C ADM the delimiter for the output files.
       ENDDO     ! loop all zones
 
       END  ! main <v1dump>
- 
