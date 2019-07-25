@@ -25,7 +25,7 @@ ap.add_argument("source",
                 help="Input sky targets file (e.g. /project/projectdirs/desi/target/catalogs/dr8/0.31.0/skies/skies-dr8-0.31.0.fits). Used purely to set the minimum allowed OBJID.")
 ap.add_argument("dest",
                 help="Output supplemental sky targets file (e.g. /project/projectdirs/desi/target/catalogs/supp-skies-dr4-0.20.0.fits)")
-ap.add_argument("--nskiespersqdeg",
+ap.add_argument("--nskiespersqdeg", type=float,
                 help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
                 default=None)
 ap.add_argument("--numproc", type=int,

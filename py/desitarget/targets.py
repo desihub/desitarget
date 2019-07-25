@@ -10,8 +10,6 @@ import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table
 
-from time import time
-
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targetmask import scnd_mask, targetid_mask
 from desitarget.targetmask import obsconditions
@@ -387,23 +385,17 @@ def set_obsconditions(targets):
           data/targetmask.yaml. It can be retrieved using, for example,
           `obsconditions.mask(desi_mask["ELG"].obsconditions)`.
     """
-    start = time()
-    log.info("Begin assigning OBSCONDITIONS...t={:.1f}s".format(time()-start))
     colnames, masks, _ = main_cmx_or_sv(targets)
 
     n = len(targets)
     obscon = np.zeros(n, dtype='i4')
     for mask, xxx_target in zip(masks, colnames):
-        print(xxx_target, time()-start)
         for name in mask.names():
-            print(name, time()-start)
             # ADM which targets have this bit for this mask set?
             ii = (targets[xxx_target] & mask[name]) != 0
             # ADM under what conditions can that bit be observed?
             if np.any(ii):
                 obscon[ii] |= obsconditions.mask(mask[name].obsconditions)
-
-    log.info("Done assigning OBSCONDITIONS...t={:.1f}s".format(time()-start))
 
     return obscon
 
@@ -466,8 +458,7 @@ def initial_priority_numobs(targets,
                 pass
 
         # ADM loop through the relevant bits updating with the highest
-        # ADM priority and the largest value of NUMOBS. Make sure to
-        # ADM be consistent with the observing conditions.
+        # ADM priority and the largest value of NUMOBS.
         for name in bitnames:
             # ADM indexes in the DESI/MWS/BGS_TARGET column that have this bit set
             istarget = (targets[colname] & mask[name]) != 0
@@ -851,10 +842,11 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         log.critical(msg)
         raise ValueError(msg)
 
-    # ADM the columns to write out and their values.
+    # ADM the columns to write out and their values and formats.
     cols = ["TARGETID"] + colnames + ['SUBPRIORITY', 'OBSCONDITIONS']
     vals = [targetid] + [desi_target, bgs_target, mws_target][:len(colnames)]  \
         + [subpriority, nodata]
+    forms = ['>i8'] + ['>i8', '>i8', '>i8'][:len(colnames)] + ['>f8', '>i8']
 
     # ADM set the initial PRIORITY and NUMOBS.
     if darkbright:
@@ -865,30 +857,39 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     for edr, oc in zip(ender, obscon):
         cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
         vals += [nodata, nodata]
-    # ADM write the output array then add PRIORITY/NUMOBS columns.
-    targets = rfn.append_fields(targets, cols, vals, usemask=False)
+        forms += ['>i8', '>i8']
+
+    # ADM write the output array.
+    newdt = [dt for dt in zip(cols, forms)]
+    done = np.array(np.zeros(len(targets)), dtype=targets.dtype.descr+newdt)
+    for col in targets.dtype.names:
+        done[col] = targets[col]
+    for col, val in zip(cols, vals):
+        done[col] = val
+
+    # ADM add PRIORITY/NUMOBS columns.
     for edr, oc in zip(ender, obscon):
         pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
-        targets[pc], targets[nc] = initial_priority_numobs(targets, obscon=oc)
+        done[pc], done[nc] = initial_priority_numobs(done, obscon=oc)
 
     # ADM set the OBSCONDITIONS.
-    targets["OBSCONDITIONS"] = set_obsconditions(targets)
+    done["OBSCONDITIONS"] = set_obsconditions(done)
 
     # ADM some final checks that the targets conform to expectations...
     # ADM check that each target has a unique ID.
-    if len(targets["TARGETID"]) != len(set(targets["TARGETID"])):
+    if len(done["TARGETID"]) != len(set(done["TARGETID"])):
         msg = 'TARGETIDs are not unique!'
         log.critical(msg)
         raise AssertionError(msg)
 
     # ADM check all LRG targets have LRG_1PASS/2PASS set.
     if survey == 'main':
-        lrgset = targets["DESI_TARGET"] & desi_mask.LRG != 0
-        pass1lrgset = targets["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
-        pass2lrgset = targets["DESI_TARGET"] & desi_mask.LRG_2PASS != 0
+        lrgset = done["DESI_TARGET"] & desi_mask.LRG != 0
+        pass1lrgset = done["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
+        pass2lrgset = done["DESI_TARGET"] & desi_mask.LRG_2PASS != 0
         if not np.all(lrgset == pass1lrgset | pass2lrgset):
             msg = 'Some LRG targets do not have 1PASS/2PASS set!'
             log.critical(msg)
             raise AssertionError(msg)
 
-    return targets
+    return done
