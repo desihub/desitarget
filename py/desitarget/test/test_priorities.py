@@ -159,9 +159,8 @@ class TestPriorities(unittest.TestCase):
     def test_mask_priorities(self):
         for mask in [desi_mask, bgs_mask, mws_mask]:
             for name in mask.names():
-                if name.startswith('STD') or name in ['BGS_ANY', 'MWS_ANY', 'SCND_ANY',
-                                                      'IN_BRIGHT_OBJECT', 'NEAR_BRIGHT_OBJECT',
-                                                      'BRIGHT_OBJECT', 'SKY', 'SV', 'NO_TARGET']:
+                if (name.startswith('STD') or name.endswith('BRIGHT_OBJECT') or name in
+                    ['BGS_ANY', 'MWS_ANY', 'SCND_ANY', 'SKY', 'SUPP_SKY', 'NO_TARGET']):
                     self.assertEqual(mask[name].priorities, {}, 'mask.{} has priorities?'.format(name))
                 else:
                     for state in obsmask.names():
