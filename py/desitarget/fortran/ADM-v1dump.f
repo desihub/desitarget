@@ -38,7 +38,7 @@ C ADM the input/output directories.
       patho = TRIM(TRIM(uratdir) // "/csv/")
 C ADM the file RANGE to convert.
       zn1 = 326
-      zn2 = 327
+      zn2 = 900
 C ADM byte-flip or not (big or little endian).
       bfc = 'N'
 C ADM the delimiter for the output files.
