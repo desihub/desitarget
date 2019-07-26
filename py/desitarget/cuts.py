@@ -1739,7 +1739,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM 10% of the BGS_FAINT sources need the BGS_FAINT_HIP bit set.
     # ADM form a seed using RA/Dec in case we parallelized by HEALPixel.
-    uniqseed = int(4*ramin)*1000+int(4*(decmin+90))
+    uniqseed = int(np.mean(zflux)*1e5)
     np.random.seed(uniqseed)
     nbgs = len(bgs_faint)
     hip = np.random.choice(np.arange(nbgs), nbgs//10, replace=False)
