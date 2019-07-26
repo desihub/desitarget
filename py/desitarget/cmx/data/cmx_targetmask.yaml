@@ -12,6 +12,7 @@ cmx_mask:
     - [SV0_LRG,        10, "SV-like LRG bit is set (very early SV selection)", {obsconditions: DARK}]
     - [SV0_ELG,        11, "SV-like ELG bit is set (very early SV selection)", {obsconditions: DARK|GRAY}]
     - [SV0_QSO,        12, "SV-like QSO bit is set (very early SV/RF selection)", {obsconditions: DARK}]
+    - [SV0_WD,         13, "SV-like WD bit is set (very early MWS_WD selection)", {obsconditions: BRIGHT}]
     
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
@@ -59,6 +60,7 @@ priorities:
         SV0_ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV0_WD: {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -79,6 +81,7 @@ numobs:
         SV0_ELG: 1
         SV0_LRG: 2
         SV0_QSO: 4
+        SV0_WD: 1
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1
