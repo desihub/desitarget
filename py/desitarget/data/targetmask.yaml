@@ -69,11 +69,9 @@ bgs_mask:
     - [BGS_FAINT_NORTH,     8, "BGS faint cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_NORTH,    9, "BGS bright cuts tuned for Bok/Mosaic",             {obsconditions: BRIGHT}]
     - [BGS_WISE_NORTH,      10, "BGS WISE cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT}]
-    - [BGS_FAINT_HIP_NORTH, 11, "BGS faint, high-priority, tuned for Bok/Mosaic",  {obsconditions: BRIGHT}]
     - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",                  {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",                 {obsconditions: BRIGHT}]
     - [BGS_WISE_SOUTH,      18, "BGS WISE cuts tuned for DECam",                   {obsconditions: BRIGHT}]
-    - [BGS_FAINT_HIP_SOUTH, 19, "BGS faint, high-priority, tuned for DECam",       {obsconditions: BRIGHT}]
 
 #- Milky Way Survey
 mws_mask:
@@ -221,8 +219,6 @@ priorities:
         BGS_BRIGHT_NORTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_WISE_SOUTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_WISE_NORTH: SAME_AS_BGS_FAINT_SOUTH
-        BGS_FAINT_HIP_SOUTH: SAME_AS_BGS_FAINT_SOUTH
-        BGS_FAINT_HIP_NORTH: SAME_AS_BGS_FAINT_SOUTH
 
     #- Milky Way Survey: priorities 1000-1999
     # ADM WDs should be prioritized above BGS at 2998
@@ -301,8 +297,6 @@ numobs:
         BGS_BRIGHT_NORTH: 0
         BGS_WISE_SOUTH: 0
         BGS_WISE_NORTH: 0
-        BGS_FAINT_HIP_SOUTH: 0
-        BGS_FAINT_HIP_NORTH: 0
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
     mws_mask: 

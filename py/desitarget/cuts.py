@@ -1737,6 +1737,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
     bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
 
+    # ADM 10% of the BGS_FAINT sources need the BGS_FAINT_HIP bit set.
+    # ADM form a seed using RA/Dec in case we parallelized by HEALPixel.
+    uniqseed = int(4*ramin)*1000+int(4*(decmin+90))
+    np.random.seed(uniqseed)
+    nbgs = len(bgs_faint)
+    hip = np.random.choice(np.arange(nbgs), nbgs//10, replace=False)
+
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
     mws_classes = [[~primary, ~primary, ~primary], [~primary, ~primary, ~primary]]
@@ -1829,20 +1836,22 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= std_bright * desi_mask.STD_BRIGHT
     desi_target |= std_wd * desi_mask.STD_WD
 
-    # BGS bright and faint, south.
+    # BGS targets, south.
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
     bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
-    # BGS bright and faint, north.
+    # BGS targets, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
     bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
 
-    # BGS combined, bright and faint
+    # BGS targets, combined.
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
     bgs_target |= bgs_wise * bgs_mask.BGS_WISE
+    # ADM set 10% of the BGS_FAINT targets to BGS_FAINT_HIP.
+    bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws_broad * mws_mask.MWS_BROAD
