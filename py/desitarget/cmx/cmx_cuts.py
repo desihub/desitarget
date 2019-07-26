@@ -266,7 +266,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
               pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
               photbprpexcessfactor=None, astrometricsigma5dmax=None,
               gaiaaen=None, galb=None, gaia=None, primary=None):
-    """Initial SV-like Milky Way Survey selection (for MzLS/BASS imaging).
+    """Initial SV-like Milky Way Survey selections (MzLS/BASS imaging).
 
     Parameters
     ----------
@@ -298,11 +298,13 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     Returns
     -------
     :class:`array_like`
-        ``True`` if and only if the object is an initial MWS target for SV.
+        ``True`` if and only if the object is a MWS_MAIN or MWS_NEARBY
+        target from early SV classes.
+    :class:`array_like`
+        ``True`` if and only if the object is an early-SV MWS_WD target.
 
     Notes
     -----
-    - Returns the equivalent of ALL MWS classes.
     - All Gaia quantities are as in `the Gaia data model`_.
     """
     if primary is None:
@@ -394,7 +396,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
                  ((gaiaaen < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
     # ADM return any object that passes any of the MWS cuts.
-    return ismws | isnear | iswd
+    return ismws | isnear, iswd
 
 
 def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
@@ -1109,8 +1111,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         rflux=rflux, objtype=objtype, primary=primary
     )
 
-    # ADM determine if an object is SV0_MWS.
-    sv0_mws = isSV0_MWS(
+    # ADM determine if an object is SV0_MWS or WD.
+    sv0_mws, sv0_wd = isSV0_MWS(
         rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         pmra=pmra, pmdec=pmdec, parallax=parallax,
@@ -1174,6 +1176,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= sv0_lrg * cmx_mask.SV0_LRG
     cmx_target |= sv0_elg * cmx_mask.SV0_ELG
     cmx_target |= sv0_qso * cmx_mask.SV0_QSO
+    cmx_target |= sv0_wd * cmx_mask.SV0_WD
     cmx_target |= std_faint * cmx_mask.STD_FAINT
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
 
