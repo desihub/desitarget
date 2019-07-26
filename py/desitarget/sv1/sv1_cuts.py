@@ -935,26 +935,25 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return elg
 
 
-def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isMWS_main_sv(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                gnobs=None, rnobs=None, gfracmasked=None, rfracmasked=None,
                pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
                gaia=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiaaen=None, gaiadupsource=None, primary=None, south=True):
-    """Set bits for main ``MWS`` targets.
+    """Set bits for main ``MWS`` SV targets.
 
     Args:
         see :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns:
         mask1 : array_like.
-            ``True`` if and only if the object is a ``MWS_BROAD`` target.
+            ``True`` if and only if the object is a ``MWS_MAIN_SV`` target.
         mask2 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
-        mask3 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
+            ``True`` if and only if the object is a ``MWS_MAIN_SV_FAINT`` target.
 
     Notes:
-        - as of 11/2/18, based on version 158 on `the wiki`_.
+        - as of 26/7/19, based on version 79 on `the wiki`_.
+        - for SV, no astrometric selection or colour separation
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -979,23 +978,31 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(w), len(mws), time()-start))
 
-    mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked, gnobs=gnobs,
+    mws &= notinMWS_main_sv_mask(gaia=gaia, gfracmasked=gfracmasked, gnobs=gnobs,
                               gflux=gflux, rfracmasked=rfracmasked, rnobs=rnobs,
                               rflux=rflux, gaiadupsource=gaiadupsource, primary=primary)
 
-    # ADM pass the mws that pass cuts as primary, to restrict to the
-    # ADM sources that weren't in a mask/logic cut.
-    mws, red, blue = isMWS_main_colors(
-        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux, objtype=objtype,
-        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, gaiaaen=gaiaaen,
-        primary=mws, south=south
-    )
+    # ADM main targets are point-like based on DECaLS morphology
+    # ADM and GAIA_ASTROMETRIC_NOISE.
+    mws &= _psflike(objtype)
+    mws &= gaiaaen < 3.0
 
-    return mws, red, blue
+    # ADM main targets are robs < 20
+    mws &= obs_rflux > 10**((22.5-20.0)/2.5)
 
+    # APC Degine faint and bright samples
+    mws_faint = mws.copy()
 
-def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
+    # ADM main targets are 16 <= r < 19
+    mws &= rflux > 10**((22.5-19.0)/2.5)
+    mws &= rflux <= 10**((22.5-16.0)/2.5)
+
+    mws_faint &= rflux > 10**((22.5-20.0)/2.5)
+    mws_faint &= rflux <= 10**((22.5-19.0)/2.5)
+
+    return mws, mws_faint
+
+def notinMWS_main_sv_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
                        rfracmasked=None, rnobs=None, rflux=None,
                        gaiadupsource=None, primary=None):
     """Standard set of masking-based cuts used by MWS target selection classes
@@ -1014,58 +1021,6 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
     mws &= ~gaiadupsource
 
     return mws
-
-
-def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
-                      gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None,
-                      primary=None, south=True):
-    """Set of color-based cuts used by MWS target selection classes
-    (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
-    """
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-    mws = primary.copy()
-
-    # ADM main targets are point-like based on DECaLS morphology
-    # ADM and GAIA_ASTROMETRIC_NOISE.
-    mws &= _psflike(objtype)
-    mws &= gaiaaen < 3.0
-
-    # ADM main targets are 16 <= r < 19
-    mws &= rflux > 10**((22.5-19.0)/2.5)
-    mws &= rflux <= 10**((22.5-16.0)/2.5)
-
-    # ADM main targets are robs < 20
-    mws &= obs_rflux > 10**((22.5-20.0)/2.5)
-
-    # ADM calculate the overall proper motion magnitude
-    # ADM inexplicably I'm getting a Runtimewarning here for
-    # ADM a few values in the sqrt, so I'm catching it
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        pm = np.sqrt(pmra**2. + pmdec**2.)
-
-    # ADM make a copy of the main bits for a red/blue split
-    red = mws.copy()
-    blue = mws.copy()
-
-    # ADM MWS-BLUE is g-r < 0.7
-    blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
-
-    # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
-    red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
-    broad = red.copy()
-
-    # ADM MWS-RED also has parallax < 1mas and proper motion < 7.
-    red &= pm < 7.
-    red &= parallax < 1.
-
-    # ADM MWS-BROAD has parallax > 1mas OR proper motion > 7.
-    broad &= (parallax >= 1.) | (pm >= 7.)
-
-    return broad, red, blue
-
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  objtype=None, gaia=None, primary=None,
@@ -1107,9 +1062,10 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     mws &= gaia
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
+    # APC Gaia G mag of more than 16   
+    mws &= gaiagmag > 16.
     # ADM parallax cut corresponding to 100pc
     mws &= (parallax + parallaxerr) > 10.  # NB: "+" is correct
-    # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
 
     return mws
 
@@ -1392,7 +1348,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         )
         # ADM run the MWS_MAIN target types for both north and south
         for south in south_cuts:
-            mws_classes[int(south)] = isMWS_main(
+            mws_classes[int(south)] = isMWS_main_sv(
                     gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
                     gnobs=gnobs, rnobs=rnobs,
@@ -1400,8 +1356,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     pmra=pmra, pmdec=pmdec, parallax=parallax,
                     primary=primary, south=south
             )
-    mws_n, mws_red_n, mws_blue_n = mws_classes[0]
-    mws_s, mws_red_s, mws_blue_s = mws_classes[1]
+    mws_n, mws_faint_n = mws_classes[0]
+    mws_s, mws_faint_s = mws_classes[1]
 
     # ADM treat the MWS WD selection specially, as we have to run the
     # ADM white dwarfs for standards and MWS science targets.
@@ -1442,8 +1398,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM combine the north/south MWS bits.
     mws = (mws_n & photsys_north) | (mws_s & photsys_south)
-    mws_blue = (mws_blue_n & photsys_north) | (mws_blue_s & photsys_south)
-    mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
+    mws_faint = (mws_faint_n & photsys_north) | (mws_s & photsys_south)
 
     # ADM the formal bit-setting using desi_mask/bgs_mask/mws_mask...
     # Construct the targetflag bits for DECaLS (i.e. South).
@@ -1527,21 +1482,17 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_fibmag * bgs_mask.BGS_FIBMAG
 
     # ADM MWS main, nearby, and WD.
-    mws_target = mws * mws_mask.MWS_MAIN
+    mws_target = mws * mws_mask.MWS_MAIN_SV
     mws_target |= mws_wd * mws_mask.MWS_WD
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY
 
     # ADM MWS main north/south split.
-    mws_target |= mws_n * mws_mask.MWS_MAIN_NORTH
-    mws_target |= mws_s * mws_mask.MWS_MAIN_SOUTH
+    mws_target |= mws_n * mws_mask.MWS_MAIN_SV_NORTH
+    mws_target |= mws_s * mws_mask.MWS_MAIN_SV_SOUTH
 
-    # ADM MWS main blue/red split.
-    mws_target |= mws_blue * mws_mask.MWS_MAIN_BLUE
-    mws_target |= mws_blue_n * mws_mask.MWS_MAIN_BLUE_NORTH
-    mws_target |= mws_blue_s * mws_mask.MWS_MAIN_BLUE_SOUTH
-    mws_target |= mws_red * mws_mask.MWS_MAIN_RED
-    mws_target |= mws_red_n * mws_mask.MWS_MAIN_RED_NORTH
-    mws_target |= mws_red_s * mws_mask.MWS_MAIN_RED_SOUTH
+    # ADM MWS main faint north/south split.
+    mws_target |= mws_faint_n * mws_mask.MWS_MAIN_SV_FAINT_NORTH
+    mws_target |= mws_faint_s * mws_mask.MWS_MAIN_SV_FAINT_SOUTH
 
     # Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
