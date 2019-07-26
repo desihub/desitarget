@@ -1741,8 +1741,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM form a seed using RA/Dec in case we parallelized by HEALPixel.
     uniqseed = int(np.mean(zflux)*1e5)
     np.random.seed(uniqseed)
-    nbgs = len(bgs_faint)
-    hip = np.random.choice(np.arange(nbgs), nbgs//10, replace=False)
+    w = np.where(bgs_faint)[0]
+    nbgsf = len(w)
+    if nbgsf > 0:
+        hip = np.random.choice(w, nbgsf//10, replace=False)
 
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
