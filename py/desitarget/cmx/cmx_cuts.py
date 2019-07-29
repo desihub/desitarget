@@ -240,7 +240,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     -----
     - All Gaia quantities are as in `the Gaia data model`_.
     - Returns the equivalent of PRIMARY target classes from
-    version 181 (05/07/19) of `the wiki`_ (the main survey wiki). Ignores
+    version 180 (10/31/18) of `the wiki`_ (the main survey wiki). Ignores
     any target classes that "smell" like secondary target classes because
     they are outside of the footprint or are based on catalog-matching.
     """
