@@ -1031,10 +1031,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     )
 
     # ADM determine if an object matched a CALSPEC standard.
-    std_calspec = ~primary
-#    std_calspec = isSTD_calspec(
-#        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
-#    )
+    std_calspec = isSTD_calspec(
+        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
+    )
 
     # ADM determine if an object is SV0_BGS.
     sv0_bgs = isSV0_BGS(
