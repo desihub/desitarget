@@ -158,76 +158,6 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     return std
 
 
-def isSV0_STD_bright(gflux=None, rflux=None, zflux=None,
-                     pmra=None, pmdec=None, parallax=None,
-                     gaiagmag=None, isgood=None, primary=None):
-    """A selection that resembles bright STD stars for initial SV.
-
-    Parameters
-    ----------
-    gflux, rflux, zflux : :class:`array_like` or :class:`None`
-        Galactic-extinction-corrected flux in nano-maggies in g, r, z bands.
-    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec, and parallax
-        (same units as `the Gaia data model`_).
-    gaiagmag : :class:`array_like` or :class:`None`
-        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
-    isgood : :class:`array_like` or :class:`None`
-        ``True`` for objects that pass the logic cuts in
-        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
-    primary : :class:`array_like` or :class:`None`
-        ``True`` for objects that should be passed through the selection.
-
-    Returns
-    -------
-    :class:`array_like`
-        ``True`` if and only if the object is a cmx "bright standard" target.
-
-    Notes
-    -----
-    - See also `the Gaia data model`_.
-    """
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-
-    isbright = primary.copy()
-    # ADM passes all of the default logic cuts.
-    isbright &= isgood
-
-    # ADM the STD color cuts from the main survey.
-    # Clip to avoid warnings from negative numbers.
-    # ADM we're pretty bright for the STDs, so this should be safe.
-    gflux = gflux.clip(1e-16)
-    rflux = rflux.clip(1e-16)
-    zflux = zflux.clip(1e-16)
-
-    # ADM optical colors for halo TO or bluer.
-    grcolor = 2.5 * np.log10(rflux / gflux)
-    rzcolor = 2.5 * np.log10(zflux / rflux)
-    isbright &= rzcolor < 0.2
-    isbright &= grcolor > 0.
-    isbright &= grcolor < 0.35
-
-    # ADM Gaia magnitudes in the "bright" range (15 < G < 18).
-    isbright &= gaiagmag >= 15.
-    isbright &= gaiagmag < 18.
-
-    # ADM a parallax smaller than 1 mas.
-    isbright &= parallax < 1.
-
-    # ADM calculate the overall proper motion magnitude.
-    # ADM inexplicably I'm getting a Runtimewarning here for
-    # ADM a few values in the sqrt, so I'm catching it.
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        pm = np.sqrt(pmra**2. + pmdec**2.)
-
-    # ADM a proper motion larger than 2 mas/yr.
-    isbright &= pm > 2.
-
-    return isbright
-
-
 def isSV0_BGS(rflux=None, objtype=None, primary=None):
     """Initial SV-like Bright Galaxy Survey selection (for MzLS/BASS imaging).
 
@@ -703,14 +633,14 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return elg
 
 
-def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
-          gfracflux=None, rfracflux=None, zfracflux=None,
-          gfracmasked=None, rfracmasked=None, zfracmasked=None,
-          gnobs=None, rnobs=None, znobs=None,
-          gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
-          gaia=None, astrometricexcessnoise=None, paramssolved=None,
-          pmra=None, pmdec=None, parallax=None, dupsource=None,
-          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False):
+def isSV0_STD(gflux=None, rflux=None, zflux=None, primary=None,
+              gfracflux=None, rfracflux=None, zfracflux=None,
+              gfracmasked=None, rfracmasked=None, zfracmasked=None,
+              gnobs=None, rnobs=None, znobs=None,
+              gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
+              gaia=None, astrometricexcessnoise=None, paramssolved=None,
+              pmra=None, pmdec=None, parallax=None, dupsource=None,
+              gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False):
     """Select STD targets using color cuts and photometric quality cuts.
 
     Parameters
@@ -1099,14 +1029,6 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 #        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
 #    )
 
-    # ADM determine if an object is SV0_STD_BRIGHT. Resembles first
-    # ADM iteration of SV, but locked in cmx_cuts (and could be altered).
-    sv0_std_bright = isSV0_STD_bright(
-        gflux=gflux, rflux=rflux, zflux=zflux,
-        pmra=pmra, pmdec=pmdec, parallax=parallax,
-        gaiagmag=gaiagmag, isgood=isgood, primary=primary
-    )
-
     # ADM determine if an object is SV0_BGS.
     sv0_bgs = isSV0_BGS(
         rflux=rflux, objtype=objtype, primary=primary
@@ -1148,13 +1070,13 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
             dchisq=dchisq, maskbits=maskbits
         )
 
-    # ADM run the STD target types for both faint and bright.
+    # ADM run the SV0 STD target types for both faint and bright.
     # ADM Make sure to pass all of the needed columns! At one point we stopped
     # ADM passing objtype, which meant no standards were being returned.
-    std_classes = []
+    sv0_std_classes = []
     for bright in [False, True]:
-        std_classes.append(
-            isSTD(
+        sv0_std_classes.append(
+            isSV0_STD(
                 primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                 gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
@@ -1165,12 +1087,17 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
                 gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=bright
             )
         )
-    std_faint, std_bright = std_classes
+    sv0_std_faint, sv0_std_bright = sv0_std_classes
+
+    # ADM the nominal main survey cuts for standard stars. These are currently
+    # ADM identical to the SV0 cuts, so treat accordingly:
+    std_faint, std_bright = sv0_std_classes
 
     # ADM Construct the target flag bits.
     cmx_target = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
+    cmx_target |= sv0_std_faint * cmx_mask.SV0_STD_FAINT
     cmx_target |= sv0_std_bright * cmx_mask.SV0_STD_BRIGHT
     cmx_target |= sv0_bgs * cmx_mask.SV0_BGS
     cmx_target |= sv0_mws * cmx_mask.SV0_MWS
