@@ -53,6 +53,7 @@ priorities:
         # ADM next class at the upper end, as this target class is
         # ADM prioritized from 100 higher to ~400 lower on UNOBS by magnitude.
         STD_GAIA: {UNOBS: 2400, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV0_STD_FAINT: {UNOBS: 2600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_STD_BRIGHT: {UNOBS: 2600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         STD_TEST: {UNOBS: 2800, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         STD_CALSPEC: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -74,6 +75,7 @@ priorities:
 numobs:
     cmx_mask:
         STD_GAIA: 1
+        SV0_STD_FAINT: 1
         SV0_STD_BRIGHT: 1
         STD_TEST: 1
         STD_CALSPEC: 1
