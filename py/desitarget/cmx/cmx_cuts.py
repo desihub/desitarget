@@ -159,7 +159,7 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
 
 
 def isSV0_BGS(rflux=None, objtype=None, primary=None):
-    """Initial SV-like Bright Galaxy Survey selection (for MzLS/BASS imaging).
+    """Simplified SV-like Bright Galaxy Survey selection (for MzLS/BASS imaging).
 
     Parameters
     ----------
@@ -177,7 +177,9 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
 
     Notes
     -----
-    - Returns the equivalent of ALL BGS classes.
+    - Returns the equivalent of a combination of the "bright" and "faint" BGS
+    SV classes from version 37 (02/05/19) of `the SV wiki`_ without some of the
+    more complex flag cuts.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -229,13 +231,18 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     -------
     :class:`array_like`
         ``True`` if and only if the object is a MWS_MAIN or MWS_NEARBY
-        target from early SV classes.
+        target from early SV/main survey classes.
     :class:`array_like`
-        ``True`` if and only if the object is an early-SV MWS_WD target.
+        ``True`` if and only if the object is an early-SV/main survey
+        MWS_WD target.
 
     Notes
     -----
     - All Gaia quantities are as in `the Gaia data model`_.
+    - Returns the equivalent of PRIMARY target classes from
+    version 181 (05/07/19) of `the wiki`_ (the main survey wiki). Ignores
+    any target classes that "smell" like secondary target classes because
+    they are outside of the footprint or are based on catalog-matching.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
