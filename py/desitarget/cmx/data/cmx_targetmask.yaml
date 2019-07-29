@@ -2,9 +2,10 @@
 cmx_mask:
 
     - [STD_GAIA,        0, "Gaia stars used for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [SV0_STD_BRIGHT,  1, "Initial SV STD_BRIGHT class at higher density", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_TEST,        2, "Very bright stars for early tests", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_CALSPEC,     3, "Matches to CALSPEC stars", {obsconditions: DARK|GRAY|BRIGHT}]
+    - [SV0_STD_FAINT,   1, "SV-like STD_FAINT class is set (very early SV selection)", {obsconditions: DARK|GRAY}]
+    - [SV0_STD_BRIGHT,  2, "SV-like STD_BRIGHT class is set (very early SV selection)", {obsconditions: BRIGHT}]
+    - [STD_TEST,        3, "Very bright stars for early tests", {obsconditions: DARK|GRAY|BRIGHT}]
+    - [STD_CALSPEC,     4, "Matches to CALSPEC stars", {obsconditions: DARK|GRAY|BRIGHT}]
 
     # ADM targeting bits that should resemble at least the initial SV selections ("SV0").
     - [SV0_BGS,         8, "SV-like BGS bit is set (very early SV selection)", {obsconditions: BRIGHT}]
