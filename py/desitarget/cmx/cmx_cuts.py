@@ -183,8 +183,8 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
         primary = np.ones_like(rflux, dtype='?')
     isbgs = primary.copy()
 
-    # ADM simple selection is objects brighter than r of 20...
-    isbgs &= rflux > 10**((22.5-20.0)/2.5)
+    # ADM simple selection is objects brighter than r of 20.1...
+    isbgs &= rflux > 10**((22.5-20.1)/2.5)
     # ADM ...that are not point-like.
     isbgs &= ~_psflike(objtype)
 
