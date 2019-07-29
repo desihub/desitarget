@@ -395,7 +395,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
         iswd &= ((astrometricsigma5dmax < 1.5) |
                  ((gaiaaen < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
-    # ADM return any object that passes any of the MWS cuts.
+    # ADM return any object that passes the MWS cuts.
     return ismws | isnear, iswd
 
 
@@ -1094,9 +1094,10 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     )
 
     # ADM determine if an object matched a CALSPEC standard.
-    std_calspec = isSTD_calspec(
-        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
-    )
+    std_calspec = ~primary
+#    std_calspec = isSTD_calspec(
+#        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
+#    )
 
     # ADM determine if an object is SV0_STD_BRIGHT. Resembles first
     # ADM iteration of SV, but locked in cmx_cuts (and could be altered).

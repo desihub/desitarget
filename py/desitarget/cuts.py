@@ -1496,7 +1496,7 @@ def _prepare_gaia(objects, colnames=None):
     if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in colnames:
         gaiasigma5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
 
-    # ADM Mily Way Selection requires Galactic b
+    # ADM Milky Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"], objects["DEC"])
 
     return (gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag,
