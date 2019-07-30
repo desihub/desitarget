@@ -5,6 +5,12 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
+* Update CMX and Main Survey target classes [`PR #524`_]. Includes:
+    * New `SV0_WD`, `SV0_STD_FAINT` target classes for commissioning.
+    * Mild updates to `SV0_BGS` and `SV0_MWS` for commissioning.
+    * New `BGS_FAINT_HIP` (high-priority BGS) Main Survey class.
+    * Explicit checking on `ASTROMETRIC_PARAMS_SOLVED` for MWS targets.
+    * Add 3-sigma parallax slop in `MWS_MAIN` survey target class.
 * Use ``MASKBITS`` instead of ``BRIGHTSTARINBLOB`` [`PR #521`_]. Also:
     * Extra options and checks when making and vetting bundling scripts.
     * Option to turn off commissioning QSO cuts to speed unit tests.
@@ -15,6 +21,7 @@ desitarget Change Log
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 .. _`PR #521`: https://github.com/desihub/desitarget/pull/521
+.. _`PR #524`: https://github.com/desihub/desitarget/pull/524
 
 0.31.1 (2019-07-05)
 -------------------
