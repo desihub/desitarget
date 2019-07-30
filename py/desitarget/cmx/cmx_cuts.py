@@ -193,8 +193,8 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
     return isbgs
 
 
-def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, parallaxerr=None,
-              gaiagmag=None, gaiabmag=None, gaiarmag=None,
+def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
+              gaiagmag=None, gaiabmag=None, gaiarmag=None, parallaxerr=None,
               pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
               photbprpexcessfactor=None, astrometricsigma5dmax=None,
               gaiaaen=None, galb=None, gaia=None, primary=None):
@@ -247,6 +247,8 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, parallaxerr=None,
     isnear &= gaiagmag < 20.
     # ADM parallax cut corresponding to 100pc.
     isnear &= (parallax + parallaxerr) > 10.
+    # ADM all astrometric parameters were measured.
+    isnear &= paramssolved = 31
 
     # ADM do not target any WDs for which entries are NaN
     # ADM and turn off the NaNs for those entries.
@@ -272,6 +274,8 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, parallaxerr=None,
     # ADM apply the selection for MWS-WD targets.
     # ADM must be a Legacy Surveys object that matches a Gaia source.
     iswd &= gaia
+    # ADM all astrometric parameters were measured.
+    iswd &= paramssolved = 31
     # ADM Gaia G mag of less than 20.
     iswd &= gaiagmag < 20.
     # ADM Galactic b at least 20o from the plane.
@@ -1026,7 +1030,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         parallaxerr=parallaxerr, parallaxovererror=parallaxovererror,
         photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax,
-        gaiaaen=gaiaaen,
+        gaiaaen=gaiaaen, paramssolved=gaiaparamssolved,
         galb=galb, gaia=gaia, primary=primary
     )
 
