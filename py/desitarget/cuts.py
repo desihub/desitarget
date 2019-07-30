@@ -562,9 +562,11 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                gnobs=None, rnobs=None, gfracmasked=None, rfracmasked=None,
-               pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
-               gaia=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
-               gaiaaen=None, gaiadupsource=None, primary=None, south=True):
+               pmra=None, pmdec=None, parallax=None, parallaxerr=None,
+               obs_rflux=None, objtype=None, gaia=None,
+               gaiagmag=None, gaiabmag=None, gaiarmag=None,
+               gaiaaen=None, gaiadupsource=None, paramssolved=None,
+               primary=None, south=True):
     """Set bits for main ``MWS`` targets.
 
     Args:
@@ -588,22 +590,6 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM currently no difference between N/S for MWS, so easiest
     # ADM just to use one selection
     # if south:
-
-    # ADM do not target any objects for which entries are NaN
-    # ADM and turn off the NaNs for those entries
-    nans = (np.isnan(rflux) | np.isnan(gflux) |
-            np.isnan(parallax) | np.isnan(pmra) | np.isnan(pmdec))
-    w = np.where(nans)[0]
-    if len(w) > 0:
-        # ADM make copies as we are reassigning values
-        rflux, gflux, obs_rflux = rflux.copy(), gflux.copy(), obs_rflux.copy()
-        parallax, pmra, pmdec = parallax.copy(), pmra.copy(), pmdec.copy()
-        rflux[w], gflux[w], obs_rflux[w] = 0., 0., 0.
-        parallax[w], pmra[w], pmdec[w] = 0., 0., 0.
-        mws &= ~nans
-        log.info('{}/{} NaNs in file...t = {:.1f}s'
-                 .format(len(w), len(mws), time()-start))
-
     mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked, gnobs=gnobs,
                               gflux=gflux, rfracmasked=rfracmasked, rnobs=rnobs,
                               rflux=rflux, gaiadupsource=gaiadupsource, primary=primary)
@@ -612,9 +598,10 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM sources that weren't in a mask/logic cut.
     mws, red, blue = isMWS_main_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-        pmra=pmra, pmdec=pmdec, parallax=parallax, obs_rflux=obs_rflux, objtype=objtype,
-        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, gaiaaen=gaiaaen,
-        primary=mws, south=south
+        pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxerr=parallaxerr,
+        obs_rflux=obs_rflux, objtype=objtype, gaiagmag=gaiagmag,
+        gaiabmag=gaiabmag, gaiarmag=gaiarmag, gaiaaen=gaiaaen,
+        paramssolved=paramssolved, primary=mws, south=south
     )
 
     return mws, red, blue
@@ -642,7 +629,8 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
 
 
 def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
+                      pmra=None, pmdec=None, parallax=None, parallaxerr=None,
+                      obs_rflux=None, objtype=None, paramssolved=None,
                       gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None,
                       primary=None, south=True):
     """Set of color-based cuts used by MWS target selection classes
@@ -678,22 +666,32 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM MWS-BLUE is g-r < 0.7
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
+    # ADM Turn off any NaNs for astrometric quantities to suppress
+    # ADM warnings. Won't target these, using cuts on paramssolved.
+    ii = paramssolved != 31
+    parallax = parallax.copy()
+    parallax[ii], pm[ii] = 0., 0.
+
     # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
+    # ADM and all astrometric parameters are measured.
+    red &= paramssolved == 31
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
     broad = red.copy()
 
-    # ADM MWS-RED also has parallax < 1mas and proper motion < 7.
+    # ADM MWS-RED also has parallax < max(3parallax_err,1)mas
+    # ADM and proper motion < 7.
     red &= pm < 7.
-    red &= parallax < 1.
+    red &= parallax < np.maximum(3*parallaxerr, 1)
 
-    # ADM MWS-BROAD has parallax > 1mas OR proper motion > 7.
-    broad &= (parallax >= 1.) | (pm >= 7.)
+    # ADM MWS-BROAD has parallax > max(3parallax_err,1)mas
+    # ADM OR proper motion > 7.
+    broad &= (parallax >= np.maximum(3*parallaxerr, 1)) | (pm >= 7.)
 
     return broad, red, blue
 
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                 objtype=None, gaia=None, primary=None,
+                 objtype=None, gaia=None, primary=None, paramssolved=None,
                  pmra=None, pmdec=None, parallax=None, parallaxerr=None,
                  obs_rflux=None, gaiagmag=None, gaiabmag=None, gaiarmag=None):
     """Set bits for NEARBY Milky Way Survey targets.
@@ -729,6 +727,8 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     mws &= gaia
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
+    # ADM all astrometric parameters are measured.
+    mws &= paramssolved == 31
     # ADM parallax cut corresponding to 100pc
     mws &= (parallax + parallaxerr) > 10.   # NB: "+" is correct
     # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
@@ -739,7 +739,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
              pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
              photbprpexcessfactor=None, astrometricsigma5dmax=None,
-             gaiagmag=None, gaiabmag=None, gaiarmag=None):
+             gaiagmag=None, gaiabmag=None, gaiarmag=None, paramssolved=None):
     """Set bits for WHITE DWARF Milky Way Survey targets.
 
     Args:
@@ -782,6 +782,10 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     # ADM apply the selection for all MWS-WD targets
     # ADM must be a Legacy Surveys object that matches a Gaia source
     mws &= gaia
+
+    # ADM and all astrometric parameters are measured.
+    mws &= paramssolved == 31
+
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
 
@@ -1753,17 +1757,17 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
-            parallaxerr=parallaxerr
+            parallaxerr=parallaxerr, paramssolved=gaiaparamssolved
         )
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
             mws_classes[int(south)] = isMWS_main(
                     gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
-                    gnobs=gnobs, rnobs=rnobs,
-                    gfracmasked=gfracmasked, rfracmasked=rfracmasked,
-                    pmra=pmra, pmdec=pmdec, parallax=parallax,
-                    primary=primary, south=south
+                    gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
+                    rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
+                    parallax=parallax, parallaxerr=parallaxerr,
+                    paramssolved=gaiaparamssolved, primary=primary, south=south
             )
     mws_broad_n, mws_red_n, mws_blue_n = mws_classes[0]
     mws_broad_s, mws_red_s, mws_blue_s = mws_classes[1]
@@ -1774,7 +1778,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     if "MWS" in tcnames or "STD" in tcnames:
         mws_wd = isMWS_WD(
             gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
-            pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxovererror=parallaxovererror,
+            pmra=pmra, pmdec=pmdec, parallax=parallax,
+            parallaxovererror=parallaxovererror, paramssolved=gaiaparamssolved,
             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
