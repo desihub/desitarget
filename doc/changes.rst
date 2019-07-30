@@ -5,7 +5,7 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
-* Update CMX and Main Survey target classes [`PR #524`_]. Includes:
+* Update CMX and Main Survey target classes [`PR #525`_]. Includes:
     * New `SV0_WD`, `SV0_STD_FAINT` target classes for commissioning.
     * Mild updates to `SV0_BGS` and `SV0_MWS` for commissioning.
     * New `BGS_FAINT_HIP` (high-priority BGS) Main Survey class.
@@ -21,7 +21,7 @@ desitarget Change Log
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 .. _`PR #521`: https://github.com/desihub/desitarget/pull/521
-.. _`PR #524`: https://github.com/desihub/desitarget/pull/524
+.. _`PR #524`: https://github.com/desihub/desitarget/pull/525
 
 0.31.1 (2019-07-05)
 -------------------
