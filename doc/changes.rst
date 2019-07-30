@@ -5,6 +5,10 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
+* Add ``OBSCONDITIONS`` to target files [`PR #523`_] Also includes:
+    * Split target files explicitly into bright and "graydark" surveys.
+    * Default to such a file-spilt for SV and Main (not for cmx).
+    * Adds an informational bit for supplemental sky locations.
 * Use ``MASKBITS`` instead of ``BRIGHTSTARINBLOB`` [`PR #521`_]. Also:
     * Extra options and checks when making and vetting bundling scripts.
     * Option to turn off commissioning QSO cuts to speed unit tests.
@@ -15,6 +19,7 @@ desitarget Change Log
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 .. _`PR #521`: https://github.com/desihub/desitarget/pull/521
+.. _`PR #523`: https://github.com/desihub/desitarget/pull/523
 
 0.31.1 (2019-07-05)
 -------------------

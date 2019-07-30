@@ -2298,7 +2298,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
         # - Add *_target mask columns
         targets = finalize(objects, desi_target, bgs_target, mws_target,
-                           survey=survey)
+                           survey=survey, darkbright=True)
         # ADM resolve any duplicates between imaging data releases.
         if resolvetargs:
             targets = resolve(targets)
