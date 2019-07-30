@@ -50,8 +50,8 @@ skydatamodel = np.array([], dtype=[
     ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
     ('OBJID', '<i4'), ('RA', '>f8'), ('DEC', '>f8'), ('BLOBDIST', '>f4'),
     ('APFLUX_G', '>f4'), ('APFLUX_R', '>f4'), ('APFLUX_Z', '>f4'),
-    ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4'),
-    ('OBSCONDITIONS', '>i4')])
+    ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4')
+    ])
 
 
 def get_brick_info(drdirs, counts=False, allbricks=False):
@@ -919,6 +919,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     nskies = len(supp)
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SKY
+    desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
     supp = finalize(supp, desi_target, dum, dum, sky=1)
 

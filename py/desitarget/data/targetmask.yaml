@@ -37,10 +37,12 @@ desi_mask:
         {obsconditions: BRIGHT}]
     - [BAD_SKY,      36, "Blank sky locations that are imperfect but still useable",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [SUPP_SKY,      37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Reserving some bits that we may not use
-    # - [STD_FAINT_BEST,   37, "High quality faint standard stars",  {obsconditions: DARK|GRAY}]
-    # - [STD_BRIGHT_BEST,  38, "High quality bright standard stars", {obsconditions: BRIGHT}]
+    # - [STD_FAINT_BEST,   38, "High quality faint standard stars",  {obsconditions: DARK|GRAY}]
+    # - [STD_BRIGHT_BEST,  39, "High quality bright standard stars", {obsconditions: BRIGHT}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,   49, "No known target at this location",
@@ -190,10 +192,10 @@ priorities:
         STD_FAINT:  -1
         STD_WD:     -1
         SKY:        -1
+        SUPP_SKY:   -1
         STD_BRIGHT: -1
         # STD_FAINT_BEST: -1
         # STD_BRIGHT_BEST: -1
-        SV: -1
         NO_TARGET:  -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the priorities
@@ -270,10 +272,10 @@ numobs:
         STD_FAINT:  -1
         STD_WD:     -1
         SKY:        -1
+        SUPP_SKY:   -1
         STD_BRIGHT: -1
         # STD_FAINT_BEST: -1
         # STD_BRIGHT_BEST: -1
-        SV: -1
         NO_TARGET:  -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the number of observations

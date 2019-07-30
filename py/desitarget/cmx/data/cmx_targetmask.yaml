@@ -22,6 +22,8 @@ cmx_mask:
     - [STD_BRIGHT,  35, "SV-like standard stars for BRIGHT conditions", {obsconditions: BRIGHT}]
     - [BAD_SKY,     36, "Blank sky locations that are imperfect but still useable",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [SUPP_SKY,      37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -67,6 +69,7 @@ priorities:
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
         SKY:        -1
+        SUPP_SKY:   -1
         STD_BRIGHT: -1
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
@@ -89,4 +92,5 @@ numobs:
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1
         SKY: -1
+        SUPP_SKY: -1
         STD_BRIGHT: -1
