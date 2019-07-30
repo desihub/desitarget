@@ -177,9 +177,9 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
 
     Notes
     -----
-    - Returns the equivalent of a combination of the "bright" and "faint" BGS
-    SV classes from version 37 (02/05/19) of `the SV wiki`_ without some of the
-    more complex flag cuts.
+    - Returns the equivalent of a combination of the "bright" and "faint"
+      BGS SV classes from version 37 (02/05/19) of `the SV wiki`_ without
+      some of the more complex flag cuts.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -216,12 +216,11 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     Notes
     -----
     - All Gaia quantities are as in `the Gaia data model`_.
-    - Returns the equivalent of PRIMARY target classes from
-    version 181 (07/07/19) of `the wiki`_ (the main survey wiki). Ignores
-    any target classes that "smell" like secondary target classes because
-    they are outside of the footprint or are based on catalog-matching.
-    Simplifies some flag cuts, and simplifies the MWS_MAIN class to not
-    include sub-classes.
+    - Returns the equivalent of PRIMARY target classes from version 181
+      (07/07/19) of `the wiki`_ (the main survey wiki). Ignores target
+      classes that "smell" like secondary targets (as they are outside
+      of the footprint or are based on catalog-matching). Simplifies flag
+      cuts, and simplifies the MWS_MAIN class to not include sub-classes.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
