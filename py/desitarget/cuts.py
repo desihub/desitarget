@@ -1747,6 +1747,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     np.random.seed(uniqseed)
     w = np.where(bgs_faint)[0]
     nbgsf = len(w)
+    hip = None
     if nbgsf > 0:
         hip = np.random.choice(w, nbgsf//10, replace=False)
 
@@ -1858,7 +1859,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
     bgs_target |= bgs_wise * bgs_mask.BGS_WISE
     # ADM set 10% of the BGS_FAINT targets to BGS_FAINT_HIP.
-    bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
+    if hip is not None:
+        bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws_broad * mws_mask.MWS_BROAD
