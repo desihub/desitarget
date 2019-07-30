@@ -21,7 +21,7 @@ desitarget Change Log
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 .. _`PR #521`: https://github.com/desihub/desitarget/pull/521
-.. _`PR #524`: https://github.com/desihub/desitarget/pull/525
+.. _`PR #525`: https://github.com/desihub/desitarget/pull/525
 
 0.31.1 (2019-07-05)
 -------------------
