@@ -193,7 +193,7 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
     return isbgs
 
 
-def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
+def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, parallaxerr=None,
               gaiagmag=None, gaiabmag=None, gaiarmag=None,
               pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
               photbprpexcessfactor=None, astrometricsigma5dmax=None,
@@ -202,30 +202,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
 
     Parameters
     ----------
-    rflux, obs_rflux : :class:`array_like` or :class:`None`
-        Flux in nano-maggies in r-band, with (`rflux`) and
-        without (`obs_rflux`) Galactic extinction correction.
-    objtype : :class:`array_like` or :class:`None`
-        The Legacy Surveys `TYPE` to restrict to point sources.
-    gaiagmag, gaiabmag, gaiarmag : :class:`array_like` or :class:`None`
-        Gaia-based g-, b- and r-band MAGNITUDES.
-    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec, and parallax.
-    parallaxovererror : :class:`array_like` or :class:`None`
-        Gaia-based parallax/error.
-    photbprpexcessfactor : :class:`array_like` or :class:`None`
-        Gaia_based BP/RP excess factor.
-    astrometricsigma5dmax : :class:`array_like` or :class:`None`
-        Longest semi-major axis of 5-d error ellipsoid.
-    gaiaaen : :class:`array_like` or :class:`None`
-        Gaia-based measure of Astrometric Excess Noise.
-    galb: : :class:`array_like` or :class:`None`
-        Galactic latitude (degrees).
-    gaia : :class:`boolean array_like` or :class:`None`
-        ``True`` if there is a match between this object in the Legacy
-        Surveys and in Gaia.
-    primary : :class:`array_like` or :class:`None`
-        ``True`` for objects that should be passed through the selection.
+    - See :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns
     -------
@@ -240,9 +217,11 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     -----
     - All Gaia quantities are as in `the Gaia data model`_.
     - Returns the equivalent of PRIMARY target classes from
-    version 180 (10/31/18) of `the wiki`_ (the main survey wiki). Ignores
+    version 181 (07/07/19) of `the wiki`_ (the main survey wiki). Ignores
     any target classes that "smell" like secondary target classes because
     they are outside of the footprint or are based on catalog-matching.
+    Simplifies some flag cuts, and simplifies the MWS_MAIN class to not
+    include sub-classes.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -267,8 +246,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     # ADM Gaia G mag of less than 20.
     isnear &= gaiagmag < 20.
     # ADM parallax cut corresponding to 100pc.
-    isnear &= parallax > 10.
-    # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
+    isnear &= (parallax + parallaxerr) > 10.
 
     # ADM do not target any WDs for which entries are NaN
     # ADM and turn off the NaNs for those entries.
@@ -1045,7 +1023,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         pmra=pmra, pmdec=pmdec, parallax=parallax,
-        parallaxovererror=parallaxovererror,
+        parallaxerr=parallaxerr, parallaxovererror=parallaxovererror,
         photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax,
         gaiaaen=gaiaaen,
