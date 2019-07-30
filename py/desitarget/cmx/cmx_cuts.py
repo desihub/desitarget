@@ -248,7 +248,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     # ADM parallax cut corresponding to 100pc.
     isnear &= (parallax + parallaxerr) > 10.
     # ADM all astrometric parameters were measured.
-    isnear &= paramssolved = 31
+    isnear &= paramssolved == 31
 
     # ADM do not target any WDs for which entries are NaN
     # ADM and turn off the NaNs for those entries.
@@ -275,7 +275,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     # ADM must be a Legacy Surveys object that matches a Gaia source.
     iswd &= gaia
     # ADM all astrometric parameters were measured.
-    iswd &= paramssolved = 31
+    iswd &= paramssolved == 31
     # ADM Gaia G mag of less than 20.
     iswd &= gaiagmag < 20.
     # ADM Galactic b at least 20o from the plane.
