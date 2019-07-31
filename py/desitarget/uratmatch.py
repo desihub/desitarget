@@ -179,7 +179,7 @@ def urat_csv_to_fits(numproc=5):
     ----------
     numproc : :class:`int`, optional, defaults to 5
         The number of parallel processes to use.
-    
+
     Returns
     -------
     Nothing
@@ -197,7 +197,7 @@ def urat_csv_to_fits(numproc=5):
     """
     # ADM the resolution at which the URAT HEALPix files should be stored.
     nside = _get_urat_nside()
-    
+
     # ADM check that the URAT_DIR is set.
     uratdir = _get_urat_dir()
     log.info("running on {} processors".format(numproc))
@@ -469,7 +469,7 @@ def make_urat_files(numproc=5, download=False):
 
     urat_binary_to_csv(numproc=numproc)
     log.info('Converted binary files to CSV...t={:.1f}s'.format(time()-t0))
-    
+
     urat_csv_to_fits(numproc=numproc)
     log.info('Converted CSV files to FITS...t={:.1f}s'.format(time()-t0))
 
@@ -533,7 +533,7 @@ def find_urat_files(objs, neighbors=True, radec=False):
 
     # ADM restrict to only files/HEALPixels actually covered by URAT.
     uratfiles = [fn for fn in uratfiles if os.path.exists(fn)]
-    
+
     return uratfiles
 
 
@@ -570,11 +570,11 @@ def match_to_urat(objs, matchrad=1.):
     # ADM objects without matches should have URAT_ID, DISTANCE of -1.
     done["URAT_ID"] = -1
     distance = np.zeros(nobjs) - 1
-    
+
     # ADM determine which URAT files need to be scraped.
     uratfiles = find_urat_files(objs)
     nfiles = len(uratfiles)
-    
+
     # ADM catch the case of no matches to URAT.
     if nfiles == 0:
         return done
@@ -592,12 +592,12 @@ def match_to_urat(objs, matchrad=1.):
         ii = (distance[idobjs] == -1) | (distance[idobjs] > dist)
         done[idobjs[ii]] = urat[idurat[ii]]
         distance[idobjs[ii]] = dist[ii]
-        
+
     # ADM add the distances to the output array.
     dt = uratdatamodel.dtype.descr + [("DISTANCE", ">f4")]
     output = np.zeros(nobjs, dtype=dt)
     for col in uratdatamodel.dtype.names:
         output[col] = done[col]
     output["DISTANCE"] = distance
-    
+
     return output

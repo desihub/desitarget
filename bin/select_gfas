@@ -23,8 +23,8 @@ ap.add_argument("surveydir",
 ap.add_argument("dest",
                 help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits' at NERSC)")
 ap.add_argument('-m', '--maglim', type=float,
-                help="Magnitude limit on GFA targets in Gaia G-band (defaults to [18])",
-                default=18)
+                help="Magnitude limit on GFA targets in Gaia G-band (defaults to [21])",
+                default=21)
 ap.add_argument('-n', "--numproc", type=int,
                 help="number of concurrent processes to use (defaults to [{}])".format(nproc),
                 default=nproc)
