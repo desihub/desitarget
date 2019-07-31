@@ -770,7 +770,7 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
     -------
     :class:`~numpy.ndarray`
         The matching Gaia information for each object, where the returned format and
-        columns correspond to `desitarget.secondary.gaiadatamodel`
+        columns correspond to `desitarget.gaiamatch.gaiadatamodel`
 
     Notes
     -----

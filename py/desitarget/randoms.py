@@ -758,7 +758,7 @@ def stellar_density(nside=256):
     nfiles = len(filenames)
     t0 = time()
     for nfile, filename in enumerate(filenames):
-        if nfile % 200 == 0 and nfile > 0:
+        if nfile % 1000 == 0 and nfile > 0:
             elapsed = time() - t0
             rate = nfile / elapsed
             log.info('{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'

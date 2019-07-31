@@ -1256,7 +1256,7 @@ def is_in_gal_box(objs, lbbox, radec=False):
     return ii
 
 
-def radec_match_to(matchto, objs, sep=1., radec=False):
+def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
     """Match objects to a catalog list on RA/Dec.
 
     Parameters
@@ -1270,6 +1270,9 @@ def radec_match_to(matchto, objs, sep=1., radec=False):
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` then `objs` and `matchto` are [RA, Dec] lists instead of
         rec arrays.
+    return_sep : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the separation between each object, not
+        just the indexes of the match.
 
     Returns
     -------
@@ -1277,6 +1280,9 @@ def radec_match_to(matchto, objs, sep=1., radec=False):
         The indexes in `match2` for which `objs` matches `match2` at < `sep`.
     :class:`~numpy.ndarray` (of integers)
         The indexes in `objs` for which `objs` matches `match2` at < `sep`.
+    :class:`~numpy.ndarray` (of floats)
+        The distances in ARCSECONDS of the matches.
+        Only returned if `return_sep` is ``True``.
 
     Notes
     -----
@@ -1312,5 +1318,8 @@ def radec_match_to(matchto, objs, sep=1., radec=False):
     idobjs = np.arange(len(cobjs))
 
     ii = d2d < sep*u.arcsec
+
+    if return_sep:
+        return idmatchto[ii], idobjs[ii], d2d[ii].arcsec
 
     return idmatchto[ii], idobjs[ii]
