@@ -760,8 +760,8 @@ def stellar_density(nside=256):
     for nfile, filename in enumerate(filenames):
         if nfile % 200 == 0 and nfile > 0:
             elapsed = time() - t0
-            rate = elapsed / nfile
-            log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
+            rate = nfile / elapsed
+            log.info('{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
                      .format(nfile, nfiles, rate, elapsed/60.))
 
         # ADM save memory, speed up by only reading a subset of columns.
@@ -978,18 +978,26 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     pixels, pixcnts = np.unique(pixnums, return_counts=True)
     pixcnts = np.insert(pixcnts, 0, 0)
     pixcnts = np.cumsum(pixcnts)
-
+    log.info('Done sorting...t = {:.1f}s'.format(time()-start))
     # ADM work through the ordered pixels to populate the median for
     # ADM each quantity of interest.
     cols = ['EBV', 'PSFDEPTH_W1', 'PSFDEPTH_W2',
             'PSFDEPTH_G', 'GALDEPTH_G', 'PSFSIZE_G',
             'PSFDEPTH_R', 'GALDEPTH_R', 'PSFSIZE_R',
             'PSFDEPTH_Z', 'GALDEPTH_Z', 'PSFSIZE_Z']
-    for i in range(len(pixcnts)-1):
+    t0 = time()
+    npix = len(pixcnts)
+    stepper = npix//50
+    for i in range(npix-1):
         inds = pixorder[pixcnts[i]:pixcnts[i+1]]
         pix = pixnums[inds][0]
         for col in cols:
             hpxinfo[col][pix] = np.median(randoms[col][inds])
+        if i % stepper == 0 and i > 0:
+            elapsed = time() - t0
+            rate = i / elapsed
+            log.info('{}/{} pixels; {:.1f} pix/sec; {:.1f} total mins elapsed'
+                     .format(i, npix, rate, elapsed/60.))
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
