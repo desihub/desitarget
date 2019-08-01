@@ -853,33 +853,33 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
         - When the RA range exceeds 180o, `healpy.query_polygon()`
           defines the range as that with the smallest area (i.e the box
           can wrap-around in RA). To avoid any ambiguity, this function
-          will return ALL HEALPixels in such cases.
+          will only limit by the passed Decs in such cases.
         - Only strictly correct for Decs from -90+1e-5(o) to 90-1e5(o).
     """
     ramin, ramax, decmin, decmax = radecbox
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
-    if np.abs(ramax-ramin) > 180.:
+    if np.abs(ramax-ramin) <= 180.:
+        # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
+        npole, spole = 90-1e-5, -90+1e-5
+        # ADM convert RA/Dec to co-latitude and longitude in radians.
+        rapairs = np.array([ramin, ramin, ramax, ramax])
+        decpairs = np.array([spole, npole, npole, spole])
+        thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
+
+        # ADM convert to Cartesian vectors remembering to transpose
+        # ADM to pass the array to query_polygon in the correct order.
+        vecs = hp.dir2vec(thetapairs, phipairs).T
+
+        # ADM determine the pixels that touch the RA range.
+        pixra = hp.query_polygon(nside, vecs,
+                                 inclusive=inclusive, fact=fact, nest=True)
+    else:
         log.warning('Max RA ({}) and Min RA ({}) separated by > 180o...'
                     .format(ramax, ramin))
-        log.warning('...returning full set of HEALPixels at nside={}'
+        log.warning('...will only limit to passed Declinations'
                     .format(nside))
-        return np.arange(hp.nside2npix(nside))
-
-    # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
-    npole, spole = 90-1e-5, -90+1e-5
-    # ADM convert RA/Dec to co-latitude and longitude in radians.
-    rapairs = np.array([ramin, ramin, ramax, ramax])
-    decpairs = np.array([spole, npole, npole, spole])
-    thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
-
-    # ADM convert to Cartesian vectors remembering to transpose
-    # ADM to pass the array to query_polygon in the correct order.
-    vecs = hp.dir2vec(thetapairs, phipairs).T
-
-    # ADM determine the pixels that touch the RA range.
-    pixra = hp.query_polygon(nside, vecs,
-                             inclusive=inclusive, fact=fact, nest=True)
+        pixra = np.arange(hp.nside2npix(nside))
 
     # ADM determine the pixels that touch the Dec range.
     pixdec = hp_in_dec_range(nside, decmin, decmax, inclusive=inclusive)
@@ -928,7 +928,7 @@ def hp_in_dec_range(nside, decmin, decmax, inclusive=True):
 
 
 def hp_beyond_gal_b(nside, mingalb, neighbors=True):
-    """Find all HEALPixels with centers and neigbors beyond a Galactic b.
+    """Find HEALPixels with centers and neighbors beyond a Galactic b.
 
     Parameters
     ----------
