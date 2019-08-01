@@ -2,9 +2,10 @@
 cmx_mask:
 
     - [STD_GAIA,        0, "Gaia stars used for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [SV0_STD_BRIGHT,  1, "Initial SV STD_BRIGHT class at higher density", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_TEST,        2, "Very bright stars for early tests", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_CALSPEC,     3, "Matches to CALSPEC stars", {obsconditions: DARK|GRAY|BRIGHT}]
+    - [SV0_STD_FAINT,   1, "SV-like STD_FAINT class is set (very early SV selection)", {obsconditions: DARK|GRAY}]
+    - [SV0_STD_BRIGHT,  2, "SV-like STD_BRIGHT class is set (very early SV selection)", {obsconditions: BRIGHT}]
+    - [STD_TEST,        3, "Very bright stars for early tests", {obsconditions: DARK|GRAY|BRIGHT}]
+    - [STD_CALSPEC,     4, "Matches to CALSPEC stars", {obsconditions: DARK|GRAY|BRIGHT}]
 
     # ADM targeting bits that should resemble at least the initial SV selections ("SV0").
     - [SV0_BGS,         8, "SV-like BGS bit is set (very early SV selection)", {obsconditions: BRIGHT}]
@@ -12,6 +13,7 @@ cmx_mask:
     - [SV0_LRG,        10, "SV-like LRG bit is set (very early SV selection)", {obsconditions: DARK}]
     - [SV0_ELG,        11, "SV-like ELG bit is set (very early SV selection)", {obsconditions: DARK|GRAY}]
     - [SV0_QSO,        12, "SV-like QSO bit is set (very early SV/RF selection)", {obsconditions: DARK}]
+    - [SV0_WD,         13, "SV-like WD bit is set (very early MWS_WD selection)", {obsconditions: BRIGHT}]
     
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
@@ -53,6 +55,7 @@ priorities:
         # ADM next class at the upper end, as this target class is
         # ADM prioritized from 100 higher to ~400 lower on UNOBS by magnitude.
         STD_GAIA: {UNOBS: 2400, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV0_STD_FAINT: {UNOBS: 2600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_STD_BRIGHT: {UNOBS: 2600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         STD_TEST: {UNOBS: 2800, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         STD_CALSPEC: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -61,6 +64,7 @@ priorities:
         SV0_ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV0_WD: {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -74,6 +78,7 @@ priorities:
 numobs:
     cmx_mask:
         STD_GAIA: 1
+        SV0_STD_FAINT: 1
         SV0_STD_BRIGHT: 1
         STD_TEST: 1
         STD_CALSPEC: 1
@@ -82,6 +87,7 @@ numobs:
         SV0_ELG: 1
         SV0_LRG: 2
         SV0_QSO: 4
+        SV0_WD: 1
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1
