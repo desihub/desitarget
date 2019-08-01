@@ -17,7 +17,7 @@ from desimodel.footprint import is_point_in_desi
 
 import desitarget.io
 from desitarget.internal import sharedmem
-from desitarget.gaiamatch import read_gaia_file
+from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box
@@ -251,7 +251,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     """
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
-        infiles = find_gaia_files_box([0, 360, mindec, 90])
+        infilesbox = find_gaia_files_box([0, 360, mindec, 90])
+        infilesgalb = find_gaia_files_beyond_gal_b(mingalb)
+        infiles = list(set(infilesbox).intersection(set(infilesgalb)))
     else:
         infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False)
     nfiles = len(infiles)
