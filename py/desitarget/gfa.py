@@ -515,7 +515,7 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
     # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
     ii = ((np.isnan(gfas["PMRA"]) | (gfas["PMRA"] == 0)) &
           (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
-    gfas = gfas[ii]
+    gfas = gfas[~ii]
 
     # ADM limit to DESI footprint or passed tiles, if not cmx'ing.
     if not cmx:
