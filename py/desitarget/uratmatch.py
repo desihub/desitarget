@@ -537,7 +537,7 @@ def find_urat_files(objs, neighbors=True, radec=False):
     return uratfiles
 
 
-def match_to_urat(objs, matchrad=1.):
+def match_to_urat(objs, matchrad=1., radec=False):
     """Match objects to URAT healpix files and return URAT information.
 
     Parameters
@@ -546,6 +546,9 @@ def match_to_urat(objs, matchrad=1.):
         Must contain at least "RA" and "DEC".
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The radius at which to match in arcseconds.
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead of
+        a rec array.
 
     Returns
     -------
@@ -563,8 +566,14 @@ def match_to_urat(objs, matchrad=1.):
         - Because this reads in HEALPixel split files, it's (far) faster
           for objects that are clumped rather than widely distributed.
     """
+    # ADM parse whether a structure or coordinate list was passed.
+    if radec:
+        ra, dec = objs
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+
     # ADM set up an array of URAT information for the output.
-    nobjs = len(objs)
+    nobjs = len(ra)
     done = np.zeros(nobjs, dtype=uratdatamodel.dtype)
 
     # ADM objects without matches should have URAT_ID, DISTANCE of -1.
@@ -572,26 +581,25 @@ def match_to_urat(objs, matchrad=1.):
     distance = np.zeros(nobjs) - 1
 
     # ADM determine which URAT files need to be scraped.
-    uratfiles = find_urat_files(objs)
+    uratfiles = find_urat_files([ra, dec], radec=True)
     nfiles = len(uratfiles)
 
     # ADM catch the case of no matches to URAT.
-    if nfiles == 0:
-        return done
+    if nfiles > 0:
+        # ADM loop through the URAT files and find matches.
+        for ifn, fn in enumerate(uratfiles):
+            if ifn % 500 == 0 and ifn > 0:
+                log.info('{}/{} files; {:.1f} total mins elapsed'
+                    .format(ifn, nfiles, (time()-start)/60.))
+            urat = fitsio.read(fn)
+            idurat, idobjs, dist = radec_match_to(
+                [urat["RA"], urat["DEC"]], [ra, dec],
+                sep=matchrad, radec=True, return_sep=True)
 
-    # ADM loop through the URAT files and find matches.
-    for ifn, fn in enumerate(uratfiles):
-        if ifn % 100 == 0 and ifn > 0:
-            log.info('{}/{} files; {:.1f} total mins elapsed'
-                .format(ifn, nfiles, (time()-start)/60.))
-        urat = fitsio.read(fn)
-        idurat, idobjs, dist = radec_match_to(urat, objs, sep=matchrad,
-                                              return_sep=True)
-
-        # ADM update matches whenever we have a CLOSER match.
-        ii = (distance[idobjs] == -1) | (distance[idobjs] > dist)
-        done[idobjs[ii]] = urat[idurat[ii]]
-        distance[idobjs[ii]] = dist[ii]
+            # ADM update matches whenever we have a CLOSER match.
+            ii = (distance[idobjs] == -1) | (distance[idobjs] > dist)
+            done[idobjs[ii]] = urat[idurat[ii]]
+            distance[idobjs[ii]] = dist[ii]
 
     # ADM add the distances to the output array.
     dt = uratdatamodel.dtype.descr + [("DISTANCE", ">f4")]
