@@ -9,6 +9,16 @@ desitarget Change Log
     * New module to retrieve URAT data from Vizier and reformat it.
     * Code to match RAs/Decs to URAT, as part of that new URAT module.
     * Substitute URAT PMs for GFAs where Gaia has not yet measured PMs.
+* Update CMX and Main Survey target classes [`PR #525`_]. Includes:
+    * New `SV0_WD`, `SV0_STD_FAINT` target classes for commissioning.
+    * Mild updates to `SV0_BGS` and `SV0_MWS` for commissioning.
+    * New `BGS_FAINT_HIP` (high-priority BGS) Main Survey class.
+    * Explicit checking on `ASTROMETRIC_PARAMS_SOLVED` for MWS targets.
+    * Add 3-sigma parallax slop in `MWS_MAIN` survey target class.
+* Add ``OBSCONDITIONS`` to target files [`PR #523`_] Also includes:
+    * Split target files explicitly into bright and "graydark" surveys.
+    * Default to such a file-spilt for SV and Main (not for cmx).
+    * Adds an informational bit for supplemental sky locations.
 * Use ``MASKBITS`` instead of ``BRIGHTSTARINBLOB`` [`PR #521`_]. Also:
     * Extra options and checks when making and vetting bundling scripts.
     * Option to turn off commissioning QSO cuts to speed unit tests.
@@ -19,6 +29,8 @@ desitarget Change Log
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 .. _`PR #521`: https://github.com/desihub/desitarget/pull/521
+.. _`PR #523`: https://github.com/desihub/desitarget/pull/523
+.. _`PR #525`: https://github.com/desihub/desitarget/pull/525
 .. _`PR #526`: https://github.com/desihub/desitarget/pull/526
 
 0.31.1 (2019-07-05)

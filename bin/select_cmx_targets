@@ -31,6 +31,9 @@ ap.add_argument("dest",
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
+ap.add_argument("--cmxdir", type=str,
+                help="Pass to set the CMX_DIR environment variable directly in the code",
+                default=None)
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -61,7 +64,7 @@ if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
 
 log.info("running on {} processors".format(ns.numproc))
 
-targets = select_targets(infiles, numproc=ns.numproc)
+targets = select_targets(infiles, numproc=ns.numproc, cmxdir=ns.cmxdir)
 
 io.write_targets(ns.dest, targets, indir=ns.src, survey="cmx", nside=nside, nchunks=20)
 
