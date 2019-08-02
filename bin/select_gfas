@@ -80,6 +80,7 @@ gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.t
 extra = {k: v for k, v in zip(["maglim", "mindec", "mingalb"],
                               [ns.maglim, ns.mindec, ns.mingalb])}
 
+log.info('Writing GFAs to file...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))
 io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2,
               nside=nside, survey=survey, extra=extra)
 

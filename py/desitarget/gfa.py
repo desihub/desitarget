@@ -29,7 +29,6 @@ from desiutil.log import get_logger
 bricks = brick.Bricks(bricksize=0.25)
 # ADM set up the default DESI logger.
 log = get_logger()
-start = time()
 
 # ADM the current data model for columns in the GFA files.
 gfadatamodel = np.array([], dtype=[
@@ -45,7 +44,7 @@ gfadatamodel = np.array([], dtype=[
     ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-    ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4')
+    ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('URAT_ID', '>i8')
 ])
 
 
@@ -127,7 +126,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     # ADM remove the TARGETID, BRICK_OBJID, REF_CAT, REF_EPOCH columns
     # ADM and populate them later as they require special treatment.
     cols = list(gfadatamodel.dtype.names)
-    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT", "REF_EPOCH"]:
+    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT", "REF_EPOCH", "URAT_ID"]:
         cols.remove(col)
     for col in cols:
         gfas[col] = objects[col]
@@ -297,6 +296,92 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     return gfas
 
 
+def add_urat_pms(objs, numproc=4):
+    """Add proper motions from URAT to a set of objects.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Array of objects to update. Must include the columns "PMRA",
+        "PMDEC", "REF_ID" (unique for each object) and "URAT_ID".
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The input array with the "PMRA", PMDEC" and "URAT_ID"
+        columns updated to include URAT information.
+
+    Notes
+    -----
+       - Order is retained using "REF_ID": The input and output
+         arrays should have the same order.
+    """
+    # ADM check REF_ID is indeed unique for each object.
+    assert len(objs["REF_ID"]) == len(np.unique(objs["REF_ID"]))
+
+    # ADM record the original REF_IDs so we can match back to them.
+    origids = objs["REF_ID"]
+
+    # ADM loosely group the input objects on the sky. The
+    # ADM choice of NSIDE=2 isn't magical, the URAT-matching
+    # ADM code is just quicker fo clumped objects.
+    theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+    pixels = hp.ang2pix(2, theta, phi, nest=True)
+
+    # ADM reorder objects (and pixels themselves) based on pixel number.
+    ii = np.argsort(pixels)
+    objs, pixels = objs[ii], pixels[ii]
+
+    # ADM create pixel-split sub-lists of the objects.
+    # ADM here, np.diff marks the transition to the next pixel number.
+    splitobjs = np.split(objs, np.where(np.diff(pixels))[0]+1)
+    nallpix = len(splitobjs)
+
+    # ADM function to run on each of the HEALPix-split input objs.
+    def _get_urat_matches(splitobj):
+        '''wrapper on match_to_urat() for rec array (matchrad=0.1")'''
+        # ADM also return the REF_ID to track the objects.
+        return [match_to_urat(splitobj, matchrad=0.1), splitobj["REF_ID"]]
+
+    # ADM this is just to count pixels in _update_status.
+    npix = np.zeros((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        if npix % 5 == 0 and npix > 0:
+            elapsed = (time()-t0)/60.
+            rate = 60*elapsed/npix
+            log.info('{}/{} pixels; {:.1f} sec/pix...t = {:.1f} mins'
+                     .format(npix, nallpix, rate, elapsed))
+        npix[...] += 1    # this is an in-place modification.
+        return result
+
+    # - Parallel process pixels.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            urats = pool.map(_get_urat_matches, splitobjs, reduce=_update_status)
+    else:
+        urats = []
+        for splitobj in splitobjs:
+            urats.append(_update_status(_get_urat_matches(splitobj)))
+
+    # ADM remember to grab the REFIDs as well as the URAT matches.
+    refids = np.concatenate(np.array(urats)[:,1])
+    urats = np.concatenate(np.array(urats)[:,0])
+
+    # ADM sort the output to match the input, on REF_ID.
+    ii = np.zeros_like(refids)
+    ii[np.argsort(origids)] = np.argsort(refids)
+    assert np.all(refids[ii] == origids)
+
+    return urats[ii]
+
+
 def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
                 cmx=False, mindec=-30, mingalb=10):
     """Create a set of GFA locations using Gaia and matching to sweeps.
@@ -336,6 +421,12 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
         - The tiles loaded from `tilesfile` will only be those in DESI.
           So, for custom tilings, set IN_DESI==1 in your tiles file.
     """
+    # ADM force to no more than numproc=4 for I/O heavy processes.
+    numproc4 = numproc
+    if numproc4 > 4:
+        log.info('Forcing numproc to 4 for I/O heavy parts of code')
+        numproc4 = 4
+
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
         infiles = [infiles, ]
@@ -362,8 +453,8 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
         return gaia_gfas_from_sweep(fn, maglim=maglim)
 
     # ADM this is just to count sweeps files in _update_status.
-    nfile = np.zeros((), dtype='i8')
     t0 = time()
+    nfile = np.zeros((), dtype='i8')
 
     def _update_status(result):
         """wrapper function for the critical reduction operation,
@@ -377,8 +468,8 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
         return result
 
     # - Parallel process input files.
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
+    if numproc4 > 1:
+        pool = sharedmem.MapReduce(np=numproc4)
         with pool:
             gfas = pool.map(_get_gfas, infiles, reduce=_update_status)
     else:
@@ -394,7 +485,7 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
     # ADM retrieve Gaia objects in the DESI footprint or passed tiles.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
-    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc, allsky=cmx,
+    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc4, allsky=cmx,
                              tiles=tiles, mindec=mindec, mingalb=mingalb)
 
     # ADM remove any duplicates. Order is important here, as np.unique
@@ -404,11 +495,22 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
     _, ind = np.unique(gfas["REF_ID"], return_index=True)
     gfas = gfas[ind]
 
+    # ADM for zero/NaN proper motion objects, add in URAT proper motions.
+    ii = ((np.isnan(gfas["PMRA"]) | (gfas["PMRA"] == 0)) &
+          (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
+    log.info('Adding URAT for {} objects with no proper motion...t = {:.1f} mins'
+             .format(np.sum(ii), (time()-t0)/60))
+    urat = add_urat_pms(gfas[ii], numproc=numproc)
+    log.info('Found an additional {} URAT objects...t = {:.1f} mins'
+             .format(np.sum(urat["REF_ID"] != -1), (time()-t0)/60))
+    for col in "PMRA", "PMDEC", "URAT_ID":
+        gfas[col][ii] = urat[col]
+
     # ADM a final clean-up to remove columns that are NaN (from
     # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
-#    for col in ["PMRA", "PMDEC"]:
-#        ii = ~np.isnan(gfas[col]) & (gfas[col] != 0)
-#        gfas = gfas[ii]
+    ii = ((np.isnan(gfas["PMRA"]) | (gfas["PMRA"] == 0)) &
+          (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
+    gfas = gfas[ii]
 
     # ADM limit to DESI footprint or passed tiles, if not cmx'ing.
     if not cmx:
