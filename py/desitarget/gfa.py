@@ -46,7 +46,7 @@ gfadatamodel = np.array([], dtype=[
     ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-    ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('URAT_ID', '>i8')
+    ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('URAT_ID', '>i8'), ('URAT_SEP', '>f4')
 ])
 
 
@@ -128,7 +128,8 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     # ADM remove the TARGETID, BRICK_OBJID, REF_CAT, REF_EPOCH columns
     # ADM and populate them later as they require special treatment.
     cols = list(gfadatamodel.dtype.names)
-    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT", "REF_EPOCH", "URAT_ID"]:
+    for col in ["TARGETID", "BRICK_OBJID", "REF_CAT", "REF_EPOCH",
+                "URAT_ID", "URAT_SEP"]:
         cols.remove(col)
     for col in cols:
         gfas[col] = objects[col]
@@ -305,14 +306,14 @@ def add_urat_pms(objs, numproc=4):
     ----------
     objs : :class:`~numpy.ndarray`
         Array of objects to update. Must include the columns "PMRA",
-        "PMDEC", "REF_ID" (unique for each object) and "URAT_ID".
+        "PMDEC", "REF_ID" (unique per object) "URAT_ID" and "URAT_SEP".
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        The input array with the "PMRA", PMDEC" and "URAT_ID"
+        The input array with the "PMRA", PMDEC", "URAT_ID" and "URAT_SEP"
         columns updated to include URAT information.
 
     Notes
@@ -326,11 +327,11 @@ def add_urat_pms(objs, numproc=4):
     # ADM record the original REF_IDs so we can match back to them.
     origids = objs["REF_ID"]
 
-    # ADM loosely group the input objects on the sky. The
-    # ADM choice of NSIDE=2 isn't magical, the URAT-matching
-    # ADM code is just quicker fo clumped objects.
+    # ADM loosely group the input objects on the sky. NSIDE=16 seems
+    # ADM to nicely balance sample sizes for matching, with the code
+    # ADM being quicker for clumped objects because of file I/O.
     theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
-    pixels = hp.ang2pix(2, theta, phi, nest=True)
+    pixels = hp.ang2pix(16, theta, phi, nest=True)
 
     # ADM reorder objects (and pixels themselves) based on pixel number.
     ii = np.argsort(pixels)
@@ -343,9 +344,9 @@ def add_urat_pms(objs, numproc=4):
 
     # ADM function to run on each of the HEALPix-split input objs.
     def _get_urat_matches(splitobj):
-        '''wrapper on match_to_urat() for rec array (matchrad=0.1")'''
+        '''wrapper on match_to_urat() for rec array (matchrad=0.5")'''
         # ADM also return the REF_ID to track the objects.
-        return [match_to_urat(splitobj, matchrad=0.1), splitobj["REF_ID"]]
+        return [match_to_urat(splitobj, matchrad=0.5), splitobj["REF_ID"]]
 
     # ADM this is just to count pixels in _update_status.
     npix = np.zeros((), dtype='i8')
@@ -354,10 +355,10 @@ def add_urat_pms(objs, numproc=4):
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if npix % 5 == 0 and npix > 0:
+        if npix % 200 == 0 and npix > 0:
             elapsed = (time()-t0)/60.
-            rate = 60*elapsed/npix
-            log.info('{}/{} pixels; {:.1f} sec/pix...t = {:.1f} mins'
+            rate = npix/elapsed/60.
+            log.info('{}/{} pixels; {:.1f} pix/sec...t = {:.1f} mins'
                      .format(npix, nallpix, rate, elapsed))
         npix[...] += 1    # this is an in-place modification.
         return result
@@ -419,14 +420,16 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
 
     Notes
     -----
-        - If numproc==1, use the serial code instead of the parallel code.
+        - If numproc==1, use the serial code instead of parallel code.
+        - If numproc > 4, then numproc=4 is enforced for (just those)
+          parts of the code that are I/O limited.
         - The tiles loaded from `tilesfile` will only be those in DESI.
           So, for custom tilings, set IN_DESI==1 in your tiles file.
     """
-    # ADM force to no more than numproc=4 for I/O heavy processes.
+    # ADM force to no more than numproc=4 for I/O limited processes.
     numproc4 = numproc
     if numproc4 > 4:
-        log.info('Forcing numproc to 4 for I/O heavy parts of code')
+        log.info('Forcing numproc to 4 for I/O limited parts of code')
         numproc4 = 4
 
     # ADM convert a single file, if passed to a list of files.
@@ -504,8 +507,8 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
              .format(np.sum(ii), (time()-t0)/60))
     urat = add_urat_pms(gfas[ii], numproc=numproc)
     log.info('Found an additional {} URAT objects...t = {:.1f} mins'
-             .format(np.sum(urat["REF_ID"] != -1), (time()-t0)/60))
-    for col in "PMRA", "PMDEC", "URAT_ID":
+             .format(np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
+    for col in "PMRA", "PMDEC", "URAT_ID", "URAT_SEP":
         gfas[col][ii] = urat[col]
 
     # ADM a final clean-up to remove columns that are NaN (from

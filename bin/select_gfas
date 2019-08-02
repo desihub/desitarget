@@ -26,7 +26,7 @@ ap.add_argument('-m', '--maglim', type=float,
                 help="Magnitude limit on GFA targets in Gaia G-band (defaults to [21])",
                 default=21)
 ap.add_argument('-n', "--numproc", type=int,
-                help="number of concurrent processes to use (defaults to [{}])".format(nproc),
+                help="number of concurrent processes to use (defaults to [{}]). Note that if numproc > 4, I/O limited parts of the code revert to numproc=4".format(nproc),
                 default=nproc)
 ap.add_argument('-s2', "--surveydir2",
                 help='Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR8 into one file of GFAs)',
