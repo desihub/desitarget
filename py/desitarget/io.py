@@ -639,7 +639,7 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         HEALPixels at resolution `nside`.
     survey : :class:`str`, optional, defaults to "?"
         Written to output file header as the keyword `SURVEY`.
-    extra :class:`dict`, optional
+    extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
     """
