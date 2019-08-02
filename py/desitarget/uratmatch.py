@@ -41,6 +41,7 @@ uratdatamodel = np.array([], dtype=[
     ('PMRA', '>f4'), ('PMDEC', '>f4'), ('PM_ERROR', '>f4')
 ])
 
+
 def _get_urat_dir():
     """Convenience function to grab the URAT environment variable.
 
@@ -560,7 +561,7 @@ def match_to_urat(objs, matchrad=1., radec=False):
 
     Notes
     -----
-        - For objects that do NOT have a match in URAT, the "URAT_ID" 
+        - For objects that do NOT have a match in URAT, the "URAT_ID"
           and "DISTANCE" columns are -1, and other columns are zero.
         - Retrieves the CLOSEST match to URAT for each passed object.
         - Because this reads in HEALPixel split files, it's (far) faster
@@ -590,7 +591,7 @@ def match_to_urat(objs, matchrad=1., radec=False):
         for ifn, fn in enumerate(uratfiles):
             if ifn % 500 == 0 and ifn > 0:
                 log.info('{}/{} files; {:.1f} total mins elapsed'
-                    .format(ifn, nfiles, (time()-start)/60.))
+                         .format(ifn, nfiles, (time()-start)/60.))
             urat = fitsio.read(fn)
             idurat, idobjs, dist = radec_match_to(
                 [urat["RA"], urat["DEC"]], [ra, dec],
