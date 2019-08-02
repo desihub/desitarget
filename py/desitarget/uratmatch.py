@@ -556,13 +556,13 @@ def match_to_urat(objs, matchrad=1., radec=False):
     :class:`~numpy.ndarray`
         The matching URAT information for each object. The returned
         format is as for desitarget.uratmatch.uratdatamodel with
-        and extra column "DISTANCE" which is the matching distance
+        and extra column "URAT_SEP" which is the matching distance
         in ARCSECONDS.
 
     Notes
     -----
         - For objects that do NOT have a match in URAT, the "URAT_ID"
-          and "DISTANCE" columns are -1, and other columns are zero.
+          and "URAT_SEP" columns are -1, and other columns are zero.
         - Retrieves the CLOSEST match to URAT for each passed object.
         - Because this reads in HEALPixel split files, it's (far) faster
           for objects that are clumped rather than widely distributed.
@@ -577,9 +577,9 @@ def match_to_urat(objs, matchrad=1., radec=False):
     nobjs = len(ra)
     done = np.zeros(nobjs, dtype=uratdatamodel.dtype)
 
-    # ADM objects without matches should have URAT_ID, DISTANCE of -1.
+    # ADM objects without matches should have URAT_ID, URAT_SEP of -1.
     done["URAT_ID"] = -1
-    distance = np.zeros(nobjs) - 1
+    urat_sep = np.zeros(nobjs) - 1
 
     # ADM determine which URAT files need to be scraped.
     uratfiles = find_urat_files([ra, dec], radec=True)
@@ -598,15 +598,15 @@ def match_to_urat(objs, matchrad=1., radec=False):
                 sep=matchrad, radec=True, return_sep=True)
 
             # ADM update matches whenever we have a CLOSER match.
-            ii = (distance[idobjs] == -1) | (distance[idobjs] > dist)
+            ii = (urat_sep[idobjs] == -1) | (urat_sep[idobjs] > dist)
             done[idobjs[ii]] = urat[idurat[ii]]
-            distance[idobjs[ii]] = dist[ii]
+            urat_sep[idobjs[ii]] = dist[ii]
 
-    # ADM add the distances to the output array.
-    dt = uratdatamodel.dtype.descr + [("DISTANCE", ">f4")]
+    # ADM add the separation distances to the output array.
+    dt = uratdatamodel.dtype.descr + [("URAT_SEP", ">f4")]
     output = np.zeros(nobjs, dtype=dt)
     for col in uratdatamodel.dtype.names:
         output[col] = done[col]
-    output["DISTANCE"] = distance
+    output["URAT_SEP"] = urat_sep
 
     return output
