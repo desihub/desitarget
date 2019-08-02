@@ -10,6 +10,7 @@ import os.path
 import glob
 import os
 from time import time
+import healpy as hp
 
 import desimodel.focalplane
 import desimodel.io
@@ -19,6 +20,7 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
+from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box
 
@@ -371,8 +373,8 @@ def add_urat_pms(objs, numproc=4):
             urats.append(_update_status(_get_urat_matches(splitobj)))
 
     # ADM remember to grab the REFIDs as well as the URAT matches.
-    refids = np.concatenate(np.array(urats)[:,1])
-    urats = np.concatenate(np.array(urats)[:,0])
+    refids = np.concatenate(np.array(urats)[:, 1])
+    urats = np.concatenate(np.array(urats)[:, 0])
 
     # ADM sort the output to match the input, on REF_ID.
     ii = np.zeros_like(refids)

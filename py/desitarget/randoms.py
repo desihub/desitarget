@@ -751,7 +751,7 @@ def stellar_density(nside=256):
     pixout = np.zeros(npix, dtype='int32')
 
     # ADM find all of the Gaia files.
-    filenames = glob(os.path.join(hpdir,'*fits'))
+    filenames = glob(os.path.join(hpdir, '*fits'))
 
     # ADM read in each file, restricting to the criteria for point
     # ADM sources and storing in a HEALPixel map at resolution nside.
