@@ -42,6 +42,8 @@ ap.add_argument('-b', "--mingalb", type=float,
                 default=10)
 ap.add_argument("--desifootprint", action='store_true',
                 help="If sent, then limit to the current DESIMODEL Main Survey footprint (the default is to produce an 'all-sky' file)")
+ap.add_argument("--nourat", action='store_true',
+                help="If sent, then DO NOT add URAT proper motions for Gaia sources that are missing measurable PMs")
 
 ns = ap.parse_args()
 
@@ -74,7 +76,7 @@ if len(infiles) == 0:
 log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles,
-                   cmx=cmx, mindec=ns.mindec, mingalb=ns.mingalb)
+                   cmx=cmx, mindec=ns.mindec, mingalb=ns.mingalb, addurat=not(ns.nourat))
 
 # ADM extra header keywords for the output fits file.
 extra = {k: v for k, v in zip(["maglim", "mindec", "mingalb"],

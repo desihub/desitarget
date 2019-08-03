@@ -386,7 +386,7 @@ def add_urat_pms(objs, numproc=4):
 
 
 def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
-                cmx=False, mindec=-30, mingalb=10):
+                cmx=False, mindec=-30, mingalb=10, addurat=True):
     """Create a set of GFA locations using Gaia and matching to sweeps.
 
     Parameters
@@ -410,6 +410,11 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
         Closest latitude to Galactic plane for output sources that
         do NOT match an object in the passed `infiles` (e.g. send
         10 to limit to regions beyond -10o <= b < 10o)".
+    addurat : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then substitute proper motions from the URAT
+        catalog where Gaia is missing proper motions. Requires that
+        the :envvar:`URAT_DIR` is set and points to data downloaded and
+        formatted by, e.g., :func:`~desitarget.uratmatch.make_urat_files`.
 
     Returns
     -------
@@ -501,15 +506,16 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
     gfas = gfas[ind]
 
     # ADM for zero/NaN proper motion objects, add in URAT proper motions.
-    ii = ((np.isnan(gfas["PMRA"]) | (gfas["PMRA"] == 0)) &
-          (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
-    log.info('Adding URAT for {} objects with no proper motion...t = {:.1f} mins'
-             .format(np.sum(ii), (time()-t0)/60))
-    urat = add_urat_pms(gfas[ii], numproc=numproc)
-    log.info('Found an additional {} URAT objects...t = {:.1f} mins'
-             .format(np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
-    for col in "PMRA", "PMDEC", "URAT_ID", "URAT_SEP":
-        gfas[col][ii] = urat[col]
+    if addurat:
+        ii = ((np.isnan(gfas["PMRA"]) | (gfas["PMRA"] == 0)) &
+              (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
+        log.info('Adding URAT for {} objects with no PMs...t = {:.1f} mins'
+                 .format(np.sum(ii), (time()-t0)/60))
+        urat = add_urat_pms(gfas[ii], numproc=numproc)
+        log.info('Found an additional {} URAT objects...t = {:.1f} mins'
+                 .format(np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
+        for col in "PMRA", "PMDEC", "URAT_ID", "URAT_SEP":
+            gfas[col][ii] = urat[col]
 
     # ADM a final clean-up to remove columns that are NaN (from
     # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
