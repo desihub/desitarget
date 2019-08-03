@@ -162,6 +162,14 @@ def urat_binary_to_csv():
     # ADM check that the URAT_DIR is set.
     uratdir = _get_urat_dir()
 
+    # ADM a quick check that the csv directory is empty before writing.
+    csvdir = os.path.join(uratdir, 'csv')
+    if os.path.exists(csvdir):
+        if len(os.listdir(csvdir)) > 0:
+            msg = "{} should be empty to make URAT files!".format(csvdir)
+            log.critical(msg)
+            raise ValueError(msg)
+
     log.info('Begin converting URAT files to CSV...t={:.1f}s'
              .format(time()-start))
 
@@ -468,7 +476,7 @@ def make_urat_files(numproc=5, download=False):
         log.info('Retrieved URAT files from Vizier...t={:.1f}s'
                  .format(time()-t0))
 
-    urat_binary_to_csv(numproc=numproc)
+    urat_binary_to_csv()
     log.info('Converted binary files to CSV...t={:.1f}s'.format(time()-t0))
 
     urat_csv_to_fits(numproc=numproc)
