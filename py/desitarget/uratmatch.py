@@ -155,8 +155,8 @@ def urat_binary_to_csv():
     Notes
     -----
         - The environment variable $URAT_DIR must be set.
-        - Relies on the executable fortran/v1dump, which is only
-          tested at NERSC.
+        - Relies on the executable etc/fortran/v1dump, which is only
+          tested at NERSC and might need compiled by the user.
         - Runs in about 40 minutes for 575 files.
     """
     # ADM check that the URAT_DIR is set.
