@@ -165,7 +165,7 @@ def urat_binary_to_csv():
     log.info('Begin converting URAT files to CSV...t={:.1f}s'
              .format(time()-start))
 
-    cmd = resource_filename('desitarget', 'fortran/v1dump')
+    cmd = resource_filename('desitarget', '../../etc/fortran/v1dump')
     os.system(cmd)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
