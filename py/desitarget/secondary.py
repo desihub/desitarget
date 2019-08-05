@@ -64,7 +64,8 @@ log = get_logger()
 start = time()
 
 indatamodel = np.array([], dtype=[
-    ('RA', '>f8'), ('DEC', '>f8'), ('OVERRIDE', '?')
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?')
 ])
 
 # ADM the columns not in the primary target files are:
@@ -76,14 +77,15 @@ indatamodel = np.array([], dtype=[
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is 0 for secondary-only targets.
 outdatamodel = np.array([], dtype=[
-    ('RA', '>f8'), ('DEC', '>f8'), ('OVERRIDE', '?'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'),
     ('TARGETID', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
     ('NUMOBS_INIT', '>i8'), ('SCND_ORDER', '>i4')
 ])
 
 # ADM extra columns that are used during processing but are
-# ADM not an official part of the read or written data model.
+# ADM not an official part of the input or output data model.
 suppdatamodel = np.array([], dtype=[
     ('SCND_TARGET_INIT', '>i8')
 ])
@@ -275,14 +277,19 @@ def read_files(scxdir, scnd_mask):
         fn = os.path.join(fulldir, scnd_mask[name].filename)
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
-            scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2],
+            scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
                                dtype=indatamodel.dtype)
         # ADM otherwise it's a fits file, read it in.
         else:
             scxin = fitsio.read(fn+'.fits',
                                 columns=indatamodel.dtype.names)
+
         # ADM ensure this is a properly constructed numpy array.
         scxin = np.atleast_1d(scxin)
+
+        # ADM the default is 2015.5 for the REF_EPOCH.
+        ii = scxin["REF_EPOCH"] == 0
+        scxin["REF_EPOCH"][ii] = 2015.5
 
         # ADM add the other output columns.
         dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
