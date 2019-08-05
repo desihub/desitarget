@@ -53,6 +53,7 @@ from desitarget.internal import sharedmem
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
 
 from desitarget.targets import encode_targetid, main_cmx_or_sv
+from desitarget.targetmask import obsconditions
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -81,7 +82,7 @@ outdatamodel = np.array([], dtype=[
     ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'),
     ('TARGETID', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
-    ('NUMOBS_INIT', '>i8'), ('SCND_ORDER', '>i4')
+    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8'), ('SCND_ORDER', '>i4')
 ])
 
 # ADM extra columns that are used during processing but are
@@ -301,6 +302,8 @@ def read_files(scxdir, scnd_mask):
         scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
         scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
         scxout["TARGETID"] = -1
+        scxout["OBSCONDITIONS"] =     \
+            obsconditions.mask(scnd_mask[name].obsconditions)
         scxout["SCND_ORDER"] = np.arange(len(scxin))
 
         scxall.append(scxout)

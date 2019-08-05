@@ -119,7 +119,7 @@ scnd_mask:
     - [BACKSTOP,    1, "Gaia-selected targets of last resort",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
     - [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
+       {obsconditions: DARK|GRAY, filename: 'dr16q'}]
 
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
