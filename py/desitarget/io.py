@@ -534,11 +534,13 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         scxfile = os.path.join(scxdir, 'outdata', fn)
         # ADM retrieve just the data with this bit set.
         ii = (scnd_target_init & scnd_mask[name]) != 0
-        # ADM to reorder to match the original input order.
-        order = np.argsort(scnd_order[ii])
-        # ADM write to file.
-        fitsio.write(scxfile, data[ii][order],
-                     extname='TARGETS', header=hdr, clobber=True)
+        # ADM only proceed to the write stage if there are targets.
+        if np.sum(ii) > 0:
+            # ADM to reorder to match the original input order.
+            order = np.argsort(scnd_order[ii])
+            # ADM write to file.
+            fitsio.write(scxfile, data[ii][order],
+                         extname='TARGETS', header=hdr, clobber=True)
 
     # ADM standalone secondaries have RELEASE==0, PRIORITY_INIT > -1...
     from desitarget.targets import decode_targetid
