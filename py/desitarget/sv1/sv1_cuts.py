@@ -1339,7 +1339,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    mws_classes = [[~primary, ~primary, ~primary], [~primary, ~primary, ~primary]]
+    mws_classes = [[~primary, ~primary], [~primary, ~primary]]
     mws_nearby = ~primary
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
