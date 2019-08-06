@@ -344,9 +344,9 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
 
     Notes
     -----
-        - The primary target `infiles` are written back to their
-          original path with `.fits` changed to `-wscnd.fits` and the
-          `SCND_TARGET` bit populated for matching targets.
+        - The primary target `infiles` are written back to their original
+          path with `FILE.fits` changed to `wscnd/FILE-wscnd.fits` and
+          the `SCND_TARGET` bit populated for matching targets.
     """
     # ADM just the file name for logging.
     fn = os.path.basename(infile)
@@ -430,7 +430,11 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
 
     # ADM form the output primary file name and write the file.
     base, ext = os.path.splitext(infile)
-    outfile = "{}{}{}".format(base, '-wscnd', ext)
+    dirn, fn = os.path.split(base)
+    dirn = os.path.join(dirn, "wscnd")
+    if not os.path.exists(dirn):
+        os.mkdir(dirn)
+    outfile = "{}-wscnd{}".format(os.path.join(dirn, fn), ext)
     log.info('Writing updated primary targets to {}...t={:.1f}s'
              .format(outfile, time()-start))
     fitsio.write(outfile, targs, extname='TARGETS', header=hdr, clobber=True)
