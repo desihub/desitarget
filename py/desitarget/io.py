@@ -622,7 +622,7 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
-               survey="?"):
+               survey="?", extra=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -632,13 +632,16 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
     indir, indir2 : :class:`str`, optional, defaults to None.
-        Name of input Legacy Survey Data Release directory or directories,
-        write to header of output file if passed (and if not None).
+        Legacy Survey Data Release directory or directories, write to
+        header of output file if passed (and if not None).
     nside: :class:`int`, defaults to None.
-        If passed, add a column to the GFAs array popluated with HEALPixels
-        at resolution `nside`.
+        If passed, add a column to the GFAs array popluated with
+        HEALPixels at resolution `nside`.
     survey : :class:`str`, optional, defaults to "?"
         Written to output file header as the keyword `SURVEY`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
     """
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
@@ -657,6 +660,11 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         depend.setdep(hdr, 'photcat', drstring)
     if indir2 is not None:
         depend.setdep(hdr, 'input-data-release-2', indir2)
+
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:

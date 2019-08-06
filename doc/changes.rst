@@ -5,6 +5,10 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
+* Add URAT catalog information [`PR #526`_]. Includes:
+    * New module to retrieve URAT data from Vizier and reformat it.
+    * Code to match RAs/Decs to URAT, as part of that new URAT module.
+    * Substitute URAT PMs for GFAs where Gaia has not yet measured PMs.
 * Update CMX and Main Survey target classes [`PR #525`_]. Includes:
     * New `SV0_WD`, `SV0_STD_FAINT` target classes for commissioning.
     * Mild updates to `SV0_BGS` and `SV0_MWS` for commissioning.
@@ -25,8 +29,9 @@ desitarget Change Log
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 .. _`PR #521`: https://github.com/desihub/desitarget/pull/521
-.. _`PR #525`: https://github.com/desihub/desitarget/pull/525
 .. _`PR #523`: https://github.com/desihub/desitarget/pull/523
+.. _`PR #525`: https://github.com/desihub/desitarget/pull/525
+.. _`PR #526`: https://github.com/desihub/desitarget/pull/526
 
 0.31.1 (2019-07-05)
 -------------------
