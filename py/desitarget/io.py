@@ -323,14 +323,15 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
     if obscon is not None:
-        hdr["OBSCON"] = obscon
         # ADM determine the bits for the OBSCONDITIONS.
         from desitarget.targetmask import obsconditions
         if obscon == "DARK":
             obsbits = obsconditions.mask("DARK|GRAY")
+            hdr["OBSCON"] = "DARK|GRAY"
         else:
             # ADM will flag an error if obscon is not, now BRIGHT.
             obsbits = obsconditions.mask(obscon)
+            hdr["OBSCON"] = obscon
         # ADM only retain targets appropriate to the conditions.
         ii = (data["OBSCONDITIONS"] & obsbits) != 0
         data = data[ii]
