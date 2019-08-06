@@ -155,7 +155,7 @@ def urat_binary_to_csv():
     Notes
     -----
         - The environment variable $URAT_DIR must be set.
-        - Relies on the executable etc/fortran/v1dump, which is only
+        - Relies on the executable urat/fortran/v1dump, which is only
           tested at NERSC and might need compiled by the user.
         - Runs in about 40 minutes for 575 files.
     """
@@ -169,11 +169,23 @@ def urat_binary_to_csv():
             msg = "{} should be empty to make URAT files!".format(csvdir)
             log.critical(msg)
             raise ValueError(msg)
+    # ADM make the directory, if needed.
+    else:
+        log.info('Making URAT directory for storing CSV files')
+        os.makedirs(csvdir)
 
     log.info('Begin converting URAT files to CSV...t={:.1f}s'
              .format(time()-start))
 
-    cmd = resource_filename('desitarget', '../../etc/fortran/v1dump')
+    # ADM check the v1dump executable has been compiled.
+    readme = resource_filename('desitarget', 'urat/fortran/README')
+    cmd = resource_filename('desitarget', 'urat/fortran/v1dump')
+    if not (os.path.exists(cmd) and os.access(cmd, os.X_OK)):
+        msg = "{} must have been compiled (see {})".format(cmd, readme)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM execute v1dump.
     os.system(cmd)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
