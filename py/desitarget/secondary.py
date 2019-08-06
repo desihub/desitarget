@@ -454,7 +454,8 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
         to be unique and reasonable and the `SCND_TARGET` column renamed
         based on the flavor of `scnd_mask`. Secondary targets that do not
         have `OVERRIDE` set are also matched to themselves to make sure
-        they share a `TARGETID` and `SCND_TARGET`, and `SCND_TARGET` is
+        they share a `TARGETID`, `PRIORITY_INIT`, `NUMOBS_INIT`,
+        `OBCSONDITIONS` and `SCND_TARGET`, and `SCND_TARGET` is
         updated where multiple secondary targets match a primary target.
     """
     # ADM assign new TARGETIDs to targets without a primary match.
