@@ -522,9 +522,9 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    # ADM remove the SCND_TARGET_INIT column.
-    scnd_target_init = data["SCND_TARGET_INIT"]
-    data = rfn.drop_fields(data, ["SCND_TARGET_INIT"])
+    # ADM remove the SCND_TARGET_INIT and SCND_ORDER columns.
+    scnd_target_init, scnd_order = data["SCND_TARGET_INIT"], data["SCND_ORDER"]
+    data = rfn.drop_fields(data, ["SCND_TARGET_INIT", "SCND_ORDER"])
 
     # ADM write out the file of matches for every secondary bit.
     from desitarget.targetmask import scnd_mask
@@ -535,7 +535,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         # ADM retrieve just the data with this bit set.
         ii = (scnd_target_init & scnd_mask[name]) != 0
         # ADM to reorder to match the original input order.
-        order = np.argsort(data["SCND_ORDER"][ii])
+        order = np.argsort(scnd_order[ii])
         # ADM write to file.
         fitsio.write(scxfile, data[ii][order],
                      extname='TARGETS', header=hdr, clobber=True)

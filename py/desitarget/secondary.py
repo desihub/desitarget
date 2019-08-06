@@ -87,7 +87,7 @@ outdatamodel = np.array([], dtype=[
 # ADM extra columns that are used during processing but are
 # ADM not an official part of the input or output data model.
 suppdatamodel = np.array([], dtype=[
-    ('SCND_TARGET_INIT', '>i8')
+    ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4')
 ])
 
 
@@ -309,6 +309,7 @@ def read_files(scxdir, scnd_mask,
                 scxout[col] = scxin[col]
             scxout["SCND_TARGET"] = scnd_mask[name]
             scxout["SCND_TARGET_INIT"] = scnd_mask[name]
+            scxout["SCND_ORDER"] = np.arange(len(scxin))
             scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
             scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
             scxout["TARGETID"] = -1
