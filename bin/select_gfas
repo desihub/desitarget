@@ -23,16 +23,16 @@ ap.add_argument("surveydir",
 ap.add_argument("dest",
                 help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits' at NERSC)")
 ap.add_argument('-m', '--maglim', type=float,
-                help="Magnitude limit on GFA targets in Gaia G-band (defaults to [18])",
-                default=18)
+                help="Magnitude limit on GFA targets in Gaia G-band (defaults to [21])",
+                default=21)
 ap.add_argument('-n', "--numproc", type=int,
-                help="number of concurrent processes to use (defaults to [{}])".format(nproc),
+                help="number of concurrent processes to use (defaults to [{}]). Note that if numproc > 4, I/O limited parts of the code revert to numproc=4".format(nproc),
                 default=nproc)
 ap.add_argument('-s2', "--surveydir2",
                 help='Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR8 into one file of GFAs)',
                 default=None)
 ap.add_argument('-t', "--tiles",
-                help="File specifying the tiles to which to restrict the GFAs (defaults to all tiles in the DESI footprint)",
+                help="File specifying the tiles to which to restrict the GFAs",
                 default=None)
 ap.add_argument('-dec', "--mindec", type=float,
                 help="Minimum declination to include in output file for NON-LEGACY-SURVEYS sources (degrees; defaults to [-30])",
@@ -40,15 +40,25 @@ ap.add_argument('-dec', "--mindec", type=float,
 ap.add_argument('-b', "--mingalb", type=float,
                 help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
                 default=10)
-ap.add_argument("--cmx", action='store_true',
-                help="If sent, then create a commissioning file. Commissioning files are not restricted by any tiling pattern, even if --tiles is sent")
+ap.add_argument("--desifootprint", action='store_true',
+                help="If sent, then limit to the current DESIMODEL Main Survey footprint (the default is to produce an 'all-sky' file)")
+ap.add_argument("--nourat", action='store_true',
+                help="If sent, then DO NOT add URAT proper motions for Gaia sources that are missing measurable PMs")
 
 ns = ap.parse_args()
 
-survey = 'main'
-if ns.cmx:
-    log.info('Making a cmx-style file. No restrictions on tiling')
+if ns.tiles is not None:
+    log.info('Restricting to passed tiles')
+    survey = 'tiles'
+    cmx = False
+elif ns.desifootprint:
+    log.info('Restricting to the DESI Main Survey footprint')
+    survey = 'main'
+    cmx = False
+else:
+    log.info('Producing GFAs across the entire sky (with specified limits)')
     survey = 'cmx'
+    cmx = True
 
 infiles = io.list_sweepfiles(ns.surveydir)
 if ns.surveydir2 is not None:
@@ -66,8 +76,13 @@ if len(infiles) == 0:
 log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles,
-                   cmx=ns.cmx, mindec=ns.mindec, mingalb=ns.mingalb)
+                   cmx=cmx, mindec=ns.mindec, mingalb=ns.mingalb, addurat=not(ns.nourat))
 
-io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2, nside=nside, survey=survey)
+# ADM extra header keywords for the output fits file.
+extra = {k: v for k, v in zip(["maglim", "mindec", "mingalb"],
+                              [ns.maglim, ns.mindec, ns.mingalb])}
 
+log.info('Writing GFAs to file...t = {:.1f} mins'.format((time()-t0)/60.))
+io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2,
+              nside=nside, survey=survey, extra=extra)
 log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))

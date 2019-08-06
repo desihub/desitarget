@@ -741,28 +741,39 @@ def stellar_density(nside=256):
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = _get_gaia_dir()
-    fitsdir = os.path.join(gaiadir, 'fits')
+    hpdir = os.path.join(gaiadir, 'healpix')
 
-    # ADM the number of pixels and the pixel area at the passed nside.
+    # ADM the number of pixels and the pixel area at nside.
     npix = hp.nside2npix(nside)
     pixarea = hp.nside2pixarea(nside, degrees=True)
 
-    # ADM an output array to populate containing all possible HEALPixels at the passed nside.
+    # ADM an output array of all possible HEALPixels at nside.
     pixout = np.zeros(npix, dtype='int32')
 
     # ADM find all of the Gaia files.
-    filenames = glob(fitsdir+'/*fits')
+    filenames = glob(os.path.join(hpdir, '*fits'))
 
-    # ADM read in each file, restricting to the criteria for point sources
-    # ADM and storing in a HEALPixel map at resolution nside.
-    for filename in filenames:
-        # ADM save memory and speed up by only reading in a subset of columns.
-        gobjs = fitsio.read(filename,
-                            columns=['RA', 'DEC', 'PHOT_G_MEAN_MAG', 'ASTROMETRIC_EXCESS_NOISE'])
+    # ADM read in each file, restricting to the criteria for point
+    # ADM sources and storing in a HEALPixel map at resolution nside.
+    nfiles = len(filenames)
+    t0 = time()
+    for nfile, filename in enumerate(filenames):
+        if nfile % 1000 == 0 and nfile > 0:
+            elapsed = time() - t0
+            rate = nfile / elapsed
+            log.info('{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
+                     .format(nfile, nfiles, rate, elapsed/60.))
 
-        # ADM restrict to subset of sources using point source definition.
+        # ADM save memory, speed up by only reading a subset of columns.
+        gobjs = fitsio.read(
+            filename,
+            columns=['RA', 'DEC', 'PHOT_G_MEAN_MAG', 'ASTROMETRIC_EXCESS_NOISE']
+        )
+
+        # ADM restrict to subset of point sources.
         ra, dec = gobjs["RA"], gobjs["DEC"]
-        gmag, excess = gobjs["PHOT_G_MEAN_MAG"], gobjs["ASTROMETRIC_EXCESS_NOISE"]
+        gmag = gobjs["PHOT_G_MEAN_MAG"]
+        excess = gobjs["ASTROMETRIC_EXCESS_NOISE"]
         point = (excess == 0.) | (np.log10(excess) < 0.3*gmag-5.3)
         grange = (gmag >= 12) & (gmag < 17)
         w = np.where(point & grange)
@@ -967,18 +978,26 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     pixels, pixcnts = np.unique(pixnums, return_counts=True)
     pixcnts = np.insert(pixcnts, 0, 0)
     pixcnts = np.cumsum(pixcnts)
-
+    log.info('Done sorting...t = {:.1f}s'.format(time()-start))
     # ADM work through the ordered pixels to populate the median for
     # ADM each quantity of interest.
     cols = ['EBV', 'PSFDEPTH_W1', 'PSFDEPTH_W2',
             'PSFDEPTH_G', 'GALDEPTH_G', 'PSFSIZE_G',
             'PSFDEPTH_R', 'GALDEPTH_R', 'PSFSIZE_R',
             'PSFDEPTH_Z', 'GALDEPTH_Z', 'PSFSIZE_Z']
-    for i in range(len(pixcnts)-1):
+    t0 = time()
+    npix = len(pixcnts)
+    stepper = npix//50
+    for i in range(npix-1):
         inds = pixorder[pixcnts[i]:pixcnts[i+1]]
         pix = pixnums[inds][0]
         for col in cols:
             hpxinfo[col][pix] = np.median(randoms[col][inds])
+        if i % stepper == 0 and i > 0:
+            elapsed = time() - t0
+            rate = i / elapsed
+            log.info('{}/{} pixels; {:.1f} pix/sec; {:.1f} total mins elapsed'
+                     .format(i, npix, rate, elapsed/60.))
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
