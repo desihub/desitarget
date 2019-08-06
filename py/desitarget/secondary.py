@@ -506,16 +506,19 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
         # ADM set same TARGETID for any matches. m2 must come first, here.
         scxtargs["TARGETID"][w[m2]] = scxtargs["TARGETID"][w[m1]]
 
-    # ADM Ensure secondary targets with matching TARGETIDs have the
-    # ADM full combination of SCND_TARGET bits set. By definition,
-    # ADM Targets with OVERRIDE set never have matching TARGETIDs.
+    # ADM Ensure secondary targets with matching TARGETIDs have all
+    # ADM relevant OBSCONDITIONS and SCND_TARGET bits set. By definition,
+    # ADM targets with OVERRIDE set never have matching TARGETIDs.
     wnoov = np.where(~scxtargs["OVERRIDE"])[0]
     if len(wnoov) > 0:
-        for _, ind in duplicates(scxtargs["TARGETID"][wnoov]):
-            bitwiseor = np.sum(np.unique(
-                scxtargs["SCND_TARGET"][wnoov][ind]
-            ))
-            scxtargs["SCND_TARGET"][wnoov[ind]] = bitwiseor
+        for _, inds in duplicates(scxtargs["TARGETID"][wnoov]):
+            scnd_targ = 0
+            obs_con = 0
+            for ind in inds:
+                scnd_targ |= scxtargs["SCND_TARGET"][wnoov[ind]]
+                obs_con |= scxtargs["OBSCONDITIONS"][wnoov[ind]]
+                scxtargs["SCND_TARGET"][wnoov[inds]] = scnd_targ
+                scxtargs["OBSCONDITIONS"][wnoov[inds]] = obs_con
 
     # ADM change the data model depending on whether the mask
     # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
