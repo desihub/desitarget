@@ -541,7 +541,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
                 scxtargs["OBSCONDITIONS"][wnoov[inds]] = obs_con
             # ADM only keep the priority for the highest-priority match.
             maxi = np.max(scxtargs["PRIORITY_INIT"][wnoov[inds]])
-            argmaxi = np.argmax(scxtargs["PRIORITY_INIT"][wnoov[inds]]) 
+            argmaxi = np.argmax(scxtargs["PRIORITY_INIT"][wnoov[inds]])
             scxtargs["PRIORITY_INIT"][wnoov[inds]] = -1
             scxtargs["PRIORITY_INIT"][wnoov[inds[argmaxi]]] = maxi
 
@@ -595,7 +595,7 @@ def select_secondary(infiles, numproc=4, sep=1., obscon=None,
           their original path with `.fits` changed to `-wscnd.fits` and
           the ``SCND_TARGET`` and ``SCND_ANY`` columns
           populated for matching targets.
-    """    
+    """
     # ADM import the default (main survey) mask.
     if scnd_mask is None:
         from desitarget.targetmask import scnd_mask
@@ -617,7 +617,7 @@ def select_secondary(infiles, numproc=4, sep=1., obscon=None,
     if obscon is None:
         log.info('Trying to read OBSCON from header of {}'.format(infiles[0]))
         obscon = hdr["OBSCON"]
-        
+
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)
     _check_files(scxdir, scnd_mask)
