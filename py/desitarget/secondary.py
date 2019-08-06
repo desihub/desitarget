@@ -74,7 +74,6 @@ indatamodel = np.array([], dtype=[
 #           - If False/0 allow this to be replaced by a primary target.
 #  SCND_TARGET - Corresponds to the bit mask from data/targetmask.yaml
 #                or sv1/data/sv1_targetmask.yaml (scnd_mask).
-#  SCND_ORDER - Row number in the input secondary file for this target.
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is 0 for secondary-only targets.
 outdatamodel = np.array([], dtype=[
@@ -82,7 +81,7 @@ outdatamodel = np.array([], dtype=[
     ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'),
     ('TARGETID', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
-    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8'), ('SCND_ORDER', '>i4')
+    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')
 ])
 
 # ADM extra columns that are used during processing but are
@@ -304,7 +303,6 @@ def read_files(scxdir, scnd_mask):
         scxout["TARGETID"] = -1
         scxout["OBSCONDITIONS"] =     \
             obsconditions.mask(scnd_mask[name].obsconditions)
-        scxout["SCND_ORDER"] = np.arange(len(scxin))
 
         scxall.append(scxout)
 
