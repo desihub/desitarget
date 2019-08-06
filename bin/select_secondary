@@ -34,6 +34,10 @@ ap.add_argument("-s", "--separation", type=float, default=1.,
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
                 "Defaults to SECONDARY_DIR environment variable.")
+ap.add_argument("--obscon", default=None,
+                help="An OBSCONDITIONS string that can be understood by the desitarget mask parser (e.g. 'GRAY|DARK'). "+
+                "Only secondary targets that have a match to this set of OBSCONDITIONS in the targeting yaml file will be processed. "
+                "If this is not passed, an attempt will be made to read it from the header of the first file in 'surveydir'.)")
 
 ns = ap.parse_args()
 
@@ -42,23 +46,33 @@ if len(infiles) == 0:
     log.critical('no target files found')
     sys.exit(1)
 
-log.info('running on {} processors...t={:.1f}mins'.format(ns.numproc, (time()-time0)/60.))
+log.info('running on {} processors...t={:.1f}mins'
+         .format(ns.numproc, (time()-time0)/60.))
+
+# ADM grab the header from the first primary file.
+hdr = fitsio.read_header(infiles[0], extension='TARGETS')
+
+# ADM if OBSCON wasn't sent, read it from the primary targets.
+obscon = ns.obscon
+if ns.obscon is None:
+    obscon = hdr["OBSCON"]
 
 # ADM check if this is an SV or main survey file.
 chk = fitsio.read(infiles[0],rows=0)
 cols, mx, surv = main_cmx_or_sv(chk, scnd=True)
 log.info('running on the {} survey...'.format(surv))
 
-# ADM retrieve the SECONDARY_DIR, in case it wasn't passed and it's stored as an environment variable.
+# ADM find the SECONDARY_DIR environment variable, if it wasn't passed.
 scxdir = _get_scxdir(ns.scnddir)
 # ADM and augment the scxdir if this is an SV set of primary files.
 if surv != 'main':
     scxdir = os.path.join(scxdir, surv)
 
-scx = select_secondary(infiles, numproc=ns.numproc, sep=ns.separation, scxdir=scxdir, scnd_mask=mx[3])
+scx = select_secondary(infiles, numproc=ns.numproc, sep=ns.separation,
+                       scxdir=scxdir, scnd_mask=mx[3], obscon=obscon)
 
-# ADM start the header with that of the first primary file, the primary directory and the separation.
-hdr = fitsio.read_header(infiles[0], extension='TARGETS')
+# ADM add the primary directory and matching radius to the header
+# ADM from the first primary file.
 hdr['PRIMDIR'] = ns.surveydir
 hdr['SEP'] = float(ns.separation)
 
