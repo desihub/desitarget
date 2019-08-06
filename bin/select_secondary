@@ -55,6 +55,7 @@ hdr = fitsio.read_header(infiles[0], extension='TARGETS')
 # ADM if OBSCON wasn't sent, read it from the primary targets.
 obscon = ns.obscon
 if ns.obscon is None:
+    log.info('Attempting to read OBSCON from header of {}'.format(infiles[0]))
     obscon = hdr["OBSCON"]
 
 # ADM check if this is an SV or main survey file.

@@ -249,7 +249,8 @@ def _check_files(scxdir, scnd_mask):
     return
 
 
-def read_files(scxdir, scnd_mask):
+def read_files(scxdir, scnd_mask,
+               obscon="DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"):
     """Read in all secondary files and concatenate them into one array.
 
     Parameters
@@ -260,6 +261,10 @@ def read_files(scxdir, scnd_mask):
         A mask corresponding to a set of secondary targets, e.g, could
         be ``from desitarget.targetmask import scnd_mask`` for the
         main survey mask. Defaults to the main survey mask.
+    obscon : :class:`str`, optional, defaults to almost all conditions
+        An OBSCONDITIONS string that can be understood by the desitarget
+        mask parser (e.g. 'GRAY|DARK'). Only secondary targets that have
+        a match to these OBSCONDITIONS in the yaml file are processed.
 
     Returns
     -------
@@ -267,44 +272,50 @@ def read_files(scxdir, scnd_mask):
         All secondary targets concatenated as one array with columns
         that correspond to `desitarget.secondary.outdatamodel`.
     """
+    # ADM the bits that correspond to the passed obscon.
+    goodobsbits = obsconditions.mask(obscon)
+
     # ADM the full directory name for the input data files.
     fulldir = os.path.join(scxdir, 'indata')
 
     scxall = []
     # ADM loop through all of the scx bits.
     for name in scnd_mask.names():
-        # ADM the full file path without the extension.
-        fn = os.path.join(fulldir, scnd_mask[name].filename)
-        # ADM if the relevant file is a .txt file, read it in.
-        if os.path.exists(fn+'.txt'):
-            scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
-                               dtype=indatamodel.dtype)
-        # ADM otherwise it's a fits file, read it in.
-        else:
-            scxin = fitsio.read(fn+'.fits',
-                                columns=indatamodel.dtype.names)
+        # ADM only process if the conditions are correct.
+        obsbits = obsconditions.mask(scnd_mask[name].obsconditions)
+        if (goodobsbits & obsbits) != 0:
+            # ADM the full file path without the extension.
+            fn = os.path.join(fulldir, scnd_mask[name].filename)
+            # ADM if the relevant file is a .txt file, read it in.
+            if os.path.exists(fn+'.txt'):
+                scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
+                                   dtype=indatamodel.dtype)
+            # ADM otherwise it's a fits file, read it in.
+            else:
+                scxin = fitsio.read(fn+'.fits',
+                                    columns=indatamodel.dtype.names)
 
-        # ADM ensure this is a properly constructed numpy array.
-        scxin = np.atleast_1d(scxin)
+            # ADM ensure this is a properly constructed numpy array.
+            scxin = np.atleast_1d(scxin)
 
-        # ADM the default is 2015.5 for the REF_EPOCH.
-        ii = scxin["REF_EPOCH"] == 0
-        scxin["REF_EPOCH"][ii] = 2015.5
+            # ADM the default is 2015.5 for the REF_EPOCH.
+            ii = scxin["REF_EPOCH"] == 0
+            scxin["REF_EPOCH"][ii] = 2015.5
 
-        # ADM add the other output columns.
-        dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
-        scxout = np.zeros(len(scxin), dtype=dt)
-        for col in indatamodel.dtype.names:
-            scxout[col] = scxin[col]
-        scxout["SCND_TARGET"] = scnd_mask[name]
-        scxout["SCND_TARGET_INIT"] = scnd_mask[name]
-        scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
-        scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
-        scxout["TARGETID"] = -1
-        scxout["OBSCONDITIONS"] =     \
-            obsconditions.mask(scnd_mask[name].obsconditions)
+            # ADM add the other output columns.
+            dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
+            scxout = np.zeros(len(scxin), dtype=dt)
+            for col in indatamodel.dtype.names:
+                scxout[col] = scxin[col]
+            scxout["SCND_TARGET"] = scnd_mask[name]
+            scxout["SCND_TARGET_INIT"] = scnd_mask[name]
+            scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
+            scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
+            scxout["TARGETID"] = -1
+            scxout["OBSCONDITIONS"] =     \
+                obsconditions.mask(scnd_mask[name].obsconditions)
 
-        scxall.append(scxout)
+            scxall.append(scxout)
 
     return np.concatenate(scxall)
 
@@ -545,8 +556,8 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     return scxtargs
 
 
-def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
-                     scnd_mask=None):
+def select_secondary(infiles, numproc=4, sep=1., obscon=None,
+                     scxdir=None, scnd_mask=None):
     """Process secondary targets and update relevant bits.
 
     Parameters
@@ -557,6 +568,12 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
         The number of parallel processes to use.
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match in ARCSECONDS.
+    obscon : :class:`str`, optional, defaults to None
+        An OBSCONDITIONS string that can be understood by the desitarget
+        mask parser (e.g. 'GRAY|DARK'). Only secondary targets that have
+        a match to these OBSCONDITIONS in the yaml file are processed.
+        If ``None``, the code will attempt to read it from the OBSCON
+        keyword in the header of the first primary file it encounters.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         The name of the directory that hosts secondary targets.
     scnd_mask : :class:`desiutil.bitmask.BitMask`, optional
@@ -578,7 +595,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
           their original path with `.fits` changed to `-wscnd.fits` and
           the ``SCND_TARGET`` and ``SCND_ANY`` columns
           populated for matching targets.
-    """
+    """    
     # ADM import the default (main survey) mask.
     if scnd_mask is None:
         from desitarget.targetmask import scnd_mask
@@ -595,11 +612,17 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
             log.critical(msg)
             raise ValueError(msg)
 
+    # ADM if OBSCON wasn't sent, read it from the primary targets.
+    hdr = fitsio.read_header(infiles[0], extension='TARGETS')
+    if obscon is None:
+        log.info('Trying to read OBSCON from header of {}'.format(infiles[0]))
+        obscon = hdr["OBSCON"]
+        
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)
     _check_files(scxdir, scnd_mask)
     # ADM ...and read in all of the secondary targets.
-    scxtargs = read_files(scxdir, scnd_mask)
+    scxtargs = read_files(scxdir, scnd_mask, obscon=obscon)
 
     # ADM split off any scx targets that have requested an OVERRIDE.
     scxover = scxtargs[scxtargs["OVERRIDE"]]
