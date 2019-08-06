@@ -493,7 +493,9 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         - The file of secondary targets that do not match a primary
           target is written to `filename`. Such secondary targets
           are determined from having `RELEASE==0` and `SKY==0`
-          in the `TARGETID`.
+          in the `TARGETID`. Only targets with `PRIORITY_INIT > -1`
+          are written to this file (this allows duplicates to be
+          resolved in, e.g., :func:`~desitarget.secondary.finalize()`
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
           the "outdata" subdirectory of `scxdir`.
@@ -538,10 +540,10 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         fitsio.write(scxfile, data[ii][order],
                      extname='TARGETS', header=hdr, clobber=True)
 
-    # ADM standalone secondary targets have RELEASE==0...
+    # ADM standalone secondaries have RELEASE==0, PRIORITY_INIT > -1...
     from desitarget.targets import decode_targetid
     objid, brickid, release, mock, sky = decode_targetid(data["TARGETID"])
-    ii = release == 0
+    ii = (release == 0) & (data["PRIORITY_INIT"] > -1)
     # ADM ...write them out.
     fitsio.write(filename, data[ii],
                  extname='TARGETS', header=hdr, clobber=True)

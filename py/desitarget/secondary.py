@@ -450,11 +450,20 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     :class:`~numpy.ndarray`
         The array of secondary targets, with the `TARGETID` bit updated
         to be unique and reasonable and the `SCND_TARGET` column renamed
-        based on the flavor of `scnd_mask`. Secondary targets that do not
-        have `OVERRIDE` set are also matched to themselves to make sure
-        they share a `TARGETID`, `PRIORITY_INIT`, `NUMOBS_INIT`,
-        `OBCSONDITIONS` and `SCND_TARGET`, and `SCND_TARGET` is
-        updated where multiple secondary targets match a primary target.
+        based on the flavor of `scnd_mask`.
+
+    Notes
+    -----
+        - Secondary targets that do not have `OVERRIDE` set are also
+        matched to themselves. Such matches are given the same `TARGETID`
+        (which is that of the primary if they match a primary) and
+        the full complement of `SCND_TARGET` and `OBSCONDITIONS` bits
+        across all matches. The highest `PRIORITY_INIT` is retained,
+        and any other priorities are set to -1. When writing, only
+        priorities that are not -1 are written to the main file of
+        secondary targets. If multiple matching secondary targets have
+        the same (highest) priority, the first one encountered retains
+        its `PRIORITY_INIT1
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
@@ -506,7 +515,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
         # ADM set same TARGETID for any matches. m2 must come first, here.
         scxtargs["TARGETID"][w[m2]] = scxtargs["TARGETID"][w[m1]]
 
-    # ADM Ensure secondary targets with matching TARGETIDs have all
+    # ADM Ensure secondary targets with matching TARGETIDs have all the
     # ADM relevant OBSCONDITIONS and SCND_TARGET bits set. By definition,
     # ADM targets with OVERRIDE set never have matching TARGETIDs.
     wnoov = np.where(~scxtargs["OVERRIDE"])[0]
@@ -519,6 +528,11 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
                 obs_con |= scxtargs["OBSCONDITIONS"][wnoov[ind]]
                 scxtargs["SCND_TARGET"][wnoov[inds]] = scnd_targ
                 scxtargs["OBSCONDITIONS"][wnoov[inds]] = obs_con
+            # ADM only keep the priority for the highest-priority match.
+            maxi = np.max(scxtargs["PRIORITY_INIT"][wnoov[inds]])
+            argmaxi = np.argmax(scxtargs["PRIORITY_INIT"][wnoov[inds]]) 
+            scxtargs["PRIORITY_INIT"][wnoov[inds]] = -1
+            scxtargs["PRIORITY_INIT"][wnoov[inds[argmaxi]]] = maxi
 
     # ADM change the data model depending on whether the mask
     # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
