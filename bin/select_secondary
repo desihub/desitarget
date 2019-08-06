@@ -57,6 +57,8 @@ obscon = ns.obscon
 if ns.obscon is None:
     log.info('Attempting to read OBSCON from header of {}'.format(infiles[0]))
     obscon = hdr["OBSCON"]
+# ADM update the header with whatever OBSCON we're using.
+hdr["OBSCON"] = obscon
 
 # ADM check if this is an SV or main survey file.
 chk = fitsio.read(infiles[0],rows=0)
