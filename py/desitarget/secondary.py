@@ -36,6 +36,7 @@ loaded from the text file as the corresponding Boolean.
 """
 import os
 import fitsio
+import itertools
 import numpy as np
 import healpy as hp
 
@@ -470,35 +471,44 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
 
     Notes
     -----
-        - Secondary targets that do not have `OVERRIDE` set are also
-        matched to themselves. Such matches are given the same `TARGETID`
-        (which is that of the primary if they match a primary) and
-        the full complement of `SCND_TARGET` and `OBSCONDITIONS` bits
-        across all matches. The highest `PRIORITY_INIT` is retained,
-        and any other priorities are set to -1. When writing, only
-        priorities that are not -1 are written to the main file of
-        secondary targets. If multiple matching secondary targets have
-        the same (highest) priority, the first one encountered retains
-        its `PRIORITY_INIT1
+        - Secondaries without `OVERRIDE` are also matched to themselves
+        Such matches are given the same `TARGETID` (that of the primary
+        if they match a primary) and the bitwise or of `SCND_TARGET` and
+        `OBSCONDITIONS` bits across matches. The highest `PRIORITY_INIT`
+        is retained, and others are set to -1. Only secondaries with
+        priorities that are not -1 are written to the main file. If
+        multiple matching secondary targets have the same (highest)
+        priority, the first one encountered retains its `PRIORITY_INIT`
+        - The secondary `TARGETID` is designed to be reproducible. It
+        combines `BRICKID` based on location, `OBJID` based on the
+        order of the target in the secondary file (`SCND_ORDER`) and
+        `RELEASE` from the secondary bit number (`SCND_TARGET`).
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
 
-    # ADM get BRICKIDs, retrieve the list of unique bricks and the
-    # ADM number of sources in each unique brick.
+    # ADM get the BRICKIDs for each source.
     brxid = bricks.brickid(scxtargs["RA"][nomatch],
                            scxtargs["DEC"][nomatch])
 
-    # ADM build the OBJIDs from the number of sources per brick.
-    # ADM the for loop doesn't seem the smartest way, but it is O(n).
-    t0 = time()
-    log.info("Begin assigning OBJIDs to bricks...")
-    cntr = np.zeros(np.max(brxid)+1, dtype=int)
-    objid = []
-    for ibrx in brxid:
-        cntr[ibrx] += 1
-        objid.append(cntr[ibrx])
-    objid = np.array(objid)
+    # ADM the RELEASE for each source is the `SCND_TARGET` bit NUMBER.
+    release = np.log2(scxtargs["SCND_TARGET_INIT"]).astype('int')
+
+    # ADM build the OBJIDs based on the values of SCND_ORDER for each
+    # ADM brick and bit combination. First, so as not to overwhelm
+    # ADM the bit-limits for OBJID, find the minimum SCND_ORDER for
+    # ADM each brick and bit combination.
+    # ADM create a unique ID based on brxid and release.
+    sorter = (1000*brxid) + release
+    # ADM sort the unique IDs and split based on where they change.
+    argsort = np.argsort(sorter)
+    w = np.where(np.diff(sorter[argsort]))[0]
+    soperbrxbit = np.split(scxtargs["SCND_ORDER"][argsort], w+1)
+    # ADM loop through each (brxid, release) combination and sort
+    # on scnd_order.
+    sortperbrxbit = [so.argsort() for so in soperbrxbit]
+    # ADM finally unroll the (brxid, release) combinations.
+    objid = np.array(list(itertools.chain.from_iterable(sortperbrxbit)))
     log.info("Assigned OBJIDs to bricks in {:.1f}s".format(time()-t0))
 
     # ADM assemble the TARGETID, SCND objects have RELEASE==0.
