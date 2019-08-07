@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.31.2 (unreleased)
+0.32.1 (unreleased)
+-------------------
+
+* no changes yet.
+
+0.32.0 (2019-08-07)
 -------------------
 
 * Add URAT catalog information [`PR #526`_]. Includes:
