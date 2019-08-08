@@ -506,13 +506,21 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     w = np.where(np.diff(sorter[argsort]))[0]
     soperbrxbit = np.split(scnd_order[argsort], w+1)
     # ADM loop through each (brxid, release) and sort on scnd_order.
-    sortperbrxbit = [so.argsort() for so in soperbrxbit]
-    # ADM finally unroll the (brxid, release) combinations.
-    objid = np.array(list(itertools.chain.from_iterable(sortperbrxbit)))
+    # ADM double argsort returns the ascending ranked order of the entry
+    # ADM (whereas a single argsort returns the indexes for ordering).
+    sortperbrxbit = [np.argsort(np.argsort(so)) for so in soperbrxbit]
+    # ADM finally unroll the (brxid, release) combinations...
+    sortedobjid = np.array(list(itertools.chain.from_iterable(sortperbrxbit)))
+    # ADM ...and reorder based on the initial argsort.
+    objid = np.zeros_like(sortedobjid)-1
+    objid[argsort] = sortedobjid
     log.info("Assigned OBJIDs to bricks in {:.1f}s".format(time()-t0))
 
+    # ADM check that the objid array was entirely populated.
+    assert np.all(objid != -1)
+
     # ADM assemble the TARGETID, SCND objects have RELEASE==0.
-    targetid = encode_targetid(objid=objid, brickid=brxid)
+    targetid = encode_targetid(objid=objid, brickid=brxid, release=release)
 
     # ADM a check that the generated TARGETIDs are unique.
     if len(set(targetid)) != len(targetid):
