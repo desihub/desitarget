@@ -498,7 +498,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
           resolved in, e.g., :func:`~desitarget.secondary.finalize()`
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
-          the "outdata" subdirectory of `scxdir`.
+          an "outdata/filenam" subdirectory of `scxdir`, where filenam
+          is `filename` with its extension (likely .fits) stripped.
     """
     # ADM grab the scxdir, it it wasn't passed.
     from desitarget.secondary import _get_scxdir
@@ -527,11 +528,15 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
     data = rfn.drop_fields(data, ["SCND_TARGET_INIT", "SCND_ORDER"])
 
     # ADM write out the file of matches for every secondary bit.
+    filenam = os.path.splitext(os.path.split(filename)[1])[0]
+    scxoutdir = os.path.join(scxdir, 'outdata', filenam)
+    if not os.path.exists(scxoutdir):
+        os.makedirs(scxoutdir)
     from desitarget.targetmask import scnd_mask
     for name in scnd_mask.names():
         # ADM construct the output file name.
         fn = "{}.fits".format(scnd_mask[name].filename)
-        scxfile = os.path.join(scxdir, 'outdata', fn)
+        scxfile = os.path.join(scxoutdir, fn)
         # ADM retrieve just the data with this bit set.
         ii = (scnd_target_init & scnd_mask[name]) != 0
         # ADM only proceed to the write stage if there are targets.
