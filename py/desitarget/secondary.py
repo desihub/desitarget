@@ -528,7 +528,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
         raise ValueError(msg)
 
     # ADM assign the unique TARGETIDs to the secondary objects.
-    scxtargs["TARGETID"][nomatch] = targetid
+    scxtargs["TARGETID"][nomatch] = targetid[nomatch]
 
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
