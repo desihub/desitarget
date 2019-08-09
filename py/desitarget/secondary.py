@@ -493,11 +493,12 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     # ADM the RELEASE for each source is the `SCND_TARGET` bit NUMBER.
     release = np.log2(scxtargs["SCND_TARGET_INIT"]).astype('int')
 
-    # ADM build the OBJIDs based on the values of SCND_ORDER for each
-    # ADM brick and bit combination. First, so as not to overwhelm
-    # ADM the bit-limits for OBJID, find the minimum SCND_ORDER for
-    # ADM each brick and bit combination.
-    # ADM create a unique ID based on brxid and release.
+    # ADM build the OBJIDs based on the values of SCND_ORDER.
+    t0 = time()
+    log.info("Begin assigning OBJIDs to bricks...")
+    # ADM So as not to overwhelm the bit-limits for OBJID
+    # ADM rank by SCND_ORDER for each brick and bit combination.
+    # ADM First, create a unique ID based on brxid and release.
     scnd_order = scxtargs["SCND_ORDER"]
     sorter = (1000*brxid) + release
     # ADM sort the unique IDs and split based on where they change.
