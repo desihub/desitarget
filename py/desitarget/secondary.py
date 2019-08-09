@@ -560,8 +560,8 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
             for ind in inds:
                 scnd_targ |= scxtargs["SCND_TARGET"][wnoov[ind]]
                 obs_con |= scxtargs["OBSCONDITIONS"][wnoov[ind]]
-                scxtargs["SCND_TARGET"][wnoov[inds]] = scnd_targ
-                scxtargs["OBSCONDITIONS"][wnoov[inds]] = obs_con
+            scxtargs["SCND_TARGET"][wnoov[inds]] = scnd_targ
+            scxtargs["OBSCONDITIONS"][wnoov[inds]] = obs_con
             # ADM only keep the priority for the highest-priority match.
             maxi = np.max(scxtargs["PRIORITY_INIT"][wnoov[inds]])
             argmaxi = np.argmax(scxtargs["PRIORITY_INIT"][wnoov[inds]])
