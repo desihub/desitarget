@@ -270,7 +270,7 @@ def release_to_photsys(release):
 
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
-                  survey="?", nsidefile=None, hpxlist=None,
+                  survey="?", nsidefile=None, hpxlist=None, scndout=None,
                   resolve=True, maskbits=True, obscon=None):
     """Write target catalogues.
 
@@ -301,8 +301,10 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
-    resolve, maskbits : :class:`bool`, optional, defaults to ``True``
+    resolve, maskbits : :class:`bool`, optional, default to ``True``
         Written to the output file header as `RESOLVE`, `MASKBITS`.
+    scndout : :class:`str`, optional, defaults to `None`
+        If passed, add to output header as SCNDOUT.
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
         full set of data, rather only write targets appropriate for
@@ -397,6 +399,9 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     hdr["RESOLVE"] = resolve
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
+
+    if scndout is not None:
+        hdr["SCNDOUT"] = scndout
 
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
