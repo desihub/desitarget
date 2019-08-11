@@ -5,7 +5,9 @@ desitarget Change Log
 0.32.1 (unreleased)
 -------------------
 
-* no changes yet.
+* Add info on versioning, main_cmx_or_sv to bitmask notebook [`PR #527`_]
+
+.. _`PR #527`: https://github.com/desihub/desitarget/pull/527
 
 0.32.0 (2019-08-07)
 -------------------
