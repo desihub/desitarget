@@ -47,6 +47,7 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from time import time
+from glob import glob
 
 from collections import defaultdict
 
@@ -310,6 +311,79 @@ def read_files(scxdir, scnd_mask):
     return np.concatenate(scxall)
 
 
+def add_primary_info(scxtargs, priminfodir):
+    """Add TARGETIDs to secondaries from directory of primary matches.
+
+    Parameters
+    ----------
+    scxtargs : :class:`~numpy.ndarray`
+        An array of secondary targets, must contain the columns
+        `SCND_TARGET`, `SCND_ORDER` and `TARGETID`.
+    priminfodir : :class:`list` or `str`
+        Location of the directory that has previously matched primary
+        and secondary targets to recover the unique primary TARGETIDs.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The array of secondary targets, with the `TARGETID` column
+        populated for matches to secondary targets
+    """
+    log.info("Begin matching primaries in {} to secondaries...t={:.1f}s"
+             .format(priminfodir, time()-start))
+    # ADM read all of the files from the priminfodir.
+    primfns = glob(os.path.join(priminfodir, "*fits"))
+    # ADM if there are no files, there were no primary matches
+    # ADM and we can just return.
+    if len(primfns) == 0:
+        log.warning("No secondary target matches a primary target!!!")
+        return scxtargs
+
+    primtargs = fitsio.read(primfns[0])
+    for i in range(1, len(primfns)):
+        prim = fitsio.read(primfns[i])
+        primtargs = np.concatenate([primtargs, prim])
+    
+    # ADM make a unique look-up for the target sets.
+    scxbitnum = np.log2(scxtargs["SCND_TARGET"]).astype('int')
+    primbitnum = np.log2(primtargs["SCND_TARGET"]).astype('int')
+    
+    scxids = 1000 * scxtargs["SCND_ORDER"] + scxbitnum
+    primids = 1000 * primtargs["SCND_ORDER"] + primbitnum
+
+    # ADM if a secondary matched TWO (or more) primaries,
+    # ADM only retain the highest-priority primary.
+    alldups = []
+    for _, dups in duplicates(primids):
+        am = np.argmax(primtargs[dups]["PRIORITY_INIT"])
+        dups = np.delete(dups, am)
+        alldups.append(dups)
+    primtargs = np.delete(primtargs, alldups)
+    primids = np.delete(primids, alldups)
+
+    # ADM we already know that all primaries match a secondary, so, 
+    # ADM for speed, we can reduce to the matching set.
+    sprimids = set(primids)
+    scxii = [scxid in sprimids for scxid in scxids]
+    assert len(sprimids) == len(primids)
+    assert set(scxids[scxii]) == sprimids
+
+    # ADM sort-to-match sxcid and primid.
+    primii = np.zeros_like(primids)
+#    ii[np.argsort(origids)] = np.argsort(refids)
+#    assert np.all(refids[ii] == origids)
+    primii[np.argsort(scxids[scxii])] = np.argsort(primids)
+    assert np.all(primids[primii] == scxids[scxii])
+
+    # ADM now we have the matches, update the secondary targets
+    # ADM with the primary TARGETIDs.
+    scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
+
+    log.info("Done matching primaries in {} to secondaries...t={:.1f}s"
+             .format(priminfodir, time()-start))
+
+    return scxtargs
+    
 def match_secondary(primtargs, scxdir, scndout, sep=1.,
                     pix=None, nside=None):
     """Match secondary targets to primary targets and update bits.
@@ -564,24 +638,16 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     return scxtargs
 
 
-def select_secondary(infiles, numproc=4, sep=1., obscon=None,
-                     scxdir=None, scnd_mask=None):
+def select_secondary(priminfodir, sep=1., scxdir=None, scnd_mask=None):
     """Process secondary targets and update relevant bits.
 
     Parameters
     ----------
-    infiles : :class:`list` or `str`
-        A list of input primary target file names OR a single file name.
-    numproc : :class:`int`, optional, defaults to 4
-        The number of parallel processes to use.
+    priminfodir : :class:`list` or `str`
+        Location of the directory that has previously matched primary
+        and secondary targets to recover the unique primary TARGETIDs.
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match in ARCSECONDS.
-    obscon : :class:`str`, optional, defaults to None
-        An OBSCONDITIONS string that can be understood by the desitarget
-        mask parser (e.g. 'GRAY|DARK'). Only secondary targets that have
-        a match to these OBSCONDITIONS in the yaml file are processed.
-        If ``None``, the code will attempt to read it from the OBSCON
-        keyword in the header of the first primary file it encounters.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         The name of the directory that hosts secondary targets.
     scnd_mask : :class:`desiutil.bitmask.BitMask`, optional
@@ -596,13 +662,6 @@ def select_secondary(infiles, numproc=4, sep=1., obscon=None,
         ``SCND_TARGET``, ``PRIORITY_INIT``, ``SUBPRIORITY`` and
         ``NUMOBS_INIT`` added. These columns are also populated,
         excepting ``SUBPRIORITY``.
-
-    Notes
-    -----
-        - In addition, the primary target `infiles` are written back to
-          their original path with `.fits` changed to `-wscnd.fits` and
-          the ``SCND_TARGET`` and ``SCND_ANY`` columns
-          populated for matching targets.
     """
     # ADM import the default (main survey) mask.
     if scnd_mask is None:
@@ -620,67 +679,23 @@ def select_secondary(infiles, numproc=4, sep=1., obscon=None,
             log.critical(msg)
             raise ValueError(msg)
 
-    # ADM if OBSCON wasn't sent, read it from the primary targets.
-    hdr = fitsio.read_header(infiles[0], extension='TARGETS')
-    if obscon is None:
-        log.info('Trying to read OBSCON from header of {}'.format(infiles[0]))
-        obscon = hdr["OBSCON"]
-
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)
     _check_files(scxdir, scnd_mask)
     # ADM ...and read in all of the secondary targets.
     scxtargs = read_files(scxdir, scnd_mask)
 
-    # ADM split off any scx targets that have requested an OVERRIDE.
+    # ADM only non-override targets could match a primary.
     scxover = scxtargs[scxtargs["OVERRIDE"]]
     scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
 
-    # ADM function to run on every input file.
-    def _match_scx_file(fn):
-        """wrapper on match_secondary() given a file name"""
-        # ADM for one of the input primary target files, match to the
-        # ADM non-override scx targets and update bits and TARGETID.
-        return match_secondary(fn, scxtargs, sep=sep, scxdir=scxdir)
-
-    # ADM this is just to count files in _update_status.
-    nfile = np.array(1)
-    t0 = time()
-
-    def _update_status(result):
-        """wrapper function for the critical reduction operation,
-        that occurs on the main parallel process"""
-        if nfile % 1 == 0 and nfile > 0:
-            elapsed = (time()-t0)/60.
-            rate = nfile/elapsed/60.
-            log.info('{}/{} files; {:.1f} sec/file...t = {:.1f} mins'
-                     .format(nfile, nfiles, 1./rate, elapsed))
-        nfile[...] += 1    # this is an in-place modification.
-        return result
-
-    # - Parallel process input files
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
-        with pool:
-            scxall = pool.map(_match_scx_file, infiles, reduce=_update_status)
-        # ADM if we ran with numproc==1, then the TARGETID in the view of
-        # ADM scxtargs will have naturally updated during the loop. This could
-        # ADM be solved with an expensive copy, if it was necessary. For the
-        # ADM numproc > 1 case, though, we need to find TARGETIDs that have
-        # ADM been set across the scxall outputs.
-        targetids = np.max(np.vstack([scxt['TARGETID'] for scxt in scxall]), axis=0)
-        scxtargs = scxall[-1]
-        scxtargs["TARGETID"] = targetids
-    else:
-        scxall = []
-        for infile in infiles:
-            scxall.append(_update_status(_match_scx_file(infile)))
-        scxtargs = scxall[-1]
+    # ADM add in the primary TARGETIDs where we have them.
+    scxtargs = add_primary_info(scxtargs, priminfodir)
 
     # ADM now we're done matching, bring the override targets back...
     scxout = np.concatenate([scxtargs, scxover])
-
-    # ADM ...and assign TARGETIDs to non-matching secondary targets.
+    
+    # ADM assign TARGETIDs to secondaries that did not match a primary.
     scxout = finalize_secondary(scxout, scnd_mask, sep=sep)
 
     return scxout

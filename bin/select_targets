@@ -142,6 +142,7 @@ else:
         scndout = None
         if not ns.nosecondary and len(targets) > 0:
             from desitarget.secondary import _get_scxdir, match_secondary
+            # ADM read secondary target directory.
             scxdir = _get_scxdir(ns.scnddir)
             # ADM construct a label for the secondary file for TARGETID look-ups.
             # ADM use RELEASE to determine the release string for the targets.
