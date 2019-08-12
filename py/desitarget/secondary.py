@@ -343,11 +343,11 @@ def add_primary_info(scxtargs, priminfodir):
     for i in range(1, len(primfns)):
         prim = fitsio.read(primfns[i])
         primtargs = np.concatenate([primtargs, prim])
-    
+
     # ADM make a unique look-up for the target sets.
     scxbitnum = np.log2(scxtargs["SCND_TARGET"]).astype('int')
     primbitnum = np.log2(primtargs["SCND_TARGET"]).astype('int')
-    
+
     scxids = 1000 * scxtargs["SCND_ORDER"] + scxbitnum
     primids = 1000 * primtargs["SCND_ORDER"] + primbitnum
 
@@ -361,7 +361,7 @@ def add_primary_info(scxtargs, priminfodir):
     primtargs = np.delete(primtargs, alldups)
     primids = np.delete(primids, alldups)
 
-    # ADM we already know that all primaries match a secondary, so, 
+    # ADM we already know that all primaries match a secondary, so,
     # ADM for speed, we can reduce to the matching set.
     sprimids = set(primids)
     scxii = [scxid in sprimids for scxid in scxids]
@@ -383,7 +383,8 @@ def add_primary_info(scxtargs, priminfodir):
              .format(priminfodir, time()-start))
 
     return scxtargs
-    
+
+
 def match_secondary(primtargs, scxdir, scndout, sep=1.,
                     pix=None, nside=None):
     """Match secondary targets to primary targets and update bits.
