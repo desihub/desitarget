@@ -498,6 +498,8 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     log.info('Writing {} secondary target matches to {}...t={:.1f}s'
              .format(nmatches, scndout, time()-start))
     if nmatches > 0:
+        hdr = fitsio.FITSHDR()
+        hdr["SURVEY"] = surv
         fitsio.write(scndout, scxtargs[ii], extname='SCND_TARG', clobber=True)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
@@ -639,7 +641,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     return scxtargs
 
 
-def select_secondary(priminfodir, sep=1., scxdir=None, scnd_mask=None):
+def select_secondary(priminfodir, sep=1., scxdir=None):
     """Process secondary targets and update relevant bits.
 
     Parameters
@@ -647,14 +649,13 @@ def select_secondary(priminfodir, sep=1., scxdir=None, scnd_mask=None):
     priminfodir : :class:`list` or `str`
         Location of the directory that has previously matched primary
         and secondary targets to recover the unique primary TARGETIDs.
+        The first file in this directory should have a header keyword
+        SURVEY indicating whether we are working in the context of the
+        Main Survey (`main`) or SV (e.g. `sv1`).
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match in ARCSECONDS.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         The name of the directory that hosts secondary targets.
-    scnd_mask : :class:`desiutil.bitmask.BitMask`, optional
-        A mask corresponding to a set of secondary targets, e.g, could
-        be ``from desitarget.targetmask import scnd_mask`` for the
-        main survey mask. Defaults to the main survey mask.
 
     Returns
     -------
@@ -664,6 +665,15 @@ def select_secondary(priminfodir, sep=1., scxdir=None, scnd_mask=None):
         ``NUMOBS_INIT`` added. These columns are also populated,
         excepting ``SUBPRIORITY``.
     """
+    # - Sanity check that files exist before going further.
+    for filename in infiles:
+        if not os.path.exists(filename):
+            msg = "{} doesn't exist".format(filename)
+            log.critical(msg)
+            raise ValueError(msg)
+
+        # ADM read in the SURVEY from the first file in priminfodir.
+
     # ADM import the default (main survey) mask.
     if scnd_mask is None:
         from desitarget.targetmask import scnd_mask
@@ -673,12 +683,7 @@ def select_secondary(priminfodir, sep=1., scxdir=None, scnd_mask=None):
         infiles = [infiles, ]
     nfiles = len(infiles)
 
-    # - Sanity check that files exist before going further.
-    for filename in infiles:
-        if not os.path.exists(filename):
-            msg = "{} doesn't exist".format(filename)
-            log.critical(msg)
-            raise ValueError(msg)
+
 
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)

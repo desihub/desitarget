@@ -18,12 +18,16 @@ log = get_logger()
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 
+(priminfodir, sep=1., scxdir=None, scnd_mask=None):
+        Location of the directory that has previously matched primary                                                                                                                                     
+        and secondary targets to recover the unique primary TARGETIDs.  
+
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate file of secondary-only targets from $SECONDARY_DIR, write matches to primary targets back to $SECONDARY_DIR')
 ap.add_argument("surveydir",
-                help="Base directory of primary target files (e.g. '/project/projectdirs/desi/target/catalogs/dr7.1/0.22.0/' at NERSC). "+ 
-                "All files that contain the string 'target' or 'targets' in their names will be considered a target file." +
-                "Whether the file is an SV file is derived from the DESI_TARGET column in the first file detected in this directory.")
+                help="Location of the directory that has previously matched primary and secondary targets to recover the unique primary TARGETIDs (" +
+                "as made by, e.g., select_targets). 
+"Whether the file is an SV file is derived from the DESI_TARGET column in the first file detected in this directory.")
 ap.add_argument("dest",
                 help="Output secondary-only targets file (e.g. '/project/projectdirs/desi/target/catalogs/secondary-dr6-0.20.0.fits' at NERSC)")
 ap.add_argument('-n', "--numproc", type=int,
