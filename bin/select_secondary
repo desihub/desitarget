@@ -15,75 +15,53 @@ time0 = time()
 from desiutil.log import get_logger
 log = get_logger()
 
-import multiprocessing
-nproc = multiprocessing.cpu_count() // 2
-
-(priminfodir, sep=1., scxdir=None, scnd_mask=None):
-        Location of the directory that has previously matched primary                                                                                                                                     
-        and secondary targets to recover the unique primary TARGETIDs.  
-
 from argparse import ArgumentParser
-ap = ArgumentParser(description='Generate file of secondary-only targets from $SECONDARY_DIR, write matches to primary targets back to $SECONDARY_DIR')
-ap.add_argument("surveydir",
-                help="Location of the directory that has previously matched primary and secondary targets to recover the unique primary TARGETIDs (" +
-                "as made by, e.g., select_targets). 
-"Whether the file is an SV file is derived from the DESI_TARGET column in the first file detected in this directory.")
+ap = ArgumentParser(description='Generate file of secondary-only targets from $SCND_DIR, write matches to primary targets back to $SCND_DIR')
+ap.add_argument("priminfodir",
+                help="Location of the directory that has previously matched primary and secondary targets to recover the unique primary TARGETIDs " +
+                "(as made by, e.g., select_targets without the --nosecondary option set).")
 ap.add_argument("dest",
                 help="Output secondary-only targets file (e.g. '/project/projectdirs/desi/target/catalogs/secondary-dr6-0.20.0.fits' at NERSC)")
-ap.add_argument('-n', "--numproc", type=int,
-                help='number of concurrent processes to use (defaults to [{}])'.format(nproc),
-                default=nproc)
 ap.add_argument("-s", "--separation", type=float, default=1.,
-                help='Angular separation at which to match primary and secondary targets. Defaults to [1.]')
+                help='Angular separation at which to match primary and secondary targets. Defaults to [1] arcsec.')
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
-                "Defaults to SECONDARY_DIR environment variable.")
-ap.add_argument("--obscon", default=None,
-                help="An OBSCONDITIONS string that can be understood by the desitarget mask parser (e.g. 'GRAY|DARK'). "+
-                "Only secondary targets that have a match to this set of OBSCONDITIONS in the targeting yaml file will be processed. "
-                "If this is not passed, an attempt will be made to read it from the header of the first file in 'surveydir'.)")
+                "Defaults to SCND_DIR environment variable.")
 
 ns = ap.parse_args()
 
-infiles = io.list_targetfiles(ns.surveydir)
-if len(infiles) == 0:
-    log.critical('no target files found')
-    sys.exit(1)
+# ADM Sanity check that priminfodir exists.
+if not os.path.exists(ns.priminfodir):
+    msg = "{} doesn't exist".format(ns.priminfodir)
+    log.critical(msg)
+    raise ValueError(msg)
 
-log.info('running on {} processors...t={:.1f}mins'
-         .format(ns.numproc, (time()-time0)/60.))
+# ADM read survey type from the header of the first file in priminfodir.
+fns = glob(os.path.join(ns.priminfodir, "*fits"))
+hdr = fitsio.read_header(fns[0], 'SCND_TARG')
+surv = hdr["SURVEY"].rstrip()
 
-# ADM grab the header from the first primary file.
-hdr = fitsio.read_header(infiles[0], extension='TARGETS')
-
-# ADM if OBSCON wasn't sent, read it from the primary targets.
-obscon = ns.obscon
-if ns.obscon is None:
-    log.info('Attempting to read OBSCON from header of {}'.format(infiles[0]))
-    obscon = hdr["OBSCON"]
-# ADM update the header with whatever OBSCON we're using.
-hdr["OBSCON"] = obscon
-
-# ADM check if this is an SV or main survey file.
-chk = fitsio.read(infiles[0],rows=0)
-cols, mx, surv = main_cmx_or_sv(chk, scnd=True)
-log.info('running on the {} survey...'.format(surv))
-
-# ADM find the SECONDARY_DIR environment variable, if it wasn't passed.
+# ADM find the SCND_DIR environment variable, if it wasn't passed.
 scxdir = _get_scxdir(ns.scnddir)
 # ADM and augment the scxdir if this is an SV set of primary files.
 if surv != 'main':
     scxdir = os.path.join(scxdir, surv)
 
-scx = select_secondary(infiles, numproc=ns.numproc, sep=ns.separation,
-                       scxdir=scxdir, scnd_mask=mx[3], obscon=obscon)
+scx = select_secondary(ns.priminfodir, sep=ns.separation, scxdir=scxdir, darkbright=True)
 
 # ADM add the primary directory and matching radius to the header
 # ADM from the first primary file.
-hdr['PRIMDIR'] = ns.surveydir
+hdr['PRIMDIR'] = ns.priminfodir
 hdr['SEP'] = float(ns.separation)
 
-# ADM write out the secondary targets.
-io.write_secondary(ns.dest, scx, primhdr=hdr, scxdir=scxdir)
+# ADM write out the secondary targets, with bright-time
+# ADM and dark-time targets written separately.
+obscons = ["BRIGHT", "DARK"]
 
-log.info('{} secondary targets written to {}...t={:.1f}mins'.format(len(scx), ns.dest, (time()-time0)/60.))
+for obscon in obscons:
+    # ADM the dict() here is to make hdr immutable.
+    ntargs, outfile = io.write_secondary(ns.dest, scx, primhdr=dict(hdr),
+                                         scxdir=scxdir, obscon=obscon)
+
+    log.info('{} secondary targets written to {}...t={:.1f}mins'
+             .format(ntargs, outfile, (time()-time0)/60.))

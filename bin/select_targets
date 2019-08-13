@@ -82,7 +82,7 @@ ap.add_argument("--nosecondary", action='store_true',
                 help="Do NOT create TARGETID look-up files for secondary targets in $SCNDIR/outdata/priminfo-drversion-desitargetversion/$dest.fits (where $dest is the basename of dest)")
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
-                "Defaults to SECONDARY_DIR environment variable. Not needed if --nosecondary is sent.")
+                "Defaults to SCND_DIR environment variable. Not needed if --nosecondary is sent.")
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
