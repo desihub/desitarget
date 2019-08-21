@@ -432,15 +432,15 @@ numobs:
     # ADM initial number of observations for targets in the Milky Way Survey
     sv1_mws_mask:
         MWS_CALIB_VERYBRIGHT:         -1
-        MWS_CALIB_APOGEE:             -1
+        MWS_CALIB_APOGEE:             100
         MWS_CALIB_BOSS:               SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_CLUSTER:            SAME_AS_MWS_CALIB_APOGEE
-        MWS_SPECIAL_HYADES:            1
-        MWS_SPECIAL_HYADES_VERYBRIGHT: 1
+        MWS_SPECIAL_HYADES:            100
+        MWS_SPECIAL_HYADES_VERYBRIGHT: 100
 
-        MWS_SPECIAL_RRLYR:            1
+        MWS_SPECIAL_RRLYR:            100
         MWS_SPECIAL_BHB:              SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_DDO:              SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_MP:               SAME_AS_MWS_SPECIAL_RRLYR
@@ -448,8 +448,8 @@ numobs:
         MWS_SPECIAL_DRACO:            SAME_AS_MWS_SPECIAL_RRLYR
         MWS_MAIN_SV:                  1
         MWS_MAIN_SV_FAINT:            1
-        MWS_WD_SV:                    -1
-        MWS_NEARBY_SV:                -1
+        MWS_WD_SV:                    100
+        MWS_NEARBY_SV:                100
         # ADM don't observe a N/S target if it doesn't have other bits set
         MWS_MAIN_SV_NORTH:            0
         MWS_MAIN_SV_SOUTH:            0
