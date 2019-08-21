@@ -1397,8 +1397,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         std_wd = mws_wd
 
     # ADM combine the north/south MWS bits.
-    mws = (mws_n & photsys_north) | (mws_s & photsys_south)
-    mws_faint = (mws_faint_n & photsys_north) | (mws_s & photsys_south)
+    mws       = (mws_n & photsys_north) | (mws_s & photsys_south)
+    mws_faint = (mws_faint_n & photsys_north) | (mws_faint_s & photsys_south)
 
     # ADM the formal bit-setting using desi_mask/bgs_mask/mws_mask...
     # Construct the targetflag bits for DECaLS (i.e. South).
@@ -1482,7 +1482,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_fibmag * bgs_mask.BGS_FIBMAG
 
     # ADM MWS main, nearby, and WD.
-    mws_target = mws * mws_mask.MWS_MAIN_SV
+    mws_target  = mws * mws_mask.MWS_MAIN_SV
+    mws_target |= mws_faint * mws_mask.MWS_MAIN_SV_FAINT
     mws_target |= mws_wd * mws_mask.MWS_WD_SV
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY_SV
 
