@@ -152,7 +152,6 @@ sv1_mws_mask:
     - [MWS_SPECIAL_DDO,        32, "DDO-selected giants",      {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_SPECIAL_MP,         33, "Metal-poor stars",         {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_SPECIAL_WDBINARY,   34, "White dwarf binaries",     {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_SPECIAL_DRACO,      35, "Likely Draco members",     {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_SPECIAL_HYADES,     36, "Likely Hyades members",    {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_SPECIAL_HYADES_VERYBRIGHT, 37, "Likely Hyades members r<16",     {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
 
@@ -161,12 +160,14 @@ sv1_mws_mask:
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
 #- ADM variable, e.g. $SECONDARY_DIR/sv1/backstop.fits for BACKSTOP targets.
 sv1_scnd_mask:
-    - [VETO,        0, "Never observe, even if a primary target bit is set",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-    - [BACKSTOP,    1, "Gaia-selected targets of last resort",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
-    - [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
+    #- [VETO,        0, "Never observe, even if a primary target bit is set",
+    #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+    #- [BACKSTOP,    1, "Gaia-selected targets of last resort",
+    #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
+    #- [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
+    #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
+    - [MWS_SPECIAL_DRACO_SV, 10, "Likely Draco members (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DRACO_SV'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -312,7 +313,6 @@ priorities:
         MWS_SPECIAL_DDO:              SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_MP:               SAME_AS_MWS_SPECIAL_RRLYR
         MWS_SPECIAL_WDBINARY:         SAME_AS_MWS_SPECIAL_RRLYR
-        MWS_SPECIAL_DRACO:            SAME_AS_MWS_SPECIAL_RRLYR
         # Main survey targets 
         MWS_MAIN_SV:                  {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_SV_FAINT:            {UNOBS: 1050, DONE: 100, OBS: 1, DONOTOBSERVE: 0}
@@ -325,9 +325,10 @@ priorities:
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
-        VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        BACKSTOP:                     {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        #VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        #BACKSTOP:                     {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        #DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_DRACO_SV:         {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -458,7 +459,7 @@ numobs:
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
-        VETO: 1
-        BACKSTOP: 1
-        DR16Q: 1
-
+        #VETO: 1
+        #BACKSTOP: 1
+        #DR16Q: 1
+        MWS_SPECIAL_DRACO_SV: 1
