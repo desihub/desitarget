@@ -275,7 +275,8 @@ def read_files(scxdir, scnd_mask):
         fn = os.path.join(fulldir, scnd_mask[name].filename)
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
-            scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2],
+            # APC tempoarily drop the usecols while hacking indatamodel
+            scxin = np.loadtxt(fn+'.txt',  usecols=[0, 1, 5],
                                dtype=indatamodel.dtype)
         # ADM otherwise it's a fits file, read it in.
         else:
