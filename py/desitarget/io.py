@@ -270,8 +270,9 @@ def release_to_photsys(release):
 
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
-                  survey="?", nsidefile=None, hpxlist=None, resolve=True):
-    """Write a target catalogue.
+                  survey="?", nsidefile=None, hpxlist=None,
+                  resolve=True, maskbits=True, obscon=None):
+    """Write target catalogues.
 
     Parameters
     ----------
@@ -300,22 +301,66 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
-    resolve : :class:`bool`, optional, defaults to ``True``
-        Written to the output file header as `RESOLVE`.
+    resolve, maskbits : :class:`bool`, optional, defaults to ``True``
+        Written to the output file header as `RESOLVE`, `MASKBITS`.
+    obscon : :class:`str`, optional, defaults to `None`
+        Can pass one of "DARK" or "BRIGHT". If passed, don't write the
+        full set of data, rather only write targets appropriate for
+        "DARK|GRAY" or "BRIGHT" observing conditions. The relevant
+        `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
+        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
+        "dark" appended to the lowest DIRECTORY in the input `filename`.
+
+    Returns
+    -------
+    :class:`int`
+        The number of targets that were written to file.
+    :class:`str`
+        The name of the file to which targets were written.
     """
-    # FIXME: assert data and tsbits schema
+    # ADM create header.
+    hdr = fitsio.FITSHDR()
+
+    # ADM limit to just BRIGHT or DARK targets, if requested.
+    if obscon is not None:
+        hdr["OBSCON"] = obscon
+        # ADM determine the bits for the OBSCONDITIONS.
+        from desitarget.targetmask import obsconditions
+        if obscon == "DARK":
+            obsbits = obsconditions.mask("DARK|GRAY")
+        else:
+            # ADM will flag an error if obscon is not, now BRIGHT.
+            obsbits = obsconditions.mask(obscon)
+        # ADM only retain targets appropriate to the conditions.
+        ii = (data["OBSCONDITIONS"] & obsbits) != 0
+        data = data[ii]
+
+        # ADM create the bright or dark directory.
+        newdir = os.path.join(os.path.dirname(filename), obscon.lower())
+        if not os.path.exists(newdir):
+            os.mkdir(newdir)
+        filename = os.path.join(newdir, os.path.basename(filename))
+
+        # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
+        for col in "NUMOBS_INIT", "PRIORITY_INIT":
+            rename = {"{}_{}".format(col, obscon.upper()): col}
+            data = rfn.rename_fields(data, rename)
+
+        # ADM remove the other BRIGHT/DARK NUMOBS, PRIORITY columns.
+        names = np.array(data.dtype.names)
+        dropem = list(names[['_INIT_' in col for col in names]])
+        data = rfn.drop_fields(data, dropem)
+
+    ntargs = len(data)
+    # ADM die immediately if there are no targets to write.
+    if ntargs == 0:
+        return ntargs, None
 
     # ADM use RELEASE to determine the release string for the input targets.
-    ntargs = len(data)
-    if ntargs == 0:
-        # ADM if there are no targets, then we don't know the Data Release.
-        drstring = 'unknowndr'
-    else:
-        drint = np.max(data['RELEASE']//1000)
-        drstring = 'dr'+str(drint)
+    drint = np.max(data['RELEASE']//1000)
+    drstring = 'dr'+str(drint)
 
-    # - Create header to include versions, etc.
-    hdr = fitsio.FITSHDR()
+    # ADM write versions, etc. to the header.
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     depend.setdep(hdr, 'sandboxcuts', sandboxcuts)
@@ -349,6 +394,8 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     hdr["SURVEY"] = survey
     # ADM add whether or not the targets were resolved to the header.
     hdr["RESOLVE"] = resolve
+    # ADM add whether or not MASKBITS was applied to the header.
+    hdr["MASKBITS"] = maskbits
 
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
@@ -360,36 +407,66 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
             raise ValueError(msg)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
 
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
         fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
     else:
-        # ADM ensure that files are always overwritten.
-        if os.path.isfile(filename):
-            os.remove(filename)
-        start = time()
-        # ADM open a file for writing.
-        outy = FITS(filename, 'rw')
-        # ADM write the chunks one-by-one.
-        chunk = len(data)//nchunks
-        for i in range(nchunks):
-            log.info("Writing chunk {}/{} from index {} to {}...t = {:.1f}s"
-                     .format(i+1, nchunks, i*chunk, (i+1)*chunk-1, time()-start))
-            datachunk = data[i*chunk:(i+1)*chunk]
-            # ADM if this is the first chunk, write the data and header...
-            if i == 0:
-                outy.write(datachunk, extname='TARGETS', header=hdr, clobber=True)
-            # ADM ...otherwise just append to the existing file object.
-            else:
-                outy[-1].append(datachunk)
-        # ADM append any remaining data.
-        datachunk = data[nchunks*chunk:]
-        log.info("Writing final partial chunk from index {} to {}...t = {:.1f}s"
-                 .format(nchunks*chunk, len(data)-1, time()-start))
-        outy[-1].append(datachunk)
-        outy.close()
+        write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
+
+    return ntargs, filename
+
+
+def write_in_chunks(filename, data, nchunks, extname=None, header=None):
+    """Write a FITS file in chunks to save memory.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The output file.
+    data : :class:`~numpy.ndarray`
+        The numpy structured array of data to write.
+    nchunks : :class`int`, optional, defaults to `None`
+        The number of chunks in which to write the output file.
+    extname, header, clobber, optional
+        Passed through to fitsio.write().
+
+    Returns
+    -------
+    Nothing, but writes the `data` to the `filename` in chunks.
+
+    Notes
+    -----
+        - Always OVERWRITES existing files!
+    """
+    # ADM ensure that files are always overwritten.
+    if os.path.isfile(filename):
+        os.remove(filename)
+    start = time()
+    # ADM open a file for writing.
+    outy = FITS(filename, 'rw')
+    # ADM write the chunks one-by-one.
+    chunk = len(data)//nchunks
+    for i in range(nchunks):
+        log.info("Writing chunk {}/{} from index {} to {}...t = {:.1f}s"
+                 .format(i+1, nchunks, i*chunk, (i+1)*chunk-1, time()-start))
+        datachunk = data[i*chunk:(i+1)*chunk]
+        # ADM if this is the first chunk, write the data and header...
+        if i == 0:
+            outy.write(datachunk, extname='TARGETS', header=header, clobber=True)
+        # ADM ...otherwise just append to the existing file object.
+        else:
+            outy[-1].append(datachunk)
+    # ADM append any remaining data.
+    datachunk = data[nchunks*chunk:]
+    log.info("Writing final partial chunk from index {} to {}...t = {:.1f}s"
+             .format(nchunks*chunk, len(data)-1, time()-start))
+    outy[-1].append(datachunk)
+    outy.close()
+    return
 
 
 def write_secondary(filename, data, primhdr=None, scxdir=None):
@@ -498,10 +575,6 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
     """
     nskies = len(data)
 
-    # ADM force OBSCONDITIONS to be 65535
-    # ADM (see https://github.com/desihub/desitarget/pull/313).
-    data["OBSCONDITIONS"] = 2**16-1
-
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
@@ -549,7 +622,7 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
-               survey="?"):
+               survey="?", extra=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -559,13 +632,16 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
     indir, indir2 : :class:`str`, optional, defaults to None.
-        Name of input Legacy Survey Data Release directory or directories,
-        write to header of output file if passed (and if not None).
+        Legacy Survey Data Release directory or directories, write to
+        header of output file if passed (and if not None).
     nside: :class:`int`, defaults to None.
-        If passed, add a column to the GFAs array popluated with HEALPixels
-        at resolution `nside`.
+        If passed, add a column to the GFAs array popluated with
+        HEALPixels at resolution `nside`.
     survey : :class:`str`, optional, defaults to "?"
         Written to output file header as the keyword `SURVEY`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
     """
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
@@ -584,6 +660,11 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         depend.setdep(hdr, 'photcat', drstring)
     if indir2 is not None:
         depend.setdep(hdr, 'input-data-release-2', indir2)
+
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
@@ -1131,6 +1212,8 @@ def check_hp_target_dir(hpdirname):
         # ADM if this is a one-pixel file, convert to a list.
         if isinstance(pixels, int):
             pixels = [pixels]
+        # ADM check we haven't stored a pixel string that is too long.
+        _check_hpx_length(pixels)
         # ADM create a look-up dictionary of file-for-each-pixel.
         for pix in pixels:
             pixdict[pix] = fn
@@ -1435,3 +1518,16 @@ def target_columns_from_header(hpdirname):
     targcols = allcols[['_TARGET' in col for col in allcols]]
 
     return list(targcols)
+
+
+def _check_hpx_length(hpxlist, length=68, warning=False):
+    """Check a list expressed as a csv string won't exceed a length."""
+    pixstring = ",".join([str(i) for i in hpxlist])
+    if len(pixstring) > length:
+        msg = "Pixel string {} is too long. Maximum is length-{} strings."  \
+            .format(pixstring, length)
+        if warning:
+            log.warning(msg)
+        else:
+            log.critical(msg)
+            raise ValueError(msg)
