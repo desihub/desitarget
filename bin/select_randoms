@@ -57,8 +57,18 @@ ap.add_argument("--aprad", type=float,
                 help="Radius of aperture in arcsec in which to generate sky background flux levels (defaults to 0.75; the DESI fiber radius)",
                 default=0.75)
 
-
 ns = ap.parse_args()
+# ADM build the list of command line arguments as
+# ADM bundlefiles potentially needs to know about them.
+extra = " --numproc {}".format(ns.numproc)
+nsdict = vars(ns)
+for nskey in "noresolve", "aprad":
+    if isinstance(nsdict[nskey], bool):
+        if nsdict[nskey]:
+            extra += " --{}".format(nskey)
+    else:
+        extra += " --{} {}".format(nskey, nsdict[nskey])
+
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels
 if pixlist is not None:
@@ -92,7 +102,7 @@ if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
             hdr[record] = rmhdr['_record_map'][record]
 
 randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
-                         nside=ns.nside, pixlist=pixlist, aprad=ns.aprad,
+                         nside=ns.nside, pixlist=pixlist, aprad=ns.aprad, extra=extra,
                          bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
                          dustdir=ns.dustdir, resolverands=not(ns.noresolve))
 

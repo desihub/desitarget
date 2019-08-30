@@ -29,21 +29,23 @@ class TestCMX(unittest.TestCase):
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames
         """
-        # ADM test for tractor files
+        # ADM test for tractor files.
+        # ADM No QSO cuts for speed. This doesn't affect coverage.
         cmx, pshift = cuts.apply_cuts(self.tractorfiles[0],
-                                      cmxdir=self.cmxdir)
+                                      cmxdir=self.cmxdir, noqso=True)
         data = io.read_tractor(self.tractorfiles[0])
         cmx2, pshift2 = cuts.apply_cuts(data,
-                                        cmxdir=self.cmxdir)
+                                        cmxdir=self.cmxdir, noqso=True)
         self.assertTrue(np.all(cmx == cmx2))
         self.assertTrue(np.all(pshift == pshift2))
 
-        # ADM test for sweeps files
+        # ADM test for sweeps files.
+        # ADM No QSO cuts for speed. This doesn't affect coverage.
         cmx, pshift = cuts.apply_cuts(self.sweepfiles[0],
-                                      cmxdir=self.cmxdir)
+                                      cmxdir=self.cmxdir, noqso=True)
         data = io.read_tractor(self.sweepfiles[0])
         cmx2, pshift2 = cuts.apply_cuts(data,
-                                        cmxdir=self.cmxdir)
+                                        cmxdir=self.cmxdir, noqso=True)
         self.assertTrue(np.all(cmx == cmx2))
         self.assertTrue(np.all(pshift == pshift2))
 
@@ -85,12 +87,13 @@ class TestCMX(unittest.TestCase):
         """Test select targets works with either data or filenames
         """
         for filelist in [self.tractorfiles, self.sweepfiles]:
+            # ADM No QSO cuts for speed. This doesn't affect coverage.
             targets = cuts.select_targets(filelist, numproc=1,
-                                          cmxdir=self.cmxdir)
+                                          cmxdir=self.cmxdir, noqso=True)
             t1 = cuts.select_targets(filelist[0:1], numproc=1,
-                                     cmxdir=self.cmxdir)
+                                     cmxdir=self.cmxdir, noqso=True)
             t2 = cuts.select_targets(filelist[0], numproc=1,
-                                     cmxdir=self.cmxdir)
+                                     cmxdir=self.cmxdir, noqso=True)
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
@@ -110,8 +113,9 @@ class TestCMX(unittest.TestCase):
         """
         for nproc in [1, 2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
+                # ADM No QSO cuts for speed. Doesn't affect coverage.
                 targets = cuts.select_targets(filelist, numproc=nproc,
-                                              cmxdir=self.cmxdir)
+                                              cmxdir=self.cmxdir, noqso=True)
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['CMX_TARGET']))
 

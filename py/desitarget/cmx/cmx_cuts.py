@@ -158,78 +158,8 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     return std
 
 
-def isSV0_STD_bright(gflux=None, rflux=None, zflux=None,
-                     pmra=None, pmdec=None, parallax=None,
-                     gaiagmag=None, isgood=None, primary=None):
-    """A selection that resembles bright STD stars for initial SV.
-
-    Parameters
-    ----------
-    gflux, rflux, zflux : :class:`array_like` or :class:`None`
-        Galactic-extinction-corrected flux in nano-maggies in g, r, z bands.
-    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec, and parallax
-        (same units as `the Gaia data model`_).
-    gaiagmag : :class:`array_like` or :class:`None`
-        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
-    isgood : :class:`array_like` or :class:`None`
-        ``True`` for objects that pass the logic cuts in
-        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
-    primary : :class:`array_like` or :class:`None`
-        ``True`` for objects that should be passed through the selection.
-
-    Returns
-    -------
-    :class:`array_like`
-        ``True`` if and only if the object is a cmx "bright standard" target.
-
-    Notes
-    -----
-    - See also `the Gaia data model`_.
-    """
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-
-    isbright = primary.copy()
-    # ADM passes all of the default logic cuts.
-    isbright &= isgood
-
-    # ADM the STD color cuts from the main survey.
-    # Clip to avoid warnings from negative numbers.
-    # ADM we're pretty bright for the STDs, so this should be safe.
-    gflux = gflux.clip(1e-16)
-    rflux = rflux.clip(1e-16)
-    zflux = zflux.clip(1e-16)
-
-    # ADM optical colors for halo TO or bluer.
-    grcolor = 2.5 * np.log10(rflux / gflux)
-    rzcolor = 2.5 * np.log10(zflux / rflux)
-    isbright &= rzcolor < 0.2
-    isbright &= grcolor > 0.
-    isbright &= grcolor < 0.35
-
-    # ADM Gaia magnitudes in the "bright" range (15 < G < 18).
-    isbright &= gaiagmag >= 15.
-    isbright &= gaiagmag < 18.
-
-    # ADM a parallax smaller than 1 mas.
-    isbright &= parallax < 1.
-
-    # ADM calculate the overall proper motion magnitude.
-    # ADM inexplicably I'm getting a Runtimewarning here for
-    # ADM a few values in the sqrt, so I'm catching it.
-    with warnings.catch_warnings():
-        warnings.simplefilter("ignore")
-        pm = np.sqrt(pmra**2. + pmdec**2.)
-
-    # ADM a proper motion larger than 2 mas/yr.
-    isbright &= pm > 2.
-
-    return isbright
-
-
 def isSV0_BGS(rflux=None, objtype=None, primary=None):
-    """Initial SV-like Bright Galaxy Survey selection (for MzLS/BASS imaging).
+    """Simplified SV-like Bright Galaxy Survey selection (for MzLS/BASS imaging).
 
     Parameters
     ----------
@@ -247,63 +177,50 @@ def isSV0_BGS(rflux=None, objtype=None, primary=None):
 
     Notes
     -----
-    - Returns the equivalent of ALL BGS classes.
+    - Returns the equivalent of a combination of the "bright" and "faint"
+      BGS SV classes from version 37 (02/05/19) of `the SV wiki`_ without
+      some of the more complex flag cuts.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     isbgs = primary.copy()
 
-    # ADM simple selection is objects brighter than r of 20...
-    isbgs &= rflux > 10**((22.5-20.0)/2.5)
+    # ADM simple selection is objects brighter than r of 20.1...
+    isbgs &= rflux > 10**((22.5-20.1)/2.5)
     # ADM ...that are not point-like.
     isbgs &= ~_psflike(objtype)
 
     return isbgs
 
 
-def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
-              gaiagmag=None, gaiabmag=None, gaiarmag=None,
+def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
+              gaiagmag=None, gaiabmag=None, gaiarmag=None, parallaxerr=None,
               pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
               photbprpexcessfactor=None, astrometricsigma5dmax=None,
               gaiaaen=None, galb=None, gaia=None, primary=None):
-    """Initial SV-like Milky Way Survey selection (for MzLS/BASS imaging).
+    """Initial SV-like Milky Way Survey selections (MzLS/BASS imaging).
 
     Parameters
     ----------
-    rflux, obs_rflux : :class:`array_like` or :class:`None`
-        Flux in nano-maggies in r-band, with (`rflux`) and
-        without (`obs_rflux`) Galactic extinction correction.
-    objtype : :class:`array_like` or :class:`None`
-        The Legacy Surveys `TYPE` to restrict to point sources.
-    gaiagmag, gaiabmag, gaiarmag : :class:`array_like` or :class:`None`
-        Gaia-based g-, b- and r-band MAGNITUDES.
-    pmra, pmdec, parallax : :class:`array_like` or :class:`None`
-        Gaia-based proper motion in RA and Dec, and parallax.
-    parallaxovererror : :class:`array_like` or :class:`None`
-        Gaia-based parallax/error.
-    photbprpexcessfactor : :class:`array_like` or :class:`None`
-        Gaia_based BP/RP excess factor.
-    astrometricsigma5dmax : :class:`array_like` or :class:`None`
-        Longest semi-major axis of 5-d error ellipsoid.
-    gaiaaen : :class:`array_like` or :class:`None`
-        Gaia-based measure of Astrometric Excess Noise.
-    galb: : :class:`array_like` or :class:`None`
-        Galactic latitude (degrees).
-    gaia : :class:`boolean array_like` or :class:`None`
-        ``True`` if there is a match between this object in the Legacy
-        Surveys and in Gaia.
-    primary : :class:`array_like` or :class:`None`
-        ``True`` for objects that should be passed through the selection.
+    - See :func:`~desitarget.cuts.set_target_bits` for parameters.
 
     Returns
     -------
     :class:`array_like`
-        ``True`` if and only if the object is an initial MWS target for SV.
+        ``True`` if and only if the object is a MWS_MAIN or MWS_NEARBY
+        target from early SV/main survey classes.
+    :class:`array_like`
+        ``True`` if and only if the object is an early-SV/main survey
+        MWS_WD target.
 
     Notes
     -----
-    - Returns the equivalent of ALL MWS classes.
     - All Gaia quantities are as in `the Gaia data model`_.
+    - Returns the equivalent of PRIMARY target classes from version 181
+      (07/07/19) of `the wiki`_ (the main survey wiki). Ignores target
+      classes that "smell" like secondary targets (as they are outside
+      of the footprint or are based on catalog-matching). Simplifies flag
+      cuts, and simplifies the MWS_MAIN class to not include sub-classes.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -328,8 +245,9 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     # ADM Gaia G mag of less than 20.
     isnear &= gaiagmag < 20.
     # ADM parallax cut corresponding to 100pc.
-    isnear &= parallax > 10.
-    # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
+    isnear &= (parallax + parallaxerr) > 10.
+    # ADM all astrometric parameters were measured.
+    isnear &= paramssolved == 31
 
     # ADM do not target any WDs for which entries are NaN
     # ADM and turn off the NaNs for those entries.
@@ -355,6 +273,8 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
     # ADM apply the selection for MWS-WD targets.
     # ADM must be a Legacy Surveys object that matches a Gaia source.
     iswd &= gaia
+    # ADM all astrometric parameters were measured.
+    iswd &= paramssolved == 31
     # ADM Gaia G mag of less than 20.
     iswd &= gaiagmag < 20.
     # ADM Galactic b at least 20o from the plane.
@@ -393,8 +313,8 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None,
         iswd &= ((astrometricsigma5dmax < 1.5) |
                  ((gaiaaen < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
-    # ADM return any object that passes any of the MWS cuts.
-    return ismws | isnear | iswd
+    # ADM return any object that passes the MWS cuts.
+    return ismws | isnear, iswd
 
 
 def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
@@ -527,7 +447,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-              objtype=None, release=None, dchisq=None, brightstarinblob=None,
+              objtype=None, release=None, dchisq=None, maskbits=None,
               primary=None):
     """Early SV QSO target class using random forest. Returns a boolean array.
 
@@ -573,8 +493,11 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     morph2 = dcs < 0.02
     preSelection &= _psflike(objtype) | morph2
 
-    # CAC Reject objects flagged inside a blob.
-    preSelection &= ~brightstarinblob
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        for bit in [1, 10, 12, 13]:
+            preSelection &= ((maskbits & 2**bit) == 0)
 
     # "qso" mask initialized to "preSelection" mask
     qso = np.copy(preSelection)
@@ -698,14 +621,14 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return elg
 
 
-def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
-          gfracflux=None, rfracflux=None, zfracflux=None,
-          gfracmasked=None, rfracmasked=None, zfracmasked=None,
-          gnobs=None, rnobs=None, znobs=None,
-          gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
-          gaia=None, astrometricexcessnoise=None, paramssolved=None,
-          pmra=None, pmdec=None, parallax=None, dupsource=None,
-          gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False):
+def isSV0_STD(gflux=None, rflux=None, zflux=None, primary=None,
+              gfracflux=None, rfracflux=None, zfracflux=None,
+              gfracmasked=None, rfracmasked=None, zfracmasked=None,
+              gnobs=None, rnobs=None, znobs=None,
+              gfluxivar=None, rfluxivar=None, zfluxivar=None, objtype=None,
+              gaia=None, astrometricexcessnoise=None, paramssolved=None,
+              pmra=None, pmdec=None, parallax=None, dupsource=None,
+              gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False):
     """Select STD targets using color cuts and photometric quality cuts.
 
     Parameters
@@ -986,24 +909,27 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     return iscalspec
 
 
-def apply_cuts(objects, cmxdir=None):
-    """Perform commissioning (cmx) target selection on objects, return target mask arrays
+def apply_cuts(objects, cmxdir=None, noqso=False):
+    """Commissioning (cmx) target selection, return target mask arrays.
 
     Parameters
     ----------
     objects: numpy structured array with UPPERCASE columns needed for
         target selection, OR a string tractor/sweep filename
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
-        Directory in which to find commmissioning files to which to match, such as the
-        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
-        the :envvar:`CMX_DIR` environment variable.
+        Directory to find commmissioning files to which to match, such
+        as the CALSPEC stars. If not specified, the cmx directory is
+        taken to be the value of :envvar:`CMX_DIR`.
+    noqso : :class:`boolean`, optional, defaults to ``False``
+        If passed, do not run the quasar selection. All QSO bits will be
+        set to zero. Intended use is to speed unit tests.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        commissioning target selection bitmask flags for each object
+        commissioning target selection bitmask flags for each object.
 
-    See desitarget.cmx.cmx_targetmask.cmx_mask for the definition of each bit
+    See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
     # -Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
@@ -1026,9 +952,8 @@ def apply_cuts(objects, cmxdir=None):
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr,                                               \
-        dchisq, deltaChi2, brightstarinblob, maskbits =                               \
-        _prepare_optical_wise(objects, colnames=colnames)
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits =                 \
+        _prepare_optical_wise(objects)
 
     # ADM in addition, cmx needs ra and dec.
     ra, dec = objects["RA"], objects["DEC"]
@@ -1091,28 +1016,20 @@ def apply_cuts(objects, cmxdir=None):
         ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
     )
 
-    # ADM determine if an object is SV0_STD_BRIGHT. Resembles first
-    # ADM iteration of SV, but locked in cmx_cuts (and could be altered).
-    sv0_std_bright = isSV0_STD_bright(
-        gflux=gflux, rflux=rflux, zflux=zflux,
-        pmra=pmra, pmdec=pmdec, parallax=parallax,
-        gaiagmag=gaiagmag, isgood=isgood, primary=primary
-    )
-
     # ADM determine if an object is SV0_BGS.
     sv0_bgs = isSV0_BGS(
         rflux=rflux, objtype=objtype, primary=primary
     )
 
-    # ADM determine if an object is SV0_MWS.
-    sv0_mws = isSV0_MWS(
+    # ADM determine if an object is SV0_MWS or WD.
+    sv0_mws, sv0_wd = isSV0_MWS(
         rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         pmra=pmra, pmdec=pmdec, parallax=parallax,
-        parallaxovererror=parallaxovererror,
+        parallaxerr=parallaxerr, parallaxovererror=parallaxovererror,
         photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax,
-        gaiaaen=gaiaaen,
+        gaiaaen=gaiaaen, paramssolved=gaiaparamssolved,
         galb=galb, gaia=gaia, primary=primary
     )
 
@@ -1130,19 +1047,23 @@ def apply_cuts(objects, cmxdir=None):
     )
 
     # ADM determine if an object is SV0_QSO.
-    sv0_qso = isSV0_QSO(
-        primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-        w1flux=w1flux, w2flux=w2flux, objtype=objtype,
-        dchisq=dchisq, brightstarinblob=brightstarinblob
-    )
+    if noqso:
+        # ADM don't run quasar cuts if requested, for speed.
+        sv0_qso = ~primary
+    else:
+        sv0_qso = isSV0_QSO(
+            primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+            w1flux=w1flux, w2flux=w2flux, objtype=objtype,
+            dchisq=dchisq, maskbits=maskbits
+        )
 
-    # ADM run the STD target types for both faint and bright.
+    # ADM run the SV0 STD target types for both faint and bright.
     # ADM Make sure to pass all of the needed columns! At one point we stopped
     # ADM passing objtype, which meant no standards were being returned.
-    std_classes = []
+    sv0_std_classes = []
     for bright in [False, True]:
-        std_classes.append(
-            isSTD(
+        sv0_std_classes.append(
+            isSV0_STD(
                 primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                 gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
@@ -1153,18 +1074,24 @@ def apply_cuts(objects, cmxdir=None):
                 gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag, bright=bright
             )
         )
-    std_faint, std_bright = std_classes
+    sv0_std_faint, sv0_std_bright = sv0_std_classes
+
+    # ADM the nominal main survey cuts for standard stars. These are currently
+    # ADM identical to the SV0 cuts, so treat accordingly:
+    std_faint, std_bright = sv0_std_classes
 
     # ADM Construct the target flag bits.
     cmx_target = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
+    cmx_target |= sv0_std_faint * cmx_mask.SV0_STD_FAINT
     cmx_target |= sv0_std_bright * cmx_mask.SV0_STD_BRIGHT
     cmx_target |= sv0_bgs * cmx_mask.SV0_BGS
     cmx_target |= sv0_mws * cmx_mask.SV0_MWS
     cmx_target |= sv0_lrg * cmx_mask.SV0_LRG
     cmx_target |= sv0_elg * cmx_mask.SV0_ELG
     cmx_target |= sv0_qso * cmx_mask.SV0_QSO
+    cmx_target |= sv0_wd * cmx_mask.SV0_WD
     cmx_target |= std_faint * cmx_mask.STD_FAINT
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
 
@@ -1175,19 +1102,22 @@ def apply_cuts(objects, cmxdir=None):
     return cmx_target, priority_shift
 
 
-def select_targets(infiles, numproc=4, cmxdir=None):
+def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
     ----------
     infiles : :class:`list` or `str`
-        A list of input filenames (tractor or sweep files) OR a single filename.
+        List of input filenames (tractor/sweep files) OR one filename.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
-        Directory in which to find commmissioning files to which to match, such as the
-        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
-        the :envvar:`CMX_DIR` environment variable.
+        Directory to find commmissioning files to which to match, such
+        as the CALSPEC stars. If not specified, the cmx directory is
+        taken to be the value of :envvar:`CMX_DIR`.
+    noqso : :class:`boolean`, optional, defaults to ``False``
+        If passed, do not run the quasar selection. All QSO bits will be
+        set to zero. Intended use is to speed unit tests.
 
     Returns
     -------
@@ -1236,7 +1166,8 @@ def select_targets(infiles, numproc=4, cmxdir=None):
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
         objects = io.read_tractor(filename)
-        cmx_target, priority_shift = apply_cuts(objects, cmxdir=cmxdir)
+        cmx_target, priority_shift = apply_cuts(objects,
+                                                cmxdir=cmxdir, noqso=noqso)
 
         return _finalize_targets(objects, cmx_target, priority_shift)
 

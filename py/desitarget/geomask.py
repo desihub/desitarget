@@ -605,7 +605,7 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=True, surveydirs=None):
+                  gather=True, surveydirs=None, extra=None):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
@@ -634,6 +634,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         list is interpreted as the main directory. IF the list is of length two
         then the second directory is supplied as "-s2" in the output script.
         (e.g. ["/global/project/projectdirs/cosmo/data/legacysurvey/dr6"]).
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script.
 
     Returns
     -------
@@ -703,7 +706,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM add the total across all of the pixels
             outnote.append('Total: {}'.format(np.sum(goodnum)))
             # ADM a crude estimate of how long the script will take to run
-            # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk
+            # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk.
             delta = 3./60.
             eta = delta + np.sum(goodnum)/brickspersec/3600
             outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
@@ -753,6 +756,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         s2 = "-s2 {}".format(surveydir2)
 
     outfiles = []
+    from desitarget.io import _check_hpx_length
     for bin in bins:
         num = np.array(bin)[:, 0]
         pix = np.array(bin)[:, 1]
@@ -760,11 +764,15 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         if len(wpix) > 0:
             goodpix = pix[wpix]
             goodpix.sort()
+            # ADM check that we won't overwhelm the pixel scheme.
+            _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
             outfiles.append(outfile)
-            print("srun -N 1 select_{} {} {} {} --numproc 32 --nside {} --healpixels {} &"
+            if extra is not None:
+                strgoodpix += extra
+            print("srun -N 1 select_{} {} {} {} --nside {} --healpixels {} &"
                   .format(prefix2, surveydir, outfile, s2, nside, strgoodpix))
     print("wait")
     print("")
@@ -845,33 +853,33 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
         - When the RA range exceeds 180o, `healpy.query_polygon()`
           defines the range as that with the smallest area (i.e the box
           can wrap-around in RA). To avoid any ambiguity, this function
-          will return ALL HEALPixels in such cases.
+          will only limit by the passed Decs in such cases.
         - Only strictly correct for Decs from -90+1e-5(o) to 90-1e5(o).
     """
     ramin, ramax, decmin, decmax = radecbox
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
-    if np.abs(ramax-ramin) > 180.:
+    if np.abs(ramax-ramin) <= 180.:
+        # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
+        npole, spole = 90-1e-5, -90+1e-5
+        # ADM convert RA/Dec to co-latitude and longitude in radians.
+        rapairs = np.array([ramin, ramin, ramax, ramax])
+        decpairs = np.array([spole, npole, npole, spole])
+        thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
+
+        # ADM convert to Cartesian vectors remembering to transpose
+        # ADM to pass the array to query_polygon in the correct order.
+        vecs = hp.dir2vec(thetapairs, phipairs).T
+
+        # ADM determine the pixels that touch the RA range.
+        pixra = hp.query_polygon(nside, vecs,
+                                 inclusive=inclusive, fact=fact, nest=True)
+    else:
         log.warning('Max RA ({}) and Min RA ({}) separated by > 180o...'
                     .format(ramax, ramin))
-        log.warning('...returning full set of HEALPixels at nside={}'
+        log.warning('...will only limit to passed Declinations'
                     .format(nside))
-        return np.arange(hp.nside2npix(nside))
-
-    # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
-    npole, spole = 90-1e-5, -90+1e-5
-    # ADM convert RA/Dec to co-latitude and longitude in radians.
-    rapairs = np.array([ramin, ramin, ramax, ramax])
-    decpairs = np.array([spole, npole, npole, spole])
-    thetapairs, phipairs = np.radians(90.-decpairs), np.radians(rapairs)
-
-    # ADM convert to Cartesian vectors remembering to transpose
-    # ADM to pass the array to query_polygon in the correct order.
-    vecs = hp.dir2vec(thetapairs, phipairs).T
-
-    # ADM determine the pixels that touch the RA range.
-    pixra = hp.query_polygon(nside, vecs,
-                             inclusive=inclusive, fact=fact, nest=True)
+        pixra = np.arange(hp.nside2npix(nside))
 
     # ADM determine the pixels that touch the Dec range.
     pixdec = hp_in_dec_range(nside, decmin, decmax, inclusive=inclusive)
@@ -920,7 +928,7 @@ def hp_in_dec_range(nside, decmin, decmax, inclusive=True):
 
 
 def hp_beyond_gal_b(nside, mingalb, neighbors=True):
-    """Find all HEALPixels with centers and neigbors beyond a Galactic b.
+    """Find HEALPixels with centers and neighbors beyond a Galactic b.
 
     Parameters
     ----------
@@ -1248,7 +1256,7 @@ def is_in_gal_box(objs, lbbox, radec=False):
     return ii
 
 
-def radec_match_to(matchto, objs, sep=1., radec=False):
+def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
     """Match objects to a catalog list on RA/Dec.
 
     Parameters
@@ -1262,6 +1270,9 @@ def radec_match_to(matchto, objs, sep=1., radec=False):
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` then `objs` and `matchto` are [RA, Dec] lists instead of
         rec arrays.
+    return_sep : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the separation between each object, not
+        just the indexes of the match.
 
     Returns
     -------
@@ -1269,6 +1280,9 @@ def radec_match_to(matchto, objs, sep=1., radec=False):
         The indexes in `match2` for which `objs` matches `match2` at < `sep`.
     :class:`~numpy.ndarray` (of integers)
         The indexes in `objs` for which `objs` matches `match2` at < `sep`.
+    :class:`~numpy.ndarray` (of floats)
+        The distances in ARCSECONDS of the matches.
+        Only returned if `return_sep` is ``True``.
 
     Notes
     -----
@@ -1304,5 +1318,8 @@ def radec_match_to(matchto, objs, sep=1., radec=False):
     idobjs = np.arange(len(cobjs))
 
     ii = d2d < sep*u.arcsec
+
+    if return_sep:
+        return idmatchto[ii], idobjs[ii], d2d[ii].arcsec
 
     return idmatchto[ii], idobjs[ii]

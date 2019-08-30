@@ -1,0 +1,26 @@
+The files in this directory are:
+
+ADM-v1dump.f: FORTRAN code to parse UCAC/URAT files, adapted from
+              http://cdsarc.u-strasbg.fr/ftp/I/329/URAT1/access/v1dump.f
+              by Adam D. Myers (University of Wyoming).
+
+v1sub.f: Routines to help parse UCAC/URAT files, taken directly from
+         http://cdsarc.u-strasbg.fr/ftp/I/329/URAT1/access/v1sub.f
+
+v1dump: An executable compiled at NERSC via:
+
+        gfortran -o v1dump ADM-v1dump.f v1sub.f
+
+
+More about the URAT survey is available at:
+
+http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/329
+
+
+This code is used as part of desitarget.uratmatch.make_urat_files(),
+specifically, desitarget.uratmatch.urat_binary_to_csv() to download
+and format URAT data from http://cdsarc.u-strasbg.fr/ftp/I/329/
+
+
+At NERSC, desitarget.uratmatch.make_urat_files() has already been run
+and the output is in /project/projectdirs/desi/target/urat_dr1
