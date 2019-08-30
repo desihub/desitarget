@@ -145,8 +145,6 @@ sv1_mws_mask:
     # These may be implemented as secondary targets
     - [MWS_SPECIAL_BHB,        31, "BHB (colour-selected)",    {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_SPECIAL_MP,         33, "Metal-poor stars",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_SPECIAL_HYADES,     36, "Likely Hyades members",    {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_SPECIAL_HYADES_VERYBRIGHT, 37, "Likely Hyades members r<16",     {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
@@ -169,6 +167,10 @@ sv1_scnd_mask:
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_WDBINARY_SV'}]
     - [MWS_SPECIAL_RRLYR_SV,     13, "RR Lyrae, Gaia-selected",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_RRLYR_SV'}]
+    - [MWS_SPECIAL_HYADES_SV,    14, "Likely Hyades members (r>16)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_HYADES_SV'}]
+    - [MWS_SPECIAL_HYADES_VERYBRIGHT_SV, 15, "Likely Hyades members (r<16)",    
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_SV'}]
     - [MWS_CALIB_APOGEE,         20, "Stars 16 < G < 19 with APOGEE data",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_APOGEE'}]
     - [MWS_CALIB_GAIAESO,        21, "Stars 16 < G < 19 with GAIAESO data",
@@ -310,9 +312,8 @@ priorities:
         # Special/Sparse targets
         # NB DONE is not very relevant here since we assign "infinite" observations
         # MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_HYADES:            {UNOBS: 1650, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_HYADES_VERYBRIGHT: SAME_AS_MWS_SPECIAL_HYADES
-        MWS_NEARBY_SV:                 {UNOBS: 1600, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+        # Note NEARBY > HYADES (otherwise nearby targets swamped by fainter HYADES members)
+        MWS_NEARBY_SV:                 {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
 
         MWS_SPECIAL_BHB:              {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_SPECIAL_MP:               SAME_AS_MWS_SPECIAL_BHB
@@ -336,6 +337,9 @@ priorities:
         MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_GALAH:              SAME_AS_MWS_CALIB_APOGEE
+        # Note HYADES < NEARBY
+        MWS_SPECIAL_HYADES_SV:        {UNOBS: 1600, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_HYADES_VERYBRIGHT_SV: SAME_AS_MWS_SPECIAL_HYADES
         MWS_SPECIAL_DRACO_SV:         {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_SPECIAL_DDOGIANTS_SV:     SAME_AS_MWS_SPECIAL_DRACO_SV
         MWS_SPECIAL_WDBINARY_SV:      SAME_AS_MWS_SPECIAL_DRACO_SV
@@ -446,10 +450,7 @@ numobs:
         MWS_CALIB_VERYBRIGHT:          100
         MWS_CALIB_BOSS:                1
         MWS_CALIB_CLUSTER:             SAME_AS_MWS_CALIB_BOSS
-        MWS_SPECIAL_HYADES:            100
-        MWS_SPECIAL_HYADES_VERYBRIGHT: 100
-
-        MWS_SPECIAL_BHB:              100
+        MWS_SPECIAL_BHB:              1
         MWS_SPECIAL_MP:               SAME_AS_MWS_SPECIAL_BHB
         MWS_MAIN_SV:                  1
         MWS_MAIN_SV_FAINT:            1
@@ -472,5 +473,7 @@ numobs:
         MWS_CALIB_GALAH:      SAME_AS_MWS_CALIB_APOGEE
         MWS_SPECIAL_DRACO_SV:     1
         MWS_SPECIAL_DDOGIANTS_SV: SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_WDBINARY_SV:  SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_WDBINARY_SV:  100
         MWS_SPECIAL_RRLYR_SV:     SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_HYADES_SV:    100
+        MWS_SPECIAL_HYADES_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_HYADES_SV
