@@ -1360,7 +1360,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_s, mws_faint_s = mws_classes[1]
 
     # ADM treat the MWS WD selection specially, as we have to run the
-    # ADM white dwarfs for standards and MWS science targets.
+    # ADM white dwarfs for standards 
+    # APC Science WDs now enter as secondary targets, so in principle the
+    # APC assignment std_wd = mws_wd could be done here rather than below.
     mws_wd = ~primary
     if "MWS" in tcnames or "STD" in tcnames:
         mws_wd = isMWS_WD(
@@ -1484,7 +1486,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM MWS main, nearby, and WD.
     mws_target  = mws * mws_mask.MWS_MAIN_SV
     mws_target |= mws_faint * mws_mask.MWS_MAIN_SV_FAINT
-    mws_target |= mws_wd * mws_mask.MWS_WD_SV
+    # APC Scince WDs are secondary targets now
+    # mws_target |= mws_wd * mws_mask.MWS_WD_SV
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY_SV
 
     # ADM MWS main north/south split.
