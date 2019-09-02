@@ -153,8 +153,8 @@ else:
                 log.info("making directory...{}".format(scndoutdn))
                 os.makedirs(scndoutdn)
             scndoutfn = "{}.fits".format(os.path.splitext(os.path.basename(ns.dest))[0])
-            # ADM find the SCND_DIR environment variable, if it wasn't passed.
-            scndout = os.path.join(scxdir, "outdata", scndoutdn, scndoutfn)
+            # ADM construct the output directory for primary match info.
+            scndout = os.path.join(scndoutdn, scndoutfn)
             targets = match_secondary(targets, scxdir, scndout, sep=1.,
                                       pix=pixlist, nside=ns.nside)
 
