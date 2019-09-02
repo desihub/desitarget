@@ -8,21 +8,21 @@ Merged target lists.
 import numpy as np
 import sys
 from astropy.table import Table
+import fitsio
 
 from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, main_cmx_or_sv, set_obsconditions
-
+from desitarget.io import read_targets_in_box
 
 def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
     Parameters
     ----------
-    targets : :class:`~numpy.array` or `~astropy.table.Table` or `str`
+    targets : :class:`~numpy.array` or `~astropy.table.Table`
         A numpy rec array or astropy Table with at least the columns
         ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
-        or the corresponding columns for SV or commissioning. If a string
-        is passed, assume this is a file to be loaded.
+        or the corresponding columns for SV or commissioning.
     obscon : :class:`str`
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
@@ -34,11 +34,12 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     trim : :class:`bool`, optional
         If ``True`` (default), don't include targets that don't need
         any more observations.  If ``False``, include every input target.
-    scnd : :class:`~numpy.array`, `~astropy.table.Table` or `str`, optional
+    scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
         A set of secondary targets associated with the `targets`. As with
         the `target` must include at least ``TARGETID``, ``DESI_TARGET``,
         ``NUMOBS_INIT``, ``PRIORITY_INIT`` or the corresponding SV columns.
-        The full path to a file name to be loaded can be passed.
+        The secondary targets will be padded to have the same columns
+        as the targets, and concatenated with them.
 
     Returns
     -------
@@ -53,6 +54,15 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     from desiutil.log import get_logger
     log = get_logger()
 
+    # ADM if secondaries were passed, concatenate them with the targets.
+    if scnd is not None:
+        nrows = len(scnd)
+        padit = np.zeros(nrows, dtype=targets.dtype)
+        sharedcols = set(targets.dtype.names).intersection(set(scnd.dtype.names))
+        for col in sharedcols:
+            padit[col] = scnd[col]
+        targets = np.concatenate([targets, padit])
+    
     # ADM determine whether the input targets are main survey, cmx or SV.
     colnames, masks, survey = main_cmx_or_sv(targets)
     # ADM set the first column to be the "desitarget" column
