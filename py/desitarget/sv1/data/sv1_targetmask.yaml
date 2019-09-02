@@ -98,7 +98,7 @@ sv1_desi_mask:
     
 #- Bright Galaxy Survey SV targets
 sv1_bgs_mask:
-    - [BGS_FAINT,           0, "BGS faint targets",              {obsconditions: BRIGHT}]
+    - [BGS_FAINT,           0, "BGS faint targets",              {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets",             {obsconditions: BRIGHT}]
     - [BGS_FAINT_EXT,       2, "BGS faint extended targets",     {obsconditions: BRIGHT}]
     - [BGS_LOWQ,            3, "BGS low quality targets",        {obsconditions: BRIGHT}]
@@ -122,18 +122,15 @@ sv1_bgs_mask:
     - [BGS_KNOWN_BOSS,      43, "BGS known BOSS targets",              {obsconditions: BRIGHT}]
 
 #- Milky Way Survey SV targets
-# ADM obsconditions is used to set which survey target files targets are
-# ADM included in (the bright-time, dark-time survey etc.) and
-# ADM priconditions is used for prioritization logic in MTL.
 sv1_mws_mask:
 
     # First layer defines main samples -- these are expected to have distinct
     # input catalogues. 
    
     #- Bits 0-3 (7 ids)
-    - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
+    - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
     # Second layer flags additional subclasses that could apply to any
     # of the main classes. These sort targets in each input catalog into
@@ -147,16 +144,16 @@ sv1_mws_mask:
     # targeted for reobservation if possible.
     
     #- 4: MWS_MAIN north/south splits
-    - [MWS_MAIN_NORTH,      4, "Milky Way Survey cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey cuts tuned for DECam",                   {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
+    - [MWS_MAIN_NORTH,      4, "Milky Way Survey cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey cuts tuned for DECam",                   {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 8: Sub-classes of MWS_MAIN
-    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",          {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample tuned for DECam",      {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",          {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
-    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",       {obsconditions: BRIGHT|GRAY|DARK, priconditions: BRIGHT}]
+    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",          {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample tuned for DECam",      {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",          {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",       {obsconditions: BRIGHT|GRAY|DARK}]
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the

@@ -442,8 +442,6 @@ def initial_priority_numobs(targets, scnd=False,
           `desi_mask["ELG"].priorities["UNOBS"]`.
         - the input obscon string can be converted to a bitmask using
           `desitarget.targetmask.obsconditions.mask(blat)`.
-        - priconditions (e.g. `mws_mask["MWS_WD"].priconditions`) is used
-          in place of obsconditions, if priconditions is set.
     """
     colnames, masks, _ = main_cmx_or_sv(targets, scnd=scnd)
     # ADM if we requested secondary targets, the needed information
@@ -468,9 +466,6 @@ def initial_priority_numobs(targets, scnd=False,
                 _ = mask[name].priorities["UNOBS"]
                 # ADM also only consider bits with correct OBSCONDITIONS.
                 obsforname = obsconditions.mask(mask[name].obsconditions)
-                # ADM PRICONDITIONS trumps OBSCONDITIONS, if set.
-                if 'priconditions' in mask[name].__dict__:
-                    obsforname = obsconditions.mask(mask[name].priconditions)
                 if (obsforname & obsbits) != 0:
                     bitnames.append(name)
             except KeyError:
@@ -537,7 +532,7 @@ def calc_priority(targets, zcat, obscon):
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
         "DARK|GRAY". Governs the behavior of how priorities are set based
-        on "priconditions" in the desitarget bitmask yaml file.
+        on "obsconditions" in the desitarget bitmask yaml file.
 
     Returns
     -------
@@ -602,8 +597,6 @@ def calc_priority(targets, zcat, obscon):
             for name in names:
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(desi_mask[name].obsconditions)
-                if 'priconditions' in desi_mask[name].__dict__:
-                    pricon = obsconditions.mask(desi_mask[name].priconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[desi_target] & desi_mask[name]) != 0
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
@@ -615,8 +608,6 @@ def calc_priority(targets, zcat, obscon):
             name = 'QSO'
             # ADM only update priorities for passed observing conditions.
             pricon = obsconditions.mask(desi_mask[name].obsconditions)
-            if 'priconditions' in desi_mask[name].__dict__:
-                pricon = obsconditions.mask(desi_mask[name].priconditions)
             if (obsconditions.mask(obscon) & pricon) != 0:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
                 good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
@@ -631,8 +622,6 @@ def calc_priority(targets, zcat, obscon):
             for name in bgs_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(bgs_mask[name].obsconditions)
-                if 'priconditions' in bgs_mask[name].__dict__:
-                    pricon = obsconditions.mask(bgs_mask[name].priconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[bgs_target] & bgs_mask[name]) != 0
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
@@ -645,8 +634,6 @@ def calc_priority(targets, zcat, obscon):
             for name in mws_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(mws_mask[name].obsconditions)
-                if 'priconditions' in mws_mask[name].__dict__:
-                    pricon = obsconditions.mask(mws_mask[name].priconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[mws_target] & mws_mask[name]) != 0
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
@@ -654,13 +641,11 @@ def calc_priority(targets, zcat, obscon):
                     priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
                     priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
 
-        # Secondary targets.
+        # ADM Secondary targets.
         if scnd_target in targets.dtype.names:
             for name in scnd_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(scnd_mask[name].obsconditions)
-                if 'priconditions' in scnd_mask[name].__dict__:
-                    pricon = obsconditions.mask(scnd_mask[name].priconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[scnd_target] & scnd_mask[name]) != 0
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], scnd_mask[name].priorities['UNOBS'])
