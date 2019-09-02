@@ -9,10 +9,12 @@ import numpy as np
 import sys
 from astropy.table import Table
 import fitsio
+from time import time
 
 from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, main_cmx_or_sv, set_obsconditions
 from desitarget.io import read_targets_in_box
+
 
 def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
@@ -50,6 +52,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         * PRIORITY       - target priority (larger number = higher priority)
         * OBSCONDITIONS  - replaces old GRAYLAYER
     """
+    start = time()
     # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
@@ -57,12 +60,15 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM if secondaries were passed, concatenate them with the targets.
     if scnd is not None:
         nrows = len(scnd)
+        log.info('Pad {} primary targets with {} secondaries...t={:.1f}s'.format(
+            len(targets), nrows, time()-start))
         padit = np.zeros(nrows, dtype=targets.dtype)
         sharedcols = set(targets.dtype.names).intersection(set(scnd.dtype.names))
         for col in sharedcols:
             padit[col] = scnd[col]
         targets = np.concatenate([targets, padit])
-    
+        log.info('Done with padding...t={:.1f}s'.format(time()-start))
+
     # ADM determine whether the input targets are main survey, cmx or SV.
     colnames, masks, survey = main_cmx_or_sv(targets)
     # ADM set the first column to be the "desitarget" column
@@ -170,5 +176,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # See https://github.com/astropy/astropy/issues/4707
     # and https://github.com/astropy/astropy/issues/4708
     mtl['NUMOBS_MORE'].fill_value = -1
+
+    log.info('Done...t={:.1f}s'.format(time()-start))
 
     return mtl

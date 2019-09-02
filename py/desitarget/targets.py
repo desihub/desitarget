@@ -375,7 +375,7 @@ def set_obsconditions(targets, scnd=False):
         `BGS_TARGET`, `MWS_TARGET` or corresponding cmx or SV columns.
     scnd : :class:`bool`, optional, defaults to ``False``
         If ``True`` then make all of the comparisons on the `SCND_TARGET`
-        column instead of `DESI_TARGET`, `BGS_TARGET` and `MWS_TARGET`.    
+        column instead of `DESI_TARGET`, `BGS_TARGET` and `MWS_TARGET`.
 
     Returns
     -------
@@ -393,7 +393,7 @@ def set_obsconditions(targets, scnd=False):
     # ADM was returned as the last part of each array.
     if scnd:
         colnames, masks = colnames[-1:], masks[-1:]
-        
+
     n = len(targets)
     obscon = np.zeros(n, dtype='i4')
     for mask, xxx_target in zip(masks, colnames):
@@ -419,7 +419,7 @@ def initial_priority_numobs(targets, scnd=False,
         `BGS_TARGET`, `MWS_TARGET` or corresponding cmx or SV columns.
     scnd : :class:`bool`, optional, defaults to ``False``
         If ``True`` then make all of the comparisons on the `SCND_TARGET`
-        column instead of `DESI_TARGET`, `BGS_TARGET` and `MWS_TARGET`.    
+        column instead of `DESI_TARGET`, `BGS_TARGET` and `MWS_TARGET`.
     obscon : :class:`str`, optional, defaults to almost all OBSCONDITIONS
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`).
@@ -554,11 +554,11 @@ def calc_priority(targets, zcat, obscon):
     assert len(targets) == len(zcat)
 
     # ADM determine whether the input targets are main survey, cmx or SV.
-    colnames, masks, survey = main_cmx_or_sv(targets)
+    colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
     # ADM the target bits/names should be shared between main survey and SV.
     if survey != 'cmx':
-        desi_target, bgs_target, mws_target = colnames
-        desi_mask, bgs_mask, mws_mask = masks
+        desi_target, bgs_target, mws_target, scnd_target = colnames
+        desi_mask, bgs_mask, mws_mask, scnd_mask = masks
     else:
         cmx_mask = masks[0]
 
@@ -653,6 +653,20 @@ def calc_priority(targets, zcat, obscon):
                     priority[ii & done] = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
                     priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
                     priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
+
+        # Secondary targets.
+        if scnd_target in targets.dtype.names:
+            for name in scnd_mask.names():
+                # ADM only update priorities for passed observing conditions.
+                pricon = obsconditions.mask(scnd_mask[name].obsconditions)
+                if 'priconditions' in scnd_mask[name].__dict__:
+                    pricon = obsconditions.mask(scnd_mask[name].priconditions)
+                if (obsconditions.mask(obscon) & pricon) != 0:
+                    ii = (targets[scnd_target] & scnd_mask[name]) != 0
+                    priority[ii & unobs] = np.maximum(priority[ii & unobs], scnd_mask[name].priorities['UNOBS'])
+                    priority[ii & done] = np.maximum(priority[ii & done],  scnd_mask[name].priorities['DONE'])
+                    priority[ii & zgood] = np.maximum(priority[ii & zgood], scnd_mask[name].priorities['MORE_ZGOOD'])
+                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], scnd_mask[name].priorities['MORE_ZWARN'])
 
         # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
         ii = (targets[desi_target] & desi_mask.IN_BRIGHT_OBJECT) != 0

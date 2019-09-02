@@ -616,6 +616,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
 
     return np.sum(ii), filename
 
+
 def write_skies(filename, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None):
     """Write a target catalogue of sky locations.
