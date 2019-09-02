@@ -13,21 +13,34 @@ from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, main_cmx_or_sv, set_obsconditions
 
 
-def make_mtl(targets, zcat=None, trim=False):
+def make_mtl(targets, obscon=None, zcat=None, trim=False, scnd=None):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
     Parameters
     ----------
-    targets : :class:`~numpy.array` or `~astropy.table.Table`
+    targets : :class:`~numpy.array` or `~astropy.table.Table` or `str`
         A numpy rec array or astropy Table with at least the columns
         ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
-        or the corresponding columns for SV or commissioning.
+        or the corresponding columns for SV or commissioning. If a string
+        is passed, assume this is a file to be loaded.
+    obscon : :class:`str`
+        A combination of strings that are in the desitarget bitmask yaml
+        file (specifically in `desitarget.targetmask.obsconditions`), e.g.
+        "DARK|GRAY". Governs the behavior of how priorities are set based
+        on "priconditions" in the desitarget bitmask yaml file.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
     trim : :class:`bool`, optional
         If ``True`` (default), don't include targets that don't need
         any more observations.  If ``False``, include every input target.
+    scnd : :class:`~numpy.array`, `~astropy.table.Table` or `str`, optional
+        A set of secondary targets associated with the `targets`. As with
+        the `target` must include at least ``TARGETID``, ``DESI_TARGET``,
+        ``NUMOBS_INIT``, ``PRIORITY_INIT`` or the corresponding SV columns.
+        The full path to a file name to be loaded can be passed.
+    obscon : :class:
+
 
     Returns
     -------
