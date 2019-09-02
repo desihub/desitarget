@@ -13,7 +13,7 @@ from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, main_cmx_or_sv, set_obsconditions
 
 
-def make_mtl(targets, obscon=None, zcat=None, trim=False, scnd=None):
+def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
     Parameters
@@ -39,8 +39,6 @@ def make_mtl(targets, obscon=None, zcat=None, trim=False, scnd=None):
         the `target` must include at least ``TARGETID``, ``DESI_TARGET``,
         ``NUMOBS_INIT``, ``PRIORITY_INIT`` or the corresponding SV columns.
         The full path to a file name to be loaded can be passed.
-    obscon : :class:
-
 
     Returns
     -------
@@ -115,16 +113,19 @@ def make_mtl(targets, obscon=None, zcat=None, trim=False, scnd=None):
     # ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
     ztargets['NUMOBS_MORE'] = np.maximum(0, targets_zmatcher['NUMOBS_INIT'] - ztargets['NUMOBS'])
 
-    # ADM we need a minor hack to ensure that BGS targets are observed once (and only once)
-    # ADM every time, regardless of how many times they've previously been observed.
-    # ADM I've turned this off for commissioning. Not sure if we'll keep it in general.
+    # ADM need a minor hack to ensure BGS targets are observed once
+    # ADM (and only once) every time during the BRIGHT survey, regardless
+    # ADM of how often they've previously been observed. I've turned this
+    # ADM off for commissioning. Not sure if we'll keep it in general.
     if survey != 'cmx':
-        ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
-        ztargets['NUMOBS_MORE'][ii] = 1
+        # ADM only if we're considering bright survey conditions.
+        if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
+            ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
+            ztargets['NUMOBS_MORE'][ii] = 1
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.
-    priority = calc_priority(targets_zmatcher, ztargets)
+    priority = calc_priority(targets_zmatcher, ztargets, obscon)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0.
     # ## mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
@@ -133,7 +134,7 @@ def make_mtl(targets, obscon=None, zcat=None, trim=False, scnd=None):
     ztargets['NUMOBS_MORE'][ii] = 0
 
     # - Set the OBSCONDITIONS mask for each target bit.
-    obscon = set_obsconditions(targets)
+    obsconmask = set_obsconditions(targets)
 
     # ADM set up the output mtl table.
     mtl = Table(targets)
@@ -143,7 +144,7 @@ def make_mtl(targets, obscon=None, zcat=None, trim=False, scnd=None):
     mtl['NUMOBS_MORE'] = mtl['NUMOBS_INIT']
     mtl['PRIORITY'] = mtl['PRIORITY_INIT']
     # ADM now populate the new mtl columns with the updated information.
-    mtl['OBSCONDITIONS'] = obscon
+    mtl['OBSCONDITIONS'] = obsconmask
     mtl['PRIORITY'][zmatcher] = priority
     mtl['NUMOBS_MORE'][zmatcher] = ztargets['NUMOBS_MORE']
 

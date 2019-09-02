@@ -513,7 +513,7 @@ def decode_survey_source(encoded_values):
     return survey, source, original_targetid
 
 
-def calc_priority(targets, zcat):
+def calc_priority(targets, zcat, obscon):
     """
     Calculate target priorities from masks, observation/redshift status.
 
@@ -528,6 +528,11 @@ def calc_priority(targets, zcat):
         include 'Z', `ZWARN`, `NUMOBS` and be the same length as
         `targets`. May also contain `NUMOBS_MORE` if this isn't the
         first time through MTL and `NUMOBS > 0`.
+    obscon : :class:`str`
+        A combination of strings that are in the desitarget bitmask yaml
+        file (specifically in `desitarget.targetmask.obsconditions`), e.g.
+        "DARK|GRAY". Governs the behavior of how priorities are set based
+        on "priconditions" in the desitarget bitmask yaml file.
 
     Returns
     -------
@@ -590,39 +595,59 @@ def calc_priority(targets, zcat):
             if survey[0:2] == 'sv':
                 names = ('ELG', 'LRG')
             for name in names:
-                ii = (targets[desi_target] & desi_mask[name]) != 0
-                priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-                priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
-                priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
-                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+                # ADM only update priorities for passed observing conditions.
+                pricon = obsconditions.mask(desi_mask[name].obsconditions)
+                if 'priconditions' in desi_mask[name].__dict__:
+                    pricon = priconditions.mask(desi_mask[name].priconditions)
+                if (obsconditions.mask(obscon) & pricon) != 0:
+                    ii = (targets[desi_target] & desi_mask[name]) != 0
+                    priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+                    priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
+                    priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
+                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
             # QSO could be Lyman-alpha or Tracer.
             name = 'QSO'
-            ii = (targets[desi_target] & desi_mask[name]) != 0
-            good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
-            priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-            priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
-            priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
-            priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
-            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+            # ADM only update priorities for passed observing conditions.
+            pricon = obsconditions.mask(desi_mask[name].obsconditions)
+            if 'priconditions' in desi_mask[name].__dict__:
+                pricon = priconditions.mask(desi_mask[name].priconditions)
+            if (obsconditions.mask(obscon) & pricon) != 0:
+                ii = (targets[desi_target] & desi_mask[name]) != 0
+                good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
+                priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
+                priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
+                priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
+                priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
+                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
 
         # BGS targets.
         if bgs_target in targets.dtype.names:
             for name in bgs_mask.names():
-                ii = (targets[bgs_target] & bgs_mask[name]) != 0
-                priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
-                priority[ii & done] = np.maximum(priority[ii & done],  bgs_mask[name].priorities['DONE'])
-                priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
-                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
+                # ADM only update priorities for passed observing conditions.
+                pricon = obsconditions.mask(bgs_mask[name].obsconditions)
+                if 'priconditions' in bgs_mask[name].__dict__:
+                    pricon = priconditions.mask(bgs_mask[name].priconditions)
+                if (obsconditions.mask(obscon) & pricon) != 0:
+                    ii = (targets[bgs_target] & bgs_mask[name]) != 0
+                    priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
+                    priority[ii & done] = np.maximum(priority[ii & done],  bgs_mask[name].priorities['DONE'])
+                    priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
+                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
 
         # MWS targets.
         if mws_target in targets.dtype.names:
             for name in mws_mask.names():
-                ii = (targets[mws_target] & mws_mask[name]) != 0
-                priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
-                priority[ii & done] = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
-                priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
-                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
+                # ADM only update priorities for passed observing conditions.
+                pricon = obsconditions.mask(mws_mask[name].obsconditions)
+                if 'priconditions' in mws_mask[name].__dict__:
+                    pricon = priconditions.mask(mws_mask[name].priconditions)
+                if (obsconditions.mask(obscon) & pricon) != 0:
+                    ii = (targets[mws_target] & mws_mask[name]) != 0
+                    priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
+                    priority[ii & done] = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
+                    priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
+                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
 
         # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
         ii = (targets[desi_target] & desi_mask.IN_BRIGHT_OBJECT) != 0
