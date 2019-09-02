@@ -638,7 +638,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     )
     # ADM and remove the INIT fields in prep for a dark/bright split.
     scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
-    
+
     # ADM set initial priorities, numobs and obsconditions for both
     # ADM BRIGHT and DARK|GRAY conditions, if requested.
     nscx = len(scxtargs)
@@ -652,7 +652,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
         cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
         vals += [nodata, nodata]
         forms += ['>i8', '>i8']
-        
+
     # ADM write the output array.
     newdt = [dt for dt in zip(cols, forms)]
     done = np.array(np.zeros(nscx), dtype=scxtargs.dtype.descr+newdt)
