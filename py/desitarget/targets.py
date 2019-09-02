@@ -470,7 +470,7 @@ def initial_priority_numobs(targets, scnd=False,
                 obsforname = obsconditions.mask(mask[name].obsconditions)
                 # ADM PRICONDITIONS trumps OBSCONDITIONS, if set.
                 if 'priconditions' in mask[name].__dict__:
-                    obsforname = priconditions.mask(mask[name].priconditions)
+                    obsforname = obsconditions.mask(mask[name].priconditions)
                 if (obsforname & obsbits) != 0:
                     bitnames.append(name)
             except KeyError:
@@ -603,7 +603,7 @@ def calc_priority(targets, zcat, obscon):
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(desi_mask[name].obsconditions)
                 if 'priconditions' in desi_mask[name].__dict__:
-                    pricon = priconditions.mask(desi_mask[name].priconditions)
+                    pricon = obsconditions.mask(desi_mask[name].priconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[desi_target] & desi_mask[name]) != 0
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
@@ -616,7 +616,7 @@ def calc_priority(targets, zcat, obscon):
             # ADM only update priorities for passed observing conditions.
             pricon = obsconditions.mask(desi_mask[name].obsconditions)
             if 'priconditions' in desi_mask[name].__dict__:
-                pricon = priconditions.mask(desi_mask[name].priconditions)
+                pricon = obsconditions.mask(desi_mask[name].priconditions)
             if (obsconditions.mask(obscon) & pricon) != 0:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
                 good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
@@ -632,7 +632,7 @@ def calc_priority(targets, zcat, obscon):
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(bgs_mask[name].obsconditions)
                 if 'priconditions' in bgs_mask[name].__dict__:
-                    pricon = priconditions.mask(bgs_mask[name].priconditions)
+                    pricon = obsconditions.mask(bgs_mask[name].priconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[bgs_target] & bgs_mask[name]) != 0
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
@@ -646,7 +646,7 @@ def calc_priority(targets, zcat, obscon):
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(mws_mask[name].obsconditions)
                 if 'priconditions' in mws_mask[name].__dict__:
-                    pricon = priconditions.mask(mws_mask[name].priconditions)
+                    pricon = obsconditions.mask(mws_mask[name].priconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[mws_target] & mws_mask[name]) != 0
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
