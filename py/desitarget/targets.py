@@ -442,6 +442,8 @@ def initial_priority_numobs(targets, scnd=False,
           `desi_mask["ELG"].priorities["UNOBS"]`.
         - the input obscon string can be converted to a bitmask using
           `desitarget.targetmask.obsconditions.mask(blat)`.
+        - priconditions (e.g. `mws_mask["MWS_WD"].priconditions`) is used
+          in place of obsconditions, if priconditions is set.
     """
     colnames, masks, _ = main_cmx_or_sv(targets, scnd=scnd)
     # ADM if we requested secondary targets, the needed information
@@ -466,6 +468,9 @@ def initial_priority_numobs(targets, scnd=False,
                 _ = mask[name].priorities["UNOBS"]
                 # ADM also only consider bits with correct OBSCONDITIONS.
                 obsforname = obsconditions.mask(mask[name].obsconditions)
+                # ADM PRICONDITIONS trumps OBSCONDITIONS, if set.
+                if 'priconditions' in mask[name].__dict__:
+                    obsforname = priconditions.mask(mask[name].priconditions)
                 if (obsforname & obsbits) != 0:
                     bitnames.append(name)
             except KeyError:
