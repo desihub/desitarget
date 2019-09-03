@@ -5,9 +5,9 @@ sv1_desi_mask:
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
     #- ADM LRG sub-classes
-    - [LRG_INIT,        3, "LRG using initial optical and IR cuts", {obsconditions: DARK}]
-    - [LRG_SUPER,       4, "LRG that is a superset of other cuts",  {obsconditions: DARK}]
-    - [LRG_LOWZ_FILLER, 5, "LRG low-z filler sample",  {obsconditions: DARK}]
+    - [LRG_INIT,        3, "LRG using initial optical and IR cuts",                      {obsconditions: DARK}]
+    - [LRG_SUPER,       4, "LRG that is a superset of other cuts",                       {obsconditions: DARK}]
+    - [LOWZ_FILLER,     5, "LRG-like low-z filler sample (will NOT also have LRG set)",  {obsconditions: DARK}]
 
     #- ADM ELG sub-classes
     - [ELG_FDR,        6, "ELG using FDR cuts",             {obsconditions: DARK|GRAY}]
@@ -34,11 +34,11 @@ sv1_desi_mask:
     #- North vs. South selections for different sub-classes
     - [LRG_INIT_NORTH,         22, "LRG using initial optical and IR cuts tuned for Bok/Mosaic", {obsconditions: DARK}]
     - [LRG_SUPER_NORTH,        23, "LRG that is a superset of other cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
-    - [LRG_LOWZ_FILLER_NORTH,  24, "LRG low-z filler sample tuned for Bok/Mosaic",               {obsconditions: DARK}]
+    - [LOWZ_FILLER_NORTH,      24, "LRG-like low-z filler sample tuned for Bok/Mosaic",          {obsconditions: DARK}]
 
     - [LRG_INIT_SOUTH,         25, "LRG using initial optical and IR cuts tuned for DECam", {obsconditions: DARK}]
     - [LRG_SUPER_SOUTH,        26, "LRG that is a superset of other cuts tuned for DECam",  {obsconditions: DARK}]
-    - [LRG_LOWZ_FILLER_SOUTH,  27, "LRG low-z filler sample tuned for DECam",               {obsconditions: DARK}]
+    - [LOWZ_FILLER_SOUTH,      27, "LRG-like low-z filler sample tuned for DECam",          {obsconditions: DARK}]
 
     - [ELG_FDR_NORTH,         28, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
     - [ELG_FDR_FAINT_NORTH,   29, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
@@ -196,7 +196,7 @@ priorities:
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG_INIT: SAME_AS_LRG
         LRG_SUPER: SAME_AS_LRG
-        LRG_LOWZ_FILLER: {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        LOWZ_FILLER: {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         ELG_FDR:       SAME_AS_ELG
         ELG_FDR_FAINT: SAME_AS_ELG
         ELG_RZ_BLUE:   SAME_AS_ELG
@@ -215,10 +215,10 @@ priorities:
         QSO_SOUTH: SAME_AS_LRG_NORTH
         LRG_INIT_NORTH: SAME_AS_LRG_NORTH
         LRG_SUPER_NORTH: SAME_AS_LRG_NORTH
-        LRG_LOWZ_FILLER_NORTH: SAME_AS_LRG_NORTH
+        LOWZ_FILLER_NORTH: SAME_AS_LRG_NORTH
         LRG_INIT_SOUTH: SAME_AS_LRG_NORTH
         LRG_SUPER_SOUTH: SAME_AS_LRG_NORTH
-        LRG_LOWZ_FILLER_SOUTH: SAME_AS_LRG_NORTH
+        LOWZ_FILLER_SOUTH: SAME_AS_LRG_NORTH
         ELG_FDR_NORTH: SAME_AS_LRG_NORTH
         ELG_FDR_FAINT_NORTH: SAME_AS_LRG_NORTH
         ELG_RZ_BLUE_NORTH: SAME_AS_LRG_NORTH
@@ -315,7 +315,7 @@ numobs:
         QSO: 4
         LRG_INIT: SAME_AS_LRG
         LRG_SUPER: SAME_AS_LRG
-        LRG_LOWZ_FILLER: SAME_AS_LRG
+        LOWZ_FILLER: 1
         ELG_FDR:       SAME_AS_ELG
         ELG_FDR_FAINT: SAME_AS_ELG
         ELG_RZ_BLUE:   SAME_AS_ELG
@@ -334,10 +334,10 @@ numobs:
         QSO_SOUTH: 0
         LRG_INIT_NORTH:  0
         LRG_SUPER_NORTH: 0
-        LRG_LOWZ_FILLER_NORTH: 0
+        LOWZ_FILLER_NORTH: 0
         LRG_INIT_SOUTH:  0
         LRG_SUPER_SOUTH: 0
-        LRG_LOWZ_FILLER_SOUTH: 0
+        LOWZ_FILLER_SOUTH: 0
         ELG_FDR_NORTH:       0
         ELG_FDR_FAINT_NORTH: 0
         ELG_RZ_BLUE_NORTH:   0
