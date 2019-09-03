@@ -88,3 +88,6 @@ desitarget API
 
 .. automodule:: desitarget.train.train_mva_decals
     :members:
+
+.. automodule:: desitarget.uratmatch
+    :members:
