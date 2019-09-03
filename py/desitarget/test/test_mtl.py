@@ -97,8 +97,13 @@ class TestMTL(unittest.TestCase):
             t = self.reset_targets(prefix)
             mtl = make_mtl(t, "DARK|GRAY", zcat=self.zcat, trim=False)
             mtl.sort(keys='TARGETID')
-            self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
-            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [0, 1, 0, 3, 1]))
+            pp = self.post_prio.copy()
+            nom = [0, 1, 0, 3, 1]
+            # ADM in SV, all quasars get all observations.
+            if prefix == "SV1_":
+                pp[2], nom[2] = pp[3], nom[3]
+            self.assertTrue(np.all(mtl['PRIORITY'] == pp))
+            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
             # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
             t[prefix+'DESI_TARGET'][0] = Mx.BAD_SKY
             mtl = make_mtl(t, "DARK|GRAY", zcat=self.zcat, trim=False)
