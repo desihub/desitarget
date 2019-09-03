@@ -61,6 +61,7 @@ desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
 #- Bright Galaxy Survey
+bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",                     {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets",                    {obsconditions: BRIGHT}]
     - [BGS_WISE,            2, "BGS wise targets",                      {obsconditions: BRIGHT}]
