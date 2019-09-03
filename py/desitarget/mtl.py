@@ -29,7 +29,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
         "DARK|GRAY". Governs the behavior of how priorities are set based
-        on "priconditions" in the desitarget bitmask yaml file.
+        on "obsconditions" in the desitarget bitmask yaml file.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.

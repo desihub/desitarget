@@ -610,7 +610,10 @@ def calc_priority(targets, zcat, obscon):
             pricon = obsconditions.mask(desi_mask[name].obsconditions)
             if (obsconditions.mask(obscon) & pricon) != 0:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
+                # ADM all redshifts require more observations in SV.
                 good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
+                if survey[0:2] == 'sv':
+                    good_hiz = zgood & (zcat['ZWARN'] == 0)
                 priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
                 priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
                 priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
