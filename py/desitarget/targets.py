@@ -570,11 +570,11 @@ def calc_priority(targets, zcat):
     # DESI dark time targets.
     if survey != 'cmx':
         if desi_target in targets.dtype.names:
-            # ADM 'LRG' is the guiding column in SV
-            # ADM whereas 'LRG_1PASS' and 'LRG_2PASS' are in the main survey.
-            names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
-            if survey[0:2] == 'sv':
-                names = ('ELG', 'LRG')
+            # ADM 'LRG' is the guiding column in SV and the main survey
+            # ADM (once, it was 'LRG_1PASS' and 'LRG_2PASS' in the MS).
+#            names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
+#            if survey[0:2] == 'sv':
+            names = ('ELG', 'LRG')
             for name in names:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
                 priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
@@ -883,13 +883,14 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         raise AssertionError(msg)
 
     # ADM check all LRG targets have LRG_1PASS/2PASS set.
-    if survey == 'main':
-        lrgset = done["DESI_TARGET"] & desi_mask.LRG != 0
-        pass1lrgset = done["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
-        pass2lrgset = done["DESI_TARGET"] & desi_mask.LRG_2PASS != 0
-        if not np.all(lrgset == pass1lrgset | pass2lrgset):
-            msg = 'Some LRG targets do not have 1PASS/2PASS set!'
-            log.critical(msg)
-            raise AssertionError(msg)
+    # ADM we've moved away from LRG PASSes this so deprecate for now.
+#    if survey == 'main':
+#        lrgset = done["DESI_TARGET"] & desi_mask.LRG != 0
+#        pass1lrgset = done["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
+#        pass2lrgset = done["DESI_TARGET"] & desi_mask.LRG_2PASS != 0
+#        if not np.all(lrgset == pass1lrgset | pass2lrgset):
+#            msg = 'Some LRG targets do not have 1PASS/2PASS set!'
+#            log.critical(msg)
+#            raise AssertionError(msg)
 
     return done
