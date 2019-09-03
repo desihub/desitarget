@@ -126,7 +126,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  w2flux=None, ggood=None, primary=None, south=True):
-    """(see, e.g., :func:`~desitarget.cuts.isLRGpass`).
+    """(see, e.g., :func:`~desitarget.cuts.isLRG`).
     """
 
     if primary is None:
@@ -189,7 +189,23 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None, south=True):
-    """(see, e.g., :func:`~desitarget.cuts.isLRGpass`).
+    """
+    Parameters
+    ----------
+    south: boolean, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS)
+        if ``south=False``, otherwise use cuts appropriate to the
+        Southern imaging survey (DECaLS).
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is an LRG target.
+
+    Notes
+    -----
+    - Current version (09/03/19) is version 199 on `the wiki`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ----- Luminous Red Galaxies
     if primary is None:
@@ -209,51 +225,6 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                         w2flux=w2flux, ggood=ggood, primary=primary, south=south)
 
     return lrg
-
-
-def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-              rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-              gflux_ivar=None, primary=None, south=True):
-    """LRGs in different passes (one pass, two pass etc.).
-
-    Args:
-        south: boolean, defaults to ``True``
-            Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
-            otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
-
-    Returns:
-        mask : array_like. True if and only if the object is an LRG
-            target.
-
-    Notes:
-    - As of 11/2/18, based on version 158 on `the wiki`_.
-    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
-    """
-    # ----- Luminous Red Galaxies
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-
-    lrg = primary.copy()
-
-    # ADM apply the color and flag selection for all LRGs
-    lrg &= isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                 rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                 gflux_ivar=gflux_ivar, primary=primary, south=south)
-
-    lrg1pass = lrg.copy()
-    lrg2pass = lrg.copy()
-
-    # ADM CRITICALLY, the bright and faint limits are set in isLRG_colors()
-    # ADM so we only need to impose a central cut at >/< 20 mags
-    if south:
-        midbreak = 20.
-    else:
-        midbreak = 20.   # ADM placeholders for different future 1/2 pass splits.
-
-    lrg1pass &= zflux > 10**((22.5-midbreak)/2.5)
-    lrg2pass &= zflux <= 10**((22.5-midbreak)/2.5)
-
-    return lrg, lrg1pass, lrg2pass
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1659,21 +1630,18 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [[~primary, ~primary, ~primary], [~primary, ~primary, ~primary]]
+    lrg_classes = [~primary, ~primary]
     if "LRG" in tcnames:
         for south in south_cuts:
-            lrg_classes[int(south)] = isLRGpass(
+            lrg_classes[int(south)] = isLRG(
                 primary=primary,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar,
                 rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
             )
-    lrg_north, lrg1pass_north, lrg2pass_north = lrg_classes[0]
-    lrg_south, lrg1pass_south, lrg2pass_south = lrg_classes[1]
+    lrg_north, lrg_south = lrg_classes
 
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
-    lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
-    lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -1836,16 +1804,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
-
-    # ADM add the per-pass information in the south...
-    desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
-    desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
-    # ADM ...the north...
-    desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
-    desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
-    # ADM ...and combined.
-    desi_target |= lrg1pass * desi_mask.LRG_1PASS
-    desi_target |= lrg2pass * desi_mask.LRG_2PASS
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
