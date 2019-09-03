@@ -30,6 +30,7 @@ start = time()
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
+          zfiberflux=None,
           rflux_snr=None, zflux_snr=None, w1flux_snr=None,
           gflux_ivar=None, primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
@@ -61,20 +62,24 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
 
-    lrg &= notinLRG_mask(primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux, zfiberflux=zfiberflux,
-                         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr)
+    lrg &= notinLRG_mask(
+        primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
+        zfiberflux=zfiberflux,
+        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+    )
 
     # ADM pass the lrg that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
-    lrg_all, lrginit, lrgsuper = isLRG_colors(gflux=gflux, rflux=rflux,
-                                                         zflux=zflux, w1flux=w1flux,
-                                                         gflux_ivar=gflux_ivar,
-                                                         south=south, primary=lrg)
+    lrg_all, lrginit, lrgsuper = isLRG_colors(
+        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+        zfiberflux=zfiberflux, gflux_ivar=gflux_ivar, south=south, primary=lrg
+    )
 
     return lrg_all, lrginit, lrgsuper
 
 
-def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None, zfiberflux=None,
+def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
+                  zfiberflux=None,
                   rflux_snr=None, zflux_snr=None, w1flux_snr=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
@@ -94,14 +99,15 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None, zfiberflux=
     return lrg
 
 
-def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, zfiberflux=None,
+def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 zfiberflux=None,
                  gflux_ivar=None, south=True, primary=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
-    lrginit, lrgsuper = np.tile(primary, [5, 1])
+    lrginit, lrgsuper = np.tile(primary, [2, 1])
 
     # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
@@ -202,8 +208,8 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, zfiberflux=Non
 
 
 def isfiller(gflux=None, rflux=None, zflux=None, w1flux=None,
-              rfiberflux=None, gflux_ivar=None, south=True,
-              primary=None):
+             gflux_snr=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+             rfiberflux=None, south=True, primary=None):
     """Definition of LRG-like low-z filler sample selection.
 
     Parameters
@@ -1234,7 +1240,8 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
-                    gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
+                    gflux, rflux, zflux, w1flux, w2flux,
+                    rfiberflux, zfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -1279,6 +1286,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             lrg_classes[int(south)] = isLRG(
                 primary=primary, south=south,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                zfiberflux=zfiberflux,
                 gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr,
                 w1flux_snr=w1snr
             )
@@ -1292,8 +1300,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         for south in south_cuts:
             filler_classes[int(south)] = isfiller(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                w1flux=w1flux, rfiberflux=rfiberflux, gflux_ivar=gflux_ivar,
-                south=south
+                w1flux=w1flux, gflux_snr=gsnr, rflux_snr=rsnr, zflux_snr=zsnr,
+                w1flux_snr=w1snr, rfiberflux=rfiberflux, south=south
             )
     filler_n, filler_s = filler_classes
 

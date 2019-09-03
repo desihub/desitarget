@@ -1368,6 +1368,7 @@ def _prepare_optical_wise(objects, mask=True):
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
     rfiberflux = flux['RFIBERFLUX']
+    zfiberflux = flux['ZFIBERFLUX']
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
@@ -1418,7 +1419,7 @@ def _prepare_optical_wise(objects, mask=True):
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
-            w1flux, w2flux, rfiberflux, objtype, release,
+            w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,
             gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
@@ -1522,7 +1523,8 @@ def unextinct_fluxes(objects):
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
-             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'), ('RFIBERFLUX', 'f4')]
+             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'),
+             ('RFIBERFLUX', 'f4'), ('ZFIBERFLUX', 'f4')]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
@@ -1534,6 +1536,7 @@ def unextinct_fluxes(objects):
     result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
     result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
     result['RFIBERFLUX'] = objects['FIBERFLUX_R'] / objects['MW_TRANSMISSION_R']
+    result['ZFIBERFLUX'] = objects['FIBERFLUX_Z'] / objects['MW_TRANSMISSION_Z']
 
     if isinstance(objects, Table):
         return Table(result)
@@ -1542,7 +1545,8 @@ def unextinct_fluxes(objects):
 
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
-                    gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
+                    gflux, rflux, zflux, w1flux, w2flux,
+                    rfiberflux, zfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -1567,6 +1571,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         Corrected for Galactic extinction.
     rfiberflux : :class:`~numpy.ndarray`
         Predicted fiber flux in 1 arcsecond seeing in r-band.
+        Corrected for Galactic extinction.
+    zfiberflux : :class:`~numpy.ndarray`
+        Predicted fiber flux in 1 arcsecond seeing in z-band.
         Corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
@@ -1973,7 +1980,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
-        w1flux, w2flux, rfiberflux, objtype, release,                                 \
+        w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,                     \
         gfluxivar, rfluxivar, zfluxivar,                                              \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
@@ -2006,7 +2013,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
-        gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
+        gflux, rflux, zflux, w1flux, w2flux,
+        rfiberflux, zfiberflux,
         objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
