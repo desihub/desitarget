@@ -5,6 +5,17 @@ desitarget Change Log
 0.31.2 (unreleased)
 -------------------
 
+* Finalize secondaries, add BRIGHT/DARK split [`PR #531`_]. Includes:
+    * Updated data model for secondaries.
+    * Add new secondary output columns (`OBSCONDITIONS`, proper motions).
+    * Add a cached file of primary TARGETIDs to prevent duplicates.
+    * Create a more reproducible TARGETID for secondaries.
+    * Automatically write secondaries split by BRIGHT/DARK.
+    * Add option to pass secondary file in MTL.
+    * Insist on observing layer/conditions for MTL:
+        * Ensures correct behavior for dark targets in bright time...
+	* ...and brigh-time targets observed in dark-time.
+    * Minor update to the `MWS_BROAD` class.
 * Update CMX and Main Survey target classes [`PR #525`_]. Includes:
     * New `SV0_WD`, `SV0_STD_FAINT` target classes for commissioning.
     * Mild updates to `SV0_BGS` and `SV0_MWS` for commissioning.
@@ -25,8 +36,10 @@ desitarget Change Log
 .. _`PR #518`: https://github.com/desihub/desitarget/pull/518
 .. _`PR #519`: https://github.com/desihub/desitarget/pull/519
 .. _`PR #521`: https://github.com/desihub/desitarget/pull/521
-.. _`PR #525`: https://github.com/desihub/desitarget/pull/525
 .. _`PR #523`: https://github.com/desihub/desitarget/pull/523
+.. _`PR #525`: https://github.com/desihub/desitarget/pull/525
+.. _`PR #531`: https://github.com/desihub/desitarget/pull/531
+
 
 0.31.1 (2019-07-05)
 -------------------
