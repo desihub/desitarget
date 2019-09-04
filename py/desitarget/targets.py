@@ -442,8 +442,8 @@ def calc_priority(targets, zcat):
         if desi_target in targets.dtype.names:
             # ADM 'LRG' is the guiding column in SV and the main survey
             # ADM (once, it was 'LRG_1PASS' and 'LRG_2PASS' in the MS).
-#            names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
-#            if survey[0:2] == 'sv':
+            # names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
+            # if survey[0:2] == 'sv':
             names = ('ELG', 'LRG')
             for name in names:
                 ii = (targets[desi_target] & desi_mask[name]) != 0

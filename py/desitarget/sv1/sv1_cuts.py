@@ -117,24 +117,24 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if south:
 
         # LRG_INIT: Nominal optical + Nominal IR:
-        lrginit &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut
-        lrginit &= zfibermag < 21.5                          # faint limit
-        lrginit &= rmag - zmag > 0.7                         # remove outliers
-        lrg_opt = (gmag - w1mag > 2.6) & (gmag - rmag > 1.4) # low-z cut
-        lrg_opt |= rmag - w1mag > 1.8                        # ignore low-z cut for faint objects
-        lrg_opt &= rmag - zmag > (zmag - 16.83) * 0.45       # sliding optical cut
-        lrg_opt &= rmag - zmag > (zmag - 13.80) * 0.19       # low-z sliding optical cut
-        lrg_ir = rmag - w1mag > 1.1                          # Low-z cut
-        lrg_ir &= rmag - w1mag > (w1mag - 17.23) * 1.8       # sliding IR cut
-        lrg_ir &= rmag - w1mag > w1mag - 16.38               # low-z sliding IR cut
+        lrginit &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6     # non-stellar cut
+        lrginit &= zfibermag < 21.5                           # faint limit
+        lrginit &= rmag - zmag > 0.7                          # remove outliers
+        lrg_opt = (gmag - w1mag > 2.6) & (gmag - rmag > 1.4)  # low-z cut
+        lrg_opt |= rmag - w1mag > 1.8                         # ignore low-z cut for faint objects
+        lrg_opt &= rmag - zmag > (zmag - 16.83) * 0.45        # sliding optical cut
+        lrg_opt &= rmag - zmag > (zmag - 13.80) * 0.19        # low-z sliding optical cut
+        lrg_ir = rmag - w1mag > 1.1                           # Low-z cut
+        lrg_ir &= rmag - w1mag > (w1mag - 17.23) * 1.8        # sliding IR cut
+        lrg_ir &= rmag - w1mag > w1mag - 16.38                # low-z sliding IR cut
         lrginit &= lrg_opt | lrg_ir
 
         # LRG_SUPER: SV superset:
-        lrgsuper &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.8   # non-stellar cut
-        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.6)       # faint limit
-        lrgsuper &= rmag - zmag > 0.6                        # remove outliers
-        lrg_opt = (gmag - w1mag > 2.5) & (gmag - rmag > 1.3) # low-z cut
-        lrg_opt |= rmag - w1mag > 1.7                        # ignore low-z cut for faint objects
+        lrgsuper &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.8    # non-stellar cut
+        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.6)        # faint limit
+        lrgsuper &= rmag - zmag > 0.6                         # remove outliers
+        lrg_opt = (gmag - w1mag > 2.5) & (gmag - rmag > 1.3)  # low-z cut
+        lrg_opt |= rmag - w1mag > 1.7                         # ignore low-z cut for faint objects
         # straight cut for low-z:
         lrg_opt_lowz = zmag < 20.2
         lrg_opt_lowz &= rmag - zmag > (zmag - 17.15) * 0.45
@@ -143,10 +143,10 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg_opt_highz = zmag >= 20.2
         lrg_opt_highz &= ((zmag - 23.15) / 1.3)**2 + (rmag - zmag + 2.5)**2 > 4.485**2
         lrg_opt &= lrg_opt_lowz | lrg_opt_highz
-        lrg_ir = rmag - w1mag > 1.0                          # Low-z cut
+        lrg_ir = rmag - w1mag > 1.0                           # Low-z cut
         # straight cut for low-z:
         lrg_ir_lowz = w1mag < 18.96
-        lrg_ir_lowz &= rmag - w1mag > (w1mag - 17.46) * 1.8  # sliding IR cut
+        lrg_ir_lowz &= rmag - w1mag > (w1mag - 17.46) * 1.8   # sliding IR cut
         # curved sliding cut:
         lrg_ir_highz = w1mag >= 18.96
         lrg_ir_highz &= (w1mag - 21.65)**2 + ((rmag - w1mag + 0.66) / 1.5)**2 > 3.5**2
@@ -156,36 +156,36 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     else:
 
         # LRG_INIT: Nominal optical + Nominal IR:
-        lrginit &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.65     # non-stellar cut
-        lrginit &= zfibermag < 21.5                            # faint limit
-        lrginit &= rmag - zmag > 0.7                           # remove outliers
-        lrg_opt = (gmag - w1mag > 2.67) & (gmag - rmag > 1.45) # low-z cut
-        lrg_opt |= rmag - w1mag > 1.85                         # ignore low-z cut for faint objects
-        lrg_opt &= rmag - zmag > (zmag - 16.69) * 0.45         # sliding optical cut
-        lrg_opt &= rmag - zmag > (zmag - 13.68) * 0.19         # low-z sliding optical cut
-        lrg_ir = rmag - w1mag > 1.15                           # Low-z cut
-        lrg_ir &= rmag - w1mag > (w1mag - 17.193) * 1.8        # sliding IR cut
-        lrg_ir &= rmag - w1mag > w1mag - 16.343                # low-z sliding IR cut
+        lrginit &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.65      # non-stellar cut
+        lrginit &= zfibermag < 21.5                             # faint limit
+        lrginit &= rmag - zmag > 0.7                            # remove outliers
+        lrg_opt = (gmag - w1mag > 2.67) & (gmag - rmag > 1.45)  # low-z cut
+        lrg_opt |= rmag - w1mag > 1.85                          # ignore low-z cut for faint objects
+        lrg_opt &= rmag - zmag > (zmag - 16.69) * 0.45          # sliding optical cut
+        lrg_opt &= rmag - zmag > (zmag - 13.68) * 0.19          # low-z sliding optical cut
+        lrg_ir = rmag - w1mag > 1.15                            # Low-z cut
+        lrg_ir &= rmag - w1mag > (w1mag - 17.193) * 1.8         # sliding IR cut
+        lrg_ir &= rmag - w1mag > w1mag - 16.343                 # low-z sliding IR cut
         lrginit &= lrg_opt | lrg_ir
 
         # LRG_SUPER: SV superset:
-        lrgsuper &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.85    # non-stellar cut
-        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.6)         # faint limit
-        lrgsuper &= rmag - zmag > 0.6                          # remove outliers
-        lrg_opt = (gmag - w1mag > 2.57) & (gmag - rmag > 1.35) # low-z cut
-        lrg_opt |= rmag - w1mag > 1.75                         # ignore low-z cut for faint objects
+        lrgsuper &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.85     # non-stellar cut
+        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.6)          # faint limit
+        lrgsuper &= rmag - zmag > 0.6                           # remove outliers
+        lrg_opt = (gmag - w1mag > 2.57) & (gmag - rmag > 1.35)  # low-z cut
+        lrg_opt |= rmag - w1mag > 1.75                          # ignore low-z cut for faint objects
         # straight cut for low-z:
         lrg_opt_lowz = zmag < 20.2
-        lrg_opt_lowz &= rmag - zmag > (zmag - 17.025) * 0.45   # sliding optical cut
-        lrg_opt_lowz &= rmag - zmag > (zmag - 14.015) * 0.19   # low-z sliding optical cut
+        lrg_opt_lowz &= rmag - zmag > (zmag - 17.025) * 0.45    # sliding optical cut
+        lrg_opt_lowz &= rmag - zmag > (zmag - 14.015) * 0.19    # low-z sliding optical cut
         # curved sliding cut for high-z:
         lrg_opt_highz = zmag >= 20.2
         lrg_opt_highz &= ((zmag - 23.175) / 1.3)**2 + (rmag - zmag + 2.43)**2 > 4.485**2
         lrg_opt &= lrg_opt_lowz | lrg_opt_highz
-        lrg_ir = rmag - w1mag > 1.05                           # Low-z cut
+        lrg_ir = rmag - w1mag > 1.05                            # Low-z cut
         # straight cut for low-z:
         lrg_ir_lowz = w1mag < 18.94
-        lrg_ir_lowz &= rmag - w1mag > (w1mag - 17.43) * 1.8    # sliding IR cut
+        lrg_ir_lowz &= rmag - w1mag > (w1mag - 17.43) * 1.8     # sliding IR cut
         # curved sliding cut:
         lrg_ir_highz = w1mag >= 18.94
         lrg_ir_highz &= (w1mag - 21.63)**2 + ((rmag - w1mag + 0.65) / 1.5)**2 > 3.5**2
@@ -231,9 +231,9 @@ def isfiller(gflux=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     filler = primary.copy()
 
-    filler &= (gflux_snr > 0) & (gflux > 0)   # ADM quality in r.
+    filler &= (gflux_snr > 0) & (gflux > 0)    # ADM quality in g.
     filler &= (rflux_snr > 0) & (rflux > 0) & (rfiberflux > 0)   # ADM quality in r.
-    filler &= (zflux_snr > 0) & (zflux > 0)   # ADM quality in z.
+    filler &= (zflux_snr > 0) & (zflux > 0)    # ADM quality in z.
     filler &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
 
     # ADM safe as these fluxes are set to > 0
@@ -244,13 +244,13 @@ def isfiller(gflux=None, rflux=None, zflux=None, w1flux=None,
     rfibermag = 22.5 - 2.5 * np.log10(rfiberflux.clip(1e-7))
 
     # North and South currently have the same cuts
-    filler &= (rmag>19.5) & (rmag<21) & (rfibermag<22)   # magnitude limits
-    filler &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.8     # non-stellar cut
+    filler &= (rmag > 19.5) & (rmag < 21) & (rfibermag < 22)  # magnitude limits
+    filler &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.8          # non-stellar cut
     # high-z cuts
     filler &= (rmag - w1mag) < 0.5 * (gmag - rmag) + 1.4
     filler &= (rmag - w1mag) < 1.7 * ((gmag - rmag) - 0.8) + 1.2
-    filler &= (gmag - rmag) > 0.7                        # low-z cut
-    filler &= (rmag - zmag) > 0.25 * (rmag + 0.6) - 4.5  # sliding cut
+    filler &= (gmag - rmag) > 0.7                             # low-z cut
+    filler &= (rmag - zmag) > 0.25 * (rmag + 0.6) - 4.5       # sliding cut
     # Remove overlap with BGS SV selection, these cuts don't apply to the final selection
     filler &= (rmag > 20.5) & (rfibermag > 21.05)
 
@@ -1307,7 +1307,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     lrginit = (lrginit_n & photsys_north) | (lrginit_s & photsys_south)
     lrgsuper = (lrgsuper_n & photsys_north) | (lrgsuper_s & photsys_south)
     filler = (filler_n & photsys_north) | (filler_s & photsys_south)
-    
+
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
     elg_classes = [~primary, ~primary]
