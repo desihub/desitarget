@@ -183,7 +183,7 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
-    
+
     return lrg
 
 
@@ -204,9 +204,9 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if zfiberflux is None:
         log.warning('Setting zfiberflux to zflux!!!')
         zfiberflux = zflux.copy()
-    
+
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
-    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.                                                                                                                                              
+    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
     rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
     zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
     w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
@@ -215,7 +215,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if south:
         lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut.
         lrg &= (
-            ((gmag - w1mag > 2.6) & (gmag - rmag > 1.4)) 
+            ((gmag - w1mag > 2.6) & (gmag - rmag > 1.4))
             | (rmag - w1mag > 1.8)                       # low-z cut.
         )
         lrg &= rmag - zmag > (zmag - 16.83) * 0.45       # double sliding cut 1.
@@ -223,7 +223,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.65   # non-stellar cut.
         lrg &= (
-            ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45)) 
+            ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45))
             | (rmag - w1mag > 1.85)                      # low-z cut.
         )
         lrg &= rmag - zmag > (zmag - 16.69) * 0.45       # double sliding cut 1.
