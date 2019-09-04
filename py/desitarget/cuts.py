@@ -124,71 +124,9 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     return gshift, rshift, zshift
 
 
-def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, ggood=None, primary=None, south=True):
-    """(see, e.g., :func:`~desitarget.cuts.isLRG`).
-    """
-
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-
-    if ggood is None:
-        ggood = np.ones_like(gflux, dtype='?')
-
-    lrg = primary.copy()
-
-    if south:
-        # ADM intercept -ve, e.g. -0.6 on the wiki for
-        # (z-W1) > 0.8*(r-z) - 0.6.
-        nsc_rzmult, nsc_inter = 0.8, 0.6  # non-stellar cut.
-        b_lim, f_lim = 18.01, 20.41       # bright/faint limits.
-        cbox_lo, cbox_hi = 0.75, 2.45     # broad color box.
-        # ADM cut limits are -ve, e.g. -17.18, -15.11 on the wiki for
-        # (z-17.18)/2 < r-z < (z-15.11)/2.
-        osc_lo, osc_hi = 17.18, 15.11     # optical sliding cut.
-        osc_div = 2.                      # denominator in optical sliding cut.
-        elbow_rz, elbow_gr = 1.15, 1.65   # cut redshifts < 0.4, keep elbow at 0.4-0.5.
-    else:
-        nsc_rzmult, nsc_inter = 0.8, 0.735
-        b_lim, f_lim = 17.965, 20.365
-        cbox_lo, cbox_hi = 0.85, 2.55
-        osc_lo, osc_hi = 17.105, 14.885
-        osc_div = 1.8
-        elbow_rz, elbow_gr = 1.25, 1.655
-
-    # ADM Basic flux and color box cuts.
-    lrg &= (zflux > 10**(0.4*(22.5-f_lim)))   # z < 20.41  (south).
-    lrg &= (zflux < 10**(0.4*(22.5-b_lim)))   # z > 18.01  (south).
-    lrg &= (zflux < 10**(0.4*cbox_hi)*rflux)  # r-z < 2.45 (south).
-    lrg &= (zflux > 10**(0.4*cbox_lo)*rflux)  # r-z > 0.75 (south).
-
-    # ADM code can overflow, since float32 arrays have a max of 3e38.
-    with np.errstate(over='ignore'):
-        # ADM non-stellar cut. e.g., in the south:
-        # (z-W1) > 0.8*(r-z) - 0.6  ->  0.8r + W1 < 1.8z + 0.6
-        lrg &= ((w1flux*rflux**complex(nsc_rzmult)).real >
-                ((zflux**complex(1+nsc_rzmult))*10**(-0.4*nsc_inter)).real)
-        # ADM complex/real allows -ve fluxes to be raised to a fractional power.
-
-        # ADM optical sliding cut, e.g. in the south:
-        # (z-17.18)/2 < r-z  ->  3z < 17.18 + 2r
-        # (z-15.11)/2 > r-z  ->  3z > 15.11 + 2r
-        lrg &= ((zflux**complex(1.+osc_div)).real >
-                (10**(0.4*(22.5-osc_lo))*rflux**complex(osc_div)).real)
-        lrg &= ((zflux**complex(1.+osc_div)).real <
-                (10**(0.4*(22.5-osc_hi))*rflux**complex(osc_div)).real)
-
-        # ADM redshift cut with elbow, e.g. in the south:
-        # (r-z > 1.15) OR (g-r > 1.65 and FLUX_IVAR_G > 0)
-        lrg &= np.logical_or((zflux > 10**(0.4*elbow_rz)*rflux),
-                             (ggood & (rflux > 10**(0.4*elbow_gr)*gflux)))
-
-    return lrg
-
-
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gflux_ivar=None, primary=None, south=True):
+          zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          primary=None, south=True):
     """
     Parameters
     ----------
@@ -207,22 +145,92 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     - Current version (09/03/19) is version 199 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
-    # ----- Luminous Red Galaxies
+    # ADM LRG targets.
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-
-    # Some basic quality in r, z, and W1.  Note by @moustakas: no allmask cuts
-    # used!).  Also note: We do not require gflux>0!  Objects can be very red.
     lrg = primary.copy()
-    lrg &= (rflux_snr > 0) & (rflux > 0)    # and rallmask == 0
-    lrg &= (zflux_snr > 0) & (zflux > 0)    # and zallmask == 0
-    lrg &= (w1flux_snr > 4) & (w1flux > 0)
 
-    ggood = (gflux_ivar > 0)  # and gallmask == 0
+    # ADM basic quality cuts.
+    lrg &= notinLRG_mask(
+        primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
+        zfiberflux=zfiberflux,
+        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+    )
 
-    # Apply color, flux, and star-galaxy separation cuts
-    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                        w2flux=w2flux, ggood=ggood, primary=primary, south=south)
+    # ADM color-based selection of LRGs.
+    lrg &= isLRG_colors(
+        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+        zfiberflux=zfiberflux, south=south, primary=primary
+    )
+
+    return lrg
+
+
+def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
+                  zfiberflux=None,
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None):
+    """See :func:`~desitarget.cuts.isLRG` for details.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is NOT masked for poor quality.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    lrg = primary.copy()
+
+    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
+    lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
+    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+    
+    return lrg
+
+
+def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 zfiberflux=None, ggood=None,
+                 w2flux=None, primary=None, south=True):
+    """(see, e.g., :func:`~desitarget.cuts.isLRG`).
+
+    Notes:
+        - the `ggood` and `w2flux` inputs are an attempt to maintain
+          backwards-compatibility with the mocks.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    lrg = primary.copy()
+
+    # ADM to maintain backwards-compatibility with mocks.
+    if zfiberflux is None:
+        log.warning('Setting zfiberflux to zflux!!!')
+        zfiberflux = zflux.copy()
+    
+    gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
+    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.                                                                                                                                              
+    rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
+    zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
+    w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
+    zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
+
+    if south:
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut.
+        lrg &= (
+            ((gmag - w1mag > 2.6) & (gmag - rmag > 1.4)) 
+            | (rmag - w1mag > 1.8)                       # low-z cut.
+        )
+        lrg &= rmag - zmag > (zmag - 16.83) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.80) * 0.19       # double sliding cut 2.
+    else:
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.65   # non-stellar cut.
+        lrg &= (
+            ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45)) 
+            | (rmag - w1mag > 1.85)                      # low-z cut.
+        )
+        lrg &= rmag - zmag > (zmag - 16.69) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.68) * 0.19       # double sliding cut 2.
+
+    lrg &= rmag - zmag > 0.7   # remove outliers.
+    lrg &= zfibermag < 21.5    # faint limit.
 
     return lrg
 
@@ -1635,7 +1643,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         for south in south_cuts:
             lrg_classes[int(south)] = isLRG(
                 primary=primary,
-                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar,
+                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                zfiberflux=zfiberflux,
                 rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
             )
     lrg_north, lrg_south = lrg_classes

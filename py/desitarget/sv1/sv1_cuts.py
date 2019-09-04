@@ -30,9 +30,8 @@ start = time()
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
-          zfiberflux=None,
-          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gflux_ivar=None, primary=None, south=True):
+          zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
 
     Parameters
@@ -57,7 +56,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     - Current version (09/03/19) is version 90 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
-    # ADM LRG SV targets, pass-based.
+    # ADM LRG SV targets.
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
@@ -72,7 +71,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     # ADM sources that weren't in a mask/logic cut.
     lrg_all, lrginit, lrgsuper = isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux, gflux_ivar=gflux_ivar, south=south, primary=lrg
+        zfiberflux=zfiberflux, south=south, primary=lrg
     )
 
     return lrg_all, lrginit, lrgsuper
@@ -100,8 +99,7 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 zfiberflux=None,
-                 gflux_ivar=None, south=True, primary=None):
+                 zfiberflux=None, south=True, primary=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
     """
     if primary is None:
@@ -109,8 +107,8 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     lrg = primary.copy()
     lrginit, lrgsuper = np.tile(primary, [2, 1])
 
-    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
+    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
     rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
     zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
     w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
@@ -1286,8 +1284,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             lrg_classes[int(south)] = isLRG(
                 primary=primary, south=south,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                zfiberflux=zfiberflux,
-                gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr,
+                zfiberflux=zfiberflux, rflux_snr=rsnr, zflux_snr=zsnr,
                 w1flux_snr=w1snr
             )
     lrg_north, lrginit_n, lrgsuper_n = lrg_classes[0]
