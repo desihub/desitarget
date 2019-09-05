@@ -57,24 +57,13 @@ class TestPriorities(unittest.TestCase):
             # - No targeting bits set is priority=0
             self.assertTrue(np.all(calc_priority(t, z) == 0))
 
-            # ADM test QSO > (LRG_1PASS | LRG_2PASS) > ELG for main survey
-            # ADM or QSO > LRG > ELG for SV.
-            if prefix == "":
-                t[desi_target] = desi_mask.ELG
-                self.assertTrue(np.all(calc_priority(t, z) == desi_mask.ELG.priorities['UNOBS']))
-                t[desi_target] |= desi_mask.LRG_1PASS
-                self.assertTrue(np.all(calc_priority(t, z) == desi_mask.LRG.priorities['UNOBS']))
-                t[desi_target] |= desi_mask.LRG_2PASS
-                self.assertTrue(np.all(calc_priority(t, z) == desi_mask.LRG.priorities['UNOBS']))
-                t[desi_target] |= desi_mask.QSO
-                self.assertTrue(np.all(calc_priority(t, z) == desi_mask.QSO.priorities['UNOBS']))
-            else:
-                t[desi_target] = desi_mask.ELG
-                self.assertTrue(np.all(calc_priority(t, z) == desi_mask.ELG.priorities['UNOBS']))
-                t[desi_target] |= desi_mask.LRG
-                self.assertTrue(np.all(calc_priority(t, z) == desi_mask.LRG.priorities['UNOBS']))
-                t[desi_target] |= desi_mask.QSO
-                self.assertTrue(np.all(calc_priority(t, z) == desi_mask.QSO.priorities['UNOBS']))
+            # ADM test QSO > LRG > ELG for main survey and SV.
+            t[desi_target] = desi_mask.ELG
+            self.assertTrue(np.all(calc_priority(t, z) == desi_mask.ELG.priorities['UNOBS']))
+            t[desi_target] |= desi_mask.LRG
+            self.assertTrue(np.all(calc_priority(t, z) == desi_mask.LRG.priorities['UNOBS']))
+            t[desi_target] |= desi_mask.QSO
+            self.assertTrue(np.all(calc_priority(t, z) == desi_mask.QSO.priorities['UNOBS']))
 
             # - different states -> different priorities
 
