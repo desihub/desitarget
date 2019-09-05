@@ -5,9 +5,16 @@ desitarget Change Log
 0.32.1 (unreleased)
 -------------------
 
+* Update LRG selections for DR8 [`PR #532`_]. Includes:
+    * New LRG selection for SV with fewer bits.
+    * New ``LOWZ_FILLER`` class for SV.
+    * New and simplified LRG selection for the Main Survey.
+    * Deprecate 1PASS/2PASS LRGs, all LRGs now have one pass.
+    * Deprecate some very old code in :mod:`desitarget.targets`.
 * Add info on versioning, main_cmx_or_sv to bitmask notebook [`PR #527`_]
 
 .. _`PR #527`: https://github.com/desihub/desitarget/pull/527
+.. _`PR #532`: https://github.com/desihub/desitarget/pull/532
 
 0.32.0 (2019-08-07)
 -------------------
