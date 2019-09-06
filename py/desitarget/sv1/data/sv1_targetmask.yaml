@@ -96,7 +96,7 @@ sv1_desi_mask:
     
 #- Bright Galaxy Survey SV targets
 sv1_bgs_mask:
-    - [BGS_FAINT,           0, "BGS faint targets",              {obsconditions: BRIGHT}]
+    - [BGS_FAINT,           0, "BGS faint targets",              {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets",             {obsconditions: BRIGHT}]
     - [BGS_FAINT_EXT,       2, "BGS faint extended targets",     {obsconditions: BRIGHT}]
     - [BGS_LOWQ,            3, "BGS low quality targets",        {obsconditions: BRIGHT}]
@@ -163,7 +163,7 @@ sv1_scnd_mask:
     - [BACKSTOP,    1, "Gaia-selected targets of last resort",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
     - [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
+       {obsconditions: DARK|GRAY, filename: 'dr16q'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
