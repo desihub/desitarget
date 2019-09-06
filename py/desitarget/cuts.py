@@ -646,25 +646,29 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
     # ADM Turn off any NaNs for astrometric quantities to suppress
-    # ADM warnings. Won't target these, using cuts on paramssolved.
+    # ADM warnings. Won't target these, using cuts on paramssolved
+    # ADM (or will explicitly target them based on paramsssolved).
     ii = paramssolved != 31
     parallax = parallax.copy()
     parallax[ii], pm[ii] = 0., 0.
 
     # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
-    # ADM and all astrometric parameters are measured.
-    red &= paramssolved == 31
     red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
     broad = red.copy()
 
     # ADM MWS-RED also has parallax < max(3parallax_err,1)mas
-    # ADM and proper motion < 7.
-    red &= pm < 7.
+    # ADM and proper motion < 7
+    # ADM and all astrometric parameters are measured.
     red &= parallax < np.maximum(3*parallaxerr, 1)
+    red &= pm < 7.
+    red &= paramssolved == 31
 
     # ADM MWS-BROAD has parallax > max(3parallax_err,1)mas
     # ADM OR proper motion > 7.
-    broad &= (parallax >= np.maximum(3*parallaxerr, 1)) | (pm >= 7.)
+    # ADM OR astrometric parameters not measured.
+    broad &= ((parallax >= np.maximum(3*parallaxerr, 1)) |
+              (pm >= 7.)
+              | (paramssolved != 31))
 
     return broad, red, blue
 

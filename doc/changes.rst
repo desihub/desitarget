@@ -11,9 +11,21 @@ desitarget Change Log
     * New and simplified LRG selection for the Main Survey.
     * Deprecate 1PASS/2PASS LRGs, all LRGs now have one pass.
     * Deprecate some very old code in :mod:`desitarget.targets`.
+* Finalize secondaries, add BRIGHT/DARK split [`PR #531`_]. Includes:
+    * Updated data model for secondaries.
+    * Add new secondary output columns (`OBSCONDITIONS`, proper motions).
+    * Add a cached file of primary TARGETIDs to prevent duplicates.
+    * Create a more reproducible TARGETID for secondaries.
+    * Automatically write secondaries split by BRIGHT/DARK.
+    * Add option to pass secondary file in MTL.
+    * Insist on observing layer/conditions for MTL:
+        * Ensures correct behavior for dark targets in bright time...
+	      * ...and bright-time targets observed in dark-time.
+    * Minor update to the `MWS_BROAD` class.
 * Add info on versioning, main_cmx_or_sv to bitmask notebook [`PR #527`_]
 
 .. _`PR #527`: https://github.com/desihub/desitarget/pull/527
+.. _`PR #531`: https://github.com/desihub/desitarget/pull/531
 .. _`PR #532`: https://github.com/desihub/desitarget/pull/532
 
 0.32.0 (2019-08-07)
