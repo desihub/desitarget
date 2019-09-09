@@ -2,11 +2,12 @@
 
 from __future__ import print_function, division
 
-import sys
+import os, sys
 import numpy as np
 import fitsio
 
 from desitarget import io
+from desitarget.io import desitarget_version
 from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
@@ -77,6 +78,11 @@ ap.add_argument("--nomaskbits", action='store_true',
                 help="Do NOT apply information in MASKBITS column to target classes")
 ap.add_argument("--writeall", action='store_true',
                 help="Default behavior is to split targets by bright/dark-time surveys. Send this to ALSO write a file of ALL targets")
+ap.add_argument("--nosecondary", action='store_true',
+                help="Do NOT create TARGETID look-up files for secondary targets in $SCNDIR/outdata/priminfo-drversion-desitargetversion/$dest.fits (where $dest is the basename of dest)")
+ap.add_argument("--scnddir",
+                help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
+                "Defaults to SCND_DIR environment variable. Not needed if --nosecondary is sent.")
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
@@ -131,10 +137,30 @@ else:
                              tcnames=tcnames, survey='main',
                              resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits)
     )
-    if ns.mask:
-        targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
-
     if ns.bundlefiles is None:
+        # ADM only run secondary functions if --nosecondary was not passed.
+        scndout = None
+        if not ns.nosecondary and len(targets) > 0:
+            from desitarget.secondary import _get_scxdir, match_secondary
+            # ADM read secondary target directory.
+            scxdir = _get_scxdir(ns.scnddir)
+            # ADM construct a label for the secondary file for TARGETID look-ups.
+            # ADM use RELEASE to determine the release string for the targets.
+            drint = np.max(targets['RELEASE']//1000)
+            scndoutdn = "priminfo-dr{}-{}".format(drint, desitarget_version)
+            scndoutdn = os.path.join(scxdir, "outdata", scndoutdn)
+            if not os.path.exists(scndoutdn):
+                log.info("making directory...{}".format(scndoutdn))
+                os.makedirs(scndoutdn)
+            scndoutfn = "{}.fits".format(os.path.splitext(os.path.basename(ns.dest))[0])
+            # ADM construct the output directory for primary match info.
+            scndout = os.path.join(scndoutdn, scndoutfn)
+            targets = match_secondary(targets, scxdir, scndout, sep=1.,
+                                      pix=pixlist, nside=ns.nside)
+
+        if ns.mask:
+            targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
+
         # ADM write out bright-time and dark-time targets separately.
         obscons = ["BRIGHT", "DARK"]
         if ns.writeall:
@@ -142,7 +168,7 @@ else:
         for obscon in obscons:
             ntargs, outfile = io.write_targets(
                 ns.dest, targets, resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
-                indir=ns.sweepdir, indir2=ns.sweepdir2, obscon=obscon,
+                indir=ns.sweepdir, indir2=ns.sweepdir2, obscon=obscon, scndout=scndout,
                 survey="main", nsidefile=ns.nside, hpxlist=pixlist,
                 qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside
             )

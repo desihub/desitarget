@@ -36,6 +36,7 @@ loaded from the text file as the corresponding Boolean.
 """
 import os
 import fitsio
+import itertools
 import numpy as np
 import healpy as hp
 
@@ -46,6 +47,7 @@ from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from time import time
+from glob import glob
 
 from collections import defaultdict
 
@@ -53,6 +55,8 @@ from desitarget.internal import sharedmem
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
 
 from desitarget.targets import encode_targetid, main_cmx_or_sv
+from desitarget.targets import set_obsconditions, initial_priority_numobs
+from desitarget.targetmask import obsconditions
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -64,7 +68,8 @@ log = get_logger()
 start = time()
 
 indatamodel = np.array([], dtype=[
-    ('RA', '>f8'), ('DEC', '>f8'), ('OVERRIDE', '?')
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?')
 ])
 
 # ADM the columns not in the primary target files are:
@@ -72,27 +77,27 @@ indatamodel = np.array([], dtype=[
 #           - If False/0 allow this to be replaced by a primary target.
 #  SCND_TARGET - Corresponds to the bit mask from data/targetmask.yaml
 #                or sv1/data/sv1_targetmask.yaml (scnd_mask).
-#  SCND_ORDER - Row number in the input secondary file for this target.
 # ADM Note that TARGETID for secondary-only targets is unique because
-# ADM RELEASE is 0 for secondary-only targets.
+# ADM RELEASE is < 1000 (before DR1) for secondary-only targets.
 outdatamodel = np.array([], dtype=[
-    ('RA', '>f8'), ('DEC', '>f8'), ('OVERRIDE', '?'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'),
     ('TARGETID', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
-    ('NUMOBS_INIT', '>i8'), ('SCND_ORDER', '>i4')
+    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')
 ])
 
 # ADM extra columns that are used during processing but are
-# ADM not an official part of the read or written data model.
+# ADM not an official part of the input or output data model.
 suppdatamodel = np.array([], dtype=[
-    ('SCND_TARGET_INIT', '>i8')
+    ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4')
 ])
 
+# APC HACK
 def duplicates_fast(seq):
     """
     """
     seq_u, sec_i, sec_c = np.unique(seq,return_index=True,return_counts=True)
-    
     return
 
 def duplicates(seq):
@@ -263,7 +268,7 @@ def read_files(scxdir, scnd_mask):
     scnd_mask : :class:`desiutil.bitmask.BitMask`, optional
         A mask corresponding to a set of secondary targets, e.g, could
         be ``from desitarget.targetmask import scnd_mask`` for the
-        main survey mask. Defaults to the main survey mask.
+        main survey mask.
 
     Returns
     -------
@@ -281,15 +286,19 @@ def read_files(scxdir, scnd_mask):
         fn = os.path.join(fulldir, scnd_mask[name].filename)
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
-            # APC tempoarily drop the usecols while hacking indatamodel
-            scxin = np.loadtxt(fn+'.txt',  usecols=[0, 1, 5],
+            scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
                                dtype=indatamodel.dtype)
         # ADM otherwise it's a fits file, read it in.
         else:
             scxin = fitsio.read(fn+'.fits',
                                 columns=indatamodel.dtype.names)
+
         # ADM ensure this is a properly constructed numpy array.
         scxin = np.atleast_1d(scxin)
+
+        # ADM the default is 2015.5 for the REF_EPOCH.
+        ii = scxin["REF_EPOCH"] == 0
+        scxin["REF_EPOCH"][ii] = 2015.5
 
         # ADM add the other output columns.
         dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
@@ -298,77 +307,141 @@ def read_files(scxdir, scnd_mask):
             scxout[col] = scxin[col]
         scxout["SCND_TARGET"] = scnd_mask[name]
         scxout["SCND_TARGET_INIT"] = scnd_mask[name]
+        scxout["SCND_ORDER"] = np.arange(len(scxin))
         scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
         scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
         scxout["TARGETID"] = -1
-        scxout["SCND_ORDER"] = np.arange(len(scxin))
-
+        scxout["OBSCONDITIONS"] =     \
+            obsconditions.mask(scnd_mask[name].obsconditions)
         scxall.append(scxout)
 
     return np.concatenate(scxall)
 
 
-def match_secondary(infile, scxtargs, sep=1., scxdir=None, trim_to_healpix_nside=None):
-    """Match secondary targets to primary targets and update bits.
+def add_primary_info(scxtargs, priminfodir):
+    """Add TARGETIDs to secondaries from directory of primary matches.
 
     Parameters
     ----------
-    infile : :class:`str`
-        The full path to a file containing primary targets.
     scxtargs : :class:`~numpy.ndarray`
-        An array of secondary targets.
-    sep : :class:`float`, defaults to 1 arcsecond
-        The separation at which to match in ARCSECONDS.
-    scxdir : :class:`str`, optional, defaults to `None`
-        Name of the directory that hosts secondary targets. If passed,
-        this is written to the output primary file header as `SCNDDIR`.
+        An array of secondary targets, must contain the columns
+        `SCND_TARGET`, `SCND_ORDER` and `TARGETID`.
+    priminfodir : :class:`list` or `str`
+        Location of the directory that has previously matched primary
+        and secondary targets to recover the unique primary TARGETIDs.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        The array of secondary targets, with the `TARGETID` bit
-        updated with any matching primary targets from `infile`.
-
-    Notes
-    -----
-        - The primary target `infiles` are written back to their
-          original path with `.fits` changed to `-wscnd.fits` and the
-          `SCND_TARGET` bit populated for matching targets.
+        The array of secondary targets, with the `TARGETID` column
+        populated for matches to secondary targets
     """
-    # ADM just the file name for logging.
-    fn = os.path.basename(infile)
-    # ADM read in the primary targets.
-    log.info('Reading primary targets file {}...t={:.1f}s'
-             .format(infile, time()-start))
-    intargs, hdr = fitsio.read(infile, extension="TARGETS", header=True)
+    log.info("Begin matching primaries in {} to secondaries...t={:.1f}s"
+             .format(priminfodir, time()-start))
+    # ADM read all of the files from the priminfodir.
+    primfns = glob(os.path.join(priminfodir, "*fits"))
+    # ADM if there are no files, there were no primary matches
+    # ADM and we can just return.
+    if len(primfns) == 0:
+        log.warning("No secondary target matches a primary target!!!")
+        return scxtargs
 
-    # ADM fail if file's already been matched to secondary targets.
-    if "SCNDDIR" in hdr:
-        msg = "{} already matched to secondary targets".format(fn) \
-              + " (did you mean to remove {}?)!!!".format(fn)
-        log.critical(msg)
-        raise ValueError(msg)
-    # ADM add the SCNDDIR to the primary targets file header.
-    hdr["SCNDDIR"] = scxdir
+    primtargs = fitsio.read(primfns[0])
+    for i in range(1, len(primfns)):
+        prim = fitsio.read(primfns[i])
+        primtargs = np.concatenate([primtargs, prim])
+
+    # ADM make a unique look-up for the target sets.
+    scxbitnum = np.log2(scxtargs["SCND_TARGET"]).astype('int')
+    primbitnum = np.log2(primtargs["SCND_TARGET"]).astype('int')
+
+    scxids = 1000 * scxtargs["SCND_ORDER"] + scxbitnum
+    primids = 1000 * primtargs["SCND_ORDER"] + primbitnum
+
+    # ADM if a secondary matched TWO (or more) primaries,
+    # ADM only retain the highest-priority primary.
+    alldups = []
+    for _, dups in duplicates(primids):
+        am = np.argmax(primtargs[dups]["PRIORITY_INIT"])
+        dups = np.delete(dups, am)
+        alldups.append(dups)
+    primtargs = np.delete(primtargs, alldups)
+    primids = np.delete(primids, alldups)
+
+    # ADM we already know that all primaries match a secondary, so,
+    # ADM for speed, we can reduce to the matching set.
+    sprimids = set(primids)
+    scxii = [scxid in sprimids for scxid in scxids]
+    assert len(sprimids) == len(primids)
+    assert set(scxids[scxii]) == sprimids
+
+    # ADM sort-to-match sxcid and primid.
+    primii = np.zeros_like(primids)
+#    ii[np.argsort(origids)] = np.argsort(refids)
+#    assert np.all(refids[ii] == origids)
+    primii[np.argsort(scxids[scxii])] = np.argsort(primids)
+    assert np.all(primids[primii] == scxids[scxii])
+
+    # ADM now we have the matches, update the secondary targets
+    # ADM with the primary TARGETIDs.
+    scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
+
+    log.info("Done matching primaries in {} to secondaries...t={:.1f}s"
+             .format(priminfodir, time()-start))
+
+    return scxtargs
+
+
+def match_secondary(primtargs, scxdir, scndout, sep=1.,
+                    pix=None, nside=None):
+    """Match secondary targets to primary targets and update bits.
+
+    Parameters
+    ----------
+    primtargs : :class:`~numpy.ndarray`
+        An array of primary targets.
+    scndout : :class`~numpy.ndarray`
+        Name of a sub-directory to which to write the information in
+        `desitarget.secondary.outdatamodel` with `TARGETID` and (the
+        highest) `PRIORITY_INIT` updated with matching primary info.
+    scxdir : :class:`str`, optional, defaults to `None`
+        Name of the directory that hosts secondary targets.
+    sep : :class:`float`, defaults to 1 arcsecond
+        The separation at which to match in ARCSECONDS.
+    pix : :class:`list`, optional, defaults to `None`
+        Limit secondary targets to (NESTED) HEALpixels that touch
+        pix at the supplied `nside`, as a speed-up.
+    nside : :class:`int`, optional, defaults to `None`
+        The (NESTED) HEALPixel nside to be used with `pixlist`.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The array of primary targets, with the `SCND_TARGET` bit
+        populated for matches to secondary targets
+    """
     # ADM add a SCND_TARGET column to the primary targets.
-    dt = intargs.dtype.descr
+    dt = primtargs.dtype.descr
     dt.append(('SCND_TARGET', '>i8'))
-    targs = np.zeros(len(intargs), dtype=dt)
-    for col in intargs.dtype.names:
-        targs[col] = intargs[col]
+    targs = np.zeros(len(primtargs), dtype=dt)
+    for col in primtargs.dtype.names:
+        targs[col] = primtargs[col]
 
-    # ADM match to all secondary targets for non-custom primary files.
+    # ADM check if this is an SV or main survey file.
+    cols, mx, surv = main_cmx_or_sv(targs, scnd=True)
+    log.info('running on the {} survey...'.format(surv))
+    if surv != 'main':
+        scxdir = os.path.join(scxdir, surv)
+
+    # ADM read in non-OVERRIDE secondary targets.
+    scxtargs = read_files(scxdir, mx[3])
+    scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
+
+    # ADM match primary targets to non-OVERRIDE secondary targets.
     inhp = np.ones(len(scxtargs), dtype="?")
     # ADM as a speed-up, save memory by limiting the secondary targets
     # ADM to just HEALPixels that could touch the primary targets.
-    if trim_to_healpix_nside is not None:
-        log.info('Using trim_to_healpix optimization')
-        nside = trim_to_healpix_nside
-
-        theta, phi = np.radians(90-intargs["DEC"]), np.radians(intargs["RA"])
-        pix      = hp.ang2pix(nside, theta, phi, nest=True)
-        pix      = np.unique(pix)
-
+    if nside is not None and pix is not None:
         # ADM remember to grab adjacent pixels in case of edge effects.
         allpix = add_hp_neighbors(nside, pix)
         inhp   = is_in_hp(scxtargs, nside, allpix)
@@ -398,16 +471,16 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None, trim_to_healpix_nside
 
     # ADM warn the user if the secondary and primary samples are "large".
     big = 500000
-    if np.sum(inhp) > big and len(intargs) > big:
+    if np.sum(inhp) > big and len(primtargs) > big:
         log.warning('Large secondary (N={}) and primary (N={}) samples'
-                    .format(np.sum(inhp), len(intargs)))
+                    .format(np.sum(inhp), len(primtargs)))
         log.warning('The code may run slowly')
 
     # ADM for each secondary target, determine if there is a match
     # ADM with a primary target. Note that sense is important, here
     # ADM (the primary targets must be passed first).
     log.info('Matching primary and secondary targets for {} at {}"...t={:.1f}s'
-             .format(fn, sep, time()-start))
+             .format(scndout, sep, time()-start))
     mtargs, mscx = radec_match_to(targs, scxtargs[inhp], sep=sep)
     # ADM recast the indices to the full set of secondary targets,
     # ADM instead of just those that were in the relevant HEALPixels.
@@ -434,22 +507,31 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None, trim_to_healpix_nside
     # ADM rename the SCND_TARGET column, in case this is an SV file.
     targs = rfn.rename_fields(targs, {'SCND_TARGET': desicols[3]})
 
-    # ADM update the secondary targets with the primary TARGETID.
+    # ADM update the secondary targets with the primary information.
     scxtargs["TARGETID"][mscx] = targs["TARGETID"][mtargs]
+    # ADM the maximum priority will be used to break ties in the
+    # ADM unlikely event that a secondary matches two primaries.
+    hipri = np.maximum(targs["PRIORITY_INIT_DARK"],
+                       targs["PRIORITY_INIT_BRIGHT"])
+    scxtargs["PRIORITY_INIT"][mscx] = hipri[mtargs]
 
-    # ADM form the output primary file name and write the file.
-    base, ext = os.path.splitext(infile)
-    outfile = "{}{}{}".format(base, '-wscnd', ext)
-    log.info('Writing updated primary targets to {}...t={:.1f}s'
-             .format(outfile, time()-start))
-    fitsio.write(outfile, targs, extname='TARGETS', header=hdr, clobber=True)
+    # ADM write the secondary targets that have updated TARGETIDs.
+    ii = scxtargs["TARGETID"] != -1
+    nmatches = np.sum(ii)
+    log.info('Writing {} secondary target matches to {}...t={:.1f}s'
+             .format(nmatches, scndout, time()-start))
+    if nmatches > 0:
+        hdr = fitsio.FITSHDR()
+        hdr["SURVEY"] = surv
+        fitsio.write(scndout, scxtargs[ii],
+                     extname='SCND_TARG', header=hdr, clobber=True)
 
-    log.info('Done for {}...t={:.1f}s'.format(fn, time()-start))
+    log.info('Done...t={:.1f}s'.format(time()-start))
 
-    return scxtargs
+    return targs
 
 
-def finalize_secondary(scxtargs, scnd_mask, sep=1.,numproc=1):
+def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     """Assign secondary targets a realistic TARGETID, finalize columns.
 
     Parameters
@@ -465,39 +547,71 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.,numproc=1):
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match secondary targets to
         themselves in ARCSECONDS.
+    darkbright : :class:`bool`, optional, defaults to ``False``
+        If sent, then split `NUMOBS_INIT` and `PRIORITY_INIT` into
+        `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
+        and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
+        to "BRIGHT" and "DARK|GRAY" observing conditions.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         The array of secondary targets, with the `TARGETID` bit updated
         to be unique and reasonable and the `SCND_TARGET` column renamed
-        based on the flavor of `scnd_mask`. Secondary targets that do not
-        have `OVERRIDE` set are also matched to themselves to make sure
-        they share a `TARGETID` and `SCND_TARGET`, and `SCND_TARGET` is
-        updated where multiple secondary targets match a primary target.
+        based on the flavor of `scnd_mask`.
+
+    Notes
+    -----
+        - Secondaries without `OVERRIDE` are also matched to themselves
+        Such matches are given the same `TARGETID` (that of the primary
+        if they match a primary) and the bitwise or of `SCND_TARGET` and
+        `OBSCONDITIONS` bits across matches. The highest `PRIORITY_INIT`
+        is retained, and others are set to -1. Only secondaries with
+        priorities that are not -1 are written to the main file. If
+        multiple matching secondary targets have the same (highest)
+        priority, the first one encountered retains its `PRIORITY_INIT`
+        - The secondary `TARGETID` is designed to be reproducible. It
+        combines `BRICKID` based on location, `OBJID` based on the
+        order of the target in the secondary file (`SCND_ORDER`) and
+        `RELEASE` from the secondary bit number (`SCND_TARGET`).
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
 
-    # ADM get BRICKIDs, retrieve the list of unique bricks and the
-    # ADM number of sources in each unique brick.
-    brxid = bricks.brickid(scxtargs["RA"][nomatch],
-                           scxtargs["DEC"][nomatch])
+    # ADM get the BRICKIDs for each source.
+    brxid = bricks.brickid(scxtargs["RA"], scxtargs["DEC"])
 
-    # ADM build the OBJIDs from the number of sources per brick.
-    # ADM the for loop doesn't seem the smartest way, but it is O(n).
+    # ADM the RELEASE for each source is the `SCND_TARGET` bit NUMBER.
+    release = np.log2(scxtargs["SCND_TARGET_INIT"]).astype('int')
+
+    # ADM build the OBJIDs based on the values of SCND_ORDER.
     t0 = time()
     log.info("Begin assigning OBJIDs to bricks...")
-    cntr = np.zeros(np.max(brxid)+1, dtype=int)
-    objid = []
-    for ibrx in brxid:
-        cntr[ibrx] += 1
-        objid.append(cntr[ibrx])
-    objid = np.array(objid)
+    # ADM So as not to overwhelm the bit-limits for OBJID
+    # ADM rank by SCND_ORDER for each brick and bit combination.
+    # ADM First, create a unique ID based on brxid and release.
+    scnd_order = scxtargs["SCND_ORDER"]
+    sorter = (1000*brxid) + release
+    # ADM sort the unique IDs and split based on where they change.
+    argsort = np.argsort(sorter)
+    w = np.where(np.diff(sorter[argsort]))[0]
+    soperbrxbit = np.split(scnd_order[argsort], w+1)
+    # ADM loop through each (brxid, release) and sort on scnd_order.
+    # ADM double argsort returns the ascending ranked order of the entry
+    # ADM (whereas a single argsort returns the indexes for ordering).
+    sortperbrxbit = [np.argsort(np.argsort(so)) for so in soperbrxbit]
+    # ADM finally unroll the (brxid, release) combinations...
+    sortedobjid = np.array(list(itertools.chain.from_iterable(sortperbrxbit)))
+    # ADM ...and reorder based on the initial argsort.
+    objid = np.zeros_like(sortedobjid)-1
+    objid[argsort] = sortedobjid
     log.info("Assigned OBJIDs to bricks in {:.1f}s".format(time()-t0))
 
+    # ADM check that the objid array was entirely populated.
+    assert np.all(objid != -1)
+
     # ADM assemble the TARGETID, SCND objects have RELEASE==0.
-    targetid = encode_targetid(objid=objid, brickid=brxid)
+    targetid = encode_targetid(objid=objid, brickid=brxid, release=release)
 
     # ADM a check that the generated TARGETIDs are unique.
     if len(set(targetid)) != len(targetid):
@@ -506,7 +620,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.,numproc=1):
         raise ValueError(msg)
 
     # ADM assign the unique TARGETIDs to the secondary objects.
-    scxtargs["TARGETID"][nomatch] = targetid
+    scxtargs["TARGETID"][nomatch] = targetid[nomatch]
 
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
@@ -526,17 +640,17 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.,numproc=1):
         # ADM set same TARGETID for any matches. m2 must come first, here.
         scxtargs["TARGETID"][w[m2]] = scxtargs["TARGETID"][w[m1]]
 
-    # ADM Ensure secondary targets with matching TARGETIDs have the
-    # ADM full combination of SCND_TARGET bits set. By definition,
-    # ADM Targets with OVERRIDE set never have matching TARGETIDs.
+    # ADM Ensure secondary targets with matching TARGETIDs have all the
+    # ADM relevant SCND_TARGET bits set. By definition, targets with
+    # ADM OVERRIDE set never have matching TARGETIDs.
     # APC This is very slow...
     wnoov = np.where(~scxtargs["OVERRIDE"])[0]
     if len(wnoov) > 0:
-        for _, ind in duplicates(scxtargs["TARGETID"][wnoov]):
-            bitwiseor = np.sum(np.unique(
-                scxtargs["SCND_TARGET"][wnoov][ind]
-            ))
-            scxtargs["SCND_TARGET"][wnoov[ind]] = bitwiseor
+        for _, inds in duplicates(scxtargs["TARGETID"][wnoov]):
+            scnd_targ = 0
+            for ind in inds:
+                scnd_targ |= scxtargs["SCND_TARGET"][wnoov[ind]]
+            scxtargs["SCND_TARGET"][wnoov[inds]] = scnd_targ
     log.info("Done checking SCND_TARGET...t={:.1f}s".format(time()-t0))
 
     # - Parallel process input files
@@ -545,38 +659,71 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.,numproc=1):
             pool = sharedmem.MapReduce(np=numproc)
             with pool:
                 _scxtargs = pool.map(_match_scx_file,
-        
+
     # ADM change the data model depending on whether the mask
     # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
     # ADM change if the mask has no preamble.
     prepend = scnd_mask._name[:-9].upper()
     scxtargs = rfn.rename_fields(
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
-        )
-    log.info("Done updating SCND_TARGET field in data model...t={:.1f}s".format(time()-t0))
+    )
 
-        
-    return scxtargs
+    # ADM and remove the INIT fields in prep for a dark/bright split.
+    scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
+
+    # ADM set initial priorities, numobs and obsconditions for both
+    # ADM BRIGHT and DARK|GRAY conditions, if requested.
+    nscx = len(scxtargs)
+    nodata = np.zeros(nscx, dtype='int')-1
+    if darkbright:
+        ender, obscon = ["_DARK", "_BRIGHT"], ["DARK|GRAY", "BRIGHT"]
+    else:
+        ender, obscon = [""], ["DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"]
+    cols, vals, forms = [], [], []
+    for edr, oc in zip(ender, obscon):
+        cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
+        vals += [nodata, nodata]
+        forms += ['>i8', '>i8']
+
+    # ADM write the output array.
+    newdt = [dt for dt in zip(cols, forms)]
+    done = np.array(np.zeros(nscx), dtype=scxtargs.dtype.descr+newdt)
+    for col in scxtargs.dtype.names:
+        done[col] = scxtargs[col]
+    for col, val in zip(cols, vals):
+        done[col] = val
+
+    # ADM add the actual PRIORITY/NUMOBS values.
+    for edr, oc in zip(ender, obscon):
+        pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
+        done[pc], done[nc] = initial_priority_numobs(done, obscon=oc, scnd=True)
+
+    # ADM set the OBSCONDITIONS.
+    done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)
+
+    return done
 
 
-def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
-                     scnd_mask=None,trim_to_healpix_nside=None):
+def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
     """Process secondary targets and update relevant bits.
 
     Parameters
     ----------
-    infiles : :class:`list` or `str`
-        A list of input primary target file names OR a single file name.
-    numproc : :class:`int`, optional, defaults to 4
-        The number of parallel processes to use.
+    priminfodir : :class:`list` or `str`
+        Location of the directory that has previously matched primary
+        and secondary targets to recover the unique primary TARGETIDs.
+        The first file in this directory should have a header keyword
+        SURVEY indicating whether we are working in the context of the
+        Main Survey (`main`) or SV (e.g. `sv1`).
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match in ARCSECONDS.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         The name of the directory that hosts secondary targets.
-    scnd_mask : :class:`desiutil.bitmask.BitMask`, optional
-        A mask corresponding to a set of secondary targets, e.g, could
-        be ``from desitarget.targetmask import scnd_mask`` for the
-        main survey mask. Defaults to the main survey mask.
+    darkbright : :class:`bool`, optional, defaults to ``False``
+        If sent, then split `NUMOBS_INIT` and `PRIORITY_INIT` into
+        `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
+        and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
+        to "BRIGHT" and "DARK|GRAY" observing conditions.
 
     Returns
     -------
@@ -585,87 +732,51 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
         ``SCND_TARGET``, ``PRIORITY_INIT``, ``SUBPRIORITY`` and
         ``NUMOBS_INIT`` added. These columns are also populated,
         excepting ``SUBPRIORITY``.
-
-    Notes
-    -----
-        - In addition, the primary target `infiles` are written back to
-          their original path with `.fits` changed to `-wscnd.fits` and
-          the ``SCND_TARGET`` and ``SCND_ANY`` columns
-          populated for matching targets.
     """
-    # ADM import the default (main survey) mask.
-    if scnd_mask is None:
-        from desitarget.targetmask import scnd_mask
+    # ADM Sanity check that priminfodir exists.
+    if not os.path.exists(priminfodir):
+        msg = "{} doesn't exist".format(priminfodir)
+        log.critical(msg)
+        raise ValueError(msg)
 
-    # ADM if a single primary file was passed, convert it to a list.
-    if isinstance(infiles, str):
-        infiles = [infiles, ]
-    nfiles = len(infiles)
+    # ADM read in the SURVEY from the first file in priminfodir.
+    fns = glob(os.path.join(priminfodir, "*fits"))
+    hdr = fitsio.read_header(fns[0], 'SCND_TARG')
+    survey = hdr["SURVEY"].rstrip()
 
-    # - Sanity check that files exist before going further.
-    for filename in infiles:
-        if not os.path.exists(filename):
-            msg = "{} doesn't exist".format(filename)
-            log.critical(msg)
-            raise ValueError(msg)
+    # ADM load the correct mask.
+    from desitarget.targetmask import scnd_mask
+    if survey[0:2] == 'sv':
+        if survey == 'sv1':
+            from desitarget.sv1.sv1_targetmask import scnd_mask
+        if survey == 'sv2':
+            from desitarget.sv2.sv2_targetmask import scnd_mask
+    elif survey != 'main':
+        msg = "allowed surveys: 'main', 'sv1', 'sv2', not {}!!!".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
 
+    log.info("Reading secondary files...t={:.1f}m".format((time()-start)/60.))
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)
     _check_files(scxdir, scnd_mask)
     # ADM ...and read in all of the secondary targets.
     scxtargs = read_files(scxdir, scnd_mask)
 
-    # ADM split off any scx targets that have requested an OVERRIDE.
+    # ADM only non-override targets could match a primary.
     scxover = scxtargs[scxtargs["OVERRIDE"]]
     scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
 
-    # ADM function to run on every input file.
-    def _match_scx_file(fn):
-        """wrapper on match_secondary() given a file name"""
-        # ADM for one of the input primary target files, match to the
-        # ADM non-override scx targets and update bits and TARGETID.
-        return match_secondary(fn, scxtargs, sep=sep, scxdir=scxdir,
-            trim_to_healpix_nside=trim_to_healpix_nside)
-
-    # ADM this is just to count files in _update_status.
-    nfile = np.array(1)
-    t0 = time()
-
-    def _update_status(result):
-        """wrapper function for the critical reduction operation,
-        that occurs on the main parallel process"""
-        if nfile % 1 == 0 and nfile > 0:
-            elapsed = (time()-t0)/60.
-            rate = nfile/elapsed/60.
-            log.info('{}/{} files; {:.1f} sec/file...t = {:.1f} mins'
-                     .format(nfile, nfiles, 1./rate, elapsed))
-        nfile[...] += 1    # this is an in-place modification.
-        return result
-
-    # - Parallel process input files
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
-        with pool:
-            scxall = pool.map(_match_scx_file, infiles, reduce=_update_status)
-        # ADM if we ran with numproc==1, then the TARGETID in the view of
-        # ADM scxtargs will have naturally updated during the loop. This could
-        # ADM be solved with an expensive copy, if it was necessary. For the
-        # ADM numproc > 1 case, though, we need to find TARGETIDs that have
-        # ADM been set across the scxall outputs.
-        targetids = np.max(np.vstack([scxt['TARGETID'] for scxt in scxall]), axis=0)
-        scxtargs = scxall[-1]
-        scxtargs["TARGETID"] = targetids
-    else:
-        scxall = []
-        for infile in infiles:
-            scxall.append(_update_status(_match_scx_file(infile)))
-        scxtargs = scxall[-1]
+    log.info("Adding primary TARGETIDs...t={:.1f}m".format((time()-start)/60.))
+    # ADM add in the primary TARGETIDs where we have them.
+    scxtargs = add_primary_info(scxtargs, priminfodir)
 
     # ADM now we're done matching, bring the override targets back...
     scxout = np.concatenate([scxtargs, scxover])
 
-    # ADM ...and assign TARGETIDs to non-matching secondary targets.
-    log.info('Finalizing secondary targets...')
-    scxout = finalize_secondary(scxout, scnd_mask, sep=sep)
+    log.info("Finalizing secondaries...t={:.1f}m".format((time()-start)/60.))
+    # ADM assign TARGETIDs to secondaries that did not match a primary.
+    scxout = finalize_secondary(scxout, scnd_mask,
+                                sep=sep, darkbright=darkbright)
 
     return scxout
