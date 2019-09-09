@@ -170,7 +170,7 @@ sv1_scnd_mask:
     - [MWS_SPECIAL_HYADES_SV,    14, "Likely Hyades members (r>16)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_HYADES_SV'}]
     - [MWS_SPECIAL_HYADES_VERYBRIGHT_SV, 15, "Likely Hyades members (r<16)",    
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_SV'}]
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_VERYBRIGHT_SV'}]
     - [MWS_CALIB_APOGEE,         20, "Stars 16 < G < 19 with APOGEE data",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_APOGEE'}]
     - [MWS_CALIB_GAIAESO,        21, "Stars 16 < G < 19 with GAIAESO data",
@@ -339,7 +339,7 @@ priorities:
         MWS_CALIB_GALAH:              SAME_AS_MWS_CALIB_APOGEE
         # Note HYADES < NEARBY
         MWS_SPECIAL_HYADES_SV:        {UNOBS: 1600, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_HYADES_VERYBRIGHT_SV: SAME_AS_MWS_SPECIAL_HYADES
+        MWS_SPECIAL_HYADES_VERYBRIGHT_SV: SAME_AS_MWS_SPECIAL_HYADES_SV
         MWS_SPECIAL_DRACO_SV:         {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_SPECIAL_DDOGIANTS_SV:     SAME_AS_MWS_SPECIAL_DRACO_SV
         MWS_SPECIAL_WDBINARY_SV:      SAME_AS_MWS_SPECIAL_DRACO_SV
