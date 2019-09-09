@@ -1501,10 +1501,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qso * desi_mask.QSO
 
     # ADM add the per-bit information in the south for LRGs...
-    desi_target |= lrginit_s_4 * desi_mask.LRG_INIT_SOUTH_4PASS
-    desi_target |= lrgsup_s_4 * desi_mask.LRG_SUPER_SOUTH_4PASS
-    desi_target |= lrginit_s_8 * desi_mask.LRG_INIT_SOUTH_8PASS
-    desi_target |= lrgsup_s_8 * desi_mask.LRG_SUPER_SOUTH_8PASS
+    desi_target |= lrginit_s_4 * desi_mask.LRG_INIT_4PASS_SOUTH
+    desi_target |= lrgsup_s_4 * desi_mask.LRG_SUPER_4PASS_SOUTH
+    desi_target |= lrginit_s_8 * desi_mask.LRG_INIT_8PASS_SOUTH
+    desi_target |= lrgsup_s_8 * desi_mask.LRG_SUPER_8PASS_SOUTH
     desi_target |= filler_s * desi_mask.LOWZ_FILLER_SOUTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_south * desi_mask.QSO_COLOR_4PASS_SOUTH
@@ -1514,10 +1514,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsohizf_south * desi_mask.QSO_HZ_F_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
-    desi_target |= lrginit_n_4 * desi_mask.LRG_INIT_NORTH_4PASS
-    desi_target |= lrgsup_n_4 * desi_mask.LRG_SUPER_NORTH_4PASS
-    desi_target |= lrginit_n_8 * desi_mask.LRG_INIT_NORTH_8PASS
-    desi_target |= lrgsup_n_8 * desi_mask.LRG_SUPER_NORTH_8PASS
+    desi_target |= lrginit_n_4 * desi_mask.LRG_INIT_4PASS_NORTH
+    desi_target |= lrgsup_n_4 * desi_mask.LRG_SUPER_4PASS_NORTH
+    desi_target |= lrginit_n_8 * desi_mask.LRG_INIT_8PASS_NORTH
+    desi_target |= lrgsup_n_8 * desi_mask.LRG_SUPER_8PASS_NORTH
     desi_target |= filler_n * desi_mask.LOWZ_FILLER_NORTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_north * desi_mask.QSO_COLOR_4PASS_NORTH
