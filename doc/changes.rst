@@ -8,12 +8,13 @@ desitarget Change Log
 * Update LRG selections for DR8 [`PR #532`_]. Includes:
     * New LRG selection for SV with fewer bits.
     * New ``LOWZ_FILLER`` class for SV.
+    * Add LRG 4PASS and 8PASS bits/classes using cuts on ``FLUX_Z``.
     * New and simplified LRG selection for the Main Survey.
-    * Deprecate 1PASS/2PASS LRGs, all LRGs now have one pass.
+    * Deprecate Main Survey 1PASS/2PASS LRGs, all LRGs now have one pass.
     * Deprecate some very old code in :mod:`desitarget.targets`.
 * Finalize secondaries, add BRIGHT/DARK split [`PR #531`_]. Includes:
     * Updated data model for secondaries.
-    * Add new secondary output columns (`OBSCONDITIONS`, proper motions).
+    * New secondary output columns (``OBSCONDITIONS``, proper motions).
     * Add a cached file of primary TARGETIDs to prevent duplicates.
     * Create a more reproducible TARGETID for secondaries.
     * Automatically write secondaries split by BRIGHT/DARK.
@@ -21,7 +22,7 @@ desitarget Change Log
     * Insist on observing layer/conditions for MTL:
         * Ensures correct behavior for dark targets in bright time...
 	      * ...and bright-time targets observed in dark-time.
-    * Minor update to the `MWS_BROAD` class.
+    * Minor update to the ``MWS_BROAD`` class.
 * Add info on versioning, main_cmx_or_sv to bitmask notebook [`PR #527`_]
 
 .. _`PR #527`: https://github.com/desihub/desitarget/pull/527
@@ -36,11 +37,11 @@ desitarget Change Log
     * Code to match RAs/Decs to URAT, as part of that new URAT module.
     * Substitute URAT PMs for GFAs where Gaia has not yet measured PMs.
 * Update CMX and Main Survey target classes [`PR #525`_]. Includes:
-    * New `SV0_WD`, `SV0_STD_FAINT` target classes for commissioning.
-    * Mild updates to `SV0_BGS` and `SV0_MWS` for commissioning.
-    * New `BGS_FAINT_HIP` (high-priority BGS) Main Survey class.
-    * Explicit checking on `ASTROMETRIC_PARAMS_SOLVED` for MWS targets.
-    * Add 3-sigma parallax slop in `MWS_MAIN` survey target class.
+    * New ``SV0_WD``, ``SV0_STD_FAINT`` target classes for commissioning.
+    * Mild updates to ``SV0_BGS`` and ``SV0_MWS`` for commissioning.
+    * New ``BGS_FAINT_HIP`` (high-priority BGS) Main Survey class.
+    * Explicit checking on ``ASTROMETRIC_PARAMS_SOLVED`` for MWS targets.
+    * Add 3-sigma parallax slop in ``MWS_MAIN`` survey target class.
 * Add ``OBSCONDITIONS`` to target files [`PR #523`_] Also includes:
     * Split target files explicitly into bright and "graydark" surveys.
     * Default to such a file-spilt for SV and Main (not for cmx).
