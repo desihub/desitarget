@@ -268,9 +268,66 @@ def release_to_photsys(release):
     return r2p[release]
 
 
+def _bright_or_dark(filename, hdr, data, obscon):
+    """modify data/file name for BRIGHT or DARK survey OBSCONDITIONS
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        output target selection file.
+    hdr : class:`str`
+        header of the output target selection file.
+    data : :class:`~numpy.ndarray`
+        numpy structured array of targets.
+    obscon : :class:`str`
+        Can be "DARK" or "BRIGHT" to only write targets appropriate for
+        "DARK|GRAY" or "BRIGHT" observing conditions. The relevant
+        `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
+        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
+        "dark" appended to the lowest DIRECTORY in the input `filename`.
+
+    Returns
+    -------
+    :class:`str`
+        The modified file name.
+    :class:`data`
+        The modified data.
+    """
+    # ADM determine the bits for the OBSCONDITIONS.
+    from desitarget.targetmask import obsconditions
+    if obscon == "DARK":
+        obsbits = obsconditions.mask("DARK|GRAY")
+        hdr["OBSCON"] = "DARK|GRAY"
+    else:
+        # ADM will flag an error if obscon is not, now BRIGHT.
+        obsbits = obsconditions.mask(obscon)
+        hdr["OBSCON"] = obscon
+    # ADM only retain targets appropriate to the conditions.
+    ii = (data["OBSCONDITIONS"] & obsbits) != 0
+    data = data[ii]
+
+    # ADM create the bright or dark directory.
+    newdir = os.path.join(os.path.dirname(filename), obscon.lower())
+    if not os.path.exists(newdir):
+        os.mkdir(newdir)
+    filename = os.path.join(newdir, os.path.basename(filename))
+
+    # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
+    for col in "NUMOBS_INIT", "PRIORITY_INIT":
+        rename = {"{}_{}".format(col, obscon.upper()): col}
+        data = rfn.rename_fields(data, rename)
+
+    # ADM remove the other BRIGHT/DARK NUMOBS, PRIORITY columns.
+    names = np.array(data.dtype.names)
+    dropem = list(names[['_INIT_' in col for col in names]])
+    data = rfn.drop_fields(data, dropem)
+
+    return filename, hdr, data
+
+
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
-                  survey="?", nsidefile=None, hpxlist=None,
+                  survey="?", nsidefile=None, hpxlist=None, scndout=None,
                   resolve=True, maskbits=True, obscon=None):
     """Write target catalogues.
 
@@ -301,8 +358,10 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
-    resolve, maskbits : :class:`bool`, optional, defaults to ``True``
+    resolve, maskbits : :class:`bool`, optional, default to ``True``
         Written to the output file header as `RESOLVE`, `MASKBITS`.
+    scndout : :class:`str`, optional, defaults to `None`
+        If passed, add to output header as SCNDOUT.
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
         full set of data, rather only write targets appropriate for
@@ -323,38 +382,12 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
     if obscon is not None:
-        hdr["OBSCON"] = obscon
-        # ADM determine the bits for the OBSCONDITIONS.
-        from desitarget.targetmask import obsconditions
-        if obscon == "DARK":
-            obsbits = obsconditions.mask("DARK|GRAY")
-        else:
-            # ADM will flag an error if obscon is not, now BRIGHT.
-            obsbits = obsconditions.mask(obscon)
-        # ADM only retain targets appropriate to the conditions.
-        ii = (data["OBSCONDITIONS"] & obsbits) != 0
-        data = data[ii]
-
-        # ADM create the bright or dark directory.
-        newdir = os.path.join(os.path.dirname(filename), obscon.lower())
-        if not os.path.exists(newdir):
-            os.mkdir(newdir)
-        filename = os.path.join(newdir, os.path.basename(filename))
-
-        # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
-        for col in "NUMOBS_INIT", "PRIORITY_INIT":
-            rename = {"{}_{}".format(col, obscon.upper()): col}
-            data = rfn.rename_fields(data, rename)
-
-        # ADM remove the other BRIGHT/DARK NUMOBS, PRIORITY columns.
-        names = np.array(data.dtype.names)
-        dropem = list(names[['_INIT_' in col for col in names]])
-        data = rfn.drop_fields(data, dropem)
+        filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
     if ntargs == 0:
-        return ntargs, None
+        return ntargs, filename
 
     # ADM use RELEASE to determine the release string for the input targets.
     drint = np.max(data['RELEASE']//1000)
@@ -396,6 +429,9 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     hdr["RESOLVE"] = resolve
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
+
+    if scndout is not None:
+        hdr["SCNDOUT"] = scndout
 
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
@@ -469,7 +505,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     return
 
 
-def write_secondary(filename, data, primhdr=None, scxdir=None):
+def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -485,17 +521,36 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         secondary targets are written back out to this directory in the
         sub-directory "outdata" and the `scxdir` is added to the
         header of the output `filename`.
+    obscon : :class:`str`, optional, defaults to `None`
+        Can pass one of "DARK" or "BRIGHT". If passed, don't write the
+        full set of secondary target that do not match a primary,
+        rather only write targets appropriate for "DARK|GRAY" or
+        "BRIGHT" observing conditions. The relevant `PRIORITY_INIT`
+        and `NUMOBS_INIT` columns will be derived from
+        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
+        "dark" appended to the lowest DIRECTORY in the input `filename`.
 
     Returns
     -------
-    Nothing, but two files are written:
+    :class:`int`
+        The number of secondary targets that do not match a primary
+        target that were written to file.
+    :class:`str`
+        The name of the file to which such targets were written.
+
+    Notes
+    -----
+    Two sets of files are written:
         - The file of secondary targets that do not match a primary
           target is written to `filename`. Such secondary targets
           are determined from having `RELEASE==0` and `SKY==0`
-          in the `TARGETID`.
+          in the `TARGETID`. Only targets with `PRIORITY_INIT > -1`
+          are written to this file (this allows duplicates to be
+          resolved in, e.g., :func:`~desitarget.secondary.finalize()`
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
-          the "outdata" subdirectory of `scxdir`.
+          an "outdata/filenam" subdirectory of `scxdir`, where filenam
+          is `filename` with its extension (likely .fits) stripped.
     """
     # ADM grab the scxdir, it it wasn't passed.
     from desitarget.secondary import _get_scxdir
@@ -509,6 +564,10 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
     # ADM add the SCNDDIR to the file header.
     hdr["SCNDDIR"] = scxdir
 
+    # ADM limit to just BRIGHT or DARK targets, if requested.
+    if obscon is not None:
+        filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+
     # ADM add the secondary dependencies to the file header.
     depend.setdep(hdr, 'scnd-desitarget', desitarget_version)
     depend.setdep(hdr, 'scnd-desitarget-git', gitversion())
@@ -519,32 +578,43 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    # ADM remove the SCND_TARGET_INIT column.
-    scnd_target_init = data["SCND_TARGET_INIT"]
-    data = rfn.drop_fields(data, ["SCND_TARGET_INIT"])
+    # ADM remove the SCND_TARGET_INIT and SCND_ORDER columns.
+    scnd_target_init, scnd_order = data["SCND_TARGET_INIT"], data["SCND_ORDER"]
+    data = rfn.drop_fields(data, ["SCND_TARGET_INIT", "SCND_ORDER"])
+    # ADM we only need a subset of the columns where we match a primary.
+    smalldata = rfn.drop_fields(data, ["PRIORITY_INIT", "SUBPRIORITY",
+                                       "NUMOBS_INIT", "OBSCONDITIONS"])
 
     # ADM write out the file of matches for every secondary bit.
+    filenam = os.path.splitext(os.path.split(filename)[1])[0]
+    scxoutdir = os.path.join(scxdir, 'outdata', filenam)
+    if not os.path.exists(scxoutdir):
+        os.makedirs(scxoutdir)
     from desitarget.targetmask import scnd_mask
     for name in scnd_mask.names():
         # ADM construct the output file name.
         fn = "{}.fits".format(scnd_mask[name].filename)
-        scxfile = os.path.join(scxdir, 'outdata', fn)
-        log.info('Writing {} to {}'.format(name,scxfile))
+        scxfile = os.path.join(scxoutdir, fn)
         # ADM retrieve just the data with this bit set.
         ii = (scnd_target_init & scnd_mask[name]) != 0
-        # ADM to reorder to match the original input order.
-        order = np.argsort(data["SCND_ORDER"][ii])
-        # ADM write to file.
-        fitsio.write(scxfile, data[ii][order],
-                     extname='TARGETS', header=hdr, clobber=True)
+        # ADM only proceed to the write stage if there are targets.
+        if np.sum(ii) > 0:
+            # ADM to reorder to match the original input order.
+            order = np.argsort(scnd_order[ii])
+            # ADM write to file.
+            fitsio.write(scxfile, smalldata[ii][order],
+                         extname='TARGETS', header=hdr, clobber=True)
 
-    # ADM standalone secondary targets have RELEASE==0...
+    # ADM standalone secondaries have PRIORITY_INIT > -1 and
+    # ADM release before DR1 (release < 1000).
     from desitarget.targets import decode_targetid
     objid, brickid, release, mock, sky = decode_targetid(data["TARGETID"])
-    ii = release == 0
+    ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
     # ADM ...write them out.
     fitsio.write(filename, data[ii],
-                 extname='TARGETS', header=hdr, clobber=True)
+                 extname='SCND_TARGETS', header=hdr, clobber=True)
+
+    return np.sum(ii), filename
 
 
 def write_skies(filename, data, indir=None, indir2=None, supp=False,
