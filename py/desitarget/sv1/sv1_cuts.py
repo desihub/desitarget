@@ -46,14 +46,17 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     :class:`array_like`
         ``True`` if and only if the object is an LRG target.
     :class:`array_like`
-        ``True`` if the object is a nominal optical + nominal IR LRG.
+        ``True`` for a 4 PASS nominal optical + nominal IR LRG.
     :class:`array_like`
-        ``True`` if the object is in the LRG SV superset; it should
-        then be identical to lrg_all
+        ``True`` for a 4 PASS object in the LRG SV superset.
+    :class:`array_like`
+        ``True`` for an 8 PASS nominal optical + nominal IR LRG.
+    :class:`array_like`
+        ``True`` for an 8 PASS object in the LRG SV superset.
 
     Notes
     -----
-    - Current version (09/03/19) is version 90 on `the SV wiki`_.
+    - Current version (09/09/19) is version 92 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets.
@@ -69,12 +72,12 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     # ADM pass the lrg that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
-    lrg_all, lrginit, lrgsuper = isLRG_colors(
+    lrg_all, lrginit4, lrgsuper4, lrginit8, lrgsuper8 = isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, south=south, primary=lrg
     )
 
-    return lrg_all, lrginit, lrgsuper
+    return lrg_all, lrginit4, lrgsuper4, lrginit8, lrgsuper8
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
@@ -194,15 +197,17 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= lrginit | lrgsuper
 
-    # lrg1pass = lrg.copy()
-    # lrg2pass = lrg.copy()
+    lrginit4, lrginit8 = lrginit.copy(), lrginit.copy()
+    lrgsuper4, lrgsuper8 = lrgsuper.copy(), lrgsuper.copy()
 
-    # # ADM one-pass LRGs are (the BGS limit) <= z < 20
-    # lrg1pass &= zmag < 20.
-    # # ADM two-pass LRGs are 20 <= z < (the two pass limit)
-    # lrg2pass &= zmag >= 20.
-
-    return lrg, lrginit, lrgsuper
+    # ADM 4-pass LRGs are z < 20
+    lrginit4 &= zmag < 20.
+    lrgsuper4 &= zmag < 20.
+    # ADM 8-pass LRGs are z >= 20
+    lrginit8 &= zmag >= 20.
+    lrgsuper8 &= zmag >= 20.
+    
+    return lrg, lrginit4, lrgsuper4, lrginit8, lrgsuper8
 
 
 def isfiller(gflux=None, rflux=None, zflux=None, w1flux=None,
@@ -1276,8 +1281,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [[~primary, ~primary, ~primary],
-                   [~primary, ~primary, ~primary]]
+    lrg_classes = [[~primary, ~primary, ~primary, ~primary, ~primary],
+                   [~primary, ~primary, ~primary, ~primary, ~primary]]
     if "LRG" in tcnames:
         # ADM run the LRG target types (potentially) for both north and south.
         for south in south_cuts:
@@ -1287,8 +1292,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 zfiberflux=zfiberflux, rflux_snr=rsnr, zflux_snr=zsnr,
                 w1flux_snr=w1snr
             )
-    lrg_north, lrginit_n, lrgsuper_n = lrg_classes[0]
-    lrg_south, lrginit_s, lrgsuper_s = lrg_classes[1]
+    lrg_north, lrginit_n_4, lrgsup_n_4, lrginit_n_8, lrgsup_n_8 = lrg_classes[0]
+    lrg_south, lrginit_s_4, lrgsup_s_4, lrginit_s_8, lrgsup_s_8 = lrg_classes[1]
 
     # ADM initialize arrays to False for the filler selection;
     # ADM the zeroth element stores the northern bits (south=False).
@@ -1304,8 +1309,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
-    lrginit = (lrginit_n & photsys_north) | (lrginit_s & photsys_south)
-    lrgsuper = (lrgsuper_n & photsys_north) | (lrgsuper_s & photsys_south)
+    lrginit_4 = (lrginit_n_4 & photsys_north) | (lrginit_s_4 & photsys_south)
+    lrgsup_4 = (lrgsup_n_4 & photsys_north) | (lrgsup_s_4 & photsys_south)
+    lrginit_8 = (lrginit_n_8 & photsys_north) | (lrginit_s_8 & photsys_south)
+    lrgsup_8 = (lrgsup_n_8 & photsys_north) | (lrgsup_s_8 & photsys_south)
     filler = (filler_n & photsys_north) | (filler_s & photsys_south)
 
     # ADM initially set everything to arrays of False for the ELG selection
@@ -1488,24 +1495,16 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_red = (mws_red_n & photsys_north) | (mws_red_s & photsys_south)
 
     # ADM the formal bit-setting using desi_mask/bgs_mask/mws_mask...
-    # Construct the targetflag bits for DECaLS (i.e. South).
-    desi_target = lrg_south * desi_mask.LRG_SOUTH
-    desi_target |= elg_south * desi_mask.ELG_SOUTH
-    desi_target |= qso_south * desi_mask.QSO_SOUTH
-
-    # Construct the targetflag bits for MzLS and BASS (i.e. North).
-    desi_target |= lrg_north * desi_mask.LRG_NORTH
-    desi_target |= elg_north * desi_mask.ELG_NORTH
-    desi_target |= qso_north * desi_mask.QSO_NORTH
-
     # Construct the targetflag bits combining north and south.
-    desi_target |= lrg * desi_mask.LRG
+    desi_target  = lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
     # ADM add the per-bit information in the south for LRGs...
-    desi_target |= lrginit_s * desi_mask.LRG_INIT_SOUTH
-    desi_target |= lrgsuper_s * desi_mask.LRG_SUPER_SOUTH
+    desi_target |= lrginit_s_4 * desi_mask.LRG_INIT_SOUTH_4PASS
+    desi_target |= lrgsup_s_4 * desi_mask.LRG_SUPER_SOUTH_4PASS
+    desi_target |= lrginit_s_8 * desi_mask.LRG_INIT_SOUTH_8PASS
+    desi_target |= lrgsup_s_8 * desi_mask.LRG_SUPER_SOUTH_8PASS
     desi_target |= filler_s * desi_mask.LOWZ_FILLER_SOUTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_south * desi_mask.QSO_COLOR_4PASS_SOUTH
@@ -1515,8 +1514,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsohizf_south * desi_mask.QSO_HZ_F_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
-    desi_target |= lrginit_n * desi_mask.LRG_INIT_NORTH
-    desi_target |= lrgsuper_n * desi_mask.LRG_SUPER_NORTH
+    desi_target |= lrginit_n_4 * desi_mask.LRG_INIT_NORTH_4PASS
+    desi_target |= lrgsup_n_4 * desi_mask.LRG_SUPER_NORTH_4PASS
+    desi_target |= lrginit_n_8 * desi_mask.LRG_INIT_NORTH_8PASS
+    desi_target |= lrgsup_n_8 * desi_mask.LRG_SUPER_NORTH_8PASS
     desi_target |= filler_n * desi_mask.LOWZ_FILLER_NORTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_north * desi_mask.QSO_COLOR_4PASS_NORTH
@@ -1526,8 +1527,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsohizf_north * desi_mask.QSO_HZ_F_NORTH
 
     # ADM combined per-bit information for the LRGs...
-    desi_target |= lrginit * desi_mask.LRG_INIT
-    desi_target |= lrgsuper * desi_mask.LRG_SUPER
+    desi_target |= lrginit_4 * desi_mask.LRG_INIT_4PASS
+    desi_target |= lrgsup_4 * desi_mask.LRG_SUPER_4PASS
+    desi_target |= lrginit_8 * desi_mask.LRG_INIT_8PASS
+    desi_target |= lrgsup_8 * desi_mask.LRG_SUPER_8PASS
     desi_target |= filler * desi_mask.LOWZ_FILLER
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz * desi_mask.QSO_COLOR_4PASS
