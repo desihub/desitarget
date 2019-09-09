@@ -206,7 +206,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     # ADM 8-pass LRGs are z >= 20
     lrginit8 &= zmag >= 20.
     lrgsuper8 &= zmag >= 20.
-    
+
     return lrg, lrginit4, lrgsuper4, lrginit8, lrgsuper8
 
 
@@ -1496,7 +1496,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM the formal bit-setting using desi_mask/bgs_mask/mws_mask...
     # Construct the targetflag bits combining north and south.
-    desi_target  = lrg * desi_mask.LRG
+    desi_target = lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
