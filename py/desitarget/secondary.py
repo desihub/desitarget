@@ -88,6 +88,12 @@ suppdatamodel = np.array([], dtype=[
     ('SCND_TARGET_INIT', '>i8')
 ])
 
+def duplicates_fast(seq):
+    """
+    """
+    seq_u, sec_i, sec_c = np.unique(seq,return_index=True,return_counts=True)
+    
+    return
 
 def duplicates(seq):
     """Locations of duplicates in an array or list.
@@ -302,7 +308,7 @@ def read_files(scxdir, scnd_mask):
     return np.concatenate(scxall)
 
 
-def match_secondary(infile, scxtargs, sep=1., scxdir=None):
+def match_secondary(infile, scxtargs, sep=1., scxdir=None, trim_to_healpix_nside=None):
     """Match secondary targets to primary targets and update bits.
 
     Parameters
@@ -355,11 +361,17 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     inhp = np.ones(len(scxtargs), dtype="?")
     # ADM as a speed-up, save memory by limiting the secondary targets
     # ADM to just HEALPixels that could touch the primary targets.
-    if 'FILEHPX' in hdr:
-        nside, pix = hdr['FILENSID'], hdr['FILEHPX']
+    if trim_to_healpix_nside is not None:
+        log.info('Using trim_to_healpix optimization')
+        nside = trim_to_healpix_nside
+
+        theta, phi = np.radians(90-intargs["DEC"]), np.radians(intargs["RA"])
+        pix      = hp.ang2pix(nside, theta, phi, nest=True)
+        pix      = np.unique(pix)
+
         # ADM remember to grab adjacent pixels in case of edge effects.
         allpix = add_hp_neighbors(nside, pix)
-        inhp = is_in_hp(scxtargs, nside, allpix)
+        inhp   = is_in_hp(scxtargs, nside, allpix)
         # ADM it's unlikely that the matching separation is comparable
         # ADM to the HEALPixel resolution, but guard against that anyway.
         halfpix = np.degrees(hp.max_pixrad(nside))*3600.
@@ -368,6 +380,22 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
                 sep, halfpix)
             log.critical(msg)
             raise ValueError(msg)
+    else:
+        if 'FILEHPX' in hdr:
+            log.info('Using FILEHPX optimization')
+            nside, pix = hdr['FILENSID'], hdr['FILEHPX']
+            # ADM remember to grab adjacent pixels in case of edge effects.
+            allpix = add_hp_neighbors(nside, pix)
+            inhp = is_in_hp(scxtargs, nside, allpix)
+            # ADM it's unlikely that the matching separation is comparable
+            # ADM to the HEALPixel resolution, but guard against that anyway.
+            halfpix = np.degrees(hp.max_pixrad(nside))*3600.
+            if sep > halfpix:
+                msg = 'sep ({}") exceeds (half) HEALPixel size ({}")'.format(
+                    sep, halfpix)
+                log.critical(msg)
+                raise ValueError(msg)
+
     # ADM warn the user if the secondary and primary samples are "large".
     big = 500000
     if np.sum(inhp) > big and len(intargs) > big:
@@ -421,7 +449,7 @@ def match_secondary(infile, scxtargs, sep=1., scxdir=None):
     return scxtargs
 
 
-def finalize_secondary(scxtargs, scnd_mask, sep=1.):
+def finalize_secondary(scxtargs, scnd_mask, sep=1.,numproc=1):
     """Assign secondary targets a realistic TARGETID, finalize columns.
 
     Parameters
@@ -501,6 +529,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     # ADM Ensure secondary targets with matching TARGETIDs have the
     # ADM full combination of SCND_TARGET bits set. By definition,
     # ADM Targets with OVERRIDE set never have matching TARGETIDs.
+    # APC This is very slow...
     wnoov = np.where(~scxtargs["OVERRIDE"])[0]
     if len(wnoov) > 0:
         for _, ind in duplicates(scxtargs["TARGETID"][wnoov]):
@@ -508,7 +537,15 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
                 scxtargs["SCND_TARGET"][wnoov][ind]
             ))
             scxtargs["SCND_TARGET"][wnoov[ind]] = bitwiseor
+    log.info("Done checking SCND_TARGET...t={:.1f}s".format(time()-t0))
 
+    # - Parallel process input files
+    if len(wnoov) > 0:
+        if numproc > 1:
+            pool = sharedmem.MapReduce(np=numproc)
+            with pool:
+                _scxtargs = pool.map(_match_scx_file,
+        
     # ADM change the data model depending on whether the mask
     # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
     # ADM change if the mask has no preamble.
@@ -516,12 +553,14 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1.):
     scxtargs = rfn.rename_fields(
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
         )
+    log.info("Done updating SCND_TARGET field in data model...t={:.1f}s".format(time()-t0))
 
+        
     return scxtargs
 
 
 def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
-                     scnd_mask=None):
+                     scnd_mask=None,trim_to_healpix_nside=None):
     """Process secondary targets and update relevant bits.
 
     Parameters
@@ -585,7 +624,8 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
         """wrapper on match_secondary() given a file name"""
         # ADM for one of the input primary target files, match to the
         # ADM non-override scx targets and update bits and TARGETID.
-        return match_secondary(fn, scxtargs, sep=sep, scxdir=scxdir)
+        return match_secondary(fn, scxtargs, sep=sep, scxdir=scxdir,
+            trim_to_healpix_nside=trim_to_healpix_nside)
 
     # ADM this is just to count files in _update_status.
     nfile = np.array(1)
@@ -625,6 +665,7 @@ def select_secondary(infiles, numproc=4, sep=1., scxdir=None,
     scxout = np.concatenate([scxtargs, scxover])
 
     # ADM ...and assign TARGETIDs to non-matching secondary targets.
+    log.info('Finalizing secondary targets...')
     scxout = finalize_secondary(scxout, scnd_mask, sep=sep)
 
     return scxout

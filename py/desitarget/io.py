@@ -529,6 +529,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None):
         # ADM construct the output file name.
         fn = "{}.fits".format(scnd_mask[name].filename)
         scxfile = os.path.join(scxdir, 'outdata', fn)
+        log.info('Writing {} to {}'.format(name,scxfile))
         # ADM retrieve just the data with this bit set.
         ii = (scnd_target_init & scnd_mask[name]) != 0
         # ADM to reorder to match the original input order.
