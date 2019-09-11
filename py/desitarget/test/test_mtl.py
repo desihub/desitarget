@@ -18,10 +18,11 @@ class TestMTL(unittest.TestCase):
 
     def setUp(self):
         self.targets = Table()
-        self.types = np.array(['ELG', 'LRG_2PASS', 'QSO', 'QSO', 'ELG'])
+        self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'ELG'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
         self.post_prio = [Mx[t].priorities['MORE_ZGOOD'] for t in self.types]
         self.post_prio[0] = 2  # ELG
+        self.post_prio[1] = 2  # LRG...all one-pass
         self.post_prio[2] = 2  # lowz QSO
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
         self.targets['BGS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
@@ -42,7 +43,7 @@ class TestMTL(unittest.TestCase):
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
 
     def reset_targets(self, prefix):
-        """Add a prefix to TARGET columns, map LRG_2PASS/main to LRG/SV1"""
+        """Add prefix to TARGET columns"""
 
         t = self.targets.copy()
         main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
@@ -56,10 +57,11 @@ class TestMTL(unittest.TestCase):
             for name in main_names:
                 t.rename_column(name, prefix+name)
 
-        if prefix == "SV1_":
+#        if prefix == "SV1_":
             # ADM change any occurences of LRG_2PASS to just LRG.
-            ii = t["SV1_DESI_TARGET"] == Mx.LRG_2PASS
-            t["SV1_DESI_TARGET"][ii] = MxSV.LRG
+            # ADM technically not needed as 2PASS no longer exists.
+#            ii = t["SV1_DESI_TARGET"] == Mx.LRG_2PASS
+#            t["SV1_DESI_TARGET"][ii] = MxSV.LRG
 
         return t
 
@@ -82,7 +84,7 @@ class TestMTL(unittest.TestCase):
             t = self.reset_targets(prefix)
             mtl = make_mtl(t, "GRAY|DARK")
             mtl.sort(keys='TARGETID')
-            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 2, 4, 4, 1]))
+            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 1, 4, 4, 1]))
             self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
             # - Check that ELGs can be observed in gray conditions but not others
             iselg = (self.types == 'ELG')
@@ -98,7 +100,7 @@ class TestMTL(unittest.TestCase):
             mtl = make_mtl(t, "DARK|GRAY", zcat=self.zcat, trim=False)
             mtl.sort(keys='TARGETID')
             pp = self.post_prio.copy()
-            nom = [0, 1, 0, 3, 1]
+            nom = [0, 0, 0, 3, 1]
             # ADM in SV, all quasars get all observations.
             if prefix == "SV1_":
                 pp[2], nom[2] = pp[3], nom[3]

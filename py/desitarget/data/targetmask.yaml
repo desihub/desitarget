@@ -8,10 +8,6 @@ desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
     
-    #- ADM allow the primary targets to be split by number of passes
-    - [LRG_1PASS,   3, "LRG to be observed once",  {obsconditions: DARK}]
-    - [LRG_2PASS,   4, "LRG to be observed twice", {obsconditions: DARK}]
-
     #- North vs. South selections
     - [LRG_NORTH,   8, "LRG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK}]
     - [ELG_NORTH,   9, "ELG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK|GRAY}]
@@ -20,13 +16,6 @@ desi_mask:
     - [LRG_SOUTH,   16, "LRG cuts tuned for DECam data",      {obsconditions: DARK}]
     - [ELG_SOUTH,   17, "ELG cuts tuned for DECam data",      {obsconditions: DARK|GRAY}]
     - [QSO_SOUTH,   18, "QSO cuts tuned for DECam data",      {obsconditions: DARK}]
-
-    #- North vs. South selections for different passes
-    - [LRG_1PASS_NORTH,  24, "LRG to be observed once tuned for Bok/Mosaic",  {obsconditions: DARK}]
-    - [LRG_2PASS_NORTH,  25, "LRG to be observed twice tuned for Bok/Mosaic", {obsconditions: DARK}]
-
-    - [LRG_1PASS_SOUTH,  28, "LRG to be observed once tuned for DECam",       {obsconditions: DARK}]
-    - [LRG_2PASS_SOUTH,  29, "LRG to be observed twice tuned for DECam",      {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
@@ -174,8 +163,6 @@ priorities:
         ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        LRG_1PASS: SAME_AS_LRG
-        LRG_2PASS: SAME_AS_LRG
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         ELG_NORTH: SAME_AS_LRG_NORTH
@@ -183,10 +170,6 @@ priorities:
         LRG_SOUTH: SAME_AS_LRG_NORTH
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
-        LRG_1PASS_NORTH: SAME_AS_LRG_NORTH
-        LRG_2PASS_NORTH: SAME_AS_LRG_NORTH
-        LRG_1PASS_SOUTH: SAME_AS_LRG_NORTH
-        LRG_2PASS_SOUTH: SAME_AS_LRG_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -252,11 +235,8 @@ numobs:
     # ADM initial number of observations for targets in the main (dark time) survey
     desi_mask:
         ELG: 1
-        # ADM the LRG numobs should always be superseded by LRG_1PASS/2PASS
-        LRG: 0
+        LRG: 1
         QSO: 4
-        LRG_1PASS: 1
-        LRG_2PASS: 2
         # ADM don't observe a N/S target if it doesn't have other bits set
         LRG_NORTH: 0
         ELG_NORTH: 0
@@ -264,10 +244,6 @@ numobs:
         LRG_SOUTH: 0
         ELG_SOUTH: 0
         QSO_SOUTH: 0
-        LRG_1PASS_NORTH: 0
-        LRG_2PASS_NORTH: 0
-        LRG_1PASS_SOUTH: 0
-        LRG_2PASS_SOUTH: 0
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
