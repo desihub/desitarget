@@ -18,115 +18,6 @@ from desitarget.targetmask import obsconditions
 from desiutil.log import get_logger
 log = get_logger()
 
-############################################################
-# TARGETID bit packing
-
-# Of 64 bits total:
-
-# First 52 bits available for propagated targetid, giving a max value of
-# 2**52 - 1 = 4503599627370495. The invididual sources are free to
-# distribute these bits however they like
-
-# For the case where the propagated ID encodes a filenumber and rownumber
-# this would allow, for example, 1048575 files with 4294967295 rows per
-# file.
-
-# Higher order bits encode source file and survey. Seems pointless since source
-# and survey are implcitiy in the *_TARGET columns which are propagated through
-# fiberassign anyway, so this is just a toy example.
-
-# Number of bits allocated to each section
-USER_END = 52    # Free to use
-SOURCE_END = 60  # Source class
-SURVEY_END = 64  # Survey
-
-# Bitmasks
-ENCODE_MTL_USER_MASK = 2**USER_END - 2**0               # 0x000fffffffffffff
-ENCODE_MTL_SOURCE_MASK = 2**SOURCE_END - 2**USER_END    # 0x0ff0000000000000
-ENCODE_MTL_SURVEY_MASK = 2**SURVEY_END - 2**SOURCE_END  # 0xf000000000000000
-
-# Maximum number of unique values
-USER_MAX = ENCODE_MTL_USER_MASK                    # 4503599627370495
-SOURCE_MAX = ENCODE_MTL_SOURCE_MASK >> USER_END    # 255
-SURVEY_MAX = ENCODE_MTL_SURVEY_MASK >> SOURCE_END  # 15
-
-TARGETID_SURVEY_INDEX = {'desi': 0, 'bgs': 1, 'mws': 2}
-
-
-def target_bitmask_to_string(target_class, mask):
-    """Converts integer values of target bitmasks to strings.
-
-    Where multiple bits are set, joins the names of each contributing bit with
-    '+'.
-    """
-    target_class_names = np.zeros(len(target_class), dtype=np.object)
-    unique_target_classes = np.unique(target_class)
-    for tc in unique_target_classes:
-        # tc is the encoded integer value of the target bitmask
-        has_this_target_class = np.where(target_class == tc)[0]
-
-        tc_name = '+'.join(mask.names(tc))
-        target_class_names[has_this_target_class] = tc_name
-        log.info('Target class %s (%d): %d' % (tc_name, tc, len(has_this_target_class)))
-
-    return target_class_names
-
-
-def encode_mtl_targetid(targets):
-    """
-    Sets targetid used in MTL, which encode both the target class and
-    arbitrary tracibility data propagated from individual input sources.
-
-    Allows rows in final MTL (and hence fibre map) to be mapped to input
-    sources.
-    """
-    encoded_targetid = targets['TARGETID'].copy()
-
-    # Validate incoming target ids
-    if not np.all(encoded_targetid <= ENCODE_MTL_USER_MASK):
-        log.error('Invalid range of user-specfied targetid: cannot exceed {}'
-                  .format(ENCODE_MTL_USER_MASK))
-
-    desi_target = targets['DESI_TARGET'] != 0
-    bgs_target = targets['BGS_TARGET'] != 0
-    mws_target = targets['MWS_TARGET'] != 0
-
-    # Assumes surveys are mutually exclusive.
-    assert(np.max(np.sum([desi_target, bgs_target, mws_target], axis=0)) == 1)
-
-    # Set the survey bits
-    # encoded_targetid[desi_target] += TARGETID_SURVEY_INDEX['desi'] << SOURCE_END
-    # encoded_targetid[bgs_target ] += TARGETID_SURVEY_INDEX['bgs']  << SOURCE_END
-    # encoded_targetid[mws_target]  += TARGETID_SURVEY_INDEX['mws']  << SOURCE_END
-
-    encoded_targetid[desi_target] += encode_survey_source(TARGETID_SURVEY_INDEX['desi'], 0, 0)
-    encoded_targetid[bgs_target] += encode_survey_source(TARGETID_SURVEY_INDEX['bgs'], 0, 0)
-    encoded_targetid[mws_target] += encode_survey_source(TARGETID_SURVEY_INDEX['mws'], 0, 0)
-
-    # Set the source bits. Will be different for each survey.
-    desi_sources = ['ELG', 'LRG', 'QSO']
-    bgs_sources = ['BGS_FAINT', 'BGS_BRIGHT', 'BGS_WISE']
-    mws_sources = ['MWS_MAIN', 'MWS_WD', 'MWS_NEARBY']
-
-    for name in desi_sources:
-        ii = (targets['DESI_TARGET'] & desi_mask[name]) != 0
-        assert(desi_mask[name] <= SOURCE_MAX)
-        encoded_targetid[ii] += encode_survey_source(0, desi_mask[name], 0)
-
-    for name in bgs_sources:
-        ii = (targets['BGS_TARGET'] & bgs_mask[name]) != 0
-        assert(bgs_mask[name] <= SOURCE_MAX)
-        encoded_targetid[ii] += encode_survey_source(0, bgs_mask[name], 0)
-
-    for name in mws_sources:
-        ii = (targets['MWS_TARGET'] & mws_mask[name]) != 0
-        assert(mws_mask[name] <= SOURCE_MAX)
-        encoded_targetid[ii] += encode_survey_source(0, mws_mask[name], 0)
-
-    # FIXME (APC): expensive...
-    assert(len(np.unique(encoded_targetid)) == len(encoded_targetid))
-    return encoded_targetid
-
 
 def encode_targetid(objid=None, brickid=None, release=None, mock=None, sky=None):
     """Create the DESI TARGETID from input source and imaging information
@@ -492,27 +383,6 @@ def initial_priority_numobs(targets, scnd=False,
     return outpriority, outnumobs
 
 
-def encode_survey_source(survey, source, original_targetid):
-    """
-    """
-    return (survey << SOURCE_END) + (source << USER_END) + original_targetid
-
-
-def decode_survey_source(encoded_values):
-    """
-    Returns
-    -------
-        survey[:], source[:], original_targetid[:]
-    """
-    _encoded_values = np.asarray(np.atleast_1d(encoded_values), dtype=np.uint64)
-    survey = (_encoded_values & ENCODE_MTL_SURVEY_MASK) >> SOURCE_END
-    source = (_encoded_values & ENCODE_MTL_SOURCE_MASK) >> USER_END
-
-    original_targetid = (encoded_values & ENCODE_MTL_USER_MASK)
-
-    return survey, source, original_targetid
-
-
 def calc_priority(targets, zcat, obscon):
     """
     Calculate target priorities from masks, observation/redshift status.
@@ -589,11 +459,11 @@ def calc_priority(targets, zcat, obscon):
     # DESI dark time targets.
     if survey != 'cmx':
         if desi_target in targets.dtype.names:
-            # ADM 'LRG' is the guiding column in SV
-            # ADM whereas 'LRG_1PASS' and 'LRG_2PASS' are in the main survey.
-            names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
-            if survey[0:2] == 'sv':
-                names = ('ELG', 'LRG')
+            # ADM 'LRG' is the guiding column in SV and the main survey
+            # ADM (once, it was 'LRG_1PASS' and 'LRG_2PASS' in the MS).
+            # names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
+            # if survey[0:2] == 'sv':
+            names = ('ELG', 'LRG')
             for name in names:
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(desi_mask[name].obsconditions)
@@ -670,87 +540,6 @@ def calc_priority(targets, zcat, obscon):
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], cmx_mask[name].priorities['MORE_ZWARN'])
 
     return priority
-
-
-def calc_numobs(targets):
-    """
-    Calculates the requested number of observations needed for each target
-
-    Args:
-        targets: numpy structured array or astropy Table of targets, including
-            columns `DESI_TARGET`, `BGS_TARGET` or `MWS_TARGET`
-
-    Returns:
-        array of integers of requested number of observations
-
-    Notes:
-        This is `NUMOBS` desired before any spectroscopic observations; i.e.
-            it does *not* take redshift into consideration (which is relevant
-            for interpreting low-z vs high-z QSOs)
-    """
-    # Default is one observation
-    nobs = np.ones(len(targets), dtype='i4')
-
-    # If it wasn't selected by any target class, it gets 0 observations
-    # Normally these would have already been removed, but just in case...
-    no_target_class = np.ones(len(targets), dtype=bool)
-    if 'DESI_TARGET' in targets.dtype.names:
-        no_target_class &= targets['DESI_TARGET'] == 0
-    if 'BGS_TARGET' in targets.dtype.names:
-        no_target_class &= targets['BGS_TARGET'] == 0
-    if 'MWS_TARGET' in targets.dtype.names:
-        no_target_class &= targets['MWS_TARGET'] == 0
-
-    n_no_target_class = np.sum(no_target_class)
-    if n_no_target_class > 0:
-        raise ValueError('WARNING: {:d} rows in targets.calc_numobs have no target class'.format(n_no_target_class))
-
-    # - LRGs get 1, 2, or (perhaps) 3 observations depending upon magnitude
-    # ADM set this using the LRG_1PASS/2PASS and maybe even 3PASS bits
-    islrg = (targets['DESI_TARGET'] & desi_mask.LRG) != 0
-    # ADM default to 2 passes for LRGs
-    nobs[islrg] = 2
-    # ADM for redundancy in case the defaults change, explicitly set
-    # ADM NOBS for 1PASS and 2PASS LRGs
-    try:
-        lrg1 = (targets['DESI_TARGET'] & desi_mask.LRG_1PASS) != 0
-        lrg2 = (targets['DESI_TARGET'] & desi_mask.LRG_2PASS) != 0
-        nobs[lrg1] = 1
-        nobs[lrg2] = 2
-    except AttributeError:
-        log.error('per-pass LRG bits not set in {}'.format(desi_mask))
-    # ADM also reserve a setting for LRG_3PASS, but fail gracefully for now
-    try:
-        lrg3 = (targets['DESI_TARGET'] & desi_mask.LRG_3PASS) != 0
-        nobs[lrg3] = 3
-    except AttributeError:
-        pass
-
-    # - TBD: flag QSOs for 4 obs ahead of time, or only after confirming
-    # - that they are redshift>2.15 (i.e. good for Lyman-alpha)?
-    isqso = (targets['DESI_TARGET'] & desi_mask.QSO) != 0
-    nobs[isqso] = 4
-
-    # BGS: observe both BGS target classes once (and once only) on every epoch,
-    # regardless of how many times it has been observed on previous epochs.
-
-    # Priorities for MORE_ZWARN and MORE_ZGOOD are set in targetmask.yaml such
-    # that targets are reobserved at the same priority until they have a good
-    # redshift. Targets with good redshifts are still observed on subsequent
-    # epochs but with a priority below all other BGS and MWS targets.
-
-    if 'BGS_TARGET' in targets.dtype.names:
-        # This forces the calculation of nmore in targets.calc_priority (and
-        # ztargets['NOBS_MORE'] in mtl.make_mtl) to give nmore = 1 regardless
-        # of targets['NUMOBS']
-        ii = (targets['BGS_TARGET'] & bgs_mask.BGS_FAINT) != 0
-        nobs[ii] = targets['NUMOBS'][ii]+1
-        ii = (targets['BGS_TARGET'] & bgs_mask.BGS_BRIGHT) != 0
-        nobs[ii] = targets['NUMOBS'][ii]+1
-        ii = (targets['BGS_TARGET'] & bgs_mask.BGS_WISE) != 0
-        nobs[ii] = targets['NUMOBS'][ii]+1
-
-    return nobs
 
 
 def resolve(targets):
@@ -929,13 +718,14 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         raise AssertionError(msg)
 
     # ADM check all LRG targets have LRG_1PASS/2PASS set.
-    if survey == 'main':
-        lrgset = done["DESI_TARGET"] & desi_mask.LRG != 0
-        pass1lrgset = done["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
-        pass2lrgset = done["DESI_TARGET"] & desi_mask.LRG_2PASS != 0
-        if not np.all(lrgset == pass1lrgset | pass2lrgset):
-            msg = 'Some LRG targets do not have 1PASS/2PASS set!'
-            log.critical(msg)
-            raise AssertionError(msg)
+    # ADM we've moved away from LRG PASSes this so deprecate for now.
+#    if survey == 'main':
+#        lrgset = done["DESI_TARGET"] & desi_mask.LRG != 0
+#        pass1lrgset = done["DESI_TARGET"] & desi_mask.LRG_1PASS != 0
+#        pass2lrgset = done["DESI_TARGET"] & desi_mask.LRG_2PASS != 0
+#        if not np.all(lrgset == pass1lrgset | pass2lrgset):
+#            msg = 'Some LRG targets do not have 1PASS/2PASS set!'
+#            log.critical(msg)
+#            raise AssertionError(msg)
 
     return done

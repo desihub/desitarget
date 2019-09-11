@@ -198,8 +198,9 @@ def _load_targdens(tcnames=None, bit_mask=None):
         targdens['STD_FAINT'] = 0.
         targdens['STD_BRIGHT'] = 0.
 
-        targdens['LRG_1PASS'] = 0.
-        targdens['LRG_2PASS'] = 0.
+        targdens['LRG'] = 0.
+#        targdens['LRG_1PASS'] = 0.
+#        targdens['LRG_2PASS'] = 0.
 
         targdens['BGS_FAINT'] = targdict['ntarget_bgs_faint']
         targdens['BGS_BRIGHT'] = targdict['ntarget_bgs_bright']
@@ -1656,7 +1657,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         upclipdict = {'ELG': 4000, 'LRG': 1200, 'QSO': 400, 'ALL': 8000,
                       'STD_FAINT': 300, 'STD_BRIGHT': 300,
                       # 'STD_FAINT': 200, 'STD_BRIGHT': 50,
-                      'LRG_1PASS': 1000, 'LRG_2PASS': 500,
+                      # 'LRG_1PASS': 1000, 'LRG_2PASS': 500,
                       'BGS_FAINT': 2500, 'BGS_BRIGHT': 2500, 'BGS_WISE': 2500, 'BGS_ANY': 5000,
                       'MWS_ANY': 2000, 'MWS_BROAD': 2000, 'MWS_WD': 50, 'MWS_NEARBY': 50,
                       'MWS_MAIN_RED': 2000, 'MWS_MAIN_BLUE': 2000}

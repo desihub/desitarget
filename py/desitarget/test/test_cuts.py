@@ -80,6 +80,7 @@ class TestCuts(unittest.TestCase):
         zflux = flux['ZFLUX']
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
+        zfiberflux = flux['ZFIBERFLUX']
 
         gfluxivar = targets['FLUX_IVAR_G']
         rfluxivar = targets['FLUX_IVAR_R']
@@ -118,16 +119,16 @@ class TestCuts(unittest.TestCase):
             primary = np.ones_like(gflux, dtype='?')
 
         lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                          gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+                          zfiberflux=zfiberflux, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
         lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                          gflux_ivar=gfluxivar, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+                          zfiberflux=zfiberflux, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
         self.assertTrue(np.all(lrg1 == lrg2))
         # ADM also check that the color selections alone work. This tripped us up once
         # ADM with the mocks part of the code calling a non-existent LRG colors function.
         lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                                 w1flux=w1flux, w2flux=w2flux)
+                                 zfiberflux=zfiberflux, w1flux=w1flux, w2flux=w2flux)
         lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux, zflux=zflux,
-                                 w1flux=w1flux, w2flux=w2flux)
+                                 zfiberflux=zfiberflux, w1flux=w1flux, w2flux=w2flux)
         self.assertTrue(np.all(lrg1 == lrg2))
 
         elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
