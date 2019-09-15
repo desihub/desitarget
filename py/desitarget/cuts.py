@@ -124,136 +124,115 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     return gshift, rshift, zshift
 
 
-def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, ggood=None, primary=None, south=True):
-    """(see, e.g., :func:`~desitarget.cuts.isLRGpass`).
-    """
-
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-
-    if ggood is None:
-        ggood = np.ones_like(gflux, dtype='?')
-
-    lrg = primary.copy()
-
-    if south:
-        # ADM intercept -ve, e.g. -0.6 on the wiki for
-        # (z-W1) > 0.8*(r-z) - 0.6.
-        nsc_rzmult, nsc_inter = 0.8, 0.6  # non-stellar cut.
-        b_lim, f_lim = 18.01, 20.41       # bright/faint limits.
-        cbox_lo, cbox_hi = 0.75, 2.45     # broad color box.
-        # ADM cut limits are -ve, e.g. -17.18, -15.11 on the wiki for
-        # (z-17.18)/2 < r-z < (z-15.11)/2.
-        osc_lo, osc_hi = 17.18, 15.11     # optical sliding cut.
-        osc_div = 2.                      # denominator in optical sliding cut.
-        elbow_rz, elbow_gr = 1.15, 1.65   # cut redshifts < 0.4, keep elbow at 0.4-0.5.
-    else:
-        nsc_rzmult, nsc_inter = 0.8, 0.735
-        b_lim, f_lim = 17.965, 20.365
-        cbox_lo, cbox_hi = 0.85, 2.55
-        osc_lo, osc_hi = 17.105, 14.885
-        osc_div = 1.8
-        elbow_rz, elbow_gr = 1.25, 1.655
-
-    # ADM Basic flux and color box cuts.
-    lrg &= (zflux > 10**(0.4*(22.5-f_lim)))   # z < 20.41  (south).
-    lrg &= (zflux < 10**(0.4*(22.5-b_lim)))   # z > 18.01  (south).
-    lrg &= (zflux < 10**(0.4*cbox_hi)*rflux)  # r-z < 2.45 (south).
-    lrg &= (zflux > 10**(0.4*cbox_lo)*rflux)  # r-z > 0.75 (south).
-
-    # ADM code can overflow, since float32 arrays have a max of 3e38.
-    with np.errstate(over='ignore'):
-        # ADM non-stellar cut. e.g., in the south:
-        # (z-W1) > 0.8*(r-z) - 0.6  ->  0.8r + W1 < 1.8z + 0.6
-        lrg &= ((w1flux*rflux**complex(nsc_rzmult)).real >
-                ((zflux**complex(1+nsc_rzmult))*10**(-0.4*nsc_inter)).real)
-        # ADM complex/real allows -ve fluxes to be raised to a fractional power.
-
-        # ADM optical sliding cut, e.g. in the south:
-        # (z-17.18)/2 < r-z  ->  3z < 17.18 + 2r
-        # (z-15.11)/2 > r-z  ->  3z > 15.11 + 2r
-        lrg &= ((zflux**complex(1.+osc_div)).real >
-                (10**(0.4*(22.5-osc_lo))*rflux**complex(osc_div)).real)
-        lrg &= ((zflux**complex(1.+osc_div)).real <
-                (10**(0.4*(22.5-osc_hi))*rflux**complex(osc_div)).real)
-
-        # ADM redshift cut with elbow, e.g. in the south:
-        # (r-z > 1.15) OR (g-r > 1.65 and FLUX_IVAR_G > 0)
-        lrg &= np.logical_or((zflux > 10**(0.4*elbow_rz)*rflux),
-                             (ggood & (rflux > 10**(0.4*elbow_gr)*gflux)))
-
-    return lrg
-
-
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gflux_ivar=None, primary=None, south=True):
-    """(see, e.g., :func:`~desitarget.cuts.isLRGpass`).
+          zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          primary=None, south=True):
     """
-    # ----- Luminous Red Galaxies
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
+    Parameters
+    ----------
+    south: boolean, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS)
+        if ``south=False``, otherwise use cuts appropriate to the
+        Southern imaging survey (DECaLS).
 
-    # Some basic quality in r, z, and W1.  Note by @moustakas: no allmask cuts
-    # used!).  Also note: We do not require gflux>0!  Objects can be very red.
-    lrg = primary.copy()
-    lrg &= (rflux_snr > 0) & (rflux > 0)    # and rallmask == 0
-    lrg &= (zflux_snr > 0) & (zflux > 0)    # and zallmask == 0
-    lrg &= (w1flux_snr > 4) & (w1flux > 0)
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is an LRG target.
 
-    ggood = (gflux_ivar > 0)  # and gallmask == 0
-
-    # Apply color, flux, and star-galaxy separation cuts
-    lrg &= isLRG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                        w2flux=w2flux, ggood=ggood, primary=primary, south=south)
-
-    return lrg
-
-
-def isLRGpass(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-              rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-              gflux_ivar=None, primary=None, south=True):
-    """LRGs in different passes (one pass, two pass etc.).
-
-    Args:
-        south: boolean, defaults to ``True``
-            Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
-            otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
-
-    Returns:
-        mask : array_like. True if and only if the object is an LRG
-            target.
-
-    Notes:
-    - As of 11/2/18, based on version 158 on `the wiki`_.
+    Notes
+    -----
+    - Current version (09/03/19) is version 199 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
-    # ----- Luminous Red Galaxies
+    # ADM LRG targets.
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-
     lrg = primary.copy()
 
-    # ADM apply the color and flag selection for all LRGs
-    lrg &= isLRG(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                 rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                 gflux_ivar=gflux_ivar, primary=primary, south=south)
+    # ADM basic quality cuts.
+    lrg &= notinLRG_mask(
+        primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
+        zfiberflux=zfiberflux,
+        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+    )
 
-    lrg1pass = lrg.copy()
-    lrg2pass = lrg.copy()
+    # ADM color-based selection of LRGs.
+    lrg &= isLRG_colors(
+        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+        zfiberflux=zfiberflux, south=south, primary=primary
+    )
 
-    # ADM CRITICALLY, the bright and faint limits are set in isLRG_colors()
-    # ADM so we only need to impose a central cut at >/< 20 mags
+    return lrg
+
+
+def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
+                  zfiberflux=None,
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None):
+    """See :func:`~desitarget.cuts.isLRG` for details.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is NOT masked for poor quality.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    lrg = primary.copy()
+
+    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
+    lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
+    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+
+    return lrg
+
+
+def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
+                 zfiberflux=None, ggood=None,
+                 w2flux=None, primary=None, south=True):
+    """(see, e.g., :func:`~desitarget.cuts.isLRG`).
+
+    Notes:
+        - the `ggood` and `w2flux` inputs are an attempt to maintain
+          backwards-compatibility with the mocks.
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    lrg = primary.copy()
+
+    # ADM to maintain backwards-compatibility with mocks.
+    if zfiberflux is None:
+        log.warning('Setting zfiberflux to zflux!!!')
+        zfiberflux = zflux.copy()
+
+    gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
+    # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
+    rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
+    zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
+    w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
+    zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
+
     if south:
-        midbreak = 20.
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut.
+        lrg &= (
+            ((gmag - w1mag > 2.6) & (gmag - rmag > 1.4))
+            | (rmag - w1mag > 1.8)                       # low-z cut.
+        )
+        lrg &= rmag - zmag > (zmag - 16.83) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.80) * 0.19       # double sliding cut 2.
     else:
-        midbreak = 20.   # ADM placeholders for different future 1/2 pass splits.
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.65   # non-stellar cut.
+        lrg &= (
+            ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45))
+            | (rmag - w1mag > 1.85)                      # low-z cut.
+        )
+        lrg &= rmag - zmag > (zmag - 16.69) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.68) * 0.19       # double sliding cut 2.
 
-    lrg1pass &= zflux > 10**((22.5-midbreak)/2.5)
-    lrg2pass &= zflux <= 10**((22.5-midbreak)/2.5)
+    lrg &= rmag - zmag > 0.7   # remove outliers.
+    lrg &= zfibermag < 21.5    # faint limit.
 
-    return lrg, lrg1pass, lrg2pass
+    return lrg
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1372,6 +1351,7 @@ def _prepare_optical_wise(objects, mask=True):
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
     rfiberflux = flux['RFIBERFLUX']
+    zfiberflux = flux['ZFIBERFLUX']
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
@@ -1422,7 +1402,7 @@ def _prepare_optical_wise(objects, mask=True):
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
-            w1flux, w2flux, rfiberflux, objtype, release,
+            w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,
             gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
@@ -1526,7 +1506,8 @@ def unextinct_fluxes(objects):
     Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
-             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'), ('RFIBERFLUX', 'f4')]
+             ('W1FLUX', 'f4'), ('W2FLUX', 'f4'),
+             ('RFIBERFLUX', 'f4'), ('ZFIBERFLUX', 'f4')]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
@@ -1538,6 +1519,7 @@ def unextinct_fluxes(objects):
     result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
     result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
     result['RFIBERFLUX'] = objects['FIBERFLUX_R'] / objects['MW_TRANSMISSION_R']
+    result['ZFIBERFLUX'] = objects['FIBERFLUX_Z'] / objects['MW_TRANSMISSION_Z']
 
     if isinstance(objects, Table):
         return Table(result)
@@ -1546,7 +1528,8 @@ def unextinct_fluxes(objects):
 
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
-                    gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
+                    gflux, rflux, zflux, w1flux, w2flux,
+                    rfiberflux, zfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -1571,6 +1554,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         Corrected for Galactic extinction.
     rfiberflux : :class:`~numpy.ndarray`
         Predicted fiber flux in 1 arcsecond seeing in r-band.
+        Corrected for Galactic extinction.
+    zfiberflux : :class:`~numpy.ndarray`
+        Predicted fiber flux in 1 arcsecond seeing in z-band.
         Corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
@@ -1656,21 +1642,19 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [[~primary, ~primary, ~primary], [~primary, ~primary, ~primary]]
+    lrg_classes = [~primary, ~primary]
     if "LRG" in tcnames:
         for south in south_cuts:
-            lrg_classes[int(south)] = isLRGpass(
+            lrg_classes[int(south)] = isLRG(
                 primary=primary,
-                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, gflux_ivar=gfluxivar,
+                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                zfiberflux=zfiberflux,
                 rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
             )
-    lrg_north, lrg1pass_north, lrg2pass_north = lrg_classes[0]
-    lrg_south, lrg1pass_south, lrg2pass_south = lrg_classes[1]
+    lrg_north, lrg_south = lrg_classes
 
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
-    lrg1pass = (lrg1pass_north & photsys_north) | (lrg1pass_south & photsys_south)
-    lrg2pass = (lrg2pass_north & photsys_north) | (lrg2pass_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -1834,16 +1818,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
 
-    # ADM add the per-pass information in the south...
-    desi_target |= lrg1pass_south * desi_mask.LRG_1PASS_SOUTH
-    desi_target |= lrg2pass_south * desi_mask.LRG_2PASS_SOUTH
-    # ADM ...the north...
-    desi_target |= lrg1pass_north * desi_mask.LRG_1PASS_NORTH
-    desi_target |= lrg2pass_north * desi_mask.LRG_2PASS_NORTH
-    # ADM ...and combined.
-    desi_target |= lrg1pass * desi_mask.LRG_1PASS
-    desi_target |= lrg2pass * desi_mask.LRG_2PASS
-
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
     desi_target |= std_bright * desi_mask.STD_BRIGHT
@@ -1977,7 +1951,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
-        w1flux, w2flux, rfiberflux, objtype, release,                                 \
+        w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,                     \
         gfluxivar, rfluxivar, zfluxivar,                                              \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
@@ -2010,7 +1984,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
-        gflux, rflux, zflux, w1flux, w2flux, rfiberflux,
+        gflux, rflux, zflux, w1flux, w2flux,
+        rfiberflux, zfiberflux,
         objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
