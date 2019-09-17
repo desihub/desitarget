@@ -138,7 +138,17 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
             ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
             ztargets['NUMOBS_MORE'][ii] = 1
+            
+        # If the object is confirmed to be a tracer QSO, then don't request more observations
+        if (obsconditions.mask(obscon) & obsconditions.mask("DARK|GRAY")) != 0:
+            if zcat is not None:
+                ii = ztargets['SPECTYPE']=='QSO'
+                ii &= (ztargets['ZWARN'] == 0 ) 
+                ii &= (ztargets['Z']<2.15)
+                ii &= (ztargets['NUMOBS']>0)
+                ztargets['NUMOBS_MORE'][ii] = 0
 
+            
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.
     priority = calc_priority(targets_zmatcher, ztargets, obscon)
