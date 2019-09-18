@@ -23,7 +23,7 @@ ap.add_argument("priminfodir",
 ap.add_argument("dest",
                 help="Output secondary-only targets file (e.g. '/project/projectdirs/desi/target/catalogs/secondary-dr6-0.20.0.fits' at NERSC)")
 ap.add_argument("-s", "--separation", type=float, default=1.,
-                help='Angular separation at which to match primary and secondary targets. Defaults to [1] arcsec.')
+                help='Angular separation at which to match secondary targets to themselves. Defaults to [1] arcsec.')
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
                 "Defaults to SCND_DIR environment variable.")
