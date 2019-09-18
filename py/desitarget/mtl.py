@@ -133,12 +133,12 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM (and only once) every time during the BRIGHT survey, regardless
     # ADM of how often they've previously been observed. I've turned this
     # ADM off for commissioning. Not sure if we'll keep it in general.
-    if survey == 'main':
+    if survey != 'cmx':
         # ADM only if we're considering bright survey conditions.
         if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
             ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
             ztargets['NUMOBS_MORE'][ii] = 1
-            
+    if survey == 'main':
         # If the object is confirmed to be a tracer QSO, then don't request more observations
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
             if zcat is not None:
@@ -147,7 +147,6 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
                 ii &= (ztargets['Z']<2.15)
                 ii &= (ztargets['NUMOBS']>0)
                 ztargets['NUMOBS_MORE'][ii] = 0
-
             
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.
