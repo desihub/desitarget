@@ -799,7 +799,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     if maskbits is not None:
-        #for bit in [1, 10, 12, 13]:
+        # for bit in [1, 10, 12, 13]:
         for bit in [10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
 
@@ -854,18 +854,18 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     # zw1w2 cuts: SNz > 5
     # & w1-w2 > 0.5 & z- w1 < 4.5 & z-w1 > 2.0  (W1, W2 in Vega).
     qso &= zsnr > 5
-    qso &= w2flux > 10**(-0.14/2.5) * w1flux # w1-w2 > -0.14 in AB magnitude
+    qso &= w2flux > 10**(-0.14/2.5) * w1flux  # w1-w2 > -0.14 in AB magnitude
     qso &= ((w1flux < 10**((4.5-2.699)/2.5) * zflux) &
             (w1flux > 10**((2.0-2.699)/2.5) * zflux))
 
     # rzW1 cuts: (SNr < 3 |
     # (r-z < 3.2*(z-w1) - 6.5 & r-z > 1.0 & r-z < 3.9) | r-z > 4.4).
     SNRr = rsnr < 3
-       # using same cuts for 'north' and 'south', at least initially.
+    # using same cuts for 'north' and 'south', at least initially.
     if south:
         rzw1cut = (
             (np.log10(zflux/rflux) <
-            3.2*np.log10(w1flux/zflux) - (6.5-3.2*2.699)/2.5)
+             3.2*np.log10(w1flux/zflux) - (6.5-3.2*2.699)/2.5)
             & (zflux > 10**(1.0/2.5) * rflux) & (zflux < 10**(3.9/2.5) * rflux)
         )
         rzcut = zflux > 10**(4.4/2.5) * rflux  # for z~6 quasar
@@ -873,7 +873,7 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     else:
         rzw1cut = (
             (np.log10(zflux/rflux) <
-            3.2*np.log10(w1flux/zflux) - (6.5-3.2*2.699)/2.5)
+             3.2*np.log10(w1flux/zflux) - (6.5-3.2*2.699)/2.5)
             & (zflux > 10**(1.0/2.5) * rflux) & (zflux < 10**(3.9/2.5) * rflux)
         )
         rzcut = zflux > 10**(4.4/2.5) * rflux
