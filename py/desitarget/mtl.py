@@ -140,7 +140,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
             ztargets['NUMOBS_MORE'][ii] = 1
             
         # If the object is confirmed to be a tracer QSO, then don't request more observations
-        if (obsconditions.mask(obscon) & obsconditions.mask("DARK|GRAY")) != 0:
+        if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
             if zcat is not None:
                 ii = ztargets['SPECTYPE']=='QSO'
                 ii &= (ztargets['ZWARN'] == 0 ) 
