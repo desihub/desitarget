@@ -133,7 +133,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM (and only once) every time during the BRIGHT survey, regardless
     # ADM of how often they've previously been observed. I've turned this
     # ADM off for commissioning. Not sure if we'll keep it in general.
-    if survey != 'cmx':
+    if survey == 'main':
         # ADM only if we're considering bright survey conditions.
         if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
             ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
