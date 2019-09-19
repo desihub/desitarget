@@ -842,7 +842,15 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
         primary = np.ones_like(rflux, dtype='?')
     qso = primary.copy()
 
-    # flux limit, z < 21.4 or z_fiber < 21.67.
+    # ADM never target sources with negative W1 or z fluxes.
+    qso &= (w1flux >= 0.) & (zflux >= 0.)
+
+    # ADM now safe to update w1flux and zflux to avoid warnings.
+    w1flux[~qso] = 0.
+    zflux[~qso] = 0.
+
+    # flux limit, z < 21.4.
+    # ADM may switch to a zfiberflux cut later.
     qso &= zflux > 10**((22.5-21.4)/2.5)
 
     # gr cut, SNg < 3 | g > 24.5 | g-r > 1.8.
@@ -861,19 +869,16 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     # rzW1 cuts: (SNr < 3 |
     # (r-z < 3.2*(z-w1) - 6.5 & r-z > 1.0 & r-z < 3.9) | r-z > 4.4).
     SNRr = rsnr < 3
-    # using same cuts for 'north' and 'south', at least initially.
+    # ADM N/S currently identical, but leave as a placeholder for now.
     if south:
         rzw1cut = (
-            (np.log10(zflux/rflux) <
-             3.2*np.log10(w1flux/zflux) - (6.5-3.2*2.699)/2.5)
+            (w1flux**3.2 * rflux > 10**((6.5-3.2*2.699)/2.5) * (zflux**(3.2+1)))
             & (zflux > 10**(1.0/2.5) * rflux) & (zflux < 10**(3.9/2.5) * rflux)
         )
         rzcut = zflux > 10**(4.4/2.5) * rflux  # for z~6 quasar
-
     else:
         rzw1cut = (
-            (np.log10(zflux/rflux) <
-             3.2*np.log10(w1flux/zflux) - (6.5-3.2*2.699)/2.5)
+            (w1flux**3.2 * rflux > 10**((6.5-3.2*2.699)/2.5) * (zflux**(3.2+1)))
             & (zflux > 10**(1.0/2.5) * rflux) & (zflux < 10**(3.9/2.5) * rflux)
         )
         rzcut = zflux > 10**(4.4/2.5) * rflux
@@ -1448,8 +1453,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    qso_classes = [[~primary, ~primary, ~primary, ~primary],
-                   [~primary, ~primary, ~primary, ~primary]]
+    qso_classes = [[~primary, ~primary, ~primary, ~primary, ~primary],
+                   [~primary, ~primary, ~primary, ~primary, ~primary]]
     if "QSO" in tcnames:
         for south in south_cuts:
             qso_store = []

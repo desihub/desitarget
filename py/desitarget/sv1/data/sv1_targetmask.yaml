@@ -331,7 +331,7 @@ numobs:
         QSO_COLOR_8PASS: 8
         QSO_RF_8PASS:    8
         QSO_HZ_F:        SAME_AS_QSO
-        QSO_Z5_F:        SAME_AS_QSO
+        QSO_Z5:          SAME_AS_QSO
         # ADM don't observe a N/S target if it doesn't have other bits set
         LRG_INIT_4PASS_NORTH:  0
         LRG_SUPER_4PASS_NORTH: 0
