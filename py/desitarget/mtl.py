@@ -144,7 +144,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
             if zcat is not None:
                 ii = ztargets['SPECTYPE']=='QSO'
                 ii &= (ztargets['ZWARN'] == 0 ) 
-                ii &= (ztargets['Z']<2.15)
+                ii &= (ztargets['Z']<2.1)
                 ii &= (ztargets['NUMOBS']>0)
                 ztargets['NUMOBS_MORE'][ii] = 0
             
