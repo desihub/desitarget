@@ -27,11 +27,12 @@ class TestPriorities(unittest.TestCase):
             ('Z', np.float32),
             ('ZWARN', np.float32),
             ('NUMOBS', np.float32),
+            ('SPECTYPE', np.str)
         ]
 
         n = 3
 
-        self.targets = Table(np.zeros(n, dtype=targdtype))
+        self.targets = Table(np.zeros(n, dtype=targdtype)) 
         self.targets['TARGETID'] = list(range(n))
 
         self.zcat = Table(np.zeros(n, dtype=zdtype))

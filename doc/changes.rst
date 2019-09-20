@@ -10,6 +10,8 @@ desitarget Change Log
     * Minor improvements to documentation for secondary targets.
     * Use N/S bricks for skies when S/N bricks aren't available.
 * Tune, high-z, faint (``QSO_HZ_F``) SV QSO selection [`PR #538`_]
+* Use ``SPECTYPE`` from ``zcat`` to set ``NUMOBS_MORE`` [`PR #537`_]:
+    * Updates behavior for tracer QSOs vs. LyA QSOs in MTL.
 * Update LRG selections for DR8 [`PR #532`_]. Includes:
     * New LRG selection for SV with fewer bits.
     * New ``LOWZ_FILLER`` class for SV.
@@ -33,6 +35,7 @@ desitarget Change Log
 .. _`PR #527`: https://github.com/desihub/desitarget/pull/527
 .. _`PR #531`: https://github.com/desihub/desitarget/pull/531
 .. _`PR #532`: https://github.com/desihub/desitarget/pull/532
+.. _`PR #537`: https://github.com/desihub/desitarget/pull/537
 .. _`PR #538`: https://github.com/desihub/desitarget/pull/538
 .. _`PR #539`: https://github.com/desihub/desitarget/pull/539
 
