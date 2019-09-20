@@ -24,10 +24,12 @@ desitarget Change Log
 	      * ...and bright-time targets observed in dark-time.
     * Minor update to the ``MWS_BROAD`` class.
 * Add info on versioning, main_cmx_or_sv to bitmask notebook [`PR #527`_]
+* Uses ``SPECTYPE`` information from ``zcat`` to update NUMOBS_MORE for tracerqso vs. lyaqso [`PR #537`_].
 
 .. _`PR #527`: https://github.com/desihub/desitarget/pull/527
 .. _`PR #531`: https://github.com/desihub/desitarget/pull/531
 .. _`PR #532`: https://github.com/desihub/desitarget/pull/532
+.. _`PR #537`: https://github.com/desihub/desitarget/pull/537
 
 0.32.0 (2019-08-07)
 -------------------
