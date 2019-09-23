@@ -25,7 +25,7 @@ ap.add_argument("dest",
 ap.add_argument("-s", "--separation", type=float, default=1.,
                 help='Angular separation at which to match secondary targets to themselves. Defaults to [1] arcsec.')
 ap.add_argument("--scnddir",
-                help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
+                help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). " +
                 "Defaults to SCND_DIR environment variable.")
 
 ns = ap.parse_args()

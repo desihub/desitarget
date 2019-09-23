@@ -50,7 +50,8 @@ ap.add_argument('--healpixels',
 ap.add_argument("--writebricks", action="store_true",
                 help="Write sky information for EACH brick (the per-brick file names look like surveydir/metrics/(brick).3s/skies-(brick)s.fits.gz")
 ap.add_argument("--bundlebricks", type=int,
-                help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 14000)",
+                help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 14000). " +
+                "Send a small number (e.g. 1) to split by individual HEALPixels.", 
                 default=None)
 ap.add_argument("--brickspersec", type=float,
                 help="estimate of bricks completed per second by the (parallelized) code. Used with `bundlebricks` to guess run times (defaults to 1.6)",
@@ -102,7 +103,7 @@ if ns.bundlebricks is not None:
     allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
                         for cnt, pix in zip(cnts.astype(int), pixnum)])
     bundle_bricks(allpixnum, ns.bundlebricks, ns.nside, prefix='skies',
-                  surveydirs=drdirs, brickspersec=ns.brickspersec)
+                  gather=False, surveydirs=drdirs, brickspersec=ns.brickspersec)
 else:
     # ADM run the main sky selection code over the passed surveys.
     skies = []
