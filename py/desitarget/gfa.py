@@ -22,7 +22,8 @@ from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
-from desitarget.geomask import is_in_gal_box, is_in_box
+from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
+from desitarget.geomask import bundle_bricks, sweep_files_touch_hp
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -237,7 +238,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         The number of parallel processes to use.
     allsky : :class:`bool`,  defaults to ``False``
         If ``True``, assume that the DESI tiling footprint is the
-        entire sky (i.e. return *all* Gaia objects across the sky).
+        entire sky regardless of the value of `tiles`.
     tiles : :class:`~numpy.ndarray`, optional, defaults to ``None``
         Array of DESI tiles. If None, then load the entire footprint.
     mindec : :class:`float`, optional, defaults to -30
@@ -390,8 +391,9 @@ def add_urat_pms(objs, numproc=4):
     return urats[ii]
 
 
-def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
-                cmx=False, mindec=-30, mingalb=10, addurat=True):
+def select_gfas(infiles, maglim=18, numproc=4, nside=None,
+                pixlist=None, bundlefiles=None, filespersec=2.,
+                extra=None, mindec=-30, mingalb=10, addurat=True):
     """Create a set of GFA locations using Gaia and matching to sweeps.
 
     Parameters
@@ -402,12 +404,22 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
         Magnitude limit for GFAs in Gaia G-band.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
-    tilesfile : :class:`str`, optional, defaults to ``None``
-        Name of tiles file to load. For full details, see
-        :func:`~desimodel.io.load_tiles`.
-    cmx : :class:`bool`,  defaults to ``False``
-        If ``True``, do not limit output to DESI tiling footprint.
-        Used for selecting wider-ranging commissioning targets.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix `nside` to use with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at the
+        supplied `nside`. Useful for parallelizing.
+    bundlefiles : :class:`int`, defaults to `None`
+        If not `None`, then, instead of selecting gfas, print the slurm
+        script to approximately balance `infiles` at `bundlefiles`
+        files per node. E.g, `bundlefiles=100` would print commands
+        to process about 100 of the `infiles` per node.
+    filespersec : :class:`float`, optional, defaults to 2.
+        approximate files processed per second by the code. Used with
+        `bundlefiles` to estimate time when parallelizing across pixels.
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script. Used in conjunction with `bundlefiles`.
     mindec : :class:`float`, optional, defaults to -30
         Minimum declination (o) for output sources that do NOT match
         an object in the passed `infiles`.
@@ -433,8 +445,6 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
         - If numproc==1, use the serial code instead of parallel code.
         - If numproc > 4, then numproc=4 is enforced for (just those)
           parts of the code that are I/O limited.
-        - The tiles loaded from `tilesfile` will only be those in DESI.
-          So, for custom tilings, set IN_DESI==1 in your tiles file.
     """
     # ADM force to no more than numproc=4 for I/O limited processes.
     numproc4 = numproc
@@ -454,13 +464,33 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
             log.critical(msg)
             raise ValueError(msg)
 
-    # ADM load the tiles file.
-    tiles = desimodel.io.load_tiles(tilesfile=tilesfile)
-    # ADM check some files loaded.
-    if len(tiles) == 0:
-        msg = "no tiles found in {}".format(tilesfile)
-        log.critical(msg)
-        raise ValueError(msg)
+    # ADM if the pixlist or bundlefiles option was sent, we'll need to
+    # ADM know which HEALPixels touch each file.
+    if pixlist is not None or bundlefiles is not None:
+        filesperpixel, pixlist, pixnum = sweep_files_touch_hp(
+            nside, pixlist, infiles)
+
+    # ADM if the bundlefiles option was sent, call the packing code.
+    if bundlefiles is not None:
+        prefix = "gfas"
+        # ADM were files from one or two input directories passed?
+        surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
+        bundle_bricks(pixnum, bundlefiles, nside,
+                      brickspersec=filespersec, gather=False,
+                      prefix=prefix, surveydirs=surveydirs, extra=extra)
+        return
+
+    # ADM restrict to input files in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
+        if len(infiles) == 0:
+            log.warning('ZERO files in passed pixel list!!!')
+        log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
+                 .format(nside, pixlist))
+
+    # ADM a little more information if we're slurming across nodes.
+    if os.getenv('SLURMD_NODENAME') is not None:
+        log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     # ADM the critical function to run on every file.
     def _get_gfas(fn):
@@ -500,8 +530,8 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
     # ADM retrieve Gaia objects in the DESI footprint or passed tiles.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
-    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc4, allsky=cmx,
-                             tiles=tiles, mindec=mindec, mingalb=mingalb)
+    gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc4, allsky=True,
+                             mindec=mindec, mingalb=mingalb)
 
     # ADM remove any duplicates. Order is important here, as np.unique
     # ADM keeps the first occurence, and we want to retain sweeps
@@ -510,7 +540,7 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
     _, ind = np.unique(gfas["REF_ID"], return_index=True)
     gfas = gfas[ind]
 
-    # ADM for zero/NaN proper motion objects, add in URAT proper motions.
+    # ADM for zero/NaN proper motion objects, add URAT proper motions.
     if addurat:
         ii = ((np.isnan(gfas["PMRA"]) | (gfas["PMRA"] == 0)) &
               (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
@@ -528,9 +558,9 @@ def select_gfas(infiles, maglim=18, numproc=4, tilesfile=None,
           (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
     gfas = gfas[~ii]
 
-    # ADM limit to DESI footprint or passed tiles, if not cmx'ing.
-    if not cmx:
-        ii = is_point_in_desi(tiles, gfas["RA"], gfas["DEC"])
+    # ADM restrict to only GFAs in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        ii = is_in_hp(gfas, nside, pixlist)
         gfas = gfas[ii]
 
     return gfas

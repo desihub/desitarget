@@ -687,7 +687,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM the estimated margin for writing to disk in minutes.
     margin = 30
-    if prefix == 'skies':
+    if prefix == 'skies' or prefix == 'gfas':
         margin = 5
     if prefix == 'randoms':
         margin = 90
@@ -824,6 +824,65 @@ def add_hp_neighbors(nside, pixnum):
         pixnum.remove(-1)
 
     return pixnum
+
+
+def sweep_files_touch_hp(nside, pixlist, infiles):
+    """Determine which of a set of sweep files touch a set of HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int`
+        A set of HEALPixels at `nside`.
+    infiles : :class:`list` or `str`
+        A list of input (sweep filenames) OR a single filename.
+
+    Returns
+    -------
+    :class:`list`
+        A list of lists of input sweep files that touch each HEALPixel
+        at `nside`. So, e.g. for `nside=2` the returned list will have
+        48 entries, and, for example, output[0] will be a list of files
+        that touch HEALPixel 0.
+    :class:`list`
+        The input `pixlist` reduced to just those pixels that touch
+        the area covered by an input sweeps file.
+    :class:`~numpy.ndarray`
+        A flattened array of all HEALPixels touched by the input files.
+        Each HEALPixel will appear multiple times if it's touched by
+        multiple input sweep files.
+    """
+    # ADM convert a single filename to list of filenames.
+    if isinstance(infiles, str):
+        infiles = [infiles, ]
+
+    # ADM work with pixlist as an array.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM sanity check that nside is OK.
+    check_nside(nside)
+
+    # ADM a list of HEALPixels that touch each file.
+    from desitarget.io import decode_sweep_name
+    pixelsperfile = [decode_sweep_name(file, nside=nside) for file in infiles]
+
+    # ADM a flattened array of all HEALPixels touched by the input
+    # ADM files. Each HEALPixel will appear multiple times if it's
+    # ADM touched by multiple input sweep files.
+    pixnum = np.hstack(pixelsperfile)
+
+    # ADM restrict input pixels to only those that touch an input file.
+    ii = [pix in pixnum for pix in pixlist]
+    pixlist = pixlist[ii]
+
+    # ADM create a list of files that touch each HEALPixel.
+    filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
+    for ifile, pixels in enumerate(pixelsperfile):
+        for pix in pixels:
+            filesperpixel[pix].append(infiles[ifile])
+
+    return filesperpixel, pixlist, pixnum
 
 
 def hp_in_box(nside, radecbox, inclusive=True, fact=4):
