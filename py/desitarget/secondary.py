@@ -145,7 +145,7 @@ def _get_scxdir(scxdir=None):
 
     # ADM fail if the scx directory is not set or passed.
     if scxdir is None or not os.path.exists(scxdir):
-        log.info('pass scxdir or set $SCND_DIR...')
+        log.info('pass scxdir (or --scnddir or --nosecondary) or set $SCND_DIR')
         msg = 'Secondary target files not found in {}'.format(scxdir)
         log.critical(msg)
         raise ValueError(msg)
