@@ -30,7 +30,7 @@ from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.targets import finalize, resolve
-from desitarget.geomask import bundle_bricks, pixarea2nside, check_nside
+from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
@@ -2241,25 +2241,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     # ADM if the pixlist or bundlefiles option was sent, we'll need to know
     # ADM which HEALPixels touch each file.
     if pixlist is not None or bundlefiles is not None:
-        # ADM work with pixlist as an array.
-        pixlist = np.atleast_1d(pixlist)
-        # ADM sanity check that nside is OK.
-        check_nside(nside)
-        # ADM a list of HEALPixels that touch each file.
-        # ADM this will break for Tractor files!!!
-        pixelsperfile = [io.decode_sweep_name(file, nside=nside) for file in infiles]
-        # ADM a flattened array of all HEALPixels touched by the input
-        # ADM files. Each HEALPixel can appear multiple times if it's
-        # ADM touched by multiple input sweep files.
-        pixnum = np.hstack(pixelsperfile)
-        # ADM restrict input pixels to only those that touch an input file.
-        ii = [pix in pixnum for pix in pixlist]
-        pixlist = pixlist[ii]
-        # ADM create a list of files that touch each HEALPixel.
-        filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
-        for ifile, pixels in enumerate(pixelsperfile):
-            for pix in pixels:
-                filesperpixel[pix].append(infiles[ifile])
+        filesperpixel, pixlist, pixnum = sweep_files_touch_hp(
+            nside, pixlist, infiles)
 
     # ADM if the bundlefiles option was sent, call the packing code.
     if bundlefiles is not None:
