@@ -1035,7 +1035,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         targets.remove_columns(['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET'])
 
         targets = Table(finalize(targets.as_array(), desi_target, bgs_target, mws_target,
-                                 survey=survey, darkbright=True, targetid=targetid))
+                                 survey=survey, darkbright=True, targetid=targetid[:nobj]))
         
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
 
@@ -1061,17 +1061,17 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = healpix
-
-
         skytargets['OBJID'][:] = objid[nobj:]
-        skytargets['TARGETID'][:] = targetid[nobj:]
+
+        #skytargets['TARGETID'][:] = targetid[nobj:]
+
+        desi_target, bgs_target, mws_target = skytargets['DESI_TARGET'], skytargets['BGS_TARGET'], skytargets['MWS_TARGET']
+        skytargets.remove_columns(['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET'])
+
+        skytargets = Table(finalize(skytargets.as_array(), desi_target, bgs_target, mws_target,
+                                    survey=survey, darkbright=True, sky=1, targetid=targetid[nobj:]))
+        
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
-        skytruth['TARGETID'][:] = targetid[nobj:]
-
-        skytargets['PRIORITY_INIT'], skytargets['NUMOBS_INIT'] = \
-                initial_priority_numobs(skytargets)
-
-        skytargets = _rename_bysurvey(skytargets, survey=survey)
 
     return targets, truth, objtruth, skytargets, skytruth
 
