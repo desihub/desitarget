@@ -20,6 +20,7 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
+from desitarget.gaiamatch import find_gaia_files_hp
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
@@ -155,7 +156,8 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     return gfas
 
 
-def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.):
+def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
+                 nside=None, pixlist=None):
     """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
 
     Parameters
@@ -169,6 +171,11 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.):
     mingalb : :class:`float`, optional, defaults to 10
         Closest latitude to Galactic plane for output Gaia objects
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o)"
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix `nside` to use with `pixlist`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return sources in a set of (NESTED) HEALpixels at the
+        supplied `nside`.
 
     Returns
     -------
@@ -216,18 +223,24 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.):
     # ADM populate the BRICKID columns.
     gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
 
+    # ADM limit by HEALPixel first as that's the fastest.
+    if pixlist is not None:
+        inhp = is_in_hp(gfas, nside, pixlist)
+        gfas = gfas[inhp]
     # ADM limit by Dec first to speed transform to Galactic coordinates.
     decgood = is_in_box(gfas, [0., 360., mindec, 90.])
     gfas = gfas[decgood]
     # ADM now limit to requesed Galactic latitude range.
-    bbad = is_in_gal_box(gfas, [0., 360., -mingalb, mingalb])
-    gfas = gfas[~bbad]
+    if mingalb > 1e-9:
+        bbad = is_in_gal_box(gfas, [0., 360., -mingalb, mingalb])
+        gfas = gfas[~bbad]
 
     return gfas
 
 
 def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
-                      tiles=None, mindec=-30, mingalb=10):
+                      tiles=None, mindec=-30, mingalb=10,
+                      nside=None, pixlist=None):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -246,6 +259,11 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     mingalb : :class:`float`, optional, defaults to 10
         Closest latitude to Galactic plane for output Gaia objects
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix `nside` to use with `pixlist`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return sources in a set of (NESTED) HEALpixels at the
+        supplied `nside`.
 
     Returns
     -------
@@ -262,6 +280,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         infilesbox = find_gaia_files_box([0, 360, mindec, 90])
         infilesgalb = find_gaia_files_beyond_gal_b(mingalb)
         infiles = list(set(infilesbox).intersection(set(infilesgalb)))
+        if pixlist is not None:
+            infileshp = find_gaia_files_hp(nside, pixlist, neighbors=False)
+            infiles = list(set(infiles).intersection(set(infileshp)))
     else:
         infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False)
     nfiles = len(infiles)
@@ -269,8 +290,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     # ADM the critical function to run on every file.
     def _get_gaia_gfas(fn):
         '''wrapper on gaia_in_file() given a file name'''
-        return gaia_in_file(fn, maglim=maglim,
-                            mindec=mindec, mingalb=mingalb)
+        return gaia_in_file(fn, maglim=maglim, mindec=mindec,
+                            mingalb=mingalb, nside=nside, pixlist=pixlist)
 
     # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
@@ -392,8 +413,8 @@ def add_urat_pms(objs, numproc=4):
 
 
 def select_gfas(infiles, maglim=18, numproc=4, nside=None,
-                pixlist=None, bundlefiles=None, filespersec=2.,
-                extra=None, mindec=-30, mingalb=10, addurat=True):
+                pixlist=None, bundlefiles=None, extra=None,
+                mindec=-30, mingalb=10, addurat=True):
     """Create a set of GFA locations using Gaia and matching to sweeps.
 
     Parameters
@@ -414,9 +435,6 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         script to approximately balance `infiles` at `bundlefiles`
         files per node. E.g, `bundlefiles=100` would print commands
         to process about 100 of the `infiles` per node.
-    filespersec : :class:`float`, optional, defaults to 2.
-        approximate files processed per second by the code. Used with
-        `bundlefiles` to estimate time when parallelizing across pixels.
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script. Used in conjunction with `bundlefiles`.
@@ -480,7 +498,7 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         # ADM were files from one or two input directories passed?
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
         bundle_bricks(pixlist, bundlefiles, nside,
-                      brickspersec=filespersec, gather=False,
+                      brickspersec=10., gather=False,
                       prefix=prefix, surveydirs=surveydirs, extra=extra)
         return
 
@@ -535,7 +553,8 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc4, allsky=True,
-                             mindec=mindec, mingalb=mingalb)
+                             mindec=mindec, mingalb=mingalb,
+                             nside=nside, pixlist=pixlist)
 
     # ADM remove any duplicates. Order is important here, as np.unique
     # ADM keeps the first occurence, and we want to retain sweeps
