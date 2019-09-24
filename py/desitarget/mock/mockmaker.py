@@ -53,7 +53,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='RELEASE', length=nobj, dtype='i2'))
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
     targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
-    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='<i4'))
+    targets.add_column(Column(name='OBJID', length=nobj, dtype='<i4'))
     targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
