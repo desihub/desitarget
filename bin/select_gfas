@@ -31,34 +31,36 @@ ap.add_argument('-n', "--numproc", type=int,
 ap.add_argument('-s2', "--surveydir2",
                 help='Additional Legacy Surveys Data Release directory (useful for combining, e.g., DR8 into one file of GFAs)',
                 default=None)
-ap.add_argument('-t', "--tiles",
-                help="File specifying the tiles to which to restrict the GFAs",
+ap.add_argument('--nside', type=int,
+                help="Process targets in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
                 default=None)
+ap.add_argument('--healpixels',
+                help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
+                default=None)
+ap.add_argument("--bundlefiles", type=int,
+                help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
+                default=None)
+ap.add_argument("--filespersec", type=float,
+                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.12)",
+                default=2.)
 ap.add_argument('-dec', "--mindec", type=float,
                 help="Minimum declination to include in output file for NON-LEGACY-SURVEYS sources (degrees; defaults to [-30])",
                 default=-30)
 ap.add_argument('-b', "--mingalb", type=float,
                 help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
                 default=10)
-ap.add_argument("--desifootprint", action='store_true',
-                help="If sent, then limit to the current DESIMODEL Main Survey footprint (the default is to produce an 'all-sky' file)")
 ap.add_argument("--nourat", action='store_true',
                 help="If sent, then DO NOT add URAT proper motions for Gaia sources that are missing measurable PMs")
 
 ns = ap.parse_args()
 
-if ns.tiles is not None:
-    log.info('Restricting to passed tiles')
-    survey = 'tiles'
-    cmx = False
-elif ns.desifootprint:
-    log.info('Restricting to the DESI Main Survey footprint')
-    survey = 'main'
-    cmx = False
-else:
-    log.info('Producing GFAs across the entire sky (with specified limits)')
-    survey = 'cmx'
-    cmx = True
+# ADM build the list of command line arguments as
+# ADM bundlefiles potentially needs to know about them.
+extra = " --numproc {}".format(ns.numproc)
+nsdict = vars(ns)
+for nskey in "mindec", "mingalb", "nourat":
+    if nsdict[nskey]:
+        extra += " --{}".format(nskey)
 
 infiles = io.list_sweepfiles(ns.surveydir)
 if ns.surveydir2 is not None:
@@ -75,8 +77,15 @@ if len(infiles) == 0:
 
 log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
 
-gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, tilesfile=ns.tiles,
-                   cmx=cmx, mindec=ns.mindec, mingalb=ns.mingalb, addurat=not(ns.nourat))
+# ADM parse the list of HEALPixels in which to run.
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [int(pix) for pix in pixlist.split(',')]
+
+gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, nside=ns.nside,
+                   pixlist=pixlist, bundlefiles=ns.bundlefiles, extra=extra,
+                   filespersec=ns.filespersec, mindec=ns.mindec,
+                   mingalb=ns.mingalb, addurat=not(ns.nourat))
 
 # ADM extra header keywords for the output fits file.
 extra = {k: v for k, v in zip(["maglim", "mindec", "mingalb"],
