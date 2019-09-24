@@ -13,7 +13,7 @@ import os, time
 import numpy as np
 import healpy as hp
 
-from astropy.table import vstack
+from astropy.table import vstack, Table
 
 from desimodel.footprint import radec2pix
 
@@ -965,8 +965,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None, survey='main'):
-    """Add hpxpixel, brick_objid, targetid, subpriority, priority, and numobs to the
-    target catalog.
+    """Add various mission-critical columns to the target catalog, including
+    hpxpixel, brick_objid, targetid, subpriority, priority, and numobs.
     
     Parameters
     ----------
@@ -997,7 +997,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
     Updated versions of targets, truth, objtruth, skytargets, and skytruth.
 
     """
-    from desitarget.targets import encode_targetid, initial_priority_numobs
+    from desitarget.targets import encode_targetid, finalize
+    #from desitarget.targets import encode_targetid, initial_priority_numobs
 
     rand = np.random.RandomState(seed)
     
@@ -1020,30 +1021,44 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
     subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
 
-    # Rename some columns!
-    def _rename_bysurvey(targ, survey='main'):
-        targ.rename_column('TYPE', 'MORPHTYPE') # Rename TYPE --> MORPHTYPE
-
-        if survey == 'main':
-            pass
-        elif survey == 'sv1':
-            targ.rename_column('DESI_TARGET', 'SV1_DESI_TARGET')
-            targ.rename_column('BGS_TARGET', 'SV1_BGS_TARGET')
-            targ.rename_column('MWS_TARGET', 'SV1_MWS_TARGET')
-        else:
-            log.warning('Survey {} not recognized!'.format(survey))
-            raise ValueError
-        return targ
+    ## Rename some columns!
+    #def _rename_bysurvey(targ, survey='main'):
+    #    targ.rename_column('TYPE', 'MORPHTYPE') # Rename TYPE --> MORPHTYPE
+    #
+    #    if survey == 'main':
+    #        pass
+    #    elif survey == 'sv1':
+    #        targ.rename_column('DESI_TARGET', 'SV1_DESI_TARGET')
+    #        targ.rename_column('BGS_TARGET', 'SV1_BGS_TARGET')
+    #        targ.rename_column('MWS_TARGET', 'SV1_MWS_TARGET')
+    #    else:
+    #        log.warning('Survey {} not recognized!'.format(survey))
+    #        raise ValueError
+    #    return targ
 
     if nobj > 0:
+        # Run the official "finalize" script, so all the mission-critical target
+        # columns are included.  Unfortunately, we have to unpack the targeting
+        # bits and let "finalize" do its magic.
+
         #targets['BRICKID'][:] = healpix # use the derived BRICKID values
         targets['HPXPIXEL'][:] = healpix
-        targets['BRICK_OBJID'][:] = objid[:nobj]
-        targets['TARGETID'][:] = targetid[:nobj]
-        targets['SUBPRIORITY'][:] = subpriority[:nobj]
-        truth['TARGETID'][:] = targetid[:nobj]
+        targets['OBJID'][:] = objid[:nobj]
+        #targets['TARGETID'][:] = targetid[:nobj]
+
+        desi_target, bgs_target, mws_target = targets['DESI_TARGET'], targets['BGS_TARGET'], targets['MWS_TARGET']
+        targets.remove_columns(['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET'])
+        #targets.remove_columns(['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET'])
+
+        rr = finalize(targets.as_array(), desi_target, bgs_target, mws_target,
+                      survey=survey, darkbright=True, targetid=targetid)
+        
+        #targets['SUBPRIORITY'][:] = subpriority[:nobj]
+
+        import pdb ; pdb.set_trace()
 
         # Assign the appropriate TARGETID values to the objtruth tables.
+        truth['TARGETID'][:] = targetid[:nobj]
         for obj in set(truth['TEMPLATETYPE']):
             these = obj == truth['TEMPLATETYPE']
             objtruth[obj]['TARGETID'][:] = truth['TARGETID'][these]
@@ -1055,17 +1070,16 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
               not np.all( (objtruth[obj]['TARGETID'] == targets['TARGETID'][these]) ):
                 log.warning('Mismatching TARGETIDs!')
                 raise ValueError                
-                    
-        targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = \
-                initial_priority_numobs(targets)
-
-        targets = _rename_bysurvey(targets, survey=survey)
+            
+        #targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = \
+        #        initial_priority_numobs(targets)
+        #targets = _rename_bysurvey(targets, survey=survey)
         
-        assert(len(targets['TARGETID'])==len(np.unique(targets['TARGETID'])))
+        assert(len(targets['TARGETID']) == len(np.unique(targets['TARGETID'])))
 
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = healpix
-        skytargets['BRICK_OBJID'][:] = objid[nobj:]
+        skytargets['OBJID'][:] = objid[nobj:]
         skytargets['TARGETID'][:] = targetid[nobj:]
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
         skytruth['TARGETID'][:] = targetid[nobj:]
