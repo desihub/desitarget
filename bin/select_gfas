@@ -60,7 +60,7 @@ extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
 for nskey in "mindec", "mingalb", "nourat":
     if nsdict[nskey]:
-        extra += " --{}".format(nskey)
+        extra += " --{} {}".format(nskey, nsdict[nskey])
 
 infiles = io.list_sweepfiles(ns.surveydir)
 if ns.surveydir2 is not None:
@@ -87,11 +87,13 @@ gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, nside=ns.nside
                    filespersec=ns.filespersec, mindec=ns.mindec,
                    mingalb=ns.mingalb, addurat=not(ns.nourat))
 
-# ADM extra header keywords for the output fits file.
-extra = {k: v for k, v in zip(["maglim", "mindec", "mingalb"],
-                              [ns.maglim, ns.mindec, ns.mingalb])}
+# ADM only proceed if we're not writing a slurm script.
+if ns.bundlefiles is None:
+    # ADM extra header keywords for the output fits file.
+    extra = {k: v for k, v in zip(["maglim", "mindec", "mingalb"],
+                                  [ns.maglim, ns.mindec, ns.mingalb])}
 
-log.info('Writing GFAs to file...t = {:.1f} mins'.format((time()-t0)/60.))
-io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2,
-              nside=nside, survey=survey, extra=extra)
-log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))
+    log.info('Writing GFAs to file...t = {:.1f} mins'.format((time()-t0)/60.))
+    io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2,
+                  nside=nside, survey=survey, extra=extra)
+    log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))
