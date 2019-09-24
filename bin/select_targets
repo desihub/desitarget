@@ -112,13 +112,13 @@ if ns.bundlefiles is None:
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels
 if pixlist is not None:
-    pixlist = [ int(pix) for pix in pixlist.split(',') ]
+    pixlist = [int(pix) for pix in pixlist.split(',')]
 
 # ADM parse the list of RA/Dec regions in which to run.
 inlists = [ns.radecbox, ns.radecrad]
 for i, inlist in enumerate(inlists):
     if inlist is not None:
-        inlists[i] = [ float(num) for num in inlist.split(',') ]
+        inlists[i] = [float(num) for num in inlist.split(',')]
 
 # ADM if specific bit names were passed, use them, otherwise run all target classes.
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
