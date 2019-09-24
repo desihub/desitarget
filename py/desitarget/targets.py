@@ -598,7 +598,8 @@ def resolve(targets):
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,
-             sky=0, survey='main', darkbright=False):
+             sky=0, survey='main', darkbright=False,
+             targetid=None):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -655,10 +656,13 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     # - create a new unique TARGETID
     targets = rfn.rename_fields(targets,
                                 {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
-    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
-                               brickid=targets['BRICKID'],
-                               release=targets['RELEASE'],
-                               sky=sky)
+    # allow TARGETID to be passed as an input
+    if targetid is not None:
+        targetid = encode_targetid(objid=targets['BRICK_OBJID'],
+                                   brickid=targets['BRICKID'],
+                                   release=targets['RELEASE'],
+                                   sky=sky)
+    assert ntargets == len(targetid)
 
     nodata = np.zeros(ntargets, dtype='int')-1
     subpriority = np.zeros(ntargets, dtype='float')

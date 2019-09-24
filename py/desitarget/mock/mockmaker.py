@@ -160,14 +160,14 @@ def empty_targets_table(nobj=1):
 
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
-    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    #targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
 
-    targets.add_column(Column(name='PRIORITY_INIT', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='NUMOBS_INIT', length=nobj, dtype='i8'))
+    #targets.add_column(Column(name='PRIORITY_INIT', length=nobj, dtype='i8'))
+    #targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    #targets.add_column(Column(name='NUMOBS_INIT', length=nobj, dtype='i8'))
     targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
 
     return targets
