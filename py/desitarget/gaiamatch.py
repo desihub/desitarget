@@ -21,7 +21,8 @@ from os.path import basename
 from desitarget import io
 from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
-from desitarget.geomask import hp_in_box, add_hp_neighbors, hp_beyond_gal_b
+from desitarget.geomask import hp_in_box, add_hp_neighbors
+from desitarget.geomask import hp_beyond_gal_b, nside2nside
 from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -593,6 +594,54 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
         pixnum = add_hp_neighbors(nside, pixnum)
+
+    # ADM reformat in the Gaia healpix format used by desitarget.
+    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+
+    return gaiafiles
+
+
+def find_gaia_files_hp(nside, pixlist, neighbors=True):
+    """Find full paths to Gaia healpix files in a set of HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int`
+        A set of HEALPixels at `nside`.
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        Also return files corresponding to all neighbors that touch the
+        pixels in `pixlist` to prevent edge effects (e.g. a Gaia source
+        is 1 arcsec outside of `pixlist` and so in an adjacent pixel).
+
+    Returns
+    -------
+    :class:`list`
+        A list of all Gaia files that need to be read in to account for
+        objects in the passed list of pixels.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+    """
+    # ADM the resolution at which the healpix files are stored.
+    filenside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+    hpxdir = os.path.join(gaiadir, 'healpix')
+
+    # ADM work with pixlist as an array.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM determine the pixels that touch the passed pixlist.
+    pixnum = nside2nside(nside, filenside, pixlist)
+
+    # ADM if neighbors was sent, then retrieve all pixels that touch each
+    # ADM pixel covered by the provided locations, to prevent edge effects...
+    if neighbors:
+        pixnum = add_hp_neighbors(filenside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
     gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]

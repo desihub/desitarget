@@ -40,15 +40,12 @@ ap.add_argument('--healpixels',
 ap.add_argument("--bundlefiles", type=int,
                 help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
                 default=None)
-ap.add_argument("--filespersec", type=float,
-                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.12)",
-                default=2.)
 ap.add_argument('-dec', "--mindec", type=float,
-                help="Minimum declination to include in output file for NON-LEGACY-SURVEYS sources (degrees; defaults to [-30])",
-                default=-30)
+                help="Minimum declination to include in output file for NON-LEGACY-SURVEYS sources (degrees; defaults to [-90])",
+                default=-90.)
 ap.add_argument('-b', "--mingalb", type=float,
-                help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
-                default=10)
+                help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send 10 to limit to areas beyond -10o <= b < 10o; defaults to [0])",
+                default=0)
 ap.add_argument("--nourat", action='store_true',
                 help="If sent, then DO NOT add URAT proper motions for Gaia sources that are missing measurable PMs")
 
@@ -84,8 +81,7 @@ if pixlist is not None:
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, nside=ns.nside,
                    pixlist=pixlist, bundlefiles=ns.bundlefiles, extra=extra,
-                   filespersec=ns.filespersec, mindec=ns.mindec,
-                   mingalb=ns.mingalb, addurat=not(ns.nourat))
+                   mindec=ns.mindec, mingalb=ns.mingalb, addurat=not(ns.nourat))
 
 # ADM only proceed if we're not writing a slurm script.
 if ns.bundlefiles is None:
@@ -95,5 +91,5 @@ if ns.bundlefiles is None:
 
     log.info('Writing GFAs to file...t = {:.1f} mins'.format((time()-t0)/60.))
     io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2,
-                  nside=nside, survey=survey, extra=extra)
+                  nside=nside, extra=extra)
     log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))

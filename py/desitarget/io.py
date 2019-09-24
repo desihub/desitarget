@@ -693,7 +693,7 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
-               survey="?", extra=None):
+               extra=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -708,8 +708,6 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
     nside: :class:`int`, defaults to None.
         If passed, add a column to the GFAs array popluated with
         HEALPixels at resolution `nside`.
-    survey : :class:`str`, optional, defaults to "?"
-        Written to output file header as the keyword `SURVEY`.
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -744,9 +742,6 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
-
-    # ADM add the type of survey (main, or commissioning "cmx") to the header.
-    hdr["SURVEY"] = survey
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
