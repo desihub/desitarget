@@ -45,7 +45,7 @@ ap.add_argument('-dec', "--mindec", type=float,
                 default=-90.)
 ap.add_argument('-b', "--mingalb", type=float,
                 help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send 10 to limit to areas beyond -10o <= b < 10o; defaults to [0])",
-                default=0)
+                default=0.)
 ap.add_argument("--nourat", action='store_true',
                 help="If sent, then DO NOT add URAT proper motions for Gaia sources that are missing measurable PMs")
 
@@ -55,8 +55,11 @@ ns = ap.parse_args()
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "mindec", "mingalb", "nourat":
-    if nsdict[nskey]:
+for nskey in "maglim", "mindec", "mingalb", "nourat":
+    if isinstance(nsdict[nskey], bool):
+        if nsdict[nskey]:
+            extra += " --{}".format(nskey)
+    else:
         extra += " --{} {}".format(nskey, nsdict[nskey])
 
 infiles = io.list_sweepfiles(ns.surveydir)
