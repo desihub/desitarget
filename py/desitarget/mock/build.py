@@ -1021,21 +1021,6 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
     subpriority = rand.uniform(0.0, 1.0, size=nobj + nsky)
 
-    ## Rename some columns!
-    #def _rename_bysurvey(targ, survey='main'):
-    #    targ.rename_column('TYPE', 'MORPHTYPE') # Rename TYPE --> MORPHTYPE
-    #
-    #    if survey == 'main':
-    #        pass
-    #    elif survey == 'sv1':
-    #        targ.rename_column('DESI_TARGET', 'SV1_DESI_TARGET')
-    #        targ.rename_column('BGS_TARGET', 'SV1_BGS_TARGET')
-    #        targ.rename_column('MWS_TARGET', 'SV1_MWS_TARGET')
-    #    else:
-    #        log.warning('Survey {} not recognized!'.format(survey))
-    #        raise ValueError
-    #    return targ
-
     if nobj > 0:
         # Run the official "finalize" script, so all the mission-critical target
         # columns are included.  Unfortunately, we have to unpack the targeting
@@ -1048,14 +1033,11 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
         desi_target, bgs_target, mws_target = targets['DESI_TARGET'], targets['BGS_TARGET'], targets['MWS_TARGET']
         targets.remove_columns(['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET'])
-        #targets.remove_columns(['TARGETID', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET'])
 
-        rr = finalize(targets.as_array(), desi_target, bgs_target, mws_target,
-                      survey=survey, darkbright=True, targetid=targetid)
+        targets = Table(finalize(targets.as_array(), desi_target, bgs_target, mws_target,
+                                 survey=survey, darkbright=True, targetid=targetid))
         
-        #targets['SUBPRIORITY'][:] = subpriority[:nobj]
-
-        import pdb ; pdb.set_trace()
+        targets['SUBPRIORITY'][:] = subpriority[:nobj]
 
         # Assign the appropriate TARGETID values to the objtruth tables.
         truth['TARGETID'][:] = targetid[:nobj]
