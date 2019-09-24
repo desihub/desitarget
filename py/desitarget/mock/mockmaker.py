@@ -145,7 +145,7 @@ def empty_targets_table(nobj=1):
 
     targets.add_column(Column(name='GAIA_PHOT_BP_RP_EXCESS_FACTOR', length=nobj, dtype='f4'))  # not sure what this should be
     targets.add_column(Column(name='GAIA_ASTROMETRIC_SIGMA5D_MAX', length=nobj, dtype='f4'))   # not sure what this should be
-    targets.add_column(Column(name='GAIA_ASTROMETRIC_PARAMS_SOLVED', length=nobj, dtype='f4')) # default is 0.0
+    targets.add_column(Column(name='GAIA_ASTROMETRIC_PARAMS_SOLVED', length=nobj, dtype='i8')) # default is 0, "good" is 31
     
     targets.add_column(Column(name='GAIA_ASTROMETRIC_EXCESS_NOISE', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_DUPLICATED_SOURCE', length=nobj, dtype=bool)) # default is False
@@ -2776,7 +2776,7 @@ class ReadMWS_WD(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
-               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.ones(nobj).astype('f4')+31, # good astrometry
+               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.ones(nobj).astype('i8')+31, # good astrometry
                'PARALLAX': gaia_parallax,
                'PARALLAX_IVAR': gaia_parallax_ivar,
                'PMRA': gaia_pmra,
