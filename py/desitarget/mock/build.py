@@ -1061,6 +1061,8 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
     if nsky > 0:
         skytargets['HPXPIXEL'][:] = healpix
+
+
         skytargets['OBJID'][:] = objid[nobj:]
         skytargets['TARGETID'][:] = targetid[nobj:]
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]

@@ -623,6 +623,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
         and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
         to "BRIGHT" and "DARK|GRAY" observing conditions.
+    targetid : :class:`int64`, optional, defaults to ``None``
+        In the mocks we compute `TARGETID` outside this function.
 
     Returns
     -------
@@ -656,7 +658,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     # - create a new unique TARGETID
     targets = rfn.rename_fields(targets,
                                 {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
-    # allow TARGETID to be passed as an input
+    # allow TARGETID to be passed as an input (specifically for the mocks).
     if targetid is not None:
         targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                    brickid=targets['BRICKID'],
