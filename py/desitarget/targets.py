@@ -659,7 +659,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     targets = rfn.rename_fields(targets,
                                 {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
     # allow TARGETID to be passed as an input (specifically for the mocks).
-    if targetid is not None:
+    if targetid is None:
         targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                    brickid=targets['BRICKID'],
                                    release=targets['RELEASE'],
