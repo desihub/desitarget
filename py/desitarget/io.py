@@ -423,7 +423,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         hdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names:
+    if "SUBPRIORITY" in data.dtype.names and mockdata is None:
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
