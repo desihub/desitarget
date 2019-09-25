@@ -477,7 +477,8 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
 
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
-        fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
+        fitsio.write(filename+'.tmp', data, extname='TARGETS', header=hdr, clobber=True)
+        os.rename(filename+'.tmp', filename)
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
 
@@ -487,24 +488,26 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
         
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
-        fitsio.write(truthfile, truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
+        fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
 
         if len(trueflux) > 0:
             wavehdr = fitsio.FITSHDR()
             wavehdr['BUNIT'] = 'Angstrom'
             wavehdr['AIRORVAC'] = 'vac'
-            fitsio.write(truthfile, mockdata['truewave'].astype(np.float32), extname='WAVE',
-                         header=wavehdr, append=True)
+            fitsio.write(truthfile+'.tmp', mockdata['truewave'].astype(np.float32),
+                         extname='WAVE', header=wavehdr, append=True)
 
             fluxhdr = fitsio.FITSHDR()
             fluxhdr['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
-            fitsio.write(truthfile, trueflux.astype(np.float32), extname='FLUX',
-                         header=fluxhdr, append=True)
+            fitsio.write(truthfile+'.tmp', trueflux.astype(np.float32),
+                         extname='FLUX', header=fluxhdr, append=True)
 
         if len(objtruth) > 0:
             for obj in sorted(set(truthdata['TEMPLATETYPE'])):
-                fitsio.write(truthfile, objtruth[obj].as_array(), append=True,
+                fitsio.write(truthfile+'.tmp', objtruth[obj].as_array(), append=True,
                              extname='TRUTH_{}'.format(obj))
+            
+        os.rename(truthfile+'.tmp', truthfile)
 
     return ntargs, filename
 
@@ -742,7 +745,8 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
             np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(nskies)
 
-    fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
+    fitsio.write(filename+'.tmp', data, extname='SKY_TARGETS', header=hdr, clobber=True)
+    os.rename(filename+'.tmp', filename)
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
