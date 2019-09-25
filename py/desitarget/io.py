@@ -459,6 +459,29 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
 
     # Optionally wite out mock catalog data.
     if mockdata is not None:
+        truthfile = filename.replace('targets-', 'truth-')
+        truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
+        
+        hdr['SEED'] = (mockdata['seed'], 'initial random seed')
+        fitsio.write(truthfile, truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
+
+        if len(trueflux) > 0:
+            wavehdr = fitsio.FITSHDR()
+            wavehdr['BUNIT'] = 'Angstrom'
+            wavehdr['AIRORVAC'] = 'vac'
+            fitsio.write(truthfile, mockdata['truewave'].astype(np.float32), extname='WAVE',
+                         header=wavehdr, append=True)
+
+            fluxhdr = fitsio.FITSHDR()
+            fluxhdr['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
+            fitsio.write(truthfile, trueflux.astype(np.float32), extname='FLUX',
+                         header=fluxhdr, append=True)
+
+        if len(objtruth) > 0:
+            for obj in sorted(set(truthdata['TEMPLATETYPE'])):
+                fitsio.write(truthfile, objtruth[obj].as_array(), append=True,
+                             extname='TRUTH_{}'.format(obj))
+
         import pdb ; pdb.set_trace()
 
     return ntargs, filename
