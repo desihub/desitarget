@@ -966,11 +966,10 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         if nobj > 0:
             targetsfile = mockio.findfile('targets', nside, healpix, basedir=output_dir)
             truthfile = mockio.findfile('truth', nside, healpix, basedir=output_dir)
-            mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
-                        'truewave': MakeMock.wave, 'trueflux': trueflux,
-                        'truthfile': truthfile}
-            
             for obscon in ['BRIGHT', 'DARK']:
+                mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
+                            'truewave': MakeMock.wave, 'trueflux': trueflux,
+                            'truthfile': truthfile}
                 ntargs, outfile = write_targets(targetsfile, targets.as_array(), resolve=True,
                                                 obscon=obscon, survey=survey, nside=nside,
                                                 nsidefile=nside, hpxlist=[healpix], nchunks=None,
