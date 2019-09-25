@@ -962,6 +962,9 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         # Finally, write the results to disk separately for bright- and
         # dark-time targets.
+        outdir = mockio.get_healpix_dir(nside, healpix, basedir=output_dir)
+        os.makedirs(outdir, exist_ok=True)
+        
         nobj, nsky = len(targets), len(skytargets)
         if nobj > 0:
             targetsfile = mockio.findfile('targets', nside, healpix, basedir=output_dir)
