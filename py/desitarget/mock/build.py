@@ -832,6 +832,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     """
     from desitarget.mock import mockmaker
     from desitarget.QA import _load_dndz
+    from desitarget.io import write_targets, write_skies
+    import desitarget.mock.io as mockio
 
     log, healpixseeds = initialize_targets_truth(
         params, verbose=verbose, seed=seed, nside=nside,
@@ -958,10 +960,36 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             targets, truth, objtruth, skytargets, skytruth, healpix,
             nside, log, seed=healseed, survey=survey)
 
-        # Finally, write the results to disk.
-        write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
-                            skytargets, skytruth,  healpix, nside, log, output_dir, 
-                            seed=healseed, survey=survey)
+        # Finally, write the results to disk separately for bright- and
+        # dark-time targets.
+        nobj, nsky = len(targets), len(skytargets)
+        if nobj > 0:
+            targetsfile = mockio.findfile('targets', nside, healpix, basedir=output_dir)
+            truthfile = mockio.findfile('truth', nside, healpix, basedir=output_dir)
+            mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
+                        'truewave': MakeMock.wave, 'trueflux': trueflux,
+                        'truthfile': truthfile}
+            
+            for obscon in ['BRIGHT', 'DARK']:
+                ntargs, outfile = write_targets(targetsfile, targets.as_array(), resolve=True,
+                                                obscon=obscon, survey=survey, nside=nside,
+                                                nsidefile=nside, hpxlist=[healpix], nchunks=None,
+                                                qso_selection='colorcuts', mockdata=mockdata)
+                log.info('{} targets written to {}'.format(ntargs, outfile))
+            
+        if nsky > 0:
+            skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
+            log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
+            write_skies(skiesfile, skytargets.as_array(), nside=nside)
+        else:
+            log.info('No SKY targets generated; {} not written.'.format(skyfile))
+            log.info('  Sky file {} not written.'.format(skyfile))
+            
+        import pdb ; pdb.set_trace()
+
+        #write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
+        #                    skytargets, skytruth,  healpix, nside, log, output_dir, 
+        #                    seed=healseed, survey=survey)
         
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None, survey='main'):
@@ -1027,7 +1055,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         # bits and let "finalize" do its magic.
 
         #targets['BRICKID'][:] = healpix # use the derived BRICKID values
-        targets['HPXPIXEL'][:] = healpix
+        #targets['HPXPIXEL'][:] = healpix
         targets['OBJID'][:] = objid[:nobj]
         #targets['TARGETID'][:] = targetid[:nobj]
 
@@ -1060,7 +1088,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         assert(len(targets['TARGETID']) == len(np.unique(targets['TARGETID'])))
 
     if nsky > 0:
-        skytargets['HPXPIXEL'][:] = healpix
+        #skytargets['HPXPIXEL'][:] = healpix
         skytargets['OBJID'][:] = objid[nobj:]
 
         #skytargets['TARGETID'][:] = targetid[nobj:]

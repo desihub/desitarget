@@ -52,7 +52,7 @@ def empty_targets_table(nobj=1):
 
     targets.add_column(Column(name='RELEASE', length=nobj, dtype='i2'))
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='<U8'))
     targets.add_column(Column(name='OBJID', length=nobj, dtype='<i4'))
     targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
@@ -164,11 +164,12 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
 
+    # All these columns are added in mock.build.targets_truth
     #targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     #targets.add_column(Column(name='PRIORITY_INIT', length=nobj, dtype='i8'))
     #targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
     #targets.add_column(Column(name='NUMOBS_INIT', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
+    #targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
 
     return targets
 
