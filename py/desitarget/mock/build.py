@@ -1388,7 +1388,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
         todo = comm.bcast(todo, root=0)
 
     if todo['sky']:
-        _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
+        _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY_TARGETS',
                            outfile=outdir+'/sky.fits', comm=comm,
                            overwrite=overwrite)
                            #addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
@@ -1407,9 +1407,9 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             # append, not overwrite other per-subclass truth tables
             for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
                 extname = 'TRUTH_' + templatetype
-                _merge_file_tables(mockdir+'/*/*/truth-*.fits', extname,
+                _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits', extname,
                                    overwrite=False,
-                                   outfile=outdir+'/truth{}.fits'.format(obscon), comm=comm)
+                                   outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
 
         #- Make initial merged target list (MTL) using rank 0
         if rank == 0 and todo['mtl-{}'.format(obscon)]:
@@ -1420,7 +1420,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             out_mtl = os.path.join(outdir, 'mtl-{}.fits'.format(obscon))
             log.info('Generating merged target list {}'.format(out_mtl))
             targets = fitsio.read(outdir+'/targets-{}.fits'.format(obscon))
-            mtl = mtl.make_mtl(targets, obscon=obscon)
+            mtl = mtl.make_mtl(targets, obscon=obscon.upper())
             tmpout = out_mtl+'.tmp'
             mtl.meta['EXTNAME'] = 'MTL'
             mtl.write(tmpout, overwrite=True, format='fits')
