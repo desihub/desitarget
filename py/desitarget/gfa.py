@@ -473,7 +473,6 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
         infiles = [infiles, ]
-    nfiles = len(infiles)
 
     # ADM check that files exist before proceeding.
     for filename in infiles:
@@ -509,6 +508,7 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
             log.warning('ZERO files in passed pixel list!!!')
         log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
                  .format(nside, pixlist))
+    nfiles = len(infiles)
 
     # ADM a little more information if we're slurming across nodes.
     if os.getenv('SLURMD_NODENAME') is not None:
@@ -526,7 +526,7 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if nfile % 50 == 0 and nfile > 0:
+        if nfile % 20 == 0 and nfile > 0:
             elapsed = (time()-t0)/60.
             rate = nfile/elapsed/60.
             log.info('{}/{} files; {:.1f} files/sec...t = {:.1f} mins'
