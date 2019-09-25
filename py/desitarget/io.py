@@ -268,7 +268,7 @@ def release_to_photsys(release):
     return r2p[release]
 
 
-def _bright_or_dark(filename, hdr, data, obscon):
+def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
     """modify data/file name for BRIGHT or DARK survey OBSCONDITIONS
 
     Parameters
@@ -285,6 +285,9 @@ def _bright_or_dark(filename, hdr, data, obscon):
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    mockdata : :class:`dict`, optional, defaults to `None`
+        Dictionary of mock data to write out (only used in
+        `desitarget.mock.build.targets_truth` via `select_mock_targets`).
 
     Returns
     -------
@@ -306,6 +309,21 @@ def _bright_or_dark(filename, hdr, data, obscon):
     ii = (data["OBSCONDITIONS"] & obsbits) != 0
     data = data[ii]
 
+    # Optionally subselect the mock data.
+    if len(data) > 0 and mockdata is not None:
+        truthdata, trueflux, _objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
+        truthdata = truthdata[ii]
+
+        if len(trueflux) > 0:
+            trueflux = trueflux[ii, :]
+            objtruth = {}
+            for obj in sorted(set(truthdata['TEMPLATETYPE'])):
+                objtruth[obj] = _objtruth[obj]
+
+        mockdata['truth'] = truthdata
+        mockdata['trueflux'] = trueflux
+        mockdata['objtruth'] = objtruth
+
     # ADM create the bright or dark directory.
     newdir = os.path.join(os.path.dirname(filename), obscon.lower())
     if not os.path.exists(newdir):
@@ -322,7 +340,10 @@ def _bright_or_dark(filename, hdr, data, obscon):
     dropem = list(names[['_INIT_' in col for col in names]])
     data = rfn.drop_fields(data, dropem)
 
-    return filename, hdr, data
+    if mockdata is not None:
+        return filename, hdr, data, mockdata
+    else:
+        return filename, hdr, data
 
 
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
@@ -386,7 +407,10 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
     if obscon is not None:
-        filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+        if mockdata is not None:
+            filename, hdr, data, mockdata = _bright_or_dark(filename, hdr, data, obscon, mockdata=mockdata)
+        else:
+            filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
@@ -481,8 +505,6 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
             for obj in sorted(set(truthdata['TEMPLATETYPE'])):
                 fitsio.write(truthfile, objtruth[obj].as_array(), append=True,
                              extname='TRUTH_{}'.format(obj))
-
-        import pdb ; pdb.set_trace()
 
     return ntargs, filename
 
