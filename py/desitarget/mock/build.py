@@ -980,13 +980,11 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         if nsky > 0:
             skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
             log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
-            write_skies(skiesfile, skytargets.as_array(), nside=nside)
+            write_skies(skyfile, skytargets.as_array(), nside=nside)
         else:
             log.info('No SKY targets generated; {} not written.'.format(skyfile))
             log.info('  Sky file {} not written.'.format(skyfile))
             
-        import pdb ; pdb.set_trace()
-
         #write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
         #                    skytargets, skytruth,  healpix, nside, log, output_dir, 
         #                    seed=healseed, survey=survey)
