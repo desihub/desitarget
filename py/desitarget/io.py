@@ -328,7 +328,7 @@ def _bright_or_dark(filename, hdr, data, obscon):
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
                   survey="?", nsidefile=None, hpxlist=None, scndout=None,
-                  resolve=True, maskbits=True, obscon=None):
+                  resolve=True, maskbits=True, obscon=None, mockdata=None):
     """Write target catalogues.
 
     Parameters
@@ -369,6 +369,9 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    mockdata : :class:`dict`, optional, defaults to `None`
+        Dictionary of mock data to write out (only used in
+        `desitarget.mock.build.targets_truth` via `select_mock_targets`).
 
     Returns
     -------
@@ -376,6 +379,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         The number of targets that were written to file.
     :class:`str`
         The name of the file to which targets were written.
+
     """
     # ADM create header.
     hdr = fitsio.FITSHDR()
@@ -415,8 +419,8 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
+        hdr['HPXNSIDE'] = (nside, 'HEALPix nside')
+        hdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names:
@@ -452,6 +456,10 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
+
+    # Optionally wite out mock catalog data.
+    if mockdata is not None:
+        import pdb ; pdb.set_trace()
 
     return ntargs, filename
 
