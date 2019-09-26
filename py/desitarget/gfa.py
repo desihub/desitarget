@@ -485,24 +485,19 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
             log.critical(msg)
             raise ValueError(msg)
 
-    # ADM if the pixlist or bundlefiles option was sent, we'll need to
+    # ADM if the pixlist option was sent, we'll need to
     # ADM know which HEALPixels touch each file.
-    if pixlist is not None or bundlefiles is not None:
+    if pixlist is not None:
         filesperpixel, _, _ = sweep_files_touch_hp(
             nside, pixlist, infiles)
-        # ADM if we're bundling, pass all possible pixels. This is
-        # ADM necessary to have Gaia objects outside the sweeps.
-        if pixlist is None:
-            pixlist = list(np.arange(hp.nside2npix(nside)))
 
     # ADM if the bundlefiles option was sent, call the packing code.
     if bundlefiles is not None:
-        prefix = "gfas"
         # ADM were files from one or two input directories passed?
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
-        bundle_bricks(pixlist, bundlefiles, nside,
-                      brickspersec=10., gather=False,
-                      prefix=prefix, surveydirs=surveydirs, extra=extra)
+        print(surveydirs)
+        bundle_bricks([0], bundlefiles, nside, gather=False,
+                      prefix='gfas', surveydirs=surveydirs, extra=extra)
         return
 
     # ADM restrict to input files in a set of HEALPixels, if requested.
