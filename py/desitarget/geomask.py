@@ -625,7 +625,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     prefix : :class:`str`, optional, defaults to 'targets'
         Corresponds to the executable "X" that is run as select_X for a
         target type. This could be 'randoms', 'skies', 'targets', 'gfas'.
-        Also, 'supp' can be passed to cover supplemental target types.
+        Also, 'supp-skies' can be passed to cover supplemental skies.
     gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
         files into one large file. If ``False``, comment out that command.
@@ -765,6 +765,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     if surveydir2 is not None:
         s2 = "-s2 {}".format(surveydir2)
 
+    cmd = "select"
+    if prefix == "supp-skies":
+        cmd = "supplement"
+        prefix2 = "skies"
+
     outfiles = []
     from desitarget.io import _check_hpx_length
     for bin in bins:
@@ -779,11 +784,16 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
+            if prefix == "supp-skies":
+                # ADM substitute the old pixel name for the one
+                # ADM that corresponds to this HEALPixel.
+                genhp = surveydir.split(".fits")[0].split("hp-")[1]
+                surveydir = surveydir.replace(genhp, strgoodpix)
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
-            print("srun -N 1 select_{} {} {} {} --nside {} --healpixels {} &"
-                  .format(prefix2, surveydir, outfile, s2, nside, strgoodpix))
+                print("srun -N 1 {}_{} {} {} {} --nside {} --healpixels {} &"
+                  .format(cmd, prefix2, surveydir, outfile, s2, nside, strgoodpix))
     print("wait")
     print("")
     print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"

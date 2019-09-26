@@ -792,8 +792,8 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
 
 
 def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
-                  density=None, resolve=True, aprad=None):
-    """Write a catalogue of randoms and associated pixel-level information.
+                  density=None, resolve=True, aprad=None, extra=None):
+    """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
     ----------
@@ -802,13 +802,13 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
     data  : :class:`~numpy.ndarray`
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
-        Name of input Legacy Survey Data Release directory, write to header
-        of output file if passed (and if not None).
+        Name of input Legacy Survey Data Release directory, write to
+        header of output file if passed (and if not None).
     hdr : :class:`str`, optional, defaults to `None`
-        If passed, use this header to start the header of the output `filename`.
+        If passed, use this header to start the header for `filename`.
     nside: :class:`int`
-        If passed, add a column to the randoms array popluated with HEALPixels
-        at resolution `nside`.
+        If passed, add a column to the randoms array popluated with
+        HEALPixels at resolution `nside`.
     supp : :class:`bool`, optional, defaults to ``False``
         Written to the header of the output file to indicate whether
         this is a supplemental file (i.e. random locations that are
@@ -820,6 +820,9 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
         Written to the output file header as `RESOLVE`.
     aprad : :class:`float, optional, defaults to ``None``
         If passed, written to the outpue header as `APRAD`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.

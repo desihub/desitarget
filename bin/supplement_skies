@@ -34,6 +34,15 @@ ap.add_argument("--numproc", type=int,
 ap.add_argument("--gaiadir", type=str,
                 help="Pass to set the GAIA_DIR environment variable directly in the code (i.e. the input directory that stores Gaia files)",
                 default=None)
+ap.add_argument('--nside', type=int,
+                help="Process supplemental skies in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
+                default=None)
+ap.add_argument('--healpixels',
+                help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
+                default=None)
+ap.add_argument("--bundlefiles", type=int,
+                help="(overrides all options but `source`) print slurm script to parallelize by sending (any) integer. This is an integer rather than boolean for consistency with select_targets.",
+                default=None)
 ap.add_argument("--mindec", type=float,
                 help="Minimum declination to include in output file (degrees; defaults to [-90])",
                 default=-90.)
@@ -45,6 +54,7 @@ ap.add_argument("--radius", type=float,
                 default=2.)
 
 ns = ap.parse_args()
+
 # ADM determine the maximum OBJID in the file that's being supplemented.
 # ADM 1 + this will be the minimum allowed OBJID for supplemental skies.
 minobjid = np.max(fitsio.read(ns.source, columns="BRICK_OBJID"))
@@ -62,13 +72,35 @@ if nskiespersqdeg is None:
     nskiespersqdeg = density_of_sky_fibers(margin=4)
 log.info('Generating sky positions at a density of {}'.format(nskiespersqdeg))
 
+# ADM build the list of command line arguments as
+# ADM bundlefiles potentially needs to know about them.
+extra = " --numproc {}".format(ns.numproc)
+extra += " --nskiespersqdeg {}".format(nskiespersqdeg)
+extra += " --gaiadir {}".format(gaiadir)
+nsdict = vars(ns)
+for nskey in "mindec", "mingalb", "radius":
+    extra += " --{} {}".format(nskey, nsdict[nskey])
+
+# ADM parse the list of HEALPixels in which to run.
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [int(pix) for pix in pixlist.split(',')]
+
 # ADM generate the supplemental sky locations.
 skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
-                         gaiadir=gaiadir, radius=ns.radius,
+                         gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
+                         pixlist=pixlist, bundlefiles=ns.bundlefiles,
+                         extra=extra, skyfile=ns.source,
                          mindec=ns.mindec, mingalb=ns.mingalb, minobjid=minobjid)
 
-# ADM write to file.
-io.write_skies(ns.dest, skies, supp=True, indir=gaiadir,
-               nside=nside, nskiespersqdeg=nskiespersqdeg)
+# ADM only proceed if we're not writing a slurm script.
+if ns.bundlefiles is None:
+    # ADM extra header keywords for the output fits file.
+    extra = {k: v for k, v in zip(["radius", "mindec", "mingalb"],
+                                  [ns.radius, ns.mindec, ns.mingalb])}
 
-log.info('{} supplemental skies written to {}'.format(len(skies), ns.dest))
+    io.write_skies(ns.dest, skies, supp=True, indir=gaiadir,
+                   nside=nside, nskiespersqdeg=nskiespersqdeg,
+                   extra=extra, nsidefile=ns.nside, hpxlist=pixlist)
+
+    log.info('{} supplemental skies written to {}'.format(len(skies), ns.dest))
