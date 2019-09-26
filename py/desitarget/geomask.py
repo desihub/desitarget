@@ -623,9 +623,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         The rough number of bricks processed per second by the code (parallelized across
         a chosen number of nodes)
     prefix : :class:`str`, optional, defaults to 'targets'
-        Should correspond to the binary executable "X" that is run as select_X for a
-        target type. Depending on the type of target file that is being packed for
-        parallelization, this could be 'randoms', 'skies', 'targets', etc.
+        Corresponds to the executable "X" that is run as select_X for a
+        target type. This could be 'randoms', 'skies', 'targets', 'gfas'.
+        Also, 'supp' can be passed to cover supplemental target types.
     gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
         files into one large file. If ``False``, comment out that command.
@@ -664,69 +664,79 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM iteratively populate lists of the numbers of pixels
     # ADM and the corrsponding pixel numbers
-    bins = []
-
-    for index, num in enumerate(numpix):
-        # Try to fit this sized number into a bin
-        for bin in bins:
-            if np.sum(np.array(bin)[:, 0]) + num <= maxpernode:
-                # print 'Adding', item, 'to', bin
+    if prefix in ['targets', 'skies', 'randoms']:
+        bins = []
+        for index, num in enumerate(numpix):
+            # Try to fit this sized number into a bin
+            for bin in bins:
+                if np.sum(np.array(bin)[:, 0]) + num <= maxpernode:
+                    # print 'Adding', item, 'to', bin
+                    bin.append([num, pix[index]])
+                    break
+            else:
+                # item didn't fit into any bin, start a new bin.
+                bin = []
                 bin.append([num, pix[index]])
-                break
-        else:
-            # item didn't fit into any bin, start a new bin
-            bin = []
-            bin.append([num, pix[index]])
-            bins.append(bin)
+                bins.append(bin)
+        # ADM print to screen in the form of a slurm bash script, and
+        # ADM other useful information
+        print("#######################################################")
+        print("Numbers of bricks or files in each set of HEALPixels:")
+        print("")
 
-    # ADM print to screen in the form of a slurm bash script, and
-    # ADM other useful information
-    print("#######################################################")
-    print("Numbers of bricks or files in each set of HEALPixels:")
-    print("")
+        # ADM the estimated margin for writing to disk in minutes.
+        margin = 30
+        if prefix == 'skies':
+            margin = 5
+        if prefix == 'randoms':
+            margin = 90
+        margin /= 60.
 
-    # ADM the estimated margin for writing to disk in minutes.
-    margin = 30
-    if prefix == 'skies' or prefix == 'gfas':
-        margin = 5
-    if prefix == 'randoms':
-        margin = 90
-    margin /= 60.
+        maxeta = 0
+        for bin in bins:
+            num = np.array(bin)[:, 0]
+            pix = np.array(bin)[:, 1]
+            wpix = np.where(num > 0)[0]
+            if len(wpix) > 0:
+                goodpix, goodnum = pix[wpix], num[wpix]
+                sorter = goodpix.argsort()
+                goodpix, goodnum = goodpix[sorter], goodnum[sorter]
+                outnote = ['{}: {}'.format(pix, num) for pix, num in zip(goodpix, goodnum)]
+                # ADM add the total across all of the pixels
+                outnote.append('Total: {}'.format(np.sum(goodnum)))
+                # ADM a crude estimate of how long the script will take to run
+                # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk.
+                delta = 3./60.
+                eta = delta + np.sum(goodnum)/brickspersec/3600
+                outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
+                               .format(eta))
+                # ADM track the maximum estimated time for shell scripts, etc.
+                if (eta+margin).astype(int) + 1 > maxeta:
+                    maxeta = (eta+margin).astype(int) + 1
+                print(outnote)
 
-    maxeta = 0
-    for bin in bins:
-        num = np.array(bin)[:, 0]
-        pix = np.array(bin)[:, 1]
-        wpix = np.where(num > 0)[0]
-        if len(wpix) > 0:
-            goodpix, goodnum = pix[wpix], num[wpix]
-            sorter = goodpix.argsort()
-            goodpix, goodnum = goodpix[sorter], goodnum[sorter]
-            outnote = ['{}: {}'.format(pix, num) for pix, num in zip(goodpix, goodnum)]
-            # ADM add the total across all of the pixels
-            outnote.append('Total: {}'.format(np.sum(goodnum)))
-            # ADM a crude estimate of how long the script will take to run
-            # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk.
-            delta = 3./60.
-            eta = delta + np.sum(goodnum)/brickspersec/3600
-            outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
-                           .format(eta))
-            # ADM track the maximum estimated time for shell scripts, etc.
-            if (eta+margin).astype(int) + 1 > maxeta:
-                maxeta = (eta+margin).astype(int) + 1
-            print(outnote)
+        print("")
+        if gather:
+            print('Estimated additional margin for writing to disk in hours: {:.2f}h'
+                  .format(margin))
+            print("")
+        nnodes = len(bins)
+    else:
+        nbins = hp.nside2npix(nside)
+        bins = [[[i, j]] for i, j in
+                zip(np.ones(nbins, dtype='int'), np.arange(nbins))]
+        maxeta = 1
+        nnodes = 16
 
-    print("")
-    if gather:
-        print('Estimated additional margin for writing to disk in hours: {:.2f}h'
-              .format(margin))
+    # ADM more than 48 nodes is a mistake!
+    if nnodes > 48:
+        nnodes = 48
 
-    print("")
     print("#######################################################")
     print("Possible salloc command if you want to run on the Cori interactive queue:")
     print("")
     print("salloc -N {} -C haswell -t 0{}:00:00 --qos interactive -L SCRATCH,project"
-          .format(len(bins), maxeta))
+          .format(nnodes, maxeta))
 
     print("")
     print("#######################################################")
@@ -734,7 +744,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print('')
     print('#!/bin/bash -l')
     print('#SBATCH -q regular')
-    print('#SBATCH -N {}'.format(len(bins)))
+    print('#SBATCH -N {}'.format(nnodes))
     print('#SBATCH -t 0{}:00:00'.format(maxeta))
     print('#SBATCH -L SCRATCH,project')
     print('#SBATCH -C haswell')

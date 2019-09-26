@@ -134,6 +134,8 @@ else:
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
     io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2,
-                   nside=nside, apertures_arcsec=apertures, nskiespersqdeg=nskiespersqdeg)
+                   nside=nside, apertures_arcsec=apertures,
+                   nskiespersqdeg=nskiespersqdeg,
+                   nsidefile=ns.nside, hpxlist=pixlist)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))

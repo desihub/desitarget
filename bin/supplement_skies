@@ -35,11 +35,11 @@ ap.add_argument("--gaiadir", type=str,
                 help="Pass to set the GAIA_DIR environment variable directly in the code (i.e. the input directory that stores Gaia files)",
                 default=None)
 ap.add_argument("--mindec", type=float,
-                help="Minimum declination to include in output file (degrees; defaults to [-30])",
-                default=-30.)
+                help="Minimum declination to include in output file (degrees; defaults to [-90])",
+                default=-90.)
 ap.add_argument("--mingalb", type=float,
-                help="Closest latitude to Galactic plane to include in output file (e.g. send the default [10] to limit to areas beyond -10o <= b < 10o)",
-                default=10.)
+                help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send 10 to limit to areas beyond -10o <= b < 10o; defaults to [0])",
+                default=0.)
 ap.add_argument("--radius", type=float,
                 help="Radius at which to avoid (all) Gaia sources (arcseconds; defaults to [2])",
                 default=2.)
