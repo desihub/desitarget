@@ -300,7 +300,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if nfile % 1000 == 0 and nfile > 0:
+        if nfile % 100 == 0 and nfile > 0:
             elapsed = (time()-t0)/60.
             rate = nfile/elapsed/60.
             log.info('{}/{} files; {:.1f} files/sec...t = {:.1f} mins'
@@ -464,6 +464,10 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         - If numproc > 4, then numproc=4 is enforced for (just those)
           parts of the code that are I/O limited.
     """
+    # ADM the code can encounter memory issues for nside=2.
+    if nside is not None and nside < 4:
+        log.warning('Memory may be an issue near the Plane for nside < 4')
+
     # ADM force to no more than numproc=4 for I/O limited processes.
     numproc4 = numproc
     if numproc4 > 4:
@@ -505,7 +509,7 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
     if pixlist is not None:
         infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
         if len(infiles) == 0:
-            log.warning('ZERO files in passed pixel list!!!')
+            log.info('ZERO sweep files in passed pixel list!!!')
         log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
                  .format(nside, pixlist))
     nfiles = len(infiles)
@@ -535,19 +539,18 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         return result
 
     # - Parallel process input files.
-    if numproc4 > 1:
-        pool = sharedmem.MapReduce(np=numproc4)
-        with pool:
-            gfas = pool.map(_get_gfas, infiles, reduce=_update_status)
-    else:
-        gfas = list()
-        for file in infiles:
-            gfas.append(_update_status(_get_gfas(file)))
-
-    gfas = np.concatenate(gfas)
-
-    # ADM resolve any duplicates between imaging data releases.
-    gfas = resolve(gfas)
+    if len(infiles) > 0:
+        if numproc4 > 1:
+            pool = sharedmem.MapReduce(np=numproc4)
+            with pool:
+                gfas = pool.map(_get_gfas, infiles, reduce=_update_status)
+        else:
+            gfas = list()
+            for file in infiles:
+                gfas.append(_update_status(_get_gfas(file)))
+        gfas = np.concatenate(gfas)
+        # ADM resolve any duplicates between imaging data releases.
+        gfas = resolve(gfas)
 
     # ADM retrieve Gaia objects in the DESI footprint or passed tiles.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
@@ -559,9 +562,12 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
     # ADM remove any duplicates. Order is important here, as np.unique
     # ADM keeps the first occurence, and we want to retain sweeps
     # ADM information as much as possible.
-    gfas = np.concatenate([gfas, gaia])
-    _, ind = np.unique(gfas["REF_ID"], return_index=True)
-    gfas = gfas[ind]
+    if len(infiles) > 0:
+        gfas = np.concatenate([gfas, gaia])
+        _, ind = np.unique(gfas["REF_ID"], return_index=True)
+        gfas = gfas[ind]
+    else:
+        gfas = gaia
 
     # ADM for zero/NaN proper motion objects, add URAT proper motions.
     if addurat:

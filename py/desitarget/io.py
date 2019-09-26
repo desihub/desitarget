@@ -693,7 +693,7 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
-               extra=None):
+               nsidefile=None, hpxlist=None, extra=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -708,6 +708,14 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
     nside: :class:`int`, defaults to None.
         If passed, add a column to the GFAs array popluated with
         HEALPixels at resolution `nside`.
+    nsidefile : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -742,6 +750,20 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
+
+    # ADM record whether this file has been limited to only certain HEALPixels.
+    if hpxlist is not None or nsidefile is not None:
+        # ADM hpxlist and nsidefile need to be passed together.
+        if hpxlist is None or nsidefile is None:
+            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
+                .format(hpxlist, nsidefile)
+            log.critical(msg)
+            raise ValueError(msg)
+        hdr['FILENSID'] = nsidefile
+        hdr['FILENEST'] = True
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        hdr['FILEHPX'] = hpxlist
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
