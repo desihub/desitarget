@@ -2,6 +2,7 @@
 
 from desitarget.skyfibers import supplement_skies, density_of_sky_fibers
 from desitarget import io
+from desitarget.geomask import bundle_bricks
 
 import numpy as np
 import healpy as hp
@@ -86,15 +87,14 @@ pixlist = ns.healpixels
 if pixlist is not None:
     pixlist = [int(pix) for pix in pixlist.split(',')]
 
-# ADM generate the supplemental sky locations.
-skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
-                         gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
-                         pixlist=pixlist, bundlefiles=ns.bundlefiles,
-                         extra=extra, skyfile=ns.source,
-                         mindec=ns.mindec, mingalb=ns.mingalb, minobjid=minobjid)
-
 # ADM only proceed if we're not writing a slurm script.
 if ns.bundlefiles is None:
+    # ADM generate the supplemental sky locations.
+    skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
+                             gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
+                             pixlist=pixlist, mindec=ns.mindec,
+                             mingalb=ns.mingalb, minobjid=minobjid)
+
     # ADM extra header keywords for the output fits file.
     extra = {k: v for k, v in zip(["radius", "mindec", "mingalb"],
                                   [ns.radius, ns.mindec, ns.mingalb])}
@@ -104,3 +104,8 @@ if ns.bundlefiles is None:
                    extra=extra, nsidefile=ns.nside, hpxlist=pixlist)
 
     log.info('{} supplemental skies written to {}'.format(len(skies), ns.dest))
+else:
+    # ADM if the bundlefiles option was sent, call the slurming code.
+    bundle_bricks([0], ns.bundlefiles, ns.nside, gather=False,
+                  prefix='supp-skies', surveydirs=[ns.source], extra=extra)
+
