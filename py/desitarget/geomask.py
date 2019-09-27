@@ -784,15 +784,10 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
-            if prefix == "supp-skies":
-                # ADM substitute the old pixel name for the one
-                # ADM that corresponds to this HEALPixel.
-                genhp = surveydir.split(".fits")[0].split("hp-")[1]
-                surveydir = surveydir.replace(genhp, strgoodpix)
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
-                print("srun -N 1 {}_{} {} {} {} --nside {} --healpixels {} &"
+            print("srun -N 1 {}_{} {} {} {} --nside {} --healpixels {} &"
                   .format(cmd, prefix2, surveydir, outfile, s2, nside, strgoodpix))
     print("wait")
     print("")
@@ -1155,24 +1150,32 @@ def is_in_cap(objs, radecrad):
     return ii
 
 
-def is_in_hp(objs, nside, pixlist):
+def is_in_hp(objs, nside, pixlist, radec=False):
     """Determine which of an array of objects lie inside a set of HEALPixels.
 
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
-        An array of objects. Must include at least the columns "RA" and "DEC".
+        Array of objects. Must include at columns "RA" and "DEC".
     nside : :class:`int`
         The HEALPixel nside number (NESTED scheme).
     pixlist : :class:`list` or `~numpy.ndarray`
         The list of HEALPixels in which to find objects.
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` `objs` is an [RA, Dec] list instead of a rec array.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        ``True`` for objects in pixlist, ``False`` for objects outside of pixlist.
+        ``True`` for objects in pixlist, ``False`` for other objects.
     """
-    theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+    if radec:
+        ra, dec = objs
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+
+    # ADM check whether ra, dec are in the pixel list
+    theta, phi = np.radians(90-dec), np.radians(ra)
     pixnums = hp.ang2pix(nside, theta, phi, nest=True)
     w = np.hstack([np.where(pixnums == pix)[0] for pix in pixlist])
     ii = np.zeros(len(pixnums), dtype='bool')

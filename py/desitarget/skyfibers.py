@@ -804,7 +804,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         The GAIA_DIR environment variable is set to this directory.
         If None is passed, then it's assumed to already exist.
     nside : :class:`int`, optional, defaults to `None`
-        (NESTED) HEALPix `nside` to use with `pixlist` and `bundlefiles`.
+        (NESTED) HEALPix `nside` to use with `pixlist`.
     pixlist : :class:`list` or `int`, optional, defaults to `None`
         Only return targets in a set of (NESTED) HEALpixels at the
         supplied `nside`. Useful for parallelizing across nodes.
@@ -852,6 +852,11 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     from desitarget.randoms import randoms_in_a_brick_from_edges
     ras, decs = randoms_in_a_brick_from_edges(
         0., 360., mindec, 90., density=nskiespersqdeg, wrap=False)
+
+    # ADM limit randoms by HEALPixel, if requested.
+    if pixlist is not None:
+        inhp = is_in_hp([ras, decs], nside, pixlist, radec=True)
+        ras, decs = ras[inhp], decs[inhp]
 
     # ADM limit randoms by mingalb.
     log.info("Generated {} sky locations. Limiting to |b| > {}o...t={:.1f}s"

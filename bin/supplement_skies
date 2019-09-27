@@ -4,9 +4,11 @@ from desitarget.skyfibers import supplement_skies, density_of_sky_fibers
 from desitarget import io
 from desitarget.geomask import bundle_bricks
 
+import os, sys
 import numpy as np
 import healpy as hp
 import fitsio
+from glob import glob
 
 #import warnings
 #warnings.simplefilter('error')
@@ -23,7 +25,8 @@ log = get_logger()
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate supplemental sky locations using Gaia-G-band avoidance (for regions beyond the Legacy Surveys)')
 ap.add_argument("source",
-                help="Input sky targets file (e.g. /project/projectdirs/desi/target/catalogs/dr8/0.31.0/skies/skies-dr8-0.31.0.fits). Used purely to set the minimum allowed OBJID.")
+                help="Input directory of sky targets (e.g. /project/projectdirs/desi/target/catalogs/dr8/0.31.0/skies/)." +
+                "Used to set the minimum allowed OBJID by looping through the header information for all skies*fits files in the directory.")
 ap.add_argument("dest",
                 help="Output supplemental sky targets file (e.g. /project/projectdirs/desi/target/catalogs/supp-skies-dr4-0.20.0.fits)")
 ap.add_argument("--nskiespersqdeg", type=float,
@@ -56,9 +59,20 @@ ap.add_argument("--radius", type=float,
 
 ns = ap.parse_args()
 
-# ADM determine the maximum OBJID in the file that's being supplemented.
+# ADM determine the maximum OBJID in the sky files being supplemented.
 # ADM 1 + this will be the minimum allowed OBJID for supplemental skies.
-minobjid = np.max(fitsio.read(ns.source, columns="BRICK_OBJID"))
+if ns.bundlefiles is None:
+    if not os.path.exists(ns.source):
+        log.critical('sky source directory {} does not exist!'.format(ns.source))
+        sys.exit(1)
+    # ADM loop through all of the files in the sky source directory.
+    fns = glob(os.path.join(ns.source, "skies*fits"))
+    maxobjid = []
+    for fn in fns:
+        maxobjid.append(fitsio.read_header(fn, "SKIES")["MAXOBJID"])
+    minobjid = np.max(maxobjid) + 1
+    log.info("Minimum allowed BRICK_OBJD based on files in {}: {}".format(
+        ns.source, minobjid))
 
 # ADM if the GAIA directory was passed, set it...
 gaiadir = ns.gaiadir
