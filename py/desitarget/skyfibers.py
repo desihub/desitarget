@@ -28,7 +28,7 @@ from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, finalize
 from desitarget.io import brickname_from_filename
 from desitarget.gaiamatch import find_gaia_files
-from desitarget.geomask import is_in_gal_box, is_in_circle, bundle_bricks
+from desitarget.geomask import is_in_gal_box, is_in_circle, is_in_hp
 
 # ADM the parallelization script.
 from desitarget.internal import sharedmem
@@ -789,9 +789,8 @@ def get_supp_skies(ras, decs, radius=2.):
 
 
 def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
-                     nside=None, pixlist=None, bundlefiles=None,
-                     extra=None, skyfile=None,
-                     mindec=-30., mingalb=10., radius=2., minobjid=0):
+                     nside=None, pixlist=None, mindec=-30., mingalb=10.,
+                     radius=2., minobjid=0):
     """Generate supplemental sky locations using Gaia-G-band avoidance.
 
     Parameters
@@ -809,16 +808,6 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     pixlist : :class:`list` or `int`, optional, defaults to `None`
         Only return targets in a set of (NESTED) HEALpixels at the
         supplied `nside`. Useful for parallelizing across nodes.
-    bundlefiles : :class:`int`, defaults to `None`
-        If not `None`, then, instead of selecting gfas, print the slurm
-        script for parallelizing. Can be any integer value.
-    extra : :class:`str`, optional
-        Extra command line flags to be passed to the executable lines in
-        the output slurm script. Used in conjunction with `bundlefiles`.
-    skyfile : :class:`str`, optional
-        One sky file from a directory of sky files that have been split
-        by individual HEALPixels at `nside`. Used in conjunction with
-        `bundlefiles` to find `minobjid` when parallelizing.
     mindec : :class:`float`, optional, defaults to -30
         Minimum declination (o) to include for output sky locations.
     mingalb : :class:`float`, optional, defaults to 10
@@ -863,13 +852,6 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     from desitarget.randoms import randoms_in_a_brick_from_edges
     ras, decs = randoms_in_a_brick_from_edges(
         0., 360., mindec, 90., density=nskiespersqdeg, wrap=False)
-
-    # ADM if the bundlefiles option was sent, call the slurming code.
-    if bundlefiles is not None:
-        bundle_bricks([0], bundlefiles, nside, gather=False,
-                      prefix='supp-skies', surveydirs=[skyfile], extra=extra)
-        return
-
 
     # ADM limit randoms by mingalb.
     log.info("Generated {} sky locations. Limiting to |b| > {}o...t={:.1f}s"
