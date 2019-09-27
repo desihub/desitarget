@@ -282,8 +282,10 @@ def read_files(scxdir, scnd_mask):
     scxall = []
     # ADM loop through all of the scx bits.
     for name in scnd_mask.names():
+        log.debug('SCND target: {}'.format(name))
         # ADM the full file path without the extension.
         fn = os.path.join(fulldir, scnd_mask[name].filename)
+        log.debug('     path:   {}'.format(fn))
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
             scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
@@ -453,21 +455,6 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
                 sep, halfpix)
             log.critical(msg)
             raise ValueError(msg)
-    else:
-        if 'FILEHPX' in hdr:
-            log.info('Using FILEHPX optimization')
-            nside, pix = hdr['FILENSID'], hdr['FILEHPX']
-            # ADM remember to grab adjacent pixels in case of edge effects.
-            allpix = add_hp_neighbors(nside, pix)
-            inhp = is_in_hp(scxtargs, nside, allpix)
-            # ADM it's unlikely that the matching separation is comparable
-            # ADM to the HEALPixel resolution, but guard against that anyway.
-            halfpix = np.degrees(hp.max_pixrad(nside))*3600.
-            if sep > halfpix:
-                msg = 'sep ({}") exceeds (half) HEALPixel size ({}")'.format(
-                    sep, halfpix)
-                log.critical(msg)
-                raise ValueError(msg)
 
     # ADM warn the user if the secondary and primary samples are "large".
     big = 500000
@@ -652,13 +639,6 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
                 scnd_targ |= scxtargs["SCND_TARGET"][wnoov[ind]]
             scxtargs["SCND_TARGET"][wnoov[inds]] = scnd_targ
     log.info("Done checking SCND_TARGET...t={:.1f}s".format(time()-t0))
-
-    # - Parallel process input files
-    if len(wnoov) > 0:
-        if numproc > 1:
-            pool = sharedmem.MapReduce(np=numproc)
-            with pool:
-                _scxtargs = pool.map(_match_scx_file,
 
     # ADM change the data model depending on whether the mask
     # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
