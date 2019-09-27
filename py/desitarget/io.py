@@ -619,7 +619,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
 
 def write_skies(filename, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
-                nsidefile=None, hpxlist=None):
+                nsidefile=None, hpxlist=None, extra=None):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -652,6 +652,9 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
     """
     nskies = len(data)
 
@@ -697,6 +700,11 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
         else:
             np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(nskies)
+
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
 
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:

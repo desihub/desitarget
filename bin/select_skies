@@ -62,13 +62,16 @@ ap.add_argument("--numproc", type=int,
 
 ns = ap.parse_args()
 
-if not os.path.exists(ns.surveydir):
-    log.critical('Input directory ({}) does not exist'.format(ns.surveydir))
-    sys.exit(1)
-
-if not os.path.exists(ns.surveydir2) and ns.surveydir2 is not None:
-    log.critical('Input directory ({}) does not exist'.format(ns.surveydir2))
-    sys.exit(1)
+for indir in ns.surveydir, ns.surveydir2:
+    if indir is not None:
+        if not os.path.exists(indir):
+            log.critical('Input directory ({}) does not exist'
+                         .format(indir))
+            sys.exit(1)
+        if not os.path.exists(os.path.join(indir, "coadd")):
+            log.critical('coadd subdirectory not in input directory ({})'
+                         .format(indir))
+            sys.exit(1)
 
 # ADM convert passed csv strings to lists.
 bands = [ band for band in ns.bands.split(',') ]
@@ -131,11 +134,16 @@ else:
     else:
         skies = resolved
 
+    # ADM add the maximum BRICK_OBJID to the file header so the SUPP_SKIES
+    # ADM can parse this information more easily.
+    extra = {k: v for k, v in zip(["maxobjid"],
+                                  [np.max(skies["BRICK_OBJID"])])}
+
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
     io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2,
                    nside=nside, apertures_arcsec=apertures,
-                   nskiespersqdeg=nskiespersqdeg,
+                   nskiespersqdeg=nskiespersqdeg, extra=extra,
                    nsidefile=ns.nside, hpxlist=pixlist)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))
