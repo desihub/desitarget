@@ -488,7 +488,10 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
         
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
-        fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
+        try:
+            fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
+        except:
+            import IPython; IPython.embed()
 
         if len(trueflux) > 0:
             wavehdr = fitsio.FITSHDR()
