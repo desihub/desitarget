@@ -729,6 +729,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
         # Data reduction to preselected objects.
         colorsReduced = colors[preSelection]
+        colorsReduced[:,10] = 22.8
         r_Reduced = r[preSelection]
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
@@ -750,11 +751,10 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         # Compute optimized proba cut (all different for SV).
         # The probabilities may be different for the north and the south.
         if south:
-            pcut = 0.30
+            pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
         else:
-            # pcut = 0.35
-            pcut = 0.30
-
+            pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
+            
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
 
@@ -762,6 +762,128 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # Return "numpy.bool_" instead of "numpy.ndarray"
     if nbEntries == 1:
         qso = qso[0]
+
+    return qso
+
+
+def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
+                 gsnr=None, rsnr=None, zsnr=None,
+                 w1flux=None, w2flux=None, w1snr=None, w2snr=None,
+                 dchisq=None, maskbits=None, objtype=None, primary=None,
+                 south=True):
+    """Definition of z~5 QSO target classes from color cuts. Returns a boolean array.
+
+    Parameters
+    ----------
+    south : :class:`boolean`, defaults to ``True``
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` for objects that pass the quasar color/morphology/logic cuts.
+
+    Notes
+    -----
+    - Current version (09/05/19) is version 93 on `the SV wiki`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
+    """
+    if not south:
+        gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
+
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    qso = primary.copy()
+
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    if maskbits is not None:
+        # for bit in [1, 10, 12, 13]:
+        for bit in [10, 12, 13]:
+            qso &= ((maskbits & 2**bit) == 0)
+
+    # ADM relaxed morphology cut for SV.
+    # ADM we never target sources with dchisq[..., 0] = 0, so force
+    # ADM those to have large values of morph2 to avoid divide-by-zero.
+    d1, d0 = dchisq[..., 1], dchisq[..., 0]
+    bigmorph = np.zeros_like(d0)+1e9
+    dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
+    if south:
+        morph2 = dcs < 0.01
+    else:
+        morph2 = dcs < 0.005
+    qso &= _psflike(objtype) | morph2
+
+    # ADM SV cuts are different for WISE SNR.
+    if south:
+        qso &= w1snr > 3
+        qso &= w2snr > 2
+    else:
+        qso &= w1snr > 3
+        qso &= w2snr > 2
+
+    # ADM perform the color cuts to finish the selection.
+    qso &= isQSOz5_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                          gsnr=gsnr, rsnr=gsnr, zsnr=gsnr,
+                          w1flux=w1flux, w2flux=w2flux,
+                          primary=primary, south=south)
+
+    return qso
+
+
+def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
+                   gsnr=None, rsnr=None, zsnr=None,
+                   w1flux=None, w2flux=None, primary=None, south=True):
+    """Color cut to select z~5 quasar targets.
+    (See :func:`~desitarget.sv1.sv1_cuts.isQSOz5_cuts`).
+    """
+    if primary is None:
+        primary = np.ones_like(rflux, dtype='?')
+    qso = primary.copy()
+
+    # ADM never target sources with negative W1 or z fluxes.
+    qso &= (w1flux >= 0.) & (zflux >= 0.)
+
+    # ADM now safe to update w1flux and zflux to avoid warnings.
+    w1flux[~qso] = 0.
+    zflux[~qso] = 0.
+
+    # flux limit, z < 21.4.
+    # ADM may switch to a zfiberflux cut later.
+    qso &= zflux > 10**((22.5-21.4)/2.5)
+
+    # gr cut, SNg < 3 | g > 24.5 | g-r > 1.8.
+    SNRg = gsnr < 3
+    gcut = gflux < 10**((22.5-24.5)/2.5)
+    grcut = rflux > 10**(1.8/2.5) * gflux
+    qso &= SNRg | gcut | grcut
+
+    # zw1w2 cuts: SNz > 5
+    # & w1-w2 > 0.5 & z- w1 < 4.5 & z-w1 > 2.0  (W1, W2 in Vega).
+    qso &= zsnr > 5
+    qso &= w2flux > 10**(-0.14/2.5) * w1flux  # w1-w2 > -0.14 in AB magnitude
+    qso &= ((w1flux < 10**((4.5-2.699)/2.5) * zflux) &
+            (w1flux > 10**((2.0-2.699)/2.5) * zflux))
+
+    # rzW1 cuts: (SNr < 3 |
+    # (r-z < 3.2*(z-w1) - 6.5 & r-z > 1.0 & r-z < 3.9) | r-z > 4.4).
+    SNRr = rsnr < 3
+    # ADM N/S currently identical, but leave as a placeholder for now.
+    if south:
+        rzw1cut = (
+            (w1flux**3.2 * rflux > 10**((6.5-3.2*2.699)/2.5) * (zflux**(3.2+1)))
+            & (zflux > 10**(1.0/2.5) * rflux) & (zflux < 10**(3.9/2.5) * rflux)
+        )
+        rzcut = zflux > 10**(4.4/2.5) * rflux  # for z~6 quasar
+    else:
+        rzw1cut = (
+            (w1flux**3.2 * rflux > 10**((6.5-3.2*2.699)/2.5) * (zflux**(3.2+1)))
+            & (zflux > 10**(1.0/2.5) * rflux) & (zflux < 10**(3.9/2.5) * rflux)
+        )
+        rzcut = zflux > 10**(4.4/2.5) * rflux
+
+    qso &= SNRr | rzw1cut | rzcut
 
     return qso
 
@@ -1287,8 +1409,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    qso_classes = [[~primary, ~primary, ~primary, ~primary],
-                   [~primary, ~primary, ~primary, ~primary]]
+    qso_classes = [[~primary, ~primary, ~primary, ~primary, ~primary],
+                   [~primary, ~primary, ~primary, ~primary, ~primary]]
     if "QSO" in tcnames:
         for south in south_cuts:
             qso_store = []
@@ -1329,9 +1451,18 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     w1flux=w1flux, w2flux=w2flux, south=south
                 )
             )
+            qso_store.append(
+                isQSOz5_cuts(
+                    primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
+                    gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                    w1flux=w1flux, w2flux=w2flux, w1snr=w1snr, w2snr=w2snr,
+                    dchisq=dchisq, maskbits=maskbits, objtype=objtype,
+                    south=south
+                )
+            )
             qso_classes[int(south)] = qso_store
-    qsocolor_north, qsorf_north, qsohizf_north, qsocolor_high_z_north = qso_classes[0]
-    qsocolor_south, qsorf_south, qsohizf_south, qsocolor_high_z_south = qso_classes[1]
+    qsocolor_north, qsorf_north, qsohizf_north, qsocolor_high_z_north, qsoz5_north = qso_classes[0]
+    qsocolor_south, qsorf_south, qsohizf_south, qsocolor_high_z_south, qsoz5_south = qso_classes[1]
 
     # ADM combine quasar target bits for a quasar target based on any imaging.
     qsocolor_highz_north = (qsocolor_north & qsocolor_high_z_north)
@@ -1339,14 +1470,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qsocolor_lowz_north = (qsocolor_north & ~qsocolor_high_z_north)
     qsorf_lowz_north = (qsorf_north & ~qsocolor_high_z_north)
     qso_north = (qsocolor_lowz_north | qsorf_lowz_north | qsocolor_highz_north
-                 | qsorf_highz_north | qsohizf_north)
+                 | qsorf_highz_north | qsohizf_north | qsoz5_north)
 
     qsocolor_highz_south = (qsocolor_south & qsocolor_high_z_south)
     qsorf_highz_south = (qsorf_south & qsocolor_high_z_south)
     qsocolor_lowz_south = (qsocolor_south & ~qsocolor_high_z_south)
     qsorf_lowz_south = (qsorf_south & ~qsocolor_high_z_south)
     qso_south = (qsocolor_lowz_south | qsorf_lowz_south | qsocolor_highz_south
-                 | qsorf_highz_south | qsohizf_south)
+                 | qsorf_highz_south | qsohizf_south | qsoz5_south)
 
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
     qsocolor_highz = (qsocolor_highz_north & photsys_north) | (qsocolor_highz_south & photsys_south)
@@ -1354,6 +1485,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qsocolor_lowz = (qsocolor_lowz_north & photsys_north) | (qsocolor_lowz_south & photsys_south)
     qsorf_lowz = (qsorf_lowz_north & photsys_north) | (qsorf_lowz_south & photsys_south)
     qsohizf = (qsohizf_north & photsys_north) | (qsohizf_south & photsys_south)
+    qsoz5 = (qsoz5_north & photsys_north) | (qsoz5_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the BGS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -1469,6 +1601,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsocolor_highz_south * desi_mask.QSO_COLOR_8PASS_SOUTH
     desi_target |= qsorf_highz_south * desi_mask.QSO_RF_8PASS_SOUTH
     desi_target |= qsohizf_south * desi_mask.QSO_HZ_F_SOUTH
+    desi_target |= qsoz5_south * desi_mask.QSO_Z5_SOUTH
 
     # ADM add the per-bit information in the north for LRGs...
     desi_target |= lrginit_n_4 * desi_mask.LRG_INIT_4PASS_NORTH
@@ -1482,6 +1615,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsocolor_highz_north * desi_mask.QSO_COLOR_8PASS_NORTH
     desi_target |= qsorf_highz_north * desi_mask.QSO_RF_8PASS_NORTH
     desi_target |= qsohizf_north * desi_mask.QSO_HZ_F_NORTH
+    desi_target |= qsoz5_north * desi_mask.QSO_Z5_NORTH
 
     # ADM combined per-bit information for the LRGs...
     desi_target |= lrginit_4 * desi_mask.LRG_INIT_4PASS
@@ -1495,6 +1629,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qsocolor_highz * desi_mask.QSO_COLOR_8PASS
     desi_target |= qsorf_highz * desi_mask.QSO_RF_8PASS
     desi_target |= qsohizf * desi_mask.QSO_HZ_F
+    desi_target |= qsoz5 * desi_mask.QSO_Z5
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT

@@ -41,6 +41,7 @@ class TestMTL(unittest.TestCase):
         self.zcat['Z'] = [2.5, 1.0, 0.5, 1.0]
         self.zcat['ZWARN'] = [0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1]
+        self.zcat['SPECTYPE'] = ['QSO', 'QSO', 'GALAXY', 'GALAXY']
 
     def reset_targets(self, prefix):
         """Add prefix to TARGET columns"""

@@ -23,47 +23,49 @@ sv1_desi_mask:
     - [QSO_COLOR_8PASS,   14, "High-z (Lyman-Alpha) QSO using color cuts",    {obsconditions: DARK}]
     - [QSO_RF_8PASS,      15, "High-z (Lyman-Alpha) QSO using random forest", {obsconditions: DARK}]
     - [QSO_HZ_F,          16, "QSO at high-redshift and faint",               {obsconditions: DARK}]
+    - [QSO_Z5,            17, "z~5 QSO",                                      {obsconditions: DARK}]
 
     #- North vs. South selections for different sub-classes
-    - [LRG_INIT_4PASS_NORTH,   17, "Bright LRG using initial optical and IR cuts tuned for Bok/Mosaic", {obsconditions: DARK}]
-    - [LRG_SUPER_4PASS_NORTH,  18, "Bright LRG that is a superset of other cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
-    - [LRG_INIT_8PASS_NORTH,   19, "Faint LRG using initial optical and IR cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
-    - [LRG_SUPER_8PASS_NORTH,  20, "Faint LRG that is a superset of other cuts tuned for Bok/Mosaic",   {obsconditions: DARK}]
-    - [LOWZ_FILLER_NORTH,      21, "LRG-like low-z filler sample tuned for Bok/Mosaic",                 {obsconditions: DARK}]
+    - [LRG_INIT_4PASS_NORTH,   18, "Bright LRG using initial optical and IR cuts tuned for Bok/Mosaic", {obsconditions: DARK}]
+    - [LRG_SUPER_4PASS_NORTH,  19, "Bright LRG that is a superset of other cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
+    - [LRG_INIT_8PASS_NORTH,   20, "Faint LRG using initial optical and IR cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
+    - [LRG_SUPER_8PASS_NORTH,  21, "Faint LRG that is a superset of other cuts tuned for Bok/Mosaic",   {obsconditions: DARK}]
+    - [LOWZ_FILLER_NORTH,      22, "LRG-like low-z filler sample tuned for Bok/Mosaic",                 {obsconditions: DARK}]
 
-    - [LRG_INIT_4PASS_SOUTH,   22, "Bright LRG using initial optical and IR cuts tuned for DECam", {obsconditions: DARK}]
-    - [LRG_SUPER_4PASS_SOUTH,  23, "Bright LRG that is a superset of other cuts tuned for DECam",  {obsconditions: DARK}]
-    - [LRG_INIT_8PASS_SOUTH,   24, "Faint LRG using initial optical and IR cuts tuned for DECam",  {obsconditions: DARK}]
-    - [LRG_SUPER_8PASS_SOUTH,  25, "Faint LRG that is a superset of other cuts tuned for DECam",   {obsconditions: DARK}]
-    - [LOWZ_FILLER_SOUTH,      26, "LRG-like low-z filler sample tuned for DECam",                 {obsconditions: DARK}]
+    - [LRG_INIT_4PASS_SOUTH,   23, "Bright LRG using initial optical and IR cuts tuned for DECam", {obsconditions: DARK}]
+    - [LRG_SUPER_4PASS_SOUTH,  24, "Bright LRG that is a superset of other cuts tuned for DECam",  {obsconditions: DARK}]
+    - [LRG_INIT_8PASS_SOUTH,   25, "Faint LRG using initial optical and IR cuts tuned for DECam",  {obsconditions: DARK}]
+    - [LRG_SUPER_8PASS_SOUTH,  26, "Faint LRG that is a superset of other cuts tuned for DECam",   {obsconditions: DARK}]
+    - [LOWZ_FILLER_SOUTH,      27, "LRG-like low-z filler sample tuned for DECam",                 {obsconditions: DARK}]
 
-    - [ELG_FDR_NORTH,         27, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_NORTH,   28, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_NORTH,     29, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_NORTH,      30, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
-
-    - [ELG_FDR_SOUTH,         31, "ELG using FDR cuts tuned for DECam",                  {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_NORTH,         28, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_NORTH,   29, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_NORTH,     30, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_NORTH,      31, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
 
     #- ADM leave 32-37 reserved for calibration targets (to mirror the main survey)
 
-    - [ELG_FDR_FAINT_SOUTH,   38, "ELG using fainter FDR tuned for DECam",               {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_SOUTH,     39, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_SOUTH,      40, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_SOUTH,         38, "ELG using FDR cuts tuned for DECam",                  {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_FAINT_SOUTH,   39, "ELG using fainter FDR tuned for DECam",               {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_BLUE_SOUTH,     40, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
+    - [ELG_RZ_RED_SOUTH,      41, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
 
-    - [QSO_COLOR_4PASS_NORTH, 41, "Low-z (tracer) QSO using color cuts tuned for Bok/Mosaic",          {obsconditions: DARK}]
-    - [QSO_RF_4PASS_NORTH,    42, "Low-z (tracer) QSO using random forest tuned for Bok/Mosaic",       {obsconditions: DARK}]
-    - [QSO_COLOR_8PASS_NORTH, 43, "High-z (Lyman-Alpha) QSO using color cuts tuned for Bok/Mosaic",    {obsconditions: DARK}]
-    - [QSO_RF_8PASS_NORTH,    44, "High-z (Lyman-Alpha) QSO using random forest tuned for Bok/Mosaic", {obsconditions: DARK}]
-    - [QSO_HZ_F_NORTH,        45, "QSO at high-redshift and faint tuned for Bok/Mosaic",               {obsconditions: DARK}]
+    - [QSO_COLOR_4PASS_NORTH, 42, "Low-z (tracer) QSO using color cuts tuned for Bok/Mosaic",          {obsconditions: DARK}]
+    - [QSO_RF_4PASS_NORTH,    43, "Low-z (tracer) QSO using random forest tuned for Bok/Mosaic",       {obsconditions: DARK}]
+    - [QSO_COLOR_8PASS_NORTH, 44, "High-z (Lyman-Alpha) QSO using color cuts tuned for Bok/Mosaic",    {obsconditions: DARK}]
+    - [QSO_RF_8PASS_NORTH,    45, "High-z (Lyman-Alpha) QSO using random forest tuned for Bok/Mosaic", {obsconditions: DARK}]
+    - [QSO_HZ_F_NORTH,        46, "QSO at high-redshift and faint tuned for Bok/Mosaic",               {obsconditions: DARK}]
+    - [QSO_Z5_NORTH,          47, "z~5 QSO tuned for Bok/Mosaic",                                      {obsconditions: DARK}]
 
-    - [QSO_COLOR_4PASS_SOUTH, 46, "Low-z (tracer) QSO using color cuts tuned for DECam",               {obsconditions: DARK}]
-    - [QSO_RF_4PASS_SOUTH,    47, "Low-z (tracer) QSO using random forest tuned for DECam",            {obsconditions: DARK}]
-    - [QSO_COLOR_8PASS_SOUTH, 48, "High-z (Lyman-Alpha) QSO using color cuts tuned for DECam",         {obsconditions: DARK}]
+    - [QSO_COLOR_4PASS_SOUTH, 48, "Low-z (tracer) QSO using color cuts tuned for DECam",               {obsconditions: DARK}]
 
     #- ADM retain bits 49-52 for masking/convenience (to mirror the main survey)
 
-    - [QSO_RF_8PASS_SOUTH,    53, "High-z (Lyman-Alpha) QSO using random forest tuned for DECam",      {obsconditions: DARK}]
-    - [QSO_HZ_F_SOUTH,        54, "QSO at high-redshift and faint tuned for DECam",                    {obsconditions: DARK}]
+    - [QSO_RF_4PASS_SOUTH,    53, "Low-z (tracer) QSO using random forest tuned for DECam",            {obsconditions: DARK}]
+    - [QSO_COLOR_8PASS_SOUTH, 54, "High-z (Lyman-Alpha) QSO using color cuts tuned for DECam",         {obsconditions: DARK}]
+    - [QSO_RF_8PASS_SOUTH,    55, "High-z (Lyman-Alpha) QSO using random forest tuned for DECam",      {obsconditions: DARK}]
+    - [QSO_HZ_F_SOUTH,        56, "QSO at high-redshift and faint tuned for DECam",                    {obsconditions: DARK}]
+    - [QSO_Z5_SOUTH,          57, "z~5 QSO tuned for DECam",                                           {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
@@ -73,7 +75,7 @@ sv1_desi_mask:
     - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions", {obsconditions: BRIGHT}]
     - [BAD_SKY,     36, "Blank sky locations that are imperfect but still useable",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [SUPP_SKY,      37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
+    - [SUPP_SKY,    37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
@@ -231,6 +233,7 @@ priorities:
         QSO_COLOR_8PASS: SAME_AS_QSO
         QSO_RF_8PASS:    SAME_AS_QSO
         QSO_HZ_F:        SAME_AS_QSO
+        QSO_Z5:          SAME_AS_QSO
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_INIT_4PASS_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         LRG_SUPER_4PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
@@ -255,11 +258,13 @@ priorities:
         QSO_COLOR_8PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_RF_8PASS_NORTH:    SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_HZ_F_NORTH:        SAME_AS_LRG_INIT_4PASS_NORTH
+        QSO_Z5_NORTH:          SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_COLOR_4PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_RF_4PASS_SOUTH:    SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_COLOR_8PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_RF_8PASS_SOUTH:    SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_HZ_F_SOUTH:        SAME_AS_LRG_INIT_4PASS_NORTH
+        QSO_Z5_SOUTH:          SAME_AS_LRG_INIT_4PASS_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -378,6 +383,7 @@ numobs:
         QSO_COLOR_8PASS: 8
         QSO_RF_8PASS:    8
         QSO_HZ_F:        SAME_AS_QSO
+        QSO_Z5:          SAME_AS_QSO
         # ADM don't observe a N/S target if it doesn't have other bits set
         LRG_INIT_4PASS_NORTH:  0
         LRG_SUPER_4PASS_NORTH: 0
@@ -402,11 +408,13 @@ numobs:
         QSO_COLOR_8PASS_NORTH: 0
         QSO_RF_8PASS_NORTH:    0
         QSO_HZ_F_NORTH:        0
+        QSO_Z5_NORTH:          0
         QSO_COLOR_4PASS_SOUTH: 0
         QSO_RF_4PASS_SOUTH:    0
         QSO_COLOR_8PASS_SOUTH: 0
         QSO_RF_8PASS_SOUTH:    0
         QSO_HZ_F_SOUTH:        0
+        QSO_Z5_SOUTH:          0
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
