@@ -93,13 +93,6 @@ suppdatamodel = np.array([], dtype=[
     ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4')
 ])
 
-# APC HACK
-def duplicates_fast(seq):
-    """
-    """
-    seq_u, sec_i, sec_c = np.unique(seq,return_index=True,return_counts=True)
-    return
-
 def duplicates(seq):
     """Locations of duplicates in an array or list.
 
@@ -354,26 +347,28 @@ def add_primary_info(scxtargs, priminfodir):
         primtargs = np.concatenate([primtargs, prim])
 
     # ADM make a unique look-up for the target sets.
-    scxbitnum = np.log2(scxtargs["SCND_TARGET"]).astype('int')
+    scxbitnum  = np.log2(scxtargs["SCND_TARGET"]).astype('int')
     primbitnum = np.log2(primtargs["SCND_TARGET"]).astype('int')
 
-    scxids = 1000 * scxtargs["SCND_ORDER"] + scxbitnum
+    scxids  = 1000 * scxtargs["SCND_ORDER"] + scxbitnum
     primids = 1000 * primtargs["SCND_ORDER"] + primbitnum
 
     # ADM if a secondary matched TWO (or more) primaries,
     # ADM only retain the highest-priority primary.
     alldups = []
-    for _, dups in duplicates(primids):
-        am = np.argmax(primtargs[dups]["PRIORITY_INIT"])
+    # for _, dups in duplicates(primids):
+    for _, dups in duplicates(primtargs['TARGETID']):
+        am   = np.argmax(primtargs[dups]["PRIORITY_INIT"])
         dups = np.delete(dups, am)
         alldups.append(dups)
+    alldups   = np.hstack(alldups)
     primtargs = np.delete(primtargs, alldups)
-    primids = np.delete(primids, alldups)
+    primids   = np.delete(primids,   alldups)
 
     # ADM we already know that all primaries match a secondary, so,
     # ADM for speed, we can reduce to the matching set.
     sprimids = set(primids)
-    scxii = [scxid in sprimids for scxid in scxids]
+    scxii    = [scxid in sprimids for scxid in scxids]
     assert len(sprimids) == len(primids)
     assert set(scxids[scxii]) == sprimids
 
@@ -388,6 +383,9 @@ def add_primary_info(scxtargs, priminfodir):
     # ADM with the primary TARGETIDs.
     scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
 
+    # APC Secondary targets that don't match to a primary.
+    # APC all still have TARGETID = -1 at this point. They
+    # APC get removed in finalize_secondary().
     log.info("Done matching primaries in {} to secondaries...t={:.1f}s"
              .format(priminfodir, time()-start))
 
@@ -608,6 +606,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
 
     # ADM assign the unique TARGETIDs to the secondary objects.
     scxtargs["TARGETID"][nomatch] = targetid[nomatch]
+    log.debug("Assigned {} targetids to unmatched secondaries".format(len(targetid[nomatch])))
 
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
@@ -630,7 +629,6 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     # ADM Ensure secondary targets with matching TARGETIDs have all the
     # ADM relevant SCND_TARGET bits set. By definition, targets with
     # ADM OVERRIDE set never have matching TARGETIDs.
-    # APC This is very slow...
     wnoov = np.where(~scxtargs["OVERRIDE"])[0]
     if len(wnoov) > 0:
         for _, inds in duplicates(scxtargs["TARGETID"][wnoov]):
@@ -647,6 +645,17 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     scxtargs = rfn.rename_fields(
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
     )
+
+    # APC Remove duplicate targetids from secondary-only targets
+    # APC nb. consistent with effect but not procedure in the
+    # APC docstring
+    alldups = []
+    for _, dups in duplicates(scxtargs['TARGETID']):
+        dups = np.delete(dups, 0) # Retain the first
+        alldups.append(dups)
+    alldups   = np.hstack(alldups)
+    log.debug("Removing {} duplicate targetids".format(len(alldups)))
+    scxtargs = np.delete(scxtargs,alldups)
 
     # ADM and remove the INIT fields in prep for a dark/bright split.
     scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
@@ -682,7 +691,6 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)
 
     return done
-
 
 def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
     """Process secondary targets and update relevant bits.
