@@ -119,7 +119,16 @@ else:
     skies = np.concatenate(skies[ii])
 
     # ADM resolve any duplicates between imaging data releases. 
-    skies = resolve(skies)
+    resolved = resolve(skies)
+    # ADM recover any unique bricks that were on the other side of the
+    # ADM resolve, in case of missing N/S bricks available in the S/N.
+    missedbrx = list(set(skies["BRICKNAME"]) - set(resolved["BRICKNAME"]))
+    if len(missedbrx) > 0:
+        backin = np.any([skies["BRICKNAME"]==brx for brx in missedbrx], axis=0)
+        skies = np.concatenate([resolved, skies[backin]])
+        log.info('Added some post-resolve bricks back in: {}'.format(missedbrx))
+    else:
+        skies = resolved
 
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.

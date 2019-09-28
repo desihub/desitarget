@@ -146,6 +146,11 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
     gfas = gfas[ii]
 
+    # ADM remove any sources based on Tycho or LSLGA.
+    ii = ((gfas["REF_CAT"] == b'L2') | (gfas["REF_CAT"] == 'L2') |
+          (gfas["REF_CAT"] == b'T2') | (gfas["REF_CAT"] == 'T2'))
+    gfas = gfas[~ii]
+
     return gfas
 
 
