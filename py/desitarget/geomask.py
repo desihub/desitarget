@@ -727,6 +727,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 zip(np.ones(nbins, dtype='int'), np.arange(nbins))]
         maxeta = 1
         nnodes = 16
+        if prefix == 'supp-skies':
+            nnodes = 4
 
     # ADM more than 48 nodes is a mistake!
     if nnodes > 48:
@@ -752,6 +754,12 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM extract the Data Release number from the survey directory
     dr = surveydir.split('dr')[-1][0]
+    # ADM if an integer can't be extracted, use X instead.
+    try:
+        drstr = "-dr{}".format(int(dr))
+    except ValueError:
+        drstr = ""
+
     comment = '#'
     if gather:
         comment = ''
@@ -783,7 +791,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
-            outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
+            outfile = "$CSCRATCH/{}{}-hp-{}.fits".format(prefix.replace("_", "-"), drstr, strgoodpix)
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
@@ -791,9 +799,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                   .format(cmd, prefix2, surveydir, outfile, s2, nside, strgoodpix))
     print("wait")
     print("")
-    print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"
+    print("{}gather_targets '{}' $CSCRATCH/{}{}.fits {}"
           # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
-          .format(comment, ";".join(outfiles), prefix, dr, prefix2.split("_")[-1]))
+          .format(comment, ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
     print("")
 
     return

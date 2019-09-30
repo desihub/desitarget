@@ -134,16 +134,11 @@ else:
     else:
         skies = resolved
 
-    # ADM add the maximum BRICK_OBJID to the file header so the SUPP_SKIES
-    # ADM can parse this information more easily.
-    extra = {k: v for k, v in zip(["maxobjid"],
-                                  [np.max(skies["BRICK_OBJID"])])}
-
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
     io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2,
                    nside=nside, apertures_arcsec=apertures,
-                   nskiespersqdeg=nskiespersqdeg, extra=extra,
+                   nskiespersqdeg=nskiespersqdeg,
                    nsidefile=ns.nside, hpxlist=pixlist)
 
     log.info('{} skies written to {}'.format(len(skies), ns.dest))

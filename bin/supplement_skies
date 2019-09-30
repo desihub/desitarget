@@ -24,9 +24,6 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate supplemental sky locations using Gaia-G-band avoidance (for regions beyond the Legacy Surveys)')
-ap.add_argument("source",
-                help="Input directory of sky targets (e.g. /project/projectdirs/desi/target/catalogs/dr8/0.31.0/skies/)." +
-                "Used to set the minimum allowed OBJID by looping through the header information for all skies*fits files in the directory.")
 ap.add_argument("dest",
                 help="Output supplemental sky targets file (e.g. /project/projectdirs/desi/target/catalogs/supp-skies-dr4-0.20.0.fits)")
 ap.add_argument("--nskiespersqdeg", type=float,
@@ -42,16 +39,17 @@ ap.add_argument('--nside', type=int,
                 help="Process supplemental skies in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
                 default=None)
 ap.add_argument('--healpixels',
-                help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
+                help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels."+
+                " The first entry is used to set RELEASE for TARGETIDs, and must be < 1000 (to prevent confusion with DR1 and above)",
                 default=None)
 ap.add_argument("--bundlefiles", type=int,
-                help="(overrides all options but `source`) print slurm script to parallelize by sending (any) integer. This is an integer rather than boolean for consistency with select_targets.",
+                help="(overrides all options) print slurm script to parallelize by sending (any) integer. This is an integer rather than boolean for consistency with select_targets.",
                 default=None)
 ap.add_argument("--mindec", type=float,
                 help="Minimum declination to include in output file (degrees; defaults to [-90])",
                 default=-90.)
 ap.add_argument("--mingalb", type=float,
-                help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS sources (e.g. send 10 to limit to areas beyond -10o <= b < 10o; defaults to [0])",
+                help="Closest latitude to Galactic plane to output for NON-LEGACY-SURVEYS targets (e.g. send 10 to limit to areas beyond -10o <= b < 10o; defaults to [0])",
                 default=0.)
 ap.add_argument("--radius", type=float,
                 help="Radius at which to avoid (all) Gaia sources (arcseconds; defaults to [2])",
@@ -59,20 +57,14 @@ ap.add_argument("--radius", type=float,
 
 ns = ap.parse_args()
 
-# ADM determine the maximum OBJID in the sky files being supplemented.
-# ADM 1 + this will be the minimum allowed OBJID for supplemental skies.
-if ns.bundlefiles is None:
-    if not os.path.exists(ns.source):
-        log.critical('sky source directory {} does not exist!'.format(ns.source))
-        sys.exit(1)
-    # ADM loop through all of the files in the sky source directory.
-    fns = glob(os.path.join(ns.source, "skies*fits"))
-    maxobjid = []
-    for fn in fns:
-        maxobjid.append(fitsio.read_header(fn, "SKIES")["MAXOBJID"])
-    minobjid = np.max(maxobjid) + 1
-    log.info("Minimum allowed BRICK_OBJD based on files in {}: {}".format(
-        ns.source, minobjid))
+if ns.bundlefiles is not None:
+    # ADM a check that nside isn't too large for RELEASE numbers < 1000.
+    if hp.nside2npix(ns.nside) >= 1000:
+        msg = "At nside ({}), pixels > 1000 exist. Pixel numbers set ".format(
+            ns.nside)
+        msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
+        log.critical(msg)
+        raise IOError
 
 # ADM if the GAIA directory was passed, set it...
 gaiadir = ns.gaiadir
@@ -100,6 +92,13 @@ for nskey in "mindec", "mingalb", "radius":
 pixlist = ns.healpixels
 if pixlist is not None:
     pixlist = [int(pix) for pix in pixlist.split(',')]
+    # ADM if splitting by HEALPixels they will be used to set
+    # ADM RELEASE. Check this won't produce duplicate TARGETIDs.
+    if pixlist[0] >= 1000:
+        msg = "First entry in pixlist ({}) > 1000. This sets ".format(pixlist[0])
+        msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
+        log.critical(msg)
+        raise IOError
 
 # ADM only proceed if we're not writing a slurm script.
 if ns.bundlefiles is None:
@@ -107,7 +106,7 @@ if ns.bundlefiles is None:
     skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
                              gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
                              pixlist=pixlist, mindec=ns.mindec,
-                             mingalb=ns.mingalb, minobjid=minobjid)
+                             mingalb=ns.mingalb)
 
     # ADM extra header keywords for the output fits file.
     extra = {k: v for k, v in zip(["radius", "mindec", "mingalb"],
@@ -121,5 +120,4 @@ if ns.bundlefiles is None:
 else:
     # ADM if the bundlefiles option was sent, call the slurming code.
     bundle_bricks([0], ns.bundlefiles, ns.nside, gather=False,
-                  prefix='supp-skies', surveydirs=[ns.source], extra=extra)
-
+                  prefix='supp-skies', surveydirs=" ", extra=extra)
