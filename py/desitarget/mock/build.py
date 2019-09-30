@@ -1394,7 +1394,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
         todo = comm.bcast(todo, root=0)
 
     if todo['sky']:
-        _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY',
+        _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY_TARGETS',
                            outfile=outdir+'/sky.fits', comm=comm,
                            overwrite=overwrite)
                            #addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
