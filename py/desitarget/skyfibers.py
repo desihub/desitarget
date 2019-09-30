@@ -25,7 +25,7 @@ from desitarget.skyutilities.astrometry.fits import fits_table
 from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
 from desitarget.targetmask import desi_mask, targetid_mask
-from desitarget.targets import encode_targetid, finalize
+from desitarget.targets import finalize
 from desitarget.io import brickname_from_filename
 from desitarget.gaiamatch import find_gaia_files
 from desitarget.geomask import is_in_gal_box, is_in_circle, is_in_hp
@@ -790,7 +790,7 @@ def get_supp_skies(ras, decs, radius=2.):
 
 def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
                      nside=None, pixlist=None, mindec=-30., mingalb=10.,
-                     radius=2., minobjid=0):
+                     radius=2.):
     """Generate supplemental sky locations using Gaia-G-band avoidance.
 
     Parameters
@@ -808,6 +808,8 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     pixlist : :class:`list` or `int`, optional, defaults to `None`
         Only return targets in a set of (NESTED) HEALpixels at the
         supplied `nside`. Useful for parallelizing across nodes.
+        The first entry sets RELEASE for TARGETIDs, and must be < 1000
+        (to prevent confusion with DR1 and above).
     mindec : :class:`float`, optional, defaults to -30
         Minimum declination (o) to include for output sky locations.
     mingalb : :class:`float`, optional, defaults to 10
@@ -815,10 +817,6 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
     radius : :class:`float`, optional, defaults to 2
         Radius at which to avoid (all) Gaia sources (arcseconds).
-    minobjid : :class:`int`, optional, defaults to 0
-        The minimum OBJID to start counting from in a brick. Used
-        to make sure supplemental skies have different OBJIDs from
-        regular skies.
 
     Returns
     -------
@@ -911,8 +909,8 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     # ADM the for loop doesn't seem the smartest way, but it is O(n).
     log.info("Begin assigning OBJIDs to bricks...t={:.1f}s".format(time()-start))
     brxid = supp["BRICKID"]
-    # ADM start each brick counting from minobjid.
-    cntr = np.zeros(np.max(brxid)+1, dtype=int)+minobjid
+    # ADM start each brick counting from zero.
+    cntr = np.zeros(np.max(brxid)+1, dtype=int)
     objid = []
     for ibrx in brxid:
         cntr[ibrx] += 1
@@ -925,6 +923,16 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         raise ValueError
     supp["OBJID"] = np.array(objid)
     log.info("Assigned OBJIDs to bricks...t={:.1f}s".format(time()-start))
+
+    # ADM if splitting by HEALPixels, use the input list to
+    # ADM set RELEASE so we don't have duplicate TARGETIDs.
+    if pixlist is not None and pixlist[0] < 1000:
+        supp["RELEASE"] = pixlist[0]
+    else:
+        msg = "First entry in pixlist ({}) > 1000. This sets ".format(pixlist[0])
+        msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
+        log.critical(msg)
+        raise IOError
 
     # ADM add the TARGETID, DESITARGET bits etc.
     nskies = len(supp)
