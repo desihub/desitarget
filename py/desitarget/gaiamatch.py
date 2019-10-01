@@ -502,12 +502,14 @@ def read_gaia_file(filename, header=False, addobjid=False):
     Parameters
     ----------
     filename : :class:`str`
-        File name of a single Gaia "chunks" file.
+        File name of a single Gaia "healpix-" file.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return (data, header) instead of just data.
     addobjid : :class:`bool`, optional, defaults to ``False``
-        Include, in the output, a column "GAIA_OBJID" that is the
-        integer number of each row read from file.
+        Include, in the output, two additional columns. A column
+        "GAIA_OBJID" that is the integer number of each row read from
+        file and a column "GAIA_BRICKID" that is the integer number of
+        the file itself.
 
     Returns
     -------
@@ -543,12 +545,17 @@ def read_gaia_file(filename, header=False, addobjid=False):
     # ADM if requested, add an object identifier for each file row.
     if addobjid:
         newdt = outdata.dtype.descr
-        newdt.append(('GAIA_OBJID', '>i4'))
+        for tup in ('GAIA_BRICKID', '>i4'), ('GAIA_OBJID', '>i4'):
+            newdt.append(tup)
         nobjs = len(outdata)
         newoutdata = np.zeros(nobjs, dtype=newdt)
         for col in outdata.dtype.names:
             newoutdata[col] = outdata[col]
         newoutdata['GAIA_OBJID'] = np.arange(nobjs)
+        nside = _get_gaia_nside()
+        hpnum = radec2pix(nside, outdata["GAIA_RA"], outdata["GAIA_DEC"])
+        # ADM int should fail if HEALPix in the file aren't unique.
+        newoutdata['GAIA_BRICKID'] = int(np.unique(hpnum))
         outdata = newoutdata
 
     # ADM return data from the Gaia file, with the header if requested.
