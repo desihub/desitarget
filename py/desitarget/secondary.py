@@ -647,15 +647,12 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     )
 
     # APC Remove duplicate targetids from secondary-only targets
-    # APC nb. consistent with effect but not procedure in the
-    # APC docstring
     alldups = []
     for _, dups in duplicates(scxtargs['TARGETID']):
         dups = np.delete(dups, 0) # Retain the first
         alldups.append(dups)
     alldups   = np.hstack(alldups)
-    log.debug("Removing {} duplicate targetids".format(len(alldups)))
-    scxtargs = np.delete(scxtargs,alldups)
+    log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".format(len(alldups)))
 
     # ADM and remove the INIT fields in prep for a dark/bright split.
     scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
@@ -686,6 +683,9 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     for edr, oc in zip(ender, obscon):
         pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
         done[pc], done[nc] = initial_priority_numobs(done, obscon=oc, scnd=True)
+
+        # APC Flagged duplicates are removed in io.write_secondary
+        done[pc][alldups] = -1
 
     # ADM set the OBSCONDITIONS.
     done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)
