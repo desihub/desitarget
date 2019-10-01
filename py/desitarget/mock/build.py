@@ -967,9 +967,11 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         
         nobj, nsky = len(targets), len(skytargets)
         if nobj > 0:
-            targetsfile = mockio.findfile('targets', nside, healpix, basedir=output_dir)
-            truthfile = mockio.findfile('truth', nside, healpix, basedir=output_dir)
             for obscon in ['BRIGHT', 'DARK']:
+                targetsfile = mockio.findfile('targets-{}'.format(obscon.lower()),
+                        nside, healpix, basedir=output_dir)
+                truthfile = mockio.findfile('truth-{}'.format(obscon.lower()),
+                        nside, healpix, basedir=output_dir)
                 mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
                             'truewave': MakeMock.wave, 'trueflux': trueflux,
                             'truthfile': truthfile}
@@ -1131,6 +1133,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
         rank = 0
 
     if rank == 0:
+        log.info('Generating {} from {} HDU {}'.format(outfile, fileglob, ext))
         infiles = sorted(glob.glob(fileglob))
     else:
         infiles = None
@@ -1139,8 +1142,8 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
         infiles = comm.bcast(infiles, root=0)
  
     if len(infiles)==0:
-        log = get_logger()
-        log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
+        if rank == 0:
+            log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
         return
     
     #- Each rank reads and combines a different set of files
