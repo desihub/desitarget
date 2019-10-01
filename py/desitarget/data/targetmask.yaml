@@ -141,12 +141,13 @@ obsmask:
 #- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
 #- Updated to include RELEASE from the new DR4+ data model, circa June 30th, 2016
 targetid_mask:
-    - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",      {nbits: 22}]
-    - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)", {nbits: 20}]
-    - [RELEASE,    42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-57 inclusive)", {nbits: 16}]
-    - [MOCK,       58, "this target is a mock target",                                                  {nbits: 1}]
-    - [SKY,        59, "this target is a sky fiber target",                                             {nbits: 1}]
-    - [RESERVED,   60, "RIGHMOST bit for left over bit space (encompasses bits 60-63 inclusive)",       {nbits: 4}]
+    - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",       {nbits: 22}]
+    - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)",  {nbits: 20}]
+    - [RELEASE,    42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-57 inclusive)",  {nbits: 16}]
+    - [MOCK,       58, "this target is a mock target",                                                   {nbits: 1}]
+    - [SKY,        59, "this target is a sky fiber target",                                              {nbits: 1}]
+    - [GAIA,       60, "RIGHTMOST bit encoding Gaia DR number when not in Legacy Surveys (bits 60-61)",  {nbits: 2}]
+    - [RESERVED,   62, "RIGHTMOST bit for left over bit space (encompasses bits 62-63 inclusive)",       {nbits: 2}]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
