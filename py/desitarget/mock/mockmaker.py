@@ -2042,6 +2042,7 @@ class ReadGalaxia(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.zeros(nobj).astype('i8')+31, # good astrometry
                'PARALLAX': gaia_parallax,
                'PARALLAX_IVAR': gaia_parallax_ivar,
                'PMRA': gaia_pmra,
@@ -2777,7 +2778,7 @@ class ReadMWS_WD(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
-               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.ones(nobj).astype('i8')+31, # good astrometry
+               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.zeros(nobj).astype('i8')+31, # good astrometry
                'PARALLAX': gaia_parallax,
                'PARALLAX_IVAR': gaia_parallax_ivar,
                'PMRA': gaia_pmra,
@@ -2931,7 +2932,7 @@ class ReadMWS_NEARBY(SelectTargets):
                #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_RP_MEAN_MAG': gaia_rp,
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
-               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.ones(nobj).astype('f4')+31, # good astrometry
+               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.zeros(nobj).astype('f4')+31, # good astrometry
                #'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
                'PARALLAX': gaia_parallax,
