@@ -432,9 +432,8 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         supplied `nside`. Useful for parallelizing.
     bundlefiles : :class:`int`, defaults to `None`
         If not `None`, then, instead of selecting gfas, print the slurm
-        script to approximately balance `infiles` at `bundlefiles`
-        files per node. E.g, `bundlefiles=100` would print commands
-        to process about 100 of the `infiles` per node.
+        script to run in pixels at `nside`. Is an integer rather than
+        a boolean for historical reasons.
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script. Used in conjunction with `bundlefiles`.
@@ -495,7 +494,6 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
     if bundlefiles is not None:
         # ADM were files from one or two input directories passed?
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
-        print(surveydirs)
         bundle_bricks([0], bundlefiles, nside, gather=False,
                       prefix='gfas', surveydirs=surveydirs, extra=extra)
         return
