@@ -858,9 +858,9 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     ra, dec : :class:`array_like` or :class:`None`
         Right Ascension and Declination in degrees.
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
-        Directory in which to find commmissioning files to which to match, such as the
-        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
-        the :envvar:`CMX_DIR` environment variable.
+        Directory to find commmissioning files to match, such as for the
+        CALSPEC stars. If not specified, taken to be the value of the
+        :envvar:`CMX_DIR` environment variable.
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The matching radius in arcseconds.
     primary : :class:`array_like` or :class:`None`
@@ -909,17 +909,106 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     return iscalspec
 
 
+def isBACKUP(gaiarmag=None, primary=None):
+    """BACKUP targets based on Gaia magnitudes.
+
+    Parameters
+    ----------
+    gaiarmag: array_like or None
+        Gaia-based r MAGNITUDE (not Galactic-extinction-corrected).
+            (same units as `the Gaia data model`_).
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a "BACKUP" target.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiarmag, dtype='?')
+
+    isbackup = primary.copy()
+
+    # ADM the magnitude range for backup targets.
+    isbackup &= gaiarmag >= 16
+    isbackup &= gaiarmag < 18
+
+    return isbackup
+
+
+def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
+    """Gaia-only-based CMX target selection, return target mask arrays.
+
+    Parameters
+    ----------
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
+        Directory to find commmissioning files to match, such as for the
+        CALSPEC stars. If not specified, taken to be the value of the
+        :envvar:`CMX_DIR` environment variable.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing, as input files will only be processed
+        if they touch a pixel in the passed list.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Commissioning target selection bitmask flags for each object.
+    :class:`~numpy.ndarray`
+        numpy structured array of Gaia sources that were read in from
+        file for the passed pixel constraints (or no pixel constraints).
+
+    Notes
+    -----
+        - May take a long time if no pixel constraints are passed.
+        - Only run on Gaia-only target selections.
+        - The environment variable $GAIA_DIR must be set.
+
+    See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
+    """
+    from desitarget.gfa import all_gaia_in_tiles
+    gaia = all_gaia_in_tiles(maglim=22, numproc=numproc, allsky=True,
+                             mindec=-90, mingalb=0, nside=nside, pixlist=pixlist)
+
+    primary = np.ones_like(gaia, dtype=bool)
+
+    # ADM the relevant input quantities.
+    ra = gaia["RA"]
+    dec = gaia["DEC"]
+    gaiarmag = gaia["GAIA_PHOT_RP_MEAN_MAG"]
+
+    # ADM determine if an object matched a CALSPEC standard.
+    std_calspec = isSTD_calspec(
+        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
+    )
+
+    # ADM determine if an object is SV0_BGS.
+    backup = isBACKUP(gaiarmag=gaiarmag, primary=primary)
+
+    # ADM Construct the target flag bits.
+    cmx_target = std_calspec * cmx_mask.STD_CALSPEC
+    cmx_target |= backup * cmx_mask.BACKUP
+
+    return cmx_target, gaia
+
+
 def apply_cuts(objects, cmxdir=None, noqso=False):
     """Commissioning (cmx) target selection, return target mask arrays.
 
     Parameters
     ----------
-    objects: numpy structured array with UPPERCASE columns needed for
+    objects : :class:`~numpy.ndarray`
+        numpy structured array with UPPERCASE columns needed for
         target selection, OR a string tractor/sweep filename
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
         Directory to find commmissioning files to which to match, such
         as the CALSPEC stars. If not specified, the cmx directory is
-        taken to be the value of :envvar:`CMX_DIR`.
+        taken to be the value of 2:envvar:`CMX_DIR`.
     noqso : :class:`boolean`, optional, defaults to ``False``
         If passed, do not run the quasar selection. All QSO bits will be
         set to zero. Intended use is to speed unit tests.
@@ -928,6 +1017,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     -------
     :class:`~numpy.ndarray`
         commissioning target selection bitmask flags for each object.
+    :class:`array_like`
+        a priority shift of 10*(25-rmag) based on r-band magnitude.
+        (for STD_DITHER sources).
 
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
@@ -1102,7 +1194,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     return cmx_target, priority_shift
 
 
-def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
+def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
+                   nside=None, pixlist=None, bundlefiles=None):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
@@ -1118,6 +1211,16 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
     noqso : :class:`boolean`, optional, defaults to ``False``
         If passed, do not run the quasar selection. All QSO bits will be
         set to zero. Intended use is to speed unit tests.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing, as input files will only be processed
+        if they touch a pixel in the passed list.
+    bundlefiles : :class:`int`, defaults to `None`
+        If not `None`, then, instead of selecting gfas, print the slurm
+        script to run in pixels at `nside`. Is an integer rather than
+        a boolean for historical reasons.
 
     Returns
     -------
@@ -1144,6 +1247,32 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
     # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
 
+    # ADM if the pixlist option was sent, we'll need to
+    # ADM know which HEALPixels touch each file.
+    if pixlist is not None:
+        filesperpixel, _, _ = sweep_files_touch_hp(
+            nside, pixlist, infiles)
+
+    # ADM if the bundlefiles option was sent, call the packing code.
+    if bundlefiles is not None:
+        # ADM determine if one or two input directories were passed.
+        surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
+        bundle_bricks([0], bundlefiles, nside, gather=False,
+                      prefix='cmx-targets', surveydirs=surveydirs)
+        return
+
+    # ADM restrict to only input files in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
+        if len(infiles) == 0:
+            log.warning('ZERO files in passed pixel list!!!')
+        log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
+                 .format(nside, pixlist))
+
+    # ADM a little more information if we're slurming across nodes.
+    if os.getenv('SLURMD_NODENAME') is not None:
+        log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
+
     def _finalize_targets(objects, cmx_target, priority_shift):
         # -desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         # -on desi_target != 0
@@ -1168,7 +1297,6 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
         objects = io.read_tractor(filename)
         cmx_target, priority_shift = apply_cuts(objects,
                                                 cmxdir=cmxdir, noqso=noqso)
-
         return _finalize_targets(objects, cmx_target, priority_shift)
 
     # Counter for number of bricks processed;
@@ -1200,5 +1328,30 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
             targets.append(_update_status(_select_targets_file(x)))
 
     targets = np.concatenate(targets)
+
+    # ADM also process Gaia-only targets.
+    log.info('Retrieve additional Gaia-only (backup) objects...t = {:.1f} mins'
+             .format((time()-t0)/60))
+
+    # ADM force to no more than numproc=4 for I/O limited (Gaia) processes.
+    numproc4 = numproc
+    if numproc4 > 4:
+        log.info('Forcing numproc to 4 for I/O limited parts of code')
+        numproc4 = 4
+        
+    # ADM Parallel process Gaia-only selection.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
+    else:
+        targets = list()
+        for x in infiles:
+            targets.append(_update_status(_select_targets_file(x)))
+    
+    gaia = apply_cuts_gaia(numproc=numproc, cmxdir=cmxdir,
+                           nside=nside, pixlist=pixlist)
+
+
 
     return targets

@@ -2155,7 +2155,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         Also useful for parallelizing as input files will only be processed if they
         touch a pixel in the passed list.
     bundlefiles : :class:`int`, defaults to `None`
-        If not `None`, then instead of selecting the skies, print, to screen, the slurm
+        If not `None`, then instead of selecting targets, print, to screen, the slurm
         script that will approximately balance the input file distribution at `bundlefiles`
         files per node. So, for instance, if `bundlefiles` is 100 then commands would be
         returned with the correct `pixlist` values set to pass to the code to pack at
