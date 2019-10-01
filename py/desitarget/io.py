@@ -443,8 +443,8 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr['HPXNSIDE'] = (nside, 'HEALPix nside')
-        hdr['HPXNEST'] = (True, 'HEALPix nested (not ring) ordering')
+        hdr.add_record(dict(name='HPXNSIDE', value=nside, comment="HEALPix nside"))
+        hdr.add_record(dict(name='HPXNEST', value=True, comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None:
