@@ -496,16 +496,18 @@ def pop_gaia_columns(inarr, popcols):
     return rfn.drop_fields(inarr, popcols)
 
 
-def read_gaia_file(filename, header=False):
+def read_gaia_file(filename, header=False, addobjid=False):
     """Read in a Gaia healpix file in the appropriate format for desitarget.
 
     Parameters
     ----------
     filename : :class:`str`
         File name of a single Gaia "chunks" file.
-
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return (data, header) instead of just data.
+    addobjid : :class:`bool`, optional, defaults to ``False``
+        Include, in the output, a column "GAIA_OBJID" that is the
+        integer number of each row read from file.
 
     Returns
     -------
@@ -517,28 +519,39 @@ def read_gaia_file(filename, header=False):
     -----
         - A better location for this might be in `desitarget.io`?
     """
-    # ADM check we aren't going to have an epic fail on the the version of fitsio
+    # ADM check for an epic fail on the the version of fitsio.
     check_fitsio_version()
 
-    # ADM prepare to read in the Gaia data by reading in columns
+    # ADM prepare to read in the Gaia data by reading in columns.
     fx = fitsio.FITS(filename, upper=True)
     fxcolnames = fx[1].get_colnames()
     hdr = fx[1].read_header()
 
-    # ADM the default list of columns
+    # ADM the default list of columns.
     readcolumns = list(ingaiadatamodel.dtype.names)
-    # ADM read 'em in
+    # ADM read 'em in.
     outdata = fx[1].read(columns=readcolumns)
-    # ADM change the data model to what we want for each column
+    # ADM change the data model to what we want for each column.
     outdata.dtype = gaiadatamodel.dtype
 
-    # ADM the proper motion ERRORS need to be converted to IVARs
-    # ADM remember to leave 0 entries as 0
+    # ADM the proper motion ERRORS need to be converted to IVARs.
+    # ADM remember to leave 0 entries as 0.
     for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
         w = np.where(outdata[col] != 0)[0]
         outdata[col][w] = 1./(outdata[col][w]**2.)
 
-    # ADM return data read in from the Gaia file, with the header if requested
+    # ADM if requested, add an object identifier for each file row.
+    if addobjid:
+        newdt = outdata.dtype.descr
+        newdt.append(('GAIA_OBJID', '>i4'))
+        nobjs = len(outdata)
+        newoutdata = np.zeros(nobjs, dtype=newdt)
+        for col in outdata.dtype.names:
+            newoutdata[col] = outdata[col]
+        newoutdata['GAIA_OBJID'] = np.arange(nobjs)
+        outdata = newoutdata
+
+    # ADM return data from the Gaia file, with the header if requested.
     if header:
         fx.close()
         return outdata, hdr
