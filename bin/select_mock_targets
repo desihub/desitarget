@@ -94,7 +94,7 @@ if not os.path.exists(args.config):
 # Read parameters from yaml file.
 log.info('Reading configuration file {}'.format(args.config))
 with open(args.config, 'r') as pfile:
-    params = yaml.load(pfile)
+    params = yaml.safe_load(pfile)
 
 log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
 targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 
