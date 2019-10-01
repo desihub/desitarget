@@ -157,7 +157,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
 
 
 def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
-                 nside=None, pixlist=None):
+                 nside=None, pixlist=None, addobjid=False):
     """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
 
     Parameters
@@ -176,6 +176,9 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
     pixlist : :class:`list` or `int`, optional, defaults to `None`
         Only return sources in a set of (NESTED) HEALpixels at the
         supplied `nside`.
+    addobjid : :class:`bool`, optional, defaults to ``False``
+        If ``True``, include, in the output, a column "GAIA_OBJID"
+        that is the integer number of each row read from file.
 
     Returns
     -------
@@ -189,7 +192,7 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
          :func:`~desitarget.gaiamatch.gaia_fits_to_healpix()`
     """
     # ADM read in the Gaia file and limit to the passed magnitude.
-    objs = read_gaia_file(infile)
+    objs = read_gaia_file(infile, addobjid=addobjid)
     ii = objs['GAIA_PHOT_G_MEAN_MAG'] < maglim
     objs = objs[ii]
 
@@ -199,7 +202,12 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
                             for col in objs.dtype.names]
 
     # ADM initiate the GFA data model.
-    gfas = np.zeros(len(objs), dtype=gfadatamodel.dtype)
+    dt = gfadatamodel.dtype.descr
+    if addobjid:
+        for tup in ('GAIA_BRICKID', '>i4'), ('GAIA_OBJID', '>i4'):
+            dt.append(tup)
+
+    gfas = np.zeros(len(objs), dtype=dt)
     # ADM make sure all columns initially have "ridiculous" numbers
     gfas[...] = -99.
     for col in gfas.dtype.names:
@@ -240,7 +248,7 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
 
 def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
                       tiles=None, mindec=-30, mingalb=10,
-                      nside=None, pixlist=None):
+                      nside=None, pixlist=None, addobjid=False):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -264,6 +272,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     pixlist : :class:`list` or `int`, optional, defaults to `None`
         Only return sources in a set of (NESTED) HEALpixels at the
         supplied `nside`.
+    addobjid : :class:`bool`, optional, defaults to ``False``
+        If ``True``, include, in the output, a column "GAIA_OBJID"
+        that is the integer number of each row read from each Gaia file.
 
     Returns
     -------
@@ -290,8 +301,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     # ADM the critical function to run on every file.
     def _get_gaia_gfas(fn):
         '''wrapper on gaia_in_file() given a file name'''
-        return gaia_in_file(fn, maglim=maglim, mindec=mindec,
-                            mingalb=mingalb, nside=nside, pixlist=pixlist)
+        return gaia_in_file(fn, maglim=maglim, mindec=mindec, mingalb=mingalb,
+                            nside=nside, pixlist=pixlist, addobjid=addobjid)
 
     # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
