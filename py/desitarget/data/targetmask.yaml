@@ -146,7 +146,7 @@ targetid_mask:
     - [RELEASE,    42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-57 inclusive)",  {nbits: 16}]
     - [MOCK,       58, "this target is a mock target",                                                   {nbits: 1}]
     - [SKY,        59, "this target is a sky fiber target",                                              {nbits: 1}]
-    - [GAIA,       60, "RIGHTMOST bit encoding Gaia DR number when not in Legacy Surveys (bits 60-61)",  {nbits: 2}]
+    - [GAIADR,     60, "RIGHTMOST bit encoding Gaia DR number when not in Legacy Surveys (bits 60-61)",  {nbits: 2}]
     - [RESERVED,   62, "RIGHTMOST bit for left over bit space (encompasses bits 62-63 inclusive)",       {nbits: 2}]
 
 #- Priorities for each target bit

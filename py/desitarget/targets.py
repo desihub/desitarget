@@ -22,7 +22,7 @@ log = get_logger()
 
 
 def encode_targetid(objid=None, brickid=None, release=None,
-                    mock=None, sky=None, gaia=None):
+                    mock=None, sky=None, gaiadr=None):
     """Create the DESI TARGETID from input source and imaging info.
 
     Parameters
@@ -45,7 +45,7 @@ def encode_targetid(objid=None, brickid=None, release=None,
         mocks, not from real survey data), 0 otherwise
     sky : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a blank sky object, 0 otherwise
-    gaia : :class:`int` or :class:`~numpy.ndarray`, optional
+    gaiadr : :class:`int` or :class:`~numpy.ndarray`, optional
         The Gaia Data Release number (e.g. send 2 for Gaia DR2).
 
     Returns
@@ -85,7 +85,7 @@ def encode_targetid(objid=None, brickid=None, release=None,
     # ADM determine the length of passed values that aren't None.
     # ADM default to an integer (length 1).
     nobjs = 1
-    inputs = [objid, brickid, release, mock, sky, gaia]
+    inputs = [objid, brickid, release, mock, sky, gaiadr]
     goodpar = [param is not None for param in inputs]
     firstgoodpar = np.where(goodpar)[0][0]
     if isinstance(inputs[firstgoodpar], np.ndarray):
@@ -598,7 +598,7 @@ def resolve(targets):
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,
-             sky=0, survey='main', darkbright=False):
+             sky=0, survey='main', darkbright=False, gaiadr=None):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -622,6 +622,10 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
         and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
         to "BRIGHT" and "DARK|GRAY" observing conditions.
+    gaiadr : :class:`int`, optional, defaults to ``None``
+        If passed and not ``None``, then build the `TARGETID` from the
+        "GAIA_OBJID" and "GAIA_BRICKID" columns in the passed `targets`,
+        and set the `gaiadr` part of `TARGETID` to whatever is passed.
 
     Returns
     -------
@@ -630,7 +634,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
           * renaming OBJID -> BRICK_OBJID (it is only unique within a brick).
           * renaming TYPE -> MORPHTYPE (used downstream in other contexts).
           * Adding new columns:
-              - TARGETID: unique ID across all bricks.
+              - TARGETID: unique ID across all bricks or Gaia files.
               - DESI_TARGET: dark time survey target selection flags.
               - MWS_TARGET: bright time MWS target selection flags.
               - BGS_TARGET: bright time BGS target selection flags.
@@ -655,10 +659,17 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     # - create a new unique TARGETID
     targets = rfn.rename_fields(targets,
                                 {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
-    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
-                               brickid=targets['BRICKID'],
-                               release=targets['RELEASE'],
-                               sky=sky)
+    if gaiadr is not None:
+        targetid = encode_targetid(objid=targets['GAIA_OBJID'],
+                                   brickid=targets['GAIA_BRICKID'],
+                                   release=0,
+                                   sky=sky,
+                                   gaiadr=gaiadr)
+    else:
+        targetid = encode_targetid(objid=targets['BRICK_OBJID'],
+                                   brickid=targets['BRICKID'],
+                                   release=targets['RELEASE'],
+                                   sky=sky)
 
     nodata = np.zeros(ntargets, dtype='int')-1
     subpriority = np.zeros(ntargets, dtype='float')

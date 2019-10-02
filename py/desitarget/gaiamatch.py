@@ -95,6 +95,38 @@ def _get_gaia_nside():
     return nside
 
 
+def gaia_dr_from_ref_cat(refcat):
+    """Determine the Gaia DR from an array of values, check it's unique.
+
+    Parameters
+    ----------
+    ref_cat : :class:`~numpy.ndarray` or `str`
+        A `REF_CAT` string or an array of `REF_CAT` strings (e.g. b"G2").
+
+    Returns
+    -------
+    :class:`int`
+        The corresponding Data Release number (e.g. 2)
+    """
+    # ADM the unique set of values in the passed array.
+    # ADM also converts an integer to an array.
+    gdrarr = np.unique(refcat)
+
+    # ADM check that the passed information is unique.
+    if len(gdrarr) == 1:
+        gdrstr = gdrarr[0]
+        # ADM in case an old-style byte string was passed.
+        if isinstance(gdrstr, bytes):
+            gdrstr = gdrstr.decode()
+        gaiadr = int(gdrstr[-1])
+    else:
+        msg = "Gaia DR is not unique: {}".format(set(refcat))
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return gaiadr
+
+
 def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nfiletest=None):
     """Retrieve the bulk CSV files released by the Gaia collaboration.
 
@@ -478,7 +510,7 @@ def pop_gaia_coords(inarr):
 
 
 def pop_gaia_columns(inarr, popcols):
-    """Convenience function to pop columns of an input array.
+    """Convenience function to pop columns off an input array.
 
     Parameters
     ----------

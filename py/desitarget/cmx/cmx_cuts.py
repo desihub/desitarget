@@ -13,6 +13,7 @@ flux passes a given selection criterion (*e.g.* STD_TEST).
 
 from time import time
 import numpy as np
+import numpy.lib.recfunctions as rfn
 import os
 import fitsio
 import warnings
@@ -26,10 +27,11 @@ from pkg_resources import resource_filename
 from desitarget import io
 from desitarget.cuts import _psflike, _is_row, _get_colnames
 from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
-
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize
 from desitarget.cmx.cmx_targetmask import cmx_mask
+from desitarget.geomask import sweep_files_touch_hp
+from desitarget.gaiamatch import gaia_dr_from_ref_cat
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -972,15 +974,19 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
     from desitarget.gfa import all_gaia_in_tiles
-    gaia = all_gaia_in_tiles(maglim=22, numproc=numproc, allsky=True,
-                             mindec=-90, mingalb=0, nside=nside, pixlist=pixlist)
+    gaiaobjs = all_gaia_in_tiles(maglim=22, numproc=numproc, allsky=True,
+                                 mindec=-90, mingalb=0, addobjid=True,
+                                 nside=nside, pixlist=pixlist)
+    # ADM the convenience function we use adds an empty TARGETID
+    # ADM field which we need to remove before finalizing.
+    gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
 
-    primary = np.ones_like(gaia, dtype=bool)
+    primary = np.ones_like(gaiaobjs, dtype=bool)
 
     # ADM the relevant input quantities.
-    ra = gaia["RA"]
-    dec = gaia["DEC"]
-    gaiarmag = gaia["GAIA_PHOT_RP_MEAN_MAG"]
+    ra = gaiaobjs["RA"]
+    dec = gaiaobjs["DEC"]
+    gaiarmag = gaiaobjs["GAIA_PHOT_RP_MEAN_MAG"]
 
     # ADM determine if an object matched a CALSPEC standard.
     std_calspec = isSTD_calspec(
@@ -994,7 +1000,7 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     cmx_target = std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= backup * cmx_mask.BACKUP
 
-    return cmx_target, gaia
+    return cmx_target, gaiaobjs
 
 
 def apply_cuts(objects, cmxdir=None, noqso=False):
@@ -1273,21 +1279,23 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     if os.getenv('SLURMD_NODENAME') is not None:
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
-    def _finalize_targets(objects, cmx_target, priority_shift):
+    def _finalize_targets(objects, cmx_target, priority_shift=None, gaiadr=None):
         # -desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         # -on desi_target != 0
         keep = (cmx_target != 0)
         objects = objects[keep]
         cmx_target = cmx_target[keep]
-        priority_shift = priority_shift[keep]
+        if priority_shift is not None:
+            priority_shift = priority_shift[keep]
 
         # -Add *_target mask columns
         # ADM note that only cmx_target is defined for commissioning
         # ADM so just pass that around
         targets = finalize(objects, cmx_target, cmx_target, cmx_target,
-                           survey='cmx')
+                           survey='cmx', gaiadr=gaiadr)
         # ADM shift the priorities of targets with functional priorities.
-        targets["PRIORITY_INIT"] += priority_shift
+        if priority_shift is not None:
+            targets["PRIORITY_INIT"] += priority_shift
 
         return targets
 
@@ -1339,19 +1347,29 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         log.info('Forcing numproc to 4 for I/O limited parts of code')
         numproc4 = 4
         
-    # ADM Parallel process Gaia-only selection.
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
-        with pool:
-            targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
+    # ADM set the target bits that are based only on Gaia.
+    cmx_target, gaiaobjs = apply_cuts_gaia(numproc=numproc4, cmxdir=cmxdir,
+                                           nside=nside, pixlist=pixlist)
+
+    # ADM determine the Gaia Data Release.
+    gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
+
+    # ADM add the relevant bits and IDs to the Gaia targets.
+    gaiatargs = _finalize_targets(gaiaobjs, cmx_target, gaiadr=gaiadr)
+
+    # ADM make the Gaia-only data structure resemble the main targets.
+    gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype.descr)
+    for col in set(gaiatargs.dtype.names).intersection(set(targets.dtype.names)):
+        gaiatargets[col] = gaiatargs[col]
+
+    # ADM remove any duplicates. Order is important here, as np.unique
+    # ADM keeps the first occurence, and we want to retain sweeps
+    # ADM information as much as possible.
+    if len(infiles) > 0:
+        targets = np.concatenate([targets, gaiatargets])
+        _, ind = np.unique(targets["REF_ID"], return_index=True)
+        targets = targets[ind]
     else:
-        targets = list()
-        for x in infiles:
-            targets.append(_update_status(_select_targets_file(x)))
-    
-    gaia = apply_cuts_gaia(numproc=numproc, cmxdir=cmxdir,
-                           nside=nside, pixlist=pixlist)
-
-
+        targets = gaiatargets
 
     return targets
