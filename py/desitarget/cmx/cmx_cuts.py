@@ -30,7 +30,7 @@ from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize
 from desitarget.cmx.cmx_targetmask import cmx_mask
-from desitarget.geomask import sweep_files_touch_hp
+from desitarget.geomask import sweep_files_touch_hp, is_in_hp
 from desitarget.gaiamatch import gaia_dr_from_ref_cat
 
 # ADM set up the DESI default logger
@@ -1201,7 +1201,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
 
 def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
-                   nside=None, pixlist=None, bundlefiles=None):
+                   nside=None, pixlist=None, bundlefiles=None
+                   resolvetargs=True):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
@@ -1227,6 +1228,9 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         If not `None`, then, instead of selecting gfas, print the slurm
         script to run in pixels at `nside`. Is an integer rather than
         a boolean for historical reasons.
+    resolvetargs : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, resolve overlapping north/south Legacy Surveys
+        targets into a set of unique sources based on location.
 
     Returns
     -------
@@ -1297,6 +1301,10 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         if priority_shift is not None:
             targets["PRIORITY_INIT"] += priority_shift
 
+        # ADM resolve any duplicates between imaging data releases.
+        if resolvetargs and gaiadr is None:
+            targets = resolve(targets)
+
         return targets
 
     # -functions to run on every brick/sweep file
@@ -1346,7 +1354,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     if numproc4 > 4:
         log.info('Forcing numproc to 4 for I/O limited parts of code')
         numproc4 = 4
-        
+
     # ADM set the target bits that are based only on Gaia.
     cmx_target, gaiaobjs = apply_cuts_gaia(numproc=numproc4, cmxdir=cmxdir,
                                            nside=nside, pixlist=pixlist)
@@ -1371,5 +1379,10 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         targets = targets[ind]
     else:
         targets = gaiatargets
+
+    # ADM restrict to only GFAs in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        ii = is_in_hp(targets, nside, pixlist)
+        targets = targets[ii]
 
     return targets

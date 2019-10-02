@@ -47,6 +47,8 @@ def encode_targetid(objid=None, brickid=None, release=None,
         1 if this object is a blank sky object, 0 otherwise
     gaiadr : :class:`int` or :class:`~numpy.ndarray`, optional
         The Gaia Data Release number (e.g. send 2 for Gaia DR2).
+        A value of 1 does NOT mean DR1. Rather it has the specific
+        meaning of a DESI first-light commissioning target.
 
     Returns
     -------
@@ -149,8 +151,10 @@ def decode_targetid(targetid):
         mocks, not from real survey data), 0 otherwise
     :class:`int` or :class:`~numpy.ndarray`
         1 if this object is a blank sky object, 0 otherwise
-    : :class:`int` or :class:`~numpy.ndarray`
-        The Gaia Data Release number (e.g. send 2 for Gaia DR2).
+    :class:`int` or :class:`~numpy.ndarray`
+        The Gaia Data Release number (e.g. will be 2 for Gaia DR2).
+        A value of 1 does NOT mean DR1. Rather it has the specific
+        meaning of a DESI first-light commissioning target.
 
     Notes
     -----
