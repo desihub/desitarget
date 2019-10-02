@@ -28,7 +28,7 @@ from desitarget import io
 from desitarget.cuts import _psflike, _is_row, _get_colnames
 from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
 from desitarget.internal import sharedmem
-from desitarget.targets import finalize
+from desitarget.targets import finalize, resolve
 from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.geomask import sweep_files_touch_hp, is_in_hp
 from desitarget.gaiamatch import gaia_dr_from_ref_cat
@@ -1201,7 +1201,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
 
 def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
-                   nside=None, pixlist=None, bundlefiles=None
+                   nside=None, pixlist=None, bundlefiles=None,
                    resolvetargs=True):
     """Process input files in parallel to select commissioning (cmx) targets
 
