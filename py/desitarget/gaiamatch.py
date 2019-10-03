@@ -105,24 +105,16 @@ def gaia_dr_from_ref_cat(refcat):
 
     Returns
     -------
-    :class:`int`
+    :class:`~numpy.ndarray`
         The corresponding Data Release number (e.g. 2)
     """
-    # ADM the unique set of values in the passed array.
-    # ADM also converts an integer to an array.
-    gdrarr = np.unique(refcat)
-
-    # ADM check that the passed information is unique.
-    if len(gdrarr) == 1:
-        gdrstr = gdrarr[0]
-        # ADM in case an old-style byte string was passed.
-        if isinstance(gdrstr, bytes):
-            gdrstr = gdrstr.decode()
-        gaiadr = int(gdrstr[-1])
-    else:
-        msg = "Gaia DR is not unique: {}".format(set(refcat))
-        log.critical(msg)
-        raise ValueError(msg)
+    # ADM if an integer was passed.
+    refcat = np.atleast_1d(refcat)
+    # ADM in case old-style byte strings were passed.
+    if isinstance(refcat[0], bytes):
+        return np.array([int(i.decode()[-1]) for i in refcat])
+    else:        
+        return np.array([int(i[-1]) for i in refcat])
 
     return gaiadr
 

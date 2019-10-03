@@ -15,8 +15,16 @@ cmx_mask:
     - [SV0_QSO,        12, "SV-like QSO bit is set (very early SV/RF selection)", {obsconditions: DARK}]
     - [SV0_WD,         13, "SV-like WD bit is set (very early MWS_WD selection)", {obsconditions: BRIGHT}]
 
-    # ADM back-up targets for poor conditions.
-    - [BACKUP,         16, "Bright Gaia targets for poor conditions", {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    # ADM back-up targets for poor conditions and first light targets
+    - [BACKUP,         16, "Bright Gaia targets for poor conditions",  {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_STD_BRIGHT, 17, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_H2PN,       18, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_GC,         19, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_VAR,        20, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_QSO,        21, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_BSPL,       22, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_M31cen,     23, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_M31out,     24, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
@@ -69,6 +77,14 @@ priorities:
         SV0_QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_WD: {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BACKUP: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_STD_BRIGHT: {UNOBS: 1000, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_H2PN: {UNOBS: 1001, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_GC: {UNOBS: 1002, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_VAR: {UNOBS: 1003, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_QSO: {UNOBS: 1004, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_BSPL: {UNOBS: 1005, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_M31cen: {UNOBS: 1006, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        M31_M31out: {UNOBS: 1007, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -93,6 +109,14 @@ numobs:
         SV0_QSO: 4
         SV0_WD: 1
         BACKUP: 1
+        M31_STD_BRIGHT: 1
+        M31_H2PN: 1
+        M31_GC: 1
+        M31_VAR: 1
+        M31_QSO: 1
+        M31_BSPL: 1
+        M31_M31cen: 1
+        M31_M31out: 1
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1
