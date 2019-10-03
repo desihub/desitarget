@@ -118,7 +118,7 @@ if ns.bundlefiles is None:
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
     isgaia = gaiadr > 0
     # ADM create gaia-only directory name, make it if it doesn't exist.
-    gaiadir = os.path.join(os.path.dirname(ns.dest), "backup")
+    gaiadir = os.path.join(os.path.dirname(ns.dest), "allsky")
     if not os.path.exists(gaiadir):
         os.makedirs(gaiadir)
     gaiadest = os.path.join(gaiadir, os.path.basename(ns.dest))
