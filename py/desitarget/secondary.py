@@ -363,6 +363,7 @@ def add_primary_info(scxtargs, priminfodir):
         dups = np.delete(dups, am)
         alldups.append(dups)
     alldups = np.hstack(alldups)
+    log.debug("Discarding {} primary duplicates".format(len(alldups)))
     primtargs = np.delete(primtargs, alldups)
     primids = np.delete(primids, alldups)
 
@@ -607,8 +608,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
 
     # ADM assign the unique TARGETIDs to the secondary objects.
     scxtargs["TARGETID"][nomatch] = targetid[nomatch]
-    log.debug("Assigned {} targetids to unmatched \
-               secondaries".format(len(targetid[nomatch])))
+    log.debug("Assigned {} targetids to unmatched secondaries".format(len(targetid[nomatch])))
 
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
@@ -658,8 +658,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
         dups = np.delete(dups, i_retain)
         alldups.append(dups)
     alldups = np.hstack(alldups)
-    log.debug("Flagging {} duplicate secondary targetids with \
-               PRIORITY_INIT=-1".format(len(alldups)))
+    log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".format(len(alldups)))
 
     # ADM and remove the INIT fields in prep for a dark/bright split.
     scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
