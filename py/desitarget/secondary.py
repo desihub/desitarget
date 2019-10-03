@@ -361,6 +361,7 @@ def add_primary_info(scxtargs, priminfodir):
         dups = np.delete(dups, am)
         alldups.append(dups)
     alldups = np.hstack(alldups)
+    log.debug("Discarding {} primary duplicates".format(len(alldups)))
     primtargs = np.delete(primtargs, alldups)
     primids = np.delete(primids, alldups)
 
