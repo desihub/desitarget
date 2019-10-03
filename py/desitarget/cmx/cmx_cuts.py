@@ -939,7 +939,7 @@ def isBACKUP(gaiarmag=None, primary=None):
     return isbackup
 
 
-def isFIRSTLIGHT(gaiadtype=None, cmxdir=None):
+def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
     """First light targets based on reading in files from Arjun Dey.
 
     Parameters
@@ -949,6 +949,12 @@ def isFIRSTLIGHT(gaiadtype=None, cmxdir=None):
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
         Directory to find commmissioning files. If not specified,
         taken from the :envvar:`CMX_DIR` environment variable.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing, as input files will only be processed
+        if they touch a pixel in the passed list.
 
     Returns
     -------
@@ -971,17 +977,15 @@ def isFIRSTLIGHT(gaiadtype=None, cmxdir=None):
         flobjsout = np.zeros(len(flobjsin), dtype=gaiadtype)
 
         # ADM set the Gaia Source ID and DR where possible.
-        gaiaid, gaiadr = [], []
+        gaiaid = []
         for flobjs in flobjsin["DESIGNATION"]:
             try:
                 gid = int(flobjs.decode().split("DR2")[-1])
                 gaiaid.append(gid)
-                gaiadr.append('G2')
             except ValueError:
                 gaiaid.append(-1)
-                gaiadr.append('G1')
         flobjsout['REF_ID'] = gaiaid
-        flobjsout['REF_CAT'] = gaiadr
+        flobjsout['REF_CAT'] = 'F1'
 
         # ADM transfer columns from Arjun's files to standard data model.
         for col in ["RA", "DEC"]:
@@ -996,16 +1000,22 @@ def isFIRSTLIGHT(gaiadtype=None, cmxdir=None):
         # ADM add unique identifiers based on the file and row-in-file.
         flobjsout["GAIA_BRICKID"] = filenum
         flobjsout["GAIA_OBJID"] = np.arange(len(flobjsin))
-        
+
         # ADM record the bit values for each class name.
         cmx_target.append(
             [cmx_mask["M31_"+c.decode().rstrip()] for c in flobjsin["CLASS"]]
         )
         flout.append(flobjsout)
-        
+
     cmx_target = np.concatenate(cmx_target)
     flout = np.concatenate(flout)
-        
+
+    # ADM restrict to only targets in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        ii = is_in_hp(flout, nside, pixlist)
+        cmx_target = cmx_target[ii]
+        flout = flout[ii]
+
     return cmx_target, flout
 
 
@@ -1067,16 +1077,17 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     backup = isBACKUP(gaiarmag=gaiarmag, primary=primary)
 
     # ADM grab the information on the FIRST LIGHT targets.
-    fl_target, flobjs =  isFIRSTLIGHT(gaiadtype=gaiadtype)
-    
+    fl_target, flobjs = isFIRSTLIGHT(gaiaobjs.dtype, cmxdir=cmxdir,
+                                     nside=nside, pixlist=pixlist)
+
     # ADM Construct the target flag bits.
     cmx_target = std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= backup * cmx_mask.BACKUP
 
     # ADM add in the first light program targets.
-    cmx_target = np.concatenate(cmx_target, fl_target)
-    gaiaobjs = np.concatenate(gaiaobjs, fl_objs)
-    
+    cmx_target = np.concatenate([cmx_target, fl_target])
+    gaiaobjs = np.concatenate([gaiaobjs, flobjs])
+
     return cmx_target, gaiaobjs
 
 
@@ -1371,6 +1382,8 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         cmx_target = cmx_target[keep]
         if priority_shift is not None:
             priority_shift = priority_shift[keep]
+        if gaiadr is not None:
+            gaiadr = gaiadr[keep]
 
         # -Add *_target mask columns
         # ADM note that only cmx_target is defined for commissioning
@@ -1454,15 +1467,21 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     # ADM keeps the first occurence, and we want to retain sweeps
     # ADM information as much as possible.
     if len(infiles) > 0:
-        targets = np.concatenate([targets, gaiatargets])
-        _, ind = np.unique(targets["REF_ID"], return_index=True)
-        targets = targets[ind]
+        alltargs = np.concatenate([targets, gaiatargets])
+        # ADM always retain the First Light objects as a special program.
+        # ADM particularly as non-Gaia FL objects will have REF_CAT==-1.
+        ii = (alltargs["REF_CAT"] == b'F1') | (alltargs["REF_CAT"] == 'F1')
+        log.info("Retaining {} First Light objects".format(np.sum(ii)))
+        targs = alltargs[~ii]
+        _, ind = np.unique(targs["REF_ID"], return_index=True)
+        targs = targs[ind]
+        alltargs = np.concatenate([targs, alltargs[ii]])
     else:
-        targets = gaiatargets
+        alltargs = gaiatargets
 
-    # ADM restrict to only GFAs in a set of HEALPixels, if requested.
+    # ADM restrict to only targets in a set of HEALPixels, if requested.
     if pixlist is not None:
-        ii = is_in_hp(targets, nside, pixlist)
-        targets = targets[ii]
+        ii = is_in_hp(alltargs, nside, pixlist)
+        alltargs = alltargs[ii]
 
-    return targets
+    return alltargs

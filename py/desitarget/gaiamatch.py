@@ -107,13 +107,18 @@ def gaia_dr_from_ref_cat(refcat):
     -------
     :class:`~numpy.ndarray`
         The corresponding Data Release number (e.g. 2)
+
+    Notes
+    -----
+        - In reality, only strips the final integer off strings like
+          "X3". So, can generically be used for that purpose.
     """
     # ADM if an integer was passed.
     refcat = np.atleast_1d(refcat)
     # ADM in case old-style byte strings were passed.
     if isinstance(refcat[0], bytes):
         return np.array([int(i.decode()[-1]) for i in refcat])
-    else:        
+    else:
         return np.array([int(i[-1]) for i in refcat])
 
     return gaiadr
