@@ -30,7 +30,7 @@ from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize, resolve
 from desitarget.cmx.cmx_targetmask import cmx_mask
-from desitarget.geomask import sweep_files_touch_hp, is_in_hp
+from desitarget.geomask import sweep_files_touch_hp, is_in_hp, bundle_bricks
 from desitarget.gaiamatch import gaia_dr_from_ref_cat
 
 # ADM set up the DESI default logger
@@ -939,6 +939,76 @@ def isBACKUP(gaiarmag=None, primary=None):
     return isbackup
 
 
+def isFIRSTLIGHT(gaiadtype=None, cmxdir=None):
+    """First light targets based on reading in files from Arjun Dey.
+
+    Parameters
+    ----------
+    gaiadtype: :class:`dtype`
+        Data type (dtype) for Gaia-only CMX targets.
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
+        Directory to find commmissioning files. If not specified,
+        taken from the :envvar:`CMX_DIR` environment variable.
+
+    Returns
+    -------
+    :class:`array_like`
+        bit values for each of the first light targets.
+    :class:`array_like`
+        Array of the first light targets munged into Gaia-only format.
+    """
+    # ADM retrieve/check the cmxdir.
+    cmxdir = _get_cmxdir(cmxdir)
+    # ADM get the M31 objects.
+
+    cmx_target = []
+    flout = []
+    for filenum, prog in enumerate(["M31"]):
+        cmxfile = os.path.join(cmxdir, "{}-targets.fits".format(prog))
+        flobjsin = fitsio.read(cmxfile)
+
+        # ADM create the gaia-only-like array.
+        flobjsout = np.zeros(len(flobjsin), dtype=gaiadtype)
+
+        # ADM set the Gaia Source ID and DR where possible.
+        gaiaid, gaiadr = [], []
+        for flobjs in flobjsin["DESIGNATION"]:
+            try:
+                gid = int(flobjs.decode().split("DR2")[-1])
+                gaiaid.append(gid)
+                gaiadr.append('G2')
+            except ValueError:
+                gaiaid.append(-1)
+                gaiadr.append('G1')
+        flobjsout['REF_ID'] = gaiaid
+        flobjsout['REF_CAT'] = gaiadr
+
+        # ADM transfer columns from Arjun's files to standard data model.
+        for col in ["RA", "DEC"]:
+            flobjsout[col] = flobjsin[col]
+        for col in ["PMRA", "PMDEC"]:
+            flobjsout[col] = flobjsin[col]
+            ii = flobjsin[col+"_ERROR"] != 0
+            flobjsout[col+"_IVAR"][ii] = 1./(flobjsin[col+"_ERROR"][ii]**2.)
+        flobjsout["REF_EPOCH"] = flobjsin["EPOCH"]
+        flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["GAIA_G"]
+
+        # ADM add unique identifiers based on the file and row-in-file.
+        flobjsout["GAIA_BRICKID"] = filenum
+        flobjsout["GAIA_OBJID"] = np.arange(len(flobjsin))
+        
+        # ADM record the bit values for each class name.
+        cmx_target.append(
+            [cmx_mask["M31_"+c.decode().rstrip()] for c in flobjsin["CLASS"]]
+        )
+        flout.append(flobjsout)
+        
+    cmx_target = np.concatenate(cmx_target)
+    flout = np.concatenate(flout)
+        
+    return cmx_target, flout
+
+
 def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     """Gaia-only-based CMX target selection, return target mask arrays.
 
@@ -993,13 +1063,20 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
         ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
     )
 
-    # ADM determine if an object is SV0_BGS.
+    # ADM determine if an object is a BACKUP target.
     backup = isBACKUP(gaiarmag=gaiarmag, primary=primary)
 
+    # ADM grab the information on the FIRST LIGHT targets.
+    fl_target, flobjs =  isFIRSTLIGHT(gaiadtype=gaiadtype)
+    
     # ADM Construct the target flag bits.
     cmx_target = std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= backup * cmx_mask.BACKUP
 
+    # ADM add in the first light program targets.
+    cmx_target = np.concatenate(cmx_target, fl_target)
+    gaiaobjs = np.concatenate(gaiaobjs, fl_objs)
+    
     return cmx_target, gaiaobjs
 
 
@@ -1201,7 +1278,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
 
 def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
-                   nside=None, pixlist=None, bundlefiles=None,
+                   nside=None, pixlist=None, bundlefiles=None, extra=None,
                    resolvetargs=True):
     """Process input files in parallel to select commissioning (cmx) targets
 
@@ -1228,6 +1305,9 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         If not `None`, then, instead of selecting gfas, print the slurm
         script to run in pixels at `nside`. Is an integer rather than
         a boolean for historical reasons.
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script. Used in conjunction with `bundlefiles`.
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
         If ``True``, resolve overlapping north/south Legacy Surveys
         targets into a set of unique sources based on location.
@@ -1267,7 +1347,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     if bundlefiles is not None:
         # ADM determine if one or two input directories were passed.
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
-        bundle_bricks([0], bundlefiles, nside, gather=False,
+        bundle_bricks([0], bundlefiles, nside, gather=False, extra=extra,
                       prefix='cmx-targets', surveydirs=surveydirs)
         return
 
@@ -1366,7 +1446,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     gaiatargs = _finalize_targets(gaiaobjs, cmx_target, gaiadr=gaiadr)
 
     # ADM make the Gaia-only data structure resemble the main targets.
-    gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype.descr)
+    gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype)
     for col in set(gaiatargs.dtype.names).intersection(set(targets.dtype.names)):
         gaiatargets[col] = gaiatargs[col]
 
