@@ -647,8 +647,11 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     # APC Remove duplicate targetids from secondary-only targets
     alldups = []
     for _, dups in duplicates(scxtargs['TARGETID']):
-        # Retain the duplicate with highest priority
-        dups = np.delete(dups, np.argmax(scxtargs['PRIORITY_INIT'][dups]))
+        # Retain the duplicate with highest priority, breaking ties
+        # on lowest index in list of targets (see docstring)
+        max_priority = (scxtargs['PRIORITY_INIT'][dups]).max()
+        i_retain = np.min(np.flatnonzero(scxtargs['PRIORITY_INIT'][dups] == max_priority))
+        dups = np.delete(dups, i_retain)
         alldups.append(dups)
     alldups = np.hstack(alldups)
     log.debug("Flagging {} duplicate secondary targetids with \
