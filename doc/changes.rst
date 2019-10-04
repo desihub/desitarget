@@ -5,6 +5,12 @@ desitarget Change Log
 0.32.1 (unreleased)
 -------------------
 
+*  Further updates to changes in `PR #531`, [`PR #544`_]. Includes:
+    * A `--writeall` option to `select_secondary` writes a unified target
+      file without the BRIGHT/DARK split, as for `select_targets` 
+    * Removes duplicate secondaries that arise from multiple matches to 
+      one primary and secondary targets appearing in more than one input
+      file. The duplciate with highest `PRIORTIY_INIT` is retained.
 * Add new redshift 5 (``QSO_Z5``) SV QSO selection [`PR #539`_]. Also:
     * Remove all Tycho and LSLGA sources from the GFA catalog.
     * Minor improvements to documentation for secondary targets.
@@ -19,7 +25,7 @@ desitarget Change Log
     * New and simplified LRG selection for the Main Survey.
     * Deprecate Main Survey 1PASS/2PASS LRGs, all LRGs now have one pass.
     * Deprecate some very old code in :mod:`desitarget.targets`.
-* Finalize secondaries, add BRIGHT/DARK split [`PR #531`_]. Includes:
+* Finalize secondaries, add BRIGHT/DARK split [`PR #531` ]. Includes:
     * Updated data model for secondaries.
     * New secondary output columns (``OBSCONDITIONS``, proper motions).
     * Add a cached file of primary TARGETIDs to prevent duplicates.
@@ -38,6 +44,7 @@ desitarget Change Log
 .. _`PR #537`: https://github.com/desihub/desitarget/pull/537
 .. _`PR #538`: https://github.com/desihub/desitarget/pull/538
 .. _`PR #539`: https://github.com/desihub/desitarget/pull/539
+.. _`PR #544`: https://github.com/desihub/desitarget/pull/544
 
 0.32.0 (2019-08-07)
 -------------------
