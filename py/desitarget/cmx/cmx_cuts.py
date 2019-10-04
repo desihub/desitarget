@@ -31,7 +31,7 @@ from desitarget.internal import sharedmem
 from desitarget.targets import finalize, resolve
 from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.geomask import sweep_files_touch_hp, is_in_hp, bundle_bricks
-from desitarget.gaiamatch import gaia_dr_from_ref_cat
+from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -911,32 +911,46 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     return iscalspec
 
 
-def isBACKUP(gaiarmag=None, primary=None):
+def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     """BACKUP targets based on Gaia magnitudes.
 
     Parameters
     ----------
-    gaiarmag: array_like or None
-        Gaia-based r MAGNITUDE (not Galactic-extinction-corrected).
-            (same units as `the Gaia data model`_).
+    ra, dec: :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    gaiagmag: :class:`array_like` or :class:`None`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+        (same units as `the Gaia data model`_).
     primary : :class:`array_like` or :class:`None`
         ``True`` for objects that should be passed through the selection.
 
     Returns
     -------
     :class:`array_like`
-        ``True`` if and only if the object is a "BACKUP" target.
+        ``True`` if and only if the object is a bright "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a faint "BACKUP" target.
     """
     if primary is None:
-        primary = np.ones_like(gaiarmag, dtype='?')
+        primary = np.ones_like(gaiagmag, dtype='?')
 
-    isbackup = primary.copy()
+    isbackupbright = primary.copy()
+    isbackupfaint = primary.copy()
 
-    # ADM the magnitude range for backup targets.
-    isbackup &= gaiarmag >= 16
-    isbackup &= gaiarmag < 18
+    # ADM determine which sources are close to the Galaxy.
+    in_gal = is_in_Galaxy([ra, dec], radec=True)
 
-    return isbackup
+    # ADM bright targets are 13 < G < 16.
+    isbackupbright &= gaiagmag >= 13
+    isbackupbright &= gaiagmag < 16
+
+    # ADM faint targets are 16 < G < 18.
+    isbackupfaint &= gaiagmag >= 16
+    isbackupfaint &= gaiagmag < 18
+    # ADM and are "far from" the Galaxy.
+    isbackupfaint &= ~in_gal
+    
+    return isbackupbright, isbackupfaint
 
 
 def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
@@ -1066,7 +1080,7 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     # ADM the relevant input quantities.
     ra = gaiaobjs["RA"]
     dec = gaiaobjs["DEC"]
-    gaiarmag = gaiaobjs["GAIA_PHOT_RP_MEAN_MAG"]
+    gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
 
     # ADM determine if an object matched a CALSPEC standard.
     std_calspec = isSTD_calspec(
@@ -1074,7 +1088,9 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     )
 
     # ADM determine if an object is a BACKUP target.
-    backup = isBACKUP(gaiarmag=gaiarmag, primary=primary)
+    backup_bright, backup_faint = isBACKUP(
+        ra=ra, dec=dec, gaiagmag=gaiagmag, primary=primary
+    )
 
     # ADM grab the information on the FIRST LIGHT targets.
     fl_target, flobjs = isFIRSTLIGHT(gaiaobjs.dtype, cmxdir=cmxdir,
@@ -1082,7 +1098,8 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
 
     # ADM Construct the target flag bits.
     cmx_target = std_calspec * cmx_mask.STD_CALSPEC
-    cmx_target |= backup * cmx_mask.BACKUP
+    cmx_target |= backup_bright * cmx_mask.BACKUP_BRIGHT
+    cmx_target |= backup_faint * cmx_mask.BACKUP_FAINT
 
     # ADM add in the first light program targets.
     cmx_target = np.concatenate([cmx_target, fl_target])
@@ -1470,7 +1487,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     # ADM remove any duplicates. Order is important here, as np.unique
     # ADM keeps the first occurence, and we want to retain sweeps
     # ADM information as much as possible.
-    len(if len(infiles) > 0:
+    if len(infiles) > 0:
         alltargs = np.concatenate([targets, gaiatargets])
         # ADM Retain First Light objects as a special program.
         ii = ((alltargs["REF_CAT"] != b'F1') & (alltargs["REF_CAT"] != 'F1'))
