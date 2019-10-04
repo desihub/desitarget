@@ -16,15 +16,16 @@ cmx_mask:
     - [SV0_WD,         13, "SV-like WD bit is set (very early MWS_WD selection)", {obsconditions: BRIGHT}]
 
     # ADM back-up targets for poor conditions and first light targets
-    - [BACKUP,         16, "Bright Gaia targets for poor conditions",  {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_STD_BRIGHT, 17, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_H2PN,       18, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_GC,         19, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_VAR,        20, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_QSO,        21, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_BSPL,       22, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_M31cen,     23, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_M31out,     24, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_BRIGHT,  16, "Bright Gaia targets for poor conditions",  {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,   17, "Fainter Gaia targets for poor conditions",  {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_STD_BRIGHT, 18, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_H2PN,       19, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_GC,         20, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_VAR,        21, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_QSO,        22, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_BSPL,       23, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_M31cen,     24, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_M31out,     25, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
