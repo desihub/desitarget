@@ -26,6 +26,17 @@ cmx_mask:
     - [M31_BSPL,       23, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [M31_M31cen,     24, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [M31_M31out,     25, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ORI_STD_BRIGHT, 26, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ORI_QSO,        27, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ORI_ORI,        28, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ROS_STD_BRIGHT, 29, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ROS_QSO,        30, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ROS_ROSM17,     31, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
+    #- ADM leave 32-37 reserved for calibration targets (to mirror the main survey)
+
+    - [ROS_ROS1,       38, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ROS_ROS2,       39, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
@@ -77,7 +88,8 @@ priorities:
         SV0_LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_WD: {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BACKUP: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        BACKUP_BRIGHT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        BACKUP_FAINT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M31_STD_BRIGHT: {UNOBS: 1000, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M31_H2PN: {UNOBS: 1001, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M31_GC: {UNOBS: 1002, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
@@ -86,6 +98,14 @@ priorities:
         M31_BSPL: {UNOBS: 1005, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M31_M31cen: {UNOBS: 1006, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M31_M31out: {UNOBS: 1007, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ORI_STD_BRIGHT: {UNOBS: 1000, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ORI_QSO: {UNOBS: 1001, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ORI_ORI: {UNOBS: 1002, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ROS_STD_BRIGHT: {UNOBS: 1000, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ROS_QSO: {UNOBS: 1001, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ROS_ROSM17: {UNOBS: 1002, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ROS_ROS1: {UNOBS: 1003, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        ROS_ROS2: {UNOBS: 1004, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -109,7 +129,8 @@ numobs:
         SV0_LRG: 2
         SV0_QSO: 4
         SV0_WD: 1
-        BACKUP: 1
+        BACKUP_BRIGHT: 1
+        BACKUP_FAINT: 1
         M31_STD_BRIGHT: 1
         M31_H2PN: 1
         M31_GC: 1
@@ -118,6 +139,14 @@ numobs:
         M31_BSPL: 1
         M31_M31cen: 1
         M31_M31out: 1
+        ORI_STD_BRIGHT: 1
+        ORI_QSO: 1
+        ORI_ORI: 1
+        ROS_STD_BRIGHT: 1
+        ROS_QSO: 1
+        ROS_ROSM17: 1
+        ROS_ROS1: 1
+        ROS_ROS2: 1
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1

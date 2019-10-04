@@ -949,7 +949,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     isbackupfaint &= gaiagmag < 18
     # ADM and are "far from" the Galaxy.
     isbackupfaint &= ~in_gal
-    
+
     return isbackupbright, isbackupfaint
 
 
@@ -983,7 +983,7 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
 
     cmx_target = []
     flout = []
-    for filenum, prog in enumerate(["M31"]):
+    for filenum, prog in enumerate(["M31", "ORI", "ROS"]):
         cmxfile = os.path.join(cmxdir, "{}-targets.fits".format(prog))
         flobjsin = fitsio.read(cmxfile)
 
@@ -1017,7 +1017,7 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
 
         # ADM record the bit values for each class name.
         cmx_target.append(
-            [cmx_mask["M31_"+c.decode().rstrip()] for c in flobjsin["CLASS"]]
+            [cmx_mask[prog+"_"+c.decode().rstrip()] for c in flobjsin["CLASS"]]
         )
         flout.append(flobjsout)
 
