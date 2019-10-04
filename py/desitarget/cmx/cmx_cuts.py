@@ -1359,14 +1359,18 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         # ADM determine if one or two input directories were passed.
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
         bundle_bricks([0], bundlefiles, nside, gather=False, extra=extra,
-                      prefix='cmx-targets', surveydirs=surveydirs)
+                      prefix='cmx_targets', surveydirs=surveydirs)
         return
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
     if pixlist is not None:
+        # ADM a hack to ensure we have the correct targeting data model.
+        dummy = infiles[0]
         infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
         if len(infiles) == 0:
-            log.warning('ZERO files in passed pixel list!!!')
+            log.info('ZERO files in passed pixel list!!!')
+            log.info('Run with dummy sweep file to write Gaia-only objects...')
+            infiles = [dummy]
         log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
                  .format(nside, pixlist))
 
@@ -1466,16 +1470,17 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     # ADM remove any duplicates. Order is important here, as np.unique
     # ADM keeps the first occurence, and we want to retain sweeps
     # ADM information as much as possible.
-    if len(infiles) > 0:
+    len(if len(infiles) > 0:
         alltargs = np.concatenate([targets, gaiatargets])
-        # ADM always retain the First Light objects as a special program.
-        # ADM particularly as non-Gaia FL objects will have REF_CAT==-1.
-        ii = (alltargs["REF_CAT"] == b'F1') | (alltargs["REF_CAT"] == 'F1')
-        log.info("Retaining {} First Light objects".format(np.sum(ii)))
-        targs = alltargs[~ii]
+        # ADM Retain First Light objects as a special program.
+        ii = ((alltargs["REF_CAT"] != b'F1') & (alltargs["REF_CAT"] != 'F1'))
+        # ADM Retain all non-Gaia sources, which have REF_ID of -1 or 0
+        # ADM and so are all duplicates on REF_ID.
+        ii &= alltargs["REF_ID"] > 0
+        targs = alltargs[ii]
         _, ind = np.unique(targs["REF_ID"], return_index=True)
         targs = targs[ind]
-        alltargs = np.concatenate([targs, alltargs[ii]])
+        alltargs = np.concatenate([targs, alltargs[~ii]])
     else:
         alltargs = gaiatargets
 
