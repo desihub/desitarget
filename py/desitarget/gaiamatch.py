@@ -95,6 +95,39 @@ def _get_gaia_nside():
     return nside
 
 
+def is_in_Galaxy(objs, radec=False):
+    """An (l, b) cut developed by Boris Gaensicke to avoid the Galaxy.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Array of objects. Must contain at least the columns "RA" and "DEC".
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead of
+        a rec array.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A boolean array that is ``True`` for objects that are close to
+        the Galaxy and ``False`` for objects that aren't.
+    """
+    # ADM which flavor of RA/Dec was passed.
+    if radec:
+        ra, dec = objs
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+
+    # ADM convert to Galactic coordinates.
+    c = SkyCoord(ra*u.degree, dec*u.degree)
+    gal = c.galactic
+
+    # ADM and limit to (l, b) ranges.
+    ii = np.abs(gal.b.value) < np.abs(gal.l.value*0.139-25)
+
+    return ii
+
+
 def gaia_dr_from_ref_cat(refcat):
     """Determine the Gaia DR from an array of values, check it's unique.
 

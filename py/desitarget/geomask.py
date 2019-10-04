@@ -888,7 +888,7 @@ def sweep_files_touch_hp(nside, pixlist, infiles):
 
     # ADM a list of HEALPixels that touch each file.
     from desitarget.io import decode_sweep_name
-    pixelsperfile = [decode_sweep_name(file, nside=nside) for file in infiles]
+    pixelsperfile = [decode_sweep_name(fn, nside=nside) for fn in infiles]
 
     # ADM a flattened array of all HEALPixels touched by the input
     # ADM files. Each HEALPixel will appear multiple times if it's
