@@ -652,10 +652,8 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     alldups = []
     for _, dups in duplicates(scxtargs['TARGETID']):
         # Retain the duplicate with highest priority, breaking ties
-        # on lowest index in list of targets (see docstring)
-        max_priority = (scxtargs['PRIORITY_INIT'][dups]).max()
-        i_retain = np.min(np.flatnonzero(scxtargs['PRIORITY_INIT'][dups] == max_priority))
-        dups = np.delete(dups, i_retain)
+        # on lowest index in list of duplicates
+        dups = np.delete(dups, np.argmax(scxtargs['PRIORITY_INIT'][dups]))
         alldups.append(dups)
     alldups = np.hstack(alldups)
     log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".format(len(alldups)))
