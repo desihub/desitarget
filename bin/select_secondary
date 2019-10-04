@@ -27,7 +27,9 @@ ap.add_argument("-s", "--separation", type=float, default=1.,
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
                 "Defaults to SCND_DIR environment variable.")
-
+ap.add_argument("--writeall",
+                action='store_true',
+                help="Default behavior is to split targets by bright/dark-time surveys. Set this to ALSO write a file of ALL targets")
 ns = ap.parse_args()
 
 # ADM Sanity check that priminfodir exists.
@@ -47,7 +49,7 @@ scxdir = _get_scxdir(ns.scnddir)
 if surv != 'main':
     scxdir = os.path.join(scxdir, surv)
 
-scx = select_secondary(ns.priminfodir, sep=ns.separation, scxdir=scxdir, darkbright=True)
+scx = select_secondary(ns.priminfodir, sep=ns.separation, scxdir=scxdir, darkbright=(not ns.writeall))
 
 # ADM add the primary directory and matching radius to the header
 # ADM from the first primary file.
@@ -58,6 +60,8 @@ hdr['SEP'] = float(ns.separation)
 # ADM and dark-time targets written separately.
 obscons = ["BRIGHT", "DARK"]
 
+if ns.writeall:
+    obscons.append(None)
 for obscon in obscons:
     # ADM the dict() here is to make hdr immutable.
     ntargs, outfile = io.write_secondary(ns.dest, scx, primhdr=dict(hdr),
