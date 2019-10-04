@@ -968,10 +968,10 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         nobj, nsky = len(targets), len(skytargets)
         if nobj > 0:
             for obscon in ['BRIGHT', 'DARK']:
-                targetsfile = mockio.findfile('targets-{}'.format(obscon.lower()),
-                        nside, healpix, basedir=output_dir)
-                truthfile = mockio.findfile('truth-{}'.format(obscon.lower()),
-                        nside, healpix, basedir=output_dir)
+                targetsfile = mockio.findfile('targets',
+                        nside, healpix, obscon=obscon, basedir=output_dir)
+                truthfile = mockio.findfile('truth',
+                        nside, healpix, obscon=obscon, basedir=output_dir)
                 mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
                             'truewave': MakeMock.wave, 'trueflux': trueflux,
                             'truthfile': truthfile}
