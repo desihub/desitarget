@@ -1068,7 +1068,8 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
     from desitarget.gfa import all_gaia_in_tiles
-    gaiaobjs = all_gaia_in_tiles(maglim=22, numproc=numproc, allsky=True,
+    # ADM No Gaia-only CMX target classes are fainter than G=18.
+    gaiaobjs = all_gaia_in_tiles(maglim=18, numproc=numproc, allsky=True,
                                  mindec=-90, mingalb=0, addobjid=True,
                                  nside=nside, pixlist=pixlist)
     # ADM the convenience function we use adds an empty TARGETID
@@ -1385,7 +1386,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         dummy = infiles[0]
         infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
         if len(infiles) == 0:
-            log.info('ZERO files in passed pixel list!!!')
+            log.info('ZERO sweep files in passed pixel list!!!')
             log.info('Run with dummy sweep file to write Gaia-only objects...')
             infiles = [dummy]
         log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"

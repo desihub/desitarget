@@ -1328,7 +1328,7 @@ def check_hp_target_dir(hpdirname):
     fns = glob(os.path.join(hpdirname, "*fits"))
     pixdict = {}
     for fn in fns:
-        hdr = fitsio.read_header(fn, "TARGETS")
+        _, hdr = read_target_files(fn, columns="RA", header=True)
         nside.append(hdr["FILENSID"])
         pixels = hdr["FILEHPX"]
         # ADM if this is a one-pixel file, convert to a list.
@@ -1368,6 +1368,49 @@ def check_hp_target_dir(hpdirname):
         raise AssertionError(msg)
 
     return nside[0], pixdict
+
+
+def read_target_files(filename, columns=None, header=False, verbose=False):
+    """Wrapper to cycle through allowed extensions to read target files.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Name of a target file of any type. Target file types include
+        "TARGETS", "GFA_TARGETS" and "SKY_TARGETS".
+    columns : :class:`list`, optional
+        Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of the file.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log the file extension that was read.
+    """
+    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS"
+
+    # ADM capture file-not-exists instance as we have a try/except below.
+    if not os.path.exists(filename):
+        raise OSError("File not found: {}".format(filename))
+
+    epicfail = True
+    for ext in targtypes:
+        try:
+            targs, hdr = fitsio.read(filename, ext, columns=columns, header=True)
+            epicfail=False
+            if verbose:
+                log.info("Reading file of type {}".format(ext))
+        except:
+            pass
+
+    if epicfail:
+        msg = "{} is not of any recogized target type.".format(filename)
+        msg += " Allowed target types are {}".format(targtypes)
+        log.error(msg)
+        raise IOError(msg)
+
+    if header:
+        return targs, hdr
+
+    return targs
 
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
@@ -1424,8 +1467,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the box.
         fn0 = list(filedict.values())[0]
-        notargs, nohdr = fitsio.read(fn0, 'TARGETS',
-                                     columns=columnscopy, header=True)
+        notargs, nohdr = read_target_files(fn0, columns=columnscopy, header=True)
         notargs = np.zeros(0, dtype=notargs.dtype)
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -1441,8 +1483,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM read in the files and concatenate the resulting targets.
         targets = []
         for infile in infiles:
-            targs, hdr = fitsio.read(infile, 'TARGETS',
-                                     columns=columnscopy, header=True)
+            targs, hdr = read_target_files(infile, columns=columnscopy,
+                                           header=True)
             targets.append(targs)
         # ADM if targets is empty, return no targets.
         if len(targets) == 0:
@@ -1453,8 +1495,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
-                                   columns=columnscopy, header=True)
+        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
+                                         header=True)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
@@ -1521,8 +1563,8 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                                           header=True)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
-                                   columns=columnscopy, header=True)
+        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
+                                         header=True)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
@@ -1579,7 +1621,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
                                      columns=columnscopy)
     # ADM ...otherwise just read in the targets.
     else:
-        targets = fitsio.read(hpdirname, columns=columnscopy)
+        targets = read_target_file(hpdirname, columns=columnscopy)
 
     # ADM restrict only to targets in the requested cap...
     ii = is_in_cap(targets, radecrad)
@@ -1589,8 +1631,8 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     return targets
 
 
-def read_targets_in_box_header(hpdirname):
-    """Read in targets in an RA/Dec box.
+def read_targets_header(hpdirname):
+    """Read in header of a targets file.
 
     Parameters
     ----------
@@ -1610,11 +1652,13 @@ def read_targets_in_box_header(hpdirname):
         gen = iglob(os.path.join(hpdirname, '*fits'))
         hpdirname = next(gen)
 
-    return fitsio.read_header(hpdirname, 'TARGETS')
+    _, hdr = read_target_files(hpdirname, header=True)
+
+    return hdr
 
 
 def target_columns_from_header(hpdirname):
-    """Grab the _TARGET column names from a target file or directory.
+    """Grab the _TARGET column names from a TARGETS file or directory.
 
     Parameters
     ----------
