@@ -27,7 +27,7 @@ def get_healpix_dir(nside, pixnum, basedir='.'):
     subdir = str(pixnum // 100)
     return os.path.abspath(os.path.join(basedir, subdir, str(pixnum)))
 
-def findfile(filetype, nside, pixnum, basedir='.', ext='fits'):
+def findfile(filetype, nside, pixnum, basedir='.', ext='fits', obscon=None):
     '''
     Returns standardized filepath
 
@@ -39,8 +39,16 @@ def findfile(filetype, nside, pixnum, basedir='.', ext='fits'):
     Optional:
         basedir: (str) base directory
         ext: (str) file extension
+        obscon: (str) e.g. 'dark', 'bright' to add extra dir grouping
     '''
     path = get_healpix_dir(nside, pixnum, basedir=basedir)
-    filename = '{filetype}-{nside}-{pixnum}.{ext}'.format(
-        filetype=filetype, nside=nside, pixnum=pixnum, ext=ext)
+    if obscon is not None:
+        path = os.path.join(path, obscon)
+        filename = '{filetype}-{obscon}-{nside}-{pixnum}.{ext}'.format(
+            filetype=filetype, obscon=obscon,
+            nside=nside, pixnum=pixnum, ext=ext)
+    else:
+        filename = '{filetype}-{nside}-{pixnum}.{ext}'.format(
+            filetype=filetype, nside=nside, pixnum=pixnum, ext=ext)
+
     return os.path.join(path, filename)
