@@ -268,7 +268,7 @@ def release_to_photsys(release):
     return r2p[release]
 
 
-def _bright_or_dark(filename, hdr, data, obscon):
+def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
     """modify data/file name for BRIGHT or DARK survey OBSCONDITIONS
 
     Parameters
@@ -285,6 +285,9 @@ def _bright_or_dark(filename, hdr, data, obscon):
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    mockdata : :class:`dict`, optional, defaults to `None`
+        Dictionary of mock data to write out (only used in
+        `desitarget.mock.build.targets_truth` via `select_mock_targets`).
 
     Returns
     -------
@@ -306,6 +309,21 @@ def _bright_or_dark(filename, hdr, data, obscon):
     ii = (data["OBSCONDITIONS"] & obsbits) != 0
     data = data[ii]
 
+    # Optionally subselect the mock data.
+    if len(data) > 0 and mockdata is not None:
+        truthdata, trueflux, _objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
+        truthdata = truthdata[ii]
+
+        if len(trueflux) > 0:
+            trueflux = trueflux[ii, :]
+            objtruth = {}
+            for obj in sorted(set(truthdata['TEMPLATETYPE'])):
+                objtruth[obj] = _objtruth[obj]
+
+        mockdata['truth'] = truthdata
+        mockdata['trueflux'] = trueflux
+        mockdata['objtruth'] = objtruth
+
     # ADM create the bright or dark directory.
     newdir = os.path.join(os.path.dirname(filename), obscon.lower())
     if not os.path.exists(newdir):
@@ -322,13 +340,16 @@ def _bright_or_dark(filename, hdr, data, obscon):
     dropem = list(names[['_INIT_' in col for col in names]])
     data = rfn.drop_fields(data, dropem)
 
-    return filename, hdr, data
+    if mockdata is not None:
+        return filename, hdr, data, mockdata
+    else:
+        return filename, hdr, data
 
 
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
                   survey="?", nsidefile=None, hpxlist=None, scndout=None,
-                  resolve=True, maskbits=True, obscon=None):
+                  resolve=True, maskbits=True, obscon=None, mockdata=None):
     """Write target catalogues.
 
     Parameters
@@ -369,6 +390,9 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    mockdata : :class:`dict`, optional, defaults to `None`
+        Dictionary of mock data to write out (only used in
+        `desitarget.mock.build.targets_truth` via `select_mock_targets`).
 
     Returns
     -------
@@ -376,13 +400,17 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         The number of targets that were written to file.
     :class:`str`
         The name of the file to which targets were written.
+
     """
     # ADM create header.
     hdr = fitsio.FITSHDR()
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
     if obscon is not None:
-        filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+        if mockdata is not None:
+            filename, hdr, data, mockdata = _bright_or_dark(filename, hdr, data, obscon, mockdata=mockdata)
+        else:
+            filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
@@ -415,11 +443,11 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
+        hdr.add_record(dict(name='HPXNSIDE', value=nside, comment="HEALPix nside"))
+        hdr.add_record(dict(name='HPXNEST', value=True, comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names:
+    if "SUBPRIORITY" in data.dtype.names and mockdata is None:
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
@@ -449,9 +477,37 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
 
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
-        fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
+        fitsio.write(filename+'.tmp', data, extname='TARGETS', header=hdr, clobber=True)
+        os.rename(filename+'.tmp', filename)
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
+
+    # Optionally wite out mock catalog data.
+    if mockdata is not None:
+        truthfile = filename.replace('targets-', 'truth-')
+        truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
+        
+        hdr['SEED'] = (mockdata['seed'], 'initial random seed')
+        fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
+
+        if len(trueflux) > 0:
+            wavehdr = fitsio.FITSHDR()
+            wavehdr['BUNIT'] = 'Angstrom'
+            wavehdr['AIRORVAC'] = 'vac'
+            fitsio.write(truthfile+'.tmp', mockdata['truewave'].astype(np.float32),
+                         extname='WAVE', header=wavehdr, append=True)
+
+            fluxhdr = fitsio.FITSHDR()
+            fluxhdr['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
+            fitsio.write(truthfile+'.tmp', trueflux.astype(np.float32),
+                         extname='FLUX', header=fluxhdr, append=True)
+
+        if len(objtruth) > 0:
+            for obj in sorted(set(truthdata['TEMPLATETYPE'])):
+                fitsio.write(truthfile+'.tmp', objtruth[obj].as_array(), append=True,
+                             extname='TRUTH_{}'.format(obj))
+            
+        os.rename(truthfile+'.tmp', truthfile)
 
     return ntargs, filename
 
@@ -689,7 +745,8 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
             np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(nskies)
 
-    fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
+    fitsio.write(filename+'.tmp', data, extname='SKY_TARGETS', header=hdr, clobber=True)
+    os.rename(filename+'.tmp', filename)
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
