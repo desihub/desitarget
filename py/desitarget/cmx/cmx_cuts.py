@@ -1351,8 +1351,10 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     -----
         - if numproc==1, use serial code instead of parallel.
     """
-    from desiutil.log import get_logger
-    log = get_logger()
+    # ADM the code can have memory issues for nside=2 with large numproc.
+    if nside is not None and nside < 4 and numproc > 8:
+        msg = 'Memory may be an issue near Plane for nside < 4 and numproc > 8'
+        log.warning(msg)
 
     # -Convert single file to list of files.
     if isinstance(infiles, str):

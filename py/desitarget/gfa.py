@@ -474,9 +474,10 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         - If numproc > 4, then numproc=4 is enforced for (just those)
           parts of the code that are I/O limited.
     """
-    # ADM the code can encounter memory issues for nside=2.
-    if nside is not None and nside < 4:
-        log.warning('Memory may be an issue near the Plane for nside < 4')
+    # ADM the code can have memory issues for nside=2 with large numproc.
+    if nside is not None and nside < 4 and numproc > 8:
+        msg = 'Memory may be an issue near Plane for nside < 4 and numproc > 8'
+        log.warning(msg)
 
     # ADM force to no more than numproc=4 for I/O limited processes.
     numproc4 = numproc
