@@ -1395,10 +1395,10 @@ def read_target_files(filename, columns=None, header=False, verbose=False):
     for ext in targtypes:
         try:
             targs, hdr = fitsio.read(filename, ext, columns=columns, header=True)
-            epicfail=False
+            epicfail = False
             if verbose:
                 log.info("Reading file of type {}".format(ext))
-        except:
+        except OSError:
             pass
 
     if epicfail:
@@ -1500,6 +1500,87 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
+    # ADM ...and remove RA/Dec columns if we added them.
+    targets = rfn.drop_fields(targets[ii], addedcols)
+
+    if header:
+        return targets, hdr
+    return targets
+
+
+def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
+    """
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    tiles : :class:`~numpy.ndarray`, optional
+        Array of tiles in the desimodel format, or ``None`` to use all
+        DESI tiles from :func:`desimodel.io.load_tiles`.
+    columns : :class:`list`, optional
+        Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of targets in the passed tiles.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
+        - The environment variable $DESIMODEL must be set.
+    """
+    # ADM check that the DESIMODEL environment variable is set.
+    if os.environ.get('DESIMODEL') is None:
+        msg = "DESIMODEL environment variable must be set!!!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM if no tiles were sent, default to the entire footprint.
+    if tiles is None:
+        import desimodel.io as dmio
+        tiles = dmio.load_tiles()
+
+    # ADM we'll need RA/Dec for final cuts, so ensure they're read.
+    addedcols = []
+    columnscopy = None
+    if columns is not None:
+        # ADM make a copy of columns, as it's a kwarg we'll modify.
+        columnscopy = columns.copy()
+        for radec in ["RA", "DEC"]:
+            if radec not in columnscopy:
+                columnscopy.append(radec)
+                addedcols.append(radec)
+
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    if os.path.isdir(hpdirname):
+        # ADM closest nside to DESI tile area of ~7 deg.
+        nside = pixarea2nside(7.)
+
+        # ADM determine the pixels that touch the tiles.
+        from desimodel.footprint import tiles2pix
+        pixlist = tiles2pix(nside, tiles=tiles)
+
+        # ADM read in targets in these HEALPixels.
+        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
+                                          columns=columnscopy,
+                                          header=True)
+    # ADM ...otherwise just read in the targets.
+    else:
+        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
+                                         header=True)
+
+    # ADM restrict only to targets in the requested tiles...
+    from desimodel.footprint import is_point_in_desi
+    ii = is_point_in_desi(tiles, targets["RA"], targets["DEC"])
+
     # ADM ...and remove RA/Dec columns if we added them.
     targets = rfn.drop_fields(targets[ii], addedcols)
 

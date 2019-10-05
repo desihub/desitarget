@@ -848,7 +848,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     -----
         - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
-    # ADM check that the DESIMODEL environement variable is set.
+    # ADM check that the DESIMODEL environment variable is set.
     if os.environ.get('DESIMODEL') is None:
         msg = "DESIMODEL environment variable must be set!!!"
         log.critical(msg)

@@ -51,10 +51,6 @@ ap.add_argument("--nourat", action='store_true',
 
 ns = ap.parse_args()
 
-# ADM can be memory issues for large pixels near the Galactic Plane.
-if ns.nside is not None and ns.nside < 4:
-    log.warning('Memory may be an issue near the Plane for nside < 4')
-
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)

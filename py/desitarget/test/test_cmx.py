@@ -28,7 +28,7 @@ class TestCMX(unittest.TestCase):
         cls.cmxdir = resource_filename('desitarget.test', 't3')
 
         # ADM find which HEALPixels are covered by test sweeps files.
-        cls.nside=32
+        cls.nside = 32
         pixlist = []
         for fn in cls.sweepfiles:
             objs = fitsio.read(fn)
