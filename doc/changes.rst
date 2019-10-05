@@ -5,6 +5,18 @@ desitarget Change Log
 0.32.1 (unreleased)
 -------------------
 
+* Update skies, GFAs and CMX targets for all-sky observing [`PR #548`_]:
+    * Process and output GFAs, skies and CMX targets split by HEALPixel.
+    * "bundling" scripts to parallelize GFAs, skies, CMX by HEALPixel.
+    * Bundle across all HEALPixels (not just those in the footprint).
+    * Add pixel information to file headers for GFAs, skies and CMX.
+    * Write all-sky CMX targets separately from in-footprint targets.
+    * Add back-up and first light targets for commissioning.
+    * New TARGETID encoding scheme for Gaia-only and first light targets.
+    * Resolve commissioning targets from the Legacy Surveys.
+    * io.read functions can now process SKY and GFA target files.
+    * New function to read in targets restricted to a set of DESI tiles.
+    * Implement Boris Gaensicke's geographical cuts for Gaia.
 * Add new redshift 5 (``QSO_Z5``) SV QSO selection [`PR #539`_]. Also:
     * Remove all Tycho and LSLGA sources from the GFA catalog.
     * Minor improvements to documentation for secondary targets.
@@ -38,6 +50,7 @@ desitarget Change Log
 .. _`PR #537`: https://github.com/desihub/desitarget/pull/537
 .. _`PR #538`: https://github.com/desihub/desitarget/pull/538
 .. _`PR #539`: https://github.com/desihub/desitarget/pull/539
+.. _`PR #548`: https://github.com/desihub/desitarget/pull/548
 
 0.32.0 (2019-08-07)
 -------------------
