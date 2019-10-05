@@ -12,6 +12,7 @@ from astropy.io import fits
 from astropy.table import Table
 import fitsio
 import numpy as np
+import healpy as hp
 
 from desitarget import io
 from desitarget.cmx import cmx_cuts as cuts
@@ -25,6 +26,16 @@ class TestCMX(unittest.TestCase):
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
         cls.cmxdir = resource_filename('desitarget.test', 't3')
+
+        # ADM find which HEALPixels are covered by test sweeps files.
+        cls.nside=32
+        pixlist = []
+        for fn in cls.sweepfiles:
+            objs = fitsio.read(fn)
+            theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+            pixels = hp.ang2pix(cls.nside, theta, phi, nest=True)
+            pixlist.append(pixels)
+        cls.pix = np.unique(pixlist)
 
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames
@@ -86,14 +97,19 @@ class TestCMX(unittest.TestCase):
     def test_select_targets(self):
         """Test select targets works with either data or filenames
         """
-        for filelist in [self.tractorfiles, self.sweepfiles]:
-            # ADM No QSO cuts for speed. This doesn't affect coverage.
+        # ADM parallelization across pixels only works for sweep files.
+        for filelist in [self.sweepfiles]:
+            # ADM No QSO cuts and limit to pixels for speed.
+            # ADM This doesn't affect coverage.
             targets = cuts.select_targets(filelist, numproc=1,
-                                          cmxdir=self.cmxdir, noqso=True)
+                                          cmxdir=self.cmxdir, noqso=True,
+                                          nside=self.nside, pixlist=self.pix)
             t1 = cuts.select_targets(filelist[0:1], numproc=1,
-                                     cmxdir=self.cmxdir, noqso=True)
+                                     cmxdir=self.cmxdir, noqso=True,
+                                     nside=self.nside, pixlist=self.pix)
             t2 = cuts.select_targets(filelist[0], numproc=1,
-                                     cmxdir=self.cmxdir, noqso=True)
+                                     cmxdir=self.cmxdir, noqso=True,
+                                     nside=self.nside, pixlist=self.pix)
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
@@ -112,10 +128,12 @@ class TestCMX(unittest.TestCase):
         """Test multiprocessing parallelization works
         """
         for nproc in [1, 2]:
-            for filelist in [self.tractorfiles, self.sweepfiles]:
+            # ADM parallelization across pixels only works for sweep files.
+            for filelist in [self.sweepfiles]:
                 # ADM No QSO cuts for speed. Doesn't affect coverage.
                 targets = cuts.select_targets(filelist, numproc=nproc,
-                                              cmxdir=self.cmxdir, noqso=True)
+                                              cmxdir=self.cmxdir, noqso=True,
+                                              nside=self.nside, pixlist=self.pix)
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['CMX_TARGET']))
 
