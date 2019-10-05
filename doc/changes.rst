@@ -17,6 +17,7 @@ desitarget Change Log
     * io.read functions can now process SKY and GFA target files.
     * New function to read in targets restricted to a set of DESI tiles.
     * Implement Boris Gaensicke's geographical cuts for Gaia.
+    * Update unit tests to use DR8 files.
 * Add new redshift 5 (``QSO_Z5``) SV QSO selection [`PR #539`_]. Also:
     * Remove all Tycho and LSLGA sources from the GFA catalog.
     * Minor improvements to documentation for secondary targets.
