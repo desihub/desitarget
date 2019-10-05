@@ -37,6 +37,15 @@ class TestCMX(unittest.TestCase):
             pixlist.append(pixels)
         cls.pix = np.unique(pixlist)
 
+        # ADM set up the GAIA_DIR environment variable.
+        cls.gaiadir_orig = os.getenv("GAIA_DIR")
+        os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
+
+    @classmethod
+    def tearDownClass(cls):
+        # ADM reset GAIA_DIR environment variable.
+        os.environ["GAIA_DIR"] = cls.gaiadir_orig
+
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames
         """
