@@ -355,10 +355,13 @@ def add_primary_info(scxtargs, priminfodir):
     # ADM if a secondary matched TWO (or more) primaries,
     # ADM only retain the highest-priority primary.
     alldups = []
-    for _, dups in duplicates(primids):
+    # for _, dups in duplicates(primids):
+    for _, dups in duplicates(primtargs['TARGETID']):
         am = np.argmax(primtargs[dups]["PRIORITY_INIT"])
         dups = np.delete(dups, am)
         alldups.append(dups)
+    alldups = np.hstack(alldups)
+    log.debug("Discarding {} primary duplicates".format(len(alldups)))
     primtargs = np.delete(primtargs, alldups)
     primids = np.delete(primids, alldups)
 
@@ -380,6 +383,9 @@ def add_primary_info(scxtargs, priminfodir):
     # ADM with the primary TARGETIDs.
     scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
 
+    # APC Secondary targets that don't match to a primary.
+    # APC all still have TARGETID = -1 at this point. They
+    # APC get removed in finalize_secondary().
     log.info("Done matching primaries in {} to secondaries...t={:.1f}s"
              .format(priminfodir, time()-start))
 
@@ -599,6 +605,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
 
     # ADM assign the unique TARGETIDs to the secondary objects.
     scxtargs["TARGETID"][nomatch] = targetid[nomatch]
+    log.debug("Assigned {} targetids to unmatched secondaries".format(len(targetid[nomatch])))
 
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
@@ -636,6 +643,17 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     scxtargs = rfn.rename_fields(
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
     )
+
+    # APC Remove duplicate targetids from secondary-only targets
+    alldups = []
+    for _, dups in duplicates(scxtargs['TARGETID']):
+        # Retain the duplicate with highest priority, breaking ties
+        # on lowest index in list of duplicates
+        dups = np.delete(dups, np.argmax(scxtargs['PRIORITY_INIT'][dups]))
+        alldups.append(dups)
+    alldups = np.hstack(alldups)
+    log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".format(len(alldups)))
+
     # ADM and remove the INIT fields in prep for a dark/bright split.
     scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
 
@@ -665,6 +683,9 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     for edr, oc in zip(ender, obscon):
         pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
         done[pc], done[nc] = initial_priority_numobs(done, obscon=oc, scnd=True)
+
+        # APC Flagged duplicates are removed in io.write_secondary
+        done[pc][alldups] = -1
 
     # ADM set the OBSCONDITIONS.
     done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)
