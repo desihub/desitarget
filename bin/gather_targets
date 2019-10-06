@@ -21,10 +21,15 @@ ap.add_argument("infiles",
                 help="SEMI-COLON separated list of input files, which may have to be enclosed by quotes (e.g. 'file1;file2;file3;file4')")
 ap.add_argument("outfile", 
                 help="Output file name")
-ap.add_argument("targtype", choices=['skies', 'randoms', 'targets'],
+ap.add_argument("targtype", choices=['skies', 'randoms', 'targets', 'gfas'],
                 help="Type of target run with parallelization/multiprocessing code to gather")
 
 ns = ap.parse_args()
+
+# ADM the gfas are actually called 'gfa_targets'
+tt = ns.targtype
+if ns.targtype == 'gfas':
+    tt = "GFA_TARGETS"
 
 # ADM convert passed csv strings to lists.
 fns = [ fn for fn in ns.infiles.split(';') ]
@@ -42,7 +47,7 @@ fits = FITS(ns.outfile, 'rw')
 # ADM write the first file with the header.
 data = fitsio.read(fns[0])
 log.info('Working on file {}...t = {:.1f}s'.format(fns[0], time()-start))
-fits.write(data, extname=ns.targtype.upper(), header=hdr, clobber=True)
+fits.write(data, extname=tt.upper(), header=hdr, clobber=True)
 
 # ADM add the other files.
 for fn in fns[1:]:
