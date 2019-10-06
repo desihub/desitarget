@@ -994,7 +994,10 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
         gaiaid = []
         for flobjs in flobjsin["DESIGNATION"]:
             try:
-                gid = int(flobjs.decode().split("DR2")[-1])
+                if isinstance(flobjs, np.bytes_):
+                    gid = int(flobjs.decode().split("DR2")[-1])
+                else:
+                    gid = int(flobjs.split("DR2")[-1])
                 gaiaid.append(gid)
             except ValueError:
                 gaiaid.append(-1)
