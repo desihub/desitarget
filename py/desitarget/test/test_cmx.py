@@ -44,7 +44,8 @@ class TestCMX(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # ADM reset GAIA_DIR environment variable.
-        os.environ["GAIA_DIR"] = cls.gaiadir_orig
+        if cls.gaiadir_orig is not None:
+            os.environ["GAIA_DIR"] = cls.gaiadir_orig
 
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames

@@ -596,7 +596,7 @@ def read_gaia_file(filename, header=False, addobjid=False):
     # ADM read 'em in.
     outdata = fx[1].read(columns=readcolumns)
     # ADM change the data model to what we want for each column.
-    outdata.dtype = gaiadatamodel.dtype
+    outdata.dtype.names = gaiadatamodel.dtype.names
 
     # ADM the proper motion ERRORS need to be converted to IVARs.
     # ADM remember to leave 0 entries as 0.
