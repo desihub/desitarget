@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.32.1 (unreleased)
+0.33.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.33.0 (2019-10-06)
 -------------------
 
 * Update skies, GFAs and CMX targets for all-sky observing [`PR #548`_]:
