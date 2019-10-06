@@ -32,7 +32,7 @@ class TestPriorities(unittest.TestCase):
 
         n = 3
 
-        self.targets = Table(np.zeros(n, dtype=targdtype)) 
+        self.targets = Table(np.zeros(n, dtype=targdtype))
         self.targets['TARGETID'] = list(range(n))
 
         self.zcat = Table(np.zeros(n, dtype=zdtype))

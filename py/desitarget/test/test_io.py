@@ -69,11 +69,11 @@ class TestIO(unittest.TestCase):
         # ADM have to remove the GAIA_RA, GAIA_DEC columns used for matching.
         gaiadatamodel = pop_gaia_coords(gaiadatamodel)
         # ADM prior to DR8, we're also missing some other Gaia columns.
-        gaiadatamodel = pop_gaia_columns(
-            gaiadatamodel,
-            ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
-             'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
-        )
+#        gaiadatamodel = pop_gaia_columns(
+#            gaiadatamodel,
+#            ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
+#             'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
+#        )
         # ADM PHOTSYS gets added on input.
         tscolumns = list(io.tsdatamodel.dtype.names)     \
             + ['PHOTSYS']                                \
