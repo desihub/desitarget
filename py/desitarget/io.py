@@ -486,7 +486,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     if mockdata is not None:
         truthfile = filename.replace('targets-', 'truth-')
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
-        
+
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
         fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
 
@@ -506,7 +506,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
             for obj in sorted(set(truthdata['TEMPLATETYPE'])):
                 fitsio.write(truthfile+'.tmp', objtruth[obj].as_array(), append=True,
                              extname='TRUTH_{}'.format(obj))
-            
+
         os.rename(truthfile+'.tmp', truthfile)
 
     return ntargs, filename
