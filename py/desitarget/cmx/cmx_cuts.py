@@ -994,6 +994,8 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
         gaiaid = []
         for flobjs in flobjsin["DESIGNATION"]:
             try:
+                # ADM the if/else is to maintain compatibility with
+                # ADM both fitsio 0.9.11 and 1.0+.
                 if isinstance(flobjs, np.bytes_):
                     gid = int(flobjs.decode().split("DR2")[-1])
                 else:
@@ -1018,10 +1020,17 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
         flobjsout["GAIA_BRICKID"] = filenum
         flobjsout["GAIA_OBJID"] = np.arange(len(flobjsin))
 
-        # ADM record the bit values for each class name.
-        cmx_target.append(
-            [cmx_mask[prog+"_"+c.decode().rstrip()] for c in flobjsin["CLASS"]]
-        )
+        # ADM record the bit values for each class name. The if/else is
+        # ADM to maintain compatibility with both fitsio 0.9.11 and 1.0+.
+        if isinstance(flobjsin["CLASS"][0], np.bytes_):
+            cmx_target.append(
+                [cmx_mask[prog+"_"+c.decode().rstrip()]
+                 for c in flobjsin["CLASS"]]
+            )
+        else:
+            cmx_target.append(
+                [cmx_mask[prog+"_"+c.rstrip()] for c in flobjsin["CLASS"]]
+            )
         flout.append(flobjsout)
 
     cmx_target = np.concatenate(cmx_target)
