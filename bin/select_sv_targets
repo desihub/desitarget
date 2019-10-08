@@ -103,7 +103,7 @@ survey='sv'+ns.iteration
 fn = infiles
 if ~isinstance(infiles, str):
     fn = infiles[0]
-data = fitsio.read(fn, columns=["RELEASE","PMRA"])
+data = fitsio.read(fn, columns=["RELEASE","PMRA"], upper=True)
 if np.any(data["RELEASE"] < 6000):
     log.critical('SV cuts only coded for DR6 or above')
     raise ValueError
