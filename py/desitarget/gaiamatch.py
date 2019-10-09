@@ -21,7 +21,8 @@ from os.path import basename
 from desitarget import io
 from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
-from desitarget.geomask import hp_in_box, add_hp_neighbors, hp_beyond_gal_b
+from desitarget.geomask import hp_in_box, add_hp_neighbors
+from desitarget.geomask import hp_beyond_gal_b, nside2nside
 from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -92,6 +93,68 @@ def _get_gaia_nside():
     nside = 32
 
     return nside
+
+
+def is_in_Galaxy(objs, radec=False):
+    """An (l, b) cut developed by Boris Gaensicke to avoid the Galaxy.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Array of objects. Must contain at least the columns "RA" and "DEC".
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead of
+        a rec array.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A boolean array that is ``True`` for objects that are close to
+        the Galaxy and ``False`` for objects that aren't.
+    """
+    # ADM which flavor of RA/Dec was passed.
+    if radec:
+        ra, dec = objs
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+
+    # ADM convert to Galactic coordinates.
+    c = SkyCoord(ra*u.degree, dec*u.degree)
+    gal = c.galactic
+
+    # ADM and limit to (l, b) ranges.
+    ii = np.abs(gal.b.value) < np.abs(gal.l.value*0.139-25)
+
+    return ii
+
+
+def gaia_dr_from_ref_cat(refcat):
+    """Determine the Gaia DR from an array of values, check it's unique.
+
+    Parameters
+    ----------
+    ref_cat : :class:`~numpy.ndarray` or `str`
+        A `REF_CAT` string or an array of `REF_CAT` strings (e.g. b"G2").
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The corresponding Data Release number (e.g. 2)
+
+    Notes
+    -----
+        - In reality, only strips the final integer off strings like
+          "X3". So, can generically be used for that purpose.
+    """
+    # ADM if an integer was passed.
+    refcat = np.atleast_1d(refcat)
+    # ADM in case old-style byte strings were passed.
+    if isinstance(refcat[0], bytes):
+        return np.array([int(i.decode()[-1]) for i in refcat])
+    else:
+        return np.array([int(i[-1]) for i in refcat])
+
+    return gaiadr
 
 
 def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nfiletest=None):
@@ -477,7 +540,7 @@ def pop_gaia_coords(inarr):
 
 
 def pop_gaia_columns(inarr, popcols):
-    """Convenience function to pop columns of an input array.
+    """Convenience function to pop columns off an input array.
 
     Parameters
     ----------
@@ -495,16 +558,20 @@ def pop_gaia_columns(inarr, popcols):
     return rfn.drop_fields(inarr, popcols)
 
 
-def read_gaia_file(filename, header=False):
+def read_gaia_file(filename, header=False, addobjid=False):
     """Read in a Gaia healpix file in the appropriate format for desitarget.
 
     Parameters
     ----------
     filename : :class:`str`
-        File name of a single Gaia "chunks" file.
-
+        File name of a single Gaia "healpix-" file.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return (data, header) instead of just data.
+    addobjid : :class:`bool`, optional, defaults to ``False``
+        Include, in the output, two additional columns. A column
+        "GAIA_OBJID" that is the integer number of each row read from
+        file and a column "GAIA_BRICKID" that is the integer number of
+        the file itself.
 
     Returns
     -------
@@ -516,28 +583,44 @@ def read_gaia_file(filename, header=False):
     -----
         - A better location for this might be in `desitarget.io`?
     """
-    # ADM check we aren't going to have an epic fail on the the version of fitsio
+    # ADM check for an epic fail on the the version of fitsio.
     check_fitsio_version()
 
-    # ADM prepare to read in the Gaia data by reading in columns
+    # ADM prepare to read in the Gaia data by reading in columns.
     fx = fitsio.FITS(filename, upper=True)
     fxcolnames = fx[1].get_colnames()
     hdr = fx[1].read_header()
 
-    # ADM the default list of columns
+    # ADM the default list of columns.
     readcolumns = list(ingaiadatamodel.dtype.names)
-    # ADM read 'em in
+    # ADM read 'em in.
     outdata = fx[1].read(columns=readcolumns)
-    # ADM change the data model to what we want for each column
-    outdata.dtype = gaiadatamodel.dtype
+    # ADM change the data model to what we want for each column.
+    outdata.dtype.names = gaiadatamodel.dtype.names
 
-    # ADM the proper motion ERRORS need to be converted to IVARs
-    # ADM remember to leave 0 entries as 0
+    # ADM the proper motion ERRORS need to be converted to IVARs.
+    # ADM remember to leave 0 entries as 0.
     for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
         w = np.where(outdata[col] != 0)[0]
         outdata[col][w] = 1./(outdata[col][w]**2.)
 
-    # ADM return data read in from the Gaia file, with the header if requested
+    # ADM if requested, add an object identifier for each file row.
+    if addobjid:
+        newdt = outdata.dtype.descr
+        for tup in ('GAIA_BRICKID', '>i4'), ('GAIA_OBJID', '>i4'):
+            newdt.append(tup)
+        nobjs = len(outdata)
+        newoutdata = np.zeros(nobjs, dtype=newdt)
+        for col in outdata.dtype.names:
+            newoutdata[col] = outdata[col]
+        newoutdata['GAIA_OBJID'] = np.arange(nobjs)
+        nside = _get_gaia_nside()
+        hpnum = radec2pix(nside, outdata["GAIA_RA"], outdata["GAIA_DEC"])
+        # ADM int should fail if HEALPix in the file aren't unique.
+        newoutdata['GAIA_BRICKID'] = int(np.unique(hpnum))
+        outdata = newoutdata
+
+    # ADM return data from the Gaia file, with the header if requested.
     if header:
         fx.close()
         return outdata, hdr
@@ -593,6 +676,54 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
         pixnum = add_hp_neighbors(nside, pixnum)
+
+    # ADM reformat in the Gaia healpix format used by desitarget.
+    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+
+    return gaiafiles
+
+
+def find_gaia_files_hp(nside, pixlist, neighbors=True):
+    """Find full paths to Gaia healpix files in a set of HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int`
+        A set of HEALPixels at `nside`.
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        Also return files corresponding to all neighbors that touch the
+        pixels in `pixlist` to prevent edge effects (e.g. a Gaia source
+        is 1 arcsec outside of `pixlist` and so in an adjacent pixel).
+
+    Returns
+    -------
+    :class:`list`
+        A list of all Gaia files that need to be read in to account for
+        objects in the passed list of pixels.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+    """
+    # ADM the resolution at which the healpix files are stored.
+    filenside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set and retrieve it.
+    gaiadir = _get_gaia_dir()
+    hpxdir = os.path.join(gaiadir, 'healpix')
+
+    # ADM work with pixlist as an array.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM determine the pixels that touch the passed pixlist.
+    pixnum = nside2nside(nside, filenside, pixlist)
+
+    # ADM if neighbors was sent, then retrieve all pixels that touch each
+    # ADM pixel covered by the provided locations, to prevent edge effects...
+    if neighbors:
+        pixnum = add_hp_neighbors(filenside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
     gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
@@ -717,7 +848,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     -----
         - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
-    # ADM check that the DESIMODEL environement variable is set.
+    # ADM check that the DESIMODEL environment variable is set.
     if os.environ.get('DESIMODEL') is None:
         msg = "DESIMODEL environment variable must be set!!!"
         log.critical(msg)

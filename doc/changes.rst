@@ -2,9 +2,34 @@
 desitarget Change Log
 =====================
 
-0.32.1 (unreleased)
+0.33.1 (unreleased)
 -------------------
 
+* No changes yet.
+
+0.33.0 (2019-10-06)
+-------------------
+
+* Update skies, GFAs and CMX targets for all-sky observing [`PR #548`_]:
+    * Process and output GFAs, skies and CMX targets split by HEALPixel.
+    * "bundling" scripts to parallelize GFAs, skies, CMX by HEALPixel.
+    * Bundle across all HEALPixels (not just those in the footprint).
+    * Add pixel information to file headers for GFAs, skies and CMX.
+    * Write all-sky CMX targets separately from in-footprint targets.
+    * Add back-up and first light targets for commissioning.
+    * New TARGETID encoding scheme for Gaia-only and first light targets.
+    * Resolve commissioning targets from the Legacy Surveys.
+    * io.read functions can now process SKY and GFA target files.
+    * New function to read in targets restricted to a set of DESI tiles.
+    * Implement Boris Gaensicke's geographical cuts for Gaia.
+    * Update unit tests to use DR8 files.
+* Further updates to changes in `PR #531`_, [`PR #544`_]. Includes:
+    * A `--writeall` option to `select_secondary` writes a unified target
+      file without the BRIGHT/DARK split, as for `select_targets` 
+    * Removes duplicate secondaries that arise from multiple matches to 
+      one primary and secondary targets appearing in more than one input
+      file. The duplciate with highest `PRIORTIY_INIT` is retained.
+* Update mocks to match latest data-based targets catalogs [`PR #543`_].
 * Add new redshift 5 (``QSO_Z5``) SV QSO selection [`PR #539`_]. Also:
     * Remove all Tycho and LSLGA sources from the GFA catalog.
     * Minor improvements to documentation for secondary targets.
@@ -38,6 +63,9 @@ desitarget Change Log
 .. _`PR #537`: https://github.com/desihub/desitarget/pull/537
 .. _`PR #538`: https://github.com/desihub/desitarget/pull/538
 .. _`PR #539`: https://github.com/desihub/desitarget/pull/539
+.. _`PR #543`: https://github.com/desihub/desitarget/pull/543
+.. _`PR #544`: https://github.com/desihub/desitarget/pull/544
+.. _`PR #548`: https://github.com/desihub/desitarget/pull/548
 
 0.32.0 (2019-08-07)
 -------------------

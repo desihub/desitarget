@@ -13,6 +13,7 @@ flux passes a given selection criterion (*e.g.* STD_TEST).
 
 from time import time
 import numpy as np
+import numpy.lib.recfunctions as rfn
 import os
 import fitsio
 import warnings
@@ -26,10 +27,11 @@ from pkg_resources import resource_filename
 from desitarget import io
 from desitarget.cuts import _psflike, _is_row, _get_colnames
 from desitarget.cuts import _prepare_optical_wise, _prepare_gaia
-
 from desitarget.internal import sharedmem
-from desitarget.targets import finalize
+from desitarget.targets import finalize, resolve
 from desitarget.cmx.cmx_targetmask import cmx_mask
+from desitarget.geomask import sweep_files_touch_hp, is_in_hp, bundle_bricks
+from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -858,9 +860,9 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     ra, dec : :class:`array_like` or :class:`None`
         Right Ascension and Declination in degrees.
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
-        Directory in which to find commmissioning files to which to match, such as the
-        CALSPEC stars. If not specified, the cmx directory is taken to be the value of
-        the :envvar:`CMX_DIR` environment variable.
+        Directory to find commmissioning files to match, such as for the
+        CALSPEC stars. If not specified, taken to be the value of the
+        :envvar:`CMX_DIR` environment variable.
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The matching radius in arcseconds.
     primary : :class:`array_like` or :class:`None`
@@ -909,17 +911,228 @@ def isSTD_calspec(ra=None, dec=None, cmxdir=None, matchrad=1.,
     return iscalspec
 
 
+def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
+    """BACKUP targets based on Gaia magnitudes.
+
+    Parameters
+    ----------
+    ra, dec: :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    gaiagmag: :class:`array_like` or :class:`None`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+        (same units as `the Gaia data model`_).
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a bright "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a faint "BACKUP" target.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiagmag, dtype='?')
+
+    isbackupbright = primary.copy()
+    isbackupfaint = primary.copy()
+
+    # ADM determine which sources are close to the Galaxy.
+    in_gal = is_in_Galaxy([ra, dec], radec=True)
+
+    # ADM bright targets are 13 < G < 16.
+    isbackupbright &= gaiagmag >= 13
+    isbackupbright &= gaiagmag < 16
+
+    # ADM faint targets are 16 < G < 18.
+    isbackupfaint &= gaiagmag >= 16
+    isbackupfaint &= gaiagmag < 18
+    # ADM and are "far from" the Galaxy.
+    isbackupfaint &= ~in_gal
+
+    return isbackupbright, isbackupfaint
+
+
+def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
+    """First light targets based on reading in files from Arjun Dey.
+
+    Parameters
+    ----------
+    gaiadtype: :class:`dtype`
+        Data type (dtype) for Gaia-only CMX targets.
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
+        Directory to find commmissioning files. If not specified,
+        taken from the :envvar:`CMX_DIR` environment variable.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing, as input files will only be processed
+        if they touch a pixel in the passed list.
+
+    Returns
+    -------
+    :class:`array_like`
+        bit values for each of the first light targets.
+    :class:`array_like`
+        Array of the first light targets munged into Gaia-only format.
+    """
+    # ADM retrieve/check the cmxdir.
+    cmxdir = _get_cmxdir(cmxdir)
+    # ADM get the M31 objects.
+
+    cmx_target = []
+    flout = []
+    for filenum, prog in enumerate(["M31", "ORI", "ROS"]):
+        cmxfile = os.path.join(cmxdir, "{}-targets.fits".format(prog))
+        flobjsin = fitsio.read(cmxfile)
+
+        # ADM create the gaia-only-like array.
+        flobjsout = np.zeros(len(flobjsin), dtype=gaiadtype)
+
+        # ADM set the Gaia Source ID and DR where possible.
+        gaiaid = []
+        for flobjs in flobjsin["DESIGNATION"]:
+            try:
+                # ADM the if/else is to maintain compatibility with
+                # ADM both fitsio 0.9.11 and 1.0+.
+                if isinstance(flobjs, np.bytes_):
+                    gid = int(flobjs.decode().split("DR2")[-1])
+                else:
+                    gid = int(flobjs.split("DR2")[-1])
+                gaiaid.append(gid)
+            except ValueError:
+                gaiaid.append(-1)
+        flobjsout['REF_ID'] = gaiaid
+        flobjsout['REF_CAT'] = 'F1'
+
+        # ADM transfer columns from Arjun's files to standard data model.
+        for col in ["RA", "DEC"]:
+            flobjsout[col] = flobjsin[col]
+        for col in ["PMRA", "PMDEC"]:
+            flobjsout[col] = flobjsin[col]
+            ii = flobjsin[col+"_ERROR"] != 0
+            flobjsout[col+"_IVAR"][ii] = 1./(flobjsin[col+"_ERROR"][ii]**2.)
+        flobjsout["REF_EPOCH"] = flobjsin["EPOCH"]
+        flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["GAIA_G"]
+
+        # ADM add unique identifiers based on the file and row-in-file.
+        flobjsout["GAIA_BRICKID"] = filenum
+        flobjsout["GAIA_OBJID"] = np.arange(len(flobjsin))
+
+        # ADM record the bit values for each class name. The if/else is
+        # ADM to maintain compatibility with both fitsio 0.9.11 and 1.0+.
+        if isinstance(flobjsin["CLASS"][0], np.bytes_):
+            cmx_target.append(
+                [cmx_mask[prog+"_"+c.decode().rstrip()]
+                 for c in flobjsin["CLASS"]]
+            )
+        else:
+            cmx_target.append(
+                [cmx_mask[prog+"_"+c.rstrip()] for c in flobjsin["CLASS"]]
+            )
+        flout.append(flobjsout)
+
+    cmx_target = np.concatenate(cmx_target)
+    flout = np.concatenate(flout)
+
+    # ADM restrict to only targets in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        ii = is_in_hp(flout, nside, pixlist)
+        cmx_target = cmx_target[ii]
+        flout = flout[ii]
+
+    return cmx_target, flout
+
+
+def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
+    """Gaia-only-based CMX target selection, return target mask arrays.
+
+    Parameters
+    ----------
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
+    cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
+        Directory to find commmissioning files to match, such as for the
+        CALSPEC stars. If not specified, taken to be the value of the
+        :envvar:`CMX_DIR` environment variable.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing, as input files will only be processed
+        if they touch a pixel in the passed list.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Commissioning target selection bitmask flags for each object.
+    :class:`~numpy.ndarray`
+        numpy structured array of Gaia sources that were read in from
+        file for the passed pixel constraints (or no pixel constraints).
+
+    Notes
+    -----
+        - May take a long time if no pixel constraints are passed.
+        - Only run on Gaia-only target selections.
+        - The environment variable $GAIA_DIR must be set.
+
+    See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
+    """
+    from desitarget.gfa import all_gaia_in_tiles
+    # ADM No Gaia-only CMX target classes are fainter than G=18.
+    gaiaobjs = all_gaia_in_tiles(maglim=18, numproc=numproc, allsky=True,
+                                 mindec=-90, mingalb=0, addobjid=True,
+                                 nside=nside, pixlist=pixlist)
+    # ADM the convenience function we use adds an empty TARGETID
+    # ADM field which we need to remove before finalizing.
+    gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
+
+    primary = np.ones_like(gaiaobjs, dtype=bool)
+
+    # ADM the relevant input quantities.
+    ra = gaiaobjs["RA"]
+    dec = gaiaobjs["DEC"]
+    gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
+
+    # ADM determine if an object matched a CALSPEC standard.
+    std_calspec = isSTD_calspec(
+        ra=ra, dec=dec, cmxdir=cmxdir, primary=primary
+    )
+
+    # ADM determine if an object is a BACKUP target.
+    backup_bright, backup_faint = isBACKUP(
+        ra=ra, dec=dec, gaiagmag=gaiagmag, primary=primary
+    )
+
+    # ADM grab the information on the FIRST LIGHT targets.
+    fl_target, flobjs = isFIRSTLIGHT(gaiaobjs.dtype, cmxdir=cmxdir,
+                                     nside=nside, pixlist=pixlist)
+
+    # ADM Construct the target flag bits.
+    cmx_target = std_calspec * cmx_mask.STD_CALSPEC
+    cmx_target |= backup_bright * cmx_mask.BACKUP_BRIGHT
+    cmx_target |= backup_faint * cmx_mask.BACKUP_FAINT
+
+    # ADM add in the first light program targets.
+    cmx_target = np.concatenate([cmx_target, fl_target])
+    gaiaobjs = np.concatenate([gaiaobjs, flobjs])
+
+    return cmx_target, gaiaobjs
+
+
 def apply_cuts(objects, cmxdir=None, noqso=False):
     """Commissioning (cmx) target selection, return target mask arrays.
 
     Parameters
     ----------
-    objects: numpy structured array with UPPERCASE columns needed for
+    objects : :class:`~numpy.ndarray`
+        numpy structured array with UPPERCASE columns needed for
         target selection, OR a string tractor/sweep filename
     cmxdir : :class:`str`, optional, defaults to :envvar:`CMX_DIR`
         Directory to find commmissioning files to which to match, such
         as the CALSPEC stars. If not specified, the cmx directory is
-        taken to be the value of :envvar:`CMX_DIR`.
+        taken to be the value of 2:envvar:`CMX_DIR`.
     noqso : :class:`boolean`, optional, defaults to ``False``
         If passed, do not run the quasar selection. All QSO bits will be
         set to zero. Intended use is to speed unit tests.
@@ -928,6 +1141,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     -------
     :class:`~numpy.ndarray`
         commissioning target selection bitmask flags for each object.
+    :class:`array_like`
+        a priority shift of 10*(25-rmag) based on r-band magnitude.
+        (for STD_DITHER sources).
 
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
@@ -1102,7 +1318,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     return cmx_target, priority_shift
 
 
-def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
+def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
+                   nside=None, pixlist=None, bundlefiles=None, extra=None,
+                   resolvetargs=True):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
@@ -1118,6 +1336,22 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
     noqso : :class:`boolean`, optional, defaults to ``False``
         If passed, do not run the quasar selection. All QSO bits will be
         set to zero. Intended use is to speed unit tests.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing, as input files will only be processed
+        if they touch a pixel in the passed list.
+    bundlefiles : :class:`int`, defaults to `None`
+        If not `None`, then, instead of selecting gfas, print the slurm
+        script to run in pixels at `nside`. Is an integer rather than
+        a boolean for historical reasons.
+    extra : :class:`str`, optional
+        Extra command line flags to be passed to the executable lines in
+        the output slurm script. Used in conjunction with `bundlefiles`.
+    resolvetargs : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, resolve overlapping north/south Legacy Surveys
+        targets into a set of unique sources based on location.
 
     Returns
     -------
@@ -1129,8 +1363,10 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
     -----
         - if numproc==1, use serial code instead of parallel.
     """
-    from desiutil.log import get_logger
-    log = get_logger()
+    # ADM the code can have memory issues for nside=2 with large numproc.
+    if nside is not None and nside < 4 and numproc > 8:
+        msg = 'Memory may be an issue near Plane for nside < 4 and numproc > 8'
+        log.warning(msg)
 
     # -Convert single file to list of files.
     if isinstance(infiles, str):
@@ -1144,21 +1380,59 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
     # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
 
-    def _finalize_targets(objects, cmx_target, priority_shift):
+    # ADM if the pixlist option was sent, we'll need to
+    # ADM know which HEALPixels touch each file.
+    if pixlist is not None:
+        filesperpixel, _, _ = sweep_files_touch_hp(
+            nside, pixlist, infiles)
+
+    # ADM if the bundlefiles option was sent, call the packing code.
+    if bundlefiles is not None:
+        # ADM determine if one or two input directories were passed.
+        surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
+        bundle_bricks([0], bundlefiles, nside, gather=False, extra=extra,
+                      prefix='cmx_targets', surveydirs=surveydirs)
+        return
+
+    # ADM restrict to only input files in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        # ADM a hack to ensure we have the correct targeting data model.
+        dummy = infiles[0]
+        infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
+        if len(infiles) == 0:
+            log.info('ZERO sweep files in passed pixel list!!!')
+            log.info('Run with dummy sweep file to write Gaia-only objects...')
+            infiles = [dummy]
+        log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
+                 .format(nside, pixlist))
+
+    # ADM a little more information if we're slurming across nodes.
+    if os.getenv('SLURMD_NODENAME') is not None:
+        log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
+
+    def _finalize_targets(objects, cmx_target, priority_shift=None, gaiadr=None):
         # -desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         # -on desi_target != 0
         keep = (cmx_target != 0)
         objects = objects[keep]
         cmx_target = cmx_target[keep]
-        priority_shift = priority_shift[keep]
+        if priority_shift is not None:
+            priority_shift = priority_shift[keep]
+        if gaiadr is not None:
+            gaiadr = gaiadr[keep]
 
         # -Add *_target mask columns
         # ADM note that only cmx_target is defined for commissioning
         # ADM so just pass that around
         targets = finalize(objects, cmx_target, cmx_target, cmx_target,
-                           survey='cmx')
+                           survey='cmx', gaiadr=gaiadr)
         # ADM shift the priorities of targets with functional priorities.
-        targets["PRIORITY_INIT"] += priority_shift
+        if priority_shift is not None:
+            targets["PRIORITY_INIT"] += priority_shift
+
+        # ADM resolve any duplicates between imaging data releases.
+        if resolvetargs and gaiadr is None:
+            targets = resolve(targets)
 
         return targets
 
@@ -1168,7 +1442,6 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
         objects = io.read_tractor(filename)
         cmx_target, priority_shift = apply_cuts(objects,
                                                 cmxdir=cmxdir, noqso=noqso)
-
         return _finalize_targets(objects, cmx_target, priority_shift)
 
     # Counter for number of bricks processed;
@@ -1201,4 +1474,51 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False):
 
     targets = np.concatenate(targets)
 
-    return targets
+    # ADM also process Gaia-only targets.
+    log.info('Retrieve additional Gaia-only (backup) objects...t = {:.1f} mins'
+             .format((time()-t0)/60))
+
+    # ADM force to no more than numproc=4 for I/O limited (Gaia) processes.
+    numproc4 = numproc
+    if numproc4 > 4:
+        log.info('Forcing numproc to 4 for I/O limited parts of code')
+        numproc4 = 4
+
+    # ADM set the target bits that are based only on Gaia.
+    cmx_target, gaiaobjs = apply_cuts_gaia(numproc=numproc4, cmxdir=cmxdir,
+                                           nside=nside, pixlist=pixlist)
+
+    # ADM determine the Gaia Data Release.
+    gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
+
+    # ADM add the relevant bits and IDs to the Gaia targets.
+    gaiatargs = _finalize_targets(gaiaobjs, cmx_target, gaiadr=gaiadr)
+
+    # ADM make the Gaia-only data structure resemble the main targets.
+    gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype)
+    for col in set(gaiatargs.dtype.names).intersection(set(targets.dtype.names)):
+        gaiatargets[col] = gaiatargs[col]
+
+    # ADM remove any duplicates. Order is important here, as np.unique
+    # ADM keeps the first occurence, and we want to retain sweeps
+    # ADM information as much as possible.
+    if len(infiles) > 0:
+        alltargs = np.concatenate([targets, gaiatargets])
+        # ADM Retain First Light objects as a special program.
+        ii = ((alltargs["REF_CAT"] != b'F1') & (alltargs["REF_CAT"] != 'F1'))
+        # ADM Retain all non-Gaia sources, which have REF_ID of -1 or 0
+        # ADM and so are all duplicates on REF_ID.
+        ii &= alltargs["REF_ID"] > 0
+        targs = alltargs[ii]
+        _, ind = np.unique(targs["REF_ID"], return_index=True)
+        targs = targs[ind]
+        alltargs = np.concatenate([targs, alltargs[~ii]])
+    else:
+        alltargs = gaiatargets
+
+    # ADM restrict to only targets in a set of HEALPixels, if requested.
+    if pixlist is not None:
+        ii = is_in_hp(alltargs, nside, pixlist)
+        alltargs = alltargs[ii]
+
+    return alltargs

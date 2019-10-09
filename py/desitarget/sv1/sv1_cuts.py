@@ -729,7 +729,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
         # Data reduction to preselected objects.
         colorsReduced = colors[preSelection]
-        colorsReduced[:,10] = 22.8
+        colorsReduced[:, 10] = 22.8
         r_Reduced = r[preSelection]
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
@@ -754,7 +754,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
             pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
         else:
             pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
-            
+
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
 

@@ -52,8 +52,8 @@ def empty_targets_table(nobj=1):
 
     targets.add_column(Column(name='RELEASE', length=nobj, dtype='i2'))
     targets.add_column(Column(name='BRICKID', length=nobj, dtype='i4'))
-    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='U8'))
-    targets.add_column(Column(name='BRICK_OBJID', length=nobj, dtype='<i4'))
+    targets.add_column(Column(name='BRICKNAME', length=nobj, dtype='S8'))
+    targets.add_column(Column(name='OBJID', length=nobj, dtype='<i4'))
     targets.add_column(Column(name='TYPE', length=nobj, dtype='S4'))
     targets.add_column(Column(name='RA', length=nobj, dtype='f8', unit='degree'))
     targets.add_column(Column(name='DEC', length=nobj, dtype='f8', unit='degree'))
@@ -142,6 +142,11 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_PHOT_RP_MEAN_MAG', length=nobj, dtype='f4'))    
     targets.add_column(Column(name='GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', length=nobj, dtype='f4'))
+
+    targets.add_column(Column(name='GAIA_PHOT_BP_RP_EXCESS_FACTOR', length=nobj, dtype='f4'))  # not sure what this should be
+    targets.add_column(Column(name='GAIA_ASTROMETRIC_SIGMA5D_MAX', length=nobj, dtype='f4'))   # not sure what this should be
+    targets.add_column(Column(name='GAIA_ASTROMETRIC_PARAMS_SOLVED', length=nobj, dtype='i8')) # default is 0, "good" is 31
+    
     targets.add_column(Column(name='GAIA_ASTROMETRIC_EXCESS_NOISE', length=nobj, dtype='f4'))
     targets.add_column(Column(name='GAIA_DUPLICATED_SOURCE', length=nobj, dtype=bool)) # default is False
     targets.add_column(Column(name='PARALLAX', length=nobj, dtype='f4'))
@@ -155,15 +160,16 @@ def empty_targets_table(nobj=1):
 
     targets.add_column(Column(name='EBV', length=nobj, dtype='f4'))
     targets.add_column(Column(name='PHOTSYS', length=nobj, dtype='|S1'))
-    targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
     targets.add_column(Column(name='DESI_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='BGS_TARGET', length=nobj, dtype='i8'))
     targets.add_column(Column(name='MWS_TARGET', length=nobj, dtype='i8'))
 
-    targets.add_column(Column(name='PRIORITY_INIT', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
-    targets.add_column(Column(name='NUMOBS_INIT', length=nobj, dtype='i8'))
-    targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
+    # All these columns are added in mock.build.targets_truth
+    #targets.add_column(Column(name='TARGETID', length=nobj, dtype='int64'))
+    #targets.add_column(Column(name='PRIORITY_INIT', length=nobj, dtype='i8'))
+    #targets.add_column(Column(name='SUBPRIORITY', length=nobj, dtype='f8'))
+    #targets.add_column(Column(name='NUMOBS_INIT', length=nobj, dtype='i8'))
+    #targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
 
     return targets
 
@@ -192,14 +198,14 @@ def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
     truth.add_column(Column(name='MOCKID', length=nobj, dtype='int64'))
 
     truth.add_column(Column(name='TRUEZ', length=nobj, dtype='f4', data=np.zeros(nobj)))
-    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='U10')) # GALAXY, QSO, STAR, etc.
-    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype='U10')) # ELG, BGS, STAR, WD, etc.
-    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype='U10')) # DA, DB, etc.
+    truth.add_column(Column(name='TRUESPECTYPE', length=nobj, dtype='S10')) # GALAXY, QSO, STAR, etc.
+    truth.add_column(Column(name='TEMPLATETYPE', length=nobj, dtype='S10')) # ELG, BGS, STAR, WD, etc.
+    truth.add_column(Column(name='TEMPLATESUBTYPE', length=nobj, dtype='S10')) # DA, DB, etc.
 
     truth.add_column(Column(name='TEMPLATEID', length=nobj, dtype='i4', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='SEED', length=nobj, dtype='int64', data=np.zeros(nobj)-1))
     truth.add_column(Column(name='MAG', length=nobj, dtype='f4', data=np.zeros(nobj), unit='mag'))
-    truth.add_column(Column(name='MAGFILTER', length=nobj, dtype='U15')) # normalization filter
+    truth.add_column(Column(name='MAGFILTER', length=nobj, dtype='S15')) # normalization filter
 
     truth.add_column(Column(name='FLUX_G', length=nobj, dtype='f4', unit='nanomaggies'))
     truth.add_column(Column(name='FLUX_R', length=nobj, dtype='f4', unit='nanomaggies'))
@@ -1451,7 +1457,7 @@ class ReadGaussianField(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'gaussianfield',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
                'SOUTH': isouth}
@@ -1644,7 +1650,7 @@ class ReadBuzzard(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'buzzard',
             'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-            'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+            'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
             'BRICKID': self.Bricks.brickid(ra, dec),
             'RA': ra, 'DEC': dec, 'Z': zz,
             'MAG': rmag, 'MAGFILTER': np.repeat('decam2014-r', nobj),
@@ -1776,7 +1782,7 @@ class ReadUniformSky(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'uniformsky',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': np.zeros(len(ra)),
                'SOUTH': isouth}
@@ -2016,7 +2022,7 @@ class ReadGalaxia(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'galaxia',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz,
                'TEFF': teff, 'LOGG': logg, 'FEH': feh,
@@ -2036,6 +2042,7 @@ class ReadGalaxia(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': np.zeros(nobj).astype('f4'), # placeholder
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.zeros(nobj).astype('i8')+31, # good astrometry
                'PARALLAX': gaia_parallax,
                'PARALLAX_IVAR': gaia_parallax_ivar,
                'PMRA': gaia_pmra,
@@ -2258,7 +2265,7 @@ class ReadLyaCoLoRe(SelectTargets):
         qlf = BOSS_DR9_PLEpivot(cosmo=cosmology.core.FlatLambdaCDM(70.0, 0.3))
 
         mag = np.zeros(nobj).astype('f4')
-        magfilter = np.zeros(nobj).astype('U15')
+        magfilter = np.zeros(nobj).astype('S15')
 
         south = np.where(isouth)[0]
         north = np.where(~isouth)[0]
@@ -2288,7 +2295,7 @@ class ReadLyaCoLoRe(SelectTargets):
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
                #'OBJID': objid,
                'MOCKID': mockid, 'LYAFILES': np.array(lyafiles),
-               'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'Z_NORSD': zz_norsd,
                'MAG': mag, 'MAGFILTER': magfilter,
@@ -2483,7 +2490,7 @@ class ReadMXXL(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'durham_mxxl_hdf5',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': rmag, 'SDSS_absmag_r01': absmag,
                'SDSS_01gr': gr, 'MAGFILTER': np.repeat('sdss2010-r', nobj),
@@ -2615,7 +2622,7 @@ class ReadGAMA(SelectTargets):
         # properties here.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'bgs-gama',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'RMABS_01': data['UGRIZ_ABSMAG_01'][:, 2],
                'UG_01': data['UGRIZ_ABSMAG_01'][:, 0]-data['UGRIZ_ABSMAG_01'][:, 1],
@@ -2755,7 +2762,7 @@ class ReadMWS_WD(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_wd',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg,
                'MAGFILTER': np.repeat('sdss2010-g', nobj),
@@ -2771,6 +2778,7 @@ class ReadMWS_WD(SelectTargets):
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
+               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.zeros(nobj).astype('i8')+31, # good astrometry
                'PARALLAX': gaia_parallax,
                'PARALLAX_IVAR': gaia_parallax_ivar,
                'PMRA': gaia_pmra,
@@ -2911,7 +2919,7 @@ class ReadMWS_NEARBY(SelectTargets):
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'mws_100pc',
                'HEALPIX': allpix, 'NSIDE': nside, 'WEIGHT': weight,
-               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec),
+               'MOCKID': mockid, 'BRICKNAME': self.Bricks.brickname(ra, dec).astype('S8'),
                'BRICKID': self.Bricks.brickid(ra, dec),
                'RA': ra, 'DEC': dec, 'Z': zz, 'MAG': mag, 'TEFF': teff, 'LOGG': logg, 'FEH': feh,
                'MAGFILTER': np.repeat('sdss2010-g', nobj), 'TEMPLATESUBTYPE': templatesubtype,
@@ -2924,6 +2932,7 @@ class ReadMWS_NEARBY(SelectTargets):
                #'GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR' - f4
                'GAIA_PHOT_RP_MEAN_MAG': gaia_rp,
                #'GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR' - f4
+               'GAIA_ASTROMETRIC_PARAMS_SOLVED': np.zeros(nobj).astype('f4')+31, # good astrometry
                #'GAIA_ASTROMETRIC_EXCESS_NOISE': gaia_noise,
                #'GAIA_DUPLICATED_SOURCE' - b1 # default is False
                'PARALLAX': gaia_parallax,

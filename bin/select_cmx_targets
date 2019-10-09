@@ -5,9 +5,11 @@ from __future__ import print_function, division
 import sys
 import numpy as np
 import fitsio
+import os
 
 from desitarget import io
 from desitarget.cmx.cmx_cuts import select_targets
+from desitarget.targets import decode_targetid
 
 from time import time
 start = time()
@@ -24,21 +26,55 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates DESI commissioning (cmx) target bits from Legacy Surveys sweeps or tractor files')
-ap.add_argument("src", 
+ap.add_argument("sweepdir",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", 
                 help="Output cmx target selection file")
+ap.add_argument('-s2', "--sweepdir2",
+                help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
+                default=None)
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
+ap.add_argument('--nside', type=int,
+                help="Process GFAs in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
+                default=None)
+ap.add_argument('--healpixels',
+                help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
+                default=None)
+ap.add_argument("--bundlefiles", type=int,
+                help="(overrides all options but `surveydir`) print slurm script to parallelize by sending (any) integer. This is an integer rather than boolean for historical reasons",
+                default=None)
 ap.add_argument("--cmxdir", type=str,
                 help="Pass to set the CMX_DIR environment variable directly in the code",
                 default=None)
+ap.add_argument("--noresolve", action='store_true',
+                help="Do NOT resolve into northern targets in northern regions and southern targets in southern regions")
+
 
 ns = ap.parse_args()
-infiles = io.list_sweepfiles(ns.src)
+
+# ADM build the list of command line arguments as
+# ADM bundlefiles potentially needs to know about them.
+extra = " --numproc {}".format(ns.numproc)
+nsdict = vars(ns)
+for nskey in "noresolve", "cmxdir":
+    if isinstance(nsdict[nskey], bool):
+        if nsdict[nskey]:
+            extra += " --{}".format(nskey)
+    else:
+        if nsdict[nskey] is not None:
+            extra += " --{} {}".format(nskey, nsdict[nskey])
+
+infiles = io.list_sweepfiles(ns.sweepdir)
+if ns.sweepdir2 is not None:
+    infiles2 = io.list_sweepfiles(ns.sweepdir2)
+    infiles += infiles2
 if len(infiles) == 0:
-    infiles = io.list_tractorfiles(ns.src)
+    infiles = io.list_tractorfiles(ns.sweepdir)
+    if ns.sweepdir2 is not None:
+        infiles2 = io.list_tractorfiles(ns.sweepdir2)
+        infiles += infiles2
 if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
@@ -46,27 +82,51 @@ if len(infiles) == 0:
 # ADM Only coded for objects with Gaia matches
 # ADM (e.g. DR6 or above). Fail for earlier Data Releases.
 # ADM Guard against a single file being passed.
-fn = infiles
-if ~isinstance(infiles, str):
-    fn = infiles[0]
-data = fitsio.read(fn, columns=["RELEASE", "PMRA"])
-if np.any(data["RELEASE"] < 6000):
-    log.critical('Commissioning cuts only coded for DR6 or above')
-    raise ValueError
-if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
-    d = "/project/projectdirs/desi/target/gaia_dr2_match_dr6"
-    log.info("Zero objects have a proper motion.")
-    log.critical(
-        "Did you mean to send the Gaia-matched sweeps in, e.g., {}?"
-        .format(d)
-    )
-    raise IOError
+fns = infiles
+if isinstance(infiles, str):
+    fns = [infiles]
+# ADM check the first and last file, in case --sweepdir2 was sent.
+for fn in fns[0], fns[-1]:
+    data = fitsio.read(fn, columns=["RELEASE", "PMRA"])
+    if np.any(data["RELEASE"] < 6000):
+        log.critical('Commissioning cuts only coded for DR6 or above')
+        raise ValueError
+    if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
+        d = "/project/projectdirs/desi/target/gaia_dr2_match_dr6"
+        log.info("Zero objects have a proper motion.")
+        log.critical(
+            "Did you mean to send the Gaia-matched sweeps in, e.g., {}?"
+            .format(d)
+        )
+        raise IOError
 
-log.info("running on {} processors".format(ns.numproc))
+if ns.bundlefiles is None:
+    log.info("running on {} processors".format(ns.numproc))
 
-targets = select_targets(infiles, numproc=ns.numproc, cmxdir=ns.cmxdir)
+# ADM parse the list of HEALPixels in which to run.
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [int(pix) for pix in pixlist.split(',')]
 
-io.write_targets(ns.dest, targets, indir=ns.src, survey="cmx", nside=nside, nchunks=20)
+targets = select_targets(infiles, numproc=ns.numproc,
+                         resolvetargs=not(ns.noresolve),
+                         nside=ns.nside, pixlist=pixlist, extra=extra,
+                         bundlefiles=ns.bundlefiles, cmxdir=ns.cmxdir)
 
-log.info('{} targets written to {}...t={:.1f}s'.format(len(targets), ns.dest, time()-start))
-
+if ns.bundlefiles is None:
+    # ADM write out two sets of targets. The gaia-only and the not gaia-only.
+    _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
+    isgaia = gaiadr > 0
+    # ADM create gaia-only directory name, make it if it doesn't exist.
+    gaiadir = os.path.join(os.path.dirname(ns.dest), "allsky")
+    if not os.path.exists(gaiadir):
+        os.makedirs(gaiadir)
+    gaiadest = os.path.join(gaiadir, os.path.basename(ns.dest))
+    for dest, ii in zip([ns.dest, gaiadest], [~isgaia, isgaia]):
+        ntargs, filename = io.write_targets(
+            dest, targets[ii], indir=ns.sweepdir,
+            indir2=ns.sweepdir2, survey="cmx", nside=nside,
+            resolve=not(ns.noresolve),
+            nsidefile=ns.nside, hpxlist=pixlist)
+        log.info('{} targets written to {}...t={:.1f}s'
+                 .format(ntargs, filename, time()-start))

@@ -623,9 +623,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         The rough number of bricks processed per second by the code (parallelized across
         a chosen number of nodes)
     prefix : :class:`str`, optional, defaults to 'targets'
-        Should correspond to the binary executable "X" that is run as select_X for a
-        target type. Depending on the type of target file that is being packed for
-        parallelization, this could be 'randoms', 'skies', 'targets', etc.
+        Corresponds to the executable "X" that is run as select_X for a
+        target type. This could be 'randoms', 'skies', 'targets', 'gfas'.
+        Also, 'supp-skies' can be passed to cover supplemental skies.
     gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
         files into one large file. If ``False``, comment out that command.
@@ -664,69 +664,81 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM iteratively populate lists of the numbers of pixels
     # ADM and the corrsponding pixel numbers
-    bins = []
-
-    for index, num in enumerate(numpix):
-        # Try to fit this sized number into a bin
-        for bin in bins:
-            if np.sum(np.array(bin)[:, 0]) + num <= maxpernode:
-                # print 'Adding', item, 'to', bin
+    if prefix in ['targets', 'skies', 'randoms']:
+        bins = []
+        for index, num in enumerate(numpix):
+            # Try to fit this sized number into a bin
+            for bin in bins:
+                if np.sum(np.array(bin)[:, 0]) + num <= maxpernode:
+                    # print 'Adding', item, 'to', bin
+                    bin.append([num, pix[index]])
+                    break
+            else:
+                # item didn't fit into any bin, start a new bin.
+                bin = []
                 bin.append([num, pix[index]])
-                break
-        else:
-            # item didn't fit into any bin, start a new bin
-            bin = []
-            bin.append([num, pix[index]])
-            bins.append(bin)
+                bins.append(bin)
+        # ADM print to screen in the form of a slurm bash script, and
+        # ADM other useful information
+        print("#######################################################")
+        print("Numbers of bricks or files in each set of HEALPixels:")
+        print("")
 
-    # ADM print to screen in the form of a slurm bash script, and
-    # ADM other useful information
-    print("#######################################################")
-    print("Numbers of bricks or files in each set of HEALPixels:")
-    print("")
+        # ADM the estimated margin for writing to disk in minutes.
+        margin = 30
+        if prefix == 'skies':
+            margin = 5
+        if prefix == 'randoms':
+            margin = 90
+        margin /= 60.
 
-    # ADM the estimated margin for writing to disk in minutes.
-    margin = 30
-    if prefix == 'skies':
-        margin = 5
-    if prefix == 'randoms':
-        margin = 90
-    margin /= 60.
+        maxeta = 0
+        for bin in bins:
+            num = np.array(bin)[:, 0]
+            pix = np.array(bin)[:, 1]
+            wpix = np.where(num > 0)[0]
+            if len(wpix) > 0:
+                goodpix, goodnum = pix[wpix], num[wpix]
+                sorter = goodpix.argsort()
+                goodpix, goodnum = goodpix[sorter], goodnum[sorter]
+                outnote = ['{}: {}'.format(pix, num) for pix, num in zip(goodpix, goodnum)]
+                # ADM add the total across all of the pixels
+                outnote.append('Total: {}'.format(np.sum(goodnum)))
+                # ADM a crude estimate of how long the script will take to run
+                # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk.
+                delta = 3./60.
+                eta = delta + np.sum(goodnum)/brickspersec/3600
+                outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
+                               .format(eta))
+                # ADM track the maximum estimated time for shell scripts, etc.
+                if (eta+margin).astype(int) + 1 > maxeta:
+                    maxeta = (eta+margin).astype(int) + 1
+                print(outnote)
 
-    maxeta = 0
-    for bin in bins:
-        num = np.array(bin)[:, 0]
-        pix = np.array(bin)[:, 1]
-        wpix = np.where(num > 0)[0]
-        if len(wpix) > 0:
-            goodpix, goodnum = pix[wpix], num[wpix]
-            sorter = goodpix.argsort()
-            goodpix, goodnum = goodpix[sorter], goodnum[sorter]
-            outnote = ['{}: {}'.format(pix, num) for pix, num in zip(goodpix, goodnum)]
-            # ADM add the total across all of the pixels
-            outnote.append('Total: {}'.format(np.sum(goodnum)))
-            # ADM a crude estimate of how long the script will take to run
-            # ADM brickspersec is bricks/sec. Extra delta is minutes to write to disk.
-            delta = 3./60.
-            eta = delta + np.sum(goodnum)/brickspersec/3600
-            outnote.append('Estimated time to run in hours (for 32 processors per node): {:.2f}h'
-                           .format(eta))
-            # ADM track the maximum estimated time for shell scripts, etc.
-            if (eta+margin).astype(int) + 1 > maxeta:
-                maxeta = (eta+margin).astype(int) + 1
-            print(outnote)
+        print("")
+        if gather:
+            print('Estimated additional margin for writing to disk in hours: {:.2f}h'
+                  .format(margin))
+            print("")
+        nnodes = len(bins)
+    else:
+        nbins = hp.nside2npix(nside)
+        bins = [[[i, j]] for i, j in
+                zip(np.ones(nbins, dtype='int'), np.arange(nbins))]
+        maxeta = 1
+        nnodes = 16
+        if prefix == 'supp-skies':
+            nnodes = 4
 
-    print("")
-    if gather:
-        print('Estimated additional margin for writing to disk in hours: {:.2f}h'
-              .format(margin))
+    # ADM more than 48 nodes is a mistake!
+    if nnodes > 48:
+        nnodes = 48
 
-    print("")
     print("#######################################################")
     print("Possible salloc command if you want to run on the Cori interactive queue:")
     print("")
     print("salloc -N {} -C haswell -t 0{}:00:00 --qos interactive -L SCRATCH,project"
-          .format(len(bins), maxeta))
+          .format(nnodes, maxeta))
 
     print("")
     print("#######################################################")
@@ -734,7 +746,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print('')
     print('#!/bin/bash -l')
     print('#SBATCH -q regular')
-    print('#SBATCH -N {}'.format(len(bins)))
+    print('#SBATCH -N {}'.format(nnodes))
     print('#SBATCH -t 0{}:00:00'.format(maxeta))
     print('#SBATCH -L SCRATCH,project')
     print('#SBATCH -C haswell')
@@ -742,6 +754,12 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM extract the Data Release number from the survey directory
     dr = surveydir.split('dr')[-1][0]
+    # ADM if an integer can't be extracted, use X instead.
+    try:
+        drstr = "-dr{}".format(int(dr))
+    except ValueError:
+        drstr = ""
+
     comment = '#'
     if gather:
         comment = ''
@@ -754,6 +772,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     s2 = ""
     if surveydir2 is not None:
         s2 = "-s2 {}".format(surveydir2)
+
+    cmd = "select"
+    if prefix == "supp-skies":
+        cmd = "supplement"
+        prefix2 = "skies"
 
     outfiles = []
     from desitarget.io import _check_hpx_length
@@ -768,17 +791,17 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
-            outfile = "$CSCRATCH/{}-dr{}-hp-{}.fits".format(prefix.replace("_", "-"), dr, strgoodpix)
+            outfile = "$CSCRATCH/{}{}-hp-{}.fits".format(prefix.replace("_", "-"), drstr, strgoodpix)
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
-            print("srun -N 1 select_{} {} {} {} --nside {} --healpixels {} &"
-                  .format(prefix2, surveydir, outfile, s2, nside, strgoodpix))
+            print("srun -N 1 {}_{} {} {} {} --nside {} --healpixels {} &"
+                  .format(cmd, prefix2, surveydir, outfile, s2, nside, strgoodpix))
     print("wait")
     print("")
-    print("{}gather_targets '{}' $CSCRATCH/{}-dr{}.fits {}"
+    print("{}gather_targets '{}' $CSCRATCH/{}{}.fits {}"
           # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
-          .format(comment, ";".join(outfiles), prefix, dr, prefix2.split("_")[-1]))
+          .format(comment, ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
     print("")
 
     return
@@ -824,6 +847,65 @@ def add_hp_neighbors(nside, pixnum):
         pixnum.remove(-1)
 
     return pixnum
+
+
+def sweep_files_touch_hp(nside, pixlist, infiles):
+    """Determine which of a set of sweep files touch a set of HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int`
+        A set of HEALPixels at `nside`.
+    infiles : :class:`list` or `str`
+        A list of input (sweep filenames) OR a single filename.
+
+    Returns
+    -------
+    :class:`list`
+        A list of lists of input sweep files that touch each HEALPixel
+        at `nside`. So, e.g. for `nside=2` the returned list will have
+        48 entries, and, for example, output[0] will be a list of files
+        that touch HEALPixel 0.
+    :class:`list`
+        The input `pixlist` reduced to just those pixels that touch
+        the area covered by an input sweeps file.
+    :class:`~numpy.ndarray`
+        A flattened array of all HEALPixels touched by the input files.
+        Each HEALPixel will appear multiple times if it's touched by
+        multiple input sweep files.
+    """
+    # ADM convert a single filename to list of filenames.
+    if isinstance(infiles, str):
+        infiles = [infiles, ]
+
+    # ADM work with pixlist as an array.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM sanity check that nside is OK.
+    check_nside(nside)
+
+    # ADM a list of HEALPixels that touch each file.
+    from desitarget.io import decode_sweep_name
+    pixelsperfile = [decode_sweep_name(fn, nside=nside) for fn in infiles]
+
+    # ADM a flattened array of all HEALPixels touched by the input
+    # ADM files. Each HEALPixel will appear multiple times if it's
+    # ADM touched by multiple input sweep files.
+    pixnum = np.hstack(pixelsperfile)
+
+    # ADM restrict input pixels to only those that touch an input file.
+    ii = [pix in pixnum for pix in pixlist]
+    pixlist = pixlist[ii]
+
+    # ADM create a list of files that touch each HEALPixel.
+    filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
+    for ifile, pixels in enumerate(pixelsperfile):
+        for pix in pixels:
+            filesperpixel[pix].append(infiles[ifile])
+
+    return filesperpixel, pixlist, pixnum
 
 
 def hp_in_box(nside, radecbox, inclusive=True, fact=4):
@@ -1076,24 +1158,32 @@ def is_in_cap(objs, radecrad):
     return ii
 
 
-def is_in_hp(objs, nside, pixlist):
+def is_in_hp(objs, nside, pixlist, radec=False):
     """Determine which of an array of objects lie inside a set of HEALPixels.
 
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
-        An array of objects. Must include at least the columns "RA" and "DEC".
+        Array of objects. Must include at columns "RA" and "DEC".
     nside : :class:`int`
         The HEALPixel nside number (NESTED scheme).
     pixlist : :class:`list` or `~numpy.ndarray`
         The list of HEALPixels in which to find objects.
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` `objs` is an [RA, Dec] list instead of a rec array.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        ``True`` for objects in pixlist, ``False`` for objects outside of pixlist.
+        ``True`` for objects in pixlist, ``False`` for other objects.
     """
-    theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+    if radec:
+        ra, dec = objs
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+
+    # ADM check whether ra, dec are in the pixel list
+    theta, phi = np.radians(90-dec), np.radians(ra)
     pixnums = hp.ang2pix(nside, theta, phi, nest=True)
     w = np.hstack([np.where(pixnums == pix)[0] for pix in pixlist])
     ii = np.zeros(len(pixnums), dtype='bool')
