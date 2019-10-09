@@ -3,6 +3,8 @@ desitarget.targets
 ==================
 
 Presumably this defines targets.
+
+.. _`DocDB 2348`: https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
 """
 import numpy as np
 import healpy as hp
@@ -19,56 +21,74 @@ from desiutil.log import get_logger
 log = get_logger()
 
 
-def encode_targetid(objid=None, brickid=None, release=None, mock=None, sky=None):
-    """Create the DESI TARGETID from input source and imaging information
+def encode_targetid(objid=None, brickid=None, release=None,
+                    mock=None, sky=None, gaiadr=None):
+    """Create the DESI TARGETID from input source and imaging info.
 
     Parameters
     ----------
     objid : :class:`int` or :class:`~numpy.ndarray`, optional
-        The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+        The OBJID from Legacy Surveys imaging or the row within
+        a Gaia HEALPixel file in $GAIA_DIR/healpix if
+        `gaia` is not ``None``.
     brickid : :class:`int` or :class:`~numpy.ndarray`, optional
-        The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+        The BRICKID from Legacy Surveys imaging.
+        or the Gaia HEALPixel chunk number for files in
+        $GAIA_DIR/healpix if `gaia` is not ``None``.
     release : :class:`int` or :class:`~numpy.ndarray`, optional
-        The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
+        The RELEASE from Legacy Surveys imaging. Or, if < 1000,
+        the secondary target class bit flag number from
+        'data/targetmask.yaml'. Or, if < 1000 and `sky` is not
+        ``None``, the HEALPixel processing number for SUPP_SKIES.
     mock : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a mock object (generated from
         mocks, not from real survey data), 0 otherwise
     sky : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a blank sky object, 0 otherwise
+    gaiadr : :class:`int` or :class:`~numpy.ndarray`, optional
+        The Gaia Data Release number (e.g. send 2 for Gaia DR2).
+        A value of 1 does NOT mean DR1. Rather it has the specific
+        meaning of a DESI first-light commissioning target.
 
     Returns
     -------
     :class:`int` or `~numpy.ndarray`
         The TARGETID for DESI, encoded according to the bits listed in
-        :meth:`desitarget.targetid_mask`. If an integer is passed, then an
-        integer is returned, otherwise an array is returned
+        :meth:`desitarget.targetid_mask`. If an integer is passed, then
+        an integer is returned, otherwise an array is returned.
 
     Notes
     -----
-        - This is set up with maximum flexibility so that mixes of integers
-          and arrays can be passed, in case some value like BRICKID or SKY
+        - Has maximum flexibility so that mixes of integers and arrays
+          can be passed, in case some value like BRICKID or SKY
           is the same for a set of objects. Consider, e.g.:
 
-              print(
-                  targets.decode_targetid(
-                      targets.encode_targetid(objid=np.array([234,12]),
-                                              brickid=np.array([234,12]),
-                                              release=4,
-                                              sky=[1,0]))
-                                              )
+          print(
+              targets.decode_targetid(
+                  targets.encode_targetid(objid=np.array([234,12]),
+                                          brickid=np.array([234,12]),
+                                          release=4000,
+                                          sky=[1,0]))
+                                          )
 
-        (array([234,12]), array([234,12]), array([4,4]), array([0,0]), array([1,0]))
+        (array([234,12]), array([234,12]), array([4000,4000]),
+         array([0,0]), array([1,0]))
 
-        - See also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+        - See also `DocDB 2348`_.
     """
-    # ADM a flag that tracks whether the main inputs were integers
+    # ADM a flag that tracks whether the main inputs were integers.
     intpassed = True
 
-    # ADM determine the length of whichever value was passed that wasn't None
-    # ADM default to an integer (length 1)
+    # ADM the names of the bits with RESERVED removed.
+    bitnames = targetid_mask.names()
+    if "RESERVED" in bitnames:
+        bitnames.remove("RESERVED")
+
+    # ADM determine the length of passed values that aren't None.
+    # ADM default to an integer (length 1).
     nobjs = 1
-    inputs = [objid, brickid, release, sky, mock]
-    goodpar = [input is not None for input in inputs]
+    inputs = [objid, brickid, release, mock, sky, gaiadr]
+    goodpar = [param is not None for param in inputs]
     firstgoodpar = np.where(goodpar)[0][0]
     if isinstance(inputs[firstgoodpar], np.ndarray):
         nobjs = len(inputs[firstgoodpar])
@@ -76,104 +96,88 @@ def encode_targetid(objid=None, brickid=None, release=None, mock=None, sky=None)
 
     # ADM set parameters that weren't passed to zerod arrays
     # ADM set integers that were passed to at least 1D arrays
-    if objid is None:
-        objid = np.zeros(nobjs, dtype='int64')
-    else:
-        objid = np.atleast_1d(objid)
-    if brickid is None:
-        brickid = np.zeros(nobjs, dtype='int64')
-    else:
-        brickid = np.atleast_1d(brickid)
-    if release is None:
-        release = np.zeros(nobjs, dtype='int64')
-    else:
-        release = np.atleast_1d(release)
-    if mock is None:
-        mock = np.zeros(nobjs, dtype='int64')
-    else:
-        mock = np.atleast_1d(mock)
-    if sky is None:
-        sky = np.zeros(nobjs, dtype='int64')
-    else:
-        sky = np.atleast_1d(sky)
+    for i, param in enumerate(inputs):
+        if param is None:
+            inputs[i] = np.zeros(nobjs, dtype='int64')
+        else:
+            inputs[i] = np.atleast_1d(param)
 
-    # ADM check none of the passed parameters exceed their bit-allowance
-    if not np.all(objid <= 2**targetid_mask.OBJID.nbits):
-        log.error('Invalid range when creating targetid: OBJID cannot exceed {}'
-                  .format(2**targetid_mask.OBJID.nbits))
-    if not np.all(brickid <= 2**targetid_mask.BRICKID.nbits):
-        log.error('Invalid range when creating targetid: BRICKID cannot exceed {}'
-                  .format(2**targetid_mask.BRICKID.nbits))
-    if not np.all(release <= 2**targetid_mask.RELEASE.nbits):
-        log.error('Invalid range when creating targetid: RELEASE cannot exceed {}'
-                  .format(2**targetid_mask.RELEASE.nbits))
-    if not np.all(mock <= 2**targetid_mask.MOCK.nbits):
-        log.error('Invalid range when creating targetid: MOCK cannot exceed {}'
-                  .format(2**targetid_mask.MOCK.nbits))
-    if not np.all(sky <= 2**targetid_mask.SKY.nbits):
-        log.error('Invalid range when creating targetid: SKY cannot exceed {}'
-                  .format(2**targetid_mask.SKY.nbits))
+    # ADM check passed parameters don't exceed their bit-allowance.
+    for param, bitname in zip(inputs, bitnames):
+        if not np.all(param < 2**targetid_mask[bitname].nbits):
+            msg = 'Invalid range when making targetid: {} '.format(bitname)
+            msg += 'cannot exceed {}'.format(2**targetid_mask[bitname].nbits - 1)
+            log.critical(msg)
+            raise IOError(msg)
 
-    # ADM set up targetid as an array of 64-bit integers
+    # ADM set up targetid as an array of 64-bit integers.
     targetid = np.zeros(nobjs, ('int64'))
-    # ADM populate TARGETID based on the passed columns and desitarget.targetid_mask
-    # ADM remember to shift to type integer 64 to avoid casting
-    targetid |= objid.astype('int64') << targetid_mask.OBJID.bitnum
-    targetid |= brickid.astype('int64') << targetid_mask.BRICKID.bitnum
-    targetid |= release.astype('int64') << targetid_mask.RELEASE.bitnum
-    targetid |= mock.astype('int64') << targetid_mask.MOCK.bitnum
-    targetid |= sky.astype('int64') << targetid_mask.SKY.bitnum
+    # ADM populate TARGETID. Shift to type integer 64 to avoid casting.
+    for param, bitname in zip(inputs, bitnames):
+        targetid |= param.astype('int64') << targetid_mask[bitname].bitnum
 
-    # ADM if the main inputs were integers, return an integer
+    # ADM if the main inputs were integers, return an integer.
     if intpassed:
         return targetid[0]
     return targetid
 
 
 def decode_targetid(targetid):
-    """break a DESI TARGETID into its constituent parts
+    """break a DESI TARGETID into its constituent parts.
 
     Parameters
     ----------
     :class:`int` or :class:`~numpy.ndarray`
         The TARGETID for DESI, encoded according to the bits listed in
-        :meth:`desitarget.targetid_mask`
+        :meth:`desitarget.targetid_mask`.
 
     Returns
     -------
-    objid : :class:`int` or `~numpy.ndarray`
-        The OBJID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    brickid : :class:`int` or `~numpy.ndarray`
-        The BRICKID from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    release : :class:`int` or `~numpy.ndarray`
-        The RELEASE from Legacy Survey imaging (e.g. http://legacysurvey.org/dr4/catalogs/)
-    mock : :class:`int` or `~numpy.ndarray`
+    :class:`int` or :class:`~numpy.ndarray`
+        The OBJID from Legacy Surveys imaging or the row within
+        a Gaia HEALPixel file in $GAIA_DIR/healpix if
+        `gaia` is not ``None``.
+    :class:`int` or :class:`~numpy.ndarray`
+        The BRICKID from Legacy Surveys imaging.
+        or the Gaia HEALPixel chunk number for files in
+        $GAIA_DIR/healpix if `gaia` is not ``None``.
+    :class:`int` or :class:`~numpy.ndarray`
+        The RELEASE from Legacy Surveys imaging. Or, if < 1000,
+        the secondary target class bit flag number from
+        'data/targetmask.yaml'. Or, if < 1000 and `sky` is not
+        ``None``, the HEALPixel processing number for SUPP_SKIES.
+    :class:`int` or :class:`~numpy.ndarray`
         1 if this object is a mock object (generated from
         mocks, not from real survey data), 0 otherwise
-    sky : :class:`int` or `~numpy.ndarray`
+    :class:`int` or :class:`~numpy.ndarray`
         1 if this object is a blank sky object, 0 otherwise
+    :class:`int` or :class:`~numpy.ndarray`
+        The Gaia Data Release number (e.g. will be 2 for Gaia DR2).
+        A value of 1 does NOT mean DR1. Rather it has the specific
+        meaning of a DESI first-light commissioning target.
 
     Notes
     -----
-        - if a 1-D array is passed, then an integer is returned. Otherwise an array
-          is returned
-        - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
+        - if a 1-D array is passed, then an integer is returned.
+          Otherwise an array is returned.
+        - see also `DocDB 2348`_.
     """
+    # ADM the names of the bits with RESERVED removed.
+    bitnames = targetid_mask.names()
+    if "RESERVED" in bitnames:
+        bitnames.remove("RESERVED")
 
-    # ADM retrieve each constituent value by left-shifting by the number of bits that comprise
-    # ADM the value, to the left-end of the value, and then right-shifting to the right-end
-    objid = (targetid & (2**targetid_mask.OBJID.nbits - 1
-                         << targetid_mask.OBJID.bitnum)) >> targetid_mask.OBJID.bitnum
-    brickid = (targetid & (2**targetid_mask.BRICKID.nbits - 1
-                           << targetid_mask.BRICKID.bitnum)) >> targetid_mask.BRICKID.bitnum
-    release = (targetid & (2**targetid_mask.RELEASE.nbits - 1
-                           << targetid_mask.RELEASE.bitnum)) >> targetid_mask.RELEASE.bitnum
-    mock = (targetid & (2**targetid_mask.MOCK.nbits - 1
-                        << targetid_mask.MOCK.bitnum)) >> targetid_mask.MOCK.bitnum
-    sky = (targetid & (2**targetid_mask.SKY.nbits - 1
-                       << targetid_mask.SKY.bitnum)) >> targetid_mask.SKY.bitnum
+    # ADM retrieve each value by left-shifting by the number of bits
+    # ADM that comprise the value, to the left-end of the value, and
+    # ADM then right-shifting to the right-end.
+    outputs = []
+    for bitname in bitnames:
+        bitnum = targetid_mask[bitname].bitnum
+        val = (targetid & (2**targetid_mask[bitname].nbits - 1
+                           << targetid_mask[bitname].bitnum)) >> bitnum
+        outputs.append(val)
 
-    return objid, brickid, release, mock, sky
+    return outputs
 
 
 def main_cmx_or_sv(targets, rename=False, scnd=False):
@@ -598,7 +602,8 @@ def resolve(targets):
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,
-             sky=0, survey='main', darkbright=False):
+             sky=0, survey='main', darkbright=False, gaiadr=None,
+             targetid=None):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -622,6 +627,12 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
         and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
         to "BRIGHT" and "DARK|GRAY" observing conditions.
+    gaiadr : :class:`int`, optional, defaults to ``None``
+        If passed and not ``None``, then build the `TARGETID` from the
+        "GAIA_OBJID" and "GAIA_BRICKID" columns in the passed `targets`,
+        and set the `gaiadr` part of `TARGETID` to whatever is passed.
+    targetid : :class:`int64`, optional, defaults to ``None``
+        In the mocks we compute `TARGETID` outside this function.
 
     Returns
     -------
@@ -630,7 +641,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
           * renaming OBJID -> BRICK_OBJID (it is only unique within a brick).
           * renaming TYPE -> MORPHTYPE (used downstream in other contexts).
           * Adding new columns:
-              - TARGETID: unique ID across all bricks.
+              - TARGETID: unique ID across all bricks or Gaia files.
               - DESI_TARGET: dark time survey target selection flags.
               - MWS_TARGET: bright time MWS target selection flags.
               - BGS_TARGET: bright time BGS target selection flags.
@@ -655,10 +666,21 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     # - create a new unique TARGETID
     targets = rfn.rename_fields(targets,
                                 {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
-    targetid = encode_targetid(objid=targets['BRICK_OBJID'],
-                               brickid=targets['BRICKID'],
-                               release=targets['RELEASE'],
-                               sky=sky)
+
+    # allow TARGETID to be passed as an input (specifically for the mocks).
+    if targetid is None:
+        if gaiadr is not None:
+            targetid = encode_targetid(objid=targets['GAIA_OBJID'],
+                                       brickid=targets['GAIA_BRICKID'],
+                                       release=0,
+                                       sky=sky,
+                                       gaiadr=gaiadr)
+        else:
+            targetid = encode_targetid(objid=targets['BRICK_OBJID'],
+                                       brickid=targets['BRICKID'],
+                                       release=targets['RELEASE'],
+                                       sky=sky)
+    assert ntargets == len(targetid)
 
     nodata = np.zeros(ntargets, dtype='int')-1
     subpriority = np.zeros(ntargets, dtype='float')

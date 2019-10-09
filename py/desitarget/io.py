@@ -268,7 +268,7 @@ def release_to_photsys(release):
     return r2p[release]
 
 
-def _bright_or_dark(filename, hdr, data, obscon):
+def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
     """modify data/file name for BRIGHT or DARK survey OBSCONDITIONS
 
     Parameters
@@ -285,6 +285,9 @@ def _bright_or_dark(filename, hdr, data, obscon):
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    mockdata : :class:`dict`, optional, defaults to `None`
+        Dictionary of mock data to write out (only used in
+        `desitarget.mock.build.targets_truth` via `select_mock_targets`).
 
     Returns
     -------
@@ -306,6 +309,21 @@ def _bright_or_dark(filename, hdr, data, obscon):
     ii = (data["OBSCONDITIONS"] & obsbits) != 0
     data = data[ii]
 
+    # Optionally subselect the mock data.
+    if len(data) > 0 and mockdata is not None:
+        truthdata, trueflux, _objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
+        truthdata = truthdata[ii]
+
+        if len(trueflux) > 0:
+            trueflux = trueflux[ii, :]
+            objtruth = {}
+            for obj in sorted(set(truthdata['TEMPLATETYPE'])):
+                objtruth[obj] = _objtruth[obj]
+
+        mockdata['truth'] = truthdata
+        mockdata['trueflux'] = trueflux
+        mockdata['objtruth'] = objtruth
+
     # ADM create the bright or dark directory.
     newdir = os.path.join(os.path.dirname(filename), obscon.lower())
     if not os.path.exists(newdir):
@@ -322,13 +340,16 @@ def _bright_or_dark(filename, hdr, data, obscon):
     dropem = list(names[['_INIT_' in col for col in names]])
     data = rfn.drop_fields(data, dropem)
 
-    return filename, hdr, data
+    if mockdata is not None:
+        return filename, hdr, data, mockdata
+    else:
+        return filename, hdr, data
 
 
 def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
                   survey="?", nsidefile=None, hpxlist=None, scndout=None,
-                  resolve=True, maskbits=True, obscon=None):
+                  resolve=True, maskbits=True, obscon=None, mockdata=None):
     """Write target catalogues.
 
     Parameters
@@ -369,6 +390,9 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    mockdata : :class:`dict`, optional, defaults to `None`
+        Dictionary of mock data to write out (only used in
+        `desitarget.mock.build.targets_truth` via `select_mock_targets`).
 
     Returns
     -------
@@ -376,13 +400,17 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         The number of targets that were written to file.
     :class:`str`
         The name of the file to which targets were written.
+
     """
     # ADM create header.
     hdr = fitsio.FITSHDR()
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
     if obscon is not None:
-        filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+        if mockdata is not None:
+            filename, hdr, data, mockdata = _bright_or_dark(filename, hdr, data, obscon, mockdata=mockdata)
+        else:
+            filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
@@ -415,11 +443,11 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
+        hdr.add_record(dict(name='HPXNSIDE', value=nside, comment="HEALPix nside"))
+        hdr.add_record(dict(name='HPXNEST', value=True, comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names:
+    if "SUBPRIORITY" in data.dtype.names and mockdata is None:
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
@@ -449,9 +477,37 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
 
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
-        fitsio.write(filename, data, extname='TARGETS', header=hdr, clobber=True)
+        fitsio.write(filename+'.tmp', data, extname='TARGETS', header=hdr, clobber=True)
+        os.rename(filename+'.tmp', filename)
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
+
+    # Optionally wite out mock catalog data.
+    if mockdata is not None:
+        truthfile = filename.replace('targets-', 'truth-')
+        truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
+
+        hdr['SEED'] = (mockdata['seed'], 'initial random seed')
+        fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
+
+        if len(trueflux) > 0:
+            wavehdr = fitsio.FITSHDR()
+            wavehdr['BUNIT'] = 'Angstrom'
+            wavehdr['AIRORVAC'] = 'vac'
+            fitsio.write(truthfile+'.tmp', mockdata['truewave'].astype(np.float32),
+                         extname='WAVE', header=wavehdr, append=True)
+
+            fluxhdr = fitsio.FITSHDR()
+            fluxhdr['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
+            fitsio.write(truthfile+'.tmp', trueflux.astype(np.float32),
+                         extname='FLUX', header=fluxhdr, append=True)
+
+        if len(objtruth) > 0:
+            for obj in sorted(set(truthdata['TEMPLATETYPE'])):
+                fitsio.write(truthfile+'.tmp', objtruth[obj].as_array(), append=True,
+                             extname='TRUTH_{}'.format(obj))
+
+        os.rename(truthfile+'.tmp', truthfile)
 
     return ntargs, filename
 
@@ -618,7 +674,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
 
 
 def write_skies(filename, data, indir=None, indir2=None, supp=False,
-                apertures_arcsec=None, nskiespersqdeg=None, nside=None):
+                apertures_arcsec=None, nskiespersqdeg=None, nside=None,
+                nsidefile=None, hpxlist=None, extra=None):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -643,6 +700,17 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
     nside: :class:`int`, optional
         If passed, add a column to the skies array popluated with
         HEALPixels at resolution `nside`.
+    nsidefile : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
     """
     nskies = len(data)
 
@@ -689,11 +757,31 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
             np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(nskies)
 
-    fitsio.write(filename, data, extname='SKY_TARGETS', header=hdr, clobber=True)
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
+
+    # ADM record whether this file has been limited to only certain HEALPixels.
+    if hpxlist is not None or nsidefile is not None:
+        # ADM hpxlist and nsidefile need to be passed together.
+        if hpxlist is None or nsidefile is None:
+            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
+                .format(hpxlist, nsidefile)
+            log.critical(msg)
+            raise ValueError(msg)
+        hdr['FILENSID'] = nsidefile
+        hdr['FILENEST'] = True
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        hdr['FILEHPX'] = hpxlist
+
+    fitsio.write(filename+'.tmp', data, extname='SKY_TARGETS', header=hdr, clobber=True)
+    os.rename(filename+'.tmp', filename)
 
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
-               survey="?", extra=None):
+               nsidefile=None, hpxlist=None, extra=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
@@ -708,8 +796,14 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
     nside: :class:`int`, defaults to None.
         If passed, add a column to the GFAs array popluated with
         HEALPixels at resolution `nside`.
-    survey : :class:`str`, optional, defaults to "?"
-        Written to output file header as the keyword `SURVEY`.
+    nsidefile : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -745,15 +839,26 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         hdr['HPXNSIDE'] = nside
         hdr['HPXNEST'] = True
 
-    # ADM add the type of survey (main, or commissioning "cmx") to the header.
-    hdr["SURVEY"] = survey
+    # ADM record whether this file has been limited to only certain HEALPixels.
+    if hpxlist is not None or nsidefile is not None:
+        # ADM hpxlist and nsidefile need to be passed together.
+        if hpxlist is None or nsidefile is None:
+            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
+                .format(hpxlist, nsidefile)
+            log.critical(msg)
+            raise ValueError(msg)
+        hdr['FILENSID'] = nsidefile
+        hdr['FILENEST'] = True
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        hdr['FILEHPX'] = hpxlist
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
 
 def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
-                  density=None, resolve=True, aprad=None):
-    """Write a catalogue of randoms and associated pixel-level information.
+                  density=None, resolve=True, aprad=None, extra=None):
+    """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
     ----------
@@ -762,13 +867,13 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
     data  : :class:`~numpy.ndarray`
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
-        Name of input Legacy Survey Data Release directory, write to header
-        of output file if passed (and if not None).
+        Name of input Legacy Survey Data Release directory, write to
+        header of output file if passed (and if not None).
     hdr : :class:`str`, optional, defaults to `None`
-        If passed, use this header to start the header of the output `filename`.
+        If passed, use this header to start the header for `filename`.
     nside: :class:`int`
-        If passed, add a column to the randoms array popluated with HEALPixels
-        at resolution `nside`.
+        If passed, add a column to the randoms array popluated with
+        HEALPixels at resolution `nside`.
     supp : :class:`bool`, optional, defaults to ``False``
         Written to the header of the output file to indicate whether
         this is a supplemental file (i.e. random locations that are
@@ -780,6 +885,9 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
         Written to the output file header as `RESOLVE`.
     aprad : :class:`float, optional, defaults to ``None``
         If passed, written to the outpue header as `APRAD`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
@@ -1277,7 +1385,7 @@ def check_hp_target_dir(hpdirname):
     fns = glob(os.path.join(hpdirname, "*fits"))
     pixdict = {}
     for fn in fns:
-        hdr = fitsio.read_header(fn, "TARGETS")
+        _, hdr = read_target_files(fn, columns="RA", header=True)
         nside.append(hdr["FILENSID"])
         pixels = hdr["FILEHPX"]
         # ADM if this is a one-pixel file, convert to a list.
@@ -1317,6 +1425,49 @@ def check_hp_target_dir(hpdirname):
         raise AssertionError(msg)
 
     return nside[0], pixdict
+
+
+def read_target_files(filename, columns=None, header=False, verbose=False):
+    """Wrapper to cycle through allowed extensions to read target files.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Name of a target file of any type. Target file types include
+        "TARGETS", "GFA_TARGETS" and "SKY_TARGETS".
+    columns : :class:`list`, optional
+        Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of the file.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log the file extension that was read.
+    """
+    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS"
+
+    # ADM capture file-not-exists instance as we have a try/except below.
+    if not os.path.exists(filename):
+        raise OSError("File not found: {}".format(filename))
+
+    epicfail = True
+    for ext in targtypes:
+        try:
+            targs, hdr = fitsio.read(filename, ext, columns=columns, header=True)
+            epicfail = False
+            if verbose:
+                log.info("Reading file of type {}".format(ext))
+        except OSError:
+            pass
+
+    if epicfail:
+        msg = "{} is not of any recogized target type.".format(filename)
+        msg += " Allowed target types are {}".format(targtypes)
+        log.error(msg)
+        raise IOError(msg)
+
+    if header:
+        return targs, hdr
+
+    return targs
 
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
@@ -1373,8 +1524,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the box.
         fn0 = list(filedict.values())[0]
-        notargs, nohdr = fitsio.read(fn0, 'TARGETS',
-                                     columns=columnscopy, header=True)
+        notargs, nohdr = read_target_files(fn0, columns=columnscopy, header=True)
         notargs = np.zeros(0, dtype=notargs.dtype)
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -1390,8 +1540,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM read in the files and concatenate the resulting targets.
         targets = []
         for infile in infiles:
-            targs, hdr = fitsio.read(infile, 'TARGETS',
-                                     columns=columnscopy, header=True)
+            targs, hdr = read_target_files(infile, columns=columnscopy,
+                                           header=True)
             targets.append(targs)
         # ADM if targets is empty, return no targets.
         if len(targets) == 0:
@@ -1402,11 +1552,92 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
-                                   columns=columnscopy, header=True)
+        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
+                                         header=True)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
+    # ADM ...and remove RA/Dec columns if we added them.
+    targets = rfn.drop_fields(targets[ii], addedcols)
+
+    if header:
+        return targets, hdr
+    return targets
+
+
+def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
+    """
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    tiles : :class:`~numpy.ndarray`, optional
+        Array of tiles in the desimodel format, or ``None`` to use all
+        DESI tiles from :func:`desimodel.io.load_tiles`.
+    columns : :class:`list`, optional
+        Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of targets in the passed tiles.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
+        - The environment variable $DESIMODEL must be set.
+    """
+    # ADM check that the DESIMODEL environment variable is set.
+    if os.environ.get('DESIMODEL') is None:
+        msg = "DESIMODEL environment variable must be set!!!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM if no tiles were sent, default to the entire footprint.
+    if tiles is None:
+        import desimodel.io as dmio
+        tiles = dmio.load_tiles()
+
+    # ADM we'll need RA/Dec for final cuts, so ensure they're read.
+    addedcols = []
+    columnscopy = None
+    if columns is not None:
+        # ADM make a copy of columns, as it's a kwarg we'll modify.
+        columnscopy = columns.copy()
+        for radec in ["RA", "DEC"]:
+            if radec not in columnscopy:
+                columnscopy.append(radec)
+                addedcols.append(radec)
+
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    if os.path.isdir(hpdirname):
+        # ADM closest nside to DESI tile area of ~7 deg.
+        nside = pixarea2nside(7.)
+
+        # ADM determine the pixels that touch the tiles.
+        from desimodel.footprint import tiles2pix
+        pixlist = tiles2pix(nside, tiles=tiles)
+
+        # ADM read in targets in these HEALPixels.
+        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
+                                          columns=columnscopy,
+                                          header=True)
+    # ADM ...otherwise just read in the targets.
+    else:
+        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
+                                         header=True)
+
+    # ADM restrict only to targets in the requested tiles...
+    from desimodel.footprint import is_point_in_desi
+    ii = is_point_in_desi(tiles, targets["RA"], targets["DEC"])
+
     # ADM ...and remove RA/Dec columns if we added them.
     targets = rfn.drop_fields(targets[ii], addedcols)
 
@@ -1470,8 +1701,8 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                                           header=True)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = fitsio.read(hpdirname, 'TARGETS',
-                                   columns=columnscopy, header=True)
+        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
+                                         header=True)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
@@ -1528,7 +1759,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
                                      columns=columnscopy)
     # ADM ...otherwise just read in the targets.
     else:
-        targets = fitsio.read(hpdirname, columns=columnscopy)
+        targets = read_target_file(hpdirname, columns=columnscopy)
 
     # ADM restrict only to targets in the requested cap...
     ii = is_in_cap(targets, radecrad)
@@ -1538,8 +1769,8 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     return targets
 
 
-def read_targets_in_box_header(hpdirname):
-    """Read in targets in an RA/Dec box.
+def read_targets_header(hpdirname):
+    """Read in header of a targets file.
 
     Parameters
     ----------
@@ -1559,11 +1790,13 @@ def read_targets_in_box_header(hpdirname):
         gen = iglob(os.path.join(hpdirname, '*fits'))
         hpdirname = next(gen)
 
-    return fitsio.read_header(hpdirname, 'TARGETS')
+    _, hdr = read_target_files(hpdirname, header=True)
+
+    return hdr
 
 
 def target_columns_from_header(hpdirname):
-    """Grab the _TARGET column names from a target file or directory.
+    """Grab the _TARGET column names from a TARGETS file or directory.
 
     Parameters
     ----------

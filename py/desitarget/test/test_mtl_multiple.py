@@ -18,17 +18,17 @@ class TestMTL(unittest.TestCase):
 
     def setUp(self):
         self.targets = Table()
-        
+
         # This is a dual identity case. In all cases the target is both QSO and ELG.
         # The first case is a true QSO with lowz.
         # The second case is a true QSO with highz.
         # The third case is an ELG.
-        
+
         self.type_A = np.array(['QSO', 'QSO', 'ELG'])
         self.type_B = np.array(['ELG', 'ELG', 'QSO'])
         self.priorities_A = np.array([Mx[t].priorities['UNOBS'] for t in self.type_A])
         self.priorities_B = np.array([Mx[t].priorities['UNOBS'] for t in self.type_B])
-        self.priorities = np.maximum(self.priorities_A, self.priorities_B) # get the maximum between the two 
+        self.priorities = np.maximum(self.priorities_A, self.priorities_B)  # get the maximum between the two.
         self.targets['DESI_TARGET'] = np.array([Mx[t].mask for t in self.type_A]) | np.array([Mx[t].mask for t in self.type_B])
         self.targets['BGS_TARGET'] = np.zeros(len(self.type_A), dtype=np.int64)
         self.targets['MWS_TARGET'] = np.zeros(len(self.type_A), dtype=np.int64)
@@ -40,21 +40,20 @@ class TestMTL(unittest.TestCase):
         self.targets["PRIORITY_INIT"] = pinit
         self.targets["NUMOBS_INIT"] = ninit
 
-        
-        # - reverse the order for zcat to make sure joins work
+        # - reverse the order for zcat to make sure joins work.
         self.zcat = Table()
         self.zcat['TARGETID'] = self.targets['TARGETID'][::-1]
         self.zcat['Z'] = [1.0, 1.5, 2.5]
         self.zcat['ZWARN'] = [0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1]
         self.zcat['SPECTYPE'] = ['QSO', 'QSO', 'GALAXY']
-        
-        # priorities and numobs more after measuring redshifts
+
+        # priorities and numobs more after measuring redshifts.
         self.post_prio = [0 for t in self.type_A]
         self.post_numobs_more = [0 for t in self.type_A]
-        self.post_prio[0] = Mx['QSO'].priorities['MORE_ZGOOD']  # highz QSO
-        self.post_prio[1] = Mx['QSO'].priorities['DONE']  # Lowz QSO,  DONE
-        self.post_prio[2] = Mx['ELG'].priorities['DONE']  # ELG, DONE
+        self.post_prio[0] = Mx['QSO'].priorities['MORE_ZGOOD']  # highz QSO.
+        self.post_prio[1] = Mx['QSO'].priorities['DONE']  # Lowz QSO,  DONE.
+        self.post_prio[2] = Mx['ELG'].priorities['DONE']  # ELG, DONE.
         self.post_numobs_more[0] = 3
         self.post_numobs_more[1] = 0
         self.post_numobs_more[2] = 0
@@ -63,7 +62,7 @@ class TestMTL(unittest.TestCase):
         """Test output from MTL has the correct column names.
         """
         # ADM loop through once each for the main survey, commissioning and SV.
-        #t = self.reset_targets(prefix)
+        # t = self.reset_targets(prefix)
         mtl = make_mtl(self.targets, "GRAY|DARK")
         goodkeys = sorted(set(self.targets.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
         mtlkeys = sorted(mtl.dtype.names)
@@ -86,6 +85,7 @@ class TestMTL(unittest.TestCase):
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.post_numobs_more))
+
 
 if __name__ == '__main__':
     unittest.main()
