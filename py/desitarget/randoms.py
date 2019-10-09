@@ -651,76 +651,101 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     return qinfo
 
 
-def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256, outarea=True):
-    """Fraction of area covered in HEALPixels by a random catalog
+def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256,
+              outarea=True, maskbits=None):
+    """Fraction of area covered in HEALPixels by a random catalog.
 
     Parameters
     ----------
     randoms : :class:`~numpy.ndarray` or `str`
         A random catalog as made by, e.g., :func:`select_randoms()` or
-        :func:`quantities_at_positions_in_a_brick()`, or a file that contains such a catalog.
-        Must contain the columns RA, DEC, NOBS_G, NOBS_R, NOBS_Z.
+        :func:`quantities_at_positions_in_a_brick()`, or a file that
+        contains such a catalog. Must contain the columns RA, DEC,
+        NOBS_G, NOBS_R, NOBS_Z, MASKBITS.
     density : :class:`int`
-        The number of random points per sq. deg. At which the random catalog was
-        generated (see also :func:`select_randoms()`).
+        The number of random points per sq. deg. At which the random
+        catalog was generated (see also :func:`select_randoms()`).
     nobsgrz : :class:`list`, optional, defaults to [0,0,0]
-        The number of observations in each of g AND r AND z that have to be EXCEEDED to include
-        a random point in the count. The default is to include areas that have at least one
-        observation in each band ([0,0,0]). `nobsgrz = [0,-1,-1]` would count areas with at
-        least one (more than zero) observations in g-band but any number of observations (more
-        than -1) in r-band and z-band.
-    nside : :class:`int`, optional, defaults to nside=256 (~0.0525 sq. deg. or "brick-sized")
-        The resolution (HEALPixel NESTED nside number) at which to build the map.
+        The number of observations in each of g AND r AND z that must
+        be EXCEEDED to include a random point in the count. The default
+        is to include areas that have at least one observation in each
+        band ([0,0,0]). `nobsgrz = [0,-1,-1]` would count areas with at
+        least one (more than zero) observations in g-band but any number
+        of observations (more than -1) in r-band and z-band.
+    nside : :class:`int`, optional, defaults to nside=256
+        The resolution (HEALPixel NESTED nside number) at which to build
+        the map (default nside=256 is ~0.0525 sq. deg. or "brick-sized")
     outarea : :class:`boolean`, optional, defaults to True
-        Print the total area of the survey for these values of `nobsgrz` to screen.
+        Print the total area of the survey for passed values to screen.
+    maskbits : :class:`int`, optional, defaults to ``None``
+        If not ``None`` then restrict to only locations with these
+        values of maskbits NOT set (bit inclusive, so for, e.g., 7,
+        restrict to random points with none of 2**0, 2**1 or 2**2 set).
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        An array of the weight for EACH pixel in the sky at the passed nside.
+        The weight for EACH pixel in the sky at the passed nside.
 
     Notes
     -----
-        - The returned array contains the fraction of each pixel that overlaps areas that contain
-          one or more observations in the passed random catalog.
-        - `WEIGHT=1` means that this LS DR has one or more pointings across the entire pixel.
-        - `WEIGHT=0` means that this pixel has no LS DR observations within it (e.g., perhaps
-          it is completely outside of the LS DR footprint).
-        - `0 < WEIGHT < 1` for pixels that partially cover LS DR area with one or more observations.
-        - The index of the array is the HEALPixel integer.
+        - `WEIGHT=1` means >=1 pointings across the entire pixel.
+        - `WEIGHT=0` means zero observations within it (e.g., perhaps
+          the pixel is completely outside of the LS DR footprint).
+        - `0 < WEIGHT < 1` for pixels that partially cover the LS DR
+          area with one or more observations.
+        - The index of the returned array is the HEALPixel integer.
     """
-    # ADM if a file name was passed for the random catalog, read it in
+    # ADM if a file name was passed for the random catalog, read it in.
     if isinstance(randoms, str):
         randoms = fitsio.read(randoms)
 
     # ADM extract the columns of interest
     ras, decs = randoms["RA"], randoms["DEC"]
-    nobs_g, nobs_r, nobs_z = randoms["NOBS_G"], randoms["NOBS_R"], randoms["NOBS_Z"]
+    nobs_g = randoms["NOBS_G"]
+    nobs_r = randoms["NOBS_R"]
+    nobs_z = randoms["NOBS_Z"]
+    mb = randoms["MASKBITS"]
 
     # ADM only retain points with one or more observations in all bands
-    w = np.where((nobs_g > nobsgrz[0]) & (nobs_r > nobsgrz[1]) & (nobs_z > nobsgrz[2]))
+    # ADM and appropriate maskbits values.
+    ii = (nobs_g > nobsgrz[0])
+    ii &= (nobs_r > nobsgrz[1])
+    ii &= (nobs_z > nobsgrz[2])
 
-    # ADM the counts in each HEALPixel in the survey
-    if len(w[0]) > 0:
-        pixnums = hp.ang2pix(nside, np.radians(90.-decs[w]), np.radians(ras[w]), nest=True)
+    # ADM also restrict to appropriate maskbits values, if passed.
+    if maskbits is not None:
+        ii &= (mb & maskkbits) == 0
+
+    # ADM the counts in each HEALPixel in the survey.
+    if np.sum(ii) > 0:
+        pixnums = hp.ang2pix(nside, np.radians(90.-decs[ii]),
+                             np.radians(ras[ii]), nest=True)
         pixnum, pixcnt = np.unique(pixnums, return_counts=True)
     else:
-        log.error("No area for which nobs exceed passed values of nobsgrz, or empty randoms array")
+        msg = "zero area based on randoms with passed constraints"
+        log.error(msg)
+        raise ValueError
 
-    # ADM generate the counts for the whole sky to retain zeros where there is no survey coverage
+    # ADM whole-sky-counts to retain zeros for zero survey coverage.
     npix = hp.nside2npix(nside)
     pix_cnt = np.bincount(pixnum, weights=pixcnt, minlength=npix)
 
-    # ADM we know the area of HEALPixels at this nside, so we know what the count SHOULD be
+    # ADM expected area based on the HEALPixels at this nside.
     expected_cnt = hp.nside2pixarea(nside, degrees=True)*density
-    # ADM create a weight map based on the actual counts divided by the expected counts
+    # ADM weight map based on (actual counts)/(expected counts).
     pix_weight = pix_cnt/expected_cnt
 
-    # ADM if requested, print the total area of the survey to screen
+    # ADM if requested, print the total area of the survey to screen.
     if outarea:
         area = np.sum(pix_weight*hp.nside2pixarea(nside, degrees=True))
-        log.info('Area of survey with NOBS exceeding {} in [g,r,z] = {:.2f} sq. deg.'
-                 .format(nobsgrz, area))
+        if masbits is None:
+            log.info('Area of survey with NOBS > {} in [g,r,z] = {:.2f} sq. deg.'
+                     .format(nobsgrz, area))
+        else:
+            log.info(
+                'Area, NOBS > {} in [g,r,z], maskbits of {} = {:.2f} sq. deg.'
+                     .format(nobsgrz, maskbits, area))
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
@@ -904,6 +929,9 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
             - PSFSIZE_G, R, Z: Weighted average PSF FWHM, in arcsec, in
                                the pixel, from the median of PSFSIZE
                                values in the passed random catalog.
+            - FRACAREA_X: Fraction of pixel with at least one observation
+                          in any band with MASKBITS==X (bitwise OR, so,
+                          e.g. if X=7.
             - One column for every bit that is returned by
               :func:`desitarget.QA._load_targdens()`. Each column
               contains the target density in the pixel.
@@ -934,6 +962,23 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     pw = pixweight(randoms, rand_density, nside=nside)
     npix = len(pw)
 
+    # ADM areal coverage for some combinations of MASKBITS.
+    mbcomb = []
+    mbstore = []
+    for mb in [[10, 12, 13],
+               [1, 10, 12, 13],
+               [1, 5, 6, 7, 11, 12, 13]]:
+        bitint = np.sum(2**np.array(mb))
+        mbcomb.append(bitint)
+        log.info('Determining footprint for maskbits {}...t = {:.1f}s'
+                 .format(mbcomb, time()-start))
+        mbstore.append(pixweight(randoms, rand_density,
+                                 nside=nside, maskbits=bitint))
+
+    log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
+    pw = pixweight(randoms, rand_density, nside=nside)
+    npix = len(pw)
+
     # ADM get the target densities.
     log.info('Calculating target densities...t = {:.1f}s'.format(time()-start))
     targdens = get_targ_dens(targets, Mx, nside=nside)
@@ -944,6 +989,9 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                  ('GALDEPTH_G', '>f4'), ('GALDEPTH_R', '>f4'), ('GALDEPTH_Z', '>f4'),
                  ('PSFDEPTH_W1', '>f4'), ('PSFDEPTH_W2', '>f4'),
                  ('PSFSIZE_G', '>f4'), ('PSFSIZE_R', '>f4'), ('PSFSIZE_Z', '>f4')]
+    # ADM the maskbits-dependent areas.
+    datamodel += [("FRACAREA_{}".format(bitint), '>f4') for bitint in mbcomb]
+    # ADM the density of each target class.
     datamodel += targdens.dtype.descr
     hpxinfo = np.zeros(npix, dtype=datamodel)
     # ADM set initial values to -1 so that they can easily be clipped.
@@ -952,6 +1000,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM add the areal coverage, pixel information and target densities.
     hpxinfo['HPXPIXEL'] = np.arange(npix)
     hpxinfo['FRACAREA'] = pw
+    for bitint, fracarea in zip(mbcomb, mbstore):
+        hpxinfo['FRACAREA_{}'.format(bitint)] = fracarea
     for col in targdens.dtype.names:
         hpxinfo[col] = targdens[col]
 
