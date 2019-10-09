@@ -1385,7 +1385,7 @@ def check_hp_target_dir(hpdirname):
     fns = glob(os.path.join(hpdirname, "*fits"))
     pixdict = {}
     for fn in fns:
-        _, hdr = read_target_files(fn, columns="RA", header=True)
+        hdr = read_targets_header(fn)
         nside.append(hdr["FILENSID"])
         pixels = hdr["FILEHPX"]
         # ADM if this is a one-pixel file, convert to a list.
@@ -1427,7 +1427,8 @@ def check_hp_target_dir(hpdirname):
     return nside[0], pixdict
 
 
-def read_target_files(filename, columns=None, header=False, verbose=False):
+def read_target_files(filename, columns=None, rows=None, header=False,
+                      verbose=False):
     """Wrapper to cycle through allowed extensions to read target files.
 
     Parameters
@@ -1437,6 +1438,8 @@ def read_target_files(filename, columns=None, header=False, verbose=False):
         "TARGETS", "GFA_TARGETS" and "SKY_TARGETS".
     columns : :class:`list`, optional
         Only read in these target columns.
+    rows : :class:`list`, optional
+        Only read in these rows from the target file.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of the file.
     verbose : :class:`bool`, optional, defaults to ``False``
@@ -1451,7 +1454,9 @@ def read_target_files(filename, columns=None, header=False, verbose=False):
     epicfail = True
     for ext in targtypes:
         try:
-            targs, hdr = fitsio.read(filename, ext, columns=columns, header=True)
+            targs, hdr = fitsio.read(filename, ext, columns=columns, rows=rows,
+                                     header=True)
+#            targs, hdr = fitsio.read(filename, 1, header=True)
             epicfail = False
             if verbose:
                 log.info("Reading file of type {}".format(ext))
@@ -1520,7 +1525,6 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     if os.path.isdir(hpdirname):
         # ADM check, and grab information from, the target directory.
         filenside, filedict = check_hp_target_dir(hpdirname)
-
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the box.
         fn0 = list(filedict.values())[0]
@@ -1539,7 +1543,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
 
         # ADM read in the files and concatenate the resulting targets.
         targets = []
+        start = time()
         for infile in infiles:
+            print(infile, time()-start)
             targs, hdr = read_target_files(infile, columns=columnscopy,
                                            header=True)
             targets.append(targs)
@@ -1694,7 +1700,6 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
 
         # ADM HEALPixels that touch the box for that nside.
         pixlist = hp_in_box(nside, radecbox)
-
         # ADM read in targets in these HEALPixels.
         targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
                                           columns=columnscopy,
@@ -1790,7 +1795,9 @@ def read_targets_header(hpdirname):
         gen = iglob(os.path.join(hpdirname, '*fits'))
         hpdirname = next(gen)
 
-    _, hdr = read_target_files(hpdirname, header=True)
+    # ADM rows=[0] here, speeds up read_target_files retrieval
+    # ADM of the header.
+    _, hdr = read_target_files(hpdirname, rows=[0], header=True)
 
     return hdr
 
