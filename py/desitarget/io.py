@@ -1445,29 +1445,25 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     verbose : :class:`bool`, optional, defaults to ``False``
         If ``True`` then log the file extension that was read.
     """
+    # ADM start with some checking that this is a target file.
     targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS"
-
-    # ADM capture file-not-exists instance as we have a try/except below.
-    if not os.path.exists(filename):
-        raise OSError("File not found: {}".format(filename))
-
-    epicfail = True
-    for ext in targtypes:
-        try:
-            targs, hdr = fitsio.read(filename, ext, columns=columns, rows=rows,
-                                     header=True)
-#            targs, hdr = fitsio.read(filename, 1, header=True)
-            epicfail = False
-            if verbose:
-                log.info("Reading file of type {}".format(ext))
-        except OSError:
-            pass
-
-    if epicfail:
-        msg = "{} is not of any recogized target type.".format(filename)
-        msg += " Allowed target types are {}".format(targtypes)
+    # ADM read in the FITS extention info.
+    f = fitsio.FITS(filename)
+    if len(f) != 2:
+        log.info(f)
+        msg = "targeting files should only have 2 extensions?!"
         log.error(msg)
-        raise IOError(msg)
+        raise IOError
+    # ADM check for allowed extensions.
+    extname = f[1].get_extname()
+    if extname not in targtypes:
+        log.info(f)
+        msg = "unrecognized target file type: {}".format(extname)
+        log.error(msg)
+        raise IOError
+
+    targs, hdr = fitsio.read(filename, extname,
+                             columns=columns, rows=rows, header=True)
 
     if header:
         return targs, hdr
@@ -1545,7 +1541,6 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets = []
         start = time()
         for infile in infiles:
-            print(infile, time()-start)
             targs, hdr = read_target_files(infile, columns=columnscopy,
                                            header=True)
             targets.append(targs)

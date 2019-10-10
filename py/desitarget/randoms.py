@@ -705,7 +705,6 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256,
     nobs_g = randoms["NOBS_G"]
     nobs_r = randoms["NOBS_R"]
     nobs_z = randoms["NOBS_Z"]
-    mb = randoms["MASKBITS"]
 
     # ADM only retain points with one or more observations in all bands
     # ADM and appropriate maskbits values.
@@ -715,7 +714,8 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256,
 
     # ADM also restrict to appropriate maskbits values, if passed.
     if maskbits is not None:
-        ii &= (mb & maskkbits) == 0
+        mb = randoms["MASKBITS"]
+        ii &= (mb & maskbits) == 0
 
     # ADM the counts in each HEALPixel in the survey.
     if np.sum(ii) > 0:
@@ -739,7 +739,7 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256,
     # ADM if requested, print the total area of the survey to screen.
     if outarea:
         area = np.sum(pix_weight*hp.nside2pixarea(nside, degrees=True))
-        if masbits is None:
+        if maskbits is None:
             log.info('Area of survey with NOBS > {} in [g,r,z] = {:.2f} sq. deg.'
                      .format(nobsgrz, area))
         else:
@@ -954,6 +954,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         targcols = target_columns_from_header(targets)
         cols = np.concatenate([["RA", "DEC"], targcols])
         targets = read_targets_in_box(targets, columns=cols)
+    log.info('Read targets and randoms...t = {:.1f}s'.format(time()-start))
+    
     # ADM change target column names, and retrieve associated survey information.
     _, Mx, survey, targets = main_cmx_or_sv(targets, rename=True)
 
