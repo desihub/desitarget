@@ -1453,14 +1453,14 @@ def read_target_files(filename, columns=None, rows=None, header=False,
         log.info(f)
         msg = "targeting files should only have 2 extensions?!"
         log.error(msg)
-        raise IOError
+        raise IOError(msg)
     # ADM check for allowed extensions.
     extname = f[1].get_extname()
     if extname not in targtypes:
         log.info(f)
         msg = "unrecognized target file type: {}".format(extname)
         log.error(msg)
-        raise IOError
+        raise IOError(msg)
 
     targs, hdr = fitsio.read(filename, extname,
                              columns=columns, rows=rows, header=True)
