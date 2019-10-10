@@ -65,7 +65,7 @@ tsdatamodel = np.array([], dtype=[
     ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
-    ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
+    ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
     ('MASKBITS', '>i2')
     ])
 
