@@ -5,7 +5,9 @@ desitarget Change Log
 0.33.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Update LRG selections for SV [`PR #550`_]. Includes:
+    * The zfibermag faint limit is changed from 21.6 to 21.9
+    * For the IR selection, objects with r-W1>3.1 are not subjected to the sliding cut
 
 0.33.0 (2019-10-06)
 -------------------
