@@ -7,7 +7,7 @@ desitarget Change Log
 
 * Enhancements and on-sky clean-up for SV and CMX [`PR #551`_]. Includes:
     * Add areas contingent on ``MASKBITS`` to the ``pixweight-`` files.
-    * Change `APFLUX` to ``FIBERFLUX`` for skies and supp-skies.
+    * Change ``APFLUX`` to ``FIBERFLUX`` for skies and supp-skies.
     * Add new M33 First Light program.
     * Change priorities for the First Light programs.
     * Retain Tycho, and sources with no measured proper motion, in GFAs.
