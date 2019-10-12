@@ -745,7 +745,7 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256,
         else:
             log.info(
                 'Area, NOBS > {} in [g,r,z], maskbits of {} = {:.2f} sq. deg.'
-                     .format(nobsgrz, maskbits, area))
+                .format(nobsgrz, maskbits, area))
 
     log.info('Done...t = {:.1f}s'.format(time()-start))
 
@@ -955,7 +955,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         cols = np.concatenate([["RA", "DEC"], targcols])
         targets = read_targets_in_box(targets, columns=cols)
     log.info('Read targets and randoms...t = {:.1f}s'.format(time()-start))
-    
+
     # ADM change target column names, and retrieve associated survey information.
     _, Mx, survey, targets = main_cmx_or_sv(targets, rename=True)
 
