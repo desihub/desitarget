@@ -65,7 +65,7 @@ tsdatamodel = np.array([], dtype=[
     ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
-    ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
+    ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
     ('MASKBITS', '>i2')
     ])
 
@@ -1385,7 +1385,7 @@ def check_hp_target_dir(hpdirname):
     fns = glob(os.path.join(hpdirname, "*fits"))
     pixdict = {}
     for fn in fns:
-        _, hdr = read_target_files(fn, columns="RA", header=True)
+        hdr = read_targets_header(fn)
         nside.append(hdr["FILENSID"])
         pixels = hdr["FILEHPX"]
         # ADM if this is a one-pixel file, convert to a list.
@@ -1427,7 +1427,8 @@ def check_hp_target_dir(hpdirname):
     return nside[0], pixdict
 
 
-def read_target_files(filename, columns=None, header=False, verbose=False):
+def read_target_files(filename, columns=None, rows=None, header=False,
+                      verbose=False):
     """Wrapper to cycle through allowed extensions to read target files.
 
     Parameters
@@ -1437,32 +1438,32 @@ def read_target_files(filename, columns=None, header=False, verbose=False):
         "TARGETS", "GFA_TARGETS" and "SKY_TARGETS".
     columns : :class:`list`, optional
         Only read in these target columns.
+    rows : :class:`list`, optional
+        Only read in these rows from the target file.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of the file.
     verbose : :class:`bool`, optional, defaults to ``False``
         If ``True`` then log the file extension that was read.
     """
+    # ADM start with some checking that this is a target file.
     targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS"
-
-    # ADM capture file-not-exists instance as we have a try/except below.
-    if not os.path.exists(filename):
-        raise OSError("File not found: {}".format(filename))
-
-    epicfail = True
-    for ext in targtypes:
-        try:
-            targs, hdr = fitsio.read(filename, ext, columns=columns, header=True)
-            epicfail = False
-            if verbose:
-                log.info("Reading file of type {}".format(ext))
-        except OSError:
-            pass
-
-    if epicfail:
-        msg = "{} is not of any recogized target type.".format(filename)
-        msg += " Allowed target types are {}".format(targtypes)
+    # ADM read in the FITS extention info.
+    f = fitsio.FITS(filename)
+    if len(f) != 2:
+        log.info(f)
+        msg = "targeting files should only have 2 extensions?!"
         log.error(msg)
         raise IOError(msg)
+    # ADM check for allowed extensions.
+    extname = f[1].get_extname()
+    if extname not in targtypes:
+        log.info(f)
+        msg = "unrecognized target file type: {}".format(extname)
+        log.error(msg)
+        raise IOError(msg)
+
+    targs, hdr = fitsio.read(filename, extname,
+                             columns=columns, rows=rows, header=True)
 
     if header:
         return targs, hdr
@@ -1520,7 +1521,6 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     if os.path.isdir(hpdirname):
         # ADM check, and grab information from, the target directory.
         filenside, filedict = check_hp_target_dir(hpdirname)
-
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the box.
         fn0 = list(filedict.values())[0]
@@ -1539,6 +1539,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
 
         # ADM read in the files and concatenate the resulting targets.
         targets = []
+        start = time()
         for infile in infiles:
             targs, hdr = read_target_files(infile, columns=columnscopy,
                                            header=True)
@@ -1694,7 +1695,6 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
 
         # ADM HEALPixels that touch the box for that nside.
         pixlist = hp_in_box(nside, radecbox)
-
         # ADM read in targets in these HEALPixels.
         targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
                                           columns=columnscopy,
@@ -1790,7 +1790,9 @@ def read_targets_header(hpdirname):
         gen = iglob(os.path.join(hpdirname, '*fits'))
         hpdirname = next(gen)
 
-    _, hdr = read_target_files(hpdirname, header=True)
+    # ADM rows=[0] here, speeds up read_target_files retrieval
+    # ADM of the header.
+    _, hdr = read_target_files(hpdirname, rows=[0], header=True)
 
     return hdr
 
