@@ -49,8 +49,8 @@ start = time()
 skydatamodel = np.array([], dtype=[
     ('RELEASE', '>i4'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
     ('OBJID', '<i4'), ('RA', '>f8'), ('DEC', '>f8'), ('BLOBDIST', '>f4'),
-    ('APFLUX_G', '>f4'), ('APFLUX_R', '>f4'), ('APFLUX_Z', '>f4'),
-    ('APFLUX_IVAR_G', '>f4'), ('APFLUX_IVAR_R', '>f4'), ('APFLUX_IVAR_Z', '>f4')
+    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
+    ('FIBERFLUX_IVAR_G', '>f4'), ('FIBERFLUX_IVAR_R', '>f4'), ('FIBERFLUX_IVAR_Z', '>f4')
     ])
 
 
@@ -254,7 +254,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     dt = skydatamodel.dtype
     # ADM and update it according to how many apertures were requested.
     naps = len(apertures_arcsec)
-    apcolindices = np.where(['APFLUX' in colname for colname in dt.names])[0]
+    apcolindices = np.where(['FIBERFLUX' in colname for colname in dt.names])[0]
     desc = dt.descr
     for i in apcolindices:
         desc[i] += (naps,)
@@ -295,24 +295,24 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     # ADM add the aperture flux measurements.
     if naps == 1:
         if hasattr(skytable, 'apflux_g'):
-            skies["APFLUX_G"] = np.hstack(skytable.apflux_g)
-            skies["APFLUX_IVAR_G"] = np.hstack(skytable.apflux_ivar_g)
+            skies["FIBERFLUX_G"] = np.hstack(skytable.apflux_g)
+            skies["FIBERFLUX_IVAR_G"] = np.hstack(skytable.apflux_ivar_g)
         if hasattr(skytable, 'apflux_r'):
-            skies["APFLUX_R"] = np.hstack(skytable.apflux_r)
-            skies["APFLUX_IVAR_R"] = np.hstack(skytable.apflux_ivar_r)
+            skies["FIBERFLUX_R"] = np.hstack(skytable.apflux_r)
+            skies["FIBERFLUX_IVAR_R"] = np.hstack(skytable.apflux_ivar_r)
         if hasattr(skytable, 'apflux_z'):
-            skies["APFLUX_Z"] = np.hstack(skytable.apflux_z)
-            skies["APFLUX_IVAR_Z"] = np.hstack(skytable.apflux_ivar_z)
+            skies["FIBERFLUX_Z"] = np.hstack(skytable.apflux_z)
+            skies["FIBERFLUX_IVAR_Z"] = np.hstack(skytable.apflux_ivar_z)
     else:
         if hasattr(skytable, 'apflux_g'):
-            skies["APFLUX_G"] = skytable.apflux_g
-            skies["APFLUX_IVAR_G"] = skytable.apflux_ivar_g
+            skies["FIBERFLUX_G"] = skytable.apflux_g
+            skies["FIBERFLUX_IVAR_G"] = skytable.apflux_ivar_g
         if hasattr(skytable, 'apflux_r'):
-            skies["APFLUX_R"] = skytable.apflux_r
-            skies["APFLUX_IVAR_R"] = skytable.apflux_ivar_r
+            skies["FIBERFLUX_R"] = skytable.apflux_r
+            skies["FIBERFLUX_IVAR_R"] = skytable.apflux_ivar_r
         if hasattr(skytable, 'apflux_z'):
-            skies["APFLUX_Z"] = skytable.apflux_z
-            skies["APFLUX_IVAR_Z"] = skytable.apflux_ivar_z
+            skies["FIBERFLUX_Z"] = skytable.apflux_z
+            skies["FIBERFLUX_IVAR_Z"] = skytable.apflux_ivar_z
 
     # ADM add the brick info and blob distance for the sky targets.
     skies["BRICKID"] = skytable.brickid

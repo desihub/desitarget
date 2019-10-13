@@ -983,7 +983,7 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
 
     cmx_target = []
     flout = []
-    for filenum, prog in enumerate(["M31", "ORI", "ROS"]):
+    for filenum, prog in enumerate(["M31", "ORI", "ROS", "M33"]):
         cmxfile = os.path.join(cmxdir, "{}-targets.fits".format(prog))
         flobjsin = fitsio.read(cmxfile)
 

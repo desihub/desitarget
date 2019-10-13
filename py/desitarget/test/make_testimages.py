@@ -2,9 +2,7 @@
 # - This code was used to generate tractor and sweep file subsets for testing.
 # - The hardcoded paths are for NERSC, but you can swap out any
 # - legacy survey data release path as needed.
-# ADM as of DR4, we read in DR3 files and use desitarget.io
-# ADM to transform the format to the post-DR3 data model.
-# ADM Should eventually update to read in DR5 files directly
+# ADM Currently use DR6 files. Should update to DR8 at some point.
 
 import os
 import numpy as np

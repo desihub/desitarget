@@ -148,9 +148,9 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     ii = gfas['GAIA_PHOT_G_MEAN_MAG'] < maglim
     gfas = gfas[ii]
 
-    # ADM remove any sources based on Tycho or LSLGA.
-    ii = ((gfas["REF_CAT"] == b'L2') | (gfas["REF_CAT"] == 'L2') |
-          (gfas["REF_CAT"] == b'T2') | (gfas["REF_CAT"] == 'T2'))
+    # ADM remove any sources based on LSLGA (retain Tycho/T2 sources).
+    ii = (gfas["REF_CAT"] == b'L2') | (gfas["REF_CAT"] == 'L2')
+
     gfas = gfas[~ii]
 
     return gfas
@@ -585,12 +585,6 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
                  .format(np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
         for col in "PMRA", "PMDEC", "URAT_ID", "URAT_SEP":
             gfas[col][ii] = urat[col]
-
-    # ADM a final clean-up to remove columns that are NaN (from
-    # ADM Gaia-matching) or that are exactly 0 (in the sweeps).
-    ii = ((np.isnan(gfas["PMRA"]) | (gfas["PMRA"] == 0)) &
-          (np.isnan(gfas["PMDEC"]) | (gfas["PMDEC"] == 0)))
-    gfas = gfas[~ii]
 
     # ADM restrict to only GFAs in a set of HEALPixels, if requested.
     if pixlist is not None:

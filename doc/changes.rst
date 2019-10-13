@@ -5,7 +5,15 @@ desitarget Change Log
 0.33.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Enhancements and on-sky clean-up for SV and CMX [`PR #551`_]. Includes:
+    * Add areas contingent on ``MASKBITS`` to the ``pixweight-`` files.
+    * Change ``APFLUX`` to ``FIBERFLUX`` for skies and supp-skies.
+    * Add new M33 First Light program.
+    * Change priorities for the First Light programs.
+    * Retain Tycho, and sources with no measured proper motion, in GFAs.
+    * Add the ``REF_EPOCH`` column to all target files.
+
+.. _`PR #551`: https://github.com/desihub/desitarget/pull/551
 
 0.33.0 (2019-10-06)
 -------------------
