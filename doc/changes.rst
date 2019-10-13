@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.33.1 (unreleased)
+0.33.2 (unreleased)
+-------------------
+
+* no changes yet.
+
+0.33.1 (2019-10-13)
 -------------------
 
 * Enhancements and on-sky clean-up for SV and CMX [`PR #551`_]. Includes:
