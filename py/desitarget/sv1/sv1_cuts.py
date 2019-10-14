@@ -1006,8 +1006,8 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gsnr=None, rsnr=None, zsnr=None, maskbits=None, south=True,
-          primary=None):
+          gsnr=None, rsnr=None, zsnr=None, gfiberflux=None,
+          maskbits=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
 
     Parameters
@@ -1033,10 +1033,12 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                          primary=primary)
 
-    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                        w2flux=w2flux, south=south, primary=primary)
-
-    return elg
+    svgtot, svgfib, fdrgtot, fdrgfib = isELG_colors(
+        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+        gfiberflux=gfiberflux, south=south, primary=elg
+    )
+    
+    return svgtot, svgfib, fdrgtot, fdrgfib
 
 
 def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
@@ -1049,6 +1051,7 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
 
     # ADM good signal-to-noise in all bands.
     elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
+
     # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
     for bit in [1, 5, 6, 7, 11, 12, 13]:
         elg &= ((maskbits & 2**bit) == 0)
@@ -1056,8 +1059,8 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, south=True, primary=None):
+def isELG_colors(gflux=None, rflux=None, zflux=None, gfiberflux=None,
+                 primary=None, south=True):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`desitarget.cuts.set_target_bits` for parameters).
     """
@@ -1065,29 +1068,56 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     elg = primary.copy()
 
-    # ADM work in magnitudes instead of fluxes. NOTE THIS IS ONLY OK AS
-    # ADM the snr masking in ALL OF g, r AND z ENSURES positive fluxes.
+    # ADM some cuts specific to north or south
+    if south:
+        gtotfaint_fdr = 23.5
+        gfibfaint_fdr = 24.1
+        lowzcut_zp = -0.15
+    else:
+        gtotfaint_fdr = 23.6
+        gfibfaint_fdr = 24.2
+        lowzcut_zp = -0.35
+        
+    # ADM work in magnitudes not fluxes. THIS IS ONLY OK AS the snr cuts
+    # ADM in notinELG_mask ENSURES positive fluxes in all of g, r and z.
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
-    # ADM this is a color defined perpendicularly to the negative slope
-    # ADM cut; coii thus follows the OII flux gradient.
-    coii = (g - r) + 1.2*(r - z)
 
-    # ADM cuts shared by the northern and southern selections.
-    elg &= g > 20                       # bright cut.
-    elg &= r - z > -1.0                 # blue cut.
-    elg &= g - r < -1.2*(r - z) + 2.5   # OII flux cut.
+    gfib = 22.5 - 2.5*np.log10(gfiberflux.clip(1e-16))
+    rz = r - z
+    gr = g - r
+    
+    # ADM all classes have g > 20.
+    elg &= g >= 20
+    
+    # ADM parent classes for SV (relaxed) and FDR cuts.
+    sv, fdr = elg.copy(), elg.copy()
 
-    # ADM cuts that are unique to the north or south.
-    if south:
-        elg &= (g - r < 0.2) | (g - r < 1.15*(r - z) - 0.15)  # remove stars and low-z galaxies.
-        elg &= coii < 1.6 - 7.2*(g - 23.5)  # sliding cut.
-    else:
-        elg &= (g - r < 0.2) | (g - r < 1.15*(r - z) - 0.35)  # remove stars and low-z galaxies.
-        elg &= coii < 1.6 - 7.2*(g - 23.6)  # sliding cut.
+    # ADM create the SV classes.
+    sv &= rz > -1.           # blue cut.
+    sv &= gr < -1.2*rz+2.5   # OII cut.
+    sv &= (gr < 0.2) | (gr < 1.15*rz + lowzcut_zp)   # star/lowz cut.
 
-    return elg
+    # ADM gfib/g split for SV-like classes.
+    svgtot, svgfib = sv.copy(), sv.copy()
+    # ADM coii?
+    coii = -1.2*rz + 2.5
+    svgtot &= coii < 1.6 - 7.2*(g-gtotfaint_fdr)     # sliding cut.
+    svgfib &= coii < 1.6 - 7.2*(gfib-gfibfaint_fdr)  # sliding cut.
+
+    # ADM create the FDR classes.
+    fdr &= (rz > 0.3)                 # rz cut.
+    fdr &= (rz < 1.6)                 # rz cut.
+    fdr &= gr < -1.20*rz + 1.6        # OII cut. 
+    fdr &= gr < 1.15*rz + lowzcut_zp  # star/lowz cut.
+
+    # ADM gfib/g split for FDR-like classes.
+    fdrgtot, fdrgfib = fdr.copy(), fdr.copy()
+    fdrgtot &= g < gtotfaint_fdr      # faint cut.
+    fdrgfib &= gfib < gfibfaint_fdr   # faint cut.
+    
+    return svgtot, svgfib, fdrgtot, fdrgfib
 
 
 def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1437,17 +1467,27 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    elg_classes = [~primary, ~primary]
+    elg_classes = [[~primary, ~primary, ~primary, ~primary],
+                   [~primary, ~primary, ~primary, ~primary]]
     if "ELG" in tcnames:
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, maskbits=maskbits, south=south
+                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, gfiberflux=gfiberflux,
+                maskbits=maskbits, south=south
             )
-    elg_north, elg_south = elg_classes
+
+    elgsvgtot_n, elgsvgfib_n, elgfdrgtot_n, elgfdrgfib_n = elg_classes[0]
+    elgsvgtot_s, elgsvgfib_s, elgfdrgtot_s, elgfdrgfib_s = elg_classes[1]
 
     # ADM combine ELG target bits for an ELG target based on any imaging.
-    elg = (elg_north & photsys_north) | (elg_south & photsys_south)
+    elg_n = elgsvgtot_n | elgsvgfib_n | elgfdrgtot_n | elgfdrgfib_n
+    elg_s = elgsvgtot_s | elgsvgfib_s | elgfdrgtot_s | elgfdrgfib_s
+    elg = (elg_n & photsys_north) | (elg_s & photsys_south)
+    elgsvgtot = (elgsvgtot_n & photsys_north) | (elgsvgtot_s & photsys_south)
+    elgsvgfib = (elgsvgfib_n & photsys_north) | (elgsvgfib_s & photsys_south)
+    elgfdrgtot = (elgfdrgtot_n & photsys_north) | (elgfdrgtot_s & photsys_south)
+    elgfdrgfib = (elgfdrgfib_n & photsys_north) | (elgfdrgfib_s & photsys_south)
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -1636,6 +1676,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrginit_s_8 * desi_mask.LRG_INIT_8PASS_SOUTH
     desi_target |= lrgsup_s_8 * desi_mask.LRG_SUPER_8PASS_SOUTH
     desi_target |= filler_s * desi_mask.LOWZ_FILLER_SOUTH
+    # ADM ...and ELGs...
+    desi_target |= elgsvgtot_s * desi_mask.ELG_SV_GTOT_SOUTH
+    desi_target |= elgsvgfib_s * desi_mask.ELG_SV_GFIB_SOUTH
+    desi_target |= elgfdrgtot_s * desi_mask.ELG_FDR_GTOT_SOUTH
+    desi_target |= elgfdrgfib_s * desi_mask.ELG_FDR_GFIB_SOUTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_south * desi_mask.QSO_COLOR_4PASS_SOUTH
     desi_target |= qsorf_lowz_south * desi_mask.QSO_RF_4PASS_SOUTH
@@ -1650,6 +1695,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrginit_n_8 * desi_mask.LRG_INIT_8PASS_NORTH
     desi_target |= lrgsup_n_8 * desi_mask.LRG_SUPER_8PASS_NORTH
     desi_target |= filler_n * desi_mask.LOWZ_FILLER_NORTH
+    # ADM ...and ELGs...
+    desi_target |= elgsvgtot_n * desi_mask.ELG_SV_GTOT_NORTH
+    desi_target |= elgsvgfib_n * desi_mask.ELG_SV_GFIB_NORTH
+    desi_target |= elgfdrgtot_n * desi_mask.ELG_FDR_GTOT_NORTH
+    desi_target |= elgfdrgfib_n * desi_mask.ELG_FDR_GFIB_NORTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_north * desi_mask.QSO_COLOR_4PASS_NORTH
     desi_target |= qsorf_lowz_north * desi_mask.QSO_RF_4PASS_NORTH
@@ -1664,6 +1714,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrginit_8 * desi_mask.LRG_INIT_8PASS
     desi_target |= lrgsup_8 * desi_mask.LRG_SUPER_8PASS
     desi_target |= filler * desi_mask.LOWZ_FILLER
+    # ADM ...and ELGs...
+    desi_target |= elgsvgtot * desi_mask.ELG_SV_GTOT
+    desi_target |= elgsvgfib * desi_mask.ELG_SV_GFIB
+    desi_target |= elgfdrgtot * desi_mask.ELG_FDR_GTOT
+    desi_target |= elgfdrgfib * desi_mask.ELG_FDR_GFIB
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz * desi_mask.QSO_COLOR_4PASS
     desi_target |= qsorf_lowz * desi_mask.QSO_RF_4PASS
