@@ -5,11 +5,13 @@ desitarget Change Log
 0.33.2 (unreleased)
 -------------------
 
+* New ``FIBERFLUX_R`` bright-end cut on ``BGS_FAINT_EXT`` [`PR #552`_].
 * Update LRG selections for SV [`PR #550`_]. Includes:
-    * The zfibermag faint limit is changed from 21.6 to 21.9
-    * For the IR selection, objects with r-W1>3.1 are not subjected to the sliding cut
+    * The zfibermag faint limit is changed from 21.6 to 21.9.
+    * IR-selected objects with r-W1>3.1 not subjected to the sliding cut.
 
 .. _`PR #550`: https://github.com/desihub/desitarget/pull/550
+.. _`PR #552`: https://github.com/desihub/desitarget/pull/552
 
 0.33.1 (2019-10-13)
 -------------------
