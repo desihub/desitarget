@@ -1531,7 +1531,7 @@ def unextinct_fluxes(objects):
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    rfiberflux, zfiberflux,
+                    gfiberflux, rfiberflux, zfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -1554,11 +1554,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     gflux, rflux, zflux, w1flux, w2flux : :class:`~numpy.ndarray`
         The flux in nano-maggies of g, r, z, W1 and W2 bands.
         Corrected for Galactic extinction.
-    rfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in r-band.
-        Corrected for Galactic extinction.
-    zfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in z-band.
+    gfiberflux, rfiberflux, zfiberflux : :class:`~numpy.ndarray`
+        Predicted fiber flux in 1 arcsecond seeing in g/r/z-band.
         Corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
@@ -1987,7 +1984,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
         gflux, rflux, zflux, w1flux, w2flux,
-        rfiberflux, zfiberflux,
+        gfiberflux, rfiberflux, zfiberflux,
         objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
