@@ -1163,8 +1163,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     colnames = _get_colnames(objects)
 
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
-        w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,                     \
-        gfluxivar, rfluxivar, zfluxivar,                                              \
+        w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
+        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \

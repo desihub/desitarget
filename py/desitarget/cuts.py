@@ -1350,6 +1350,7 @@ def _prepare_optical_wise(objects, mask=True):
     zflux = flux['ZFLUX']
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
+    gfiberflux = flux['GFIBERFLUX']
     rfiberflux = flux['RFIBERFLUX']
     zfiberflux = flux['ZFIBERFLUX']
     objtype = objects['TYPE']
@@ -1402,8 +1403,8 @@ def _prepare_optical_wise(objects, mask=True):
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
-            w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,
-            gfluxivar, rfluxivar, zfluxivar,
+            w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,
+            objtype, release, gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1951,8 +1952,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
-        w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,                     \
-        gfluxivar, rfluxivar, zfluxivar,                                              \
+        w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
+        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
