@@ -1113,7 +1113,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM create the FDR classes.
     fdr &= (rz > 0.3)                 # rz cut.
     fdr &= (rz < 1.6)                 # rz cut.
-    fdr &= gr < -1.20*rz + 1.6        # OII cut. 
+    fdr &= gr < -1.20*rz + 1.6        # OII cut.
     fdr &= gr < 1.15*rz + lowzcut_zp  # star/lowz cut.
 
     # ADM gfib/g split for FDR-like classes.
