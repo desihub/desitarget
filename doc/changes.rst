@@ -5,13 +5,22 @@ desitarget Change Log
 0.33.2 (unreleased)
 -------------------
 
-* New ``FIBERFLUX_R`` bright-end cut on ``BGS_FAINT_EXT`` [`PR #552`_].
+* Update the ELG selections for SV [`PR #553`_]. Includes:
+    * Four new bit names:
+        * ``ELG_SV_GTOT``, ``ELG_SV_GFIB``.
+	* ``ELG_FDR_GTOT``, ``ELG_FDR_GFIB``.
+    * Associated new ELG selections with north/south differences.
+    * Propagate ``FIBERFLUX_G`` from the sweeps for SV ELG cuts.
+    * Increase the default sky densities by a factor of 4x.
+    * Relax CMX ``BACKUP_FAINT`` limit to G < 21 to test fiber assign.
+* Bright-end ``FIBERFLUX_R`` cut on ``BGS_FAINT_EXT`` in SV [`PR #552`_].
 * Update LRG selections for SV [`PR #550`_]. Includes:
     * The zfibermag faint limit is changed from 21.6 to 21.9.
     * IR-selected objects with r-W1>3.1 not subjected to the sliding cut.
 
 .. _`PR #550`: https://github.com/desihub/desitarget/pull/550
 .. _`PR #552`: https://github.com/desihub/desitarget/pull/552
+.. _`PR #553`: https://github.com/desihub/desitarget/pull/553
 
 0.33.1 (2019-10-13)
 -------------------
