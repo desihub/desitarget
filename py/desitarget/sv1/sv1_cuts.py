@@ -1059,8 +1059,8 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, gfiberflux=None,
-                 primary=None, south=True):
+def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 gfiberflux=None, primary=None, south=True):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`desitarget.cuts.set_target_bits` for parameters).
     """
@@ -1398,7 +1398,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    rfiberflux, zfiberflux,
+                    gfiberflux, rfiberflux, zfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
