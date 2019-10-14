@@ -1037,7 +1037,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
         gfiberflux=gfiberflux, south=south, primary=elg
     )
-    
+
     return svgtot, svgfib, fdrgtot, fdrgfib
 
 
@@ -1077,7 +1077,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, gfiberflux=None,
         gtotfaint_fdr = 23.6
         gfibfaint_fdr = 24.2
         lowzcut_zp = -0.35
-        
+
     # ADM work in magnitudes not fluxes. THIS IS ONLY OK AS the snr cuts
     # ADM in notinELG_mask ENSURES positive fluxes in all of g, r and z.
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
@@ -1087,10 +1087,10 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, gfiberflux=None,
     gfib = 22.5 - 2.5*np.log10(gfiberflux.clip(1e-16))
     rz = r - z
     gr = g - r
-    
+
     # ADM all classes have g > 20.
     elg &= g >= 20
-    
+
     # ADM parent classes for SV (relaxed) and FDR cuts.
     sv, fdr = elg.copy(), elg.copy()
 
@@ -1116,7 +1116,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, gfiberflux=None,
     fdrgtot, fdrgfib = fdr.copy(), fdr.copy()
     fdrgtot &= g < gtotfaint_fdr      # faint cut.
     fdrgfib &= gfib < gfibfaint_fdr   # faint cut.
-    
+
     return svgtot, svgfib, fdrgtot, fdrgfib
 
 
