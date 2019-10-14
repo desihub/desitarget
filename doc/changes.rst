@@ -2,12 +2,27 @@
 desitarget Change Log
 =====================
 
-0.33.1 (unreleased)
+0.33.2 (unreleased)
 -------------------
 
 * Update LRG selections for SV [`PR #550`_]. Includes:
     * The zfibermag faint limit is changed from 21.6 to 21.9
     * For the IR selection, objects with r-W1>3.1 are not subjected to the sliding cut
+
+.. _`PR #550`: https://github.com/desihub/desitarget/pull/550
+
+0.33.1 (2019-10-13)
+-------------------
+
+* Enhancements and on-sky clean-up for SV and CMX [`PR #551`_]. Includes:
+    * Add areas contingent on ``MASKBITS`` to the ``pixweight-`` files.
+    * Change ``APFLUX`` to ``FIBERFLUX`` for skies and supp-skies.
+    * Add new M33 First Light program.
+    * Change priorities for the First Light programs.
+    * Retain Tycho, and sources with no measured proper motion, in GFAs.
+    * Add the ``REF_EPOCH`` column to all target files.
+
+.. _`PR #551`: https://github.com/desihub/desitarget/pull/551
 
 0.33.0 (2019-10-06)
 -------------------
