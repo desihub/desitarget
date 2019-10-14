@@ -1079,12 +1079,17 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, gfiberflux=None,
         lowzcut_zp = -0.35
 
     # ADM work in magnitudes not fluxes. THIS IS ONLY OK AS the snr cuts
-    # ADM in notinELG_mask ENSURES positive fluxes in all of g, r and z.
+    # ADM in notinELG_mask ENSURE positive fluxes in all of g, r and z.
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
 
+    # ADM gfiberflux can be zero but is never negative. So this is safe.
     gfib = 22.5 - 2.5*np.log10(gfiberflux.clip(1e-16))
+
+    # ADM these are safe as the snr cuts in notinELG_mask ENSURE positive
+    # ADM fluxes in all of g, r and z...so things near colors of zero but
+    # ADM that actually have negative fluxes will never be targeted.
     rz = r - z
     gr = g - r
 
@@ -1101,8 +1106,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, gfiberflux=None,
 
     # ADM gfib/g split for SV-like classes.
     svgtot, svgfib = sv.copy(), sv.copy()
-    # ADM coii?
-    coii = -1.2*rz + 2.5
+    coii = gr + 1.2*rz  # color defined perpendicularly to the -ve slope cut.
     svgtot &= coii < 1.6 - 7.2*(g-gtotfaint_fdr)     # sliding cut.
     svgfib &= coii < 1.6 - 7.2*(gfib-gfibfaint_fdr)  # sliding cut.
 
