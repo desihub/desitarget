@@ -85,7 +85,7 @@ class TestSKYFIBERS(unittest.TestCase):
         # ADM check we've stored the correct information give the numbers of
         # ADM skies requested and the length of the apertures.
         self.assertTrue(
-            skies["APFLUX_R"].shape == (self.nskies, len(self.ap_arcsec))
+            skies["FIBERFLUX_R"].shape == (self.nskies, len(self.ap_arcsec))
         )
 
         # ADM generate the associated sky table.
@@ -95,10 +95,10 @@ class TestSKYFIBERS(unittest.TestCase):
 
         # ADM check some of the outputs are the same for the table and FITS.
         self.assertTrue(
-            np.all(skies["APFLUX_G"] == skytable.apflux_g)
+            np.all(skies["FIBERFLUX_G"] == skytable.apflux_g)
         )
         self.assertTrue(
-            np.all(skies["APFLUX_IVAR_Z"] == skytable.apflux_ivar_z)
+            np.all(skies["FIBERFLUX_IVAR_Z"] == skytable.apflux_ivar_z)
         )
 
     def test_make_skies_for_a_brick_per_band(self):
@@ -126,16 +126,16 @@ class TestSKYFIBERS(unittest.TestCase):
         # ADM the r and z bands for brick 0959p805 are bad, so should be the
         # ADM same no matter which bands we extract (they should be all zero).
         self.assertTrue(
-            np.all(rzskies["APFLUX_R"] == skies["APFLUX_R"])
+            np.all(rzskies["FIBERFLUX_R"] == skies["FIBERFLUX_R"])
         )
         self.assertTrue(
-            np.all(rzskies["APFLUX_Z"] == skies["APFLUX_Z"])
+            np.all(rzskies["FIBERFLUX_Z"] == skies["FIBERFLUX_Z"])
         )
 
         # ADM but the g band is good, so shouldn't be the same if we extract
         # ADM it in concert with the other (r,z) bands.
         self.assertFalse(
-            np.all(gskies["APFLUX_G"] == skies["APFLUX_G"])
+            np.all(gskies["FIBERFLUX_G"] == skies["FIBERFLUX_G"])
         )
 
     def test_target_bits(self):
