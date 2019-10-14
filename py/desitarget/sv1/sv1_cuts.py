@@ -996,6 +996,7 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
     elif targtype == 'faint_ext':
         bgs &= rflux > 10**((22.5-20.5)/2.5)
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
+        bgs &= ~np.logical_and(rflux <= 10**((22.5-20.1)/2.5), rfiberflux > 10**((22.5-21.0511)/2.5))
     elif targtype == 'fibmag':
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
         bgs &= rfiberflux > 10**((22.5-21.0511)/2.5)
