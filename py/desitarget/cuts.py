@@ -236,8 +236,8 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gsnr=None, rsnr=None, zsnr=None, maskbits=None, south=True,
-          primary=None):
+          gsnr=None, rsnr=None, zsnr=None, gnobs=None, rnobs=None, znobs=None,
+          maskbits=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
@@ -249,7 +249,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     elg = primary.copy()
 
     elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                         primary=primary)
+                         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
     elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                         w2flux=w2flux, south=south, primary=primary)
@@ -257,7 +257,8 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return elg
 
 
-def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
+def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
+                  gnobs=None, rnobs=None, znobs=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
@@ -267,6 +268,10 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
 
     # ADM good signal-to-noise in all bands.
     elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
+
+    # ADM observed in every band.
+    elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+
     # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
     for bit in [1, 5, 6, 7, 11, 12, 13]:
         elg &= ((maskbits & 2**bit) == 0)
@@ -1662,7 +1667,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, maskbits=maskbits, south=south
+                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
+                south=south
             )
     elg_north, elg_south = elg_classes
 

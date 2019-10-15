@@ -1007,6 +1007,7 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gsnr=None, rsnr=None, zsnr=None, gfiberflux=None,
+          gnobs=None, rnobs=None, znobs=None,
           maskbits=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
 
@@ -1031,7 +1032,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     elg = primary.copy()
 
     elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                         primary=primary)
+                         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
     svgtot, svgfib, fdrgtot, fdrgfib = isELG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
@@ -1041,7 +1042,8 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return svgtot, svgfib, fdrgtot, fdrgfib
 
 
-def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
+def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
+                  gnobs=None, rnobs=None, znobs=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
@@ -1051,6 +1053,9 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
 
     # ADM good signal-to-noise in all bands.
     elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
+
+    # ADM observed in every band.
+    elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
     for bit in [1, 5, 6, 7, 11, 12, 13]:
@@ -1478,7 +1483,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             elg_classes[int(south)] = isELG(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
                 gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, gfiberflux=gfiberflux,
-                maskbits=maskbits, south=south
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
+                south=south
             )
 
     elgsvgtot_n, elgsvgfib_n, elgfdrgtot_n, elgfdrgfib_n = elg_classes[0]
