@@ -137,13 +137,11 @@ sv1_mws_mask:
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
-#- ADM variable, e.g. $SECONDARY_DIR/sv1/backstop.fits for BACKSTOP targets.
+#- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.fits for VETO targets.
 sv1_scnd_mask:
     #- [VETO,        0, "Never observe, even if a primary target bit is set",
     #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-    #- [BACKSTOP,    1, "Gaia-selected targets of last resort",
-    #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
-    #- [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
+    #- [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
     #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
     - [MWS_WD_SV,                10, "Milky Way Survey White Dwarf (SV cuts)",  
         {obsconditions: BRIGHT|GRAY|DARK, filename: 'MWS_WD_SV'}]
@@ -332,7 +330,6 @@ priorities:
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
         #VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        #BACKSTOP:                     {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         #DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD_SV:                    {UNOBS: 2296, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD_SV_VERYBRIGHT:         SAME_AS_MWS_WD_SV
@@ -472,7 +469,6 @@ numobs:
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
         #VETO: 1
-        #BACKSTOP: 1
         #DR16Q: 1
         MWS_WD_SV:                       100
         MWS_WD_SV_VERYBRIGHT:            SAME_AS_MWS_WD_SV
