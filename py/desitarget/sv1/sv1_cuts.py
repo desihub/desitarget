@@ -56,7 +56,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     Notes
     -----
-    - Current version (09/09/19) is version 92 on `the SV wiki`_.
+    - Current version (10/14/19) is version 104 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets.
@@ -419,7 +419,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (06/05/19) is version 68 on `the SV wiki`_.
+    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -562,7 +562,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (06/05/19) is version 68 on `the SV wiki`_.
+    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -675,7 +675,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
     Notes
     -----
-    - Current version (04/05/19) is version 64 on `the SV wiki`_.
+    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -784,7 +784,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (09/05/19) is version 93 on `the SV wiki`_.
+    - Current version (09/25/19) is version 101 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -912,7 +912,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
 
     Notes
     -----
-    - Current version (02/06/19) is version 36 on `the SV wiki`_.
+    - Current version (10/14/19) is version 105 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype_sv(targtype)
@@ -1024,7 +1024,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/19/19) is version 76 on `the SV wiki`_.
+    - Current version (10/14/19) is version 107 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:

@@ -242,7 +242,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (06/25/19) is version 180 on `the wiki`_.
+    - Current version (10/16/19) is version 202 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
