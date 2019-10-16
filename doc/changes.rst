@@ -5,6 +5,7 @@ desitarget Change Log
 0.33.2 (unreleased)
 -------------------
 
+* Fix minor bugs in `select_mock_targets` [`PR #555`_].
 * Update the ELG selections for SV [`PR #553`_]. Includes:
     * Four new bit names:
         * ``ELG_SV_GTOT``, ``ELG_SV_GFIB``.
@@ -21,6 +22,7 @@ desitarget Change Log
 .. _`PR #550`: https://github.com/desihub/desitarget/pull/550
 .. _`PR #552`: https://github.com/desihub/desitarget/pull/552
 .. _`PR #553`: https://github.com/desihub/desitarget/pull/553
+.. _`PR #555`: https://github.com/desihub/desitarget/pull/555
 
 0.33.1 (2019-10-13)
 -------------------
