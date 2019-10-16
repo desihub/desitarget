@@ -968,10 +968,12 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         nobj, nsky = len(targets), len(skytargets)
         if nobj > 0:
             for obscon in ['BRIGHT', 'DARK']:
+                # Do *not* pass obscon to mockio.findfile here because the
+                # subdirectory gets appended in io.write_targets!
                 targetsfile = mockio.findfile('targets',
-                        nside, healpix, obscon=obscon, basedir=output_dir)
+                        nside, healpix, obscon=None, basedir=output_dir)
                 truthfile = mockio.findfile('truth',
-                        nside, healpix, obscon=obscon, basedir=output_dir)
+                        nside, healpix, obscon=None, basedir=output_dir)
                 mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
                             'truewave': MakeMock.wave, 'trueflux': trueflux,
                             'truthfile': truthfile}
@@ -1269,7 +1271,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             # append, not overwrite other per-subclass truth tables
             for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
                 extname = 'TRUTH_' + templatetype
-                _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits', extname,
+                _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), extname,
                                    overwrite=False,
                                    outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
 
