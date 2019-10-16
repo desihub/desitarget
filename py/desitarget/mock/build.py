@@ -1269,7 +1269,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             # append, not overwrite other per-subclass truth tables
             for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
                 extname = 'TRUTH_' + templatetype
-                _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits', extname,
+                _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), extname,
                                    overwrite=False,
                                    outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
 
