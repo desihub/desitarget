@@ -314,12 +314,13 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         truthdata, trueflux, _objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
         truthdata = truthdata[ii]
 
-        if len(trueflux) > 0:
-            trueflux = trueflux[ii, :]
-            objtruth = {}
-            for obj in sorted(set(truthdata['TEMPLATETYPE'])):
-                objtruth[obj] = _objtruth[obj]
+        objtruth = {}
+        for obj in sorted(set(truthdata['TEMPLATETYPE'])):
+            objtruth[obj] = _objtruth[obj]
 
+        if len(trueflux) > 0 and trueflux.shape[1] > 0:
+            trueflux = trueflux[ii, :]
+            
         mockdata['truth'] = truthdata
         mockdata['trueflux'] = trueflux
         mockdata['objtruth'] = objtruth
@@ -490,7 +491,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
         fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
 
-        if len(trueflux) > 0:
+        if len(trueflux) > 0 and trueflux.shape[1] > 0:
             wavehdr = fitsio.FITSHDR()
             wavehdr['BUNIT'] = 'Angstrom'
             wavehdr['AIRORVAC'] = 'vac'
