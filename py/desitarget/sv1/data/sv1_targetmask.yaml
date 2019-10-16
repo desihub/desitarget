@@ -122,17 +122,17 @@ sv1_bgs_mask:
 #- Milky Way Survey SV targets
 sv1_mws_mask:
     #- Bits 0-3 (7 ids)
-    - [MWS_MAIN_SV,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_NEARBY_SV,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BROAD,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_NEARBY,                2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 4: MWS_MAIN north/south splits
-    - [MWS_MAIN_SV_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SV_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BROAD_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BROAD_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
 
     # Fainter MWS_MAIN extension for SV, selected on magnitude only
-    - [MWS_MAIN_SV_FAINT,           14, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SV_FAINT_NORTH,     15, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SV_FAINT_SOUTH,     16, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_FAINT,           14, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_FAINT_NORTH,     15, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_FAINT_SOUTH,     16, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
@@ -315,17 +315,17 @@ priorities:
         # NB DONE is not very relevant here since we assign "infinite" observations
         # MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         # Note NEARBY > HYADES (otherwise nearby targets swamped by fainter HYADES members)
-        MWS_NEARBY_SV:                {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+        MWS_NEARBY:                   {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
 
         # Main survey targets 
-        MWS_MAIN_SV:                  {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
-        MWS_MAIN_SV_FAINT:            {UNOBS: 1050, DONE: 100, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_BROAD:                  {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_FAINT:                  {UNOBS: 1050, DONE: 100, OBS: 1, DONOTOBSERVE: 0}
         # Permutations
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        MWS_MAIN_SV_NORTH:            {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        MWS_MAIN_SV_SOUTH:            SAME_AS_MWS_MAIN_SV_NORTH
-        MWS_MAIN_SV_FAINT_NORTH:      {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        MWS_MAIN_SV_FAINT_SOUTH:      SAME_AS_MWS_MAIN_SV_FAINT_NORTH
+        MWS_MAIN_BROAD_NORTH:            {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_MAIN_BROAD_SOUTH:            SAME_AS_MWS_MAIN_BROAD_NORTH
+        MWS_MAIN_FAINT_NORTH:      {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_MAIN_FAINT_SOUTH:      SAME_AS_MWS_MAIN_FAINT_NORTH
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
@@ -457,14 +457,14 @@ numobs:
 
     # ADM initial number of observations for targets in the Milky Way Survey
     sv1_mws_mask:
-        MWS_MAIN_SV:                  1
-        MWS_MAIN_SV_FAINT:            1
-        MWS_NEARBY_SV:                100
+        MWS_MAIN_BROAD:               1
+        MWS_MAIN_FAINT:               1
+        MWS_NEARBY:                 100
         # ADM don't observe a N/S target if it doesn't have other bits set
-        MWS_MAIN_SV_NORTH:            0
-        MWS_MAIN_SV_SOUTH:            0
-        MWS_MAIN_SV_FAINT_NORTH:      0
-        MWS_MAIN_SV_FAINT_SOUTH:      0
+        MWS_MAIN_BROAD_NORTH:            0
+        MWS_MAIN_BROAD_SOUTH:            0
+        MWS_MAIN_FAINT_NORTH:      0
+        MWS_MAIN_FAINT_SOUTH:      0
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:

@@ -1104,9 +1104,9 @@ def isMWS_main_sv(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Returns:
         mask1 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN_SV`` target.
+            ``True`` if and only if the object is a ``MWS_MAIN_BROAD`` target.
         mask2 : array_like.
-            ``True`` if and only if the object is a ``MWS_MAIN_SV_FAINT`` target.
+            ``True`` if and only if the object is a ``MWS_MAIN_FAINT`` target.
 
     Notes:
         - as of 26/7/19, based on version 79 on `the wiki`_.
@@ -1658,19 +1658,19 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_fibmag * bgs_mask.BGS_FIBMAG
 
     # ADM MWS main, nearby, and WD.
-    mws_target  = mws * mws_mask.MWS_MAIN_SV
-    mws_target |= mws_faint * mws_mask.MWS_MAIN_SV_FAINT
+    mws_target  = mws * mws_mask.MWS_MAIN_BROAD
+    mws_target |= mws_faint * mws_mask.MWS_MAIN_FAINT
     # APC Scince WDs are secondary targets now
     # mws_target |= mws_wd * mws_mask.MWS_WD_SV
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY_SV
 
     # ADM MWS main north/south split.
-    mws_target |= mws_n * mws_mask.MWS_MAIN_SV_NORTH
-    mws_target |= mws_s * mws_mask.MWS_MAIN_SV_SOUTH
+    mws_target |= mws_n * mws_mask.MWS_MAIN_BROAD_NORTH
+    mws_target |= mws_s * mws_mask.MWS_MAIN_BROAD_SOUTH
 
     # ADM MWS main faint north/south split.
-    mws_target |= mws_faint_n * mws_mask.MWS_MAIN_SV_FAINT_NORTH
-    mws_target |= mws_faint_s * mws_mask.MWS_MAIN_SV_FAINT_SOUTH
+    mws_target |= mws_faint_n * mws_mask.MWS_MAIN_FAINT_NORTH
+    mws_target |= mws_faint_s * mws_mask.MWS_MAIN_FAINT_SOUTH
 
     # Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
