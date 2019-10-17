@@ -1080,8 +1080,8 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
     from desitarget.gfa import all_gaia_in_tiles
-    # ADM No Gaia-only CMX target classes are fainter than G=18.
-    gaiaobjs = all_gaia_in_tiles(maglim=18, numproc=numproc, allsky=True,
+    # ADM No Gaia-only CMX target classes are fainter than G=21.
+    gaiaobjs = all_gaia_in_tiles(maglim=21, numproc=numproc, allsky=True,
                                  mindec=-90, mingalb=0, addobjid=True,
                                  nside=nside, pixlist=pixlist)
     # ADM the convenience function we use adds an empty TARGETID
@@ -1411,8 +1411,6 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     def _finalize_targets(objects, cmx_target, priority_shift=None, gaiadr=None):
-        # -desi_target includes BGS_ANY and MWS_ANY, so we can filter just
-        # -on desi_target != 0
         keep = (cmx_target != 0)
         objects = objects[keep]
         cmx_target = cmx_target[keep]
@@ -1507,7 +1505,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         # ADM Retain First Light objects as a special program.
         ii = ((alltargs["REF_CAT"] != b'F1') & (alltargs["REF_CAT"] != 'F1'))
         # ADM Retain all non-Gaia sources, which have REF_ID of -1 or 0
-        # ADM and so are all duplicates on REF_ID.
+        # ADM and thus are all duplicates on REF_ID.
         ii &= alltargs["REF_ID"] > 0
         targs = alltargs[ii]
         _, ind = np.unique(targs["REF_ID"], return_index=True)

@@ -23,10 +23,19 @@ class TestCuts(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.datadir = resource_filename('desitarget.test', 't')
-#        cls.gaiadir = resource_filename('desitarget.test', 'tgaia')
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
 
+        # ADM set up the GAIA_DIR environment variable.
+        cls.gaiadir_orig = os.getenv("GAIA_DIR")
+        os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
+
+    @classmethod
+    def tearDownClass(cls):
+        # ADM reset GAIA_DIR environment variable.
+        if cls.gaiadir_orig is not None:
+            os.environ["GAIA_DIR"] = cls.gaiadir_orig
+        
     def test_unextinct_fluxes(self):
         """Test function that unextincts fluxes
         """
@@ -310,6 +319,7 @@ class TestCuts(unittest.TestCase):
 
         for nproc in [1, 2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
+                print(filelist)
                 targets = cuts.select_targets(filelist,
                                               numproc=nproc, tcnames=tc)
                 self.assertTrue('DESI_TARGET' in targets.dtype.names)

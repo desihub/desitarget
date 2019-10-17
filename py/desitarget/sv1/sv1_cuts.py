@@ -20,6 +20,7 @@ from pkg_resources import resource_filename
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
+from desitarget.gaiamatch import is_in_Galaxy
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -27,6 +28,48 @@ log = get_logger()
 
 # ADM start the clock
 start = time()
+
+
+def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
+    """BACKUP targets based on Gaia magnitudes.
+
+    Parameters
+    ----------
+    ra, dec: :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    gaiagmag: :class:`array_like` or :class:`None`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+        (same units as `the Gaia data model`_).
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a bright "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a faint "BACKUP" target.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiagmag, dtype='?')
+
+    isbackupbright = primary.copy()
+    isbackupfaint = primary.copy()
+
+    # ADM determine which sources are close to the Galaxy.
+    in_gal = is_in_Galaxy([ra, dec], radec=True)
+
+    # ADM bright targets are 13 < G < 16.
+    isbackupbright &= gaiagmag >= 13
+    isbackupbright &= gaiagmag < 16
+
+    # ADM faint targets are 16 < G < 21.
+    isbackupfaint &= gaiagmag >= 16
+    isbackupfaint &= gaiagmag < 21
+    # ADM and are "far from" the Galaxy.
+    isbackupfaint &= ~in_gal
+
+    return isbackupbright, isbackupfaint
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
