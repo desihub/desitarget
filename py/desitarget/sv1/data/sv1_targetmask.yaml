@@ -89,6 +89,10 @@ sv1_desi_mask:
     - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
             {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
+    # ADM back-up targets for poor conditions.
+    - [BACKUP_BRIGHT,  58, "Bright backup Gaia targets",   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,   59, "Fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
     #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set",  {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set",  {obsconditions: BRIGHT}]
@@ -242,6 +246,8 @@ priorities:
         QSO_HZ_F_SOUTH:        SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_Z5_SOUTH:          SAME_AS_LRG_INIT_4PASS_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
+        BACKUP_BRIGHT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        BACKUP_FAINT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
         STD_WD:     -1
@@ -364,6 +370,8 @@ numobs:
         QSO_HZ_F_SOUTH:        0
         QSO_Z5_SOUTH:          0
         BAD_SKY: 0
+        BACKUP_BRIGHT: 1
+        BACKUP_FAINT: 1
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
         STD_WD:     -1
