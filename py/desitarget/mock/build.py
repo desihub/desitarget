@@ -1254,7 +1254,12 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
     if todo['sky']:
         _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY_TARGETS',
                            outfile=outdir+'/sky.fits', comm=comm,
-                           overwrite=overwrite)
+                           overwrite=overwrite,
+                           addcols=dict(
+                               FIBERFLUX_IVAR_G=300.0,
+                               FIBERFLUX_IVAR_R=900.0,
+                               FIBERFLUX_IVAR_Z=130.0)
+                           )
                            #addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
         
     for obscon in ('bright', 'dark'):

@@ -5,6 +5,7 @@ desitarget Change Log
 0.33.2 (unreleased)
 -------------------
 
+* Add FIBERFLUX_IVAR_G/R/Z to mock skies when merging [`PR #556`_].
 * Fix minor bugs in `select_mock_targets` [`PR #555`_].
 * Update the ELG selections for SV [`PR #553`_]. Includes:
     * Four new bit names:
@@ -23,6 +24,7 @@ desitarget Change Log
 .. _`PR #552`: https://github.com/desihub/desitarget/pull/552
 .. _`PR #553`: https://github.com/desihub/desitarget/pull/553
 .. _`PR #555`: https://github.com/desihub/desitarget/pull/555
+.. _`PR #556`: https://github.com/desihub/desitarget/pull/556
 
 0.33.1 (2019-10-13)
 -------------------
