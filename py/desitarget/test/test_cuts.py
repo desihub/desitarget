@@ -12,6 +12,7 @@ from astropy.io import fits
 from astropy.table import Table
 import fitsio
 import numpy as np
+import healpy as hp
 
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
@@ -26,6 +27,16 @@ class TestCuts(unittest.TestCase):
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
 
+        # ADM find which HEALPixels are covered by test sweeps files.
+        cls.nside = 32
+        pixlist = []
+        for fn in cls.sweepfiles:
+            objs = fitsio.read(fn)
+            theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+            pixels = hp.ang2pix(cls.nside, theta, phi, nest=True)
+            pixlist.append(pixels)
+        cls.pix = np.unique(pixlist)
+
         # ADM set up the GAIA_DIR environment variable.
         cls.gaiadir_orig = os.getenv("GAIA_DIR")
         os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
@@ -35,7 +46,7 @@ class TestCuts(unittest.TestCase):
         # ADM reset GAIA_DIR environment variable.
         if cls.gaiadir_orig is not None:
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
-        
+
     def test_unextinct_fluxes(self):
         """Test function that unextincts fluxes
         """
@@ -242,9 +253,14 @@ class TestCuts(unittest.TestCase):
         tc = ["LRG"]
 
         for filelist in [self.tractorfiles, self.sweepfiles]:
-            targets = cuts.select_targets(filelist, numproc=1, tcnames=tc)
-            t1 = cuts.select_targets(filelist[0:1], numproc=1, tcnames=tc)
-            t2 = cuts.select_targets(filelist[0], numproc=1, tcnames=tc)
+            # ADM set backup to False as the Gaia unit test
+            # ADM files only cover a limited pixel range.
+            targets = cuts.select_targets(filelist, numproc=1, tcnames=tc,
+                                          backup=False)
+            t1 = cuts.select_targets(filelist[0:1], numproc=1, tcnames=tc,
+                                     backup=False)
+            t2 = cuts.select_targets(filelist[0], numproc=1, tcnames=tc,
+                                     backup=False)
             for col in t1.dtype.names:
                 try:
                     notNaN = ~np.isnan(t1[col])
@@ -288,11 +304,13 @@ class TestCuts(unittest.TestCase):
 
         targetfile = self.tractorfiles[0]
         for qso_selection in cuts.qso_selection_options:
-            results = cuts.select_targets(targetfile,
+            # ADM set backup to False as the Gaia unit test
+            # ADM files only cover a limited pixel range.
+            results = cuts.select_targets(targetfile, backup=False,
                                           tcnames=tc, qso_selection=qso_selection)
 
         with self.assertRaises(ValueError):
-            results = cuts.select_targets(targetfile, numproc=1,
+            results = cuts.select_targets(targetfile, numproc=1, backup=False,
                                           tcnames=tc, qso_selection='blatfoo')
 
     def test_bgs_target_types(self):
@@ -319,8 +337,9 @@ class TestCuts(unittest.TestCase):
 
         for nproc in [1, 2]:
             for filelist in [self.tractorfiles, self.sweepfiles]:
-                print(filelist)
-                targets = cuts.select_targets(filelist,
+                # ADM set backup to False as the Gaia unit test
+                # ADM files only cover a limited pixel range.
+                targets = cuts.select_targets(filelist, backup=False,
                                               numproc=nproc, tcnames=tc)
                 self.assertTrue('DESI_TARGET' in targets.dtype.names)
                 self.assertTrue('BGS_TARGET' in targets.dtype.names)
@@ -331,6 +350,27 @@ class TestCuts(unittest.TestCase):
                 bgs2 = targets['BGS_TARGET'] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
 
+    def test_backup(self):
+        """Test BACKUP targets are selected.
+        """
+        # ADM only test the ELG, BGS cuts for speed. There's a
+        # ADM full run through all classes in test_cuts_basic.
+        tc = ["ELG", "BGS"]
+
+        # ADM BACKUP targets can only run on the sweep files.
+        for filelist in self.sweepfiles:
+            # ADM limit to pixels covered in the Gaia unit test files.
+            targets = cuts.select_targets(filelist, numproc=1, tcnames=tc,
+                                          nside=self.nside, pixlist=self.pix)
+            self.assertTrue('DESI_TARGET' in targets.dtype.names)
+            self.assertTrue('BGS_TARGET' in targets.dtype.names)
+            self.assertTrue('MWS_TARGET' in targets.dtype.names)
+            self.assertEqual(len(targets), np.count_nonzero(targets['DESI_TARGET']))
+
+            bgs1 = (targets['DESI_TARGET'] & desi_mask.BGS_ANY) != 0
+            bgs2 = targets['BGS_TARGET'] != 0
+            self.assertTrue(np.all(bgs1 == bgs2))
+
     def test_targets_spatial(self):
         """Test applying RA/Dec/HEALpixel inputs to sweeps recovers same targets
         """
@@ -339,25 +379,30 @@ class TestCuts(unittest.TestCase):
         tc = ["LRG", "ELG", "BGS"]
         infiles = self.sweepfiles[2]
 
-        targets = cuts.select_targets(infiles, numproc=1, tcnames=tc)
+        # ADM set backup to False as the Gaia unit test
+        # ADM files only cover a limited pixel range.
+        targets = cuts.select_targets(infiles, numproc=1, tcnames=tc,
+                                      backup=False)
 
         # ADM test the RA/Dec box input.
         radecbox = [np.min(targets["RA"])-0.01, np.max(targets["RA"])+0.01,
                     np.min(targets["DEC"])-0.01, np.max(targets["DEC"]+0.01)]
-        t1 = cuts.select_targets(infiles, numproc=1, tcnames=tc, radecbox=radecbox)
+        t1 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
+                                 radecbox=radecbox, backup=False)
 
         # ADM test the RA/Dec/radius cap input.
         centra, centdec = 0.5*(radecbox[0]+radecbox[1]), 0.5*(radecbox[2]+radecbox[3])
         # ADM 20 degrees should be a large enough radius for the sweeps.
         maxrad = 20.
         radecrad = centra, centdec, maxrad
-        t2 = cuts.select_targets(infiles, numproc=1, tcnames=tc, radecrad=radecrad)
+        t2 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
+                                 radecrad=radecrad, backup=False)
 
         # ADM test the pixel input.
         nside = pixarea2nside(box_area(radecbox))
         pixlist = hp_in_box(nside, radecbox)
         t3 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
-                                 nside=nside, pixlist=pixlist)
+                                 nside=nside, pixlist=pixlist, backup=False)
 
         # ADM sort each set of targets on TARGETID to compare them.
         targets = targets[np.argsort(targets["TARGETID"])]
