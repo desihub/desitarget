@@ -12,10 +12,10 @@ sv1_desi_mask:
     - [LOWZ_FILLER,     7, "LRG-like low-z filler sample (will NOT also have LRG set)",  {obsconditions: DARK}]
 
     #- ADM ELG sub-classes
-    - [ELG_FDR,        8, "ELG using FDR cuts",             {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT,  9, "ELG using fainter FDR cuts",     {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE,   10, "ELG blue extension in rz color", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED,    11, "ELG red extension in rz color",  {obsconditions: DARK|GRAY}]
+    - [ELG_SV_GTOT,        8, "ELG from relaxed version of FDR cuts and g-limit",        {obsconditions: DARK|GRAY}]
+    - [ELG_SV_GFIB,        9, "ELG from relaxed version of FDR cuts and g-fiber-limit",  {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_GTOT,      10, "ELG from FDR cuts with g-mag-limit",                      {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_GFIB,      11, "ELG from FDR cuts with g-fiber-mag-limit",                {obsconditions: DARK|GRAY}]
 
     #- ADM QSO sub-classes
     - [QSO_COLOR_4PASS,   12, "Low-z (tracer) QSO using color cuts",          {obsconditions: DARK}]
@@ -38,17 +38,17 @@ sv1_desi_mask:
     - [LRG_SUPER_8PASS_SOUTH,  26, "Faint LRG that is a superset of other cuts tuned for DECam",   {obsconditions: DARK}]
     - [LOWZ_FILLER_SOUTH,      27, "LRG-like low-z filler sample tuned for DECam",                 {obsconditions: DARK}]
 
-    - [ELG_FDR_NORTH,         28, "ELG using FDR cuts tuned for Bok/Mosaic",             {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_NORTH,   29, "ELG using fainter FDR cuts tuned for Bok/Mosaic",     {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_NORTH,     30, "ELG blue extension in rz color tuned for Bok/Mosaic", {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_NORTH,      31, "ELG red extension in rz color tuned for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
+    - [ELG_SV_GTOT_NORTH,      28, "ELG from relaxed version of FDR cuts and g-limit for Bok/Mosaic",        {obsconditions: DARK|GRAY}]
+    - [ELG_SV_GFIB_NORTH,      29, "ELG from relaxed version of FDR cuts and g-fiber-limit for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_GTOT_NORTH,     30, "ELG from FDR cuts with g-mag-limit for Bok/Mosaic",                      {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_GFIB_NORTH,     31, "ELG from FDR cuts with g-fiber-mag-limit for Bok/Mosaic",                {obsconditions: DARK|GRAY}]
 
     #- ADM leave 32-37 reserved for calibration targets (to mirror the main survey)
 
-    - [ELG_FDR_SOUTH,         38, "ELG using FDR cuts tuned for DECam",                  {obsconditions: DARK|GRAY}]
-    - [ELG_FDR_FAINT_SOUTH,   39, "ELG using fainter FDR tuned for DECam",               {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_BLUE_SOUTH,     40, "ELG blue extension in rz color tuned for DECam",      {obsconditions: DARK|GRAY}]
-    - [ELG_RZ_RED_SOUTH,      41, "ELG red extension in rz color tuned for DECam",       {obsconditions: DARK|GRAY}]
+    - [ELG_SV_GTOT_SOUTH,      38, "ELG from relaxed version of FDR cuts and g-limit for DECam",        {obsconditions: DARK|GRAY}]
+    - [ELG_SV_GFIB_SOUTH,      39, "ELG from relaxed version of FDR cuts and g-fiber-limit for DECam",  {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_GTOT_SOUTH,     40, "ELG from FDR cuts with g-mag-limit for DECam",                      {obsconditions: DARK|GRAY}]
+    - [ELG_FDR_GFIB_SOUTH,     41, "ELG from FDR cuts with g-fiber-mag-limit for DECam",                {obsconditions: DARK|GRAY}]
 
     - [QSO_COLOR_4PASS_NORTH, 42, "Low-z (tracer) QSO using color cuts tuned for Bok/Mosaic",          {obsconditions: DARK}]
     - [QSO_RF_4PASS_NORTH,    43, "Low-z (tracer) QSO using random forest tuned for Bok/Mosaic",       {obsconditions: DARK}]
@@ -200,10 +200,10 @@ priorities:
         LRG_INIT_8PASS: SAME_AS_LRG
         LRG_SUPER_8PASS: SAME_AS_LRG
         LOWZ_FILLER: {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        ELG_FDR:       SAME_AS_ELG
-        ELG_FDR_FAINT: SAME_AS_ELG
-        ELG_RZ_BLUE:   SAME_AS_ELG
-        ELG_RZ_RED:    SAME_AS_ELG
+        ELG_SV_GTOT: SAME_AS_ELG
+        ELG_SV_GFIB: SAME_AS_ELG
+        ELG_FDR_GTOT: SAME_AS_ELG
+        ELG_FDR_GFIB: SAME_AS_ELG
         QSO_COLOR_4PASS: SAME_AS_QSO
         QSO_RF_4PASS:    SAME_AS_QSO
         QSO_COLOR_8PASS: SAME_AS_QSO
@@ -221,14 +221,14 @@ priorities:
         LRG_INIT_8PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
         LRG_SUPER_8PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
         LOWZ_FILLER_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_FAINT_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_RZ_BLUE_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_RZ_RED_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_FAINT_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_RZ_BLUE_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_RZ_RED_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_SV_GTOT_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_SV_GFIB_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_FDR_GTOT_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_FDR_GFIB_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_SV_GTOT_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_SV_GFIB_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_FDR_GTOT_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
+        ELG_FDR_GFIB_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_COLOR_4PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_RF_4PASS_NORTH:    SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_COLOR_8PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
@@ -322,10 +322,10 @@ numobs:
         LRG_INIT_8PASS: 8
         LRG_SUPER_8PASS: 8
         LOWZ_FILLER: 1
-        ELG_FDR:       SAME_AS_ELG
-        ELG_FDR_FAINT: SAME_AS_ELG
-        ELG_RZ_BLUE:   SAME_AS_ELG
-        ELG_RZ_RED:    SAME_AS_ELG
+        ELG_SV_GTOT: SAME_AS_ELG
+        ELG_SV_GFIB: SAME_AS_ELG
+        ELG_FDR_GTOT: SAME_AS_ELG
+        ELG_FDR_GFIB: SAME_AS_ELG
         QSO_COLOR_4PASS: 4
         QSO_RF_4PASS:    4
         QSO_COLOR_8PASS: 8
@@ -343,14 +343,14 @@ numobs:
         LRG_INIT_8PASS_SOUTH:  0
         LRG_SUPER_8PASS_SOUTH: 0
         LOWZ_FILLER_SOUTH: 0
-        ELG_FDR_NORTH:       0
-        ELG_FDR_FAINT_NORTH: 0
-        ELG_RZ_BLUE_NORTH:   0
-        ELG_RZ_RED_NORTH:    0
-        ELG_FDR_SOUTH:       0
-        ELG_FDR_FAINT_SOUTH: 0
-        ELG_RZ_BLUE_SOUTH:   0
-        ELG_RZ_RED_SOUTH:    0
+        ELG_SV_GTOT_NORTH: 0
+        ELG_SV_GFIB_NORTH: 0
+        ELG_FDR_GTOT_NORTH: 0
+        ELG_FDR_GFIB_NORTH: 0
+        ELG_SV_GTOT_SOUTH: 0
+        ELG_SV_GFIB_SOUTH: 0
+        ELG_FDR_GTOT_SOUTH: 0
+        ELG_FDR_GFIB_SOUTH: 0
         QSO_COLOR_4PASS_NORTH: 0
         QSO_RF_4PASS_NORTH:    0
         QSO_COLOR_8PASS_NORTH: 0
