@@ -133,9 +133,11 @@ class TestCuts(unittest.TestCase):
 
         elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
                           gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                           maskbits=maskbits, primary=primary)
         elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
                           gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                           maskbits=maskbits, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 

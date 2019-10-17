@@ -236,20 +236,20 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gsnr=None, rsnr=None, zsnr=None, maskbits=None, south=True,
-          primary=None):
+          gsnr=None, rsnr=None, zsnr=None, gnobs=None, rnobs=None, znobs=None,
+          maskbits=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (06/25/19) is version 180 on `the wiki`_.
+    - Current version (10/16/19) is version 202 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     elg = primary.copy()
 
     elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                         primary=primary)
+                         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
     elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                         w2flux=w2flux, south=south, primary=primary)
@@ -257,7 +257,8 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return elg
 
 
-def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
+def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
+                  gnobs=None, rnobs=None, znobs=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
@@ -267,6 +268,10 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
 
     # ADM good signal-to-noise in all bands.
     elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
+
+    # ADM observed in every band.
+    elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+
     # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
     for bit in [1, 5, 6, 7, 11, 12, 13]:
         elg &= ((maskbits & 2**bit) == 0)
@@ -1350,6 +1355,7 @@ def _prepare_optical_wise(objects, mask=True):
     zflux = flux['ZFLUX']
     w1flux = flux['W1FLUX']
     w2flux = flux['W2FLUX']
+    gfiberflux = flux['GFIBERFLUX']
     rfiberflux = flux['RFIBERFLUX']
     zfiberflux = flux['ZFIBERFLUX']
     objtype = objects['TYPE']
@@ -1402,8 +1408,8 @@ def _prepare_optical_wise(objects, mask=True):
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
-            w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,
-            gfluxivar, rfluxivar, zfluxivar,
+            w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,
+            objtype, release, gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1507,7 +1513,7 @@ def unextinct_fluxes(objects):
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
              ('W1FLUX', 'f4'), ('W2FLUX', 'f4'),
-             ('RFIBERFLUX', 'f4'), ('ZFIBERFLUX', 'f4')]
+             ('GFIBERFLUX', 'f4'), ('RFIBERFLUX', 'f4'), ('ZFIBERFLUX', 'f4')]
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
@@ -1518,6 +1524,7 @@ def unextinct_fluxes(objects):
     result['ZFLUX'] = objects['FLUX_Z'] / objects['MW_TRANSMISSION_Z']
     result['W1FLUX'] = objects['FLUX_W1'] / objects['MW_TRANSMISSION_W1']
     result['W2FLUX'] = objects['FLUX_W2'] / objects['MW_TRANSMISSION_W2']
+    result['GFIBERFLUX'] = objects['FIBERFLUX_G'] / objects['MW_TRANSMISSION_G']
     result['RFIBERFLUX'] = objects['FIBERFLUX_R'] / objects['MW_TRANSMISSION_R']
     result['ZFIBERFLUX'] = objects['FIBERFLUX_Z'] / objects['MW_TRANSMISSION_Z']
 
@@ -1529,7 +1536,7 @@ def unextinct_fluxes(objects):
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    rfiberflux, zfiberflux,
+                    gfiberflux, rfiberflux, zfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -1552,11 +1559,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     gflux, rflux, zflux, w1flux, w2flux : :class:`~numpy.ndarray`
         The flux in nano-maggies of g, r, z, W1 and W2 bands.
         Corrected for Galactic extinction.
-    rfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in r-band.
-        Corrected for Galactic extinction.
-    zfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in z-band.
+    gfiberflux, rfiberflux, zfiberflux : :class:`~numpy.ndarray`
+        Predicted fiber flux in 1 arcsecond seeing in g/r/z-band.
         Corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
@@ -1663,7 +1667,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, maskbits=maskbits, south=south
+                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
+                south=south
             )
     elg_north, elg_south = elg_classes
 
@@ -1951,8 +1957,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
-        w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,                     \
-        gfluxivar, rfluxivar, zfluxivar,                                              \
+        w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
+        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
@@ -1985,7 +1991,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
         gflux, rflux, zflux, w1flux, w2flux,
-        rfiberflux, zfiberflux,
+        gfiberflux, rfiberflux, zfiberflux,
         objtype, release, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,

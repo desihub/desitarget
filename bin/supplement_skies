@@ -27,7 +27,7 @@ ap = ArgumentParser(description='Generate supplemental sky locations using Gaia-
 ap.add_argument("dest",
                 help="Output supplemental sky targets file (e.g. /project/projectdirs/desi/target/catalogs/supp-skies-dr4-0.20.0.fits)")
 ap.add_argument("--nskiespersqdeg", type=float,
-                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 4x margin)",
+                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 16x margin)",
                 default=None)
 ap.add_argument("--numproc", type=int,
                 help="number of concurrent processes to use (defaults to [{}])".format(nproc),
@@ -76,7 +76,7 @@ if gaiadir is None:
 # ADM if needed, determine the minimum density of sky fibers to generate.
 nskiespersqdeg = ns.nskiespersqdeg
 if nskiespersqdeg is None:
-    nskiespersqdeg = density_of_sky_fibers(margin=4)
+    nskiespersqdeg = density_of_sky_fibers(margin=16)
 log.info('Generating sky positions at a density of {}'.format(nskiespersqdeg))
 
 # ADM build the list of command line arguments as
