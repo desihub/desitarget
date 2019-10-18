@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.33.2 (unreleased)
+0.33.3 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.33.2 (2019-10-17)
 -------------------
 
 * Add FIBERFLUX_IVAR_G/R/Z to mock skies when merging [`PR #556`_].
