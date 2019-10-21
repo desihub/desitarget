@@ -983,8 +983,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                                                 qso_selection='colorcuts', mockdata=mockdata)
                 log.info('{} targets written to {}'.format(ntargs, outfile))
             
+        skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
         if nsky > 0:
-            skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
             log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
             write_skies(skyfile, skytargets.as_array(), nside=nside)
         else:
