@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.33.2 (unreleased)
+0.33.3 (unreleased)
 -------------------
 
 * All-sky/backup targets, new output data model [`PR #558`_]. Includes:
@@ -11,6 +11,13 @@ desitarget Change Log
     * Write dark/bright using, e.g. `targets/dark/targets-*.fits` format.
     * New `targets/supp-targets/targets-*.fits` output.
     * Add :func:`io.find_target_files()` to parse output data model.
+
+.. _`PR #558`: https://github.com/desihub/desitarget/pull/558
+
+0.33.2 (2019-10-17)
+-------------------
+
+* Add FIBERFLUX_IVAR_G/R/Z to mock skies when merging [`PR #556`_].
 * Fix minor bugs in `select_mock_targets` [`PR #555`_].
 * Update the ELG selections for SV [`PR #553`_]. Includes:
     * Four new bit names:
@@ -29,7 +36,7 @@ desitarget Change Log
 .. _`PR #552`: https://github.com/desihub/desitarget/pull/552
 .. _`PR #553`: https://github.com/desihub/desitarget/pull/553
 .. _`PR #555`: https://github.com/desihub/desitarget/pull/555
-.. _`PR #558`: https://github.com/desihub/desitarget/pull/558
+.. _`PR #556`: https://github.com/desihub/desitarget/pull/556
 
 0.33.1 (2019-10-13)
 -------------------

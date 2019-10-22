@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget.QA import make_qa_page, _parse_tcnames
-from desitarget.io import read_targets_in_box_header
+from desitarget.io import read_targets_header
 
 from desiutil.log import get_logger
 log = get_logger()
@@ -47,7 +47,7 @@ if ns.weightmapfile is None and ns.nosystematics is False:
 
 # ADM check that the passed pixweight file corresponds to the passed target file.
 if ns.weightmapfile is not None and not ns.mocks:
-    dsurv = read_targets_in_box_header(ns.src)["SURVEY"]
+    dsurv = read_targets_header(ns.src)["SURVEY"]
     try:
         psurv = fitsio.read_header(ns.weightmapfile, "PIXWEIGHTS")["SURVEY"]
         if dsurv != psurv and 'cmx' not in dsurv:
