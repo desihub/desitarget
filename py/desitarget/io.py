@@ -1432,6 +1432,24 @@ def check_hp_target_dir(hpdirname):
     return nside[0], pixdict
 
 
+def _get_targ_dir():
+    """Convenience function to grab the TARGDIR environment variable.
+
+    Returns
+    -------
+    :class:`str`
+        The directory stored in the $GAIA_DIR environment variable.
+    """
+    # ADM check that the $GAIA_DIR environment variable is set.
+    targdir = os.environ.get('TARG_DIR')
+    if targdir is None:
+        msg = "Set $TARG_DIR environment variable!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return targdir
+
+
 def find_target_files(targdir=None, )
 
 def read_target_files(filename, columns=None, rows=None, header=False,
