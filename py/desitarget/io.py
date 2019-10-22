@@ -1450,7 +1450,99 @@ def _get_targ_dir():
     return targdir
 
 
-def find_target_files(targdir=None, )
+def find_target_files(dr, version, targdir=None, flavor="targets", survey="main",
+                      obscon=None, hp=None, resolve=True, supp=False):
+    """Build the name of an output target file (or directory).
+
+    Parameters
+    ----------
+    dr : :class:`str` or :class:`int`
+        Name of a Legacy Surveys Data Release (e.g. 8, 8b etc.)
+    version : :class:`str`
+        Release version used to make target files (e.g. 0.33.1)
+    targdir : :class:`str`, optional, defaults to :envvar:`TARG_DIR`
+        Name of the root directory that hosts output target catalogs.
+    flavor : :class:`str`, optional, defaults to `targets`
+        Options include `skies`, `gfas`, `targets`
+    survey : :class:`str`, optional, defaults to `main`
+        Options include `main`, `cmx`, `svX` (where X is 1, 2 etc.).
+        Only relevant if `flavor` is `targets`.
+    obscon : :class:`str`, optional
+        Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
+    healpixel : :class:`str` or :class:`int`, optional
+        HEALPixel numbers used to make the file (e.g. 42).
+    resolve : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then find the `resolve` file. Otherwise find the
+        `noresolve` file. Only relevant if `flavor` is `targets`.
+    supp : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then find the supplemental targets file. Overrides
+        the `obscon` option.
+
+    Returns
+    -------
+    :class:`str`
+        The name of the output target file (or directory).
+
+    Notes
+    -----
+        - If `hp` is passed, the full file name is returned. If `hp`
+          is ``None``, the directory name where all of the `hp` files
+          are stored is returned. The directory name is the expected
+          input for the `desitarget.io.read*` convenience functions
+          (:func:`desimodel.io.read_targets_in_hp()`, etc.).
+    """
+    # ADM some preliminaries for correct formatting.
+    if obscon is not None:
+        obscon = obscon.lower()
+    if targdir is None:
+        targdir = _get_targ_dir()
+    if survey not in ["main", "cmx"] and survey[:2] != "sv":
+        msg = "survey must be main, cmx or svX, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+    if flavor not in ["targets", "skies", "gfas"]:
+        msg = "flavor must be targets, skies or gfas, not {}".format(flavor)
+        log.critical(msg)
+        raise ValueError(msg)
+    res = "noresolve"
+    if resolve:
+        res = "resolve"
+
+    # ADM build up the name of the file (or directory).
+    surv = survey
+    if survey[0:2] == "sv":
+        surv = survey[0:2]
+    prefix = flavor
+    fn = os.path.join(targdir, 'dr{}'.format(dr), version, flavor)
+
+    if flavor == "targets":
+        if surv in ["cmx", "sv"]:
+            prefix = "{}-{}".format(survey, prefix)
+        if surv in ["main", "sv"]:
+            if not supp:
+                if obscon is None:
+                    msg = "obscon must be passed if flavor is {}".format(flavor)
+                    log.critical(msg)
+                    raise ValueError(msg)
+                fn = os.path.join(fn, surv, res, obscon)
+            else:
+                fn = os.path.join(fn, surv, res, "supp-targets")
+        else:
+            fn = os.path.join(fn, surv)
+            if supp:
+                fn = os.path.join(fn, "supp-targets")
+
+    if flavor == "skies":
+        if supp:
+            fn = os.path.join(fn, "supp-skies")
+
+    # ADM if a HEALPixel number was passed, we want the filename.
+    if hp is not None:
+        backend = "{}-dr{}-hp-{}.fits".format(prefix, dr, hp)
+        fn = os.path.join(fn, backend)
+
+    return fn
+
 
 def read_target_files(filename, columns=None, rows=None, header=False,
                       verbose=False):
