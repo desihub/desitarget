@@ -177,15 +177,19 @@ if ns.bundlefiles is None:
         os.makedirs(gaiadir)
     gaiadest = os.path.join(gaiadir, os.path.basename(ns.dest))
     # ADM write out bright-time and dark-time targets separately.
-    obscons = ["BRIGHT", "DARK"]
+    # ADM together with the Gaia-only back-up objects.
+    obscons = ["BRIGHT", "DARK", None]
+    iis = [~isgaia, ~isgaia, isgaia]
+    dests = [ns.dest, ns.dest, gaiadest]
     if ns.writeall:
         obscons.append(None)
-    for obscon in obscons:
-        for dest, ii in zip([ns.dest, gaiadest], [~isgaia, isgaia]):
-            ntargs, outfile = io.write_targets(
-                dest, targets[ii], indir=ns.sweepdir, indir2=ns.sweepdir2,
-                survey=survey, nsidefile=ns.nside, hpxlist=pixlist,
-                qso_selection=survey, nside=nside, obscon=obscon,
-                resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits)
-            )
-            log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))
+        iis.append(~isgaia)
+        dests.append(ns.dest)
+    for obscon, ii, dest in zip(obscons, iis, dests):
+        ntargs, outfile = io.write_targets(
+            dest, targets[ii], indir=ns.sweepdir, indir2=ns.sweepdir2,
+            survey=survey, nsidefile=ns.nside, hpxlist=pixlist,
+            qso_selection=survey, nside=nside, obscon=obscon, scndout=scndout,
+            resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits)
+        )
+        log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

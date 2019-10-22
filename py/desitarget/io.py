@@ -330,6 +330,8 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
     if not os.path.exists(newdir):
         os.mkdir(newdir)
     filename = os.path.join(newdir, os.path.basename(filename))
+    # ADM modify the filename with an obscon prefix.
+    filename = filename.replace("targets-", "targets-{}-".format(obscon.lower()))
 
     # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
     for col in "NUMOBS_INIT", "PRIORITY_INIT":
@@ -356,7 +358,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     Parameters
     ----------
     filename : :class:`str`
-        output target selection file.
+        fill path to output target selection file.
     data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
     indir, indir2, qso_selection : :class:`str`, optional, default to `None`
@@ -409,9 +411,11 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     # ADM limit to just BRIGHT or DARK targets, if requested.
     if obscon is not None:
         if mockdata is not None:
-            filename, hdr, data, mockdata = _bright_or_dark(filename, hdr, data, obscon, mockdata=mockdata)
+            filename, hdr, data, mockdata = _bright_or_dark(
+                filename, hdr, data, obscon, mockdata=mockdata)
         else:
-            filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+            filename, hdr, data = _bright_or_dark(
+                filename, hdr, data, obscon)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
@@ -1427,6 +1431,8 @@ def check_hp_target_dir(hpdirname):
 
     return nside[0], pixdict
 
+
+def find_target_files(targdir=None, )
 
 def read_target_files(filename, columns=None, rows=None, header=False,
                       verbose=False):
