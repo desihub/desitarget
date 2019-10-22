@@ -1176,7 +1176,16 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
             return None
 
         log.info('Writing {} {}'.format(outfile, ext))
-        header = fitsio.read_header(infiles[0], ext)
+        for infile in infiles:
+            try:
+                header = fitsio.read_header(infile, ext)
+            except:
+                header = None
+            if header is not None:
+                break
+
+        if header is None:
+            log.critical('Unable to read FITS header for extension {}'.format(ext))
 
         #- Use tmpout name so interupted I/O doesn't leave a corrupted file
         #- of the correct name
