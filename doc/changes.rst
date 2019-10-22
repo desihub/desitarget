@@ -5,6 +5,12 @@ desitarget Change Log
 0.33.2 (unreleased)
 -------------------
 
+* All-sky/backup targets, new output data model [`PR #558`_]. Includes:
+    * Add all-sky/backup/supplemental targets for SV.
+    * Add all-sky/backup/supplemental targets for the Main survey.
+    * Write dark/bright using, e.g. `targets/dark/targets-*.fits` format.
+    * New `targets/supp-targets/targets-*.fits` output.
+    * Add :func:`io.find_target_files()` to parse output data model.
 * Fix minor bugs in `select_mock_targets` [`PR #555`_].
 * Update the ELG selections for SV [`PR #553`_]. Includes:
     * Four new bit names:
@@ -23,6 +29,7 @@ desitarget Change Log
 .. _`PR #552`: https://github.com/desihub/desitarget/pull/552
 .. _`PR #553`: https://github.com/desihub/desitarget/pull/553
 .. _`PR #555`: https://github.com/desihub/desitarget/pull/555
+.. _`PR #558`: https://github.com/desihub/desitarget/pull/558
 
 0.33.1 (2019-10-13)
 -------------------
