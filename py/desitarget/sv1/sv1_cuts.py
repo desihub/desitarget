@@ -1660,9 +1660,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM MWS main, nearby, and WD.
     mws_target  = mws * mws_mask.MWS_MAIN_BROAD
     mws_target |= mws_faint * mws_mask.MWS_MAIN_FAINT
-    # APC Scince WDs are secondary targets now
-    # mws_target |= mws_wd * mws_mask.MWS_WD_SV
-    mws_target |= mws_nearby * mws_mask.MWS_NEARBY_SV
+    # APC Science WDs are secondary targets now
+    # mws_target |= mws_wd * mws_mask.MWS_WD
+    mws_target |= mws_nearby * mws_mask.MWS_NEARBY
 
     # ADM MWS main north/south split.
     mws_target |= mws_n * mws_mask.MWS_MAIN_BROAD_NORTH
