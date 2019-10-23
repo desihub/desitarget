@@ -38,8 +38,8 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         any more observations.  If ``False``, include every input target.
     scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
         A set of secondary targets associated with the `targets`. As with
-        the `target` must include at least ``TARGETID``, ``DESI_TARGET``,
-        ``NUMOBS_INIT``, ``PRIORITY_INIT`` or the corresponding SV columns.
+        the `target` must include at least ``TARGETID``, ``NUMOBS_INIT``,
+        ``PRIORITY_INIT`` or the corresponding SV columns.
         The secondary targets will be padded to have the same columns
         as the targets, and concatenated with them.
 
