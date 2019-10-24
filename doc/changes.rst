@@ -5,6 +5,7 @@ desitarget Change Log
 0.33.3 (unreleased)
 -------------------
 
+* Update z~5 QSO cuts in SV to include z~4.3-4.8 quasars [`PR #559`_].
 * All-sky/backup targets, new output data model [`PR #558`_]. Includes:
     * Add all-sky/backup/supplemental targets for SV.
     * Add all-sky/backup/supplemental targets for the Main survey.
@@ -13,6 +14,7 @@ desitarget Change Log
     * Add :func:`io.find_target_files()` to parse output data model.
 
 .. _`PR #558`: https://github.com/desihub/desitarget/pull/558
+.. _`PR #559`: https://github.com/desihub/desitarget/pull/559
 
 0.33.2 (2019-10-17)
 -------------------
