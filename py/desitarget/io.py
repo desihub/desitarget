@@ -1469,8 +1469,9 @@ def find_target_files(dr, version, targdir=None, flavor="targets", survey="main"
         Only relevant if `flavor` is `targets`.
     obscon : :class:`str`, optional
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
-    healpixel : :class:`str` or :class:`int`, optional
-        HEALPixel numbers used to make the file (e.g. 42).
+    hp : :class:`list` or :class:`int` or :class:`str`, optional
+        HEALPixel numbers used to make the file (e.g. 42 or [12, 37]
+        or "42" or "12,37").
     resolve : :class:`bool`, optional, defaults to ``True``
         If ``True`` then find the `resolve` file. Otherwise find the
         `noresolve` file. Only relevant if `flavor` is `targets`.
@@ -1538,7 +1539,8 @@ def find_target_files(dr, version, targdir=None, flavor="targets", survey="main"
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
-        backend = "{}-dr{}-hp-{}.fits".format(prefix, dr, hp)
+        hpstr =  ",".join([str(pix) for pix in np.atleast_1d(hp)])
+        backend = "{}-dr{}-hp-{}.fits".format(prefix, dr, hpstr)
         fn = os.path.join(fn, backend)
 
     return fn
