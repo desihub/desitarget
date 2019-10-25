@@ -349,7 +349,7 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
 
 def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
-                  survey="?", nsidefile=None, hpxlist=None, scndout=None,
+                  survey="main", nsidefile=None, hpxlist=None, scndout=None,
                   resolve=True, maskbits=True, obscon=None, mockdata=None,
                   supp=False, extra=None):
     """Write target catalogues.
