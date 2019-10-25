@@ -32,7 +32,7 @@ ap = ArgumentParser(description='Generates DESI target bits from Legacy Surveys 
 ap.add_argument("sweepdir",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest",
-                help="Output target selection file")
+                help="Output target selection directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument('-s2', "--sweepdir2",
                 help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
                 default=None)
@@ -186,25 +186,20 @@ else:
         # ADM differentiate the Gaia-only and Legacy Surveys targets.
         _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
         isgaia = gaiadr > 0
-        # ADM create gaia-only directory name, make it if it doesn't exist.
-        gaiadir = os.path.join(os.path.dirname(ns.dest), "supp-targets")
-        if not os.path.exists(gaiadir):
-            os.makedirs(gaiadir)
-        gaiadest = os.path.join(gaiadir, os.path.basename(ns.dest))
         # ADM write out bright-time and dark-time targets separately,
         # ADM together with the Gaia-only back-up objects.
         obscons = ["BRIGHT", "DARK", None]
         iis = [~isgaia, ~isgaia, isgaia]
-        dests = [ns.dest, ns.dest, gaiadest]
+        supps = [False, False, True]
         if ns.writeall:
             obscons.append(None)
             iis.append(~isgaia)
-            dests.append(ns.dest)
-        for obscon, ii, dest in zip(obscons, iis, dests):
+            supps.append(False)
+        for obscon, ii, supp in zip(obscons, iis, supps):
             ntargs, outfile = io.write_targets(
-                dest, targets[ii], resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
+                ns.dest, targets[ii], resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
                 indir=ns.sweepdir, indir2=ns.sweepdir2, obscon=obscon, scndout=scndout,
-                survey="main", nsidefile=ns.nside, hpxlist=pixlist,
+                survey="main", nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
                 qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside
             )
             log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

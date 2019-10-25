@@ -32,7 +32,7 @@ ap = ArgumentParser(description='Generates DESI SV target bits from Legacy Surve
 ap.add_argument("sweepdir",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest",
-                help="Output target selection file")
+                help="Output target selection directory (the file name is built on-the-fly from other inputs")
 ap.add_argument('-s2', "--sweepdir2",
                 help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
                 default=None)
@@ -171,24 +171,19 @@ if ns.bundlefiles is None:
     # ADM differentiate the Gaia-only and Legacy Surveys targets.
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
     isgaia = gaiadr > 0
-    # ADM create gaia-only directory name, make it if it doesn't exist.
-    gaiadir = os.path.join(os.path.dirname(ns.dest), "supp-targets")
-    if not os.path.exists(gaiadir):
-        os.makedirs(gaiadir)
-    gaiadest = os.path.join(gaiadir, os.path.basename(ns.dest))
     # ADM write out bright-time and dark-time targets separately.
     # ADM together with the Gaia-only back-up objects.
     obscons = ["BRIGHT", "DARK", None]
     iis = [~isgaia, ~isgaia, isgaia]
-    dests = [ns.dest, ns.dest, gaiadest]
+    supps = [False, False, True]
     if ns.writeall:
         obscons.append(None)
         iis.append(~isgaia)
-        dests.append(ns.dest)
-    for obscon, ii, dest in zip(obscons, iis, dests):
+        supps.append(False)
+    for obscon, ii, supp in zip(obscons, iis, supps):
         ntargs, outfile = io.write_targets(
-            dest, targets[ii], indir=ns.sweepdir, indir2=ns.sweepdir2,
-            survey=survey, nsidefile=ns.nside, hpxlist=pixlist,
+            ns.dest, targets[ii], indir=ns.sweepdir, indir2=ns.sweepdir2,
+            survey=survey, nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
             qso_selection=survey, nside=nside, obscon=obscon, scndout=scndout,
             resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits)
         )
