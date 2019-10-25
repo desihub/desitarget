@@ -10,8 +10,11 @@ desitarget Change Log
     * Add all-sky/backup/supplemental targets for SV.
     * Add all-sky/backup/supplemental targets for the Main survey.
     * Write dark/bright using, e.g. `targets/dark/targets-*.fits` format.
-    * New `targets/supp-targets/targets-*.fits` output.
+    * New `targets/targets-supp/targets-*.fits` format for output.
     * Add :func:`io.find_target_files()` to parse output data model.
+    * File names now generated automatically in `io.write_*` functions:
+        * File-name-generation used by randoms, skies, targets and gfas.
+        * `select_*` binaries for these classes use this functionality.
     * Change CMX ``BACKUP_FAINT`` limit to G < 19.
 
 .. _`PR #558`: https://github.com/desihub/desitarget/pull/558
