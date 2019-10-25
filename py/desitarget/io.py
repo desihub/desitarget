@@ -425,7 +425,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
             _, hdr, data = _bright_or_dark(
                 targdir, hdr, data, obscon)
 
-    # ADM use RELEASE to determine the release string for the input targets.
+    # ADM use RELEASE to find the release string for the input targets.
     if not supp:
         drint = np.max(data['RELEASE']//1000)
         drstring = 'dr'+str(drint)
@@ -751,7 +751,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     """
     nskies = len(data)
 
-    # ADM use RELEASE to determine the release string for the input targets.
+    # ADM use RELEASE to find the release string for the input skies.
     if not supp:
         drint = np.max(data['RELEASE']//1000)
         drstring = 'dr'+str(drint)
@@ -833,14 +833,16 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
 
     return len(data), filename
 
-def write_gfas(filename, data, indir=None, indir2=None, nside=None,
+
+def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
                nsidefile=None, hpxlist=None, extra=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
     ----------
-    filename : :class:`str`
-        Output file name.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
     indir, indir2 : :class:`str`, optional, defaults to None.
@@ -861,6 +863,13 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
     """
+    # ADM use RELEASE to find the release string for the input GFAs.
+    drint = np.max(data['RELEASE']//1000)
+    drstring = 'dr'+str(drint)
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="gfas", hp=hpxlist)
+
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
 
@@ -907,6 +916,8 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         hdr['FILEHPX'] = hpxlist
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
+
+    return len(data), filename
 
 
 def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
