@@ -27,8 +27,8 @@ from argparse import ArgumentParser
 ap = ArgumentParser(description='Generates possible DESI sky fiber locations in Legacy Survey bricks')
 ap.add_argument("surveydir", 
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC")
-ap.add_argument("dest", 
-                help="Output sky targets file (e.g. /project/projectdirs/desi/target/catalogs/skies-dr4-0.20.0.fits)")
+ap.add_argument("dest",
+                help="Output sky targets directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument('-s2', "--surveydir2",
                 help='Additional Legacy Surveys directory (useful for combining, e.g., DR8 into one file of sky locations)',
                 default=None)
@@ -136,9 +136,10 @@ else:
 
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
-    io.write_skies(ns.dest, skies, indir=ns.surveydir, indir2=ns.surveydir2,
-                   nside=nside, apertures_arcsec=apertures,
-                   nskiespersqdeg=nskiespersqdeg,
-                   nsidefile=ns.nside, hpxlist=pixlist)
+    nskies, outfile = io.write_skies(ns.dest, skies, indir=ns.surveydir,
+                                     indir2=ns.surveydir2, nside=nside,
+                                     apertures_arcsec=apertures,
+                                     nskiespersqdeg=nskiespersqdeg,
+                                     nsidefile=ns.nside, hpxlist=pixlist)
 
-    log.info('{} skies written to {}'.format(len(skies), ns.dest))
+    log.info('{} skies written to {}'.format(nskies, outfile))

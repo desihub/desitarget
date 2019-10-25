@@ -709,15 +709,16 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     return np.sum(ii), filename
 
 
-def write_skies(filename, data, indir=None, indir2=None, supp=False,
+def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
                 nsidefile=None, hpxlist=None, extra=None):
     """Write a target catalogue of sky locations.
 
     Parameters
     ----------
-    filename : :class:`str`
-        Output target selection file name
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
     indir, indir2 : :class:`str`, optional
@@ -749,6 +750,18 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
         values to the output header.
     """
     nskies = len(data)
+
+    # ADM use RELEASE to determine the release string for the input targets.
+    if not supp:
+        drint = np.max(data['RELEASE']//1000)
+        drstring = 'dr'+str(drint)
+    else:
+        drint = None
+        drstring = "supp"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="skies",
+                                 hp=hpxlist, supp=supp)
 
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
@@ -812,9 +825,13 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
 
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     fitsio.write(filename+'.tmp', data, extname='SKY_TARGETS', header=hdr, clobber=True)
     os.rename(filename+'.tmp', filename)
 
+    return len(data), filename
 
 def write_gfas(filename, data, indir=None, indir2=None, nside=None,
                nsidefile=None, hpxlist=None, extra=None):
