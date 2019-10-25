@@ -28,8 +28,8 @@ from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate pixel-level random points and associated information from a Data Release of the Legacy Surveys')
 ap.add_argument("surveydir", 
                 help='Legacy Surveys Data Release root directory (e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr4/ for DR4 at NERSC)')
-ap.add_argument("dest", 
-                help='Output file name to write random points (e.g. /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits)')
+ap.add_argument("dest",
+                help="Output directory for random catalog (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--density", type=int,
                 help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 100,000)',
                 default="100000")
@@ -107,7 +107,9 @@ randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
                          dustdir=ns.dustdir, resolverands=not(ns.noresolve))
 
 if ns.bundlebricks is None:
-    io.write_randoms(ns.dest, randoms, indir=ns.surveydir, aprad=ns.aprad,
-                     hdr=hdr, nside=nside, density=ns.density, resolve=not(ns.noresolve))
+    nrands, outfile = io.write_randoms(
+        ns.dest, randoms, indir=ns.surveydir, aprad=ns.aprad, hdr=hdr,
+        nside=nside, density=ns.density, resolve=not(ns.noresolve),
+        nsidefile=ns.nside, hpxlist=pixlist)
     log.info('wrote file of {} randoms to {}...t = {:.1f}s'
-             .format(len(randoms), ns.dest,time()-start))
+             .format(nrands, outfile, time()-start))

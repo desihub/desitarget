@@ -433,11 +433,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         drint = None
         drstring = "supp"
 
-    # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="targets",
-                                 survey=survey, obscon=obscon, hp=hpxlist,
-                                 resolve=resolve, supp=supp)
-
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
     if ntargs == 0:
@@ -506,6 +501,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     else:
         # ADM set the hp part of the output file name to "X".
         hpxlist = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                 survey=survey, obscon=obscon, hp=hpxlist,
+                                 resolve=resolve, supp=supp)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -759,10 +759,6 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         drint = None
         drstring = "supp"
 
-    # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="skies",
-                                 hp=hpxlist, supp=supp)
-
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
@@ -824,6 +820,13 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         # ADM warn if we've stored a pixel string that is too long.
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
+    else:
+        # ADM set the hp part of the output file name to "X".
+        hpxlist = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="skies",
+                                 hp=hpxlist, supp=supp)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -866,9 +869,6 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     # ADM use RELEASE to find the release string for the input GFAs.
     drint = np.max(data['RELEASE']//1000)
     drstring = 'dr'+str(drint)
-
-    # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="gfas", hp=hpxlist)
 
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
@@ -914,20 +914,31 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
         # ADM warn if we've stored a pixel string that is too long.
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
+    else:
+        # ADM set the hp part of the output file name to "X".
+        hpxlist = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="gfas", hp=hpxlist)
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
     return len(data), filename
 
 
-def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
-                  density=None, resolve=True, aprad=None, extra=None):
+def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
+                  nsidefile=None, hpxlist=None, density=None,
+                  resolve=True, aprad=None, extra=None):
     """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
     ----------
-    filename : :class:`str`
-        Output file name.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
@@ -942,6 +953,14 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
         Written to the header of the output file to indicate whether
         this is a supplemental file (i.e. random locations that are
         outside the Legacy Surveys footprint).
+    nsidefile : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
     density: :class:`int`
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
@@ -965,11 +984,13 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
             depend.setdep(hdr, 'input-random-catalog', indir)
         else:
             depend.setdep(hdr, 'input-data-release', indir)
-            # ADM note that if 'dr' is not in the indir DR
-            # ADM directory structure, garbage will
-            # ADM be rewritten gracefully in the header.
-            drstring = 'dr'+indir.split('dr')[-1][0]
+        # ADM use RELEASE to find the release string for the input randoms.
+        try:
+            drint = int(indir.split("dr")[1][0])
+            drstring = 'dr'+str(drint)
             depend.setdep(hdr, 'photcat', drstring)
+        except ValueError:
+            drint = None
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
@@ -993,7 +1014,33 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM add whether or not the randoms were resolved to the header.
     hdr["RESOLVE"] = resolve
 
+    # ADM record whether this file has been limited to only certain HEALPixels.
+    if hpxlist is not None or nsidefile is not None:
+        # ADM hpxlist and nsidefile need to be passed together.
+        if hpxlist is None or nsidefile is None:
+            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
+                .format(hpxlist, nsidefile)
+            log.critical(msg)
+            raise ValueError(msg)
+        hdr['FILENSID'] = nsidefile
+        hdr['FILENEST'] = True
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        hdr['FILEHPX'] = hpxlist
+    else:
+        # ADM set the hp part of the output file name to "X".
+        hpxlist = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="randoms",
+                                 hp=hpxlist, resolve=resolve, supp=supp)
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
+
+    return len(data), filename
 
 
 def iter_files(root, prefix, ext='fits'):
