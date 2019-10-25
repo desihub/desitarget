@@ -25,8 +25,8 @@ ap.add_argument("randomcat",
 ap.add_argument("dest",
                 help="Output directory for random catalog (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--density", type=int,
-                help='Number of points per sq. deg. to generate (defaults to 100,000)',
-                default="100000")
+                help='Number of points per sq. deg. to generate (defaults to 10,000)',
+                default="10000")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
