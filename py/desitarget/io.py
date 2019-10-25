@@ -325,10 +325,8 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         mockdata['trueflux'] = trueflux
         mockdata['objtruth'] = objtruth
 
-    # ADM create the bright or dark directory.
+    # ADM construct the name for the bright or dark directory.
     newdir = os.path.join(os.path.dirname(filename), obscon.lower())
-    if not os.path.exists(newdir):
-        os.mkdir(newdir)
     filename = os.path.join(newdir, os.path.basename(filename))
     # ADM modify the filename with an obscon prefix.
     filename = filename.replace("targets-", "targets-{}-".format(obscon.lower()))
@@ -349,16 +347,18 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         return filename, hdr, data
 
 
-def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
+def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
                   survey="?", nsidefile=None, hpxlist=None, scndout=None,
-                  resolve=True, maskbits=True, obscon=None, mockdata=None):
+                  resolve=True, maskbits=True, obscon=None, mockdata=None,
+                  supp=False, extra=None):
     """Write target catalogues.
 
     Parameters
     ----------
-    filename : :class:`str`
-        fill path to output target selection file.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
     indir, indir2, qso_selection : :class:`str`, optional, default to `None`
@@ -372,7 +372,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     nside : :class:`int`, optional, defaults to `None`
         If passed, add a column to the targets array popluated
         with HEALPixels at resolution `nside`.
-    survey : :class:`str`, optional, defaults to "?"
+    survey : :class:`str`, optional, defaults to "main"
         Written to output file header as the keyword `SURVEY`.
     nsidefile : :class:`int`, optional, defaults to `None`
         Passed to indicate in the output file header that the targets
@@ -396,6 +396,13 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     mockdata : :class:`dict`, optional, defaults to `None`
         Dictionary of mock data to write out (only used in
         `desitarget.mock.build.targets_truth` via `select_mock_targets`).
+    supp : :class:`bool`, optional, defaults to ``False``
+        Written to the header of the output file to indicate whether
+        this is a file of supplemental targets (targets that are
+        outside the Legacy Surveys footprint).
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
 
     Returns
     -------
@@ -409,22 +416,32 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     hdr = fitsio.FITSHDR()
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
+    # ADM Ignore the filename output, We'll build that on-the-fly.
     if obscon is not None:
         if mockdata is not None:
-            filename, hdr, data, mockdata = _bright_or_dark(
-                filename, hdr, data, obscon, mockdata=mockdata)
+            _, hdr, data, mockdata = _bright_or_dark(
+                targdir, hdr, data, obscon, mockdata=mockdata)
         else:
-            filename, hdr, data = _bright_or_dark(
-                filename, hdr, data, obscon)
+            _, hdr, data = _bright_or_dark(
+                targdir, hdr, data, obscon)
+
+    # ADM use RELEASE to determine the release string for the input targets.
+    if not supp:
+        drint = np.max(data['RELEASE']//1000)
+        drstring = 'dr'+str(drint)
+    else:
+        drint = None
+        drstring = "supp"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                 survey=survey, obscon=obscon, hp=hpxlist,
+                                 resolve=resolve, supp=supp)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
     if ntargs == 0:
         return ntargs, filename
-
-    # ADM use RELEASE to determine the release string for the input targets.
-    drint = np.max(data['RELEASE']//1000)
-    drstring = 'dr'+str(drint)
 
     # ADM write versions, etc. to the header.
     depend.setdep(hdr, 'desitarget', desitarget_version)
@@ -462,6 +479,13 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     hdr["RESOLVE"] = resolve
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
+    # ADM indicate whether this is a supplemental file.
+    hdr['SUPP'] = supp
+
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
 
     if scndout is not None:
         hdr["SCNDOUT"] = scndout
@@ -479,6 +503,12 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         # ADM warn if we've stored a pixel string that is too long.
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
+    else:
+        # ADM set the hp part of the output file name to "X".
+        hpxlist = "X"
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
@@ -487,7 +517,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
 
-    # Optionally wite out mock catalog data.
+    # Optionally write out mock catalog data.
     if mockdata is not None:
         truthfile = filename.replace('targets-', 'truth-')
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
@@ -649,8 +679,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     # ADM write out the file of matches for every secondary bit.
     filenam = os.path.splitext(os.path.split(filename)[1])[0]
     scxoutdir = os.path.join(scxdir, 'outdata', filenam)
-    if not os.path.exists(scxoutdir):
-        os.makedirs(scxoutdir)
+    os.makedirs(scxoutdir, exist_ok=True)
     from desitarget.targetmask import scnd_mask
     for name in scnd_mask.names():
         # ADM construct the output file name.
@@ -666,6 +695,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
             fitsio.write(scxfile, smalldata[ii][order],
                          extname='TARGETS', header=hdr, clobber=True)
 
+    # ADM make necessary directories for the file, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM release before DR1 (release < 1000).
     from desitarget.targets import decode_targetid
@@ -1450,20 +1481,18 @@ def _get_targ_dir():
     return targdir
 
 
-def find_target_files(dr, version, targdir=None, flavor="targets", survey="main",
+def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, resolve=True, supp=False):
     """Build the name of an output target file (or directory).
 
     Parameters
     ----------
-    dr : :class:`str` or :class:`int`
-        Name of a Legacy Surveys Data Release (e.g. 8, 8b etc.)
-    version : :class:`str`
-        Release version used to make target files (e.g. 0.33.1)
-    targdir : :class:`str`, optional, defaults to :envvar:`TARG_DIR`
-        Name of the root directory that hosts output target catalogs.
+    targdir : :class:`str`
+        Name of a based directory for output target catalogs.
+    dr : :class:`str` or :class:`int`, optional, defaults to "X"
+        Name of a Legacy Surveys Data Release (e.g. 8)
     flavor : :class:`str`, optional, defaults to `targets`
-        Options include `skies`, `gfas`, `targets`
+        Options include `skies`, `gfas`, `targets`, `randoms`.
     survey : :class:`str`, optional, defaults to `main`
         Options include `main`, `cmx`, `svX` (where X is 1, 2 etc.).
         Only relevant if `flavor` is `targets`.
@@ -1495,52 +1524,51 @@ def find_target_files(dr, version, targdir=None, flavor="targets", survey="main"
     # ADM some preliminaries for correct formatting.
     if obscon is not None:
         obscon = obscon.lower()
-    if targdir is None:
-        targdir = _get_targ_dir()
     if survey not in ["main", "cmx"] and survey[:2] != "sv":
         msg = "survey must be main, cmx or svX, not {}".format(survey)
         log.critical(msg)
         raise ValueError(msg)
-    if flavor not in ["targets", "skies", "gfas"]:
-        msg = "flavor must be targets, skies or gfas, not {}".format(flavor)
+    if flavor not in ["targets", "skies", "gfas", "randoms"]:
+        msg = "flavor must be targets, skies, gfas or randoms, not {}".format(
+            flavor)
         log.critical(msg)
         raise ValueError(msg)
     res = "noresolve"
     if resolve:
         res = "resolve"
+    if dr is None:
+        drstr = "drX"
+    else:
+        drstr = "dr{}".format(dr)
+    if supp:
+        drstr = "supp"
 
     # ADM build up the name of the file (or directory).
     surv = survey
     if survey[0:2] == "sv":
         surv = survey[0:2]
     prefix = flavor
-    fn = os.path.join(targdir, 'dr{}'.format(dr), version, flavor)
+    fn = os.path.join(targdir, flavor)
 
     if flavor == "targets":
         if surv in ["cmx", "sv"]:
             prefix = "{}-{}".format(survey, prefix)
         if surv in ["main", "sv"]:
-            if not supp:
-                if obscon is None:
-                    msg = "obscon must be passed if flavor is {}".format(flavor)
-                    log.critical(msg)
-                    raise ValueError(msg)
+            if not supp and obscon is not None:
                 fn = os.path.join(fn, surv, res, obscon)
-            else:
-                fn = os.path.join(fn, surv, res, "supp-targets")
+            elif obscon is None:
+                fn = os.path.join(fn, surv, res)
         else:
             fn = os.path.join(fn, surv)
-            if supp:
-                fn = os.path.join(fn, "supp-targets")
 
-    if flavor == "skies":
+    if flavor in ["skies", "targets"]:
         if supp:
-            fn = os.path.join(fn, "supp-skies")
+            fn = os.path.join(fn, "{}-supp".format(flavor))
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
-        hpstr =  ",".join([str(pix) for pix in np.atleast_1d(hp)])
-        backend = "{}-dr{}-hp-{}.fits".format(prefix, dr, hpstr)
+        hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
+        backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
         fn = os.path.join(fn, backend)
 
     return fn

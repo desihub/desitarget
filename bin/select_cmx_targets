@@ -29,7 +29,7 @@ ap = ArgumentParser(description='Generates DESI commissioning (cmx) target bits 
 ap.add_argument("sweepdir",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest", 
-                help="Output cmx target selection file")
+                help="Output target selection directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument('-s2', "--sweepdir2",
                 help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
                 default=None)
@@ -117,16 +117,11 @@ if ns.bundlefiles is None:
     # ADM write out two sets of targets. The gaia-only and the not gaia-only.
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
     isgaia = gaiadr > 0
-    # ADM create gaia-only directory name, make it if it doesn't exist.
-    gaiadir = os.path.join(os.path.dirname(ns.dest), "supp-targets")
-    if not os.path.exists(gaiadir):
-        os.makedirs(gaiadir)
-    gaiadest = os.path.join(gaiadir, os.path.basename(ns.dest))
-    for dest, ii in zip([ns.dest, gaiadest], [~isgaia, isgaia]):
+    for supp, ii in zip([False, True], [~isgaia, isgaia]):
         ntargs, filename = io.write_targets(
-            dest, targets[ii], indir=ns.sweepdir,
+            ns.dest, targets[ii], indir=ns.sweepdir,
             indir2=ns.sweepdir2, survey="cmx", nside=nside,
-            resolve=not(ns.noresolve),
+            resolve=not(ns.noresolve), supp=supp,
             nsidefile=ns.nside, hpxlist=pixlist)
         log.info('{} targets written to {}...t={:.1f}s'
                  .format(ntargs, filename, time()-start))

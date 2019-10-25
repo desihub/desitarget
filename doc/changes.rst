@@ -13,7 +13,7 @@ desitarget Change Log
     * New `targets/supp-targets/targets-*.fits` output.
     * Add :func:`io.find_target_files()` to parse output data model.
     * Change CMX ``BACKUP_FAINT`` limit to G < 19.
- 
+
 .. _`PR #558`: https://github.com/desihub/desitarget/pull/558
 .. _`PR #559`: https://github.com/desihub/desitarget/pull/559
 

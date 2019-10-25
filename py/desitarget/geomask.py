@@ -795,8 +795,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
-            print("srun -N 1 {}_{} {} {} {} --nside {} --healpixels {} &"
-                  .format(cmd, prefix2, surveydir, outfile, s2, nside, strgoodpix))
+            print("srun -N 1 {}_{} {} $CSCRATCH {} --nside {} --healpixels {} &"
+                  .format(cmd, prefix2, surveydir, s2, nside, strgoodpix))
     print("wait")
     print("")
     print("{}gather_targets '{}' $CSCRATCH/{}{}.fits {}"
