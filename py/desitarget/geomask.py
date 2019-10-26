@@ -628,7 +628,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         Also, 'supp-skies' can be passed to cover supplemental skies.
     gather : :class:`bool`, optional, defaults to ``True``
         If ``True`` then provide a final command for combining all of the HEALPix-split
-        files into one large file. If ``False``, comment out that command.
+        files into one large file. If ``False``, do not provide that command.
     surveydirs : :class:`list`
         Root directories for a Legacy Surveys Data Release. The first element of the
         list is interpreted as the main directory. IF the list is of length two
@@ -654,17 +654,18 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     if len(surveydirs) == 2:
         surveydir2 = surveydirs[1]
 
-    # ADM the number of pixels (numpix) in each pixel (pix)
+    # ADM the number of pixels (numpix) in each pixel (pix).
     pix, numpix = np.unique(pixnum, return_counts=True)
 
-    # ADM the indices needed to reverse-sort the array on number of pixels
+    # ADM the indices needed to reverse-sort the array on number of pixels,
     reverse_order = np.flipud(np.argsort(numpix))
     numpix = numpix[reverse_order]
     pix = pix[reverse_order]
 
     # ADM iteratively populate lists of the numbers of pixels
-    # ADM and the corrsponding pixel numbers
-    if prefix in ['targets', 'skies', 'randoms']:
+    # ADM and the corrsponding pixel numbers,
+    # ADM only allow true bundling for targets, skies, randoms.
+    if prefix in ['targets', 'skies', 'randoms'] or 'sv' in prefix:
         bins = []
         for index, num in enumerate(numpix):
             # Try to fit this sized number into a bin
@@ -679,7 +680,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 bin.append([num, pix[index]])
                 bins.append(bin)
         # ADM print to screen in the form of a slurm bash script, and
-        # ADM other useful information
+        # ADM other useful information.
         print("#######################################################")
         print("Numbers of bricks or files in each set of HEALPixels:")
         print("")
@@ -760,10 +761,6 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     except ValueError:
         drstr = ""
 
-    comment = '#'
-    if gather:
-        comment = ''
-
     # ADM to handle inputs that look like "sv1_targets".
     prefix2 = prefix
     if prefix[0:2] == "sv":
@@ -791,7 +788,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
             # ADM the replace is to handle inputs that look like "sv1_targets".
-            outfile = "$CSCRATCH/{}{}-hp-{}.fits".format(prefix.replace("_", "-"), drstr, strgoodpix)
+            outfile = "$CSCRATCH/{}/{}{}-hp-{}.fits".format(
+                prefix2, prefix.replace("_", "-"), drstr, strgoodpix)
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
@@ -799,9 +797,10 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                   .format(cmd, prefix2, surveydir, s2, nside, strgoodpix))
     print("wait")
     print("")
-    print("{}gather_targets '{}' $CSCRATCH/{}{}.fits {}"
-          # ADM the prefix2 manipulation is to handle inputs that look like "sv1_targets".
-          .format(comment, ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
+    if gather:
+        print("{}gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
+            # ADM prefix2 handles inputs that look like "sv1_targets".
+            ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
     print("")
 
     return
