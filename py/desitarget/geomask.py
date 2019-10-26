@@ -798,7 +798,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print("wait")
     print("")
     if gather:
-        print("{}gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
+        print("gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
             # ADM prefix2 handles inputs that look like "sv1_targets".
             ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
     print("")
