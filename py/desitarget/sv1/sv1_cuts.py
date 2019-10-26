@@ -784,7 +784,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (09/25/19) is version 101 on `the SV wiki`_.
+    - Current version (10/26/19) is version 101 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -810,7 +810,8 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     if south:
         morph2 = dcs < 0.01
     else:
-        morph2 = dcs < 0.005
+    #currently identical, but leave as a placeholder for now
+        morph2 = dcs < 0.01
     qso &= _psflike(objtype) | morph2
 
     # ADM SV cuts are different for WISE SNR.
