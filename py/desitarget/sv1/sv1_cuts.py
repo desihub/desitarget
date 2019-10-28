@@ -784,7 +784,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (10/26/19) is version 101 on `the SV wiki`_.
+    - Current version (10/24/19) is version 112 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
