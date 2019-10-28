@@ -52,6 +52,10 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     :class:`array_like`
         ``True`` if and only if the object is a very faint "BACKUP"
         target.
+
+    Notes
+    -----
+    - Current version (10/24/19) is version 114 on `the SV wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')

@@ -146,27 +146,44 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
         ``True`` if and only if the object is a bright "BACKUP" target.
     :class:`array_like`
         ``True`` if and only if the object is a faint "BACKUP" target.
+   :class:`array_like`
+        ``True`` if and only if the object is a very faint "BACKUP"
+        target.
+
+    Notes
+    -----
+    - Current version (10/24/19) is version 204 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')
 
+    # ADM restrict all classes to dec >= -30.
+    primary &= dec >= -30.
+
     isbackupbright = primary.copy()
     isbackupfaint = primary.copy()
+    isbackupveryfaint = primary.copy()
 
     # ADM determine which sources are close to the Galaxy.
     in_gal = is_in_Galaxy([ra, dec], radec=True)
 
-    # ADM bright targets are 13 < G < 16.
-    isbackupbright &= gaiagmag >= 13
+    # ADM bright targets are 8 < G < 16.
+    isbackupbright &= gaiagmag >= 8
     isbackupbright &= gaiagmag < 16
 
-    # ADM faint targets are 16 < G < 21.
+    # ADM faint targets are 16 < G < 18.                                                                                                                                                                                              
     isbackupfaint &= gaiagmag >= 16
-    isbackupfaint &= gaiagmag < 21
-    # ADM and are "far from" the Galaxy.
+    isbackupfaint &= gaiagmag < 18.
+    # ADM and are "far from" the Galaxy.                                                                                                                                                                                                
     isbackupfaint &= ~in_gal
 
-    return isbackupbright, isbackupfaint
+    # ADM very faint targets are 18. < G < 19.                                                                                                                                                                                         
+    isbackupveryfaint &= gaiagmag >= 18.
+    isbackupveryfaint &= gaiagmag < 19
+    # ADM and are "far from" the Galaxy.                                                                                                                                                                                                
+    isbackupvertfaint &= ~in_gal
+
+    return isbackupbright, isbackupfaint, isbackupveryfaint
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
