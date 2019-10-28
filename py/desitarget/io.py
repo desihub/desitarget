@@ -433,6 +433,16 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         drint = None
         drstring = "supp"
 
+    # ADM catch cases where we're writing-to-file and there's no hpxlist.
+    hpx = hpxlist
+    if hpxlist is None:
+        hpx = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                 survey=survey, obscon=obscon, hp=hpx,
+                                 resolve=resolve, supp=supp)
+
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
     if ntargs == 0:
@@ -498,14 +508,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         # ADM warn if we've stored a pixel string that is too long.
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
-    else:
-        # ADM set the hp part of the output file name to "X".
-        hpxlist = "X"
-
-    # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="targets",
-                                 survey=survey, obscon=obscon, hp=hpxlist,
-                                 resolve=resolve, supp=supp)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
