@@ -1955,19 +1955,20 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     # code or an iteration of SV.
     if survey == 'main':
         import desitarget.cuts as targcuts
-        from desitarget.targetmask import desi_mask as Mx
+        from desitarget.targetmask import mws_mask as Mx
     elif survey == 'sv1':
         import desitarget.sv1.sv1_cuts as targcuts
-        from desitarget.sv1.sv1_targetmask import desi_mask as Mx
+        from desitarget.sv1.sv1_targetmask import mws_mask as Mx
     else:
         msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
     from desitarget.gfa import all_gaia_in_tiles
-    # ADM No Gaia-only CMX target classes are fainter than G=21.
-    gaiaobjs = all_gaia_in_tiles(maglim=21, numproc=numproc, allsky=True,
-                                 mindec=-90, mingalb=0, addobjid=True,
+    # ADM No Gaia-only target classes are fainter than G of 19.
+    # ADM or are north of dec=-30.
+    gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
+                                 mindec=-30, mingalb=0, addobjid=True,
                                  nside=nside, pixlist=pixlist)
     # ADM the convenience function we use adds an empty TARGETID
     # ADM field which we need to remove before finalizing.
@@ -1981,15 +1982,16 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
 
     # ADM determine if an object is a BACKUP target.
-    backup_bright, backup_faint = targcuts.isBACKUP(
+    backup_bright, backup_faint, back_up_very_faint = targcuts.isBACKUP(
         ra=ra, dec=dec, gaiagmag=gaiagmag, primary=primary
     )
 
     # ADM Construct the target flag bits.
-    desi_target = backup_bright * Mx.BACKUP_BRIGHT
-    desi_target |= backup_faint * Mx.BACKUP_FAINT
+    mws_target = backup_bright * Mx.BACKUP_BRIGHT
+    mws_target |= backup_faint * Mx.BACKUP_FAINT
+    mws_target |= backup_very_faint * Mx.BACKUP_VERY_FAINT
 
-    return desi_target, gaiaobjs
+    return mws_target, gaiaobjs
 
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
@@ -2497,16 +2499,16 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             numproc4 = 4
 
         # ADM set the target bits that are based only on Gaia.
-        gaia_desi_target, gaiaobjs = apply_cuts_gaia(
+        gaia_mws_target, gaiaobjs = apply_cuts_gaia(
             numproc=numproc4, survey=survey, nside=nside, pixlist=pixlist)
 
         # ADM determine the Gaia Data Release.
         gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
 
         # ADM add the relevant bits and IDs to the Gaia targets.
-        # ADM first set up empty MWS and BGS columns.
-        gaia_bgs_target = np.zeros_like(gaia_desi_target)
-        gaia_mws_target = gaia_bgs_target.copy()
+        # ADM first set up empty DESI and BGS columns.
+        gaia_bgs_target = np.zeros_like(gaia_mws_target)
+        gaia_desi_target = gaia_bgs_target.copy()
         gaiatargs = _finalize_targets(
             gaiaobjs, gaia_desi_target, gaia_bgs_target, gaia_mws_target,
             gaiadr=gaiadr)
