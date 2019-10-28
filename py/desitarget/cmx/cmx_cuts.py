@@ -1080,8 +1080,8 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
     from desitarget.gfa import all_gaia_in_tiles
-    # ADM No Gaia-only CMX target classes are fainter than G=21.
-    gaiaobjs = all_gaia_in_tiles(maglim=21, numproc=numproc, allsky=True,
+    # ADM No Gaia-only CMX target classes are fainter than G=19.
+    gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
                                  mindec=-90, mingalb=0, addobjid=True,
                                  nside=nside, pixlist=pixlist)
     # ADM the convenience function we use adds an empty TARGETID
