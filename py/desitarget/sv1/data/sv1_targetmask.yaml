@@ -89,10 +89,6 @@ sv1_desi_mask:
     - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
             {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
-    # ADM back-up targets for poor conditions.
-    - [BACKUP_BRIGHT,  58, "Bright backup Gaia targets",   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,   59, "Fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-
     #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set",  {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set",  {obsconditions: BRIGHT}]
@@ -158,10 +154,15 @@ sv1_mws_mask:
     - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",       {obsconditions: BRIGHT|GRAY|DARK}]
 
+    # ADM back-up targets for poor conditions.
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
-#- ADM variable, e.g. $SECONDARY_DIR/sv1/backstop.fits for BACKSTOP targets.
+#- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.fits for VETO targets.
 sv1_scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
@@ -246,8 +247,6 @@ priorities:
         QSO_HZ_F_SOUTH:        SAME_AS_LRG_INIT_4PASS_NORTH
         QSO_Z5_SOUTH:          SAME_AS_LRG_INIT_4PASS_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
-        BACKUP_BRIGHT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
-        BACKUP_FAINT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
         STD_WD:     -1
@@ -307,6 +306,9 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_NORTH
+        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 9, OBS: 9, DONOTOBSERVE: 0}
+        BACKUP_FAINT:                 {UNOBS: 8, DONE: 8, OBS: 8, DONOTOBSERVE: 0}
+        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 7, OBS: 7, DONOTOBSERVE: 0}
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
@@ -370,8 +372,6 @@ numobs:
         QSO_HZ_F_SOUTH:        0
         QSO_Z5_SOUTH:          0
         BAD_SKY: 0
-        BACKUP_BRIGHT: 1
-        BACKUP_FAINT: 1
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1
         STD_WD:     -1
@@ -428,6 +428,9 @@ numobs:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
         MWS_MAIN_RED_NORTH:           0
         MWS_MAIN_RED_SOUTH:           0
+        BACKUP_BRIGHT:                1
+        BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
+        BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
