@@ -710,13 +710,14 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    qso1 = primary.copy()
-    qso2 = primary.copy()
-    qso3 = primary.copy()
-    qso4 = primary.copy()
-    qso5 = primary.copy()
 
-    qso1 = isQSO_cuts(
+    qsocolor_north = primary.copy()
+    qsorf_north = primary.copy()
+    qsohizf_north = primary.copy()
+    qsocolor_high_z_north = primary.copy()
+    qsoz5_north = primary.copy()
+
+    qsocolor_north = isQSO_cuts(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         w1flux=w1flux, w2flux=w2flux,
         dchisq=dchisq, maskbits=maskbits,
@@ -724,26 +725,26 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         south=False
         )
 
-    qso2 = isQSO_randomforest(
+    qsorf_north = isQSO_randomforest(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         w1flux=w1flux, w2flux=w2flux,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, south=False
         )
 
-    qso3 = isQSO_highz_faint(
+    qsohizf_north = isQSO_highz_faint(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         w1flux=w1flux, w2flux=w2flux,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, south=False
         )
 
-    qso4 = isQSO_color_high_z(
+    qsocolor_high_z_north = isQSO_color_high_z(
         gflux=gflux, rflux=rflux, zflux=zflux,
         w1flux=w1flux, w2flux=w2flux, south=False
         )
 
-    qso5 = isQSOz5_cuts(
+    qsoz5_north = isQSOz5_cuts(
         primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
         gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
         w1flux=w1flux, w2flux=w2flux, w1snr=w1snr, w2snr=w2snr,
@@ -751,7 +752,14 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         south=False
         )
 
-    return qso1 | qso2 | qso3 | qso4 | qso5
+    qsocolor_highz_north = (qsocolor_north & qsocolor_high_z_north)
+    qsorf_highz_north = (qsorf_north & qsocolor_high_z_north)
+    qsocolor_lowz_north = (qsocolor_north & ~qsocolor_high_z_north)
+    qsorf_lowz_north = (qsorf_north & ~qsocolor_high_z_north)
+    qso_north = (qsocolor_lowz_north | qsorf_lowz_north | qsocolor_highz_north
+                 | qsorf_highz_north | qsohizf_north | qsoz5_north)
+
+    return qso_north
 
 
 def isQSO_cuts(gflux=None, rflux=None, zflux=None,
