@@ -189,7 +189,7 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    sv0_bgs = primary.copy()
+    sv0_bgs = np.zeros_like(rflux, dtype='?')
 
     for targtype in ["bright", "faint", "faint_ext", "lowq", "fibmag"]:
         bgs = isBGS(
@@ -710,12 +710,6 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-
-    qsocolor_north = primary.copy()
-    qsorf_north = primary.copy()
-    qsohizf_north = primary.copy()
-    qsocolor_high_z_north = primary.copy()
-    qsoz5_north = primary.copy()
 
     qsocolor_north = isQSO_cuts(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
