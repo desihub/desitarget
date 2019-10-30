@@ -664,8 +664,9 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM release before DR1 (release < 1000).
     from desitarget.targets import decode_targetid
-    objid, brickid, release, mock, sky = decode_targetid(data["TARGETID"])
+    objid, brickid, release, mock, sky, gaiadr = decode_targetid(data["TARGETID"])
     ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
+    log.info('Writing {} standalone secondaries'.format(ii.sum()))
     # ADM ...write them out.
     fitsio.write(filename, data[ii],
                  extname='SCND_TARGETS', header=hdr, clobber=True)
