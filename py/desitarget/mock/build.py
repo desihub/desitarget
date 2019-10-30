@@ -968,10 +968,12 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         nobj, nsky = len(targets), len(skytargets)
         if nobj > 0:
             for obscon in ['BRIGHT', 'DARK']:
+                # Do *not* pass obscon to mockio.findfile here because the
+                # subdirectory gets appended in io.write_targets!
                 targetsfile = mockio.findfile('targets',
-                        nside, healpix, obscon=obscon, basedir=output_dir)
+                        nside, healpix, obscon=None, basedir=output_dir)
                 truthfile = mockio.findfile('truth',
-                        nside, healpix, obscon=obscon, basedir=output_dir)
+                        nside, healpix, obscon=None, basedir=output_dir)
                 mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
                             'truewave': MakeMock.wave, 'trueflux': trueflux,
                             'truthfile': truthfile}
@@ -1174,7 +1176,16 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
             return None
 
         log.info('Writing {} {}'.format(outfile, ext))
-        header = fitsio.read_header(infiles[0], ext)
+        for infile in infiles:
+            try:
+                header = fitsio.read_header(infile, ext)
+            except:
+                header = None
+            if header is not None:
+                break
+
+        if header is None:
+            log.critical('Unable to read FITS header for extension {}'.format(ext))
 
         #- Use tmpout name so interupted I/O doesn't leave a corrupted file
         #- of the correct name
@@ -1252,7 +1263,12 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
     if todo['sky']:
         _merge_file_tables(mockdir+'/*/*/sky-*.fits', 'SKY_TARGETS',
                            outfile=outdir+'/sky.fits', comm=comm,
-                           overwrite=overwrite)
+                           overwrite=overwrite,
+                           addcols=dict(
+                               FIBERFLUX_IVAR_G=300.0,
+                               FIBERFLUX_IVAR_R=900.0,
+                               FIBERFLUX_IVAR_Z=130.0)
+                           )
                            #addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
         
     for obscon in ('bright', 'dark'):
@@ -1269,7 +1285,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             # append, not overwrite other per-subclass truth tables
             for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
                 extname = 'TRUTH_' + templatetype
-                _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits', extname,
+                _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), extname,
                                    overwrite=False,
                                    outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
 

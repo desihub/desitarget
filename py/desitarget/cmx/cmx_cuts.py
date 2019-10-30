@@ -944,9 +944,9 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     isbackupbright &= gaiagmag >= 13
     isbackupbright &= gaiagmag < 16
 
-    # ADM faint targets are 16 < G < 18.
+    # ADM faint targets are 16 < G < 21.
     isbackupfaint &= gaiagmag >= 16
-    isbackupfaint &= gaiagmag < 18
+    isbackupfaint &= gaiagmag < 21
     # ADM and are "far from" the Galaxy.
     isbackupfaint &= ~in_gal
 
@@ -983,7 +983,7 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
 
     cmx_target = []
     flout = []
-    for filenum, prog in enumerate(["M31", "ORI", "ROS"]):
+    for filenum, prog in enumerate(["M31", "ORI", "ROS", "M33"]):
         cmxfile = os.path.join(cmxdir, "{}-targets.fits".format(prog))
         flobjsin = fitsio.read(cmxfile)
 
@@ -1163,8 +1163,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     colnames = _get_colnames(objects)
 
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
-        w1flux, w2flux, rfiberflux, zfiberflux, objtype, release,                     \
-        gfluxivar, rfluxivar, zfluxivar,                                              \
+        w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
+        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
