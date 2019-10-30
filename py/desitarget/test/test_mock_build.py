@@ -41,28 +41,32 @@ class TestMockBuild(unittest.TestCase):
 
         #- Test without spectra
         targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=True)
-        targetfile = self.outdir + '/997/99737/targets-256-99737.fits'
-        truthfile = self.outdir + '/997/99737/truth-256-99737.fits'
-        self.assertTrue(os.path.exists(targetfile))
-        self.assertTrue(os.path.exists(truthfile))
+        for obscon in ['bright', 'dark']:
+            targetfile = self.outdir + '/997/99737/' + obscon + '/targets-256-99737.fits'
+            truthfile = self.outdir + '/997/99737/' + obscon + '/truth-256-99737.fits'
+            self.assertTrue(os.path.exists(targetfile))
+            self.assertTrue(os.path.exists(truthfile))
 
-        with fitsio.FITS(truthfile) as fx:
-            self.assertTrue('TRUTH' in fx)
-            #- WAVE is there, and FLUX is there but with strange shape (n,0)
-            # self.assertTrue('WAVE' not in fx)
-            # self.assertTrue('FLUX' not in fx)
+            with fitsio.FITS(truthfile) as fx:
+                self.assertTrue('TRUTH' in fx)
+                #- WAVE is there, and FLUX is there but with strange shape (n,0)
+                self.assertTrue('WAVE' not in fx)
+                self.assertTrue('FLUX' not in fx)
 
         #- Test with spectra
         shutil.rmtree(self.outdir+'/997')
 
         targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=False)
-        self.assertTrue(os.path.exists(targetfile))
-        self.assertTrue(os.path.exists(truthfile))
+        for obscon in ['bright', 'dark']:
+            targetfile = self.outdir + '/997/99737/' + obscon + '/targets-256-99737.fits'
+            truthfile = self.outdir + '/997/99737/' + obscon + '/truth-256-99737.fits'
+            self.assertTrue(os.path.exists(targetfile))
+            self.assertTrue(os.path.exists(truthfile))
 
-        with fitsio.FITS(truthfile) as fx:
-            self.assertTrue('TRUTH' in fx)
-            self.assertTrue('WAVE' in fx)
-            self.assertTrue('FLUX' in fx)
+            with fitsio.FITS(truthfile) as fx:
+                self.assertTrue('TRUTH' in fx)
+                self.assertTrue('WAVE' in fx)
+                self.assertTrue('FLUX' in fx)
 
     @unittest.skip('This test is deprecated, so skip for now.')
     def test_shapes_and_fluxes(self):

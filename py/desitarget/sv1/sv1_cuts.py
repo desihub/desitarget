@@ -56,7 +56,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     Notes
     -----
-    - Current version (09/09/19) is version 92 on `the SV wiki`_.
+    - Current version (10/14/19) is version 104 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets.
@@ -134,7 +134,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
         # LRG_SUPER: SV superset:
         lrgsuper &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.8    # non-stellar cut
-        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.6)        # faint limit
+        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.9)        # faint limit
         lrgsuper &= rmag - zmag > 0.6                         # remove outliers
         lrg_opt = (gmag - w1mag > 2.5) & (gmag - rmag > 1.3)  # low-z cut
         lrg_opt |= rmag - w1mag > 1.7                         # ignore low-z cut for faint objects
@@ -147,12 +147,11 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg_opt_highz &= ((zmag - 23.15) / 1.3)**2 + (rmag - zmag + 2.5)**2 > 4.485**2
         lrg_opt &= lrg_opt_lowz | lrg_opt_highz
         lrg_ir = rmag - w1mag > 1.0                           # Low-z cut
-        # straight cut for low-z:
-        lrg_ir_lowz = w1mag < 18.96
-        lrg_ir_lowz &= rmag - w1mag > (w1mag - 17.46) * 1.8   # sliding IR cut
-        # curved sliding cut:
-        lrg_ir_highz = w1mag >= 18.96
-        lrg_ir_highz &= (w1mag - 21.65)**2 + ((rmag - w1mag + 0.66) / 1.5)**2 > 3.5**2
+        # low-z sliding cut:
+        lrg_ir_lowz = (w1mag < 18.96) & (rmag - w1mag > (w1mag - 17.46) * 1.8)
+        # high-z sliding cut:
+        lrg_ir_highz = (w1mag >= 18.96) & ((w1mag - 21.65)**2 + ((rmag - w1mag + 0.66) / 1.5)**2 > 3.5**2)
+        lrg_ir_highz |= (w1mag >= 18.96) & (rmag - w1mag > 3.1)
         lrg_ir &= lrg_ir_lowz | lrg_ir_highz
         lrgsuper &= lrg_opt | lrg_ir
 
@@ -173,7 +172,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
         # LRG_SUPER: SV superset:
         lrgsuper &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.85     # non-stellar cut
-        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.6)          # faint limit
+        lrgsuper &= (zmag < 20.5) | (zfibermag < 21.9)          # faint limit
         lrgsuper &= rmag - zmag > 0.6                           # remove outliers
         lrg_opt = (gmag - w1mag > 2.57) & (gmag - rmag > 1.35)  # low-z cut
         lrg_opt |= rmag - w1mag > 1.75                          # ignore low-z cut for faint objects
@@ -186,12 +185,11 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg_opt_highz &= ((zmag - 23.175) / 1.3)**2 + (rmag - zmag + 2.43)**2 > 4.485**2
         lrg_opt &= lrg_opt_lowz | lrg_opt_highz
         lrg_ir = rmag - w1mag > 1.05                            # Low-z cut
-        # straight cut for low-z:
-        lrg_ir_lowz = w1mag < 18.94
-        lrg_ir_lowz &= rmag - w1mag > (w1mag - 17.43) * 1.8     # sliding IR cut
-        # curved sliding cut:
-        lrg_ir_highz = w1mag >= 18.94
-        lrg_ir_highz &= (w1mag - 21.63)**2 + ((rmag - w1mag + 0.65) / 1.5)**2 > 3.5**2
+        # low-z sliding cut:
+        lrg_ir_lowz = (w1mag < 18.94) & (rmag - w1mag > (w1mag - 17.43) * 1.8)
+        # high-z sliding cut:
+        lrg_ir_highz = (w1mag >= 18.94) & ((w1mag - 21.63)**2 + ((rmag - w1mag + 0.65) / 1.5)**2 > 3.5**2)
+        lrg_ir_highz |= (w1mag >= 18.94) & (rmag - w1mag > 3.1)
         lrg_ir &= lrg_ir_lowz | lrg_ir_highz
         lrgsuper &= lrg_opt | lrg_ir
 
@@ -421,7 +419,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (06/05/19) is version 68 on `the SV wiki`_.
+    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -564,7 +562,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (06/05/19) is version 68 on `the SV wiki`_.
+    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -677,7 +675,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
     Notes
     -----
-    - Current version (04/05/19) is version 64 on `the SV wiki`_.
+    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -786,7 +784,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (09/05/19) is version 93 on `the SV wiki`_.
+    - Current version (10/26/19) is version 101 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -812,7 +810,8 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     if south:
         morph2 = dcs < 0.01
     else:
-        morph2 = dcs < 0.005
+    #currently identical, but leave as a placeholder for now
+        morph2 = dcs < 0.01
     qso &= _psflike(objtype) | morph2
 
     # ADM SV cuts are different for WISE SNR.
@@ -862,9 +861,9 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     # zw1w2 cuts: SNz > 5
     # & w1-w2 > 0.5 & z- w1 < 4.5 & z-w1 > 2.0  (W1, W2 in Vega).
     qso &= zsnr > 5
-    qso &= w2flux > 10**(-0.14/2.5) * w1flux  # w1-w2 > -0.14 in AB magnitude
-    qso &= ((w1flux < 10**((4.5-2.699)/2.5) * zflux) &
-            (w1flux > 10**((2.0-2.699)/2.5) * zflux))
+    
+    qsoz5 = qso & (w2flux > 10**(-0.14/2.5) * w1flux) # w1-w2 > -0.14 in AB magnitude
+    qsoz5 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.0-2.699)/2.5) * zflux)
 
     # rzW1 cuts: (SNr < 3 |
     # (r-z < 3.2*(z-w1) - 6.5 & r-z > 1.0 & r-z < 3.9) | r-z > 4.4).
@@ -883,7 +882,16 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
         )
         rzcut = zflux > 10**(4.4/2.5) * rflux
 
-    qso &= SNRr | rzw1cut | rzcut
+    qsoz5 &= SNRr | rzw1cut | rzcut
+    
+    # additional cuts for z~ 4.3-4.8 quasar
+    # & w1-w2 > 0.3 & z-w1 < 4.5 & z-w1 > 2.5 & SNr > 3 & r-z > -1.0 & r-z < 1.5, W1,W2 in Vega
+    qsoz45 = qso & (w2flux > 10**(-0.34/2.5) * w1flux) #W1,W2 in AB
+    qsoz45 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.5-2.699)/2.5) * zflux)
+    qsoz45 &= rsnr > 3
+    qsoz45 &= (zflux > 10**(-1.0/2.5) * rflux) & (zflux < 10**(1.5/2.5) * rflux)
+
+    qso &= qsoz5 | qsoz45
 
     return qso
 
@@ -914,7 +922,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, rfiberfl
 
     Notes
     -----
-    - Current version (02/06/19) is version 36 on `the SV wiki`_.
+    - Current version (10/14/19) is version 105 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype_sv(targtype)
@@ -998,6 +1006,7 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
     elif targtype == 'faint_ext':
         bgs &= rflux > 10**((22.5-20.5)/2.5)
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
+        bgs &= ~np.logical_and(rflux <= 10**((22.5-20.1)/2.5), rfiberflux > 10**((22.5-21.0511)/2.5))
     elif targtype == 'fibmag':
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
         bgs &= rfiberflux > 10**((22.5-21.0511)/2.5)
@@ -1008,8 +1017,9 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gsnr=None, rsnr=None, zsnr=None, maskbits=None, south=True,
-          primary=None):
+          gsnr=None, rsnr=None, zsnr=None, gfiberflux=None,
+          gnobs=None, rnobs=None, znobs=None,
+          maskbits=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
 
     Parameters
@@ -1025,7 +1035,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/19/19) is version 76 on `the SV wiki`_.
+    - Current version (10/14/19) is version 107 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -1033,15 +1043,18 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     elg = primary.copy()
 
     elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                         primary=primary)
+                         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
-    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                        w2flux=w2flux, south=south, primary=primary)
+    svgtot, svgfib, fdrgtot, fdrgfib = isELG_colors(
+        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+        gfiberflux=gfiberflux, south=south, primary=elg
+    )
 
-    return elg
+    return svgtot, svgfib, fdrgtot, fdrgfib
 
 
-def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
+def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
+                  gnobs=None, rnobs=None, znobs=None, primary=None):
     """Standard set of masking cuts used by all ELG target selection classes.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
@@ -1051,6 +1064,10 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
 
     # ADM good signal-to-noise in all bands.
     elg &= (gsnr > 0) & (rsnr > 0) & (zsnr > 0)
+
+    # ADM observed in every band.
+    elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+
     # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
     for bit in [1, 5, 6, 7, 11, 12, 13]:
         elg &= ((maskbits & 2**bit) == 0)
@@ -1058,8 +1075,8 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None, primary=None):
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, south=True, primary=None):
+def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 gfiberflux=None, primary=None, south=True):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`desitarget.cuts.set_target_bits` for parameters).
     """
@@ -1067,29 +1084,60 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     elg = primary.copy()
 
-    # ADM work in magnitudes instead of fluxes. NOTE THIS IS ONLY OK AS
-    # ADM the snr masking in ALL OF g, r AND z ENSURES positive fluxes.
+    # ADM some cuts specific to north or south
+    if south:
+        gtotfaint_fdr = 23.5
+        gfibfaint_fdr = 24.1
+        lowzcut_zp = -0.15
+    else:
+        gtotfaint_fdr = 23.6
+        gfibfaint_fdr = 24.2
+        lowzcut_zp = -0.35
+
+    # ADM work in magnitudes not fluxes. THIS IS ONLY OK AS the snr cuts
+    # ADM in notinELG_mask ENSURE positive fluxes in all of g, r and z.
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
-    # ADM this is a color defined perpendicularly to the negative slope
-    # ADM cut; coii thus follows the OII flux gradient.
-    coii = (g - r) + 1.2*(r - z)
 
-    # ADM cuts shared by the northern and southern selections.
-    elg &= g > 20                       # bright cut.
-    elg &= r - z > -1.0                 # blue cut.
-    elg &= g - r < -1.2*(r - z) + 2.5   # OII flux cut.
+    # ADM gfiberflux can be zero but is never negative. So this is safe.
+    gfib = 22.5 - 2.5*np.log10(gfiberflux.clip(1e-16))
 
-    # ADM cuts that are unique to the north or south.
-    if south:
-        elg &= (g - r < 0.2) | (g - r < 1.15*(r - z) - 0.15)  # remove stars and low-z galaxies.
-        elg &= coii < 1.6 - 7.2*(g - 23.5)  # sliding cut.
-    else:
-        elg &= (g - r < 0.2) | (g - r < 1.15*(r - z) - 0.35)  # remove stars and low-z galaxies.
-        elg &= coii < 1.6 - 7.2*(g - 23.6)  # sliding cut.
+    # ADM these are safe as the snr cuts in notinELG_mask ENSURE positive
+    # ADM fluxes in all of g, r and z...so things near colors of zero but
+    # ADM that actually have negative fluxes will never be targeted.
+    rz = r - z
+    gr = g - r
 
-    return elg
+    # ADM all classes have g > 20.
+    elg &= g >= 20
+
+    # ADM parent classes for SV (relaxed) and FDR cuts.
+    sv, fdr = elg.copy(), elg.copy()
+
+    # ADM create the SV classes.
+    sv &= rz > -1.           # blue cut.
+    sv &= gr < -1.2*rz+2.5   # OII cut.
+    sv &= (gr < 0.2) | (gr < 1.15*rz + lowzcut_zp)   # star/lowz cut.
+
+    # ADM gfib/g split for SV-like classes.
+    svgtot, svgfib = sv.copy(), sv.copy()
+    coii = gr + 1.2*rz  # color defined perpendicularly to the -ve slope cut.
+    svgtot &= coii < 1.6 - 7.2*(g-gtotfaint_fdr)     # sliding cut.
+    svgfib &= coii < 1.6 - 7.2*(gfib-gfibfaint_fdr)  # sliding cut.
+
+    # ADM create the FDR classes.
+    fdr &= (rz > 0.3)                 # rz cut.
+    fdr &= (rz < 1.6)                 # rz cut.
+    fdr &= gr < -1.20*rz + 1.6        # OII cut.
+    fdr &= gr < 1.15*rz + lowzcut_zp  # star/lowz cut.
+
+    # ADM gfib/g split for FDR-like classes.
+    fdrgtot, fdrgfib = fdr.copy(), fdr.copy()
+    fdrgtot &= g < gtotfaint_fdr      # faint cut.
+    fdrgfib &= gfib < gfibfaint_fdr   # faint cut.
+
+    return svgtot, svgfib, fdrgtot, fdrgfib
 
 
 def isMWS_main_sv(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1322,7 +1370,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    rfiberflux, zfiberflux,
+                    gfiberflux, rfiberflux, zfiberflux,
                     objtype, release, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -1395,17 +1443,28 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    elg_classes = [~primary, ~primary]
+    elg_classes = [[~primary, ~primary, ~primary, ~primary],
+                   [~primary, ~primary, ~primary, ~primary]]
     if "ELG" in tcnames:
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, maskbits=maskbits, south=south
+                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, gfiberflux=gfiberflux,
+                gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
+                south=south
             )
-    elg_north, elg_south = elg_classes
+
+    elgsvgtot_n, elgsvgfib_n, elgfdrgtot_n, elgfdrgfib_n = elg_classes[0]
+    elgsvgtot_s, elgsvgfib_s, elgfdrgtot_s, elgfdrgfib_s = elg_classes[1]
 
     # ADM combine ELG target bits for an ELG target based on any imaging.
-    elg = (elg_north & photsys_north) | (elg_south & photsys_south)
+    elg_n = elgsvgtot_n | elgsvgfib_n | elgfdrgtot_n | elgfdrgfib_n
+    elg_s = elgsvgtot_s | elgsvgfib_s | elgfdrgtot_s | elgfdrgfib_s
+    elg = (elg_n & photsys_north) | (elg_s & photsys_south)
+    elgsvgtot = (elgsvgtot_n & photsys_north) | (elgsvgtot_s & photsys_south)
+    elgsvgfib = (elgsvgfib_n & photsys_north) | (elgsvgfib_s & photsys_south)
+    elgfdrgtot = (elgfdrgtot_n & photsys_north) | (elgfdrgtot_s & photsys_south)
+    elgfdrgfib = (elgfdrgfib_n & photsys_north) | (elgfdrgfib_s & photsys_south)
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -1595,6 +1654,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrginit_s_8 * desi_mask.LRG_INIT_8PASS_SOUTH
     desi_target |= lrgsup_s_8 * desi_mask.LRG_SUPER_8PASS_SOUTH
     desi_target |= filler_s * desi_mask.LOWZ_FILLER_SOUTH
+    # ADM ...and ELGs...
+    desi_target |= elgsvgtot_s * desi_mask.ELG_SV_GTOT_SOUTH
+    desi_target |= elgsvgfib_s * desi_mask.ELG_SV_GFIB_SOUTH
+    desi_target |= elgfdrgtot_s * desi_mask.ELG_FDR_GTOT_SOUTH
+    desi_target |= elgfdrgfib_s * desi_mask.ELG_FDR_GFIB_SOUTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_south * desi_mask.QSO_COLOR_4PASS_SOUTH
     desi_target |= qsorf_lowz_south * desi_mask.QSO_RF_4PASS_SOUTH
@@ -1609,6 +1673,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrginit_n_8 * desi_mask.LRG_INIT_8PASS_NORTH
     desi_target |= lrgsup_n_8 * desi_mask.LRG_SUPER_8PASS_NORTH
     desi_target |= filler_n * desi_mask.LOWZ_FILLER_NORTH
+    # ADM ...and ELGs...
+    desi_target |= elgsvgtot_n * desi_mask.ELG_SV_GTOT_NORTH
+    desi_target |= elgsvgfib_n * desi_mask.ELG_SV_GFIB_NORTH
+    desi_target |= elgfdrgtot_n * desi_mask.ELG_FDR_GTOT_NORTH
+    desi_target |= elgfdrgfib_n * desi_mask.ELG_FDR_GFIB_NORTH
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz_north * desi_mask.QSO_COLOR_4PASS_NORTH
     desi_target |= qsorf_lowz_north * desi_mask.QSO_RF_4PASS_NORTH
@@ -1623,6 +1692,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrginit_8 * desi_mask.LRG_INIT_8PASS
     desi_target |= lrgsup_8 * desi_mask.LRG_SUPER_8PASS
     desi_target |= filler * desi_mask.LOWZ_FILLER
+    # ADM ...and ELGs...
+    desi_target |= elgsvgtot * desi_mask.ELG_SV_GTOT
+    desi_target |= elgsvgfib * desi_mask.ELG_SV_GFIB
+    desi_target |= elgfdrgtot * desi_mask.ELG_FDR_GTOT
+    desi_target |= elgfdrgfib * desi_mask.ELG_FDR_GFIB
     # ADM ...and QSOs.
     desi_target |= qsocolor_lowz * desi_mask.QSO_COLOR_4PASS
     desi_target |= qsorf_lowz * desi_mask.QSO_RF_4PASS

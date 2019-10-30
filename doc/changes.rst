@@ -2,10 +2,47 @@
 desitarget Change Log
 =====================
 
-0.33.1 (unreleased)
+0.33.3 (unreleased)
 -------------------
 
 * No changes yet.
+
+0.33.2 (2019-10-17)
+-------------------
+
+* Add FIBERFLUX_IVAR_G/R/Z to mock skies when merging [`PR #556`_].
+* Fix minor bugs in `select_mock_targets` [`PR #555`_].
+* Update the ELG selections for SV [`PR #553`_]. Includes:
+    * Four new bit names:
+        * ``ELG_SV_GTOT``, ``ELG_SV_GFIB``.
+	* ``ELG_FDR_GTOT``, ``ELG_FDR_GFIB``.
+    * Associated new ELG selections with north/south differences.
+    * Propagate ``FIBERFLUX_G`` from the sweeps for SV ELG cuts.
+    * Increase the default sky densities by a factor of 4x.
+    * Relax CMX ``BACKUP_FAINT`` limit to G < 21 to test fiber assign.
+* Bright-end ``FIBERFLUX_R`` cut on ``BGS_FAINT_EXT`` in SV [`PR #552`_].
+* Update LRG selections for SV [`PR #550`_]. Includes:
+    * The zfibermag faint limit is changed from 21.6 to 21.9.
+    * IR-selected objects with r-W1>3.1 not subjected to the sliding cut.
+
+.. _`PR #550`: https://github.com/desihub/desitarget/pull/550
+.. _`PR #552`: https://github.com/desihub/desitarget/pull/552
+.. _`PR #553`: https://github.com/desihub/desitarget/pull/553
+.. _`PR #555`: https://github.com/desihub/desitarget/pull/555
+.. _`PR #556`: https://github.com/desihub/desitarget/pull/556
+
+0.33.1 (2019-10-13)
+-------------------
+
+* Enhancements and on-sky clean-up for SV and CMX [`PR #551`_]. Includes:
+    * Add areas contingent on ``MASKBITS`` to the ``pixweight-`` files.
+    * Change ``APFLUX`` to ``FIBERFLUX`` for skies and supp-skies.
+    * Add new M33 First Light program.
+    * Change priorities for the First Light programs.
+    * Retain Tycho, and sources with no measured proper motion, in GFAs.
+    * Add the ``REF_EPOCH`` column to all target files.
+
+.. _`PR #551`: https://github.com/desihub/desitarget/pull/551
 
 0.33.0 (2019-10-06)
 -------------------
