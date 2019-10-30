@@ -68,7 +68,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
             padit[col] = scnd[col]
         targets = np.concatenate([targets, padit])
         # APC Propagate a flag on which targets came from scnd
-        is_scnd = np.repeat(False,len(targets))
+        is_scnd = np.repeat(False, len(targets))
         is_scnd[-nrows:] = True
         log.info('Done with padding...t={:.1f}s'.format(time()-start))
 
@@ -167,7 +167,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # APC obsconmask will now be incorrect for secondary-only targets. Fix this
     # APC using the mask on secondary targets.
     if scnd is not None:
-        obsconmask[is_scnd] = set_obsconditions(targets[is_scnd],scnd=True)
+        obsconmask[is_scnd] = set_obsconditions(targets[is_scnd], scnd=True)
 
     # ADM set up the output mtl table.
     mtl = Table(targets)

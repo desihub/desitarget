@@ -810,7 +810,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     if south:
         morph2 = dcs < 0.01
     else:
-    #currently identical, but leave as a placeholder for now
+        # currently identical, but leave as a placeholder for now
         morph2 = dcs < 0.01
     qso &= _psflike(objtype) | morph2
 
@@ -861,8 +861,8 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     # zw1w2 cuts: SNz > 5
     # & w1-w2 > 0.5 & z- w1 < 4.5 & z-w1 > 2.0  (W1, W2 in Vega).
     qso &= zsnr > 5
-    
-    qsoz5 = qso & (w2flux > 10**(-0.14/2.5) * w1flux) # w1-w2 > -0.14 in AB magnitude
+
+    qsoz5 = qso & (w2flux > 10**(-0.14/2.5) * w1flux)  # w1-w2 > -0.14 in AB magnitude
     qsoz5 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.0-2.699)/2.5) * zflux)
 
     # rzW1 cuts: (SNr < 3 |
@@ -883,10 +883,10 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
         rzcut = zflux > 10**(4.4/2.5) * rflux
 
     qsoz5 &= SNRr | rzw1cut | rzcut
-    
+
     # additional cuts for z~ 4.3-4.8 quasar
     # & w1-w2 > 0.3 & z-w1 < 4.5 & z-w1 > 2.5 & SNr > 3 & r-z > -1.0 & r-z < 1.5, W1,W2 in Vega
-    qsoz45 = qso & (w2flux > 10**(-0.34/2.5) * w1flux) #W1,W2 in AB
+    qsoz45 = qso & (w2flux > 10**(-0.34/2.5) * w1flux)  # W1,W2 in AB
     qsoz45 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.5-2.699)/2.5) * zflux)
     qsoz45 &= rsnr > 3
     qsoz45 &= (zflux > 10**(-1.0/2.5) * rflux) & (zflux < 10**(1.5/2.5) * rflux)
@@ -1141,10 +1141,10 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def isMWS_main_sv(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-               gnobs=None, rnobs=None, gfracmasked=None, rfracmasked=None,
-               pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
-               gaia=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
-               gaiaaen=None, gaiadupsource=None, primary=None, south=True):
+                  gnobs=None, rnobs=None, gfracmasked=None, rfracmasked=None,
+                  pmra=None, pmdec=None, parallax=None, obs_rflux=None, objtype=None,
+                  gaia=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
+                  gaiaaen=None, gaiadupsource=None, primary=None, south=True):
     """Set bits for main ``MWS`` SV targets.
 
     Args:
@@ -1184,8 +1184,8 @@ def isMWS_main_sv(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  .format(len(w), len(mws), time()-start))
 
     mws &= notinMWS_main_sv_mask(gaia=gaia, gfracmasked=gfracmasked, gnobs=gnobs,
-                              gflux=gflux, rfracmasked=rfracmasked, rnobs=rnobs,
-                              rflux=rflux, gaiadupsource=gaiadupsource, primary=primary)
+                                 gflux=gflux, rfracmasked=rfracmasked, rnobs=rnobs,
+                                 rflux=rflux, gaiadupsource=gaiadupsource, primary=primary)
 
     # ADM main targets are point-like based on DECaLS morphology
     # ADM and GAIA_ASTROMETRIC_NOISE.
@@ -1207,9 +1207,10 @@ def isMWS_main_sv(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     return mws, mws_faint
 
+
 def notinMWS_main_sv_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
-                       rfracmasked=None, rnobs=None, rflux=None,
-                       gaiadupsource=None, primary=None):
+                          rfracmasked=None, rnobs=None, rflux=None,
+                          gaiadupsource=None, primary=None):
     """Standard set of masking-based cuts used by MWS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
     """
@@ -1226,6 +1227,7 @@ def notinMWS_main_sv_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
     mws &= ~gaiadupsource
 
     return mws
+
 
 def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  objtype=None, gaia=None, primary=None,
@@ -1267,7 +1269,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     mws &= gaia
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
-    # APC Gaia G mag of more than 16   
+    # APC Gaia G mag of more than 16
     mws &= gaiagmag > 16.
     # ADM parallax cut corresponding to 100pc
     mws &= (parallax + parallaxerr) > 10.  # NB: "+" is correct
@@ -1600,7 +1602,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_s, mws_faint_s = mws_classes[1]
 
     # ADM treat the MWS WD selection specially, as we have to run the
-    # ADM white dwarfs for standards 
+    # ADM white dwarfs for standards
     # APC Science WDs now enter as secondary targets, so in principle the
     # APC assignment std_wd = mws_wd could be done here rather than below.
     mws_wd = ~primary
@@ -1639,7 +1641,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         std_wd = mws_wd
 
     # ADM combine the north/south MWS bits.
-    mws       = (mws_n & photsys_north) | (mws_s & photsys_south)
+    mws = (mws_n & photsys_north) | (mws_s & photsys_south)
     mws_faint = (mws_faint_n & photsys_north) | (mws_faint_s & photsys_south)
 
     # ADM the formal bit-setting using desi_mask/bgs_mask/mws_mask...
@@ -1732,7 +1734,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_fibmag * bgs_mask.BGS_FIBMAG
 
     # ADM MWS main, nearby, and WD.
-    mws_target  = mws * mws_mask.MWS_MAIN_BROAD
+    mws_target = mws * mws_mask.MWS_MAIN_BROAD
     mws_target |= mws_faint * mws_mask.MWS_MAIN_FAINT
     # APC Science WDs are secondary targets now
     # mws_target |= mws_wd * mws_mask.MWS_WD
