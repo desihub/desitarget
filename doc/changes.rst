@@ -5,7 +5,19 @@ desitarget Change Log
 0.33.3 (unreleased)
 -------------------
 
-* No changes yet.
+* Stellar SV targets [`PR #530`]:
+    * Add MWS SV target definitions in ``sv1_targetmask`` and ``cuts``.
+    * Science WDs are now a secondary target class.
+    * Ads a bright limit to the ``MWS-NEARBY`` sample.
+    * Add stellar SV secondary targets in ``sv1_targetmask``.
+    * Remove the ``BACKSTOP`` secondary bit.
+* Fixes and updates to ``secondary.py`` [`PR #530`]:
+    * Fix a bug that led to incorrect ``OBSCONDITIONS`` for secondary-only
+      targets.
+    * Secondary target properties can override matched primary properties,
+      but only for destricted combinations of DESI_TARGET bits (MWS and STD).
+
+.. _`PR #530`: https://github.com/desihub/desitarget/pull/530
 
 0.33.2 (2019-10-17)
 -------------------
