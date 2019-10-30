@@ -320,7 +320,7 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
 
         if len(trueflux) > 0 and trueflux.shape[1] > 0:
             trueflux = trueflux[ii, :]
-            
+
         mockdata['truth'] = truthdata
         mockdata['trueflux'] = trueflux
         mockdata['objtruth'] = objtruth
