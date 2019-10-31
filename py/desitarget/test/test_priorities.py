@@ -134,11 +134,13 @@ class TestPriorities(unittest.TestCase):
             self.assertEqual(p[2], bgs_mask.BGS_BRIGHT.priorities['MORE_ZGOOD'])
 
             # BGS ZGOOD targets always have lower priority than MWS targets that
-            # are not DONE.
+            # are not DONE. Exempting the MWS "BACKUP" targets.
             # ADM first discard N/S informational bits from bitmask as these
             # ADM should never trump the other bits.
-            bgs_names = [name for name in bgs_mask.names() if 'NORTH' not in name and 'SOUTH' not in name]
-            mws_names = [name for name in mws_mask.names() if 'NORTH' not in name and 'SOUTH' not in name]
+            bgs_names = [name for name in bgs_mask.names() if 'NORTH' not in name
+                         and 'SOUTH' not in name]
+            mws_names = [name for name in mws_mask.names() if 'NORTH' not in name
+                         and 'SOUTH' not in name and 'BACKUP' not in name]
 
             lowest_bgs_priority_zgood = min([bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_names])
 
