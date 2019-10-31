@@ -2,10 +2,12 @@
 desitarget Change Log
 =====================
 
-0.33.3 (unreleased)
+0.33.3 (2019-10-31)
 -------------------
 
-* No changes yet.
+* Add cuts for z = 4.3-4.8 quasar into the z5QSO selection [`PR #559`_].
+
+.. _`PR #559`: https://github.com/desihub/desitarget/pull/559
 
 0.33.2 (2019-10-17)
 -------------------
@@ -62,8 +64,8 @@ desitarget Change Log
     * Update unit tests to use DR8 files.
 * Further updates to changes in `PR #531`_, [`PR #544`_]. Includes:
     * A `--writeall` option to `select_secondary` writes a unified target
-      file without the BRIGHT/DARK split, as for `select_targets` 
-    * Removes duplicate secondaries that arise from multiple matches to 
+      file without the BRIGHT/DARK split, as for `select_targets`
+    * Removes duplicate secondaries that arise from multiple matches to
       one primary and secondary targets appearing in more than one input
       file. The duplciate with highest `PRIORTIY_INIT` is retained.
 * Update mocks to match latest data-based targets catalogs [`PR #543`_].
@@ -147,7 +149,7 @@ desitarget Change Log
 
 * ``MASKBITS`` of ``BAILOUT`` for randoms when no file is found [`PR #515`_].
 * Near-trivial fix for an unintended change to the isELG API introduced in `PR
-  #513`_ [`PR #514`_]. 
+  #513`_ [`PR #514`_].
 * Preliminary ELG cuts for DR8 imaging for main and SV [`PR #513`_].
     * Don't deprecate wider SV bits, yet, ELGs may still need them.
 * Further updates to generating randoms for DR8. [`PR #512`_]. Includes:
@@ -192,7 +194,7 @@ desitarget Change Log
 0.30.1 (2019-06-18)
 -------------------
 
-* Fix normalization bug in QSO tracer/Lya mock target densities [`PR #509`_].  
+* Fix normalization bug in QSO tracer/Lya mock target densities [`PR #509`_].
 * Tune "Northern" QSO selection and color shifts for Main and SV [`PR #506`_]
 * Follow-up PR to `PR #496`_ with two changes and bug fixes [`PR #505`_]:
     * Select QSO targets using random forest by default.
@@ -377,8 +379,8 @@ desitarget Change Log
     * New function :func:`targets.calc_priority_no_table` to use less memory.
     * Set informational (`NORTH/SOUTH`) bits to 0 `PRIORITY` and `NUMOBS`.
     * Set priorities using `LRG_1PASS/2PASS` bits rather than on `LRG`.
-* Minor updates to `select_mock_targets` [`PR #425`_].  
-    * Use pre-computed template photometry (requires `v3.1` basis templates). 
+* Minor updates to `select_mock_targets` [`PR #425`_].
+    * Use pre-computed template photometry (requires `v3.1` basis templates).
     * Include MW dust extinction in the spectra.
     * Randomly assign a radial velocity to superfaint mock targets.
 * Update default mock catalogs used by `select_mock_targets` [`PR #424`_]
