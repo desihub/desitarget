@@ -1954,7 +1954,11 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     Returns
     -------
     :class:`~numpy.ndarray`
-        target selection bitmask flags for each object.
+        desi_target selection bitmask flags for each object.
+    :class:`~numpy.ndarray`
+        bgs_target selection bitmask flags for each object.
+    :class:`~numpy.ndarray`
+        mws_target selection bitmask flags for each object.
     :class:`~numpy.ndarray`
         numpy structured array of Gaia sources that were read in from
         file for the passed pixel constraints (or no pixel constraints).
@@ -2008,10 +2012,11 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
 
-    bgs_target = np.zeros_like(gaia_mws_target)
+    bgs_target = np.zeros_like(mws_target)
+
     # ADM remember that desi_target must have MWS_ANY set as BACKUP
     # ADM targets fall under the auspices of the MWS program.
-    desi_target = np.ones_like(gaia_mws_target) * desi_mask.MWS_ANY
+    desi_target = (mws_target != 0) * desi_mask.MWS_ANY
 
     return desi_target, bgs_target, mws_target, gaiaobjs
 
