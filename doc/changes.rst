@@ -10,6 +10,7 @@ desitarget Change Log
 0.33.2 (2019-10-17)
 -------------------
 
+* Update SV0 (BGS, ELG, LRG, QSO) classes for commissioning [`PR #560`_].
 * Add FIBERFLUX_IVAR_G/R/Z to mock skies when merging [`PR #556`_].
 * Fix minor bugs in `select_mock_targets` [`PR #555`_].
 * Update the ELG selections for SV [`PR #553`_]. Includes:
@@ -30,6 +31,7 @@ desitarget Change Log
 .. _`PR #553`: https://github.com/desihub/desitarget/pull/553
 .. _`PR #555`: https://github.com/desihub/desitarget/pull/555
 .. _`PR #556`: https://github.com/desihub/desitarget/pull/556
+.. _`PR #560`: https://github.com/desihub/desitarget/pull/560
 
 0.33.1 (2019-10-13)
 -------------------
