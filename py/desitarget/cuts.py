@@ -146,7 +146,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
         ``True`` if and only if the object is a bright "BACKUP" target.
     :class:`array_like`
         ``True`` if and only if the object is a faint "BACKUP" target.
-   :class:`array_like`
+    :class:`array_like`
         ``True`` if and only if the object is a very faint "BACKUP"
         target.
 
@@ -1972,10 +1972,10 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     # code or an iteration of SV.
     if survey == 'main':
         import desitarget.cuts as targcuts
-        from desitarget.targetmask import mws_mask as Mx
+        from desitarget.targetmask import desi_mask, mws_mask
     elif survey == 'sv1':
         import desitarget.sv1.sv1_cuts as targcuts
-        from desitarget.sv1.sv1_targetmask import mws_mask as Mx
+        from desitarget.sv1.sv1_targetmask import desi_mask, mws_mask
     else:
         msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
         log.critical(msg)
@@ -2004,11 +2004,16 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     )
 
     # ADM Construct the target flag bits.
-    mws_target = backup_bright * Mx.BACKUP_BRIGHT
-    mws_target |= backup_faint * Mx.BACKUP_FAINT
-    mws_target |= backup_very_faint * Mx.BACKUP_VERY_FAINT
+    mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
+    mws_target |= backup_faint * mws_mask.BACKUP_FAINT
+    mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
 
-    return mws_target, gaiaobjs
+    bgs_target = np.zeros_like(gaia_mws_target)
+    # ADM remember that desi_target must have MWS_ANY set as BACKUP
+    # ADM targets fall under the auspices of the MWS program.
+    desi_target = np.ones_like(gaia_mws_target) * desi_mask.MWS_ANY
+
+    return desi_target, bgs_target, mws_target, gaiaobjs
 
 
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
@@ -2516,16 +2521,15 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             numproc4 = 4
 
         # ADM set the target bits that are based only on Gaia.
-        gaia_mws_target, gaiaobjs = apply_cuts_gaia(
-            numproc=numproc4, survey=survey, nside=nside, pixlist=pixlist)
+        gaia_desi_target, gaia_bgs_target, gaia_mws_target, gaiaobjs = \
+            apply_cuts_gaia(numproc=numproc4, survey=survey, nside=nside,
+                            pixlist=pixlist)
 
         # ADM determine the Gaia Data Release.
         gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
 
         # ADM add the relevant bits and IDs to the Gaia targets.
         # ADM first set up empty DESI and BGS columns.
-        gaia_bgs_target = np.zeros_like(gaia_mws_target)
-        gaia_desi_target = gaia_bgs_target.copy()
         gaiatargs = _finalize_targets(
             gaiaobjs, gaia_desi_target, gaia_bgs_target, gaia_mws_target,
             gaiadr=gaiadr)
