@@ -99,9 +99,9 @@ mws_mask:
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT|GRAY|DARK}]
 
     # ADM back-up targets for poor conditions.
-    - [BACKUP_BRIGHT,       58, "Bright Gaia backup targets",   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,        59, "Fainter Gaia backup targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_VERY_FAINT,   60, "Fainter Gaia backup targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
 #- ADM secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
