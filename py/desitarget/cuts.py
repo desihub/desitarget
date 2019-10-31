@@ -174,14 +174,14 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     # ADM faint targets are 16 < G < 18.
     isbackupfaint &= gaiagmag >= 16
     isbackupfaint &= gaiagmag < 18.
-    # ADM and are "far from" the Galaxy.                                                                                                                                                                                                
+    # ADM and are "far from" the Galaxy.
     isbackupfaint &= ~in_gal
 
     # ADM very faint targets are 18. < G < 19.
     isbackupveryfaint &= gaiagmag >= 18.
     isbackupveryfaint &= gaiagmag < 19
     # ADM and are "far from" the Galaxy.
-    isbackupvertfaint &= ~in_gal
+    isbackupveryfaint &= ~in_gal
 
     return isbackupbright, isbackupfaint, isbackupveryfaint
 
@@ -1999,7 +1999,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
 
     # ADM determine if an object is a BACKUP target.
-    backup_bright, backup_faint, back_up_very_faint = targcuts.isBACKUP(
+    backup_bright, backup_faint, backup_very_faint = targcuts.isBACKUP(
         ra=ra, dec=dec, gaiagmag=gaiagmag, primary=primary
     )
 

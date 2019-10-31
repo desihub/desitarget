@@ -73,7 +73,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     # ADM bright targets are 10 < G < 16.
     isbackupbright &= gaiagmag >= 10
     isbackupbright &= gaiagmag < 16
-    
+
     # ADM faint targets are 16 < G < 18.5.
     isbackupfaint &= gaiagmag >= 16
     isbackupfaint &= gaiagmag < 18.5
@@ -84,7 +84,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     isbackupveryfaint &= gaiagmag >= 18.5
     isbackupveryfaint &= gaiagmag < 19
     # ADM and are "far from" the Galaxy.
-    isbackupvertfaint &= ~in_gal
+    isbackupveryfaint &= ~in_gal
 
     return isbackupbright, isbackupfaint, isbackupveryfaint
 
