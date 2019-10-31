@@ -70,8 +70,8 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     # ADM determine which sources are close to the Galaxy.
     in_gal = is_in_Galaxy([ra, dec], radec=True)
 
-    # ADM bright targets are 8 < G < 16.
-    isbackupbright &= gaiagmag >= 8
+    # ADM bright targets are 10 < G < 16.
+    isbackupbright &= gaiagmag >= 10
     isbackupbright &= gaiagmag < 16
     
     # ADM faint targets are 16 < G < 18.5.
