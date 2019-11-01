@@ -983,8 +983,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                                                 qso_selection='colorcuts', mockdata=mockdata)
                 log.info('{} targets written to {}'.format(ntargs, outfile))
             
-        skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
         if nsky > 0:
+            skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
             log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
             write_skies(skyfile, skytargets.as_array(), nside=nside)
         else:
@@ -1176,7 +1176,16 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
             return None
 
         log.info('Writing {} {}'.format(outfile, ext))
-        header = fitsio.read_header(infiles[0], ext)
+        for infile in infiles:
+            try:
+                header = fitsio.read_header(infile, ext)
+            except:
+                header = None
+            if header is not None:
+                break
+
+        if header is None:
+            log.critical('Unable to read FITS header for extension {}'.format(ext))
 
         #- Use tmpout name so interupted I/O doesn't leave a corrupted file
         #- of the correct name
@@ -1203,6 +1212,8 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
             data = np.lib.recfunctions.append_fields(data, colnames, coldata,
                                                      usemask=False)
 
+        if 'STAR' in ext:
+            import pdb ; pdb.set_trace()
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=overwrite)
         os.rename(tmpout, outfile)
 
@@ -1272,6 +1283,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), 'TRUTH',
                                overwrite=overwrite,
                                outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
+            import pdb ; pdb.set_trace()
             
             # append, not overwrite other per-subclass truth tables
             for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
@@ -1279,6 +1291,8 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
                 _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), extname,
                                    overwrite=False,
                                    outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
+                if 'STAR' in extname:
+                    import pdb ; pdb.set_trace()
 
         #- Make initial merged target list (MTL) using rank 0
         if rank == 0 and todo['mtl-{}'.format(obscon)]:
