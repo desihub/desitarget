@@ -1188,7 +1188,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     if south:
         morph2 = dcs < 0.01
     else:
-    #currently identical, but leave as a placeholder for now
+        # ADM currently identical, but leave as a placeholder for now.
         morph2 = dcs < 0.01
     qso &= _psflike(objtype) | morph2
 
@@ -1243,7 +1243,7 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     # & w1-w2 > 0.5 & z- w1 < 4.5 & z-w1 > 2.0  (W1, W2 in Vega).
     qso &= zsnr > 5
 
-    qsoz5 = qso & (w2flux > 10**(-0.14/2.5) * w1flux) # w1-w2 > -0.14 in AB magnitude
+    qsoz5 = qso & (w2flux > 10**(-0.14/2.5) * w1flux)  # w1-w2 > -0.14 in AB magnitude.
     qsoz5 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.0-2.699)/2.5) * zflux)
 
     # rzW1 cuts: (SNr < 3 |
@@ -1267,7 +1267,7 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
 
     # additional cuts for z~ 4.3-4.8 quasar
     # & w1-w2 > 0.3 & z-w1 < 4.5 & z-w1 > 2.5 & SNr > 3 & r-z > -1.0 & r-z < 1.5, W1,W2 in Vega
-    qsoz45 = qso & (w2flux > 10**(-0.34/2.5) * w1flux) #W1,W2 in AB
+    qsoz45 = qso & (w2flux > 10**(-0.34/2.5) * w1flux)  # W1,W2 in AB.
     qsoz45 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.5-2.699)/2.5) * zflux)
     qsoz45 &= rsnr > 3
     qsoz45 &= (zflux > 10**(-1.0/2.5) * rflux) & (zflux < 10**(1.5/2.5) * rflux)
@@ -2277,8 +2277,8 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
             numproc4 = 4
 
         # ADM set the target bits that are based only on Gaia.
-            cmx_target, gaiaobjs = apply_cuts_gaia(numproc=numproc4, cmxdir=cmxdir,
-                                                   nside=nside, pixlist=pixlist)
+        cmx_target, gaiaobjs = apply_cuts_gaia(numproc=numproc4, cmxdir=cmxdir,
+                                               nside=nside, pixlist=pixlist)
 
         # ADM determine the Gaia Data Release.
         gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
