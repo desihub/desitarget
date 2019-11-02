@@ -11,6 +11,7 @@ desitarget Change Log
 -------------------
 
 * Update SV0 (BGS, ELG, LRG, QSO) classes for commissioning [`PR #560`_].
+    * Also add new ``STD_DITHER`` target class for commissioning.
 * Add FIBERFLUX_IVAR_G/R/Z to mock skies when merging [`PR #556`_].
 * Fix minor bugs in `select_mock_targets` [`PR #555`_].
 * Update the ELG selections for SV [`PR #553`_]. Includes:
