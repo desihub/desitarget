@@ -23,9 +23,9 @@ ap = ArgumentParser(description='Make a random catalog with "zeros" for pixel-le
 ap.add_argument("randomcat",
                 help='An existing "inside-of-the-footprint" random catalog. Must contain at least the column "BRICKNAME" (e.g /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits)')
 ap.add_argument("dest",
-                help='Output file name to write random catalog (e.g. /project/projectdirs/desi/target/catalogs/supp-randoms-dr4-0.20.0.fits)')
+                help="Output directory for random catalog (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--density", type=int,
-                help='Number of points per sq. deg. at which to Monte Carlo the imaging masks (defaults to 10,000)',
+                help='Number of points per sq. deg. to generate (defaults to 10,000)',
                 default="10000")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
@@ -53,8 +53,8 @@ randoms = supplement_randoms(
     donebns, density=ns.density, numproc=ns.numproc, dustdir=ns.dustdir)
 
 # ADM write out the supplemental random catalog.
-io.write_randoms(ns.dest, randoms, indir=ns.randomcat, supp=True,
-                 density=ns.density)
+nrands, outfile = io.write_randoms(ns.dest, randoms, indir=ns.randomcat,
+                                   supp=True, density=ns.density)
 
 log.info('wrote file of {} randoms to {}...t = {:.1f}s'
-         .format(len(randoms), ns.dest,time()-start))
+         .format(nrands, outfile, time()-start))

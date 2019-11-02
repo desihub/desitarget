@@ -4,6 +4,7 @@
 """
 import unittest
 from pkg_resources import resource_filename
+import shutil
 import os.path
 from uuid import uuid4
 from astropy.io import fits
@@ -20,11 +21,11 @@ class TestIO(unittest.TestCase):
         cls.datadir = resource_filename('desitarget.test', 't')
 
     def setUp(self):
-        self.testfile = 'test-{}.fits'.format(uuid4().hex)
+        self.testdir = 'test-{}'.format(uuid4().hex)
 
     def tearDown(self):
-        if os.path.exists(self.testfile):
-            os.remove(self.testfile)
+        if os.path.exists(self.testdir):
+            shutil.rmtree(self.testdir, ignore_errors=True)
 
     def test_list_tractorfiles(self):
         files = io.list_tractorfiles(self.datadir)
@@ -99,15 +100,16 @@ class TestIO(unittest.TestCase):
         self.assertEqual(len(data), 6)  # - test data has 6 objects per file
 
         # ADM check that input and output columns are the same.
-        io.write_targets(self.testfile, data, indir=self.datadir)
+        _, filename = io.write_targets(self.testdir, data, indir=self.datadir)
         # ADM use fits read wrapper in io to correctly handle whitespace.
-        d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
+        d2, h2 = io.whitespace_fits_read(filename, header=True)
         self.assertEqual(list(data.dtype.names), list(d2.dtype.names))
 
         # ADM check HPXPIXEL got added writing targets with NSIDE request.
-        io.write_targets(self.testfile, data, nside=64, indir=self.datadir)
+        _, filename = io.write_targets(self.testdir, data, nside=64,
+                                       indir=self.datadir)
         # ADM use fits read wrapper in io to correctly handle whitespace.
-        d2, h2 = io.whitespace_fits_read(self.testfile, header=True)
+        d2, h2 = io.whitespace_fits_read(filename, header=True)
         self.assertEqual(list(data.dtype.names)+["HPXPIXEL"], list(d2.dtype.names))
         for column in data.dtype.names:
             kind = data[column].dtype.kind
