@@ -473,9 +473,9 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     Returns
     -------
-    :class:`array_like`
+    :class:`array_like` or :class:`float`
         ``True`` if and only if the object is an LRG color-selected
-        or filler target.
+        or filler target. If `floats` are passed, a `float` is returned.
 
     Notes
     -----
@@ -505,7 +505,13 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
                           zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
                           rfiberflux=rfiberflux, south=False, primary=primary)
 
-    return lrg_colors | lrg_filler
+    lrg = lrg_colors | lrg_filler
+
+    # ADM isLRG_colors() forces arrays, so catch the single-object case.
+    if _is_row(rflux):
+        return lrg[0]
+
+    return lrg
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
@@ -699,8 +705,9 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Returns
     -------
-    :class:`array_like`
+    :class:`array_like` or :class:`float`
         ``True`` if and only if the object is an SV-like QSO target.
+         If `floats` are passed, a `float` is returned.
 
     Notes
     -----
@@ -753,6 +760,11 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qso_north = (qsocolor_lowz_north | qsorf_lowz_north | qsocolor_highz_north
                  | qsorf_highz_north | qsohizf_north | qsoz5_north)
 
+    # ADM The individual routines return arrays, so we need
+    # ADM a check to preserve the single-object case.
+    if _is_row(rflux):
+        return qso_north[0]
+
     return qso_north
 
 
@@ -794,7 +806,8 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
     # ADM those to have large values of morph2 to avoid divide-by-zero.
-    d1, d0 = dchisq[..., 1], dchisq[..., 0]
+    # ADM the atleast_1d's are to catch the single-object case.
+    d1, d0 = np.atleast_1d(dchisq[..., 1]), np.atleast_1d(dchisq[..., 0])
     bigmorph = np.zeros_like(d0)+1e9
     dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
     if south:
@@ -874,6 +887,13 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     """
     Color cut to select Highz QSO (z>~2.)
     """
+    # ADM the np.atleast_1d's are to catch the single-object case.
+    gflux = np.atleast_1d(gflux)
+    rflux = np.atleast_1d(rflux)
+    zflux = np.atleast_1d(zflux)
+    w1flux = np.atleast_1d(w1flux)
+    w2flux = np.atleast_1d(w2flux)
+
     if not south:
         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
 
@@ -944,7 +964,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
     # ADM those to have large values of morph2 to avoid divide-by-zero.
-    d1, d0 = dchisq[..., 1], dchisq[..., 0]
+    # ADM the np.atleast_1d's are to catch the single-object case.
+    d1, d0 = np.atleast_1d(dchisq[..., 1]), np.atleast_1d(dchisq[..., 0])
     bigmorph = np.zeros_like(d0)+1e9
     dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
     if south:
@@ -1160,7 +1181,8 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
     # ADM those to have large values of morph2 to avoid divide-by-zero.
-    d1, d0 = dchisq[..., 1], dchisq[..., 0]
+    # ADM the atleast_1d's are to catch the single-object case.
+    d1, d0 = np.atleast_1d(dchisq[..., 1]), np.atleast_1d(dchisq[..., 0])
     bigmorph = np.zeros_like(d0)+1e9
     dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
     if south:
@@ -1201,6 +1223,9 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     qso &= (w1flux >= 0.) & (zflux >= 0.)
 
     # ADM now safe to update w1flux and zflux to avoid warnings.
+    # ADM the np.atleast_1d's are to catch the single-object case.
+    w1flux = np.atleast_1d(w1flux)
+    zflux = np.atleast_1d(zflux)
     w1flux[~qso] = 0.
     zflux[~qso] = 0.
 
