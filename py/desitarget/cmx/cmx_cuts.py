@@ -126,7 +126,12 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     Returns
     -------
     :class:`array_like`
-        ``True`` if and only if the object passes the logic cuts for cmx stars.
+        ``True`` if and only if the object passes the logic cuts for
+         cmx stars with fracflux_X < 0.01.
+    :class:`array_like`
+        ``True`` if and only if the object passes the logic cuts for
+         cmx stars with fracflux_X < 0.002.
+
 
     Notes
     -----
@@ -158,7 +163,14 @@ def passesSTD_logic(gfracflux=None, rfracflux=None, zfracflux=None,
     # ADM Unique source (not a duplicated source).
     std &= ~dupsource
 
-    return std
+    # ADM tighter isolation cuts.
+    tight = std.copy()
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')  # fracflux can be Inf/NaN.
+        for bandint in (0, 1, 2):  # g, r, z.
+            tight &= fracflux[bandint] < 0.002
+
+    return std, tight
 
 
 def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1542,7 +1554,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
 def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
                  isgood=None, primary=None):
-    """Gaia stars for dithering tests during commissioning.
+    """Gaia stars for dithering-and-other tests during commissioning.
 
     Parameters
     ----------
@@ -1558,7 +1570,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     Returns
     -------
     :class:`array_like`
-        ``True`` if and only if the object is a Gaia "dither" target.
+        ``True`` if and only if the object is a Gaia "STD_GAIA" target.
     :class:`array_like`
         A priority shift of 10*(25-rmag) based on r-band magnitude.
 
@@ -1577,6 +1589,59 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     isdither &= obs_gflux < 10**((22.5-15.0)/2.5)
     isdither &= obs_rflux < 10**((22.5-15.0)/2.5)
     isdither &= obs_zflux < 10**((22.5-15.0)/2.5)
+
+    # ADM prioritize based on magnitude.
+    # ADM OK to clip, as these are all Gaia matches.
+    rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
+    prio = np.array((10*(25-rmag)).astype(int))
+
+    return isdither, prio
+
+
+def isSTD_dither_spec(gaiagmag=None, gaiarmag=None, obs_rflux=None,
+                      isgood=None, primary=None):
+    """Gaia stars for dithering-only tests during commissioning.
+
+    Parameters
+    ----------
+    gaiagmag, gaiarmag : :class:`array_like` or :class:`None`
+        The Gaia G-band and R-band mean magnitudes.
+    obs_rflux : :class:`array_like` or :class:`None`
+        The flux in nano-maggies in Legacy Surveys r-band WITHOUT any
+        Galactic extinction correction. Used for prioritizing.
+    isgood : :class:`array_like` or :class:`None`
+        ``True`` for objects that pass the logic cuts in
+        :func:`~desitarget.cmx.cmx_cuts.passesSTD_logic`.
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a Gaia "STD_DITHER" target.
+    :class:`array_like`
+        A priority shift of 10*(25-rmag) based on r-band magnitude.
+
+    Notes
+    -----
+    - This version (11/02/19) is version 48 on `the cmx wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(obs_rflux, dtype='?')
+
+    isdither = primary.copy()
+    # ADM passes all of the default logic cuts.
+    isdither &= isgood
+
+    # ADM don't target Gaia objects that have NaN magnitudes.
+    # ADM remember to catch the single-object (non-array) case.
+    if not _is_row(gaiagmag):
+        gaiagmag[np.isnan(gaiagmag)] = 0.
+        gaiarmag[np.isnan(gaiarmag)] = 0.
+
+    # ADM not too bright in Gaia G, R (> 11.5 mags).
+    isdither &= gaiagmag >= 11.5
+    isdither &= gaiarmag >= 11.5
 
     # ADM prioritize based on magnitude.
     # ADM OK to clip, as these are all Gaia matches.
@@ -1622,7 +1687,7 @@ def isSTD_test(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     istest &= obs_gflux < 10**((22.5-13.0)/2.5)
     istest &= obs_rflux < 10**((22.5-13.0)/2.5)
     istest &= obs_zflux < 10**((22.5-13.0)/2.5)
-    # ADM but brighter than dither targets in g (g < 15).
+    # ADM but brighter than STD_GAIA targets in g (g < 15).
     istest &= obs_gflux > 10**((22.5-15.0)/2.5)
 
     return istest
@@ -1920,7 +1985,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         commissioning target selection bitmask flags for each object.
     :class:`array_like`
         a priority shift of 10*(25-rmag) based on r-band magnitude.
-        (for STD_DITHER sources).
+        (for `STD_DITHER`, `STD_GAIA` sources).
 
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
@@ -1984,18 +2049,25 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         priority_shift = np.zeros_like(objects, dtype=int)
 
     # ADM determine if an object passes the default logic for cmx stars.
-    isgood = passesSTD_logic(
+    isgood, istight = passesSTD_logic(
         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
         objtype=objtype, gaia=gaia, pmra=pmra, pmdec=pmdec,
         aen=gaiaaen, dupsource=gaiadupsource, paramssolved=gaiaparamssolved,
         primary=primary
     )
 
-    # ADM determine if an object is a "dither" star.
+    # ADM determine if an object is a "STD_GAIA" star.
     # ADM and priority shift.
     std_dither, shift_dither = isSTD_dither(
         obs_gflux=obs_gflux, obs_rflux=obs_rflux, obs_zflux=obs_zflux,
         isgood=isgood, primary=primary
+    )
+
+    # ADM determine if an object is a "STD_DITHER" star.
+    # ADM and priority shift. Note the tighter isgood cuts.
+    std_dither_spec, shift_dither_spec = isSTD_dither_spec(
+        gaiagmag=gaiagmag, gaiarmag=gaiarmag, obs_rflux=obs_rflux,
+        isgood=istight, primary=primary
     )
 
     # ADM determine if an object is a bright test star.
@@ -2087,6 +2159,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
     # ADM Construct the target flag bits.
     cmx_target = std_dither * cmx_mask.STD_GAIA
+    cmx_target |= std_dither_spec * cmx_mask.STD_DITHER
     cmx_target |= std_test * cmx_mask.STD_TEST
     cmx_target |= std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= sv0_std_faint * cmx_mask.SV0_STD_FAINT
@@ -2103,6 +2176,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.
     priority_shift[std_dither] = shift_dither[std_dither]
+    priority_shift[std_dither_spec] = shift_dither_spec[std_dither_spec]
 
     return cmx_target, priority_shift
 
