@@ -98,10 +98,15 @@ mws_mask:
     - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT|GRAY|DARK}]
 
+    # ADM back-up targets for poor conditions.
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
 #- ADM secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
 #- ADM directory that corresponds to the $SECONDARY_DIR environment
-#- ADM variable, e.g. $SECONDARY_DIR/backstop.fits for BACKSTOP targets.
+#- ADM variable, e.g. $SECONDARY_DIR/veto.fits for VETO targets.
 scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
@@ -221,6 +226,9 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
+        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 9, OBS: 9, DONOTOBSERVE: 0}
+        BACKUP_FAINT:                 {UNOBS: 8, DONE: 8, OBS: 8, DONOTOBSERVE: 0}
+        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 7, OBS: 7, DONOTOBSERVE: 0}
 
     # ADM secondary target priorities. Probably all have very low UNOBS...
     scnd_mask:
@@ -292,6 +300,9 @@ numobs:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           0
         MWS_MAIN_RED_SOUTH:           0
+        BACKUP_BRIGHT:                1
+        BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
+        BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
 
     # ADM initial number of observations for secondary targets
     scnd_mask:

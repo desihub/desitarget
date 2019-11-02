@@ -325,11 +325,11 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         mockdata['trueflux'] = trueflux
         mockdata['objtruth'] = objtruth
 
-    # ADM create the bright or dark directory.
+    # ADM construct the name for the bright or dark directory.
     newdir = os.path.join(os.path.dirname(filename), obscon.lower())
-    if not os.path.exists(newdir):
-        os.mkdir(newdir)
     filename = os.path.join(newdir, os.path.basename(filename))
+    # ADM modify the filename with an obscon prefix.
+    filename = filename.replace("targets-", "targets-{}-".format(obscon.lower()))
 
     # ADM change the name to PRIORITY_INIT, NUMOBS_INIT.
     for col in "NUMOBS_INIT", "PRIORITY_INIT":
@@ -347,16 +347,18 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         return filename, hdr, data
 
 
-def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
+def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, sandboxcuts=False, nside=None,
-                  survey="?", nsidefile=None, hpxlist=None, scndout=None,
-                  resolve=True, maskbits=True, obscon=None, mockdata=None):
+                  survey="main", nsidefile=None, hpxlist=None, scndout=None,
+                  resolve=True, maskbits=True, obscon=None, mockdata=None,
+                  supp=False, extra=None):
     """Write target catalogues.
 
     Parameters
     ----------
-    filename : :class:`str`
-        output target selection file.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
     indir, indir2, qso_selection : :class:`str`, optional, default to `None`
@@ -370,7 +372,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     nside : :class:`int`, optional, defaults to `None`
         If passed, add a column to the targets array popluated
         with HEALPixels at resolution `nside`.
-    survey : :class:`str`, optional, defaults to "?"
+    survey : :class:`str`, optional, defaults to "main"
         Written to output file header as the keyword `SURVEY`.
     nsidefile : :class:`int`, optional, defaults to `None`
         Passed to indicate in the output file header that the targets
@@ -394,6 +396,13 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     mockdata : :class:`dict`, optional, defaults to `None`
         Dictionary of mock data to write out (only used in
         `desitarget.mock.build.targets_truth` via `select_mock_targets`).
+    supp : :class:`bool`, optional, defaults to ``False``
+        Written to the header of the output file to indicate whether
+        this is a file of supplemental targets (targets that are
+        outside the Legacy Surveys footprint).
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
 
     Returns
     -------
@@ -407,20 +416,37 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     hdr = fitsio.FITSHDR()
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
+    # ADM Ignore the filename output, We'll build that on-the-fly.
     if obscon is not None:
         if mockdata is not None:
-            filename, hdr, data, mockdata = _bright_or_dark(filename, hdr, data, obscon, mockdata=mockdata)
+            _, hdr, data, mockdata = _bright_or_dark(
+                targdir, hdr, data, obscon, mockdata=mockdata)
         else:
-            filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+            _, hdr, data = _bright_or_dark(
+                targdir, hdr, data, obscon)
+
+    # ADM use RELEASE to find the release string for the input targets.
+    if not supp:
+        drint = np.max(data['RELEASE']//1000)
+        drstring = 'dr'+str(drint)
+    else:
+        drint = None
+        drstring = "supp"
+
+    # ADM catch cases where we're writing-to-file and there's no hpxlist.
+    hpx = hpxlist
+    if hpxlist is None:
+        hpx = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                 survey=survey, obscon=obscon, hp=hpx,
+                                 resolve=resolve, supp=supp)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
     if ntargs == 0:
         return ntargs, filename
-
-    # ADM use RELEASE to determine the release string for the input targets.
-    drint = np.max(data['RELEASE']//1000)
-    drstring = 'dr'+str(drint)
 
     # ADM write versions, etc. to the header.
     depend.setdep(hdr, 'desitarget', desitarget_version)
@@ -458,6 +484,13 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     hdr["RESOLVE"] = resolve
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
+    # ADM indicate whether this is a supplemental file.
+    hdr['SUPP'] = supp
+
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
 
     if scndout is not None:
         hdr["SCNDOUT"] = scndout
@@ -476,6 +509,9 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
 
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
         fitsio.write(filename+'.tmp', data, extname='TARGETS', header=hdr, clobber=True)
@@ -483,7 +519,7 @@ def write_targets(filename, data, indir=None, indir2=None, nchunks=None,
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
 
-    # Optionally wite out mock catalog data.
+    # Optionally write out mock catalog data.
     if mockdata is not None:
         truthfile = filename.replace('targets-', 'truth-')
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
@@ -645,8 +681,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     # ADM write out the file of matches for every secondary bit.
     filenam = os.path.splitext(os.path.split(filename)[1])[0]
     scxoutdir = os.path.join(scxdir, 'outdata', filenam)
-    if not os.path.exists(scxoutdir):
-        os.makedirs(scxoutdir)
+    os.makedirs(scxoutdir, exist_ok=True)
     from desitarget.targetmask import scnd_mask
     for name in scnd_mask.names():
         # ADM construct the output file name.
@@ -662,6 +697,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
             fitsio.write(scxfile, smalldata[ii][order],
                          extname='TARGETS', header=hdr, clobber=True)
 
+    # ADM make necessary directories for the file, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM release before DR1 (release < 1000).
     from desitarget.targets import decode_targetid
@@ -674,15 +711,16 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     return np.sum(ii), filename
 
 
-def write_skies(filename, data, indir=None, indir2=None, supp=False,
+def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
                 nsidefile=None, hpxlist=None, extra=None):
     """Write a target catalogue of sky locations.
 
     Parameters
     ----------
-    filename : :class:`str`
-        Output target selection file name
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
     indir, indir2 : :class:`str`, optional
@@ -714,6 +752,14 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
         values to the output header.
     """
     nskies = len(data)
+
+    # ADM use RELEASE to find the release string for the input skies.
+    if not supp:
+        drint = np.max(data['RELEASE']//1000)
+        drstring = 'dr'+str(drint)
+    else:
+        drint = None
+        drstring = "supp"
 
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
@@ -776,19 +822,32 @@ def write_skies(filename, data, indir=None, indir2=None, supp=False,
         # ADM warn if we've stored a pixel string that is too long.
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
+    else:
+        # ADM set the hp part of the output file name to "X".
+        hpxlist = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="skies",
+                                 hp=hpxlist, supp=supp)
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     fitsio.write(filename+'.tmp', data, extname='SKY_TARGETS', header=hdr, clobber=True)
     os.rename(filename+'.tmp', filename)
 
+    return len(data), filename
 
-def write_gfas(filename, data, indir=None, indir2=None, nside=None,
+
+def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
                nsidefile=None, hpxlist=None, extra=None):
     """Write a catalogue of Guide/Focus/Alignment targets.
 
     Parameters
     ----------
-    filename : :class:`str`
-        Output file name.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
     indir, indir2 : :class:`str`, optional, defaults to None.
@@ -809,6 +868,10 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
     """
+    # ADM use RELEASE to find the release string for the input GFAs.
+    drint = np.max(data['RELEASE']//1000)
+    drstring = 'dr'+str(drint)
+
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
 
@@ -853,18 +916,31 @@ def write_gfas(filename, data, indir=None, indir2=None, nside=None,
         # ADM warn if we've stored a pixel string that is too long.
         _check_hpx_length(hpxlist, warning=True)
         hdr['FILEHPX'] = hpxlist
+    else:
+        # ADM set the hp part of the output file name to "X".
+        hpxlist = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="gfas", hp=hpxlist)
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
 
+    return len(data), filename
 
-def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
-                  density=None, resolve=True, aprad=None, extra=None):
+
+def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
+                  nsidefile=None, hpxlist=None, density=None,
+                  resolve=True, aprad=None, extra=None):
     """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
     ----------
-    filename : :class:`str`
-        Output file name.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory structure
+        and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
@@ -879,6 +955,14 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
         Written to the header of the output file to indicate whether
         this is a supplemental file (i.e. random locations that are
         outside the Legacy Surveys footprint).
+    nsidefile : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
     density: :class:`int`
         Number of points per sq. deg. at which the catalog was generated,
         write to header of the output file if not None.
@@ -902,11 +986,13 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
             depend.setdep(hdr, 'input-random-catalog', indir)
         else:
             depend.setdep(hdr, 'input-data-release', indir)
-            # ADM note that if 'dr' is not in the indir DR
-            # ADM directory structure, garbage will
-            # ADM be rewritten gracefully in the header.
-            drstring = 'dr'+indir.split('dr')[-1][0]
+        # ADM use RELEASE to find the release string for the input randoms.
+        try:
+            drint = int(indir.split("dr")[1][0])
+            drstring = 'dr'+str(drint)
             depend.setdep(hdr, 'photcat', drstring)
+        except ValueError:
+            drint = None
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
@@ -930,7 +1016,33 @@ def write_randoms(filename, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM add whether or not the randoms were resolved to the header.
     hdr["RESOLVE"] = resolve
 
+    # ADM record whether this file has been limited to only certain HEALPixels.
+    if hpxlist is not None or nsidefile is not None:
+        # ADM hpxlist and nsidefile need to be passed together.
+        if hpxlist is None or nsidefile is None:
+            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
+                .format(hpxlist, nsidefile)
+            log.critical(msg)
+            raise ValueError(msg)
+        hdr['FILENSID'] = nsidefile
+        hdr['FILENEST'] = True
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        hdr['FILEHPX'] = hpxlist
+    else:
+        # ADM set the hp part of the output file name to "X".
+        hpxlist = "X"
+
+    # ADM construct the output file name.
+    filename = find_target_files(targdir, dr=drint, flavor="randoms",
+                                 hp=hpxlist, resolve=resolve, supp=supp)
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
+
+    return len(data), filename
 
 
 def iter_files(root, prefix, ext='fits'):
@@ -1426,6 +1538,117 @@ def check_hp_target_dir(hpdirname):
         raise AssertionError(msg)
 
     return nside[0], pixdict
+
+
+def _get_targ_dir():
+    """Convenience function to grab the TARGDIR environment variable.
+
+    Returns
+    -------
+    :class:`str`
+        The directory stored in the $GAIA_DIR environment variable.
+    """
+    # ADM check that the $GAIA_DIR environment variable is set.
+    targdir = os.environ.get('TARG_DIR')
+    if targdir is None:
+        msg = "Set $TARG_DIR environment variable!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return targdir
+
+
+def find_target_files(targdir, dr=None, flavor="targets", survey="main",
+                      obscon=None, hp=None, resolve=True, supp=False):
+    """Build the name of an output target file (or directory).
+
+    Parameters
+    ----------
+    targdir : :class:`str`
+        Name of a based directory for output target catalogs.
+    dr : :class:`str` or :class:`int`, optional, defaults to "X"
+        Name of a Legacy Surveys Data Release (e.g. 8)
+    flavor : :class:`str`, optional, defaults to `targets`
+        Options include `skies`, `gfas`, `targets`, `randoms`.
+    survey : :class:`str`, optional, defaults to `main`
+        Options include `main`, `cmx`, `svX` (where X is 1, 2 etc.).
+        Only relevant if `flavor` is `targets`.
+    obscon : :class:`str`, optional
+        Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
+    hp : :class:`list` or :class:`int` or :class:`str`, optional
+        HEALPixel numbers used to make the file (e.g. 42 or [12, 37]
+        or "42" or "12,37").
+    resolve : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then find the `resolve` file. Otherwise find the
+        `noresolve` file. Only relevant if `flavor` is `targets`.
+    supp : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then find the supplemental targets file. Overrides
+        the `obscon` option.
+
+    Returns
+    -------
+    :class:`str`
+        The name of the output target file (or directory).
+
+    Notes
+    -----
+        - If `hp` is passed, the full file name is returned. If `hp`
+          is ``None``, the directory name where all of the `hp` files
+          are stored is returned. The directory name is the expected
+          input for the `desitarget.io.read*` convenience functions
+          (:func:`desimodel.io.read_targets_in_hp()`, etc.).
+    """
+    # ADM some preliminaries for correct formatting.
+    if obscon is not None:
+        obscon = obscon.lower()
+    if survey not in ["main", "cmx"] and survey[:2] != "sv":
+        msg = "survey must be main, cmx or svX, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+    if flavor not in ["targets", "skies", "gfas", "randoms"]:
+        msg = "flavor must be targets, skies, gfas or randoms, not {}".format(
+            flavor)
+        log.critical(msg)
+        raise ValueError(msg)
+    res = "noresolve"
+    if resolve:
+        res = "resolve"
+    if dr is None:
+        drstr = "drX"
+    else:
+        drstr = "dr{}".format(dr)
+    if supp:
+        drstr = "supp"
+
+    # ADM build up the name of the file (or directory).
+    surv = survey
+    if survey[0:2] == "sv":
+        surv = survey[0:2]
+    prefix = flavor
+    fn = os.path.join(targdir, flavor)
+
+    if flavor == "targets":
+        if surv in ["cmx", "sv"]:
+            prefix = "{}-{}".format(survey, prefix)
+        if surv in ["main", "sv"]:
+            if not supp and obscon is not None:
+                fn = os.path.join(fn, surv, res, obscon)
+            elif obscon is None:
+                fn = os.path.join(fn, surv, res)
+        else:
+            fn = os.path.join(fn, surv)
+
+    if flavor in ["skies", "targets"]:
+        if supp:
+            fn = os.path.join(fn, "{}-supp".format(flavor))
+
+    # ADM if a HEALPixel number was passed, we want the filename.
+    if hp is not None:
+        hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
+        backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
+        fn = os.path.join(fn, backend)
+
+    return fn
 
 
 def read_target_files(filename, columns=None, rows=None, header=False,
