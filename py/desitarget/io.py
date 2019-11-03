@@ -438,10 +438,18 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     if hpxlist is None:
         hpx = "X"
 
+    #import pdb ; pdb.set_trace()
+
     # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="targets",
-                                 survey=survey, obscon=obscon, hp=hpx,
-                                 resolve=resolve, supp=supp)
+    if mockdata is not None:
+        filename = find_target_files(targdir, flavor="targets", obscon=obscon,
+                                     hp=hpx, nside=nside, mock=True)
+        truthfile = find_target_files(targdir, flavor="targets", obscon=obscon,
+                                      hp=hpx, nside=nside, mock=True)
+    else:
+        filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                     survey=survey, obscon=obscon, hp=hpx,
+                                     resolve=resolve, supp=supp)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
@@ -521,7 +529,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # Optionally write out mock catalog data.
     if mockdata is not None:
-        truthfile = filename.replace('targets-', 'truth-')
+        #truthfile = filename.replace('targets-', 'truth-')
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
 
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
@@ -1611,7 +1619,11 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         msg = "survey must be main, cmx or svX, not {}".format(survey)
         log.critical(msg)
         raise ValueError(msg)
-    if flavor not in ["targets", "skies", "gfas", "randoms"]:
+    if mock:
+        allowed_flavor = ["targets", "truth", "skies"]
+    else:
+        allowed_flavor = ["targets", "skies", "gfas", "randoms"]
+    if flavor not in allowed_flavor:
         msg = "flavor must be targets, skies, gfas or randoms, not {}".format(
             flavor)
         log.critical(msg)
@@ -2079,7 +2091,7 @@ def target_columns_from_header(hpdirname):
 
 def _check_hpx_length(hpxlist, length=68, warning=False):
     """Check a list expressed as a csv string won't exceed a length."""
-    pixstring = ",".join([str(i) for i in hpxlist])
+    pixstring = ",".join([str(i) for i in np.atleast_1d(hpxlist)])
     if len(pixstring) > length:
         msg = "Pixel string {} is too long. Maximum is length-{} strings."  \
             .format(pixstring, length)
