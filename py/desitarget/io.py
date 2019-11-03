@@ -556,7 +556,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
         os.rename(truthfile+'.tmp', truthfile)
 
-    import pdb ; pdb.set_trace()
     return ntargs, filename
 
 
