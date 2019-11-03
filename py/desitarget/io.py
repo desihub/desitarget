@@ -1557,9 +1557,9 @@ def _get_targ_dir():
 
     return targdir
 
-
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
-                      obscon=None, hp=None, resolve=True, supp=False):
+                      obscon=None, hp=None, nside=None, resolve=True,
+                      supp=False, mock=False):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1577,13 +1577,18 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
     hp : :class:`list` or :class:`int` or :class:`str`, optional
         HEALPixel numbers used to make the file (e.g. 42 or [12, 37]
-        or "42" or "12,37").
+        or "42" or "12,37"). Required if mock=`True`.
+    nside : :class:`int`, optional unless mock=`True`
+        Nside corresponding to healpixel `hp`.
     resolve : :class:`bool`, optional, defaults to ``True``
         If ``True`` then find the `resolve` file. Otherwise find the
         `noresolve` file. Only relevant if `flavor` is `targets`.
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental targets file. Overrides
         the `obscon` option.
+    mock : :class:`bool`, optional, defaults to ``False``.  If ``True`` then
+        construct the file path for mock target catalogs and return (most other
+        inputs are ignored).
 
     Returns
     -------
@@ -1597,6 +1602,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           are stored is returned. The directory name is the expected
           input for the `desitarget.io.read*` convenience functions
           (:func:`desimodel.io.read_targets_in_hp()`, etc.).
+
     """
     # ADM some preliminaries for correct formatting.
     if obscon is not None:
@@ -1619,6 +1625,27 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         drstr = "dr{}".format(dr)
     if supp:
         drstr = "supp"
+
+    # If seeking a mock target (or sky) catalog, construct the filepath and then
+    # bail.
+    if mock:
+        if hp is None or nside is None:
+            msg = 'Must specify nside and hp to locate the mock target catalogs!'
+            log.critical(msg)
+            raise ValueError(msg)
+        
+        subdir = str(hp // 100)
+        path = os.path.abspath(os.path.join(targdir, subdir, str(hp)))
+        
+        if obscon is not None:
+            path = os.path.join(path, obscon)
+            fn = '{flavor}-{obscon}-{nside}-{hp}.fits'.format(
+                flavor=flavor.lower(), obscon=obscon, nside=nside, hp=hp)
+        else:
+            fn = '{flavor}-{nside}-{hp}.fits'.format(
+                flavor=flavor.lower(), nside=nside, hp=hp)
+
+        return os.path.join(path, fn)
 
     # ADM build up the name of the file (or directory).
     surv = survey
