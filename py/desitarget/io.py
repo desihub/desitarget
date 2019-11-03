@@ -317,6 +317,10 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         objtruth = {}
         for obj in sorted(set(truthdata['TEMPLATETYPE'])):
             objtruth[obj] = _objtruth[obj]
+        for key in objtruth.keys():
+            keep = np.where(np.isin(objtruth[key]['TARGETID'], truthdata['TARGETID']))[0]
+            if len(keep) > 0:
+                objtruth[key] = objtruth[key][keep]
 
         if len(trueflux) > 0 and trueflux.shape[1] > 0:
             trueflux = trueflux[ii, :]
@@ -438,13 +442,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     if hpxlist is None:
         hpx = "X"
 
-    #import pdb ; pdb.set_trace()
-
     # ADM construct the output file name.
     if mockdata is not None:
         filename = find_target_files(targdir, flavor="targets", obscon=obscon,
                                      hp=hpx, nside=nside, mock=True)
-        truthfile = find_target_files(targdir, flavor="targets", obscon=obscon,
+        truthfile = find_target_files(targdir, flavor="truth", obscon=obscon,
                                       hp=hpx, nside=nside, mock=True)
     else:
         filename = find_target_files(targdir, dr=drint, flavor="targets",
@@ -554,6 +556,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
         os.rename(truthfile+'.tmp', truthfile)
 
+    import pdb ; pdb.set_trace()
     return ntargs, filename
 
 
