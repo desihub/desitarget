@@ -22,6 +22,7 @@ import sys
 import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
+import numpy.lib.recfunctions as rfn
 
 from astropy.table import Table, Row
 
@@ -29,10 +30,12 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
+from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
+
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -122,6 +125,65 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     zshift[w] = (zflux[w] * 10**(+0.4*0.022) * (rflux[w]/zflux[w])**complex(+0.019)).real
 
     return gshift, rshift, zshift
+
+
+def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
+    """BACKUP targets based on Gaia magnitudes.
+
+    Parameters
+    ----------
+    ra, dec: :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    gaiagmag: :class:`array_like` or :class:`None`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+        (same units as `the Gaia data model`_).
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a bright "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a faint "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a very faint "BACKUP"
+        target.
+
+    Notes
+    -----
+    - Current version (10/24/19) is version 204 on `the wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM restrict all classes to dec >= -30.
+    primary &= dec >= -30.
+
+    isbackupbright = primary.copy()
+    isbackupfaint = primary.copy()
+    isbackupveryfaint = primary.copy()
+
+    # ADM determine which sources are close to the Galaxy.
+    in_gal = is_in_Galaxy([ra, dec], radec=True)
+
+    # ADM bright targets are 10 < G < 16.
+    isbackupbright &= gaiagmag >= 10
+    isbackupbright &= gaiagmag < 16
+
+    # ADM faint targets are 16 < G < 18.
+    isbackupfaint &= gaiagmag >= 16
+    isbackupfaint &= gaiagmag < 18.
+    # ADM and are "far from" the Galaxy.
+    isbackupfaint &= ~in_gal
+
+    # ADM very faint targets are 18. < G < 19.
+    isbackupveryfaint &= gaiagmag >= 18.
+    isbackupveryfaint &= gaiagmag < 19
+    # ADM and are "far from" the Galaxy.
+    isbackupveryfaint &= ~in_gal
+
+    return isbackupbright, isbackupfaint, isbackupveryfaint
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1871,6 +1933,94 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     return desi_target, bgs_target, mws_target
 
 
+def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
+    """Gaia-only-based target selection, return target mask arrays.
+
+    Parameters
+    ----------
+    numproc : :class:`int`, optional, defaults to 4
+        The number of parallel processes to use.
+    survey : :class:`str`, defaults to ``'main'``
+        Specifies which target masks yaml file and target selection cuts
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
+    pixlist : :class:`list` or `int`, optional, defaults to `None`
+        Only return targets in a set of (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing, as input files will only be processed
+        if they touch a pixel in the passed list.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        desi_target selection bitmask flags for each object.
+    :class:`~numpy.ndarray`
+        bgs_target selection bitmask flags for each object.
+    :class:`~numpy.ndarray`
+        mws_target selection bitmask flags for each object.
+    :class:`~numpy.ndarray`
+        numpy structured array of Gaia sources that were read in from
+        file for the passed pixel constraints (or no pixel constraints).
+
+    Notes
+    -----
+        - May take a long time if no pixel constraints are passed.
+        - Only run on Gaia-only target selections.
+        - The environment variable $GAIA_DIR must be set.
+
+    See desitarget.sv1.sv1_targetmask.desi_mask
+    and desitarget.targetmask.desi_mask for bit definitions.
+    """
+    # ADM set different bits based on whether we're using the main survey
+    # code or an iteration of SV.
+    if survey == 'main':
+        import desitarget.cuts as targcuts
+        from desitarget.targetmask import desi_mask, mws_mask
+    elif survey == 'sv1':
+        import desitarget.sv1.sv1_cuts as targcuts
+        from desitarget.sv1.sv1_targetmask import desi_mask, mws_mask
+    else:
+        msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    from desitarget.gfa import all_gaia_in_tiles
+    # ADM No Gaia-only target classes are fainter than G of 19.
+    # ADM or are north of dec=-30.
+    gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
+                                 mindec=-30, mingalb=0, addobjid=True,
+                                 nside=nside, pixlist=pixlist)
+    # ADM the convenience function we use adds an empty TARGETID
+    # ADM field which we need to remove before finalizing.
+    gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
+
+    primary = np.ones_like(gaiaobjs, dtype=bool)
+
+    # ADM the relevant input quantities.
+    ra = gaiaobjs["RA"]
+    dec = gaiaobjs["DEC"]
+    gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
+
+    # ADM determine if an object is a BACKUP target.
+    backup_bright, backup_faint, backup_very_faint = targcuts.isBACKUP(
+        ra=ra, dec=dec, gaiagmag=gaiagmag, primary=primary
+    )
+
+    # ADM Construct the target flag bits.
+    mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
+    mws_target |= backup_faint * mws_mask.BACKUP_FAINT
+    mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
+
+    bgs_target = np.zeros_like(mws_target)
+
+    # ADM remember that desi_target must have MWS_ANY set as BACKUP
+    # ADM targets fall under the auspices of the MWS program.
+    desi_target = (mws_target != 0) * desi_mask.MWS_ANY
+
+    return desi_target, bgs_target, mws_target, gaiaobjs
+
+
 def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                qso_optical_cuts=False, survey='main', resolvetargs=True,
@@ -2131,7 +2281,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-                   survey='main', resolvetargs=True):
+                   survey='main', resolvetargs=True, backup=True):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2193,6 +2343,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
         If ``True``, resolve targets into northern targets in northern regions
         and southern targets in southern regions.
+    backup : :class:`boolean`, optional, defaults to ``True``
+        If ``True``, also run the Gaia-only BACKUP_BRIGHT/FAINT targets.
 
     Returns
     -------
@@ -2274,7 +2426,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     if os.getenv('SLURMD_NODENAME') is not None:
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
-    def _finalize_targets(objects, desi_target, bgs_target, mws_target):
+    def _finalize_targets(objects, desi_target, bgs_target, mws_target,
+                          gaiadr=None):
         # - desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         # - on desi_target != 0
         keep = (desi_target != 0)
@@ -2282,12 +2435,15 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         desi_target = desi_target[keep]
         bgs_target = bgs_target[keep]
         mws_target = mws_target[keep]
+        if gaiadr is not None:
+            gaiadr = gaiadr[keep]
 
         # - Add *_target mask columns
         targets = finalize(objects, desi_target, bgs_target, mws_target,
-                           survey=survey, darkbright=True)
+                           survey=survey, darkbright=True, gaiadr=gaiadr)
+
         # ADM resolve any duplicates between imaging data releases.
-        if resolvetargs:
+        if resolvetargs and gaiadr is None:
             targets = resolve(targets)
 
         return targets
@@ -2350,13 +2506,59 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             for x in infiles:
                 targets.append(_update_status(_select_targets_file(x)))
 
-    # ADM it's possible that somebody could pass an arangment of HEALPixels
-    # ADM that contain no targets, in which case exit (somewhat) gracefully.
-    if targets == []:
+    # ADM it's possible that somebody could pass HEALPixels that
+    # ADM contain no targets, in which case exit (somewhat) gracefully.
+    if targets == [] and not backup:
         log.warning('ZERO targets for passed file list or region!!!')
         return targets
 
     targets = np.concatenate(targets)
+
+    if backup:
+        # ADM also process Gaia-only targets.
+        log.info('Retrieve extra Gaia-only (backup) objects...t = {:.1f} mins'
+                 .format((time()-t0)/60))
+
+        # ADM force to numproc<=4 for I/O limited (Gaia-only) processes.
+        numproc4 = numproc
+        if numproc4 > 4:
+            log.info('Forcing numproc to 4 for I/O limited parts of code')
+            numproc4 = 4
+
+        # ADM set the target bits that are based only on Gaia.
+        gaia_desi_target, gaia_bgs_target, gaia_mws_target, gaiaobjs = \
+            apply_cuts_gaia(numproc=numproc4, survey=survey, nside=nside,
+                            pixlist=pixlist)
+
+        # ADM determine the Gaia Data Release.
+        gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
+
+        # ADM add the relevant bits and IDs to the Gaia targets.
+        # ADM first set up empty DESI and BGS columns.
+        gaiatargs = _finalize_targets(
+            gaiaobjs, gaia_desi_target, gaia_bgs_target, gaia_mws_target,
+            gaiadr=gaiadr)
+
+        # ADM make the Gaia-only data structure resemble the main targets.
+        gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype)
+        sc = set(gaiatargs.dtype.names).intersection(set(targets.dtype.names))
+        for col in sc:
+            gaiatargets[col] = gaiatargs[col]
+
+        # ADM remove any duplicates. Order is important here, as np.unique
+        # ADM keeps the first occurence, and we want to retain sweeps
+        # ADM information as much as possible.
+        if len(infiles) > 0:
+            alltargs = np.concatenate([targets, gaiatargets])
+            # ADM Retain all non-Gaia sources, which have REF_ID of
+            # ADM -1 or 0 and thus are all duplicates on REF_ID.
+            ii = alltargs["REF_ID"] > 0
+            targs = alltargs[ii]
+            _, ind = np.unique(targs["REF_ID"], return_index=True)
+            targs = targs[ind]
+            targets = np.concatenate([targs, alltargs[~ii]])
+        else:
+            targets = gaiatargets
 
     # ADM restrict to only targets in a set of HEALPixels, if requested.
     if pixlist is not None:
