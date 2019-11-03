@@ -1273,7 +1273,6 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), 'TRUTH',
                                overwrite=overwrite,
                                outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
-            import pdb ; pdb.set_trace()
             
             # append, not overwrite other per-subclass truth tables
             for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
@@ -1281,8 +1280,6 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
                 _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), extname,
                                    overwrite=False,
                                    outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
-                if 'STAR' in extname:
-                    import pdb ; pdb.set_trace()
 
         #- Make initial merged target list (MTL) using rank 0
         if rank == 0 and todo['mtl-{}'.format(obscon)]:
