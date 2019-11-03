@@ -11,6 +11,7 @@ from desitarget.io import desitarget_version
 from desitarget.cuts import select_targets
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
+from desitarget.targets import decode_targetid
 
 from time import time
 start = time()
@@ -20,6 +21,7 @@ start = time()
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
+# ADM don't confuse this with the ns.nside input that is parsed below!!!
 nside = io.desitarget_nside()
 
 from desiutil.log import get_logger
@@ -30,7 +32,7 @@ ap = ArgumentParser(description='Generates DESI SV target bits from Legacy Surve
 ap.add_argument("sweepdir",
                 help="Tractor/sweeps file or root directory with tractor/sweeps files")
 ap.add_argument("dest",
-                help="Output target selection file")
+                help="Output target selection directory (the file name is built on-the-fly from other inputs")
 ap.add_argument('-s2', "--sweepdir2",
                 help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
                 default=None)
@@ -72,6 +74,8 @@ ap.add_argument("--nosecondary", action='store_true',
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
                 "Defaults to SCND_DIR environment variable. Not needed if --nosecondary is sent.")
+ap.add_argument("--nobackup", action='store_true',
+                help="Do NOT run the Gaia-only backup targets (which require the GAIA_DIR environment variable to be set).")
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
@@ -122,22 +126,22 @@ if ns.bundlefiles is None:
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels
 if pixlist is not None:
-    pixlist = [ int(pixnum) for pixnum in pixlist.split(',') ]
+    pixlist = [int(pix) for pix in pixlist.split(',')]
 
 # ADM parse the list of RA/Dec regions in which to run.
 inlists = [ns.radecbox, ns.radecrad]
 for i, inlist in enumerate(inlists):
     if inlist is not None:
-        inlists[i] = [ float(num) for num in inlist.split(',') ]
+        inlists[i] = [float(num) for num in inlist.split(',')]
 
-# ADM if specific bit names were passed, use them, otherwise run all target classes
+# ADM limit to specific bit names, if passed, otherwise run all targets.
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
 targets = select_targets(infiles, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist, extra=extra,
                          bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
                          radecbox=inlists[0], radecrad=inlists[1],
-                         tcnames=tcnames, survey=survey,
+                         tcnames=tcnames, survey=survey, backup=not(ns.nobackup),
                          resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits))
 
 if ns.bundlefiles is None:
@@ -164,15 +168,23 @@ if ns.bundlefiles is None:
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
+    # ADM differentiate the Gaia-only and Legacy Surveys targets.
+    _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
+    isgaia = gaiadr > 0
     # ADM write out bright-time and dark-time targets separately.
-    obscons = ["BRIGHT", "DARK"]
+    # ADM together with the Gaia-only back-up objects.
+    obscons = ["BRIGHT", "DARK", None]
+    iis = [~isgaia, ~isgaia, isgaia]
+    supps = [False, False, True]
     if ns.writeall:
         obscons.append(None)
-    for obscon in obscons:
+        iis.append(~isgaia)
+        supps.append(False)
+    for obscon, ii, supp in zip(obscons, iis, supps):
         ntargs, outfile = io.write_targets(
-            ns.dest, targets, indir=ns.sweepdir, indir2=ns.sweepdir2,
-            survey=survey, nsidefile=ns.nside, hpxlist=pixlist,
-            qso_selection=survey, nside=nside, obscon=obscon,
+            ns.dest, targets[ii], indir=ns.sweepdir, indir2=ns.sweepdir2,
+            survey=survey, nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
+            qso_selection=survey, nside=nside, obscon=obscon, scndout=scndout,
             resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits)
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

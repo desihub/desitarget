@@ -20,6 +20,7 @@ from pkg_resources import resource_filename
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
+from desitarget.gaiamatch import is_in_Galaxy
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -27,6 +28,65 @@ log = get_logger()
 
 # ADM start the clock
 start = time()
+
+
+def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
+    """BACKUP targets based on Gaia magnitudes.
+
+    Parameters
+    ----------
+    ra, dec: :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    gaiagmag: :class:`array_like` or :class:`None`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+        (same units as `the Gaia data model`_).
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a bright "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a faint "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a very faint "BACKUP"
+        target.
+
+    Notes
+    -----
+    - Current version (10/24/19) is version 114 on `the SV wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM restrict all classes to dec >= -30.
+    primary &= dec >= -30.
+
+    isbackupbright = primary.copy()
+    isbackupfaint = primary.copy()
+    isbackupveryfaint = primary.copy()
+
+    # ADM determine which sources are close to the Galaxy.
+    in_gal = is_in_Galaxy([ra, dec], radec=True)
+
+    # ADM bright targets are 10 < G < 16.
+    isbackupbright &= gaiagmag >= 10
+    isbackupbright &= gaiagmag < 16
+
+    # ADM faint targets are 16 < G < 18.5.
+    isbackupfaint &= gaiagmag >= 16
+    isbackupfaint &= gaiagmag < 18.5
+    # ADM and are "far from" the Galaxy.
+    isbackupfaint &= ~in_gal
+
+    # ADM very faint targets are 18.5 < G < 19.
+    isbackupveryfaint &= gaiagmag >= 18.5
+    isbackupveryfaint &= gaiagmag < 19
+    # ADM and are "far from" the Galaxy.
+    isbackupveryfaint &= ~in_gal
+
+    return isbackupbright, isbackupfaint, isbackupveryfaint
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,

@@ -134,6 +134,11 @@ sv1_mws_mask:
     - [MWS_MAIN_FAINT_NORTH,     15, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_FAINT_SOUTH,     16, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
 
+    # ADM back-up targets for poor conditions.
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
@@ -326,6 +331,9 @@ priorities:
         MWS_MAIN_BROAD_SOUTH:            SAME_AS_MWS_MAIN_BROAD_NORTH
         MWS_MAIN_FAINT_NORTH:      {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         MWS_MAIN_FAINT_SOUTH:      SAME_AS_MWS_MAIN_FAINT_NORTH
+        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 9, OBS: 9, DONOTOBSERVE: 0}
+        BACKUP_FAINT:                 {UNOBS: 8, DONE: 8, OBS: 8, DONOTOBSERVE: 0}
+        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 7, OBS: 7, DONOTOBSERVE: 0}
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
@@ -465,6 +473,9 @@ numobs:
         MWS_MAIN_BROAD_SOUTH:            0
         MWS_MAIN_FAINT_NORTH:      0
         MWS_MAIN_FAINT_SOUTH:      0
+        BACKUP_BRIGHT:                1
+        BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
+        BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
