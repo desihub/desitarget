@@ -832,8 +832,8 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
     """
     from desitarget.mock import mockmaker
     from desitarget.QA import _load_dndz
-    from desitarget.io import write_targets, write_skies
-    import desitarget.mock.io as mockio
+    from desitarget.io import write_targets, write_skies, find_target_files
+    #import desitarget.mock.io as mockio
 
     log, healpixseeds = initialize_targets_truth(
         params, verbose=verbose, seed=seed, nside=nside,
@@ -962,39 +962,29 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         # Finally, write the results to disk separately for bright- and
         # dark-time targets.
-        outdir = mockio.get_healpix_dir(nside, healpix, basedir=output_dir)
-        os.makedirs(outdir, exist_ok=True)
+        #outdir = mockio.get_healpix_dir(nside, healpix, basedir=output_dir)
+        #os.makedirs(outdir, exist_ok=True)
         
         nobj, nsky = len(targets), len(skytargets)
         if nobj > 0:
             for obscon in ['BRIGHT', 'DARK']:
-                # Do *not* pass obscon to mockio.findfile here because the
-                # subdirectory gets appended in io.write_targets!
-                targetsfile = mockio.findfile('targets',
-                        nside, healpix, obscon=None, basedir=output_dir)
-                truthfile = mockio.findfile('truth',
-                        nside, healpix, obscon=None, basedir=output_dir)
                 mockdata = {'truth': truth, 'objtruth': objtruth, 'seed': healseed,
-                            'truewave': MakeMock.wave, 'trueflux': trueflux,
-                            'truthfile': truthfile}
-                ntargs, outfile = write_targets(targetsfile, targets.as_array(), resolve=True,
+                            'truewave': MakeMock.wave, 'trueflux': trueflux}
+                ntargs, outfile = write_targets(output_dir, targets.as_array(), resolve=True,
                                                 obscon=obscon, survey=survey, nside=nside,
-                                                nsidefile=nside, hpxlist=[healpix], nchunks=None,
+                                                nsidefile=nside, hpxlist=healpix, nchunks=None,
                                                 qso_selection='colorcuts', mockdata=mockdata)
                 log.info('{} targets written to {}'.format(ntargs, outfile))
             
+        skyfile = find_target_files(output_dir, flavor='skies', nside=nside,
+                                    hp=healpix, mock=True)
         if nsky > 0:
-            skyfile = mockio.findfile('sky', nside, healpix, basedir=output_dir)
             log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
             write_skies(skyfile, skytargets.as_array(), nside=nside)
         else:
             log.info('No SKY targets generated; {} not written.'.format(skyfile))
             log.info('  Sky file {} not written.'.format(skyfile))
             
-        #write_targets_truth(targets, truth, objtruth, trueflux, MakeMock.wave,
-        #                    skytargets, skytruth,  healpix, nside, log, output_dir, 
-        #                    seed=healseed, survey=survey)
-        
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None, survey='main'):
     """Add various mission-critical columns to the target catalog, including
