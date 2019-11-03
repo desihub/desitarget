@@ -20,6 +20,7 @@ from pkg_resources import resource_filename
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
+from desitarget.gaiamatch import is_in_Galaxy
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -27,6 +28,65 @@ log = get_logger()
 
 # ADM start the clock
 start = time()
+
+
+def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
+    """BACKUP targets based on Gaia magnitudes.
+
+    Parameters
+    ----------
+    ra, dec: :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    gaiagmag: :class:`array_like` or :class:`None`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+        (same units as `the Gaia data model`_).
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is a bright "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a faint "BACKUP" target.
+    :class:`array_like`
+        ``True`` if and only if the object is a very faint "BACKUP"
+        target.
+
+    Notes
+    -----
+    - Current version (10/24/19) is version 114 on `the SV wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM restrict all classes to dec >= -30.
+    primary &= dec >= -30.
+
+    isbackupbright = primary.copy()
+    isbackupfaint = primary.copy()
+    isbackupveryfaint = primary.copy()
+
+    # ADM determine which sources are close to the Galaxy.
+    in_gal = is_in_Galaxy([ra, dec], radec=True)
+
+    # ADM bright targets are 10 < G < 16.
+    isbackupbright &= gaiagmag >= 10
+    isbackupbright &= gaiagmag < 16
+
+    # ADM faint targets are 16 < G < 18.5.
+    isbackupfaint &= gaiagmag >= 16
+    isbackupfaint &= gaiagmag < 18.5
+    # ADM and are "far from" the Galaxy.
+    isbackupfaint &= ~in_gal
+
+    # ADM very faint targets are 18.5 < G < 19.
+    isbackupveryfaint &= gaiagmag >= 18.5
+    isbackupveryfaint &= gaiagmag < 19
+    # ADM and are "far from" the Galaxy.
+    isbackupveryfaint &= ~in_gal
+
+    return isbackupbright, isbackupfaint, isbackupveryfaint
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
@@ -784,7 +844,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (09/25/19) is version 101 on `the SV wiki`_.
+    - Current version (10/26/19) is version 101 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -810,7 +870,8 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     if south:
         morph2 = dcs < 0.01
     else:
-        morph2 = dcs < 0.005
+    #currently identical, but leave as a placeholder for now
+        morph2 = dcs < 0.01
     qso &= _psflike(objtype) | morph2
 
     # ADM SV cuts are different for WISE SNR.
@@ -860,9 +921,9 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
     # zw1w2 cuts: SNz > 5
     # & w1-w2 > 0.5 & z- w1 < 4.5 & z-w1 > 2.0  (W1, W2 in Vega).
     qso &= zsnr > 5
-    qso &= w2flux > 10**(-0.14/2.5) * w1flux  # w1-w2 > -0.14 in AB magnitude
-    qso &= ((w1flux < 10**((4.5-2.699)/2.5) * zflux) &
-            (w1flux > 10**((2.0-2.699)/2.5) * zflux))
+    
+    qsoz5 = qso & (w2flux > 10**(-0.14/2.5) * w1flux) # w1-w2 > -0.14 in AB magnitude
+    qsoz5 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.0-2.699)/2.5) * zflux)
 
     # rzW1 cuts: (SNr < 3 |
     # (r-z < 3.2*(z-w1) - 6.5 & r-z > 1.0 & r-z < 3.9) | r-z > 4.4).
@@ -881,7 +942,16 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
         )
         rzcut = zflux > 10**(4.4/2.5) * rflux
 
-    qso &= SNRr | rzw1cut | rzcut
+    qsoz5 &= SNRr | rzw1cut | rzcut
+    
+    # additional cuts for z~ 4.3-4.8 quasar
+    # & w1-w2 > 0.3 & z-w1 < 4.5 & z-w1 > 2.5 & SNr > 3 & r-z > -1.0 & r-z < 1.5, W1,W2 in Vega
+    qsoz45 = qso & (w2flux > 10**(-0.34/2.5) * w1flux) #W1,W2 in AB
+    qsoz45 &= (w1flux < 10**((4.5-2.699)/2.5) * zflux) & (w1flux > 10**((2.5-2.699)/2.5) * zflux)
+    qsoz45 &= rsnr > 3
+    qsoz45 &= (zflux > 10**(-1.0/2.5) * rflux) & (zflux < 10**(1.5/2.5) * rflux)
+
+    qso &= qsoz5 | qsoz45
 
     return qso
 

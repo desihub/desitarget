@@ -21,7 +21,7 @@ ap = ArgumentParser(description='Generates a file of GFA (Guide/Focus/Alignment)
 ap.add_argument("surveydir",
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC)")
 ap.add_argument("dest",
-                help="Output GFA targets file (e.g. '/project/projectdirs/desi/target/catalogs/gfas-dr6-0.20.0.fits' at NERSC)")
+                help="Output GFA targets directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument('-m', '--maglim', type=float,
                 help="Magnitude limit on GFA targets in Gaia G-band (defaults to [21])",
                 default=21)
@@ -93,6 +93,9 @@ if ns.bundlefiles is None:
                                   [ns.maglim, ns.mindec, ns.mingalb])}
 
     log.info('Writing GFAs to file...t = {:.1f} mins'.format((time()-t0)/60.))
-    io.write_gfas(ns.dest, gfas, indir=ns.surveydir, indir2=ns.surveydir2,
-                  nside=nside, nsidefile=ns.nside, hpxlist=pixlist, extra=extra)
-    log.info('{} GFAs written to {}...t = {:.1f} mins'.format(len(gfas), ns.dest, (time()-t0)/60.))
+    ngfas, outfile = io.write_gfas(ns.dest, gfas, indir=ns.surveydir,
+                                   indir2=ns.surveydir2, nside=nside,
+                                   nsidefile=ns.nside, hpxlist=pixlist,
+                                   extra=extra)
+    log.info('{} GFAs written to {}...t = {:.1f} mins'.format(
+        ngfas, outfile, (time()-t0)/60.))

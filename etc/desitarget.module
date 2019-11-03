@@ -80,3 +80,4 @@ setenv GAIA_DIR /project/projectdirs/desi/target/gaia_dr2
 setenv CMX_DIR /project/projectdirs/desi/target/cmx_files
 setenv SCND_DIR /project/projectdirs/desi/target/secondary
 setenv URAT_DIR /project/projectdirs/desi/target/urat_dr1
+setenv TARG_DIR /project/projectdirs/desi/target/catalogs
