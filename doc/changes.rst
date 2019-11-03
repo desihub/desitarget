@@ -2,10 +2,16 @@
 desitarget Change Log
 =====================
 
-0.33.4 (unreleased)
+0.34.1 (unreleased)
 -------------------
 
-* Update z~5 QSO cuts in SV to include z~4.3-4.8 quasars [`PR #559`_].
+* No changes yet.
+
+0.34.0 (2019-11-03)
+-------------------
+
+* Update SV0 (BGS, ELG, LRG, QSO) classes for commissioning [`PR #560`_].
+    * Also add new ``STD_DITHER`` target class for commissioning.
 * All-sky/backup targets, new output data model [`PR #558`_]. Includes:
     * Add all-sky/backup/supplemental targets for SV.
     * Add all-sky/backup/supplemental targets for the Main survey.
@@ -18,7 +24,7 @@ desitarget Change Log
     * Change CMX ``BACKUP_FAINT`` limit to G < 19.
 
 .. _`PR #558`: https://github.com/desihub/desitarget/pull/558
-.. _`PR #559`: https://github.com/desihub/desitarget/pull/559
+.. _`PR #560`: https://github.com/desihub/desitarget/pull/560
 
 0.33.3 (2019-10-31)
 -------------------
@@ -30,8 +36,6 @@ desitarget Change Log
 0.33.2 (2019-10-17)
 -------------------
 
-* Update SV0 (BGS, ELG, LRG, QSO) classes for commissioning [`PR #560`_].
-    * Also add new ``STD_DITHER`` target class for commissioning.
 * Add FIBERFLUX_IVAR_G/R/Z to mock skies when merging [`PR #556`_].
 * Fix minor bugs in `select_mock_targets` [`PR #555`_].
 * Update the ELG selections for SV [`PR #553`_]. Includes:
@@ -52,7 +56,6 @@ desitarget Change Log
 .. _`PR #553`: https://github.com/desihub/desitarget/pull/553
 .. _`PR #555`: https://github.com/desihub/desitarget/pull/555
 .. _`PR #556`: https://github.com/desihub/desitarget/pull/556
-.. _`PR #560`: https://github.com/desihub/desitarget/pull/560
 
 0.33.1 (2019-10-13)
 -------------------
