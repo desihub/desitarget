@@ -5,6 +5,7 @@ desitarget Change Log
 0.33.4 (unreleased)
 -------------------
 
+* Implement a variety of fixes to `select_mock_targets` [`PR #561`_].
 * Update z~5 QSO cuts in SV to include z~4.3-4.8 quasars [`PR #559`_].
 * All-sky/backup targets, new output data model [`PR #558`_]. Includes:
     * Add all-sky/backup/supplemental targets for SV.
@@ -19,6 +20,7 @@ desitarget Change Log
 
 .. _`PR #558`: https://github.com/desihub/desitarget/pull/558
 .. _`PR #559`: https://github.com/desihub/desitarget/pull/559
+.. _`PR #561`: https://github.com/desihub/desitarget/pull/561
 
 0.33.3 (2019-10-31)
 -------------------
