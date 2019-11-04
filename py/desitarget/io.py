@@ -1626,8 +1626,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     else:
         allowed_flavor = ["targets", "skies", "gfas", "randoms"]
     if flavor not in allowed_flavor:
-        msg = "flavor must be targets, skies, gfas or randoms, not {}".format(
-            flavor)
+        msg = "flavor must be {}, not {}".format(' or '.join(allowed_flavor), flavor)
         log.critical(msg)
         raise ValueError(msg)
     res = "noresolve"
@@ -1643,22 +1642,26 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     # If seeking a mock target (or sky) catalog, construct the filepath and then
     # bail.
     if mock:
-        if hp is None or nside is None:
-            msg = 'Must specify nside and hp to locate the mock target catalogs!'
-            log.critical(msg)
-            raise ValueError(msg)
-        
-        subdir = str(hp // 100)
-        path = os.path.abspath(os.path.join(targdir, subdir, str(hp)))
-        
-        if obscon is not None:
-            path = os.path.join(path, obscon)
-            fn = '{flavor}-{obscon}-{nside}-{hp}.fits'.format(
-                flavor=flavor.lower(), obscon=obscon, nside=nside, hp=hp)
+        if hp is None and nside is None:
+            path = targdir
+            if obscon is not None:
+                fn = '{flavor}-{obscon}.fits'.format(flavor=flavor.lower(), obscon=obscon)
+            else:
+                fn = '{flavor}.fits'.format(flavor=flavor.lower())
         else:
-            fn = '{flavor}-{nside}-{hp}.fits'.format(
-                flavor=flavor.lower(), nside=nside, hp=hp)
-
+            if (hp is None and nside is not None) or (hp is not None and nside is None):
+                msg = 'Must specify nside and hp to locate the mock target catalogs!'
+                log.critical(msg)
+                raise ValueError(msg)
+            subdir = str(hp // 100)
+            path = os.path.abspath(os.path.join(targdir, subdir, str(hp)))
+            if obscon is not None:
+                path = os.path.join(path, obscon)
+                fn = '{flavor}-{obscon}-{nside}-{hp}.fits'.format(
+                    flavor=flavor.lower(), obscon=obscon, nside=nside, hp=hp)
+            else:
+                fn = '{flavor}-{nside}-{hp}.fits'.format(
+                    flavor=flavor.lower(), nside=nside, hp=hp)
         return os.path.join(path, fn)
 
     # ADM build up the name of the file (or directory).

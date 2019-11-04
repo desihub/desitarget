@@ -1202,8 +1202,6 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
             data = np.lib.recfunctions.append_fields(data, colnames, coldata,
                                                      usemask=False)
 
-        if 'STAR' in ext:
-            import pdb ; pdb.set_trace()
         fitsio.write(tmpout, data, header=header, extname=ext, clobber=overwrite)
         os.rename(tmpout, outfile)
 
