@@ -109,6 +109,13 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
     """
+    # ADM if floats were sent, treat them like arrays.
+    flt = False
+    if _is_row(gflux):
+        flt = True
+        gflux = np.atleast_1d(gflux)
+        rflux = np.atleast_1d(rflux)
+        zflux = np.atleast_1d(zflux)
 
     # ADM only use the g-band color shift when r and g are non-zero
     gshift = gflux * 10**(-0.4*0.013)
@@ -123,6 +130,9 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
 
     rshift[w] = (rflux[w] * 10**(-0.4*0.007) * (rflux[w]/zflux[w])**complex(-0.027)).real
     zshift[w] = (zflux[w] * 10**(+0.4*0.022) * (rflux[w]/zflux[w])**complex(+0.019)).real
+
+    if flt:
+        return gshift[0], rshift[0], zshift[0]
 
     return gshift, rshift, zshift
 
