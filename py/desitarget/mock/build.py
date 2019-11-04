@@ -976,11 +976,12 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                                                 qso_selection='colorcuts', mockdata=mockdata)
                 log.info('{} targets written to {}'.format(ntargs, outfile))
             
-        skyfile = find_target_files(output_dir, flavor='skies', nside=nside,
+        skyfile = find_target_files(output_dir, flavor='sky', nside=nside,
                                     hp=healpix, mock=True)
         if nsky > 0:
             log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
-            write_skies(skyfile, skytargets.as_array(), nside=nside)
+            write_skies(output_dir, skytargets.as_array(), nside=nside, nsidefile=nside,
+                        hpxlist=healpix, mock=True)
         else:
             log.info('No SKY targets generated; {} not written.'.format(skyfile))
             log.info('  Sky file {} not written.'.format(skyfile))
