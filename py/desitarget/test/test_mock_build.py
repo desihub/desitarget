@@ -42,8 +42,8 @@ class TestMockBuild(unittest.TestCase):
         #- Test without spectra
         targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=True)
         for obscon in ['bright', 'dark']:
-            targetfile = self.outdir + '/997/99737/' + obscon + '/targets-256-99737.fits'
-            truthfile = self.outdir + '/997/99737/' + obscon + '/truth-256-99737.fits'
+            targetfile = self.outdir + '/997/99737/' + obscon + '/targets-{}-256-99737.fits'.format(obscon)
+            truthfile = self.outdir + '/997/99737/' + obscon + '/truth-{}-256-99737.fits'.format(obscon)
             self.assertTrue(os.path.exists(targetfile))
             self.assertTrue(os.path.exists(truthfile))
 
@@ -58,8 +58,8 @@ class TestMockBuild(unittest.TestCase):
 
         targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=False)
         for obscon in ['bright', 'dark']:
-            targetfile = self.outdir + '/997/99737/' + obscon + '/targets-256-99737.fits'
-            truthfile = self.outdir + '/997/99737/' + obscon + '/truth-256-99737.fits'
+            targetfile = self.outdir + '/997/99737/' + obscon + '/targets-{}-256-99737.fits'.format(obscon)
+            truthfile = self.outdir + '/997/99737/' + obscon + '/truth-{}-256-99737.fits'.format(obscon)
             self.assertTrue(os.path.exists(targetfile))
             self.assertTrue(os.path.exists(truthfile))
 
