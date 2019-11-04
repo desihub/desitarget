@@ -723,7 +723,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
 
 def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
-                nsidefile=None, hpxlist=None, extra=None):
+                nsidefile=None, hpxlist=None, extra=None, mock=False):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -760,6 +760,9 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    mock : :class:`bool`, optional, defaults to ``False``.
+        If ``True`` then construct the file path for mock sky target catalogs.
+
     """
     nskies = len(data)
 
@@ -837,8 +840,13 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         hpxlist = "X"
 
     # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="skies",
-                                 hp=hpxlist, supp=supp)
+    if mock:
+        filename = find_target_files(targdir, flavor='sky', hp=hpxlist,
+                                     mock=mock, nside=nside)
+    else:
+        filename = find_target_files(targdir, dr=drint, flavor="skies",
+                                     hp=hpxlist, supp=supp, mock=mock,
+                                     nside=nside)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -1596,9 +1604,9 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental targets file. Overrides
         the `obscon` option.
-    mock : :class:`bool`, optional, defaults to ``False``.  If ``True`` then
-        construct the file path for mock target catalogs and return (most other
-        inputs are ignored).
+    mock : :class:`bool`, optional, defaults to ``False``.
+        If ``True`` then construct the file path for mock target catalogs and
+        return (most other inputs are ignored).
 
     Returns
     -------
@@ -1622,7 +1630,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         log.critical(msg)
         raise ValueError(msg)
     if mock:
-        allowed_flavor = ["targets", "truth", "skies"]
+        allowed_flavor = ["targets", "truth", "sky"]
     else:
         allowed_flavor = ["targets", "skies", "gfas", "randoms"]
     if flavor not in allowed_flavor:
