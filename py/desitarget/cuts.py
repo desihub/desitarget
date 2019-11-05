@@ -1807,8 +1807,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             for targtype in ["bright", "faint", "wise"]:
                 bgs_store.append(
                     isBGS(
-                        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                        rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, 
+                        w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
