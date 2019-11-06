@@ -5,7 +5,7 @@ desitarget Change Log
 0.34.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add bitmasks (1,12,13) and rfiberflux cut for BGS Main Survey selection [`PR #562`_].
 
 0.34.0 (2019-11-03)
 -------------------
