@@ -101,6 +101,7 @@ class TestCuts(unittest.TestCase):
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
         zfiberflux = flux['ZFIBERFLUX']
+        rfiberflux = flux['RFIBERFLUX']
 
         gfluxivar = targets['FLUX_IVAR_G']
         rfluxivar = targets['FLUX_IVAR_R']
@@ -169,8 +170,8 @@ class TestCuts(unittest.TestCase):
             bgs = []
             for primary in [primary, None]:
                 bgs.append(
-                    cuts.isBGS(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                    cuts.isBGS(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, 
+                               w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                                gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                                gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                                gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
