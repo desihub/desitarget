@@ -2,10 +2,32 @@
 desitarget Change Log
 =====================
 
-0.33.4 (unreleased)
+0.34.1 (unreleased)
 -------------------
 
-* Update z~5 QSO cuts in SV to include z~4.3-4.8 quasars [`PR #559`_].
+* Add bitmasks (1,12,13) and rfiberflux cut for BGS Main Survey [`PR #562`_].
+* Implement a variety of fixes to `select_mock_targets` [`PR #561`_].
+* Fixes and updates to ``secondary.py`` [`PR #530`]:
+    * Fix a bug that led to incorrect ``OBSCONDITIONS`` for secondary-only
+      targets.
+    * Secondary target properties can override matched primary properties,
+      but only for restricted combinations of DESI_TARGET bits (MWS and STD).
+* Add stellar SV targets [`PR #530`]:
+    * Add MWS SV target definitions in ``sv1_targetmask`` and ``cuts``.
+    * Science WDs are now a secondary target class.
+    * Ads a bright limit to the ``MWS-NEARBY`` sample.
+    * Add stellar SV secondary targets in ``sv1_targetmask``.
+    * Remove the ``BACKSTOP`` secondary bit.
+
+.. _`PR #530`: https://github.com/desihub/desitarget/pull/530
+.. _`PR #561`: https://github.com/desihub/desitarget/pull/561
+.. _`PR #562`: https://github.com/desihub/desitarget/pull/562
+
+0.34.0 (2019-11-03)
+-------------------
+
+* Update SV0 (BGS, ELG, LRG, QSO) classes for commissioning [`PR #560`_].
+    * Also add new ``STD_DITHER`` target class for commissioning.
 * All-sky/backup targets, new output data model [`PR #558`_]. Includes:
     * Add all-sky/backup/supplemental targets for SV.
     * Add all-sky/backup/supplemental targets for the Main survey.
@@ -16,21 +38,9 @@ desitarget Change Log
         * File-name-generation used by randoms, skies, targets and gfas.
         * `select_*` binaries for these classes use this functionality.
     * Change CMX ``BACKUP_FAINT`` limit to G < 19.
-* Add stellar SV targets [`PR #530`]:
-    * Add MWS SV target definitions in ``sv1_targetmask`` and ``cuts``.
-    * Science WDs are now a secondary target class.
-    * Ads a bright limit to the ``MWS-NEARBY`` sample.
-    * Add stellar SV secondary targets in ``sv1_targetmask``.
-    * Remove the ``BACKSTOP`` secondary bit.
-* Fixes and updates to ``secondary.py`` [`PR #530`]:
-    * Fix a bug that led to incorrect ``OBSCONDITIONS`` for secondary-only
-      targets.
-    * Secondary target properties can override matched primary properties,
-      but only for destricted combinations of DESI_TARGET bits (MWS and STD).
 
 .. _`PR #558`: https://github.com/desihub/desitarget/pull/558
-.. _`PR #559`: https://github.com/desihub/desitarget/pull/559
-.. _`PR #530`: https://github.com/desihub/desitarget/pull/530
+.. _`PR #560`: https://github.com/desihub/desitarget/pull/560
 
 0.33.3 (2019-10-31)
 -------------------

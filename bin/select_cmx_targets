@@ -50,7 +50,8 @@ ap.add_argument("--cmxdir", type=str,
                 default=None)
 ap.add_argument("--noresolve", action='store_true',
                 help="Do NOT resolve into northern targets in northern regions and southern targets in southern regions")
-
+ap.add_argument("--nobackup", action='store_true',
+                help="Do NOT run the Gaia-only backup targets (which require the GAIA_DIR environment variable to be set).")
 
 ns = ap.parse_args()
 
@@ -109,7 +110,7 @@ if pixlist is not None:
     pixlist = [int(pix) for pix in pixlist.split(',')]
 
 targets = select_targets(infiles, numproc=ns.numproc,
-                         resolvetargs=not(ns.noresolve),
+                         resolvetargs=not(ns.noresolve), backup=not(ns.nobackup),
                          nside=ns.nside, pixlist=pixlist, extra=extra,
                          bundlefiles=ns.bundlefiles, cmxdir=ns.cmxdir)
 

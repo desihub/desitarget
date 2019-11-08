@@ -109,6 +109,13 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
     """
+    # ADM if floats were sent, treat them like arrays.
+    flt = False
+    if _is_row(gflux):
+        flt = True
+        gflux = np.atleast_1d(gflux)
+        rflux = np.atleast_1d(rflux)
+        zflux = np.atleast_1d(zflux)
 
     # ADM only use the g-band color shift when r and g are non-zero
     gshift = gflux * 10**(-0.4*0.013)
@@ -123,6 +130,9 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
 
     rshift[w] = (rflux[w] * 10**(-0.4*0.007) * (rflux[w]/zflux[w])**complex(-0.027)).real
     zshift[w] = (zflux[w] * 10**(+0.4*0.022) * (rflux[w]/zflux[w])**complex(+0.019)).real
+
+    if flt:
+        return gshift[0], rshift[0], zshift[0]
 
     return gshift, rshift, zshift
 
@@ -943,7 +953,7 @@ def _check_BGS_targtype_sv(targtype):
         raise ValueError(msg)
 
 
-def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
           gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None, Grr=None,
@@ -981,7 +991,7 @@ def isBGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
                          gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
 
-    bgs &= isBGS_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+    bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                         south=south, targtype=targtype, primary=primary)
 
     return bgs
@@ -1008,7 +1018,13 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
-    bgs &= (maskbits & 2**1) == 0
+    #geometrical cuts (i.e., bright sources)
+    for bit in [1, 12, 13]:
+        bgs &= ((maskbits & 2**bit) == 0)
+
+    #Allmask?
+    #for bit in [5, 6, 7]:
+    #    bgs &= ((maskbits & 2**bit) == 0)
 
     if targtype == 'bright':
         bgs &= ((Grr > 0.6) | (gaiagmag == 0))
@@ -1022,7 +1038,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     return bgs
 
 
-def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  south=True, targtype=None, primary=None):
     """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
@@ -1032,6 +1048,7 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
+    fmc = np.zeros_like(rflux, dtype='?')
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
@@ -1052,6 +1069,18 @@ def isBGS_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         bgs &= rflux < gflux * 10**(4.0/2.5)
         bgs &= zflux > rflux * 10**(-1.0/2.5)
         bgs &= zflux < rflux * 10**(4.0/2.5)
+        
+    g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
+    r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
+    z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
+    rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
+
+    #Fibre Magnitude Cut (FMC) -- This is a low surface brightness cut with the aim of increase the redshift success rate.
+    fmc |= ((rfib < (2.9 + 1.2) + r) & (r < 17.1))
+    fmc |= ((rfib < 21.2) & (r < 18.3) & (r > 17.1))
+    fmc |= ((rfib < 2.9 + r) & (r > 18.3))
+
+    bgs &= fmc
 
     return bgs
 
@@ -1778,8 +1807,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             for targtype in ["bright", "faint", "wise"]:
                 bgs_store.append(
                     isBGS(
-                        gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                        rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, 
+                        w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
