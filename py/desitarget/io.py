@@ -317,6 +317,10 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         objtruth = {}
         for obj in sorted(set(truthdata['TEMPLATETYPE'])):
             objtruth[obj] = _objtruth[obj]
+        for key in objtruth.keys():
+            keep = np.where(np.isin(objtruth[key]['TARGETID'], truthdata['TARGETID']))[0]
+            if len(keep) > 0:
+                objtruth[key] = objtruth[key][keep]
 
         if len(trueflux) > 0 and trueflux.shape[1] > 0:
             trueflux = trueflux[ii, :]
@@ -439,9 +443,15 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         hpx = "X"
 
     # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="targets",
-                                 survey=survey, obscon=obscon, hp=hpx,
-                                 resolve=resolve, supp=supp)
+    if mockdata is not None:
+        filename = find_target_files(targdir, flavor="targets", obscon=obscon,
+                                     hp=hpx, nside=nside, mock=True)
+        truthfile = find_target_files(targdir, flavor="truth", obscon=obscon,
+                                      hp=hpx, nside=nside, mock=True)
+    else:
+        filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                     survey=survey, obscon=obscon, hp=hpx,
+                                     resolve=resolve, supp=supp)
 
     ntargs = len(data)
     # ADM die immediately if there are no targets to write.
@@ -521,7 +531,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # Optionally write out mock catalog data.
     if mockdata is not None:
-        truthfile = filename.replace('targets-', 'truth-')
+        #truthfile = filename.replace('targets-', 'truth-')
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
 
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
@@ -714,7 +724,7 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
 
 def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
-                nsidefile=None, hpxlist=None, extra=None):
+                nsidefile=None, hpxlist=None, extra=None, mock=False):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -751,6 +761,9 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    mock : :class:`bool`, optional, defaults to ``False``.
+        If ``True`` then construct the file path for mock sky target catalogs.
+
     """
     nskies = len(data)
 
@@ -828,8 +841,13 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         hpxlist = "X"
 
     # ADM construct the output file name.
-    filename = find_target_files(targdir, dr=drint, flavor="skies",
-                                 hp=hpxlist, supp=supp)
+    if mock:
+        filename = find_target_files(targdir, flavor='sky', hp=hpxlist,
+                                     mock=mock, nside=nside)
+    else:
+        filename = find_target_files(targdir, dr=drint, flavor="skies",
+                                     hp=hpxlist, supp=supp, mock=mock,
+                                     nside=nside)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -1558,9 +1576,9 @@ def _get_targ_dir():
 
     return targdir
 
-
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
-                      obscon=None, hp=None, resolve=True, supp=False):
+                      obscon=None, hp=None, nside=None, resolve=True,
+                      supp=False, mock=False):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1578,13 +1596,18 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
     hp : :class:`list` or :class:`int` or :class:`str`, optional
         HEALPixel numbers used to make the file (e.g. 42 or [12, 37]
-        or "42" or "12,37").
+        or "42" or "12,37"). Required if mock=`True`.
+    nside : :class:`int`, optional unless mock=`True`
+        Nside corresponding to healpixel `hp`.
     resolve : :class:`bool`, optional, defaults to ``True``
         If ``True`` then find the `resolve` file. Otherwise find the
         `noresolve` file. Only relevant if `flavor` is `targets`.
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental targets file. Overrides
         the `obscon` option.
+    mock : :class:`bool`, optional, defaults to ``False``.
+        If ``True`` then construct the file path for mock target catalogs and
+        return (most other inputs are ignored).
 
     Returns
     -------
@@ -1598,6 +1621,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           are stored is returned. The directory name is the expected
           input for the `desitarget.io.read*` convenience functions
           (:func:`desimodel.io.read_targets_in_hp()`, etc.).
+
     """
     # ADM some preliminaries for correct formatting.
     if obscon is not None:
@@ -1606,9 +1630,12 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         msg = "survey must be main, cmx or svX, not {}".format(survey)
         log.critical(msg)
         raise ValueError(msg)
-    if flavor not in ["targets", "skies", "gfas", "randoms"]:
-        msg = "flavor must be targets, skies, gfas or randoms, not {}".format(
-            flavor)
+    if mock:
+        allowed_flavor = ["targets", "truth", "sky"]
+    else:
+        allowed_flavor = ["targets", "skies", "gfas", "randoms"]
+    if flavor not in allowed_flavor:
+        msg = "flavor must be {}, not {}".format(' or '.join(allowed_flavor), flavor)
         log.critical(msg)
         raise ValueError(msg)
     res = "noresolve"
@@ -1620,6 +1647,31 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         drstr = "dr{}".format(dr)
     if supp:
         drstr = "supp"
+
+    # If seeking a mock target (or sky) catalog, construct the filepath and then
+    # bail.
+    if mock:
+        if hp is None and nside is None:
+            path = targdir
+            if obscon is not None:
+                fn = '{flavor}-{obscon}.fits'.format(flavor=flavor.lower(), obscon=obscon)
+            else:
+                fn = '{flavor}.fits'.format(flavor=flavor.lower())
+        else:
+            if (hp is None and nside is not None) or (hp is not None and nside is None):
+                msg = 'Must specify nside and hp to locate the mock target catalogs!'
+                log.critical(msg)
+                raise ValueError(msg)
+            subdir = str(hp // 100)
+            path = os.path.abspath(os.path.join(targdir, subdir, str(hp)))
+            if obscon is not None:
+                path = os.path.join(path, obscon)
+                fn = '{flavor}-{obscon}-{nside}-{hp}.fits'.format(
+                    flavor=flavor.lower(), obscon=obscon, nside=nside, hp=hp)
+            else:
+                fn = '{flavor}-{nside}-{hp}.fits'.format(
+                    flavor=flavor.lower(), nside=nside, hp=hp)
+        return os.path.join(path, fn)
 
     # ADM build up the name of the file (or directory).
     surv = survey
@@ -2053,7 +2105,7 @@ def target_columns_from_header(hpdirname):
 
 def _check_hpx_length(hpxlist, length=68, warning=False):
     """Check a list expressed as a csv string won't exceed a length."""
-    pixstring = ",".join([str(i) for i in hpxlist])
+    pixstring = ",".join([str(i) for i in np.atleast_1d(hpxlist)])
     if len(pixstring) > length:
         msg = "Pixel string {} is too long. Maximum is length-{} strings."  \
             .format(pixstring, length)
