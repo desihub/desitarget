@@ -5,8 +5,10 @@ desitarget Change Log
 0.34.1 (unreleased)
 -------------------
 
+* Implement a variety of fixes to `select_mock_targets` [`PR #561`_].
 * Add bitmasks (1,12,13) and rfiberflux cut for BGS Main Survey selection [`PR #562`_].
 
+.. _`PR #561`: https://github.com/desihub/desitarget/pull/561
 .. _`PR #562`: https://github.com/desihub/desitarget/pull/562
 
 0.34.0 (2019-11-03)
