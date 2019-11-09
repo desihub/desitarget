@@ -12,7 +12,7 @@ desitarget Change Log
 
 .. _`PR #561`: https://github.com/desihub/desitarget/pull/561
 .. _`PR #562`: https://github.com/desihub/desitarget/pull/562
-.. _`PR #562`: https://github.com/desihub/desitarget/pull/563
+.. _`PR #563`: https://github.com/desihub/desitarget/pull/563
 
 0.34.0 (2019-11-03)
 -------------------
