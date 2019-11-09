@@ -252,6 +252,11 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
 
+    # ADM to maintain backwards-compatibility with mocks.
+    if zfiberflux is None:
+        log.warning('Setting zfiberflux to zflux!!!')
+        zfiberflux = zflux.copy()
+
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
@@ -1043,6 +1048,11 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
+    # ADM to maintain backwards-compatibility with mocks.
+    if rfiberflux is None:
+        log.warning('Setting rfiberflux to rflux!!!')
+        rfiberflux = rflux.copy()
+
     _check_BGS_targtype(targtype)
 
     if primary is None:
