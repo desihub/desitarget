@@ -252,6 +252,11 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
 
+    # ADM to maintain backwards-compatibility with mocks.
+    if zfiberflux is None:
+        log.warning('Setting zfiberflux to zflux!!!')
+        zfiberflux = zflux.copy()
+
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
@@ -1018,12 +1023,12 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
-    #geometrical cuts (i.e., bright sources)
+    # geometrical cuts (i.e., bright sources)
     for bit in [1, 12, 13]:
         bgs &= ((maskbits & 2**bit) == 0)
 
-    #Allmask?
-    #for bit in [5, 6, 7]:
+    # Allmask?
+    # for bit in [5, 6, 7]:
     #    bgs &= ((maskbits & 2**bit) == 0)
 
     if targtype == 'bright':
@@ -1044,6 +1049,11 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
+
+    # ADM to maintain backwards-compatibility with mocks.
+    if rfiberflux is None:
+        log.warning('Setting rfiberflux to rflux!!!')
+        rfiberflux = rflux.copy()
 
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -1069,13 +1079,14 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
         bgs &= rflux < gflux * 10**(4.0/2.5)
         bgs &= zflux > rflux * 10**(-1.0/2.5)
         bgs &= zflux < rflux * 10**(4.0/2.5)
-        
+
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
 
-    #Fibre Magnitude Cut (FMC) -- This is a low surface brightness cut with the aim of increase the redshift success rate.
+    # Fibre Magnitude Cut (FMC) -- This is a low surface brightness cut
+    # with the aim of increase the redshift success rate.
     fmc |= ((rfib < (2.9 + 1.2) + r) & (r < 17.1))
     fmc |= ((rfib < 21.2) & (r < 18.3) & (r > 17.1))
     fmc |= ((rfib < 2.9 + r) & (r > 18.3))
@@ -1807,7 +1818,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             for targtype in ["bright", "faint", "wise"]:
                 bgs_store.append(
                     isBGS(
-                        rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, 
+                        rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
                         w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
