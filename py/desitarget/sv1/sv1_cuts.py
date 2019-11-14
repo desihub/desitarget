@@ -154,6 +154,11 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
 
+    # ADM to maintain backwards-compatibility with mocks.
+    if zfiberflux is None:
+        log.warning('Setting zfiberflux to zflux!!!')
+        zfiberflux = zflux.copy()
+
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
@@ -169,6 +174,11 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
     lrginit, lrgsuper = np.tile(primary, [2, 1])
+
+    # ADM to maintain backwards-compatibility with mocks.
+    if zfiberflux is None:
+        log.warning('Setting zfiberflux to zflux!!!')
+        zfiberflux = zflux.copy()
 
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
     # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
@@ -293,6 +303,11 @@ def isfiller(gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     filler = primary.copy()
+
+    # ADM to maintain backwards-compatibility with mocks.
+    if rfiberflux is None:
+        log.warning('Setting rfiberflux to rflux!!!')
+        rfiberflux = rflux.copy()
 
     filler &= (gflux_snr > 0) & (gflux > 0)    # ADM quality in g.
     filler &= (rflux_snr > 0) & (rflux > 0) & (rfiberflux > 0)   # ADM quality in r.
@@ -1051,10 +1066,14 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
-
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
+
+    # ADM to maintain backwards-compatibility with mocks.
+    if rfiberflux is None:
+        log.warning('Setting rfiberflux to rflux!!!')
+        rfiberflux = rflux.copy()
 
     if targtype == 'lowq':
         bgs &= rflux > 10**((22.5-20.1)/2.5)
@@ -1143,6 +1162,11 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     elg = primary.copy()
+
+    # ADM to maintain backwards-compatibility with mocks.
+    if gfiberflux is None:
+        log.warning('Setting gfiberflux to gflux!!!')
+        gfiberflux = gflux.copy()
 
     # ADM some cuts specific to north or south
     if south:

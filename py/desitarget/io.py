@@ -531,7 +531,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # Optionally write out mock catalog data.
     if mockdata is not None:
-        #truthfile = filename.replace('targets-', 'truth-')
+        # truthfile = filename.replace('targets-', 'truth-')
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
 
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
@@ -1575,6 +1575,7 @@ def _get_targ_dir():
         raise ValueError(msg)
 
     return targdir
+
 
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True,
