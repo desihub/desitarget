@@ -972,8 +972,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                [1, 5, 6, 7, 11, 12, 13]]:
         bitint = np.sum(2**np.array(mb))
         mbcomb.append(bitint)
-        log.info('Determining footprint for maskbits {}...t = {:.1f}s'
-                 .format(mbcomb, time()-start))
+        log.info('Determining footprint for maskbits not in {}...t = {:.1f}s'
+                 .format(bitint, time()-start))
         mbstore.append(pixweight(randoms, rand_density,
                                  nside=nside, maskbits=bitint))
 
