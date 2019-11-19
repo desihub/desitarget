@@ -2107,8 +2107,9 @@ def _check_hpx_length(hpxlist, length=68, warning=False):
     """Check a list expressed as a csv string won't exceed a length."""
     pixstring = ",".join([str(i) for i in np.atleast_1d(hpxlist)])
     if len(pixstring) > length:
-        msg = "Pixel string {} is too long. Maximum is length-{} strings."  \
-            .format(pixstring, length)
+        msg = "Pixel string {} is too long. Maximum is length-{} strings. "  \
+              "If making files, try reducing nside or the bundling integer."  \
+        .format(pixstring, length)
         if warning:
             log.warning(msg)
         else:
