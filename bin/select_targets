@@ -64,9 +64,6 @@ ap.add_argument('--healpixels',
 ap.add_argument("--bundlefiles", type=int,
                 help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
                 default=None)
-ap.add_argument("--filespersec", type=float,
-                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.12)",
-                default=0.12)
 ap.add_argument('--radecbox',
                 help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
                 default=None)
@@ -152,9 +149,9 @@ if ns.check:
 else:
     targets = select_targets(infiles, numproc=ns.numproc,
                              qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
-                             sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             nside=ns.nside, pixlist=pixlist, extra=extra,
-                             bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
+                             sandbox=ns.sandbox, FoMthresh=ns.FoMthresh,
+                             Method=ns.Method, nside=ns.nside, pixlist=pixlist,
+                             extra=extra, bundlefiles=ns.bundlefiles,
                              radecbox=inlists[0], radecrad=inlists[1],
                              tcnames=tcnames, survey='main', backup=not(ns.nobackup),
                              resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits)

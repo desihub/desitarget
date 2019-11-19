@@ -286,6 +286,10 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     -----
        - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
+    # ADM to guard against no files being found.
+    dummyfile = find_gaia_files_box([0, 360, 0, 90])[0]
+    dummygfas = np.array([], gaia_in_file(dummyfile).dtype)
+
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
         infilesbox = find_gaia_files_box([0, 360, mindec, 90])
@@ -329,7 +333,11 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         for file in infiles:
             gfas.append(_update_status(_get_gaia_gfas(file)))
 
-    gfas = np.concatenate(gfas)
+    if len(gfas) > 0:
+        gfas = np.concatenate(gfas)
+    else:
+        # ADM if nothing was found, return an empty np array.
+        gfas = dummygfas
 
     log.info('Retrieved {} Gaia objects...t = {:.1f} mins'
              .format(len(gfas), (time()-t0)/60.))

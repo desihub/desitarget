@@ -664,8 +664,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM iteratively populate lists of the numbers of pixels
     # ADM and the corrsponding pixel numbers,
-    # ADM only allow true bundling for targets, skies, randoms.
-    if prefix in ['targets', 'skies', 'randoms'] or 'sv' in prefix:
+    # ADM only allow true bundling for skies and randoms.
+    if prefix in ['skies', 'randoms']:
         bins = []
         for index, num in enumerate(numpix):
             # Try to fit this sized number into a bin
