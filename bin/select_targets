@@ -62,7 +62,7 @@ ap.add_argument('--healpixels',
                 help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
                 default=None)
 ap.add_argument("--bundlefiles", type=int,
-                help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
+                help="(overrides all options but `sweepdir`) print slurm script to parallelize by sending (any) integer. This is an integer rather than boolean for historical reasons",
                 default=None)
 ap.add_argument('--radecbox',
                 help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
