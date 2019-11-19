@@ -429,13 +429,17 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
             _, hdr, data = _bright_or_dark(
                 targdir, hdr, data, obscon)
 
-    # ADM use RELEASE to find the release string for the input targets.
-    if not supp:
-        drint = np.max(data['RELEASE']//1000)
-        drstring = 'dr'+str(drint)
-    else:
-        drint = None
+    # ADM if passed, use the indir to determine the Data Release
+    # ADM integer and string for the input targets.
+    drint = None
+    if supp:
         drstring = "supp"
+    else:
+        try:
+            drint = int(indir.split("dr")[1][0])
+            drstring = 'dr'+str(drint)
+        except ValueError:
+            drstring = "X"
 
     # ADM catch cases where we're writing-to-file and there's no hpxlist.
     hpx = hpxlist
@@ -886,9 +890,14 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
     """
-    # ADM use RELEASE to find the release string for the input GFAs.
-    drint = np.max(data['RELEASE']//1000)
-    drstring = 'dr'+str(drint)
+    # ADM if passed, use the indir to determine the Data Release
+    # ADM integer and string for the input targets.
+    try:
+        drint = int(indir.split("dr")[1][0])
+        drstring = 'dr'+str(drint)
+    except ValueError:
+        drint = None
+        drstring = "X"
 
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
