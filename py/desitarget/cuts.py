@@ -2318,7 +2318,7 @@ Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
-                   nside=None, pixlist=None, bundlefiles=None, filespersec=0.12,
+                   nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True, backup=True):
@@ -2356,10 +2356,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         files per node. So, for instance, if `bundlefiles` is 100 then commands would be
         returned with the correct `pixlist` values set to pass to the code to pack at
         about 100 files per node across all of the passed `infiles`.
-    filespersec : :class:`float`, optional, defaults to 0.12
-        The rough number of files processed per second by the code (parallelized across
-        a chosen number of nodes). Used in conjunction with `bundlefiles` for the code
-        to estimate time to completion when parallelizing across pixels.
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script. Used in conjunction with `bundlefiles`.
@@ -2438,8 +2434,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     # ADM if the pixlist or bundlefiles option was sent, we'll need to know
     # ADM which HEALPixels touch each file.
-    if pixlist is not None or bundlefiles is not None:
-        filesperpixel, pixlist, pixnum = sweep_files_touch_hp(
+    if pixlist is not None:
+        filesperpixel, _, _ = sweep_files_touch_hp(
             nside, pixlist, infiles)
 
     # ADM if the bundlefiles option was sent, call the packing code.
@@ -2449,16 +2445,20 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             prefix = "{}_targets".format(survey)
         # ADM determine if one or two input directories were passed.
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
-        bundle_bricks(pixnum, bundlefiles, nside,
-                      brickspersec=filespersec, gather=False,
-                      prefix=prefix, surveydirs=surveydirs, extra=extra)
+        bundle_bricks([0], bundlefiles, nside, gather=False, extra=extra,
+                      prefix=prefix, surveydirs=surveydirs)
         return
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
     if pixlist is not None:
+        # ADM a hack to ensure we have the correct targeting data model
+        # ADM outside of the Legacy Surveys footprint.
+        dummy = infiles[0]
         infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
         if len(infiles) == 0:
-            log.warning('ZERO files in passed pixel list!!!')
+            log.info('ZERO sweep files in passed pixel list!!!')
+            log.info('Run with dummy sweep file to write Gaia-only objects...')
+            infiles = [dummy]
         log.info("Processing files in (nside={}, pixel numbers={}) HEALPixels"
                  .format(nside, pixlist))
 
@@ -2546,12 +2546,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             for x in infiles:
                 targets.append(_update_status(_select_targets_file(x)))
 
-    # ADM it's possible that somebody could pass HEALPixels that
-    # ADM contain no targets, in which case exit (somewhat) gracefully.
-    if targets == [] and not backup:
-        log.warning('ZERO targets for passed file list or region!!!')
-        return targets
-
     targets = np.concatenate(targets)
 
     if backup:
@@ -2570,35 +2564,45 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             apply_cuts_gaia(numproc=numproc4, survey=survey, nside=nside,
                             pixlist=pixlist)
 
-        # ADM determine the Gaia Data Release.
-        gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
+        # ADM it's possible that somebody could pass HEALPixels that
+        # ADM contain no additional targets.
+        if len(gaiaobjs) > 0:
+            # ADM determine the Gaia Data Release.
+            gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
 
-        # ADM add the relevant bits and IDs to the Gaia targets.
-        # ADM first set up empty DESI and BGS columns.
-        gaiatargs = _finalize_targets(
-            gaiaobjs, gaia_desi_target, gaia_bgs_target, gaia_mws_target,
-            gaiadr=gaiadr)
+            # ADM add the relevant bits and IDs to the Gaia targets.
+            # ADM first set up empty DESI and BGS columns.
+            gaiatargs = _finalize_targets(
+                gaiaobjs, gaia_desi_target, gaia_bgs_target, gaia_mws_target,
+                gaiadr=gaiadr)
 
-        # ADM make the Gaia-only data structure resemble the main targets.
-        gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype)
-        sc = set(gaiatargs.dtype.names).intersection(set(targets.dtype.names))
-        for col in sc:
-            gaiatargets[col] = gaiatargs[col]
+            # ADM make the Gaia-only data structure resemble the targets.
+            gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype)
+            sc = set(
+                gaiatargs.dtype.names).intersection(set(targets.dtype.names))
+            for col in sc:
+                gaiatargets[col] = gaiatargs[col]
 
-        # ADM remove any duplicates. Order is important here, as np.unique
-        # ADM keeps the first occurence, and we want to retain sweeps
-        # ADM information as much as possible.
-        if len(infiles) > 0:
-            alltargs = np.concatenate([targets, gaiatargets])
-            # ADM Retain all non-Gaia sources, which have REF_ID of
-            # ADM -1 or 0 and thus are all duplicates on REF_ID.
-            ii = alltargs["REF_ID"] > 0
-            targs = alltargs[ii]
-            _, ind = np.unique(targs["REF_ID"], return_index=True)
-            targs = targs[ind]
-            targets = np.concatenate([targs, alltargs[~ii]])
-        else:
-            targets = gaiatargets
+            # ADM remove duplicates. Order is key here, as np.unique
+            # ADM keeps the first occurence, and we want to retain sweeps
+            # ADM information as much as possible.
+            if len(infiles) > 0:
+                alltargs = np.concatenate([targets, gaiatargets])
+                # ADM Retain all non-Gaia sources, which have REF_ID of
+                # ADM -1 or 0 and thus are all duplicates on REF_ID.
+                ii = alltargs["REF_ID"] > 0
+                targs = alltargs[ii]
+                _, ind = np.unique(targs["REF_ID"], return_index=True)
+                targs = targs[ind]
+                targets = np.concatenate([targs, alltargs[~ii]])
+            else:
+                targets = gaiatargets
+
+    # ADM it's possible that somebody could pass HEALPixels that
+    # ADM contain no targets, in which case exit (somewhat) gracefully.
+    if len(targets) == 0:
+        log.warning('ZERO targets for passed file list or region!!!')
+        return targets
 
     # ADM restrict to only targets in a set of HEALPixels, if requested.
     if pixlist is not None:
@@ -2610,7 +2614,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         ii = is_in_box(targets, radecbox)
         targets = targets[ii]
 
-    # ADM restrict to only targets in an RA, Dec, radius cap, if requested.
+    # ADM restrict to only targets in an RA, Dec, radius cap, if needed.
     if radecrad is not None:
         ii = is_in_cap(targets, radecrad)
         targets = targets[ii]
