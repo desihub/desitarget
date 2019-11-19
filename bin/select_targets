@@ -92,7 +92,7 @@ ns = ap.parse_args()
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "noresolve", "nomaskbits", "writeall":
+for nskey in "noresolve", "nomaskbits", "writeall", "nosecondary", "nobackup":
     if nsdict[nskey]:
         extra += " --{}".format(nskey)
 
