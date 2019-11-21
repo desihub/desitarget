@@ -1252,7 +1252,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
-        bra, bdec, _, _, _, _, cnts = np.vstack(brickdict.values()).T
+        bra, bdec, _, _, _, _, cnts = np.vstack(list(brickdict.values())).T
         theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
