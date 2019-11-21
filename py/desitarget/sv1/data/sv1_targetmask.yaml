@@ -3,7 +3,7 @@ sv1_desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
-    
+
     #- ADM LRG sub-classes
     - [LRG_INIT_4PASS,  3, "Bright LRG using initial optical and IR cuts",               {obsconditions: DARK}]
     - [LRG_SUPER_4PASS, 4, "Bright LRG that is a superset of other cuts",                {obsconditions: DARK}]
@@ -72,8 +72,7 @@ sv1_desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [STD_FAINT,   33, "Standard stars for dark/gray conditions", {obsconditions: DARK|GRAY}]
     - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions",
-        {obsconditions: BRIGHT}]
+    - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions", {obsconditions: BRIGHT}]
     - [BAD_SKY,     36, "Blank sky locations that are imperfect but still useable",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [SUPP_SKY,    37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
@@ -94,7 +93,7 @@ sv1_desi_mask:
     - [MWS_ANY,             61, "Any MWS bit is set",  {obsconditions: BRIGHT}]
     - [SCND_ANY,            62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    
+
 #- Bright Galaxy Survey SV targets
 sv1_bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",              {obsconditions: BRIGHT|GRAY|DARK}]
@@ -108,12 +107,12 @@ sv1_bgs_mask:
     - [BGS_BRIGHT_NORTH,    9, "BGS bright cuts tuned for Bok/Mosaic",          {obsconditions: BRIGHT}]
     - [BGS_FAINT_EXT_NORTH, 10, "BGS faint extended cuts tuned for Bok/Mosaic", {obsconditions: BRIGHT}]
     - [BGS_LOWQ_NORTH,      11, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}]
-    - [BGS_FIBMAG_NORTH,    12, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}] 
+    - [BGS_FIBMAG_NORTH,    12, "BGS low quality cuts tuned for Bok/Mosaic",    {obsconditions: BRIGHT}]
     - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",               {obsconditions: BRIGHT}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",              {obsconditions: BRIGHT}]
     - [BGS_FAINT_EXT_SOUTH, 18, "BGS faint extended cuts tuned for DECam",      {obsconditions: BRIGHT}]
     - [BGS_LOWQ_SOUTH,      19, "BGS low quality cuts tuned for DECam",         {obsconditions: BRIGHT}]
-    - [BGS_FIBMAG_SOUTH,    20, "BGS fiber magnitude cuts tuned for DECam",     {obsconditions: BRIGHT}] 
+    - [BGS_FIBMAG_SOUTH,    20, "BGS fiber magnitude cuts tuned for DECam",     {obsconditions: BRIGHT}]
 
     - [BGS_KNOWN_ANY,       40, "Known target from another survey",    {obsconditions: BRIGHT}]
     - [BGS_KNOWN_COLLIDED,  41, "BGS known SDSS/BOSS fiber collided",  {obsconditions: BRIGHT}]
@@ -122,37 +121,18 @@ sv1_bgs_mask:
 
 #- Milky Way Survey SV targets
 sv1_mws_mask:
-
-    # First layer defines main samples -- these are expected to have distinct
-    # input catalogues. 
-   
     #- Bits 0-3 (7 ids)
-    - [MWS_MAIN,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BROAD,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_NEARBY,                2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
-    # Second layer flags additional subclasses that could apply to any
-    # of the main classes. These sort targets in each input catalog into
-    # distinct groups for the purpose of assigning priorities and observing
-    # conditions.
-    
-    # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS 
-     
-    # => A main sample star at low galactic latitude, faint enough to be
-    # considered filler but with parallax factored into the subpriority and
-    # targeted for reobservation if possible.
-    
     #- 4: MWS_MAIN north/south splits
-    - [MWS_MAIN_NORTH,      4, "Milky Way Survey cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_SOUTH,      5, "Milky Way Survey cuts tuned for DECam",                   {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BROAD_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BROAD_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
 
-    #- 8: Sub-classes of MWS_MAIN
-    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",          {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample tuned for DECam",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",          {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",  {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",       {obsconditions: BRIGHT|GRAY|DARK}]
+    # Fainter MWS_MAIN extension for SV, selected on magnitude only
+    - [MWS_MAIN_FAINT,           14, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_FAINT_NORTH,     15, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_FAINT_SOUTH,     16, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
 
     # ADM back-up targets for poor conditions.
     - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
@@ -166,10 +146,52 @@ sv1_mws_mask:
 sv1_scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-    - [BACKSTOP,    1, "Gaia-selected targets of last resort",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'backstop'}]
-    - [DR16Q,       2, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY, filename: 'dr16q'}]
+    - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
+    - [MWS_WD_SV,                10, "Milky Way Survey White Dwarf (SV cuts)",  
+        {obsconditions: BRIGHT|GRAY|DARK, filename: 'MWS_WD_SV'}]
+    - [MWS_SPECIAL_DRACO_SV,     11, "Likely Draco members (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DRACO_SV'}]
+    - [MWS_SPECIAL_DDOGIANTS_SV, 12, "DDO-selected giants (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DDOGIANTS_SV'}]
+    - [MWS_SPECIAL_WDBINARY_SV,  13, "White dwarf binaries (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_WDBINARY_SV'}]
+    - [MWS_SPECIAL_RRLYR_SV,     14, "RR Lyrae, Gaia-selected (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_RRLYR_SV'}]
+    - [MWS_SPECIAL_HYADES_SV,    15, "Likely Hyades members (very bright)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_HYADES_SV'}]
+    - [MWS_SPECIAL_GC_SV,        16, "Likely globular cluster members (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_GC_SV'}]
+#   - [MWS_SPECIAL_BHB_SV,       17, "BHB candidates (SV cuts)",
+#      {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_BHB_SV'}]
+    - [MWS_WD_SV_VERYBRIGHT,                20, "Milky Way Survey White Dwarf (SV cuts, very bright)",    
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_WD_VERYBRIGHT_SV'}]
+    - [MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV, 22, "DDO-selected giants (SV cuts, very bright)",    
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV'}]
+    - [MWS_SPECIAL_HYADES_VERYBRIGHT_SV,    25, "Likely Hyades members (very bright)",    
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_VERYBRIGHT_SV'}]
+    - [MWS_SPECIAL_GC_VERYBRIGHT_SV,        26, "Likely globular cluster members (very bright)",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_GC_VERYBRIGHT_SV'}]
+    - [MWS_CALIB_APOGEE,                    30, "Stars 16 < G < 19 with APOGEE data",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_APOGEE'}]
+    - [MWS_CALIB_APOGEE_VERYBRIGHT,         31, "Stars  9 < G < 16 with APOGEE data",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_APOGEE_VERYBRIGHT'}]
+    - [MWS_CALIB_GAIAESO,                   32, "Stars 16 < G < 19 with GAIAESO data",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_GAIAESO'}]
+    - [MWS_CALIB_GAIAESO_VERYBRIGHT,        33, "Stars  9 < G < 16 with GAIAESO data",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_GAIAESO_VERYBRIGHT'}]
+    - [MWS_CALIB_SEGUE,                     34, "Stars 16 < G < 19 with SEGUE data",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_SEGUE'}]
+    - [MWS_CALIB_SEGUE_VERYBRIGHT,          35, "Stars  9 < G < 16 with SEGUE data",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_SEGUE_VERYBRIGHT'}]
+    - [MWS_CALIB_GALAH,                     36, "Stars 16 < G < 19 with GALAH data",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_GALAH'}]
+    - [MWS_CALIB_GALAH_VERYBRIGHT,          37, "Stars  9 < G < 16 with GALAH data",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_GALAH_VERYBRIGHT'}]
+    - [MWS_CALIB_BOSS,                      38, "Stars 16 < G < 19 with BOSS data",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_BOSS'}]
+    - [MWS_CALIB_BOSS_VERYBRIGHT,           39, "Stars  9 < G < 16 with BOSS data",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_BOSS_VERYBRIGHT'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -294,18 +316,21 @@ priorities:
     #- Milky Way Survey: priorities 1000-1999
     # ADM WDs should be prioritized above BGS at 2998
     sv1_mws_mask:
-        MWS_MAIN:                     {UNOBS: 1500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD:                       {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_NEARBY:                   {UNOBS: 1600, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        # Special/Sparse targets
+        # NB DONE is not very relevant here since we assign "infinite" observations
+        # MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
+        # Note NEARBY > HYADES (otherwise nearby targets swamped by fainter HYADES members)
+        MWS_NEARBY:                   {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+
+        # Main survey targets 
+        MWS_MAIN_BROAD:                  {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_FAINT:                  {UNOBS: 1050, DONE: 100, OBS: 1, DONOTOBSERVE: 0}
+        # Permutations
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        MWS_MAIN_NORTH:               {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        MWS_MAIN_SOUTH:               SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           SAME_AS_MWS_MAIN_NORTH
-        MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_MAIN_NORTH
+        MWS_MAIN_BROAD_NORTH:            {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_MAIN_BROAD_SOUTH:            SAME_AS_MWS_MAIN_BROAD_NORTH
+        MWS_MAIN_FAINT_NORTH:      {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_MAIN_FAINT_SOUTH:      SAME_AS_MWS_MAIN_FAINT_NORTH
         BACKUP_BRIGHT:                {UNOBS: 9, DONE: 9, OBS: 9, DONOTOBSERVE: 0}
         BACKUP_FAINT:                 {UNOBS: 8, DONE: 8, OBS: 8, DONOTOBSERVE: 0}
         BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 7, OBS: 7, DONOTOBSERVE: 0}
@@ -313,8 +338,32 @@ priorities:
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
         VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        BACKSTOP:                     {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD_SV:                    {UNOBS: 2296, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD_SV_VERYBRIGHT:         SAME_AS_MWS_WD_SV
+        MWS_CALIB_APOGEE:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GALAH:              SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_BOSS:               SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_APOGEE_VERYBRIGHT:  SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GAIAESO_VERYBRIGHT: SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE_VERYBRIGHT:   SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GALAH_VERYBRIGHT:   SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_BOSS_VERYBRIGHT:    SAME_AS_MWS_CALIB_APOGEE
+        # Note HYADES < NEARBY
+        MWS_SPECIAL_HYADES_SV:        {UNOBS: 1600, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        # Other SV special targets
+        MWS_SPECIAL_DRACO_SV:                {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_DDOGIANTS_SV:            SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_WDBINARY_SV:             SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_RRLYR_SV:                SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_GC_SV:                   SAME_AS_MWS_SPECIAL_DRACO_SV
+        #MWS_SPECIAL_BHB_SV:                 SAME_AS_MWS_SPECIAL_DRACO_SV
+        # Backup time very bright special targets
+        MWS_SPECIAL_HYADES_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_HYADES_SV
+        MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV: SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
+        MWS_SPECIAL_GC_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_GC_SV
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -416,18 +465,14 @@ numobs:
 
     # ADM initial number of observations for targets in the Milky Way Survey
     sv1_mws_mask:
-        MWS_MAIN:                     1
-        MWS_WD:                       1
-        MWS_NEARBY:                   1
+        MWS_MAIN_BROAD:               1
+        MWS_MAIN_FAINT:               1
+        MWS_NEARBY:                 100
         # ADM don't observe a N/S target if it doesn't have other bits set
-        MWS_MAIN_NORTH:               0
-        MWS_MAIN_SOUTH:               0
-        MWS_MAIN_BLUE:                SAME_AS_MWS_MAIN
-        MWS_MAIN_BLUE_NORTH:          0
-        MWS_MAIN_BLUE_SOUTH:          0
-        MWS_MAIN_RED:                 SAME_AS_MWS_MAIN
-        MWS_MAIN_RED_NORTH:           0
-        MWS_MAIN_RED_SOUTH:           0
+        MWS_MAIN_BROAD_NORTH:            0
+        MWS_MAIN_BROAD_SOUTH:            0
+        MWS_MAIN_FAINT_NORTH:      0
+        MWS_MAIN_FAINT_SOUTH:      0
         BACKUP_BRIGHT:                1
         BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
         BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
@@ -435,5 +480,27 @@ numobs:
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
         VETO: 1
-        BACKSTOP: 1
         DR16Q: 1
+        MWS_WD_SV:                       100
+        MWS_WD_SV_VERYBRIGHT:            SAME_AS_MWS_WD_SV
+        MWS_CALIB_APOGEE:                100
+        MWS_CALIB_GAIAESO:               SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE:                 SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GALAH:                 SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_BOSS:                  SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_APOGEE_VERYBRIGHT:     SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GAIAESO_VERYBRIGHT:    SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE_VERYBRIGHT:      SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_GALAH_VERYBRIGHT:      SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_BOSS_VERYBRIGHT:       SAME_AS_MWS_CALIB_APOGEE
+        MWS_SPECIAL_DRACO_SV:            1
+        MWS_SPECIAL_DDOGIANTS_SV:        SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_WDBINARY_SV:         100
+        MWS_SPECIAL_RRLYR_SV:            SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_HYADES_SV:           100
+        MWS_SPECIAL_GC_SV:               SAME_AS_MWS_SPECIAL_DRACO_SV
+        # MWS_SPECIAL_BHB_SV:            SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_HYADES_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_HYADES_SV
+        MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV:     SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
+        MWS_SPECIAL_GC_VERYBRIGHT_SV:            SAME_AS_MWS_SPECIAL_GC_SV
+

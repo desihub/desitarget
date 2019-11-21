@@ -520,11 +520,22 @@ def calc_priority(targets, zcat, obscon):
 
         # ADM Secondary targets.
         if scnd_target in targets.dtype.names:
+            # APC Secondary target bits only drive updates to targets with specific DESI_TARGET bits
+            # APC See https://github.com/desihub/desitarget/pull/530
+            scnd_update = (targets[desi_target] & desi_mask['SCND_ANY']) != 0
+            if np.any(scnd_update):
+                # APC Allow changes to primaries if the DESI_TARGET bitmask has any of the
+                # APC following bits set, but not any other bits.
+                update_from_scnd_bits = (desi_mask['MWS_ANY'] &
+                                         desi_mask['STD_BRIGHT'] & desi_mask['STD_FAINT'] & desi_mask['STD_WD'])
+                scnd_update &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
+
             for name in scnd_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(scnd_mask[name].obsconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[scnd_target] & scnd_mask[name]) != 0
+                    ii &= scnd_update
                     priority[ii & unobs] = np.maximum(priority[ii & unobs], scnd_mask[name].priorities['UNOBS'])
                     priority[ii & done] = np.maximum(priority[ii & done],  scnd_mask[name].priorities['DONE'])
                     priority[ii & zgood] = np.maximum(priority[ii & zgood], scnd_mask[name].priorities['MORE_ZGOOD'])
