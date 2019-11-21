@@ -276,8 +276,10 @@ def read_files(scxdir, scnd_mask):
     scxall = []
     # ADM loop through all of the scx bits.
     for name in scnd_mask.names():
+        log.debug('SCND target: {}'.format(name))
         # ADM the full file path without the extension.
         fn = os.path.join(fulldir, scnd_mask[name].filename)
+        log.debug('     path:   {}'.format(fn))
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
             scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
@@ -453,6 +455,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
                 sep, halfpix)
             log.critical(msg)
             raise ValueError(msg)
+
     # ADM warn the user if the secondary and primary samples are "large".
     big = 500000
     if np.sum(inhp) > big and len(primtargs) > big:
@@ -490,6 +493,38 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
 
     # ADM rename the SCND_TARGET column, in case this is an SV file.
     targs = rfn.rename_fields(targs, {'SCND_TARGET': desicols[3]})
+
+    # APC Secondary target bits only affect PRIORITY, NUMOBS and
+    # APC obsconditions for specific DESI_TARGET bits
+    # APC See https://github.com/desihub/desitarget/pull/530
+    from desitarget.targetmask import desi_mask
+    # APC Only consider primary targets with secondary bits set
+    scnd_update = (targs[desicols[0]] & desi_mask['SCND_ANY']) != 0
+    if np.any(scnd_update):
+        # APC Allow changes to primaries if the DESI_TARGET bitmask has
+        # APC only the following bits set, in any combination.
+        update_from_scnd_bits = desi_mask['MWS_ANY'] & desi_mask['STD_BRIGHT'] & desi_mask['STD_FAINT'] & desi_mask['STD_WD']
+        scnd_update &= ((targs[desicols[0]] & ~update_from_scnd_bits) == 0)
+        log.info('Setting new priority, numobs and obsconditions from secondary for {} matched primaries'.format(scnd_update.sum()))
+
+        # APC Primary and secondary obsconditions are or'd
+        scnd_obscon = set_obsconditions(targs[scnd_update], scnd=True)
+        targs['OBSCONDITIONS'][scnd_update] &= scnd_obscon
+
+        # APC bit of a hack here
+        # APC Check for _BRIGHT, _DARK split in column names
+        darkbright = 'NUMOBS_INIT_DARK' in targs.dtype.names
+        if darkbright:
+            ender, obscon = ["_DARK", "_BRIGHT"], ["DARK|GRAY", "BRIGHT"]
+        else:
+            ender, obscon = [""], ["DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"]
+
+        # APC secondaries can increase priority and numobs
+        for edr, oc in zip(ender, obscon):
+            pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
+            scnd_priority, scnd_numobs = initial_priority_numobs(targs[scnd_update], obscon=oc, scnd=True)
+            targs[nc][scnd_update] = np.maximum(targs[nc][scnd_update], scnd_numobs)
+            targs[pc][scnd_update] = np.maximum(targs[pc][scnd_update], scnd_priority)
 
     # ADM update the secondary targets with the primary information.
     scxtargs["TARGETID"][mscx] = targs["TARGETID"][mtargs]
@@ -635,6 +670,7 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
             for ind in inds:
                 scnd_targ |= scxtargs["SCND_TARGET"][wnoov[ind]]
             scxtargs["SCND_TARGET"][wnoov[inds]] = scnd_targ
+    log.info("Done checking SCND_TARGET...t={:.1f}s".format(time()-t0))
 
     # ADM change the data model depending on whether the mask
     # ADM is an SVX (X = 1, 2, etc.) mask or not. Nothing will
