@@ -149,8 +149,11 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     gfas = gfas[ii]
 
     # ADM remove any sources based on LSLGA (retain Tycho/T2 sources).
-    ii = (gfas["REF_CAT"] == b'L2') | (gfas["REF_CAT"] == 'L2')
-
+    # ADM the try/except/decode catches both bytes and unicode strings.
+    try:
+        ii = np.array(rc.decode()[0] == "L" for rc in gfas["REF_CAT"])
+    except:
+        ii = np.array([i[0] == "L" for rc in gfas["REF_CAT"]])
     gfas = gfas[~ii]
 
     return gfas
