@@ -2197,128 +2197,10 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     return desi_target, bgs_target, mws_target
 
 
-def check_input_files(infiles, numproc=4):
-    """
-    Process input files in parallel to check whether they have
-    any bugs that will prevent select_targets from completing,
-    or whether files are corrupted.
-    Useful to run before a full run of select_targets.
-
-    Args:
-        infiles: list of input filenames (tractor or sweep files),
-            OR a single filename
-
-    Optional:
-        numproc: number of parallel processes
-
-    Returns:
-        Nothing, but prints any problematic files to screen
-        together with information on the problem
-
-    Notes:
-        if numproc==1, use serial code instead of parallel
-    """
-    # ADM set up default logging
-    from desiutil.log import get_logger
-    log = get_logger()
-
-    # - Convert single file to list of files
-    if isinstance(infiles, str):
-        infiles = [infiles, ]
-
-    # - Sanity check that files exist before going further
-    for filename in infiles:
-        if not os.path.exists(filename):
-            raise ValueError("{} doesn't exist".format(filename))
-
-    # - function to run on every brick/sweep file
-    def _check_input_files(filename):
-        '''Check for corrupted values in a file'''
-        from functools import partial
-        from os.path import getsize
-
-        # ADM read in Tractor or sweeps files
-        objects = io.read_tractor(filename)
-        # ADM if everything is OK the default meassage will be "OK"
-        filemessageroot = 'OK'
-        filemessageend = ''
-        # ADM columns that shouldn't have zero values
-        cols = [
-            'BRICKID',
-            # 'RA_IVAR', 'DEC_IVAR',
-            'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
-            #  'WISE_FLUX',
-            #  'WISE_MW_TRANSMISSION','DCHISQ'
-            ]
-        # ADM for each of these columnes that shouldn't have zero values,
-        # ADM loop through and look for zero values
-        for colname in cols:
-            if np.min(objects[colname]) == 0:
-                filemessageroot = "WARNING...some values are zero for"
-                filemessageend += " "+colname
-
-        # ADM now, loop through entries in the file and search for 4096-byte
-        # ADM blocks that are all zeros (a sign of corruption in file-writing)
-        # ADM Note that fits files are padded by 2880 bytes, so we only want to
-        # ADM process the file length (in bytes) - 2880
-        bytestop = getsize(filename) - 2880
-
-        with open(filename, 'rb') as f:
-            for block_number, data in enumerate(iter(partial(f.read, 4096), b'')):
-                if not any(data):
-                    if block_number*4096 < bytestop:
-                        filemessageroot = "WARNING...some values are zero for"
-                        filemessageend += ' 4096-byte-block-#{0}'.format(block_number)
-
-        return [filename, filemessageroot+filemessageend]
-
-    # Counter for number of bricks processed;
-    # a numpy scalar allows updating nbrick in python 2
-    # c.f https://www.python.org/dev/peps/pep-3104/
-    nbrick = np.zeros((), dtype='i8')
-
-    t0 = time()
-
-    def _update_status(result):
-        ''' wrapper function for the critical reduction operation,
-            that occurs on the main parallel process '''
-        if nbrick % 25 == 0 and nbrick > 0:
-            elapsed = time() - t0
-            rate = nbrick / elapsed
-            log.info('{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
-                     .format(nbrick, rate, elapsed/60.))
-        nbrick[...] += 1    # this is an in-place modification
-        return result
-
-    # - Parallel process input files
-    if numproc > 1:
-        pool = sharedmem.MapReduce(np=numproc)
-        with pool:
-            fileinfo = pool.map(_check_input_files, infiles, reduce=_update_status)
-    else:
-        fileinfo = list()
-        for fil in infiles:
-            fileinfo.append(_update_status(_check_input_files(fil)))
-
-    fileinfo = np.array(fileinfo)
-    w = np.where(fileinfo[..., 1] != 'OK')
-
-    if len(w[0]) == 0:
-        log.info('ALL FILES ARE OK')
-    else:
-        for fil in fileinfo[w]:
-            log.info(fil[0], fil[1])
-
-    return len(w[0])
-
-
 qso_selection_options = ['colorcuts', 'randomforest']
-Method_sandbox_options = ['XD', 'RF_photo', 'RF_spectro']
-
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-                   gaiamatch=False, sandbox=False, FoMthresh=None, Method=None,
-                   nside=None, pixlist=None, bundlefiles=None,
+                   gaiamatch=False, nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True, backup=True):
@@ -2336,14 +2218,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     gaiamatch : :class:`boolean`, optional, defaults to ``False``
         If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
         to facilitate the MWS and STD selections.
-    sandbox : :class:`boolean`, optional, defaults to ``False``
-        If ``True``, use the sample selection cuts in :mod:`desitarget.sandbox.cuts`.
-    FoMthresh : :class:`float`, optional, defaults to `None`
-        If a value is passed then run `apply_XD_globalerror` for ELGs in
-        the sandbox. This will write out an "FoM.fits" file for every ELG target
-        in the sandbox directory.
-    Method : :class:`str`, optional, defaults to `None`
-        Method used in the sandbox.
     nside : :class:`int`, optional, defaults to `None`
         The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlefiles` inputs.
     pixlist : :class:`list` or `int`, optional, defaults to `None`
@@ -2500,14 +2374,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
 
-    def _select_sandbox_targets_file(filename):
-        '''Returns targets in filename that pass the sandbox cuts'''
-        from desitarget.sandbox.cuts import apply_sandbox_cuts
-        objects = io.read_tractor(filename)
-        desi_target, bgs_target, mws_target = apply_sandbox_cuts(objects, FoMthresh, Method)
-
-        return _finalize_targets(objects, desi_target, bgs_target, mws_target)
-
     # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
     # c.f https://www.python.org/dev/peps/pep-3104/
@@ -2531,20 +2397,12 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            if sandbox:
-                log.info("You're in the sandbox...")
-                targets = pool.map(_select_sandbox_targets_file, infiles, reduce=_update_status)
-            else:
-                targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
+            targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
     else:
         targets = list()
-        if sandbox:
-            log.info("You're in the sandbox...")
-            for x in infiles:
-                targets.append(_update_status(_select_sandbox_targets_file(x)))
-        else:
-            for x in infiles:
-                targets.append(_update_status(_select_targets_file(x)))
+        for x in infiles:
+            print(x)
+            targets.append(_update_status(_select_targets_file(x)))
 
     targets = np.concatenate(targets)
 
