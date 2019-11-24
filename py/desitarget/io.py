@@ -2114,7 +2114,7 @@ def _check_hpx_length(hpxlist, length=68, warning=False):
     if len(pixstring) > length:
         msg = "Pixel string {} is too long. Maximum is length-{} strings. "  \
               "If making files, try reducing nside or the bundling integer."  \
-        .format(pixstring, length)
+              .format(pixstring, length)
         if warning:
             log.warning(msg)
         else:
