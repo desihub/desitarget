@@ -2402,7 +2402,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     else:
         targets = list()
         for x in infiles:
-            print(x)
             targets.append(_update_status(_select_targets_file(x)))
 
     targets = np.concatenate(targets)
