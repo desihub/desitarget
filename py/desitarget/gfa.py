@@ -152,7 +152,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     # ADM the try/except/decode catches both bytes and unicode strings.
     try:
         ii = np.array(rc.decode()[0] == "L" for rc in gfas["REF_CAT"])
-    except:
+    except AttributeError:
         ii = np.array([i[0] == "L" for rc in gfas["REF_CAT"]])
     gfas = gfas[~ii]
 

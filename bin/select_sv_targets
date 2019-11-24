@@ -78,6 +78,8 @@ ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
+if ns.tcnames is not None:
+    extra += " --tcnames {}".format(ns.tcnames)
 nsdict = vars(ns)
 for nskey in "noresolve", "nomaskbits", "writeall", "nosecondary", "nobackup":
     if nsdict[nskey]:
@@ -165,6 +167,10 @@ if ns.bundlefiles is None:
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
+    # ADM extra header keywords for the output fits file.
+    extra = {k: v for k, v in zip(["tcnames"],
+                                  [ns.tcnames])}
+
     # ADM differentiate the Gaia-only and Legacy Surveys targets.
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
     isgaia = gaiadr > 0
@@ -182,6 +188,7 @@ if ns.bundlefiles is None:
             ns.dest, targets[ii], indir=ns.sweepdir, indir2=ns.sweepdir2,
             survey=survey, nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
             qso_selection=survey, nside=nside, obscon=obscon, scndout=scndout,
-            resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits)
+            resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
+            extra=extra
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

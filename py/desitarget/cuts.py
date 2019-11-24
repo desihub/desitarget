@@ -2199,6 +2199,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
 qso_selection_options = ['colorcuts', 'randomforest']
 
+
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
