@@ -20,7 +20,7 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
-from desitarget.gaiamatch import find_gaia_files_hp
+from desitarget.gaiamatch import find_gaia_files_hp, _get_gaia_nside
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
@@ -290,7 +290,14 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
        - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
     # ADM to guard against no files being found.
-    dummyfile = find_gaia_files_box([0, 360, 0, 90])[0]
+    if pixlist is None:
+        dummyfile = find_gaia_files_hp(_get_gaia_nside(), [0],
+                                       neighbors=False)[0]
+    else:
+        # ADM this is critical for, e.g., unit tests for which the
+        # ADM Gaia "00000" pixel file might not exist.
+        dummyfile = find_gaia_files_hp(_get_gaia_nside(), pixlist[0],
+                                       neighbors=False)[0]
     dummygfas = np.array([], gaia_in_file(dummyfile).dtype)
 
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
