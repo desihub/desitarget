@@ -162,8 +162,8 @@ sv1_scnd_mask:
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_HYADES_SV'}]
     - [MWS_SPECIAL_GC_SV,        16, "Likely globular cluster members (SV cuts)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_GC_SV'}]
-#   - [MWS_SPECIAL_BHB_SV,       17, "BHB candidates (SV cuts)",
-#      {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_BHB_SV'}]
+    - [MWS_SPECIAL_BHB_SV,       17, "BHB candidates (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_BHB_SV'}]
     - [MWS_WD_SV_VERYBRIGHT,                20, "Milky Way Survey White Dwarf (SV cuts, very bright)",    
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_WD_VERYBRIGHT_SV'}]
     - [MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV, 22, "DDO-selected giants (SV cuts, very bright)",    
@@ -359,7 +359,7 @@ priorities:
         MWS_SPECIAL_WDBINARY_SV:             SAME_AS_MWS_SPECIAL_DRACO_SV
         MWS_SPECIAL_RRLYR_SV:                SAME_AS_MWS_SPECIAL_DRACO_SV
         MWS_SPECIAL_GC_SV:                   SAME_AS_MWS_SPECIAL_DRACO_SV
-        #MWS_SPECIAL_BHB_SV:                 SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_BHB_SV:                  SAME_AS_MWS_SPECIAL_DRACO_SV
         # Backup time very bright special targets
         MWS_SPECIAL_HYADES_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_HYADES_SV
         MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV: SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
@@ -499,7 +499,7 @@ numobs:
         MWS_SPECIAL_RRLYR_SV:            SAME_AS_MWS_SPECIAL_DRACO_SV
         MWS_SPECIAL_HYADES_SV:           100
         MWS_SPECIAL_GC_SV:               SAME_AS_MWS_SPECIAL_DRACO_SV
-        # MWS_SPECIAL_BHB_SV:            SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_BHB_SV:              SAME_AS_MWS_SPECIAL_DRACO_SV
         MWS_SPECIAL_HYADES_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_HYADES_SV
         MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV:     SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
         MWS_SPECIAL_GC_VERYBRIGHT_SV:            SAME_AS_MWS_SPECIAL_GC_SV
