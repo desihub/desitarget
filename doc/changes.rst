@@ -5,6 +5,15 @@ desitarget Change Log
 0.34.1 (unreleased)
 -------------------
 
+* General clean-up of glitches and minor bugs [`PR #564`_]. Includes:
+    * Don't include BACKUP targets in the pixweight files.
+    * Correctly write all all-sky pixels outside of the Legacy Surveys.
+    * Propagate flags like --nosec, --nobackup, --tcnames when bundling.
+    * Write --tcnames options to header of output target files.
+    * Deprecate the sandbox and file-format-check function.
+    * Find LSLGAs using 'L' in `REF_CAT` not 'L2' (to prepare for 'L3').
+    * Refactor to guard against future warnings and overflow warnings.
+    * Return all HEALpixels at `nside` in :func:`sweep_files_touch_hp()`.
 * Strict ``NoneType`` checking and testing for fiberfluxes [`PR #563`_]:
     * Useful to ensure ongoing compatibility with the mocks.
 * Bitmasks (1,12,13), rfiberflux cut for BGS Main Survey [`PR #562`_].
@@ -25,6 +34,7 @@ desitarget Change Log
 .. _`PR #561`: https://github.com/desihub/desitarget/pull/561
 .. _`PR #562`: https://github.com/desihub/desitarget/pull/562
 .. _`PR #563`: https://github.com/desihub/desitarget/pull/563
+.. _`PR #564`: https://github.com/desihub/desitarget/pull/564
 
 0.34.0 (2019-11-03)
 -------------------

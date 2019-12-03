@@ -20,7 +20,7 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
-from desitarget.gaiamatch import find_gaia_files_hp
+from desitarget.gaiamatch import find_gaia_files_hp, _get_gaia_nside
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
@@ -149,8 +149,11 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     gfas = gfas[ii]
 
     # ADM remove any sources based on LSLGA (retain Tycho/T2 sources).
-    ii = (gfas["REF_CAT"] == b'L2') | (gfas["REF_CAT"] == 'L2')
-
+    # ADM the try/except/decode catches both bytes and unicode strings.
+    try:
+        ii = np.array(rc.decode()[0] == "L" for rc in gfas["REF_CAT"])
+    except AttributeError:
+        ii = np.array([i[0] == "L" for rc in gfas["REF_CAT"]])
     gfas = gfas[~ii]
 
     return gfas
@@ -286,6 +289,17 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     -----
        - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
+    # ADM to guard against no files being found.
+    if pixlist is None:
+        dummyfile = find_gaia_files_hp(_get_gaia_nside(), [0],
+                                       neighbors=False)[0]
+    else:
+        # ADM this is critical for, e.g., unit tests for which the
+        # ADM Gaia "00000" pixel file might not exist.
+        dummyfile = find_gaia_files_hp(_get_gaia_nside(), pixlist[0],
+                                       neighbors=False)[0]
+    dummygfas = np.array([], gaia_in_file(dummyfile).dtype)
+
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
         infilesbox = find_gaia_files_box([0, 360, mindec, 90])
@@ -329,7 +343,11 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         for file in infiles:
             gfas.append(_update_status(_get_gaia_gfas(file)))
 
-    gfas = np.concatenate(gfas)
+    if len(gfas) > 0:
+        gfas = np.concatenate(gfas)
+    else:
+        # ADM if nothing was found, return an empty np array.
+        gfas = dummygfas
 
     log.info('Retrieved {} Gaia objects...t = {:.1f} mins'
              .format(len(gfas), (time()-t0)/60.))

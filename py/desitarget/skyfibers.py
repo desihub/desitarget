@@ -995,7 +995,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested.
     if pixlist is not None:
-        bra, bdec, _, _, _, _ = np.vstack(brickdict.values()).T
+        bra, bdec, _, _, _, _ = np.vstack(list(brickdict.values())).T
         theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
         # ADM if an integer was passed, turn it into a list.

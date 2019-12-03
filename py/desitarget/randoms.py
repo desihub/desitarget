@@ -871,7 +871,8 @@ def get_targ_dens(targets, Mx, nside=256):
         else:
             if ('BGS' in bitname) and not('S_ANY' in bitname):
                 ii = targets["BGS_TARGET"] & bgs_mask[bitname] != 0
-            elif ('MWS' in bitname) and not('S_ANY' in bitname):
+            elif (('MWS' in bitname or 'BACKUP' in bitname) and
+                  not('S_ANY' in bitname)):
                 ii = targets["MWS_TARGET"] & mws_mask[bitname] != 0
             else:
                 ii = targets["DESI_TARGET"] & desi_mask[bitname] != 0
@@ -972,8 +973,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                [1, 5, 6, 7, 11, 12, 13]]:
         bitint = np.sum(2**np.array(mb))
         mbcomb.append(bitint)
-        log.info('Determining footprint for maskbits {}...t = {:.1f}s'
-                 .format(mbcomb, time()-start))
+        log.info('Determining footprint for maskbits not in {}...t = {:.1f}s'
+                 .format(bitint, time()-start))
         mbstore.append(pixweight(randoms, rand_density,
                                  nside=nside, maskbits=bitint))
 
@@ -1251,7 +1252,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
-        bra, bdec, _, _, _, _, cnts = np.vstack(brickdict.values()).T
+        bra, bdec, _, _, _, _, cnts = np.vstack(list(brickdict.values())).T
         theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
