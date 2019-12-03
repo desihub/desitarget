@@ -1,3 +1,4 @@
+
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
@@ -2181,6 +2182,7 @@ class ReadLyaCoLoRe(SelectTargets):
                               upper=True, ext=1)
             zz = tmp['Z'].astype('f4')
             zz_norsd = tmp['Z'].astype('f4')
+
             
         ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = tmp['DEC'].astype('f8')            
@@ -2242,7 +2244,11 @@ class ReadLyaCoLoRe(SelectTargets):
         # Build the full filenames.
         lyafiles = []
         for mpix in mockpix:
-            lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
+            try: #recent fits extension
+                lyafiles.append("%s/%d/%d/transmission-%d-%d.fits.gz"%(
+                mockdir, mpix//100, mpix, nside_lya, mpix))
+            except: # old fits extension
+                lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
                 mockdir, mpix//100, mpix, nside_lya, mpix))
 
         isouth = self.is_south(dec)
@@ -3185,7 +3191,7 @@ class LYAMaker(SelectTargets):
     """
     wave, template_maker = None, None
 
-    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False,
+    def __init__(self, seed=None, use_simqso=True, balprob=0.0,add_dla=False,add_metals=False,add_lyb=False,
                  survey='main', **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
@@ -3197,7 +3203,8 @@ class LYAMaker(SelectTargets):
         self.use_simqso = use_simqso
         self.balprob = balprob
         self.add_dla = add_dla
-
+        self.add_metals=add_metals
+        self.add_lyb=add_lyb
         if balprob > 0:
             from desisim.bal import BAL
             self.BAL = BAL()
@@ -3211,7 +3218,6 @@ class LYAMaker(SelectTargets):
                 LYAMaker.template_maker = SIMQSO(wave=self.wave)
             else:
                 LYAMaker.template_maker = QSO(wave=self.wave)
-
     def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
              nside_lya=16, zmin_lya=None, mock_density=False, only_coords=False,
              **kwargs):
@@ -3254,7 +3260,7 @@ class LYAMaker(SelectTargets):
         
         if self.mockformat == 'colore':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v4.0', 'master.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v4.2.0', 'master.fits')
             MockReader = ReadLyaCoLoRe()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -3262,6 +3268,7 @@ class LYAMaker(SelectTargets):
 
         if mockfile is None:
             mockfile = self.default_mockfile
+
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
@@ -3271,7 +3278,7 @@ class LYAMaker(SelectTargets):
 
         return data
 
-    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
+    def make_spectra(self, data=None, indx=None, seed=None,no_spectra=False,add_dlas=None,add_metals=None,add_lyb=None):
         """Generate QSO spectra with the 3D Lya forest skewers included. 
 
         Parameters
@@ -3309,8 +3316,16 @@ class LYAMaker(SelectTargets):
         import numpy.ma as ma
         from astropy.table import vstack
         from desispec.interpolation import resample_flux
-        from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
         
+        from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission,lambda_RF_LYA
+        from desisim.dla import dla_spec
+
+        if add_dlas is None:
+            add_dlas=self.add_dla
+        if add_metals is None:
+            add_metals=self.add_metals
+        if add_lyb is None:
+            add_lyb=self.add_lyb
         if seed is None:
             seed = self.seed
             
@@ -3360,9 +3375,8 @@ class LYAMaker(SelectTargets):
                         raise KeyError
                     indices_in_mock_healpix[i] = o2i[o]
 
-                # Note: there are read_dlas=False and add_metals=False options.
-                tmp_wave, tmp_trans, tmp_meta, _ = read_lya_skewers(
-                    lyafile, indices=indices_in_mock_healpix) 
+               # Note: there are read_dlas=False and add_metals=False options. AXGM: This has been updated.
+                tmp_wave, tmp_trans, tmp_meta, dla_info = read_lya_skewers(lyafile,indices=indices_in_mock_healpix,read_dlas=add_dlas,add_metals=add_metals,add_lyb=add_lyb)
 
                 if skewer_wave is None:
                     skewer_wave = tmp_wave
@@ -3411,6 +3425,23 @@ class LYAMaker(SelectTargets):
                     qso_flux[these, :] = qso_flux1
 
             meta['SUBTYPE'][:] = 'LYA'
+            ##Added DLAs before lya forest trasnmission.
+            if add_dlas:
+                min_lya_z = np.min(skewer_wave/lambda_RF_LYA - 1)
+                for ii in range(len(skewer_meta['MOCKID'])):
+                    # quasars with z < min_z will not have any DLA in spectrum
+                    if min_lya_z>skewer_meta['Z'][ii]: continue
+                    # skewer ID
+                    idd=skewer_meta['MOCKID'][ii]
+                    dlas=[]
+                    for dla in dla_info[dla_info['MOCKID']==idd]:
+                        # Adding only DLAs with z < zqso
+                        if dla['Z_DLA_RSD']>=skewer_meta['Z'][ii]: continue
+                        dlas.append(dict(z=dla['Z_DLA_RSD'],N=dla['N_HI_DLA'],dlaid=dla['DLAID']))
+                    transmission_dla = dla_spec(skewer_wave,dlas)
+                    if len(dlas)>0:
+                        skewer_trans[ii] = transmission_dla * skewer_trans[ii]
+                        objmeta['DLA_MOCKID'][ii]=idd
 
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
@@ -3422,9 +3453,6 @@ class LYAMaker(SelectTargets):
                                                       seed=self.seed,
                                                       balprob=self.balprob)
                 objmeta['BAL_TEMPLATEID'][:] = balmeta['TEMPLATEID']
-
-            # Add DLAs (ToDo).
-            # ...
 
             # Synthesize north/south photometry.
             for these, filters in zip( (north, south), (self.template_maker.bassmzlswise, self.template_maker.decamwise) ):
