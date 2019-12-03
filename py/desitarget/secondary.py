@@ -292,6 +292,11 @@ def read_files(scxdir, scnd_mask):
         # ADM ensure this is a properly constructed numpy array.
         scxin = np.atleast_1d(scxin)
 
+        # ADM assert the data model.
+        msg = "Data model doesn't match {} in {}".format(indatamodel.dtype, fn)
+        for col in indatamodel.dtype.names:
+            assert scxin[col].dtype == indatamodel[col].dtype, msg
+
         # ADM the default is 2015.5 for the REF_EPOCH.
         ii = scxin["REF_EPOCH"] == 0
         scxin["REF_EPOCH"][ii] = 2015.5
