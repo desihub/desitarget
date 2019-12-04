@@ -727,7 +727,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         bins = [[[i, j]] for i, j in
                 zip(np.ones(nbins, dtype='int'), np.arange(nbins))]
         maxeta = 1
-        nnodes = 16
+        nnodes = min(16, len(bins))
         if prefix == 'supp-skies':
             nnodes = 4
 
