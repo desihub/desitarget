@@ -174,8 +174,8 @@ sv1_scnd_mask:
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_VERYBRIGHT_SV'}]
     - [MWS_SPECIAL_GC_VERYBRIGHT_SV,        26, "Likely globular cluster members (very bright)",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_GC_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_HYADES_FILLER_SV,        28, "Less likely Hyades members (very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_FILLER_SV'}]
+    - [MWS_SPECIAL_HYADES_FILLER_VERYBRIGHT_SV, 28, "Less likely Hyades members (very bright)",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_FILLER_VERYBRIGHT_SV'}]
     - [MWS_CALIB_APOGEE,                    30, "Stars 16 < G < 19 with APOGEE data",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_APOGEE'}]
     - [MWS_CALIB_APOGEE_VERYBRIGHT,         31, "Stars  9 < G < 16 with APOGEE data",
