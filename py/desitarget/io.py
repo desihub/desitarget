@@ -435,7 +435,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         try:
             drint = int(indir.split("dr")[1][0])
             drstring = 'dr'+str(drint)
-        except (ValueError, IndexError):
+        except (ValueError, IndexError, AssertionError):
             drstring = "X"
 
     # ADM catch cases where we're writing-to-file and there's no hpxlist.
@@ -892,7 +892,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     try:
         drint = int(indir.split("dr")[1][0])
         drstring = 'dr'+str(drint)
-    except (ValueError, IndexError):
+    except (ValueError, IndexError, AssertionError):
         drint = None
         drstring = "X"
 
@@ -1015,7 +1015,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
             drint = int(indir.split("dr")[1][0])
             drstring = 'dr'+str(drint)
             depend.setdep(hdr, 'photcat', drstring)
-        except (ValueError, IndexError):
+        except (ValueError, IndexError, AssertionError):
             drint = None
 
     # ADM add HEALPix column, if requested by input.
