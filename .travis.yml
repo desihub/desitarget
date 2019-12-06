@@ -106,16 +106,16 @@ matrix:
         # Coverage test.  Note that installing the coverage software can
         # change the set of packages installed by conda, so we do
         # separate 'test' and 'test --coverage'.
-        - os: linux
-          env: PYTHON_VERSION=3.5 SETUP_CMD='test --coverage'
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        # - os: linux
+        #  env: PYTHON_VERSION=3.5 SETUP_CMD='test --coverage'
+        #       CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        #       PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Standard tests.
-       # - os: linux
-       #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
-       #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-       #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        # - os: linux
+        #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
+        #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # Redundant with the coverage test
         # - os: linux

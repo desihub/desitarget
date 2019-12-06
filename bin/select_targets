@@ -159,9 +159,16 @@ if ns.bundlefiles is None:
         if not os.path.exists(scndoutdn):
             log.info("making directory...{}".format(scndoutdn))
             os.makedirs(scndoutdn)
-        scndoutfn = "{}.fits".format(os.path.splitext(os.path.basename(ns.dest))[0])
+        if pixlist is not None:
+            scndoutfn = io.find_target_files(ns.dest, dr=drint, flavor="targets",
+                                             survey="main", hp=pixlist)
+        else:
+            scndoutfn = io.find_target_files(ns.dest, dr=drint, flavor="targets",
+                                             survey="main", hp="X")
         # ADM construct the output directory for primary match info.
+        scndoutfn = os.path.basename(scndoutfn)
         scndout = os.path.join(scndoutdn, scndoutfn)
+        log.info("writing files of primary matches to...{}".format(scndout))
         targets = match_secondary(targets, scxdir, scndout, sep=1.,
                                   pix=pixlist, nside=ns.nside)
 
