@@ -503,7 +503,8 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     if np.any(scnd_update):
         # APC Allow changes to primaries if the DESI_TARGET bitmask has
         # APC only the following bits set, in any combination.
-        update_from_scnd_bits = desi_mask['MWS_ANY'] & desi_mask['STD_BRIGHT'] & desi_mask['STD_FAINT'] & desi_mask['STD_WD']
+        log.info('Testing if secondary targets can update {} matched primaries'.format(scnd_update.sum()))
+        update_from_scnd_bits = desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] | desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] | desi_mask['STD_WD']
         scnd_update &= ((targs[desicols[0]] & ~update_from_scnd_bits) == 0)
         log.info('Setting new priority, numobs and obsconditions from secondary for {} matched primaries'.format(scnd_update.sum()))
 
