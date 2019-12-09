@@ -8,6 +8,7 @@ desitarget Change Log
 * More clean-up of glitches and minor bugs [`PR #570`_]. Includes:
     * Remove Python 3.5 unit tests.
     * Catch AssertionError if NoneType input directory when writing.
+        * Later (correctly) updated to AttributeError directly in master.
     * Assert the data model when reading secondary target files.
     * Use io.find_target_files() to name priminfo file for secondaries.
     * Allow N < 16 nodes when bundling files for slurm.
