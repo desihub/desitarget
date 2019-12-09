@@ -2161,7 +2161,6 @@ class ReadLyaCoLoRe(SelectTargets):
                 nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
-
         if nside is None:
             log.warning('Nside must be a scalar input.')
             raise ValueError
@@ -2250,7 +2249,7 @@ class ReadLyaCoLoRe(SelectTargets):
             except: # old fits extension
                 lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
                 mockdir, mpix//100, mpix, nside_lya, mpix))
-
+                
         isouth = self.is_south(dec)
 
         # Draw apparent magnitudes from an BOSS/DR9 QSO luminosity function
@@ -3317,6 +3316,7 @@ class LYAMaker(SelectTargets):
         from astropy.table import vstack
         from desispec.interpolation import resample_flux
         
+        import sys
         from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission,lambda_RF_LYA
         from desisim.dla import dla_spec
 
@@ -3358,8 +3358,8 @@ class LYAMaker(SelectTargets):
             # Gather all the files containing at least one QSO skewer.
             alllyafile = data['LYAFILES'][indx]
             uniquelyafiles = sorted(set(alllyafile))
-
             for lyafile in uniquelyafiles:
+                
                 these = np.where( alllyafile == lyafile )[0]
 
                 mockid_in_data = data['MOCKID'][indx][these]
@@ -3441,7 +3441,7 @@ class LYAMaker(SelectTargets):
                     transmission_dla = dla_spec(skewer_wave,dlas)
                     if len(dlas)>0:
                         skewer_trans[ii] = transmission_dla * skewer_trans[ii]
-                        objmeta['DLA_MOCKID'][ii]=idd
+                        objmeta['DLA'][ii]=True
 
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
