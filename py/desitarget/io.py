@@ -360,8 +360,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
     indir, indir2, qso_selection : :class:`str`, optional, default to `None`
@@ -417,7 +417,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     hdr = fitsio.FITSHDR()
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
-    # ADM Ignore the filename output, We'll build that on-the-fly.
+    # ADM Ignore the filename output, we'll build that on-the-fly.
     if obscon is not None:
         if mockdata is not None:
             _, hdr, data, mockdata = _bright_or_dark(
@@ -608,13 +608,15 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     return
 
 
-def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
+def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
+                    drint='X'):
     """Write a catalogue of secondary targets.
 
     Parameters
     ----------
-    filename : :class:`str`
-        output file for secondary targets that do not match a primary.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data : :class:`~numpy.ndarray`
         numpy structured array of secondary targets to write.
     primhdr : :class:`str`, optional, defaults to `None`
@@ -632,6 +634,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
         and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    drint : :class:`int`, optional, defaults to `X`
+        The data release ("dr"`drint`"-") in the output filename.
 
     Returns
     -------
@@ -645,15 +649,14 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     -----
     Two sets of files are written:
         - The file of secondary targets that do not match a primary
-          target is written to `filename`. Such secondary targets
+          target is written to `targdir`. Such secondary targets
           are determined from having `RELEASE==0` and `SKY==0`
           in the `TARGETID`. Only targets with `PRIORITY_INIT > -1`
           are written to this file (this allows duplicates to be
           resolved in, e.g., :func:`~desitarget.secondary.finalize()`
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
-          an "outdata/filenam" subdirectory of `scxdir`, where filenam
-          is `filename` with its extension (likely .fits) stripped.
+          an "outdata/targdir" subdirectory of `scxdir`.
     """
     # ADM grab the scxdir, it it wasn't passed.
     from desitarget.secondary import _get_scxdir
@@ -668,8 +671,12 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     hdr["SCNDDIR"] = scxdir
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
+    # ADM ignore the filename output, we'll build that on-the-fly.
     if obscon is not None:
-        filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+        log.info("Observational conditions are {}".format(obscon))
+        _, hdr, data = _bright_or_dark(targdir, hdr, data, obscon)
+    else:
+        log.info("Observational conditions are ALL")
 
     # ADM add the secondary dependencies to the file header.
     depend.setdep(hdr, 'scnd-desitarget', desitarget_version)
@@ -688,11 +695,23 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     smalldata = rfn.drop_fields(data, ["PRIORITY_INIT", "SUBPRIORITY",
                                        "NUMOBS_INIT", "OBSCONDITIONS"])
 
+    # ADM load the correct mask.
+    _, mx, survey = main_cmx_or_sv(data, scnd=True)
+    log.info("Loading mask for {} survey".format(survey))
+    scnd_mask = mx[3]
+
+    # ADM construct the output full and reduced file name.
+    filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                 survey=survey, obscon=obscon, nohp=True)
+    filenam = os.path.splitext(os.path.basename(filename))[0]
+
     # ADM write out the file of matches for every secondary bit.
-    filenam = os.path.splitext(os.path.split(filename)[1])[0]
     scxoutdir = os.path.join(scxdir, 'outdata', filenam)
+    if obscon is not None:
+        scxoutdir = os.path.join(scxoutdir, obscon.lower())
     os.makedirs(scxoutdir, exist_ok=True)
-    from desitarget.targetmask import scnd_mask
+
+    # ADM and write out the information for each bit.
     for name in scnd_mask.names():
         # ADM construct the output file name.
         fn = "{}.fits".format(scnd_mask[name].filename)
@@ -706,15 +725,18 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
             # ADM write to file.
             fitsio.write(scxfile, smalldata[ii][order],
                          extname='TARGETS', header=hdr, clobber=True)
+            log.info('Info for {} secondaries written to {}'
+                     .format(np.sum(ii), scxfile))
 
     # ADM make necessary directories for the file, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM release before DR1 (release < 1000).
     from desitarget.targets import decode_targetid
     objid, brickid, release, mock, sky, gaiadr = decode_targetid(data["TARGETID"])
     ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
-    log.info('Writing {} standalone secondaries'.format(ii.sum()))
+
     # ADM ...write them out.
     fitsio.write(filename, data[ii],
                  extname='SCND_TARGETS', header=hdr, clobber=True)
@@ -730,8 +752,8 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
     indir, indir2 : :class:`str`, optional
@@ -865,8 +887,8 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
     indir, indir2 : :class:`str`, optional, defaults to None.
@@ -963,8 +985,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
@@ -1584,7 +1606,7 @@ def _get_targ_dir():
 
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True,
-                      supp=False, mock=False):
+                      supp=False, mock=False, nohp=False):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1611,9 +1633,12 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental targets file. Overrides
         the `obscon` option.
-    mock : :class:`bool`, optional, defaults to ``False``.
-        If ``True`` then construct the file path for mock target catalogs and
-        return (most other inputs are ignored).
+    mock : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then construct the file path for mock target
+        catalogs and return (most other inputs are ignored).
+    nohp : :class:`bool`, optional, defaults to ``False``
+        If ``True``, override the normal behavior for `hp`=``None`` and
+        instead construct a filename that omits the `-hpX-` part.
 
     Returns
     -------
@@ -1627,7 +1652,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           are stored is returned. The directory name is the expected
           input for the `desitarget.io.read*` convenience functions
           (:func:`desimodel.io.read_targets_in_hp()`, etc.).
-
+        - On the other hand, if `hp` is ``None`` and `nohp` is ``True``
+          then a filename is returned that just omits the `-hpX-` part.
     """
     # ADM some preliminaries for correct formatting.
     if obscon is not None:
@@ -1703,9 +1729,13 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
-        hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
-        backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
-        fn = os.path.join(fn, backend)
+            hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
+            backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
+            fn = os.path.join(fn, backend)
+    else:
+        if nohp:
+            backend = "{}-{}.fits".format(prefix, drstr)
+            fn = os.path.join(fn, backend)
 
     return fn
 
