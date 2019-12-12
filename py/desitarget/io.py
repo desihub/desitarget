@@ -35,11 +35,12 @@ log = get_logger()
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
-               8000: 'S', 8001: 'N'}
+               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N'}
 
-# ADM this is an empty array of the full TS data model columns and dtypes
-# ADM other columns can be added in read_tractor.
-tsdatamodel = np.array([], dtype=[
+# ADM This is an empty array of most of the TS data model columns and
+# ADM dtypes. Note that other columns are added in read_tractor and
+# ADM from the "addedcols" data models below.
+basetsdatamodel = np.array([], dtype=[
     ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
     ('OBJID', '>i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'),
     ('DEC', '>f8'), ('DEC_IVAR', '>f4'), ('DCHISQ', '>f4', (5,)), ('EBV', '>f4'),
@@ -58,15 +59,29 @@ tsdatamodel = np.array([], dtype=[
     ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'),
     ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'),
     ('ALLMASK_G', '>i2'), ('ALLMASK_R', '>i2'), ('ALLMASK_Z', '>i2'),
+    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
+    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
+    ('MASKBITS', '>i2')
+    ])
+
+# ADM columns that are new for the DR9 data model.
+dr9addedcols = np.array([], dtype=[
+    ('LC_FLUX_W1', '>f4', (13,)), ('LC_FLUX_W2', '>f4', (13,)),
+    ('LC_FLUX_IVAR_W1', '>f4', (13,)), ('LC_FLUX_IVAR_W2', '>f4', (13,)),
+    ('LC_NOBS_W1', '>i2', (13,)), ('LC_NOBS_W2', '>i2', (13,)),
+    ('LC_MJD_W1', '>f8', (13,)), ('LC_MJD_W2', '>f8', (13,)),
+    ('SHAPE_R', '>f4'), ('SHAPE_E1', '>f4'), ('SHAPE_E2', '>f4'),
+    ('SHAPE_R_IVAR', '>f4'), ('SHAPE_E1_IVAR', '>f4'), ('SHAPE_E2_IVAR', '>f4')
+    ])
+
+# ADM columns that were deprecated in the DR8 data model.
+dr8addedcols = np.array([], dtype=[
     ('FRACDEV', '>f4'), ('FRACDEV_IVAR', '>f4'),
     ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
     ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
     ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
     ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
-    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
-    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
-    ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
-    ('MASKBITS', '>i2')
     ])
 
 
@@ -141,7 +156,8 @@ def read_tractor(filename, header=False, columns=None):
     columns: :class:`list`, optional
         Specify the desired Tractor catalog columns to read; defaults to
         desitarget.io.tsdatamodel.dtype.names + most of the columns in
-        desitarget.gaiamatch.gaiadatamodel.dtype.names.
+        desitarget.gaiamatch.gaiadatamodel.dtype.names, where
+        tsdatamodel is, e.g., basetsdatamodel + dr9addedcols.
 
     Returns
     -------
@@ -153,9 +169,19 @@ def read_tractor(filename, header=False, columns=None):
     # ADM read in the file information. Due to fitsio header bugs
     # ADM near v1.0.0, make absolutely sure the user wants the header.
     if header:
-        indata, hdr = fitsio.read(filename, upper=True, header=True, columns=columns)
+        indata, hdr = fitsio.read(filename, upper=True, header=True,
+                                  columns=columns)
     else:
         indata = fitsio.read(filename, upper=True, columns=columns)
+
+    # ADM form the final data model in a manner that maintains
+    # ADM backwards-compatability with DR8.
+    if "FRACDEV" in indata.dtype.names:
+        tsdatamodel = np.array(
+            [], dtype=basetsdatamodel.dtype.descr + dr8addedcols.dtype.descr)
+    else:
+        tsdatamodel = np.array(
+            [], dtype=basetsdatamodel.dtype.descr + dr9addedcols.dtype.descr)
 
     # ADM the full data model including Gaia columns.
     from desitarget.gaiamatch import gaiadatamodel
