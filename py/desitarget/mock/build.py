@@ -161,13 +161,10 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
         target_name, target_type, mockformat, mockfile))
 
     if MakeMock is None:
-        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk,
-                                                                     calib_only=calib_only,
-                                                                     use_simqso=use_simqso,
-                                                                     balprob=balprob,
-                                                                     add_dla=add_dla,
-                                                                     add_metals=add_metals,
-                                                                     add_lyb=add_lyb)
+        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(
+            seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
+            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
+            add_metals=add_metals, add_lyb=add_lyb)
     else:
         MakeMock.seed = seed # updated seed
         
@@ -857,7 +854,9 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         add_lyb = params['targets'][target_name].get('add_lyb', False)
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
-            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,add_metals=add_metals,add_lyb=add_lyb,no_spectra=no_spectra,survey=survey))
+            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
+            add_metals=add_metals, add_lyb=add_lyb, no_spectra=no_spectra,
+            survey=survey))
 
     # Are we adding contaminants?  If so, cache the relevant classes here.
     if 'contaminants' in params.keys():
