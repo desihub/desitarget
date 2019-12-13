@@ -605,7 +605,7 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=True, surveydirs=None, extra=None):
+                  gather=True, surveydirs=None, extra=None, seed=None):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
@@ -637,6 +637,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script.
+    seed : :class:`int`, optional, defaults to 1
+        Random seed for file name. Only relevant for `prefix='randoms'`.
 
     Returns
     -------
@@ -790,6 +792,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}/{}{}-hp-{}.fits".format(
                 prefix2, prefix.replace("_", "-"), drstr, strgoodpix)
+            # ADM random catalogs have an additional seed in their file name.
+            if prefix=='randoms':
+                outfile = outfile.replace(".fits", "-{}.fits".format(seed))
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
