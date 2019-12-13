@@ -5,6 +5,13 @@ desitarget Change Log
 0.34.1 (unreleased)
 -------------------
 
+* Preparation for DR9 [`PR #573`_]. Includes:
+    * Update data model, maintaining backwards-compatability with DR8.
+    * Don't set the ``SKY`` bit when setting the ``SUPP_SKY`` bit.
+    * Users can input a seed (1, 2, 3, etc.) to ``bin/select_randoms``:
+        * This user-provided seed is added to the output file name.
+        * Facilitates generating a range of numbered random catalogs.
+    * Write out final secondaries using :func:`io.find_target_files()`.
 * More clean-up of glitches and minor bugs [`PR #570`_]. Includes:
     * Remove Python 3.5 unit tests.
     * Catch AssertionError if NoneType input directory when writing.
@@ -46,6 +53,7 @@ desitarget Change Log
 .. _`PR #564`: https://github.com/desihub/desitarget/pull/564
 .. _`PR #569`: https://github.com/desihub/desitarget/pull/569
 .. _`PR #570`: https://github.com/desihub/desitarget/pull/570
+.. _`PR #573`: https://github.com/desihub/desitarget/pull/573
 
 0.34.0 (2019-11-03)
 -------------------

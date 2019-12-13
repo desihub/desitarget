@@ -793,7 +793,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             outfile = "$CSCRATCH/{}/{}{}-hp-{}.fits".format(
                 prefix2, prefix.replace("_", "-"), drstr, strgoodpix)
             # ADM random catalogs have an additional seed in their file name.
-            if prefix=='randoms':
+            if prefix == 'randoms':
                 outfile = outfile.replace(".fits", "-{}.fits".format(seed))
             outfiles.append(outfile)
             if extra is not None:
