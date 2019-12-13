@@ -1004,8 +1004,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
 
 
 def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
-                  nsidefile=None, hpxlist=None, density=None,
-                  resolve=True, aprad=None, extra=None):
+                  nsidefile=None, hpxlist=None, resolve=True, extra=None):
     """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
@@ -1035,13 +1034,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
-    density: :class:`int`
-        Number of points per sq. deg. at which the catalog was generated,
-        write to header of the output file if not None.
     resolve : :class:`bool`, optional, defaults to ``True``
         Written to the output file header as `RESOLVE`.
-    aprad : :class:`float, optional, defaults to ``None``
-        If passed, written to the outpue header as `APRAD`.
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -1077,14 +1071,6 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM note if this is a supplemental (outside-of-footprint) file.
     hdr['SUPP'] = supp
 
-    # ADM add density of points if requested by input.
-    if density is not None:
-        hdr['DENSITY'] = density
-
-    # ADM add aperture radius (in arcsec) if requested by input.
-    if aprad is not None:
-        hdr['APRAD'] = aprad
-
     # ADM add whether or not the randoms were resolved to the header.
     hdr["RESOLVE"] = resolve
 
@@ -1105,9 +1091,22 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         # ADM set the hp part of the output file name to "X".
         hpxlist = "X"
 
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
+
+    # ADM retrieve the seed, if it is known.
+    seed = None
+    if extra is not None:
+        for seedy in "seed", "SEED":
+            if seedy in extra:
+                seed = extra[seedy]
+
     # ADM construct the output file name.
     filename = find_target_files(targdir, dr=drint, flavor="randoms",
-                                 hp=hpxlist, resolve=resolve, supp=supp)
+                                 hp=hpxlist, resolve=resolve, supp=supp,
+                                 seed=seed, nohp=True)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -1632,7 +1631,7 @@ def _get_targ_dir():
 
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True,
-                      supp=False, mock=False, nohp=False):
+                      supp=False, mock=False, nohp=False, seed=None):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1642,10 +1641,10 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     dr : :class:`str` or :class:`int`, optional, defaults to "X"
         Name of a Legacy Surveys Data Release (e.g. 8)
     flavor : :class:`str`, optional, defaults to `targets`
-        Options include `skies`, `gfas`, `targets`, `randoms`.
+        Options include "skies", "gfas", "targets", "randoms".
     survey : :class:`str`, optional, defaults to `main`
-        Options include `main`, `cmx`, `svX` (where X is 1, 2 etc.).
-        Only relevant if `flavor` is `targets`.
+        Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
+        Only relevant if `flavor` is "targets".
     obscon : :class:`str`, optional
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
     hp : :class:`list` or :class:`int` or :class:`str`, optional
@@ -1665,6 +1664,10 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     nohp : :class:`bool`, optional, defaults to ``False``
         If ``True``, override the normal behavior for `hp`=``None`` and
         instead construct a filename that omits the `-hpX-` part.
+    seed : :class:`int`, optional
+        If `seed` is not ``None``, then it is added to the file name just
+        before the ".fits" extension (i.e. "-8.fits" for `seed` of 8).
+        Only relevant if `flavor` is "randoms".
 
     Returns
     -------
@@ -1762,6 +1765,11 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         if nohp:
             backend = "{}-{}.fits".format(prefix, drstr)
             fn = os.path.join(fn, backend)
+
+    if flavor == "randoms" and seed is not None:
+        # ADM note that this won't do anything unless a file
+        # ADM names was already constructed.
+        fn = fn.replace(".fits", "-{}.fits".format(seed))
 
     return fn
 
