@@ -52,11 +52,8 @@ ap.add_argument('--healpixels',
                 help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
                 default=None)
 ap.add_argument("--bundlefiles", type=int,
-                help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
+                help="(overrides all options but `sweepdir`) print slurm script to parallelize by sending (any) integer. This is an integer rather than boolean for historical reasons",
                 default=None)
-ap.add_argument("--filespersec", type=float,
-                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.06)",
-                default=0.06)
 ap.add_argument('--radecbox',
                 help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
                 default=None)
@@ -81,8 +78,10 @@ ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
+if ns.tcnames is not None:
+    extra += " --tcnames {}".format(ns.tcnames)
 nsdict = vars(ns)
-for nskey in "noresolve", "nomaskbits", "writeall":
+for nskey in "noresolve", "nomaskbits", "writeall", "nosecondary", "nobackup":
     if nsdict[nskey]:
         extra += " --{}".format(nskey)
 
@@ -139,7 +138,7 @@ tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
 targets = select_targets(infiles, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist, extra=extra,
-                         bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
+                         bundlefiles=ns.bundlefiles,
                          radecbox=inlists[0], radecrad=inlists[1],
                          tcnames=tcnames, survey=survey, backup=not(ns.nobackup),
                          resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits))
@@ -159,14 +158,25 @@ if ns.bundlefiles is None:
         if not os.path.exists(scndoutdn):
             log.info("making directory...{}".format(scndoutdn))
             os.makedirs(scndoutdn)
-        scndoutfn = "{}.fits".format(os.path.splitext(os.path.basename(ns.dest))[0])
+        if pixlist is not None:
+            scndoutfn = io.find_target_files(ns.dest, dr=drint, flavor="targets",
+                                             survey=survey, hp=pixlist)
+        else:
+            scndoutfn = io.find_target_files(ns.dest, dr=drint, flavor="targets",
+                                             survey=survey, hp="X")
         # ADM construct the output directory for primary match info.
+        scndoutfn = os.path.basename(scndoutfn)
         scndout = os.path.join(scndoutdn, scndoutfn)
+        log.info("writing files of primary matches to...{}".format(scndout))
         targets = match_secondary(targets, scxdir, scndout, sep=1.,
                                   pix=pixlist, nside=ns.nside)
 
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
+
+    # ADM extra header keywords for the output fits file.
+    extra = {k: v for k, v in zip(["tcnames"],
+                                  [ns.tcnames])}
 
     # ADM differentiate the Gaia-only and Legacy Surveys targets.
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
@@ -185,6 +195,7 @@ if ns.bundlefiles is None:
             ns.dest, targets[ii], indir=ns.sweepdir, indir2=ns.sweepdir2,
             survey=survey, nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
             qso_selection=survey, nside=nside, obscon=obscon, scndout=scndout,
-            resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits)
+            resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
+            extra=extra
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

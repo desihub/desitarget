@@ -5,6 +5,23 @@ desitarget Change Log
 0.34.1 (unreleased)
 -------------------
 
+* More clean-up of glitches and minor bugs [`PR #570`_]. Includes:
+    * Remove Python 3.5 unit tests.
+    * Catch AssertionError if NoneType input directory when writing.
+    * Assert the data model when reading secondary target files.
+    * Use io.find_target_files() to name priminfo file for secondaries.
+    * Allow N < 16 nodes when bundling files for slurm.
+    * Use the DR14Q file for SV, not the DR16Q file.
+* Fix bug where wrong SNRs were passed to z~5 QSO selection [`PR #569`_].
+* General clean-up of glitches and minor bugs [`PR #564`_]. Includes:
+    * Don't include BACKUP targets in the pixweight files.
+    * Correctly write all all-sky pixels outside of the Legacy Surveys.
+    * Propagate flags like --nosec, --nobackup, --tcnames when bundling.
+    * Write --tcnames options to header of output target files.
+    * Deprecate the sandbox and file-format-check function.
+    * Find LSLGAs using 'L' in `REF_CAT` not 'L2' (to prepare for 'L3').
+    * Refactor to guard against future warnings and overflow warnings.
+    * Return all HEALpixels at `nside` in :func:`sweep_files_touch_hp()`.
 * Strict ``NoneType`` checking and testing for fiberfluxes [`PR #563`_]:
     * Useful to ensure ongoing compatibility with the mocks.
 * Bitmasks (1,12,13), rfiberflux cut for BGS Main Survey [`PR #562`_].
@@ -25,6 +42,9 @@ desitarget Change Log
 .. _`PR #561`: https://github.com/desihub/desitarget/pull/561
 .. _`PR #562`: https://github.com/desihub/desitarget/pull/562
 .. _`PR #563`: https://github.com/desihub/desitarget/pull/563
+.. _`PR #564`: https://github.com/desihub/desitarget/pull/564
+.. _`PR #569`: https://github.com/desihub/desitarget/pull/569
+.. _`PR #570`: https://github.com/desihub/desitarget/pull/570
 
 0.34.0 (2019-11-03)
 -------------------

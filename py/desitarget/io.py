@@ -352,10 +352,9 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
 
 
 def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
-                  qso_selection=None, sandboxcuts=False, nside=None,
-                  survey="main", nsidefile=None, hpxlist=None, scndout=None,
-                  resolve=True, maskbits=True, obscon=None, mockdata=None,
-                  supp=False, extra=None):
+                  qso_selection=None, nside=None, survey="main", nsidefile=None,
+                  hpxlist=None, scndout=None, resolve=True, maskbits=True,
+                  obscon=None, mockdata=None, supp=False, extra=None):
     """Write target catalogues.
 
     Parameters
@@ -371,8 +370,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     nchunks : :class`int`, optional, defaults to `None`
         The number of chunks in which to write the output file, to save
         memory. Send `None` to write everything at once.
-    sandboxcuts : :class:`bool`, optional, defaults to ``False``
-        Written to the output file header as `sandboxcuts`.
     nside : :class:`int`, optional, defaults to `None`
         If passed, add a column to the targets array popluated
         with HEALPixels at resolution `nside`.
@@ -429,13 +426,17 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
             _, hdr, data = _bright_or_dark(
                 targdir, hdr, data, obscon)
 
-    # ADM use RELEASE to find the release string for the input targets.
-    if not supp:
-        drint = np.max(data['RELEASE']//1000)
-        drstring = 'dr'+str(drint)
-    else:
-        drint = None
+    # ADM if passed, use the indir to determine the Data Release
+    # ADM integer and string for the input targets.
+    drint = None
+    if supp:
         drstring = "supp"
+    else:
+        try:
+            drint = int(indir.split("dr")[1][0])
+            drstring = 'dr'+str(drint)
+        except (ValueError, IndexError, AttributeError):
+            drstring = "X"
 
     # ADM catch cases where we're writing-to-file and there's no hpxlist.
     hpx = hpxlist
@@ -461,7 +462,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM write versions, etc. to the header.
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
-    depend.setdep(hdr, 'sandboxcuts', sandboxcuts)
     depend.setdep(hdr, 'photcat', drstring)
 
     if indir is not None:
@@ -887,9 +887,14 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
     """
-    # ADM use RELEASE to find the release string for the input GFAs.
-    drint = np.max(data['RELEASE']//1000)
-    drstring = 'dr'+str(drint)
+    # ADM if passed, use the indir to determine the Data Release
+    # ADM integer and string for the input targets.
+    try:
+        drint = int(indir.split("dr")[1][0])
+        drstring = 'dr'+str(drint)
+    except (ValueError, IndexError, AttributeError):
+        drint = None
+        drstring = "X"
 
     # ADM rename 'TYPE' to 'MORPHTYPE'.
     data = rfn.rename_fields(data, {'TYPE': 'MORPHTYPE'})
@@ -1010,7 +1015,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
             drint = int(indir.split("dr")[1][0])
             drstring = 'dr'+str(drint)
             depend.setdep(hdr, 'photcat', drstring)
-        except ValueError:
+        except (ValueError, IndexError, AttributeError):
             drint = None
 
     # ADM add HEALPix column, if requested by input.
@@ -2108,8 +2113,9 @@ def _check_hpx_length(hpxlist, length=68, warning=False):
     """Check a list expressed as a csv string won't exceed a length."""
     pixstring = ",".join([str(i) for i in np.atleast_1d(hpxlist)])
     if len(pixstring) > length:
-        msg = "Pixel string {} is too long. Maximum is length-{} strings."  \
-            .format(pixstring, length)
+        msg = "Pixel string {} is too long. Maximum is length-{} strings. "  \
+              "If making files, try reducing nside or the bundling integer."  \
+              .format(pixstring, length)
         if warning:
             log.warning(msg)
         else:
