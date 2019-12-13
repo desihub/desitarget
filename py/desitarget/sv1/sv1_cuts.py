@@ -547,6 +547,13 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary = np.ones_like(rflux, dtype='?')
     qso = primary.copy()
 
+    # ADM never target sources that are far too bright (mag < 0).
+    # ADM this guards against overflow warnings in powers.
+    qso &= (gflux < 1e9) & (rflux < 1e9) & (zflux < 1e9)
+    gflux[~qso] = 1e9
+    rflux[~qso] = 1e9
+    zflux[~qso] = 1e9
+
     # ADM Create some composite fluxes.
     wflux = 0.75*w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
@@ -899,7 +906,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     # ADM perform the color cuts to finish the selection.
     qso &= isQSOz5_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gsnr=gsnr, rsnr=gsnr, zsnr=gsnr,
+                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                           w1flux=w1flux, w2flux=w2flux,
                           primary=primary, south=south)
 
@@ -916,9 +923,15 @@ def isQSOz5_colors(gflux=None, rflux=None, zflux=None,
         primary = np.ones_like(rflux, dtype='?')
     qso = primary.copy()
 
+    # ADM never target sources that are far too bright (mag < 0).
+    # ADM this guards against overflow warnings in powers.
+    qso &= (gflux < 1e9) & (rflux < 1e9) & (zflux < 1e9)
+    gflux[~qso] = 1e9
+    rflux[~qso] = 1e9
+    zflux[~qso] = 1e9
+
     # ADM never target sources with negative W1 or z fluxes.
     qso &= (w1flux >= 0.) & (zflux >= 0.)
-
     # ADM now safe to update w1flux and zflux to avoid warnings.
     w1flux[~qso] = 0.
     zflux[~qso] = 0.

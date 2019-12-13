@@ -664,8 +664,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM iteratively populate lists of the numbers of pixels
     # ADM and the corrsponding pixel numbers,
-    # ADM only allow true bundling for targets, skies, randoms.
-    if prefix in ['targets', 'skies', 'randoms'] or 'sv' in prefix:
+    # ADM only allow true bundling for skies and randoms.
+    if prefix in ['skies', 'randoms']:
         bins = []
         for index, num in enumerate(numpix):
             # Try to fit this sized number into a bin
@@ -727,7 +727,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         bins = [[[i, j]] for i, j in
                 zip(np.ones(nbins, dtype='int'), np.arange(nbins))]
         maxeta = 1
-        nnodes = 16
+        nnodes = min(16, len(bins))
         if prefix == 'supp-skies':
             nnodes = 4
 
@@ -869,11 +869,11 @@ def sweep_files_touch_hp(nside, pixlist, infiles):
         that touch HEALPixel 0.
     :class:`list`
         The input `pixlist` reduced to just those pixels that touch
-        the area covered by an input sweeps file.
+        the area covered by the input `infiles`.
     :class:`~numpy.ndarray`
-        A flattened array of all HEALPixels touched by the input files.
-        Each HEALPixel will appear multiple times if it's touched by
-        multiple input sweep files.
+        A flattened array of all HEALPixels touched by the input
+        `infiles`. Each HEALPixel will appear multiple times if it's
+        touched by multiple input sweep files.
     """
     # ADM convert a single filename to list of filenames.
     if isinstance(infiles, str):
@@ -899,7 +899,7 @@ def sweep_files_touch_hp(nside, pixlist, infiles):
     pixlist = pixlist[ii]
 
     # ADM create a list of files that touch each HEALPixel.
-    filesperpixel = [[] for pix in range(np.max(pixnum)+1)]
+    filesperpixel = [[] for pix in range(hp.nside2npix(nside))]
     for ifile, pixels in enumerate(pixelsperfile):
         for pix in pixels:
             filesperpixel[pix].append(infiles[ifile])

@@ -283,34 +283,6 @@ class TestCuts(unittest.TestCase):
 
                 self.assertTrue(np.all(t1[col][notNaN] == t2[col][notNaN]))
 
-    @unittest.skip("The sandbox isn't used much, we will probably deprecate it.")
-    def test_select_targets_sandbox(self):
-        """Test sandbox cuts at least don't crash
-        """
-        from desitarget import sandbox
-        ntot = 0
-        for filename in self.tractorfiles+self.sweepfiles:
-            targets = cuts.select_targets(filename, numproc=1, sandbox=True)
-            objects = Table.read(filename)
-            if 'BRICK_PRIMARY' in objects.colnames:
-                objects.remove_column('BRICK_PRIMARY')
-            desi_target, bgs_target, mws_target = \
-                sandbox.cuts.apply_sandbox_cuts(objects)
-            n = np.count_nonzero(desi_target) + \
-                np.count_nonzero(bgs_target) + \
-                np.count_nonzero(mws_target)
-            self.assertEqual(len(targets), n)
-            ntot += n
-        self.assertGreater(ntot, 0, 'No targets selected by sandbox.cuts')
-
-    def test_check_targets(self):
-        """Test code that checks files for corruption
-        """
-        for filelist in self.tractorfiles:
-            nbadfiles = cuts.check_input_files(filelist, numproc=1)
-
-            self.assertTrue(nbadfiles == 0)
-
     def test_qso_selection_options(self):
         """Test the QSO selection options are passed correctly
         """
