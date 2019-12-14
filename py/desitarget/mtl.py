@@ -57,6 +57,11 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     from desiutil.log import get_logger
     log = get_logger()
 
+    # ADM determine whether the input targets are main survey, cmx or SV.
+    colnames, masks, survey = main_cmx_or_sv(targets)
+    # ADM set the first column to be the "desitarget" column
+    desi_target, desi_mask = colnames[0], masks[0]
+
     # ADM if secondaries were passed, concatenate them with the targets.
     if scnd is not None:
         nrows = len(scnd)
@@ -70,12 +75,11 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         # APC Propagate a flag on which targets came from scnd
         is_scnd = np.repeat(False, len(targets))
         is_scnd[-nrows:] = True
+        # APC Assign the SCND_ANY bit to secondary targets. We need to do this
+        # APC before the NUMOBS_MORE logic below
+        log.info('Updating DESI_TARGET for secondaries...')
+        targets[desi_target][is_scnd] |= desi_mask.SCND_ANY
         log.info('Done with padding...t={:.1f}s'.format(time()-start))
-
-    # ADM determine whether the input targets are main survey, cmx or SV.
-    colnames, masks, survey = main_cmx_or_sv(targets)
-    # ADM set the first column to be the "desitarget" column
-    desi_target, desi_mask = colnames[0], masks[0]
 
     # Trim targets from zcat that aren't in original targets table
     if zcat is not None:
