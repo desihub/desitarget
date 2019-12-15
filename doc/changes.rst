@@ -2,11 +2,16 @@
 desitarget Change Log
 =====================
 
-0.34.1 (unreleased)
+0.35.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.35.0 (2019-12-15)
 -------------------
 
 * Preparation for DR9 [`PR #573`_]. Includes:
-    * Update data model, maintaining backwards-compatability with DR8.
+    * Update data model, maintaining backwards compatibility with DR8.
     * Don't set the ``SKY`` bit when setting the ``SUPP_SKY`` bit.
     * Users can input a seed (1, 2, 3, etc.) to ``bin/select_randoms``:
         * This user-provided seed is added to the output file name.
