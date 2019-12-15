@@ -21,7 +21,7 @@ log = get_logger()
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Make a random catalog with "zeros" for pixel-level quantities in missing (i.e. outside-of-the-footprint) bricks')
 ap.add_argument("randomcat",
-                help='An existing "inside-of-the-footprint" random catalog. Must contain at least the column "BRICKNAME" (e.g /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits)')
+                help='An existing "inside-of-the-footprint" random catalog. Must contain at least the column "BRICKNAME" and the header card "SEED" (e.g /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits). If SEED does not exist in the header, the seed defaults to 1 in desitarget.randoms.supplement_randoms()"')
 ap.add_argument("dest",
                 help="Output directory for random catalog (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--density", type=int,
@@ -45,16 +45,22 @@ log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc, time()-star
 # ADM just the filename for the input random catalog.
 rancatfn = os.path.basename(ns.randomcat)
 
-# ADM determine the bricknames that are already covered by the existing random catalog.
+# ADM find the bricknames covered by the existing random catalog.
 donebns = fitsio.read(ns.randomcat, columns="BRICKNAME")
 
+# ADM determine the seed used for the existing random catalog.
+try:
+    seed = fitsio.read_header(ns.randomcat, "RANDOMS")["SEED"]
+except KeyError:
+    seed = 1
+
 # ADM make the array of "zerod" bricks.
-randoms = supplement_randoms(
-    donebns, density=ns.density, numproc=ns.numproc, dustdir=ns.dustdir)
+randoms = supplement_randoms(donebns, density=ns.density, numproc=ns.numproc,
+                             dustdir=ns.dustdir, seed=seed)
 
 # ADM write out the supplemental random catalog.
 nrands, outfile = io.write_randoms(ns.dest, randoms, indir=ns.randomcat,
-                                   supp=True, density=ns.density)
+                                   supp=True, density=ns.density, seed=seed)
 
 log.info('wrote file of {} randoms to {}...t = {:.1f}s'
          .format(nrands, outfile, time()-start))

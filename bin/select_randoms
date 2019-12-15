@@ -56,13 +56,16 @@ ap.add_argument("--noresolve", action='store_true',
 ap.add_argument("--aprad", type=float,
                 help="Radius of aperture in arcsec in which to generate sky background flux levels (defaults to 0.75; the DESI fiber radius)",
                 default=0.75)
+ap.add_argument("--seed", type=int,
+                help="Random seed passed to desitarget.randoms.select_randoms()",
+                default=1)
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "noresolve", "aprad", "density":
+for nskey in "noresolve", "aprad", "density", "seed":
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)
@@ -104,12 +107,16 @@ if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
 randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
                          nside=ns.nside, pixlist=pixlist, aprad=ns.aprad, extra=extra,
                          bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
-                         dustdir=ns.dustdir, resolverands=not(ns.noresolve))
+                         dustdir=ns.dustdir, resolverands=not(ns.noresolve), seed=ns.seed)
 
 if ns.bundlebricks is None:
+    # ADM extra header keywords for the output fits file.
+    extra = {k: v for k, v in zip(["density", "aprad", "seed"],
+                                  [ns.density, ns.aprad, ns.seed])}
+
+
     nrands, outfile = io.write_randoms(
-        ns.dest, randoms, indir=ns.surveydir, aprad=ns.aprad, hdr=hdr,
-        nside=nside, density=ns.density, resolve=not(ns.noresolve),
-        nsidefile=ns.nside, hpxlist=pixlist)
+        ns.dest, randoms, indir=ns.surveydir, hdr=hdr, nside=nside, extra=extra,
+        resolve=not(ns.noresolve), nsidefile=ns.nside, hpxlist=pixlist)
     log.info('wrote file of {} randoms to {}...t = {:.1f}s'
              .format(nrands, outfile, time()-start))
