@@ -31,7 +31,7 @@ desitarget Change Log
       targets.
     * Secondary target properties can override matched primary properties,
       but only for restricted combinations of DESI_TARGET bits (MWS and STD).
-* Add stellar SV targets [`PR #530_`] and [`PR #574_`:
+* Add stellar SV targets [`PR #530_`] and [`PR #574_`]:
     * Add MWS SV target definitions in ``sv1_targetmask`` and ``cuts``.
     * Science WDs are now a secondary target class.
     * Adds a bright limit to the ``MWS-NEARBY`` sample.
