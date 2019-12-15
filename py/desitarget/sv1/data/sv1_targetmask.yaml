@@ -146,8 +146,8 @@ sv1_mws_mask:
 sv1_scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-    - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr16q'}]
+    - [DR14Q,       1, "Known quasars from the SDSS DR14Q catalog",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
     - [MWS_WD_SV,                10, "Milky Way Survey White Dwarf (SV cuts)",  
         {obsconditions: BRIGHT|GRAY|DARK, filename: 'MWS_WD_SV'}]
     - [MWS_SPECIAL_DRACO_SV,     11, "Likely Draco members (SV cuts)",
@@ -495,7 +495,7 @@ numobs:
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
         VETO: 1
-        DR16Q: 1
+        DR14Q: 1
         MWS_WD_SV:                       100
         MWS_WD_SV_VERYBRIGHT:            SAME_AS_MWS_WD_SV
         MWS_CALIB_APOGEE:                100
