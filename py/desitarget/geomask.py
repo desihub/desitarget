@@ -605,7 +605,7 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=True, surveydirs=None, extra=None):
+                  gather=True, surveydirs=None, extra=None, seed=None):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
@@ -637,6 +637,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script.
+    seed : :class:`int`, optional, defaults to 1
+        Random seed for file name. Only relevant for `prefix='randoms'`.
 
     Returns
     -------
@@ -790,6 +792,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM the replace is to handle inputs that look like "sv1_targets".
             outfile = "$CSCRATCH/{}/{}{}-hp-{}.fits".format(
                 prefix2, prefix.replace("_", "-"), drstr, strgoodpix)
+            # ADM random catalogs have an additional seed in their file name.
+            if prefix == 'randoms':
+                outfile = outfile.replace(".fits", "-{}.fits".format(seed))
             outfiles.append(outfile)
             if extra is not None:
                 strgoodpix += extra
@@ -1351,14 +1356,14 @@ def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
     Parameters
     ----------
     matchto : :class:`~numpy.ndarray` or `list`
-        Coordinates to match TO. Must include the columns "RA" and "DEC".
+        Coordinates to match TO. Must include columns "RA" and "DEC".
     objs : :class:`~numpy.ndarray` or `list`
-        Objects that will be matched to `matchto`. Must include "RA" and "DEC".
+        Objects matched to `matchto`. Must include "RA" and "DEC".
     sep : :class:`float`, defaults to 1 arcsecond
-        The separation at which to match `objs` to `matchto` in ARCSECONDS.
+        Separation at which to match `objs` to `matchto` in ARCSECONDS.
     radec : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then `objs` and `matchto` are [RA, Dec] lists instead of
-        rec arrays.
+        If ``True`` then `objs` and `matchto` are [RA, Dec] lists
+        instead of rec arrays.
     return_sep : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the separation between each object, not
         just the indexes of the match.
@@ -1366,21 +1371,21 @@ def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
     Returns
     -------
     :class:`~numpy.ndarray` (of integers)
-        The indexes in `match2` for which `objs` matches `match2` at < `sep`.
+        Indexes in `matchto` where `objs` matches `matchto` at < `sep`.
     :class:`~numpy.ndarray` (of integers)
-        The indexes in `objs` for which `objs` matches `match2` at < `sep`.
+        Indexes in `objs` where `objs` matches `matchto` at < `sep`.
     :class:`~numpy.ndarray` (of floats)
         The distances in ARCSECONDS of the matches.
         Only returned if `return_sep` is ``True``.
 
     Notes
     -----
-        - Sense is important, here. Every coordinate pair in `objs` is matched
-          to `matchto`, but NOT every coordinate pair in `matchto` is matched to
-          `objs`. `matchto` should be thought of as the parent catalog being
-          matched to, in that we are looking for all the instances where `objs`
-          has a match in `matchto`. The returned indexes thus can never be longer
-          than `objs`. Consider this example:
+        - Sense is important. Every coordinate pair in `objs` is matched
+          to `matchto`, but NOT every coordinate pair in `matchto` is
+          matched to `objs`. `matchto` is the "parent" catalog being
+          matched to, i.e. we're looking for the instances where `objs`
+          has a match in `matchto`. The array of returned indexes thus
+          can't be longer than `objs`. Consider this example:
 
           >>> mainra, maindec = [100], [30]
           >>> ras, decs = [100, 100, 100], [30, 30, 30]

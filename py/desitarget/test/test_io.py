@@ -67,20 +67,24 @@ class TestIO(unittest.TestCase):
         # ADM Gaia columns that get added on input.
         from desitarget.gaiamatch import gaiadatamodel
         from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
-        # ADM have to remove the GAIA_RA, GAIA_DEC columns used for matching.
+        # ADM remove the GAIA_RA, GAIA_DEC columns used for matching.
         gaiadatamodel = pop_gaia_coords(gaiadatamodel)
-        # ADM prior to DR8, we're also missing some other Gaia columns.
-#        gaiadatamodel = pop_gaia_columns(
-#            gaiadatamodel,
-#            ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
-#             'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
-#        )
-        # ADM PHOTSYS gets added on input.
-        tscolumns = list(io.tsdatamodel.dtype.names)     \
-            + ['PHOTSYS']                                \
-            + list(gaiadatamodel.dtype.names)
         tractorfile = io.list_tractorfiles(self.datadir)[0]
         data = io.read_tractor(tractorfile)
+        # ADM form the final data model in a manner that maintains
+        # ADM backwards-compatability with DR8.
+        if "FRACDEV" in data.dtype.names:
+            tsdatamodel = np.array(
+                [], dtype=io.basetsdatamodel.dtype.descr +
+                io.dr8addedcols.dtype.descr)
+        else:
+            tsdatamodel = np.array(
+                [], dtype=io.basetsdatamodel.dtype.descr +
+                io.dr9addedcols.dtype.descr)
+        # ADM PHOTSYS gets added on input.
+        tscolumns = list(tsdatamodel.dtype.names)           \
+            + ['PHOTSYS']                                   \
+            + list(gaiadatamodel.dtype.names)
         self.assertEqual(set(data.dtype.names), set(tscolumns))
 #        columns = ['BX', 'BY']
         columns = ['RA', 'DEC']

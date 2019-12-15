@@ -5,7 +5,6 @@ import fitsio
 import numpy as np
 import argparse
 from desitarget.secondary import select_secondary, _get_scxdir
-from desitarget.targets import main_cmx_or_sv
 from desitarget import io
 import os
 from glob import glob
@@ -21,7 +20,7 @@ ap.add_argument("priminfodir",
                 help="Location of the directory that has previously matched primary and secondary targets to recover the unique primary TARGETIDs " +
                 "(as made by, e.g., select_targets without the --nosecondary option set).")
 ap.add_argument("dest",
-                help="Output secondary-only targets file (e.g. '/project/projectdirs/desi/target/catalogs/secondary-dr6-0.20.0.fits' at NERSC)")
+                help="Output secondary-only targets directory (the file names are built on-the-fly from other inputs")
 ap.add_argument("-s", "--separation", type=float, default=1.,
                 help='Angular separation at which to match secondary targets to themselves. Defaults to [1] arcsec.')
 ap.add_argument("--scnddir",
@@ -56,6 +55,12 @@ scx = select_secondary(ns.priminfodir, sep=ns.separation, scxdir=scxdir, darkbri
 hdr['PRIMDIR'] = ns.priminfodir
 hdr['SEP'] = float(ns.separation)
 
+# ADM try to determine the Data Release from the priminfo file.
+try:
+    drint =ns. priminfodir.split('dr')[1].split('-')[0]
+except (ValueError, IndexError, AttributeError):
+    drint = "X"
+
 # ADM write out the secondary targets, with bright-time
 # ADM and dark-time targets written separately.
 obscons = ["BRIGHT", "DARK"]
@@ -65,7 +70,8 @@ if ns.writeall:
 for obscon in obscons:
     # ADM the dict() here is to make hdr immutable.
     ntargs, outfile = io.write_secondary(ns.dest, scx, primhdr=dict(hdr),
-                                         scxdir=scxdir, obscon=obscon)
+                                         scxdir=scxdir, obscon=obscon,
+                                         drint=drint)
 
-    log.info('{} secondary targets written to {}...t={:.1f}mins'
+    log.info('{} standalone secondary targets written to {}...t={:.1f}mins'
              .format(ntargs, outfile, (time()-time0)/60.))

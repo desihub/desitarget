@@ -35,11 +35,12 @@ log = get_logger()
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
-               8000: 'S', 8001: 'N'}
+               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N'}
 
-# ADM this is an empty array of the full TS data model columns and dtypes
-# ADM other columns can be added in read_tractor.
-tsdatamodel = np.array([], dtype=[
+# ADM This is an empty array of most of the TS data model columns and
+# ADM dtypes. Note that other columns are added in read_tractor and
+# ADM from the "addedcols" data models below.
+basetsdatamodel = np.array([], dtype=[
     ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
     ('OBJID', '>i4'), ('TYPE', 'S4'), ('RA', '>f8'), ('RA_IVAR', '>f4'),
     ('DEC', '>f8'), ('DEC_IVAR', '>f4'), ('DCHISQ', '>f4', (5,)), ('EBV', '>f4'),
@@ -58,15 +59,29 @@ tsdatamodel = np.array([], dtype=[
     ('MW_TRANSMISSION_W1', '>f4'), ('MW_TRANSMISSION_W2', '>f4'),
     ('MW_TRANSMISSION_W3', '>f4'), ('MW_TRANSMISSION_W4', '>f4'),
     ('ALLMASK_G', '>i2'), ('ALLMASK_R', '>i2'), ('ALLMASK_Z', '>i2'),
+    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
+    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
+    ('MASKBITS', '>i2')
+    ])
+
+# ADM columns that are new for the DR9 data model.
+dr9addedcols = np.array([], dtype=[
+    ('LC_FLUX_W1', '>f4', (13,)), ('LC_FLUX_W2', '>f4', (13,)),
+    ('LC_FLUX_IVAR_W1', '>f4', (13,)), ('LC_FLUX_IVAR_W2', '>f4', (13,)),
+    ('LC_NOBS_W1', '>i2', (13,)), ('LC_NOBS_W2', '>i2', (13,)),
+    ('LC_MJD_W1', '>f8', (13,)), ('LC_MJD_W2', '>f8', (13,)),
+    ('SHAPE_R', '>f4'), ('SHAPE_E1', '>f4'), ('SHAPE_E2', '>f4'),
+    ('SHAPE_R_IVAR', '>f4'), ('SHAPE_E1_IVAR', '>f4'), ('SHAPE_E2_IVAR', '>f4')
+    ])
+
+# ADM columns that were deprecated in the DR8 data model.
+dr8addedcols = np.array([], dtype=[
     ('FRACDEV', '>f4'), ('FRACDEV_IVAR', '>f4'),
     ('SHAPEDEV_R', '>f4'), ('SHAPEDEV_E1', '>f4'), ('SHAPEDEV_E2', '>f4'),
     ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
     ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
     ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
-    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
-    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
-    ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
-    ('MASKBITS', '>i2')
     ])
 
 
@@ -141,7 +156,8 @@ def read_tractor(filename, header=False, columns=None):
     columns: :class:`list`, optional
         Specify the desired Tractor catalog columns to read; defaults to
         desitarget.io.tsdatamodel.dtype.names + most of the columns in
-        desitarget.gaiamatch.gaiadatamodel.dtype.names.
+        desitarget.gaiamatch.gaiadatamodel.dtype.names, where
+        tsdatamodel is, e.g., basetsdatamodel + dr9addedcols.
 
     Returns
     -------
@@ -153,9 +169,19 @@ def read_tractor(filename, header=False, columns=None):
     # ADM read in the file information. Due to fitsio header bugs
     # ADM near v1.0.0, make absolutely sure the user wants the header.
     if header:
-        indata, hdr = fitsio.read(filename, upper=True, header=True, columns=columns)
+        indata, hdr = fitsio.read(filename, upper=True, header=True,
+                                  columns=columns)
     else:
         indata = fitsio.read(filename, upper=True, columns=columns)
+
+    # ADM form the final data model in a manner that maintains
+    # ADM backwards-compatability with DR8.
+    if "FRACDEV" in indata.dtype.names:
+        tsdatamodel = np.array(
+            [], dtype=basetsdatamodel.dtype.descr + dr8addedcols.dtype.descr)
+    else:
+        tsdatamodel = np.array(
+            [], dtype=basetsdatamodel.dtype.descr + dr9addedcols.dtype.descr)
 
     # ADM the full data model including Gaia columns.
     from desitarget.gaiamatch import gaiadatamodel
@@ -360,8 +386,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data : :class:`~numpy.ndarray`
         numpy structured array of targets to save.
     indir, indir2, qso_selection : :class:`str`, optional, default to `None`
@@ -417,7 +443,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     hdr = fitsio.FITSHDR()
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
-    # ADM Ignore the filename output, We'll build that on-the-fly.
+    # ADM Ignore the filename output, we'll build that on-the-fly.
     if obscon is not None:
         if mockdata is not None:
             _, hdr, data, mockdata = _bright_or_dark(
@@ -608,13 +634,15 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     return
 
 
-def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
+def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
+                    drint='X'):
     """Write a catalogue of secondary targets.
 
     Parameters
     ----------
-    filename : :class:`str`
-        output file for secondary targets that do not match a primary.
+    targdir : :class:`str`
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data : :class:`~numpy.ndarray`
         numpy structured array of secondary targets to write.
     primhdr : :class:`str`, optional, defaults to `None`
@@ -632,6 +660,8 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
         and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+    drint : :class:`int`, optional, defaults to `X`
+        The data release ("dr"`drint`"-") in the output filename.
 
     Returns
     -------
@@ -645,15 +675,14 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     -----
     Two sets of files are written:
         - The file of secondary targets that do not match a primary
-          target is written to `filename`. Such secondary targets
+          target is written to `targdir`. Such secondary targets
           are determined from having `RELEASE==0` and `SKY==0`
           in the `TARGETID`. Only targets with `PRIORITY_INIT > -1`
           are written to this file (this allows duplicates to be
           resolved in, e.g., :func:`~desitarget.secondary.finalize()`
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
-          an "outdata/filenam" subdirectory of `scxdir`, where filenam
-          is `filename` with its extension (likely .fits) stripped.
+          an "outdata/targdir" subdirectory of `scxdir`.
     """
     # ADM grab the scxdir, it it wasn't passed.
     from desitarget.secondary import _get_scxdir
@@ -668,8 +697,12 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     hdr["SCNDDIR"] = scxdir
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
+    # ADM ignore the filename output, we'll build that on-the-fly.
     if obscon is not None:
-        filename, hdr, data = _bright_or_dark(filename, hdr, data, obscon)
+        log.info("Observational conditions are {}".format(obscon))
+        _, hdr, data = _bright_or_dark(targdir, hdr, data, obscon)
+    else:
+        log.info("Observational conditions are ALL")
 
     # ADM add the secondary dependencies to the file header.
     depend.setdep(hdr, 'scnd-desitarget', desitarget_version)
@@ -688,11 +721,23 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
     smalldata = rfn.drop_fields(data, ["PRIORITY_INIT", "SUBPRIORITY",
                                        "NUMOBS_INIT", "OBSCONDITIONS"])
 
+    # ADM load the correct mask.
+    _, mx, survey = main_cmx_or_sv(data, scnd=True)
+    log.info("Loading mask for {} survey".format(survey))
+    scnd_mask = mx[3]
+
+    # ADM construct the output full and reduced file name.
+    filename = find_target_files(targdir, dr=drint, flavor="targets",
+                                 survey=survey, obscon=obscon, nohp=True)
+    filenam = os.path.splitext(os.path.basename(filename))[0]
+
     # ADM write out the file of matches for every secondary bit.
-    filenam = os.path.splitext(os.path.split(filename)[1])[0]
     scxoutdir = os.path.join(scxdir, 'outdata', filenam)
+    if obscon is not None:
+        scxoutdir = os.path.join(scxoutdir, obscon.lower())
     os.makedirs(scxoutdir, exist_ok=True)
-    from desitarget.targetmask import scnd_mask
+
+    # ADM and write out the information for each bit.
     for name in scnd_mask.names():
         # ADM construct the output file name.
         fn = "{}.fits".format(scnd_mask[name].filename)
@@ -706,15 +751,18 @@ def write_secondary(filename, data, primhdr=None, scxdir=None, obscon=None):
             # ADM write to file.
             fitsio.write(scxfile, smalldata[ii][order],
                          extname='TARGETS', header=hdr, clobber=True)
+            log.info('Info for {} secondaries written to {}'
+                     .format(np.sum(ii), scxfile))
 
     # ADM make necessary directories for the file, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
+
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM release before DR1 (release < 1000).
     from desitarget.targets import decode_targetid
     objid, brickid, release, mock, sky, gaiadr = decode_targetid(data["TARGETID"])
     ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
-    log.info('Writing {} standalone secondaries'.format(ii.sum()))
+
     # ADM ...write them out.
     fitsio.write(filename, data[ii],
                  extname='SCND_TARGETS', header=hdr, clobber=True)
@@ -730,8 +778,8 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of skies to write to file.
     indir, indir2 : :class:`str`, optional
@@ -865,8 +913,8 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of GFAs to write to file.
     indir, indir2 : :class:`str`, optional, defaults to None.
@@ -956,15 +1004,14 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
 
 
 def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
-                  nsidefile=None, hpxlist=None, density=None,
-                  resolve=True, aprad=None, extra=None):
+                  nsidefile=None, hpxlist=None, resolve=True, extra=None):
     """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
     ----------
     targdir : :class:`str`
-        Path to output target selection directory (the directory structure
-        and file name are built on-the-fly from other inputs).
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
     data  : :class:`~numpy.ndarray`
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
@@ -987,13 +1034,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
-    density: :class:`int`
-        Number of points per sq. deg. at which the catalog was generated,
-        write to header of the output file if not None.
     resolve : :class:`bool`, optional, defaults to ``True``
         Written to the output file header as `RESOLVE`.
-    aprad : :class:`float, optional, defaults to ``None``
-        If passed, written to the outpue header as `APRAD`.
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -1029,14 +1071,6 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM note if this is a supplemental (outside-of-footprint) file.
     hdr['SUPP'] = supp
 
-    # ADM add density of points if requested by input.
-    if density is not None:
-        hdr['DENSITY'] = density
-
-    # ADM add aperture radius (in arcsec) if requested by input.
-    if aprad is not None:
-        hdr['APRAD'] = aprad
-
     # ADM add whether or not the randoms were resolved to the header.
     hdr["RESOLVE"] = resolve
 
@@ -1057,9 +1091,22 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         # ADM set the hp part of the output file name to "X".
         hpxlist = "X"
 
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
+
+    # ADM retrieve the seed, if it is known.
+    seed = None
+    if extra is not None:
+        for seedy in "seed", "SEED":
+            if seedy in extra:
+                seed = extra[seedy]
+
     # ADM construct the output file name.
     filename = find_target_files(targdir, dr=drint, flavor="randoms",
-                                 hp=hpxlist, resolve=resolve, supp=supp)
+                                 hp=hpxlist, resolve=resolve, supp=supp,
+                                 seed=seed, nohp=True)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -1584,7 +1631,7 @@ def _get_targ_dir():
 
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True,
-                      supp=False, mock=False):
+                      supp=False, mock=False, nohp=False, seed=None):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1594,10 +1641,10 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     dr : :class:`str` or :class:`int`, optional, defaults to "X"
         Name of a Legacy Surveys Data Release (e.g. 8)
     flavor : :class:`str`, optional, defaults to `targets`
-        Options include `skies`, `gfas`, `targets`, `randoms`.
+        Options include "skies", "gfas", "targets", "randoms".
     survey : :class:`str`, optional, defaults to `main`
-        Options include `main`, `cmx`, `svX` (where X is 1, 2 etc.).
-        Only relevant if `flavor` is `targets`.
+        Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
+        Only relevant if `flavor` is "targets".
     obscon : :class:`str`, optional
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
     hp : :class:`list` or :class:`int` or :class:`str`, optional
@@ -1611,9 +1658,16 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental targets file. Overrides
         the `obscon` option.
-    mock : :class:`bool`, optional, defaults to ``False``.
-        If ``True`` then construct the file path for mock target catalogs and
-        return (most other inputs are ignored).
+    mock : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then construct the file path for mock target
+        catalogs and return (most other inputs are ignored).
+    nohp : :class:`bool`, optional, defaults to ``False``
+        If ``True``, override the normal behavior for `hp`=``None`` and
+        instead construct a filename that omits the `-hpX-` part.
+    seed : :class:`int`, optional
+        If `seed` is not ``None``, then it is added to the file name just
+        before the ".fits" extension (i.e. "-8.fits" for `seed` of 8).
+        Only relevant if `flavor` is "randoms".
 
     Returns
     -------
@@ -1627,7 +1681,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           are stored is returned. The directory name is the expected
           input for the `desitarget.io.read*` convenience functions
           (:func:`desimodel.io.read_targets_in_hp()`, etc.).
-
+        - On the other hand, if `hp` is ``None`` and `nohp` is ``True``
+          then a filename is returned that just omits the `-hpX-` part.
     """
     # ADM some preliminaries for correct formatting.
     if obscon is not None:
@@ -1703,9 +1758,18 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
-        hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
-        backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
-        fn = os.path.join(fn, backend)
+            hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
+            backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
+            fn = os.path.join(fn, backend)
+    else:
+        if nohp:
+            backend = "{}-{}.fits".format(prefix, drstr)
+            fn = os.path.join(fn, backend)
+
+    if flavor == "randoms" and seed is not None:
+        # ADM note that this won't do anything unless a file
+        # ADM names was already constructed.
+        fn = fn.replace(".fits", "-{}.fits".format(seed))
 
     return fn
 
