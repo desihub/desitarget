@@ -26,18 +26,19 @@ desitarget Change Log
     * Useful to ensure ongoing compatibility with the mocks.
 * Bitmasks (1,12,13), rfiberflux cut for BGS Main Survey [`PR #562`_].
 * Implement a variety of fixes to `select_mock_targets` [`PR #561`_].
-* Fixes and updates to ``secondary.py`` [`PR #530`]:
+* Fixes and updates to ``secondary.py`` [`PR #530`_] and [`PR #574_`]:
     * Fix a bug that led to incorrect ``OBSCONDITIONS`` for secondary-only
       targets.
     * Secondary target properties can override matched primary properties,
       but only for restricted combinations of DESI_TARGET bits (MWS and STD).
-* Add stellar SV targets [`PR #530`]:
+* Add stellar SV targets [`PR #530_`] and [`PR #574_`:
     * Add MWS SV target definitions in ``sv1_targetmask`` and ``cuts``.
     * Science WDs are now a secondary target class.
     * Adds a bright limit to the ``MWS-NEARBY`` sample.
     * Add stellar SV secondary targets in ``sv1_targetmask``.
     * Remove the ``BACKSTOP`` secondary bit.
 
+.. _`PR #574`: https://github.com/desihub/desitarget/pull/574
 .. _`PR #530`: https://github.com/desihub/desitarget/pull/530
 .. _`PR #561`: https://github.com/desihub/desitarget/pull/561
 .. _`PR #562`: https://github.com/desihub/desitarget/pull/562
