@@ -2262,6 +2262,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
     # ADM restrict to only input files in a set of HEALPixels, if requested.
     if pixlist is not None:
         # ADM a hack to ensure we have the correct targeting data model.
+        # ADM outside of the Legacy Surveys footprint.
         dummy = infiles[0]
         infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
         if len(infiles) == 0:

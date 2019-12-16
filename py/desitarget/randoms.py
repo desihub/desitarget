@@ -66,8 +66,8 @@ def dr_extension(drdir):
     return 'fz', 1
 
 
-def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
-                                  density=100000, poisson=True, wrap=True):
+def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=100000,
+                                  poisson=True, wrap=True, seed=1):
     """For brick edges, return random (RA/Dec) positions in the brick.
 
     Parameters
@@ -90,7 +90,10 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
         If ``True``, bricks with `ramax`-`ramin` > 350o are assumed to
         wrap, which is corrected by subtracting 360o from `ramax`, as is
         reasonable for small bricks. ``False`` turns of this correction.
-
+    seed : :class:`int`, optional, defaults to 1
+        Random seed to use when shuffling across brick boundaries.
+        The actual np.random.seed defaults to:
+            seed*int(1e7)+int(4*ramin)*1000+int(4*(decmin+90))
     Returns
     -------
     :class:`~numpy.array`
@@ -101,7 +104,7 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
     # ADM create a unique random seed on the basis of the brick.
     # ADM note this is only unique for bricksize=0.25 for bricks
     # ADM that are more than 0.25 degrees from the poles.
-    uniqseed = int(4*ramin)*1000+int(4*(decmin+90))
+    uniqseed = seed*int(1e7)+int(4*ramin)*1000+int(4*(decmin+90))
     np.random.seed(uniqseed)
 
     # ADM generate random points within the brick at the requested density
@@ -472,30 +475,34 @@ def hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
         - In the event that there are no pixels with one or more observations in the passed
           brick, and empty structured array will be returned.
     """
-    # ADM this is only intended to work on one brick, so die if a larger array is passed.
+    # ADM this is only intended to work on one brick, so die if a larger
+    # ADM array is passed.
     if not isinstance(brickname, str):
         log.fatal("Only one brick can be passed at a time!")
         raise ValueError
 
-    # ADM generate an empty structured array to return in the event that no pixels with
-    # ADM counts were found.
+    # ADM generate an empty structured array to return in the event that
+    # ADM no pixels with counts were found.
     hpxinfo = np.zeros(0, dtype=[('HPXPIXEL', '>i4'), ('HPXCOUNT', '>i4')])
 
-    # ADM generate random points within the brick at the requested density.
+    # ADM generate random points in the brick at the requested density.
     ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
                                               density=density, wrap=False)
 
     # ADM retrieve the number of observations for each random point.
-    nobs_g, nobs_r, nobs_z = nobs_at_positions_in_a_brick(ras, decs, brickname, drdir=drdir)
+    nobs_g, nobs_r, nobs_z = nobs_at_positions_in_a_brick(ras, decs, brickname,
+                                                          drdir=drdir)
 
     # ADM only retain points with one or more observations in all bands.
     w = np.where((nobs_g > 0) & (nobs_r > 0) & (nobs_z > 0))
 
-    # ADM if there were some non-zero observations, populate the pixel numbers and counts.
+    # ADM for non-zero observations, populate pixel numbers and counts.
     if len(w[0]) > 0:
-        pixnums = hp.ang2pix(nside, np.radians(90.-decs[w]), np.radians(ras[w]), nest=True)
+        pixnums = hp.ang2pix(nside, np.radians(90.-decs[w]), np.radians(ras[w]),
+                             nest=True)
         pixnum, pixcnt = np.unique(pixnums, return_counts=True)
-        hpxinfo = np.zeros(len(pixnum), dtype=[('HPXPIXEL', '>i4'), ('HPXCOUNT', '>i4')])
+        hpxinfo = np.zeros(len(pixnum),
+                           dtype=[('HPXPIXEL', '>i4'), ('HPXCOUNT', '>i4')])
         hpxinfo['HPXPIXEL'] = pixnum
         hpxinfo['HPXCOUNT'] = pixcnt
 
@@ -529,7 +536,7 @@ def get_dust(ras, decs, scaling=1, dustdir=None):
 
 def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
                               density=100000, dustdir=None, aprad=0.75,
-                              zeros=False, drdir=None):
+                              zeros=False, drdir=None, seed=1):
     """NOBS, DEPTHS etc. (per-band) for random points in a brick of the Legacy Surveys
 
     Parameters
@@ -562,6 +569,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
         The root directory pointing to a DR from the Legacy Surveys
         e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
         Only necessary to pass if zeros is ``False``.
+    seed : :class:`int`, optional, defaults to 1
+        See :func:`~desitarget.randoms.randoms_in_a_brick_from_edges`.
 
     Returns
     -------
@@ -584,14 +593,15 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
               'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
             EBV: E(B-V) at this location from the SFD dust maps.
     """
-    # ADM this is only intended to work on one brick, so die if a larger array is passed.
+    # ADM only intended to work on one brick, so die for larger arrays.
     if not isinstance(brickname, str):
         log.fatal("Only one brick can be passed at a time!")
         raise ValueError
 
-    # ADM generate random points within the brick at the requested density.
+    # ADM generate random points in the brick at the requested density.
     ras, decs = randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax,
-                                              density=density, wrap=False)
+                                              density=density, wrap=False,
+                                              seed=seed)
 
     # ADM only look up pixel-level quantities if zeros was not sent.
     if not zeros:
@@ -599,7 +609,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
         qdict = dr8_quantities_at_positions_in_a_brick(ras, decs, brickname,
                                                        drdir, aprad=aprad)
 
-        # ADM catch the case where a coadd directory is completely missing.
+        # ADM catch where a coadd directory is completely missing.
         if len(qdict) > 0:
             # ADM if 2 different camera combinations overlapped a brick
             # ADM then we need to duplicate the ras, decs as well.
@@ -871,7 +881,8 @@ def get_targ_dens(targets, Mx, nside=256):
         else:
             if ('BGS' in bitname) and not('S_ANY' in bitname):
                 ii = targets["BGS_TARGET"] & bgs_mask[bitname] != 0
-            elif ('MWS' in bitname) and not('S_ANY' in bitname):
+            elif (('MWS' in bitname or 'BACKUP' in bitname) and
+                  not('S_ANY' in bitname)):
                 ii = targets["MWS_TARGET"] & mws_mask[bitname] != 0
             else:
                 ii = targets["DESI_TARGET"] & desi_mask[bitname] != 0
@@ -972,8 +983,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                [1, 5, 6, 7, 11, 12, 13]]:
         bitint = np.sum(2**np.array(mb))
         mbcomb.append(bitint)
-        log.info('Determining footprint for maskbits {}...t = {:.1f}s'
-                 .format(mbcomb, time()-start))
+        log.info('Determining footprint for maskbits not in {}...t = {:.1f}s'
+                 .format(bitint, time()-start))
         mbstore.append(pixweight(randoms, rand_density,
                                  nside=nside, maskbits=bitint))
 
@@ -1057,8 +1068,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
 
 def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
-                          zeros=False, cnts=True,
-                          density=None, dustdir=None, aprad=None):
+                          zeros=False, cnts=True, density=None,
+                          dustdir=None, aprad=None, seed=1):
 
     """Parallel-process a random catalog for a set of brick names.
 
@@ -1075,6 +1086,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
         See :func:`~desitarget.randoms.get_quantities_in_a_brick`.
     cnts : :class:`bool`, optional, defaults to ``True``
         See :func:`~desitarget.skyfibers.get_brick_info`.
+    seed : :class:`int`, optional, defaults to 1
+        See :func:`~desitarget.randoms.randoms_in_a_brick_from_edges`.
 
     Returns
     -------
@@ -1104,7 +1117,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
         # ADM of interest at those points.
         return get_quantities_in_a_brick(
             bramin, bramax, bdecmin, bdecmax, brickname, drdir=drdir,
-            density=density, dustdir=dustdir, aprad=aprad, zeros=zeros)
+            density=density, dustdir=dustdir, aprad=aprad, zeros=zeros,
+            seed=seed)
 
     # ADM this is just to count bricks in _update_status.
     nbrick = np.zeros((), dtype='i8')
@@ -1146,7 +1160,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
     return qinfo
 
 
-def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
+def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None,
+                       seed=1):
     """Random catalogs of "zeros" for missing bricks.
 
     Parameters
@@ -1158,6 +1173,10 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
     density : :class:`int`, optional, defaults to 10,000
         Number of random points per sq. deg. A typical brick is ~0.25 x
         0.25 sq. deg. so ~(0.0625*density) points will be returned.
+    seed : :class:`int`, optional, defaults to 1
+        Random seed to use when shuffling across brick boundaries.
+        The actual np.random.seed defaults to 615+`seed`. Also see use
+        in :func:`~desitarget.randoms.randoms_in_a_brick_from_edges`.
 
     Returns
     -------
@@ -1179,10 +1198,10 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
 
     qzeros = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
                                    zeros=True, cnts=False, density=density,
-                                   dustdir=dustdir)
+                                   dustdir=dustdir, seed=seed)
 
     # ADM one last shuffle to randomize across brick boundaries.
-    np.random.seed(616)
+    np.random.seed(615+seed)
     np.random.shuffle(qzeros)
 
     return qzeros
@@ -1190,7 +1209,7 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None):
 
 def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
                    bundlebricks=None, brickspersec=2.5, extra=None,
-                   dustdir=None, resolverands=True, aprad=0.75):
+                   dustdir=None, resolverands=True, aprad=0.75, seed=1):
     """NOBS, DEPTHs (per-band), MASKs for random points in a Legacy Surveys DR.
 
     Parameters
@@ -1234,6 +1253,10 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     aprad : :class:`float`, optional, defaults to 0.75
         Radii in arcsec of aperture for which to derive sky fluxes
         defaults to the DESI fiber radius.
+    seed : :class:`int`, optional, defaults to 1
+        Random seed to use when shuffling across brick boundaries.
+        The actual np.random.seed defaults to 615+`seed`. See also use
+        in :func:`~desitarget.randoms.randoms_in_a_brick_from_edges`.
 
     Returns
     -------
@@ -1251,17 +1274,18 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM if the pixlist or bundlebricks option was sent, we'll need the HEALPixel
     # ADM information for each brick.
     if pixlist is not None or bundlebricks is not None:
-        bra, bdec, _, _, _, _, cnts = np.vstack(brickdict.values()).T
+        bra, bdec, _, _, _, _, cnts = np.vstack(list(brickdict.values())).T
         theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
     # ADM if the bundlebricks option was sent, call the packing code.
     if bundlebricks is not None:
         # ADM pixnum only contains unique bricks, need to add duplicates.
-        allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
-                                    for cnt, pix in zip(cnts.astype(int), pixnum)])
-        bundle_bricks(allpixnum, bundlebricks, nside, brickspersec=brickspersec,
-                      prefix='randoms', surveydirs=[drdir], extra=extra)
+        allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix for
+                                    cnt, pix in zip(cnts.astype(int), pixnum)])
+        bundle_bricks(allpixnum, bundlebricks, nside,
+                      brickspersec=brickspersec, prefix='randoms',
+                      surveydirs=[drdir], extra=extra, seed=seed)
         return
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested.
@@ -1283,13 +1307,13 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
     # ADM recover the pixel-level quantities in the DR bricks.
     qinfo = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
                                   drdir=drdir, density=density, dustdir=dustdir,
-                                  aprad=aprad)
+                                  aprad=aprad, seed=seed)
     # ADM remove bricks that overlap between two surveys, if requested.
     if resolverands:
         qinfo = resolve(qinfo)
 
     # ADM one last shuffle to randomize across brick boundaries.
-    np.random.seed(616)
+    np.random.seed(615+seed)
     np.random.shuffle(qinfo)
 
     return qinfo

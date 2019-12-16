@@ -937,7 +937,6 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     # ADM add the TARGETID, DESITARGET bits etc.
     nskies = len(supp)
     desi_target = np.zeros(nskies, dtype='>i8')
-    desi_target |= desi_mask.SKY
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
     supp = finalize(supp, desi_target, dum, dum, sky=1)
@@ -995,7 +994,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested.
     if pixlist is not None:
-        bra, bdec, _, _, _, _ = np.vstack(brickdict.values()).T
+        bra, bdec, _, _, _, _ = np.vstack(list(brickdict.values())).T
         theta, phi = np.radians(90-bdec), np.radians(bra)
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
         # ADM if an integer was passed, turn it into a list.

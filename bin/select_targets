@@ -8,7 +8,7 @@ import fitsio
 
 from desitarget import io
 from desitarget.io import desitarget_version
-from desitarget.cuts import select_targets, check_input_files, qso_selection_options, Method_sandbox_options
+from desitarget.cuts import select_targets, qso_selection_options
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
 from desitarget.targets import decode_targetid
@@ -36,18 +36,10 @@ ap.add_argument("dest",
 ap.add_argument('-s2', "--sweepdir2",
                 help='Additional Tractor/sweeps file or directory (useful for combining, e.g., DR8 into one file of targets)',
                 default=None)
-ap.add_argument('-c', "--check", action='store_true',
-                help="Process tractor/sweeps files to check for corruption, without running full target selection")
 ap.add_argument('-m', "--mask",
                 help="If sent then mask the targets, the name of the mask file should be supplied")
-ap.add_argument("--sandbox", action='store_true',
-                help="Apply the sandbox target selection algorithms")
-ap.add_argument("--FoMthresh", type=float,
-                help='XD Figure of Merit Threshold for an ELG (sandbox)')
 ap.add_argument('--qsoselection', choices=qso_selection_options, default='randomforest',
                 help="QSO target selection method")
-ap.add_argument('--Method' ,choices=Method_sandbox_options, default='XD',
-                help="Method used in sandbox target for ELG")
 ap.add_argument("--gaiamatch", action='store_true',
                 help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for MWS/STD selection")
 ap.add_argument("--numproc", type=int,
@@ -62,11 +54,8 @@ ap.add_argument('--healpixels',
                 help="HEALPixels corresponding to `nside` (e.g. '6,21,57'). Only process files that touch these pixels and return targets within these pixels",
                 default=None)
 ap.add_argument("--bundlefiles", type=int,
-                help="(overrides all options but `src`) print slurm script to parallelize, with about this many sweeps files touching each HEALPixel (e.g. 100)",
+                help="(overrides all options but `sweepdir`) print slurm script to parallelize by sending (any) integer. This is an integer rather than boolean for historical reasons",
                 default=None)
-ap.add_argument("--filespersec", type=float,
-                help="estimate of sweeps files completed per second by the (parallelized) code. Used with `bundlefiles` to guess run times (defaults to 0.12)",
-                default=0.12)
 ap.add_argument('--radecbox',
                 help="Only return targets in an RA/Dec box denoted by 'RAmin,RAmax,Decmin,Decmax' in degrees (e.g. '140,150,-10,-20')",
                 default=None)
@@ -91,8 +80,10 @@ ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
+if ns.tcnames is not None:
+    extra += " --tcnames {}".format(ns.tcnames)
 nsdict = vars(ns)
-for nskey in "noresolve", "nomaskbits", "writeall":
+for nskey in "noresolve", "nomaskbits", "writeall", "nosecondary", "nobackup":
     if nsdict[nskey]:
         extra += " --{}".format(nskey)
 
@@ -145,61 +136,67 @@ for i, inlist in enumerate(inlists):
 # ADM limit to specific bit names, if passed, otherwise run all targets.
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
-if ns.check:
-    log.info('Check input files...')
-    nbadfiles = check_input_files(infiles, numproc=ns.numproc)
-    log.info('{} potentially corrupt files'.format(nbadfiles))
-else:
-    targets = select_targets(infiles, numproc=ns.numproc,
-                             qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
-                             sandbox=ns.sandbox, FoMthresh=ns.FoMthresh, Method=ns.Method,
-                             nside=ns.nside, pixlist=pixlist, extra=extra,
-                             bundlefiles=ns.bundlefiles, filespersec=ns.filespersec,
-                             radecbox=inlists[0], radecrad=inlists[1],
-                             tcnames=tcnames, survey='main', backup=not(ns.nobackup),
-                             resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits)
-    )
-    if ns.bundlefiles is None:
-        # ADM only run secondary functions if --nosecondary was not passed.
-        scndout = None
-        if not ns.nosecondary and len(targets) > 0:
-            from desitarget.secondary import _get_scxdir, match_secondary
-            # ADM read secondary target directory.
-            scxdir = _get_scxdir(ns.scnddir)
-            # ADM construct a label for the secondary file for TARGETID look-ups.
-            # ADM use RELEASE to determine the release string for the targets.
-            drint = np.max(targets['RELEASE']//1000)
-            scndoutdn = "priminfo-dr{}-{}".format(drint, desitarget_version)
-            scndoutdn = os.path.join(scxdir, "outdata", scndoutdn)
-            if not os.path.exists(scndoutdn):
-                log.info("making directory...{}".format(scndoutdn))
-                os.makedirs(scndoutdn)
-            scndoutfn = "{}.fits".format(os.path.splitext(os.path.basename(ns.dest))[0])
-            # ADM construct the output directory for primary match info.
-            scndout = os.path.join(scndoutdn, scndoutfn)
-            targets = match_secondary(targets, scxdir, scndout, sep=1.,
-                                      pix=pixlist, nside=ns.nside)
+targets = select_targets(infiles, numproc=ns.numproc,
+                         qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
+                         nside=ns.nside, pixlist=pixlist,
+                         extra=extra, bundlefiles=ns.bundlefiles,
+                         radecbox=inlists[0], radecrad=inlists[1],
+                         tcnames=tcnames, survey='main', backup=not(ns.nobackup),
+                         resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits)
+)
+if ns.bundlefiles is None:
+    # ADM only run secondary functions if --nosecondary was not passed.
+    scndout = None
+    if not ns.nosecondary and len(targets) > 0:
+        from desitarget.secondary import _get_scxdir, match_secondary
+        # ADM read secondary target directory.
+        scxdir = _get_scxdir(ns.scnddir)
+        # ADM construct a label for the secondary file for TARGETID look-ups.
+        # ADM use RELEASE to determine the release string for the targets.
+        drint = np.max(targets['RELEASE']//1000)
+        scndoutdn = "priminfo-dr{}-{}".format(drint, desitarget_version)
+        scndoutdn = os.path.join(scxdir, "outdata", scndoutdn)
+        if not os.path.exists(scndoutdn):
+            log.info("making directory...{}".format(scndoutdn))
+            os.makedirs(scndoutdn)
+        if pixlist is not None:
+            scndoutfn = io.find_target_files(ns.dest, dr=drint, flavor="targets",
+                                             survey="main", hp=pixlist)
+        else:
+            scndoutfn = io.find_target_files(ns.dest, dr=drint, flavor="targets",
+                                             survey="main", hp="X")
+        # ADM construct the output directory for primary match info.
+        scndoutfn = os.path.basename(scndoutfn)
+        scndout = os.path.join(scndoutdn, scndoutfn)
+        log.info("writing files of primary matches to...{}".format(scndout))
+        targets = match_secondary(targets, scxdir, scndout, sep=1.,
+                                  pix=pixlist, nside=ns.nside)
 
-        if ns.mask:
-            targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
+    if ns.mask:
+        targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
-        # ADM differentiate the Gaia-only and Legacy Surveys targets.
-        _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
-        isgaia = gaiadr > 0
-        # ADM write out bright-time and dark-time targets separately,
-        # ADM together with the Gaia-only back-up objects.
-        obscons = ["BRIGHT", "DARK", None]
-        iis = [~isgaia, ~isgaia, isgaia]
-        supps = [False, False, True]
-        if ns.writeall:
-            obscons.append(None)
-            iis.append(~isgaia)
-            supps.append(False)
-        for obscon, ii, supp in zip(obscons, iis, supps):
-            ntargs, outfile = io.write_targets(
-                ns.dest, targets[ii], resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
-                indir=ns.sweepdir, indir2=ns.sweepdir2, obscon=obscon, scndout=scndout,
-                survey="main", nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
-                qso_selection=ns.qsoselection, sandboxcuts=ns.sandbox, nside=nside
-            )
-            log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))
+    # ADM extra header keywords for the output fits file.
+    extra = {k: v for k, v in zip(["tcnames"],
+                                  [ns.tcnames])}
+
+    # ADM differentiate the Gaia-only and Legacy Surveys targets.
+    _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
+    isgaia = gaiadr > 0
+    # ADM write out bright-time and dark-time targets separately,
+    # ADM together with the Gaia-only back-up objects.
+    obscons = ["BRIGHT", "DARK", None]
+    iis = [~isgaia, ~isgaia, isgaia]
+    supps = [False, False, True]
+    if ns.writeall:
+        obscons.append(None)
+        iis.append(~isgaia)
+        supps.append(False)
+    for obscon, ii, supp in zip(obscons, iis, supps):
+        ntargs, outfile = io.write_targets(
+            ns.dest, targets[ii], resolve=not(ns.noresolve), nside=nside,
+            maskbits=not(ns.nomaskbits), indir=ns.sweepdir, indir2=ns.sweepdir2,
+            obscon=obscon, scndout=scndout, survey="main", nsidefile=ns.nside,
+            hpxlist=pixlist, supp=supp, qso_selection=ns.qsoselection,
+            extra=extra
+        )
+        log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))
