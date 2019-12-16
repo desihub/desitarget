@@ -2083,7 +2083,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
-                 mock_density=False, only_coords=False, seed=None):
+                 mock_density=False,sqmodel='default',only_coords=False, seed=None):
         """Read the catalog.
 
         Parameters
@@ -2128,8 +2128,16 @@ class ReadLyaCoLoRe(SelectTargets):
 
         try:
             from simqso.sqbase import ContinuumKCorr
-            from simqso.sqmodels import BOSS_DR9_PLEpivot
+            if sqmodel is 'default':
+                from simqso.sqmodels import BOSS_DR9_PLEpivot as model_PLEpivot
+            else:
+                from desisim.scripts.lya_simqso_model import model_PLEpivot 
+                log.warning("Using modified simqso.sqmodels defined in \
+                            desisim.scripts.lya_simqso_model")
+
             from simqso.sqgrids import generateQlfPoints
+            
+            
         except ImportError:
             message = 'Please install https://github.com/imcgreer/simqso'
             log.error(message)
@@ -2243,11 +2251,7 @@ class ReadLyaCoLoRe(SelectTargets):
         # Build the full filenames.
         lyafiles = []
         for mpix in mockpix:
-            try: #recent fits extension
                 lyafiles.append("%s/%d/%d/transmission-%d-%d.fits.gz"%(
-                mockdir, mpix//100, mpix, nside_lya, mpix))
-            except: # old fits extension
-                lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
                 mockdir, mpix//100, mpix, nside_lya, mpix))
                 
         isouth = self.is_south(dec)
@@ -2267,7 +2271,7 @@ class ReadLyaCoLoRe(SelectTargets):
         
         kcorr_north = ContinuumKCorr(normfilter_north, 1450, effWaveBand=weff_normfilter_north)
         kcorr_south = ContinuumKCorr(normfilter_south, 1450, effWaveBand=weff_normfilter_south)
-        qlf = BOSS_DR9_PLEpivot(cosmo=cosmology.core.FlatLambdaCDM(70.0, 0.3))
+        qlf = model_PLEpivot(cosmo=cosmology.core.FlatLambdaCDM(70.0, 0.3))
 
         mag = np.zeros(nobj).astype('f4')
         magfilter = np.zeros(nobj).astype('S15')
@@ -3190,7 +3194,8 @@ class LYAMaker(SelectTargets):
     """
     wave, template_maker = None, None
 
-    def __init__(self, seed=None, use_simqso=True, balprob=0.0,add_dla=False,add_metals=False,add_lyb=False,
+    def __init__(self, seed=None, use_simqso=True,sqmodel='default',\
+                 balprob=0.0,add_dla=False,add_metals=False,add_lyb=False,\
                  survey='main', **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
@@ -3200,6 +3205,7 @@ class LYAMaker(SelectTargets):
         self.seed = seed
         self.objtype = 'LYA'
         self.use_simqso = use_simqso
+        self.sqmodel=sqmodel
         self.balprob = balprob
         self.add_dla = add_dla
         self.add_metals=add_metals
@@ -3214,11 +3220,11 @@ class LYAMaker(SelectTargets):
             
         if self.template_maker is None:
             if self.use_simqso:
-                LYAMaker.template_maker = SIMQSO(wave=self.wave)
+                LYAMaker.template_maker = SIMQSO(wave=self.wave,sqmodel=self.sqmodel)
             else:
                 LYAMaker.template_maker = QSO(wave=self.wave)
     def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
-             nside_lya=16, zmin_lya=None, mock_density=False, only_coords=False,
+             nside_lya=16, zmin_lya=None,mock_density=False, only_coords=False,
              **kwargs):
         """Read the catalog.
 
@@ -3363,8 +3369,17 @@ class LYAMaker(SelectTargets):
                 these = np.where( alllyafile == lyafile )[0]
 
                 mockid_in_data = data['MOCKID'][indx][these]
+                if not os.path.isfile(lyafile):
+                    lyafile=lyafile.replace(".gz"," ")
+                    if not os.path.isfile(lyafile):
+                        log.warning("Transmision file {} not found,\
+                                    check spelling or extension".format( lyafile))
+                        raise KeyError
+                        
+
                 mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
                                               ext=1).astype(float)).astype(int)
+                    
                 o2i = dict()
                 for i, o in enumerate(mockid_in_mock):
                     o2i[o] = i

@@ -5,6 +5,7 @@ targets:
         mockfile: '{DESI_ROOT}/mocks/bgs/MXXL/full_sky/v0.0.4/BGS_r20.6.hdf5',
         format: durham_mxxl_hdf5,
         magcut: 20.3,
+        
     }
     ELG: {
         target_type: ELG,
@@ -34,6 +35,7 @@ targets:
         zmin_lya: 1.8,
         density: 50,
         use_simqso: True,
+        sqmodel: 'lya_simqso_model',
         balprob: 0.16,
         add_dla: True,
         add_metals: 'all',
