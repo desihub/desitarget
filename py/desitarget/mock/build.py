@@ -164,7 +164,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     if MakeMock is None:
         MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
-            use_simqso=use_simqso,,sqmodel=sqmodel, balprob=balprob, add_dla=add_dla,
+            use_simqso=use_simqso, sqmodel=sqmodel, balprob=balprob, add_dla=add_dla,
             add_metals=add_metals, add_lyb=add_lyb)
     else:
         MakeMock.seed = seed # updated seed
