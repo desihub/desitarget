@@ -5,7 +5,9 @@ desitarget Change Log
 0.35.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Fix z~5 QSO bug in CMX/SV0 that was already fixed for SV [`PR #576`_].
+
+.. _`PR #576`: https://github.com/desihub/desitarget/pull/576
 
 0.35.1 (2019-12-16)
 -------------------
