@@ -5,7 +5,9 @@ desitarget Change Log
 0.35.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Fix bugs triggered by empty files or regions of the sky [`PR #575`_].
+
+.. _`PR #575`: https://github.com/desihub/desitarget/pull/575
 
 0.35.0 (2019-12-15)
 -------------------
