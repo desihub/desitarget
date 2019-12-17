@@ -937,7 +937,6 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     # ADM add the TARGETID, DESITARGET bits etc.
     nskies = len(supp)
     desi_target = np.zeros(nskies, dtype='>i8')
-    desi_target |= desi_mask.SKY
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
     supp = finalize(supp, desi_target, dum, dum, sky=1)
