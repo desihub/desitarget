@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.35.1 (unreleased)
+0.35.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.35.1 (2019-12-16)
 -------------------
 
 * Fix bugs triggered by empty files or regions of the sky [`PR #575`_].
