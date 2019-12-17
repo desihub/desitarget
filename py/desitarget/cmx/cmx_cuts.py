@@ -1214,7 +1214,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     # ADM perform the color cuts to finish the selection.
     qso &= isQSOz5_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gsnr=gsnr, rsnr=gsnr, zsnr=gsnr,
+                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                           w1flux=w1flux, w2flux=w2flux,
                           primary=primary, south=south)
 
