@@ -2,12 +2,28 @@
 desitarget Change Log
 =====================
 
-0.34.1 (unreleased)
+0.35.1 (unreleased)
 -------------------
 
+* Fixes bugs in updating primary targets with secondary bits set [`PR #574_`]
+* Adds more stellar SV targets [`PR #574_`]
+
+.. _`PR #574`: https://github.com/desihub/desitarget/pull/574
+
+0.35.0 (2019-12-15)
+-------------------
+
+* Preparation for DR9 [`PR #573`_]. Includes:
+    * Update data model, maintaining backwards compatibility with DR8.
+    * Don't set the ``SKY`` bit when setting the ``SUPP_SKY`` bit.
+    * Users can input a seed (1, 2, 3, etc.) to ``bin/select_randoms``:
+        * This user-provided seed is added to the output file name.
+        * Facilitates generating a range of numbered random catalogs.
+    * Write out final secondaries using :func:`io.find_target_files()`.
 * More clean-up of glitches and minor bugs [`PR #570`_]. Includes:
     * Remove Python 3.5 unit tests.
     * Catch AssertionError if NoneType input directory when writing.
+        * Later (correctly) updated to AttributeError directly in master.
     * Assert the data model when reading secondary target files.
     * Use io.find_target_files() to name priminfo file for secondaries.
     * Allow N < 16 nodes when bundling files for slurm.
@@ -37,8 +53,6 @@ desitarget Change Log
     * Adds a bright limit to the ``MWS-NEARBY`` sample.
     * Add stellar SV secondary targets in ``sv1_targetmask``.
     * Remove the ``BACKSTOP`` secondary bit.
-* Fixes bugs in updating primary targets with secondary bits set [`PR #574_`]
-* Adds more stellar SV targets [`PR #574_`]
 
 .. _`PR #530`: https://github.com/desihub/desitarget/pull/530
 .. _`PR #561`: https://github.com/desihub/desitarget/pull/561
@@ -47,7 +61,7 @@ desitarget Change Log
 .. _`PR #564`: https://github.com/desihub/desitarget/pull/564
 .. _`PR #569`: https://github.com/desihub/desitarget/pull/569
 .. _`PR #570`: https://github.com/desihub/desitarget/pull/570
-.. _`PR #574`: https://github.com/desihub/desitarget/pull/574
+.. _`PR #573`: https://github.com/desihub/desitarget/pull/573
 
 0.34.0 (2019-11-03)
 -------------------
