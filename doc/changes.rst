@@ -5,8 +5,8 @@ desitarget Change Log
 0.35.1 (unreleased)
 -------------------
 
-* Fixes bugs in updating primary targets with secondary bits set [`PR #574_`]
-* Adds more stellar SV targets [`PR #574_`]
+* Fixes bugs in updating primary targets with secondary bits set [`PR #574`_]
+* Adds more stellar SV targets [`PR #574`_]
 
 .. _`PR #574`: https://github.com/desihub/desitarget/pull/574
 
@@ -47,7 +47,7 @@ desitarget Change Log
       targets.
     * Secondary target properties can override matched primary properties,
       but only for restricted combinations of DESI_TARGET bits (MWS and STD).
-* Add stellar SV targets [`PR #530_`]:
+* Add stellar SV targets [`PR #530`_]:
     * Add MWS SV target definitions in ``sv1_targetmask`` and ``cuts``.
     * Science WDs are now a secondary target class.
     * Adds a bright limit to the ``MWS-NEARBY`` sample.
