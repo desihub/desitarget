@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.35.2 (unreleased)
+0.35.2 (2019-12-20)
 -------------------
 
 * Fix z~5 QSO bug in CMX/SV0 that was already fixed for SV [`PR #576`_].
