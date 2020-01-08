@@ -82,7 +82,7 @@ indatamodel = np.array([], dtype=[
 outdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
     ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'),
-    ('TARGETID', '>i8'), ('SCND_TARGET', '>i8'),
+    ('TARGETID', '>i8'), ('DESI_TARGET', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
     ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')
 ])
@@ -494,7 +494,9 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         targs["SCND_TARGET"][mtargs[~singular][i]] |= scxtargs["SCND_TARGET"][mscx[~singular][i]]
     # ADM also assign the SCND_ANY bit to the primary targets.
     desicols, desimasks, _ = main_cmx_or_sv(targs, scnd=True)
-    targs[desicols[0]][umtargs] |= desimasks[0].SCND_ANY
+    desi_mask = desimasks[0]
+
+    targs[desicols[0]][umtargs] |= desi_mask.SCND_ANY
 
     # ADM rename the SCND_TARGET column, in case this is an SV file.
     targs = rfn.rename_fields(targs, {'SCND_TARGET': desicols[3]})
@@ -502,7 +504,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     # APC Secondary target bits only affect PRIORITY, NUMOBS and
     # APC obsconditions for specific DESI_TARGET bits
     # APC See https://github.com/desihub/desitarget/pull/530
-    from desitarget.targetmask import desi_mask
+
     # APC Only consider primary targets with secondary bits set
     scnd_update = (targs[desicols[0]] & desi_mask['SCND_ANY']) != 0
     if np.any(scnd_update):
@@ -686,6 +688,12 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
         scxtargs, {'SCND_TARGET': prepend+'SCND_TARGET'}
     )
 
+    # APC same thing for DESI_TARGET
+    scxtargs = rfn.rename_fields(
+        scxtargs, {'DESI_TARGET': prepend+'DESI_TARGET'}
+    )
+
+
     # APC Remove duplicate targetids from secondary-only targets
     alldups = []
     for _, dups in duplicates(scxtargs['TARGETID']):
@@ -728,6 +736,10 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
 
         # APC Flagged duplicates are removed in io.write_secondary
         done[pc][alldups] = -1
+
+    # APC add secondary flag in DESI_TARGET
+    cols, mx, surv = main_cmx_or_sv(done, scnd=True)
+    done[cols[0]] = mx[0]['SCND_ANY']
 
     # ADM set the OBSCONDITIONS.
     done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)

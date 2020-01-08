@@ -75,10 +75,6 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         # APC Propagate a flag on which targets came from scnd
         is_scnd = np.repeat(False, len(targets))
         is_scnd[-nrows:] = True
-        # APC Assign the SCND_ANY bit to secondary targets. We need to do this
-        # APC before the NUMOBS_MORE logic below
-        log.info('Updating DESI_TARGET for secondaries...')
-        targets[desi_target][is_scnd] |= desi_mask.SCND_ANY
         log.info('Done with padding...t={:.1f}s'.format(time()-start))
 
     # Trim targets from zcat that aren't in original targets table
