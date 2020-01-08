@@ -151,9 +151,10 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     # ADM remove any sources based on LSLGA (retain Tycho/T2 sources).
     # ADM the try/except/decode catches both bytes and unicode strings.
     try:
-        ii = np.array(rc.decode()[0] == "L" for rc in gfas["REF_CAT"])
+        ii = np.array([rc.decode()[0] == "L" for rc in gfas["REF_CAT"]],
+                      dtype=bool)
     except AttributeError:
-        ii = np.array([i[0] == "L" for rc in gfas["REF_CAT"]])
+        ii = np.array([i[0] == "L" for rc in gfas["REF_CAT"]], dtype=bool)
     gfas = gfas[~ii]
 
     return gfas
@@ -334,7 +335,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         return result
 
     # - Parallel process Gaia files.
-    if numproc > 1:
+    if numproc > 1 and nfiles > 0:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
             gfas = pool.map(_get_gaia_gfas, infiles, reduce=_update_status)
