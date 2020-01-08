@@ -2,13 +2,27 @@
 desitarget Change Log
 =====================
 
-0.35.1 (unreleased)
+0.35.3 (unreleased)
 -------------------
 
 * Fixes bugs in updating primary targets with secondary bits set [`PR #574`_]
 * Adds more stellar SV targets [`PR #574`_]
 
 .. _`PR #574`: https://github.com/desihub/desitarget/pull/574
+
+0.35.2 (2019-12-20)
+-------------------
+
+* Fix z~5 QSO bug in CMX/SV0 that was already fixed for SV [`PR #576`_].
+
+.. _`PR #576`: https://github.com/desihub/desitarget/pull/576
+
+0.35.1 (2019-12-16)
+-------------------
+
+* Fix bugs triggered by empty files or regions of the sky [`PR #575`_].
+
+.. _`PR #575`: https://github.com/desihub/desitarget/pull/575
 
 0.35.0 (2019-12-15)
 -------------------
