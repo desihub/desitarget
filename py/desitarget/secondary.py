@@ -693,7 +693,6 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
         scxtargs, {'DESI_TARGET': prepend+'DESI_TARGET'}
     )
 
-
     # APC Remove duplicate targetids from secondary-only targets
     alldups = []
     for _, dups in duplicates(scxtargs['TARGETID']):
