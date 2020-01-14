@@ -2132,8 +2132,6 @@ class ReadLyaCoLoRe(SelectTargets):
                 from simqso.sqmodels import BOSS_DR9_PLEpivot as model_PLEpivot
             else:
                 from desisim.scripts.lya_simqso_model import model_PLEpivot 
-                log.warning("Using modified simqso.sqmodels defined in \
-                            desisim.scripts.lya_simqso_model")
 
             from simqso.sqgrids import generateQlfPoints
             
@@ -3322,7 +3320,6 @@ class LYAMaker(SelectTargets):
         from astropy.table import vstack
         from desispec.interpolation import resample_flux
         
-        import sys
         from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission,lambda_RF_LYA
         from desisim.dla import dla_spec
 
