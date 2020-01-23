@@ -3362,11 +3362,7 @@ class LYAMaker(SelectTargets):
 
                 mockid_in_data = data['MOCKID'][indx][these]
                 if not os.path.isfile(lyafile):
-                    lyafile=lyafile.replace(".gz"," ")
-                    if not os.path.isfile(lyafile):
-                        log.warning("Transmision file {} not found,\
-                                    check spelling or extension".format( lyafile))
-                        raise KeyError
+                    lyafile=lyafile.replace(".gz","")
                 mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
                                               ext=1).astype(float)).astype(int)
                 o2i = dict()
