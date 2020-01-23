@@ -526,9 +526,10 @@ def calc_priority(targets, zcat, obscon):
             if np.any(scnd_update):
                 # APC Allow changes to primaries if the DESI_TARGET bitmask has any of the
                 # APC following bits set, but not any other bits.
-                update_from_scnd_bits = (desi_mask['MWS_ANY'] &
-                                         desi_mask['STD_BRIGHT'] & desi_mask['STD_FAINT'] & desi_mask['STD_WD'])
+                update_from_scnd_bits = (desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
+                                         desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] | desi_mask['STD_WD'])
                 scnd_update &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
+                print('{} scnd targets to be updated'.format(scnd_update.sum()))
 
             for name in scnd_mask.names():
                 # ADM only update priorities for passed observing conditions.
