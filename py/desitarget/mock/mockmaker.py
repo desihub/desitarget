@@ -1,4 +1,3 @@
-
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
@@ -2187,8 +2186,7 @@ class ReadLyaCoLoRe(SelectTargets):
                               upper=True, ext=1)
             zz = tmp['Z'].astype('f4')
             zz_norsd = tmp['Z'].astype('f4')
-
-            
+    
         ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = tmp['DEC'].astype('f8')            
         mockpix = tmp['PIXNUM']

@@ -278,7 +278,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     # Generate the spectra iteratively until we achieve the required target
     # density.  Randomly divide the possible targets into each iteration.
     iterseeds = rand.randint(2**31, size=maxiter)
-    rand.shuffle(indx) #Alma: Is this necesary? It is preventing to get the same spectra in two runs with different options...
+    rand.shuffle(indx)
     iterindx = np.array_split(indx, maxiter)
 
     makemore, itercount, ntot = True, 0, 0
@@ -345,7 +345,6 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             trueflux = np.concatenate(trueflux)
             if ntot > ntarget:
                 trueflux = trueflux[keep, :]
-
 
     return [targets, truth, objtruth, trueflux]
 
