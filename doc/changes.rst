@@ -5,10 +5,13 @@ desitarget Change Log
 0.35.3 (unreleased)
 -------------------
 
+* Load yaml configuration file safely in ``mpi_select_mock_targets`` [`PR
+  #577`_] 
 * Fixes bugs in updating primary targets with secondary bits set [`PR #574`_]
 * Adds more stellar SV targets [`PR #574`_]
 
 .. _`PR #574`: https://github.com/desihub/desitarget/pull/574
+.. _`PR #577`: https://github.com/desihub/desitarget/pull/577
 
 0.35.2 (2019-12-20)
 -------------------
