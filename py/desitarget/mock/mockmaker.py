@@ -3259,8 +3259,7 @@ class LYAMaker(SelectTargets):
         
         if self.mockformat == 'colore':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v4.2.0', 'master.fits')
-            #Should we set v9.0 as default?
+                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v9.0', 'v9.0.0', 'master.fits')
             MockReader = ReadLyaCoLoRe()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -3361,6 +3360,9 @@ class LYAMaker(SelectTargets):
                 mockid_in_data = data['MOCKID'][indx][these]
                 if not os.path.isfile(lyafile):
                     lyafile=lyafile.replace(".gz","")
+                    if not os.path.isfile(lyafile):
+                        log.warning('transmisionfile {} not found!'.format(lyafile))
+                        raise IOError
                 mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
                                               ext=1).astype(float)).astype(int)
                 o2i = dict()
