@@ -130,7 +130,7 @@ pixels = comm.bcast(pixels, root=0)
 if rank == 0:
     import yaml
     with open(args.config, 'r') as pfile:
-        params = yaml.load(pfile)
+        params = yaml.safe_load(pfile)
 else:
     params = None
 
