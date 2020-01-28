@@ -147,11 +147,11 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     zmin_lya = params.get('zmin_lya')
     zmax_qso = params.get('zmax_qso')
     use_simqso = params.get('use_simqso', True)
-    sqmodel=params.get('sqmodel','default')
+    sqmodel = params.get('sqmodel','default')
     balprob = params.get('balprob', 0.0)
     add_dla = params.get('add_dla', False)
-    add_metals=params.get('add_metals', False)
-    add_lyb=params.get('add_lyb', False)
+    add_metals = params.get('add_metals', False)
+    add_lyb = params.get('add_lyb', False)
 
     if 'density' in params.keys():
         mock_density = True
