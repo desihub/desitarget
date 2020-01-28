@@ -44,7 +44,8 @@ env:
         # BAW 2018-11-06:  This is the numpy version we have at NERSC.
         - NUMPY_VERSION=1.13.3
         # - SCIPY_VERSION=0.17
-        - ASTROPY_VERSION=2.0.9
+        #- ASTROPY_VERSION=2.0.9
+        - ASTROPY_VERSION=2.0.16
         # - SPHINX_VERSION=1.6.6
         - DESIUTIL_VERSION=1.9.14
         # - SPECLITE_VERSION=0.7
