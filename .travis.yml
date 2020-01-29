@@ -71,7 +71,8 @@ env:
         # These packages will only be installed for documentation builds.
         # - CONDA_SPHINX_DEPENDENCIES="scipy pyyaml sphinx==1.5"
         # These packages will only be installed if we really need them.
-        - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7"
+        # - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7"
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml photutils basemap"
         # These packages will always be installed.
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
@@ -146,16 +147,16 @@ matrix:
         #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
         #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
-        - os: linux
-          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        # - os: linux
+        #   env: PYTHON_VERSION=3.6 SETUP_CMD='test'
+        #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
-        - os: linux
-          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
-               ASTROPY_VERSION=3.0
-               CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
-               PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
+        # - os: linux
+        #   env: PYTHON_VERSION=3.6 SETUP_CMD='test'
+        #        ASTROPY_VERSION='<4.0'
+        #        CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
+        #        PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
 
         # - os: osx
         #   env: PYTHON_VERSION=2.7 SETUP_CMD='test'
