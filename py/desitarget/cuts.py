@@ -961,7 +961,7 @@ def _check_BGS_targtype_sv(targtype):
 def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
           gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
-          gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None, Grr=None,
+          gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None, Grr=None, refcat=None,
           w1snr=None, gaiagmag=None, objtype=None, primary=None, south=True, targtype=None):
     """Definition of BGS target classes. Returns a boolean array.
 
@@ -994,10 +994,10 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                         gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
+                         recat=refcat, gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
 
-    bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                        south=south, targtype=targtype, primary=primary)
+    bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+                        w2flux=w2flux, refcat=refcat, south=south, targtype=targtype, primary=primary)
 
     return bgs
 
@@ -1007,7 +1007,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
                   gfracflux=None, rfracflux=None, zfracflux=None,
                   gfracin=None, rfracin=None, zfracin=None, w1snr=None,
                   gfluxivar=None, rfluxivar=None, zfluxivar=None, Grr=None,
-                  gaiagmag=None, maskbits=None, targtype=None):
+                  refcat=None, gaiagmag=None, maskbits=None, targtype=None):
     """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
@@ -1043,8 +1043,8 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     return bgs
 
 
-def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                 south=True, targtype=None, primary=None):
+def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, 
+                 w2flux=None, refcat=None, south=True, targtype=None, primary=None):
     """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
@@ -1059,15 +1059,9 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
     fmc = np.zeros_like(rflux, dtype='?')
-
-    if targtype == 'bright':
-        bgs &= rflux > 10**((22.5-19.5)/2.5)
-    elif targtype == 'faint':
-        bgs &= rflux > 10**((22.5-20.0)/2.5)
-        bgs &= rflux <= 10**((22.5-19.5)/2.5)
-    elif targtype == 'wise':
-        bgs &= rflux > 10**((22.5-20.0)/2.5)
-        bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
+    
+    #the LSLGA galaxies
+    L2 = ((refcat == 'L2') | (refcat == b'L2') | (refcat == 'L2 ') | (refcat == b'L2 '))
 
     if south:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
@@ -1087,11 +1081,21 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
 
     # Fibre Magnitude Cut (FMC) -- This is a low surface brightness cut
     # with the aim of increase the redshift success rate.
-    fmc |= ((rfib < (2.9 + 1.2) + r) & (r < 17.1))
-    fmc |= ((rfib < 21.2) & (r < 18.3) & (r > 17.1))
-    fmc |= ((rfib < 2.9 + r) & (r > 18.3))
+    fmc |= ((rfib < (2.9 + 1.2 + 1.0) + r) & (r < 17.8))
+    fmc |= ((rfib < 22.9) & (r < 20.0) & (r > 17.8))
+    fmc |= ((rfib < 2.9 + r) & (r > 20))
 
     bgs &= fmc
+    bgs |= L2
+    
+    if targtype == 'bright':
+        bgs &= rflux > 10**((22.5-19.5)/2.5)
+    elif targtype == 'faint':
+        bgs &= rflux > 10**((22.5-20.0)/2.5)
+        bgs &= rflux <= 10**((22.5-19.5)/2.5)
+    elif targtype == 'wise':
+        bgs &= rflux > 10**((22.5-20.0)/2.5)
+        bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
 
     return bgs
 
@@ -1492,6 +1496,8 @@ def _prepare_optical_wise(objects, mask=True):
     zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
     w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
+    
+    refcat = objects['REF_CAT']
 
     maskbits = objects['MASKBITS']
     # ADM if we asked to turn off masking behavior, turn it off.
@@ -1516,7 +1522,7 @@ def _prepare_optical_wise(objects, mask=True):
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
             gsnr, rsnr, zsnr, w1snr, w2snr,
-            dchisq, deltaChi2, maskbits)
+            dchisq, deltaChi2, maskbits, refcat)
 
 
 def _prepare_gaia(objects, colnames=None):
@@ -1648,7 +1654,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
                     tcnames, qso_optical_cuts, qso_selection,
-                    maskbits, Grr, primary, resolvetargs=True):
+                    maskbits, Grr, refcat, primary, resolvetargs=True):
     """Perform target selection on parameters, return target mask arrays.
 
     Parameters
@@ -1824,7 +1830,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                        maskbits=maskbits, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
+                        maskbits=maskbits, Grr=Grr, refcat=refcat, w1snr=w1snr, gaiagmag=gaiagmag,
                         objtype=objtype, primary=primary, south=south, targtype=targtype
                     )
                 )
@@ -2152,7 +2158,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits =                 \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =                 \
         _prepare_optical_wise(objects, mask=mask)
 
     # Process the Gaia inputs for target selection.
@@ -2191,7 +2197,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
         tcnames, qso_optical_cuts, qso_selection,
-        maskbits, Grr, primary, resolvetargs=resolvetargs
+        maskbits, Grr, refcat, primary, resolvetargs=resolvetargs
     )
 
     return desi_target, bgs_target, mws_target
