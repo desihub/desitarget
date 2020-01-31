@@ -37,7 +37,7 @@ ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
 ap.add_argument('--nside', type=int,
-                help='Process random points in parallel in bricks that have centers within HEALPixels at this resolution (defaults to 4)',
+                help='Process random points in parallel in bricks that have centers within HEALPixels at this resolution (defaults to None)',
                 default=None)
 ap.add_argument('--healpixels',
                 help='HEALPixels (corresponding to nside) to process (e.g. "6,21,57"). If not passed, run all bricks in the Data Release',

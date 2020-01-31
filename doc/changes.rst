@@ -5,6 +5,13 @@ desitarget Change Log
 0.35.3 (unreleased)
 -------------------
 
+* Further fixes for DR9 [`PR #578`_]. Includes:
+    * Add ``SERSIC`` columns for the DR9 data model.
+    * Read the bricks file in lower-case in :func:`get_brick_info()`:
+        * As, during DR9 testing, it's been both upper- and lower-case.
+    * Set the default ``nside`` to ``None`` for the randoms:
+        * To force the user to choose an ``nside``, or fail otherwise.
+    * Fix a numpy future/deprecation warning.
 * Add LyA features to ``select_mock_targets`` [`PR #565`_].
 * Load yaml config file safely in ``mpi_select_mock_targets`` [`PR #577`_].
 * Fix bugs in updating primary targets with secondary bits set [`PR #574`_].
@@ -13,6 +20,7 @@ desitarget Change Log
 .. _`PR #565`: https://github.com/desihub/desitarget/pull/565
 .. _`PR #574`: https://github.com/desihub/desitarget/pull/574
 .. _`PR #577`: https://github.com/desihub/desitarget/pull/577
+.. _`PR #578`: https://github.com/desihub/desitarget/pull/578
 
 0.35.2 (2019-12-20)
 -------------------
