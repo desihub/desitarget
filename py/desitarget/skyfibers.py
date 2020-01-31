@@ -108,11 +108,11 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
         # ADM the bricks of interest for this DR.
         sbfile = glob(dd+'/*bricks-dr*')
         if len(sbfile) > 0:
-            brickinfo = fitsio.read(sbfile[0])
+            brickinfo = fitsio.read(sbfile[0], lower=True)
             # ADM fitsio reads things in as bytes, so convert to unicode.
             bricknames.append(brickinfo['brickname'].astype('U'))
         else:
-            # ADM hack for test bricks where we didn't generate the bricks file.
+            # ADM hack for test bricks where we don't generate the bricks file.
             fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
             bricknames.append([brickname_from_filename(fn) for fn in fns])
 
