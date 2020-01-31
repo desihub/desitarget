@@ -72,8 +72,9 @@ dr9addedcols = np.array([], dtype=[
     ('LC_NOBS_W1', '>i2', (13,)), ('LC_NOBS_W2', '>i2', (13,)),
     ('LC_MJD_W1', '>f8', (13,)), ('LC_MJD_W2', '>f8', (13,)),
     ('SHAPE_R', '>f4'), ('SHAPE_E1', '>f4'), ('SHAPE_E2', '>f4'),
-    ('SHAPE_R_IVAR', '>f4'), ('SHAPE_E1_IVAR', '>f4'), ('SHAPE_E2_IVAR', '>f4')
-    ])
+    ('SHAPE_R_IVAR', '>f4'), ('SHAPE_E1_IVAR', '>f4'), ('SHAPE_E2_IVAR', '>f4'),
+    ('SERSIC', '>f4'), ('SERSIC_IVAR', '>f4')
+])
 
 # ADM columns that were deprecated in the DR8 data model.
 dr8addedcols = np.array([], dtype=[
