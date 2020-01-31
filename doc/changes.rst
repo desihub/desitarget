@@ -5,11 +5,12 @@ desitarget Change Log
 0.35.3 (unreleased)
 -------------------
 
-* Load yaml configuration file safely in ``mpi_select_mock_targets`` [`PR
-  #577`_] 
-* Fixes bugs in updating primary targets with secondary bits set [`PR #574`_]
-* Adds more stellar SV targets [`PR #574`_]
+* Add LyA features to ``select_mock_targets`` [`PR #565`_].
+* Load yaml config file safely in ``mpi_select_mock_targets`` [`PR #577`_].
+* Fix bugs in updating primary targets with secondary bits set [`PR #574`_].
+* Adds more stellar SV targets [`PR #574`_].
 
+.. _`PR #565`: https://github.com/desihub/desitarget/pull/565
 .. _`PR #574`: https://github.com/desihub/desitarget/pull/574
 .. _`PR #577`: https://github.com/desihub/desitarget/pull/577
 
