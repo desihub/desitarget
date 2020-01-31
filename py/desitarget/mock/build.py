@@ -147,8 +147,11 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     zmin_lya = params.get('zmin_lya')
     zmax_qso = params.get('zmax_qso')
     use_simqso = params.get('use_simqso', True)
+    sqmodel = params.get('sqmodel','default')
     balprob = params.get('balprob', 0.0)
     add_dla = params.get('add_dla', False)
+    add_metals = params.get('add_metals', False)
+    add_lyb = params.get('add_lyb', False)
 
     if 'density' in params.keys():
         mock_density = True
@@ -159,11 +162,10 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
         target_name, target_type, mockformat, mockfile))
 
     if MakeMock is None:
-        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(seed=seed, nside_chunk=nside_chunk,
-                                                                     calib_only=calib_only,
-                                                                     use_simqso=use_simqso,
-                                                                     balprob=balprob,
-                                                                     add_dla=add_dla)
+        MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(
+            seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
+            use_simqso=use_simqso, sqmodel=sqmodel, balprob=balprob, add_dla=add_dla,
+            add_metals=add_metals, add_lyb=add_lyb)
     else:
         MakeMock.seed = seed # updated seed
         
@@ -295,7 +297,6 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             ntot += nkeep
             log.debug('Generated {} / {} ({} / {} total) {} targets on iteration {} / {}.'.format(
                 nkeep, len(chunktargets), ntot, ntarget, targname, itercount+1, maxiter))
-
             targets.append(chunktargets[keep])
             truth.append(chunktruth[keep])
             if len(chunkobjtruth) > 0: # skies have no objtruth
@@ -847,13 +848,16 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         target_type = params['targets'][target_name].get('target_type')
         calib_only = params['targets'][target_name].get('calib_only', False)
         use_simqso = params['targets'][target_name].get('use_simqso', True)
+        sqmodel=params['targets'][target_name].get('sqmodel', 'default')
         balprob = params['targets'][target_name].get('balprob', 0.0)
         add_dla = params['targets'][target_name].get('add_dla', False)
-
+        add_metals = params['targets'][target_name].get('add_metals', False)
+        add_lyb = params['targets'][target_name].get('add_lyb', False)
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
-            use_simqso=use_simqso, balprob=balprob, add_dla=add_dla,
-            no_spectra=no_spectra, survey=survey))
+            use_simqso=use_simqso, sqmodel=sqmodel, balprob=balprob, add_dla=add_dla,
+            add_metals=add_metals, add_lyb=add_lyb, no_spectra=no_spectra,
+            survey=survey))
 
     # Are we adding contaminants?  If so, cache the relevant classes here.
     if 'contaminants' in params.keys():

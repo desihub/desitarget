@@ -28,15 +28,18 @@ targets:
     }
     LYA: {
         target_type: QSO,
-        mockfile: '{DESI_ROOT}/mocks/lya_forest/london/v4.2.0/master.fits',
+        mockfile: '{DESI_ROOT}/mocks/lya_forest/london/v9.0/v9.0.0/master.fits',
         format: CoLoRe,
         nside_lya: 16,
         zmin_lya: 1.8,
         density: 50,
         use_simqso: True,
+        sqmodel: 'default',  #Other options are 'lya_simqso_model_develop' and 'lya_simqso_model' (same as quickquasars)
         balprob: 0.0,
         add_dla: False,
-    }
+        add_metals: False,    #If adding metals use 'all', this is to keep the same argument as in quickquasars.
+        add_lyb: False
+        }
     MWS_MAIN: {
         target_type: STAR,
         mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix',
