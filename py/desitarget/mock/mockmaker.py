@@ -1054,6 +1054,9 @@ class SelectTargets(object):
         if len(objmeta) > 0 and len(objtruth) > 0: # some objects have no metadata...
             for key in objmeta.colnames:
                 if key in objtruth.colnames:
+                    #The modified emision line model don't have the same shape as the default.
+                    if (key=='EMLINES') and (objtruth[key][:].shape != objmeta[key].shape) :
+                        objtruth.replace_column('EMLINES',np.zeros((nobj,len(objmeta['EMLINES'][0, :, 0]), 3))-1)
                     objtruth[key][:] = objmeta[key]
             
         # Scatter the observed photometry based on the depth and then attenuate
@@ -2082,7 +2085,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
-                 mock_density=False, only_coords=False, seed=None):
+                 mock_density=False, sqmodel='default',only_coords=False, seed=None):
         """Read the catalog.
 
         Parameters
@@ -2124,10 +2127,13 @@ class ReadLyaCoLoRe(SelectTargets):
 
         """
         from astropy import cosmology
-
         try:
             from simqso.sqbase import ContinuumKCorr
-            from simqso.sqmodels import BOSS_DR9_PLEpivot
+            if sqmodel is 'default':
+                from simqso.sqmodels import BOSS_DR9_PLEpivot as model_PLEpivot
+            else:
+                from desisim.scripts.lya_simqso_model import model_PLEpivot
+
             from simqso.sqgrids import generateQlfPoints
         except ImportError:
             message = 'Please install https://github.com/imcgreer/simqso'
@@ -2160,7 +2166,6 @@ class ReadLyaCoLoRe(SelectTargets):
                 nside = 64
             log.info('Reading the whole DESI footprint with nside = {}.'.format(nside))
             healpixels = footprint.tiles2pix(nside)
-
         if nside is None:
             log.warning('Nside must be a scalar input.')
             raise ValueError
@@ -2181,7 +2186,7 @@ class ReadLyaCoLoRe(SelectTargets):
                               upper=True, ext=1)
             zz = tmp['Z'].astype('f4')
             zz_norsd = tmp['Z'].astype('f4')
-            
+    
         ra = tmp['RA'].astype('f8') % 360.0 # enforce 0 < ra < 360
         dec = tmp['DEC'].astype('f8')            
         mockpix = tmp['PIXNUM']
@@ -2242,9 +2247,8 @@ class ReadLyaCoLoRe(SelectTargets):
         # Build the full filenames.
         lyafiles = []
         for mpix in mockpix:
-            lyafiles.append("%s/%d/%d/transmission-%d-%d.fits"%(
+            lyafiles.append("%s/%d/%d/transmission-%d-%d.fits.gz"%(
                 mockdir, mpix//100, mpix, nside_lya, mpix))
-
         isouth = self.is_south(dec)
 
         # Draw apparent magnitudes from an BOSS/DR9 QSO luminosity function
@@ -2262,7 +2266,7 @@ class ReadLyaCoLoRe(SelectTargets):
         
         kcorr_north = ContinuumKCorr(normfilter_north, 1450, effWaveBand=weff_normfilter_north)
         kcorr_south = ContinuumKCorr(normfilter_south, 1450, effWaveBand=weff_normfilter_south)
-        qlf = BOSS_DR9_PLEpivot(cosmo=cosmology.core.FlatLambdaCDM(70.0, 0.3))
+        qlf = model_PLEpivot(cosmo=cosmology.core.FlatLambdaCDM(70.0, 0.3))
 
         mag = np.zeros(nobj).astype('f4')
         magfilter = np.zeros(nobj).astype('S15')
@@ -2283,7 +2287,6 @@ class ReadLyaCoLoRe(SelectTargets):
                                                 gridseed=seed)
                     mag[these] = qsometa.data['appMag']
                     magfilter[these] = normfilter_south
-            
         # Get photometry and morphologies by sampling from the Gaussian
         # mixture models.
         log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
@@ -3185,7 +3188,8 @@ class LYAMaker(SelectTargets):
     """
     wave, template_maker = None, None
 
-    def __init__(self, seed=None, use_simqso=True, balprob=0.0, add_dla=False,
+    def __init__(self, seed=None, use_simqso=True,sqmodel='default',\
+                 balprob=0.0,add_dla=False,add_metals=False,add_lyb=False,\
                  survey='main', **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
@@ -3195,9 +3199,11 @@ class LYAMaker(SelectTargets):
         self.seed = seed
         self.objtype = 'LYA'
         self.use_simqso = use_simqso
+        self.sqmodel=sqmodel
         self.balprob = balprob
         self.add_dla = add_dla
-
+        self.add_metals=add_metals
+        self.add_lyb=add_lyb
         if balprob > 0:
             from desisim.bal import BAL
             self.BAL = BAL()
@@ -3208,10 +3214,9 @@ class LYAMaker(SelectTargets):
             
         if self.template_maker is None:
             if self.use_simqso:
-                LYAMaker.template_maker = SIMQSO(wave=self.wave)
+                LYAMaker.template_maker = SIMQSO(wave=self.wave,sqmodel=self.sqmodel)
             else:
                 LYAMaker.template_maker = QSO(wave=self.wave)
-
     def read(self, mockfile=None, mockformat='CoLoRe', healpixels=None, nside=None,
              nside_lya=16, zmin_lya=None, mock_density=False, only_coords=False,
              **kwargs):
@@ -3254,7 +3259,7 @@ class LYAMaker(SelectTargets):
         
         if self.mockformat == 'colore':
             self.default_mockfile = os.path.join(
-                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v4.0', 'master.fits')
+                os.getenv('DESI_ROOT'), 'mocks', 'lya_forest', 'london', 'v9.0', 'v9.0.0', 'master.fits')
             MockReader = ReadLyaCoLoRe()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
@@ -3262,16 +3267,14 @@ class LYAMaker(SelectTargets):
 
         if mockfile is None:
             mockfile = self.default_mockfile
-
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya, zmin_lya=zmin_lya,
                                    mock_density=mock_density,
                                    only_coords=only_coords, seed=self.seed)
-
         return data
 
-    def make_spectra(self, data=None, indx=None, seed=None, no_spectra=False):
+    def make_spectra(self, data=None, indx=None, seed=None,no_spectra=False,add_dlas=None,add_metals=None,add_lyb=None):
         """Generate QSO spectra with the 3D Lya forest skewers included. 
 
         Parameters
@@ -3309,8 +3312,16 @@ class LYAMaker(SelectTargets):
         import numpy.ma as ma
         from astropy.table import vstack
         from desispec.interpolation import resample_flux
-        from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission
         
+        from desisim.lya_spectra import read_lya_skewers, apply_lya_transmission,lambda_RF_LYA
+        from desisim.dla import dla_spec
+
+        if add_dlas is None:
+            add_dlas=self.add_dla
+        if add_metals is None:
+            add_metals=self.add_metals
+        if add_lyb is None:
+            add_lyb=self.add_lyb
         if seed is None:
             seed = self.seed
             
@@ -3343,11 +3354,15 @@ class LYAMaker(SelectTargets):
             # Gather all the files containing at least one QSO skewer.
             alllyafile = data['LYAFILES'][indx]
             uniquelyafiles = sorted(set(alllyafile))
-
             for lyafile in uniquelyafiles:
                 these = np.where( alllyafile == lyafile )[0]
 
                 mockid_in_data = data['MOCKID'][indx][these]
+                if not os.path.isfile(lyafile):
+                    lyafile=lyafile.replace(".gz","")
+                    if not os.path.isfile(lyafile):
+                        log.warning('transmisionfile {} not found!'.format(lyafile))
+                        raise IOError
                 mockid_in_mock = (fitsio.read(lyafile, columns=['MOCKID'], upper=True,
                                               ext=1).astype(float)).astype(int)
                 o2i = dict()
@@ -3359,10 +3374,8 @@ class LYAMaker(SelectTargets):
                         log.warning("No MOCKID={} in {}, which should never happen".format(o, lyafile))
                         raise KeyError
                     indices_in_mock_healpix[i] = o2i[o]
-
-                # Note: there are read_dlas=False and add_metals=False options.
-                tmp_wave, tmp_trans, tmp_meta, _ = read_lya_skewers(
-                    lyafile, indices=indices_in_mock_healpix) 
+               # Note: there are read_dlas=False and add_metals=False options. AXGM: This has been updated.
+                tmp_wave, tmp_trans, tmp_meta, dla_info = read_lya_skewers(lyafile,indices=indices_in_mock_healpix,read_dlas=add_dlas,add_metals=add_metals,add_lyb=add_lyb)
 
                 if skewer_wave is None:
                     skewer_wave = tmp_wave
@@ -3407,14 +3420,31 @@ class LYAMaker(SelectTargets):
                         qso_wave[these, :] = qso_wave1
                         
                     meta[these] = meta1
+                    if(objmeta['EMLINES'].shape!=objmeta1['EMLINES'].shape):
+                        objmeta.replace_column('EMLINES',np.zeros((nobj,len(objmeta1['EMLINES'][0, :, 0]), 3))-1)
                     objmeta[these] = objmeta1
                     qso_flux[these, :] = qso_flux1
-
             meta['SUBTYPE'][:] = 'LYA'
+            ##Added DLAs before lya forest trasnmission.
+            if add_dlas:
+                min_lya_z = np.min(skewer_wave/lambda_RF_LYA - 1)
+                for ii in range(len(skewer_meta['MOCKID'])):
+                    # quasars with z < min_z will not have any DLA in spectrum
+                    if min_lya_z>skewer_meta['Z'][ii]: continue
+                    # skewer ID
+                    idd=skewer_meta['MOCKID'][ii]
+                    dlas=[]
+                    for dla in dla_info[dla_info['MOCKID']==idd]:
+                        # Adding only DLAs with z < zqso
+                        if dla['Z_DLA_RSD']>=skewer_meta['Z'][ii]: continue
+                        dlas.append(dict(z=dla['Z_DLA_RSD'],N=dla['N_HI_DLA'],dlaid=dla['DLAID']))
+                    transmission_dla = dla_spec(skewer_wave,dlas)
+                    if len(dlas)>0:
+                        skewer_trans[ii] = transmission_dla * skewer_trans[ii]
+                        objmeta['DLA'][ii]=True
 
             # Apply the Lya forest transmission.
             _flux = apply_lya_transmission(qso_wave, qso_flux, skewer_wave, skewer_trans)
-
             # Add BALs
             if self.balprob > 0:
                 log.debug('Adding BAL(s) with probability {}'.format(self.balprob))
@@ -3422,9 +3452,6 @@ class LYAMaker(SelectTargets):
                                                       seed=self.seed,
                                                       balprob=self.balprob)
                 objmeta['BAL_TEMPLATEID'][:] = balmeta['TEMPLATEID']
-
-            # Add DLAs (ToDo).
-            # ...
 
             # Synthesize north/south photometry.
             for these, filters in zip( (north, south), (self.template_maker.bassmzlswise, self.template_maker.decamwise) ):
@@ -3443,7 +3470,6 @@ class LYAMaker(SelectTargets):
                         maggies = vstack(maggies)
                         for band, filt in zip( ('FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2'), filters.names):
                             meta[band][these] = ma.getdata(1e9 * maggies[filt]) # nanomaggies
-                            
             # Unfortunately, in order to resample to the desired output
             # wavelength vector we need to loop.
             flux = np.zeros([nobj, len(self.wave)], dtype='f4')
