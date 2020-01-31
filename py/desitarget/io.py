@@ -1759,9 +1759,9 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
-            hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
-            backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
-            fn = os.path.join(fn, backend)
+        hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
+        backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
+        fn = os.path.join(fn, backend)
     else:
         if nohp:
             backend = "{}-{}.fits".format(prefix, drstr)
