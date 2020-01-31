@@ -5,7 +5,7 @@ desitarget Change Log
 0.35.3 (unreleased)
 -------------------
 
-* Further fixes for DR9 [`PR #578`_]. Includes:
+* Further fixes for DR9 [`PR #579`_]. Includes:
     * Add ``SERSIC`` columns for the DR9 data model.
     * Read the bricks file in lower-case in :func:`get_brick_info()`:
         * As, during DR9 testing, it's been both upper- and lower-case.
@@ -20,7 +20,7 @@ desitarget Change Log
 .. _`PR #565`: https://github.com/desihub/desitarget/pull/565
 .. _`PR #574`: https://github.com/desihub/desitarget/pull/574
 .. _`PR #577`: https://github.com/desihub/desitarget/pull/577
-.. _`PR #578`: https://github.com/desihub/desitarget/pull/578
+.. _`PR #579`: https://github.com/desihub/desitarget/pull/579
 
 0.35.2 (2019-12-20)
 -------------------
