@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.35.3 (unreleased)
+0.35.4 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.35.3 (02-03-2020)
 -------------------
 
 * Further fixes for DR9 [`PR #579`_]. Includes:
