@@ -562,7 +562,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if south:
         qso &= rflux > 10**((22.5-23.)/2.5)    # r<23.0 (different for SV)
     else:
-        qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.8
+        qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17.)/2.5)    # grz>17
 
     # ADM the optical color cuts.
