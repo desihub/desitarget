@@ -527,8 +527,8 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
         qso &= w1snr > 2.5
         qso &= w2snr > 1.5
     else:
-        qso &= w1snr > 3
-        qso &= w2snr > 2
+        qso &= w1snr > 3.5
+        qso &= w2snr > 2.5
 
     # ADM perform the color cuts to finish the selection.
     qso &= isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
@@ -562,7 +562,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if south:
         qso &= rflux > 10**((22.5-23.)/2.5)    # r<23.0 (different for SV)
     else:
-        qso &= rflux > 10**((22.5-22.8)/2.5)    # r<22.7
+        qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.8
     qso &= grzflux < 10**((22.5-17.)/2.5)    # grz>17
 
     # ADM the optical color cuts.
@@ -587,8 +587,8 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.075+0.20)/2.5)
         mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.075+0.20)/2.5)
     else:
-        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.075+0.20)/2.5)
-        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.075+0.20)/2.5)
+        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.100+0.20)/2.5) 
+        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.100+0.20)/2.5) 
 
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)  # ADM W1 - W2 !(NOT) > 0.3
     qso &= ~mainseq
@@ -676,7 +676,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     if south:
         morph2 = dcs < 0.015
     else:
-        morph2 = dcs < 0.02
+        morph2 = dcs < 0.015
     preSelection &= _psflike(objtype) | morph2
 
     # ADM Reject objects in masks.
@@ -722,8 +722,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
             pcut_HighZ = 0.40
         else:
             pcut = np.where(r_Reduced > 20.0,
-                            0.65 - (r_Reduced - 20.0) * 0.075, 0.65)
-            pcut[r_Reduced > 22.0] = 0.50 - 0.25 * (r_Reduced[r_Reduced > 22.0] - 22.0)
+                            0.75 - (r_Reduced - 20.0) * 0.05, 0.75)
+            pcut[r_Reduced > 22.0] = 0.65 - 0.34 * (r_Reduced[r_Reduced > 22.0] - 22.0)
             pcut_HighZ = np.where(r_Reduced > 20.5,
                                   0.5 - (r_Reduced - 20.5) * 0.025, 0.5)
 
@@ -833,7 +833,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         if south:
             pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
         else:
-            pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
+            pcut = np.where(r_Reduced < 23.2,  0.50 + (r_Reduced-22.8)*.75, .80 + (r_Reduced-23.2)*.5) 
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
