@@ -99,7 +99,7 @@ if ns.surveydir2 is not None:
 if ns.bundlebricks is not None:
     drdirs = [survey.survey_dir for survey in surveys]
     brickdict = get_brick_info(drdirs, counts=True)
-    bra, bdec, _, _, _, _, cnts = np.vstack(brickdict.values()).T
+    bra, bdec, _, _, _, _, cnts = np.vstack(list(brickdict.values())).T
     theta, phi = np.radians(90-bdec), np.radians(bra)
     pixnum = hp.ang2pix(ns.nside, theta, phi, nest=True)
     # ADM pixnum only contains unique bricks, need to add duplicates.
