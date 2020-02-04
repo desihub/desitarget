@@ -523,9 +523,12 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     qso &= _psflike(objtype) | morph2
 
     # SV cuts are different for WISE SNR.
-    qso &= w1snr > 3.5
-    qso &= w2snr > 2.5
-
+    if south:
+        qso &= w1snr > 2.5
+        qso &= w2snr > 2.0
+    else:
+        qso &= w1snr > 3.5
+        qso &= w2snr > 2.5
 
     # ADM perform the color cuts to finish the selection.
     qso &= isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
@@ -556,10 +559,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
     # ADM perform the magnitude cuts.
-    if south:
-        qso &= rflux > 10**((22.5-23.)/2.5)    # r<23.0 (different for SV)
-    else:
-        qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
+    qso &= rflux > 10**((22.5-22.7)/2.5)    # r<22.7
     qso &= grzflux < 10**((22.5-17.)/2.5)    # grz>17
 
     # ADM the optical color cuts.
