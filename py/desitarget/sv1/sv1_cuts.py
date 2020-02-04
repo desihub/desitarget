@@ -517,18 +517,15 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     bigmorph = np.zeros_like(d0)+1e9
     dcs = np.divide(d1 - d0, d0, out=bigmorph, where=d0 != 0)
     if south:
-        morph2 = dcs < 0.01
+        morph2 = dcs < 0.005
     else:
         morph2 = dcs < 0.005
     qso &= _psflike(objtype) | morph2
 
-    # ADM SV cuts are different for WISE SNR.
-    if south:
-        qso &= w1snr > 2.5
-        qso &= w2snr > 1.5
-    else:
-        qso &= w1snr > 3.5
-        qso &= w2snr > 2.5
+    # SV cuts are different for WISE SNR.
+    qso &= w1snr > 3.5
+    qso &= w2snr > 2.5
+
 
     # ADM perform the color cuts to finish the selection.
     qso &= isQSO_colors(gflux=gflux, rflux=rflux, zflux=zflux,
@@ -584,8 +581,8 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     zflux = zflux.clip(0)
     mainseq = rflux > gflux * 10**(0.2/2.5)  # g-r > 0.2
     if south:
-        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.075+0.20)/2.5)
-        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.075+0.20)/2.5)
+        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.090+0.20)/2.5)
+        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.090+0.20)/2.5)
     else:
         mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.100+0.20)/2.5) 
         mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.100+0.20)/2.5) 
