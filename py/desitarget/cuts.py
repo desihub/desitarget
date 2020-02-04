@@ -1061,7 +1061,10 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     fmc = np.zeros_like(rflux, dtype='?')
     
     #the LSLGA galaxies
-    L2 = ((refcat == 'L2') | (refcat == b'L2') | (refcat == 'L2 ') | (refcat == b'L2 '))
+    if refcat is None:
+        L2 = fmc.copy()
+    else:
+        L2 = ((refcat == 'L2') | (refcat == b'L2') | (refcat == 'L2 ') | (refcat == b'L2 '))
 
     if south:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
