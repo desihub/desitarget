@@ -994,7 +994,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
                          gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                          gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                         recat=refcat, gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
+                         refcat=refcat, gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
 
     bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                         w2flux=w2flux, refcat=refcat, south=south, targtype=targtype, primary=primary)
