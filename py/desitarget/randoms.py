@@ -1207,7 +1207,7 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None,
     return qzeros
 
 
-def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
+def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
                    bundlebricks=None, brickspersec=2.5, extra=None,
                    dustdir=None, resolverands=True, aprad=0.75, seed=1):
     """NOBS, DEPTHs (per-band), MASKs for random points in a Legacy Surveys DR.
@@ -1222,7 +1222,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=4, pixlist=None,
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned.
     numproc : :class:`int`, optional, defaults to 32
         The number of processes over which to parallelize.
-    nside : :class:`int`, optional, defaults to nside=4 (214.86 sq. deg.)
+    nside : :class:`int`, optional, defaults to `None`
         The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlebricks` input.
     pixlist : :class:`list` or `int`, optional, defaults to None
         Bricks will only be processed if the CENTER of the brick lies within the bounds of
