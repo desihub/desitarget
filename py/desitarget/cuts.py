@@ -1062,9 +1062,13 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     
     #the LSLGA galaxies
     if refcat is None:
-        L2 = fmc.copy()
+        LX = fmc.copy()
     else:
-        L2 = ((refcat == 'L2') | (refcat == b'L2') | (refcat == 'L2 ') | (refcat == b'L2 '))
+        try:
+            LX = np.array([rc.decode()[0] == "L" for rc in refcat], dtype=bool)
+        except AttributeError:
+            LX = np.array([rc[0] == "L" for rc in refcat], dtype=bool)
+    #    LX = ((refcat == 'L2') | (refcat == b'L2') | (refcat == 'L2 ') | (refcat == b'L2 ')) #for DR8
 
     if south:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
@@ -1089,7 +1093,7 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     fmc |= ((rfib < 2.9 + r) & (r > 20))
 
     bgs &= fmc
-    bgs |= L2
+    bgs |= LX
     
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
