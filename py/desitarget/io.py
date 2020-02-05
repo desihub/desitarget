@@ -1776,7 +1776,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
 
 def read_target_files(filename, columns=None, rows=None, header=False,
-                      verbose=False):
+                      verbose=True):
     """Wrapper to cycle through allowed extensions to read target files.
 
     Parameters
@@ -1791,8 +1791,9 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of the file.
     verbose : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then log the file extension that was read.
+        If ``True`` then log the file and extension that was read.
     """
+    start = time()
     # ADM start with some checking that this is a target file.
     targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS"
     # ADM read in the FITS extention info.
@@ -1812,6 +1813,10 @@ def read_target_files(filename, columns=None, rows=None, header=False,
 
     targs, hdr = fitsio.read(filename, extname,
                              columns=columns, rows=rows, header=True)
+
+    if verbose:
+        log.info("Read {} targets from {}, extension {}...Took {:.1f}s".format(
+            len(targs), os.path.basename(filename), extname, time()-start))
 
     if header:
         return targs, hdr
@@ -2140,7 +2145,7 @@ def read_targets_header(hpdirname):
 
     # ADM rows=[0] here, speeds up read_target_files retrieval
     # ADM of the header.
-    _, hdr = read_target_files(hpdirname, rows=[0], header=True)
+    _, hdr = read_target_files(hpdirname, rows=[0], header=True, verbose=False)
 
     return hdr
 
