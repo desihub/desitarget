@@ -334,19 +334,24 @@ def _javastring():
     return js
 
 
-def read_data(targfile, mocks=False):
+def read_data(targfile, mocks=False, downsample=None):
     """Read in the data, including any mock data (if present).
 
     Parameters
     ----------
     targfile : :class:`str`
-        The full path to a mock target file in the DESI X per cent survey directory structure
-        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/, or to a
-        data file, or to a directory of HEALPixel-split target files which will be
-        read in with :func:`desitarget.io.read_targets_in_box`.
-
+        The full path to a mock target file in the DESI X per cent survey
+        directory structure, e.g.,
+        /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/,
+        or to a data file, or to a directory of HEALPixel-split target
+        files which will be read in with
+        :func:`desitarget.io.read_targets_in_box`.
     mocks : :class:`boolean`, optional, default=False
         If ``True``, read in mock data.
+    downsample : :class:`int`, optional, defaults to `None`
+        If not `None`, downsample targets by (roughly) this value, e.g.
+        for `downsample=10` a set of 900 targets would have ~90 random
+        targets returned. A speed-up for experimenting with large files.
 
     Returns
     -------
@@ -380,7 +385,7 @@ def read_data(targfile, mocks=False):
     cols = np.concatenate([colnames, targcols])
 
     # ADM read in the targets catalog and return it.
-    targs = read_targets_in_box(targfile, columns=cols)
+    targs = read_targets_in_box(targfile, columns=cols, downsample=downsample)
     log.info('Read in targets...t = {:.1f}s'.format(time()-start))
     truths, objtruths = None, None
 
@@ -1748,43 +1753,48 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
                  clip2foot=False, weight=True, imaging_map_file=None,
-                 tcnames=None, systematics=True, numproc=8):
-    """Create a directory containing a webpage structure in which to embed QA plots.
+                 tcnames=None, systematics=True, numproc=8, downsample=None):
+    """Make a directory containing a webpage in which to embed QA plots.
 
     Parameters
     ----------
     targs : :class:`~numpy.array` or `str`
-        An array of targets in the DESI data model format. If a string is passed then the
-        targets are read from the file with the passed name (supply the full directory path).
-        The string can also be a directory of HEALPixel-split target files which will be
-        read in with :func:`desitarget.io.read_targets_in_box`.
+        An array of targets in the DESI data model format. If a string is
+        passed then the targets are read from the file with the passed
+        name (supply the full directory path). The string can also be a
+        directory of HEALPixel-split target files which will be read in
+        using :func:`desitarget.io.read_targets_in_box`.
     mocks : :class:`boolean`, optional, default=False
-        If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
+        If ``True``, add plots only relevant to mocks to the webpage.
     makeplots : :class:`boolean`, optional, default=True
         If ``True``, then create the plots as well as the webpage.
     max_bin_area : :class:`float`, optional, defaults to 1 degree
-        The bin size in RA/Dec in `targs` is chosen to be as close as possible to this value.
+        Bin size in RA/Dec is set as close as possible to this value.
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots.
     clip2foot : :class:`boolean`, optional, defaults to False
-        use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
-        only those that lie within the DESI spectroscopic footprint.
+        Use :mod:`desimodel.footprint.is_point_in_desi` to restrict
+        `targs` to the DESI spectroscopic footprint.
     weight : :class:`boolean`, optional, defaults to ``True``
-        If this is set, weight pixels to ameliorate under dense pixels at the footprint
-        edges. This uses the `imaging_map_file` HEALPix file for real targets and the default
-        ``DESIMODEL`` HEALPix footprint file for mock targets.
+        If set, weight pixels to offset under-dense pixels at footprint
+        edges. Uses the `imaging_map_file` HEALPix file for real targets
+        and the ``DESIMODEL`` HEALPix footprint file for mock targets.
     imaging_map_file : :class:`str`, optional, defaults to no weights
-        If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:`desitarget.randoms.pixmap`. If this is not sent,
-        then the weights default to 1 everywhere (i.e. no weighting) for the real targets.
+        If `weight` is set, then this is the location of the imaging
+        HEALPix map (e.g. made by :func:`desitarget.randoms.pixmap`).
+        Defaults to 1 everywhere (i.e. no weights) for the real targets.
         If this is not set, then systematics plots cannot be made.
     tcnames : :class:`list`
-        A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
-        for those specific bits. A useful speed-up when testing
+        String-list, e.g. ['QSO','LRG','ALL'] If passed, return only QA
+        pages for those specific bits. A useful speed-up when testing.
     systematics : :class:`boolean`, optional, defaults to ``True``
         If sent, then add plots of systematics to the front page.
     numproc : :class:`int`, optional, defaults to 8
         The number of parallel processes to use to generate plots.
+    downsample : :class:`int`, optional, defaults to `None`
+        If not `None`, downsample targets by (roughly) this value, e.g.
+        for `downsample=10` a set of 900 targets would have ~90 random
+        targets returned. A speed-up for experimenting with large files.
 
     Returns
     -------
@@ -1812,8 +1822,12 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     start = time()
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
 
+    if downsample is not None:
+        log.info('Downsampling by a factor of {}'.format(downsample))
+
     if isinstance(targs, str):
-        targs, truths, objtruths = read_data(targs, mocks=mocks)
+        targs, truths, objtruths = read_data(targs, mocks=mocks,
+                                             downsample=downsample)
     else:
         if mocks:
             log.warning('Please pass the filename to the targeting catalog so the "mock" QA plots can be generated.')
