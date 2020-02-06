@@ -37,6 +37,9 @@ ap.add_argument('--nosystematics', action='store_true',
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use when generating plots [defaults to {}]'.format(nproc),
                 default=nproc)
+ap.add_argument("--downsample", type=int,
+                help='downsample the targets by (roughly) this value, as a speed-up.',
+                default=None)
 
 ns = ap.parse_args()
 
@@ -73,8 +76,9 @@ else:
 
 log.info("generating plots on {} processors".format(ns.numproc))
 make_qa_page(ns.src, qadir=ns.dest, numproc=ns.numproc,
-             mocks=ns.mocks, makeplots=makeplots, max_bin_area=max_bin_area, 
-             imaging_map_file=ns.weightmapfile, tcnames=tcnames, systematics=systematics)
+             mocks=ns.mocks, makeplots=makeplots, max_bin_area=max_bin_area,
+             imaging_map_file=ns.weightmapfile, tcnames=tcnames,
+             systematics=systematics, downsample=ns.downsample)
 log.info('Targeting QA pages and plots written to {}'.format(ns.dest))
 log.info('Mocks option was set to {}'.format(ns.mocks))
 log.info('No plots option was set to {}'.format(ns.noplots))
