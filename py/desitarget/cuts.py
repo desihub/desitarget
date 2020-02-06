@@ -999,7 +999,8 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
     bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
                         w2flux=w2flux, south=south, targtype=targtype, primary=primary)
     
-    bgs |= isBGS_lslga(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, refcat=refcat, south=south, targtype=targtype)
+    bgs |= isBGS_lslga(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, refcat=refcat, 
+                       south=south, targtype=targtype)
 
     return bgs
 
@@ -1061,26 +1062,6 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
     fmc = np.zeros_like(rflux, dtype='?')
-    
-    #the LSLGA galaxies
-    #if refcat is None:
-    #    LX = fmc.copy()
-    #else:
-    #    print('HERE!!!!')
-    #    LX = ((refcat == 'L2') | (refcat == b'L2') | (refcat == 'L2 ') | (refcat == b'L2 ')) #for DR8
-    #    try:
-    #        print('refcat0',refcat[0].decode())
-    #        print('LEN',len(refcat[0].decode()))
-    #        LX = np.array([rc.decode()[0] == "L" for rc in refcat], dtype=bool)
-    #    except AttributeError:
-    #        LX = np.array([rc[0] == "L" for rc in refcat], dtype=bool)
-    #    except IndexError:
-    #        print('HERE!!!!')
-    #        LX = np.empty(len(refcat), dtype=bool)
-    #        for i, rc in enumerate(refcat):
-    #            if len(rc) > 0: LX[i] = rc[0] == "L"
-    #            else: LX[i] = False
-        
 
     if south:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
@@ -1105,7 +1086,6 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     fmc |= ((rfib < 2.9 + r) & (r > 20))
 
     bgs &= fmc
-    #bgs |= LX
     
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
@@ -1118,14 +1098,14 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
 
     return bgs
 
-def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None, south=True, targtype=None):
-    """Standard set of color-based cuts used by all BGS target selection classes
+def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None, 
+                south=True, targtype=None):
+    """Module to recover the LSLGA objects in all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
-
-    bgs = np.zeros_like(refcat, dtype='?')
-    #LX = np.zeros_like(refcat, dtype='?')
+    
+    bgs = np.zeros_like(rflux, dtype='?')
     
     #the LSLGA galaxies
     if refcat is None:
