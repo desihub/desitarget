@@ -1866,7 +1866,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         DRs = 'Mock Targets'
     else:
         if 'RELEASE' in targs.dtype.names:
-            DRs = ", ".join(["DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000])
+            DRs = ", ".join(["DR{}".format(release)
+                             for release in np.unique(targs["RELEASE"]//1000)])
         else:
             DRs = "DR Unknown"
 
@@ -2059,6 +2060,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         if svs[0:2] == 'SV':
             for tc in 'QSO', 'ELG', 'LRG', 'BGS', 'MWS':
                 hl = [h.replace(tc, tc[0]) for h in hl]
+                # ADM also change SUPER->SUP to squeeze space
+                hl = [h.replace('SUPER', 'SUP') for h in hl]
         # ADM truncate the bit names at "trunc" characters to pack them more easily.
         trunc = 8
         truncform = '{:>'+str(trunc)+'s}'
