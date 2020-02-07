@@ -735,7 +735,8 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     if objtype in targdens.keys():
         plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k',
-                    label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(objtype, targdens[objtype]))
+                    label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(
+                        objtype, targdens[objtype]))
     plt.legend(loc='upper left', frameon=False, fontsize=11)
 
     # ADM add some metric conditions which are considered a failure for this
@@ -1349,7 +1350,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     r = 22.5-2.5*np.log10(rflux.clip(loclip))
     z = 22.5-2.5*np.log10(zflux.clip(loclip))
     W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
-    W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
+    # ADM Modify W2 slightly so the W1-W2 color doesn't pile up at 0.
+    W2 = 22.5-2.5*np.log10(w2flux.clip(loclip*100))
 
     # For QSOs only--
     W = 0.75 * W1 + 0.25 * W2
@@ -1377,12 +1379,12 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     #     zW1lim = (-3, 2.5)
     #     W1W2lim = (-3, 2.5)
     # else:
-    zW1lim = (-1.0, 3.5)
-    W1W2lim = (-1.0, 1.2)
+    zW1lim = (-1.5, 3.5)
+    W1W2lim = (-1.5, 1.5)
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
-    objcolor = {'ALL': 'black', objtype: 'blue'}
+    objcolor = {'ALL': 'black', objtype: 'black'}
     type2color = {**_type2color, **objcolor}
 
     #  Make the plots!
