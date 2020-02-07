@@ -334,7 +334,7 @@ def _javastring():
     return js
 
 
-def read_data(targfile, mocks=False, downsample=None):
+def read_data(targfile, mocks=False, downsample=None, header=False):
     """Read in the data, including any mock data (if present).
 
     Parameters
@@ -346,12 +346,16 @@ def read_data(targfile, mocks=False, downsample=None):
         or to a data file, or to a directory of HEALPixel-split target
         files which will be read in with
         :func:`desitarget.io.read_targets_in_box`.
-    mocks : :class:`boolean`, optional, default=False
+    mocks : :class:`boolean`, optional, defaults to ``False``
         If ``True``, read in mock data.
     downsample : :class:`int`, optional, defaults to `None`
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
         targets returned. A speed-up for experimenting with large files.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of the file as an additional
+        output (targs, truths, objtruths, header) instead of (targs,
+        truths, objtruths).
 
     Returns
     -------
@@ -361,7 +365,6 @@ def read_data(targfile, mocks=False, downsample=None):
         A rec array containing the truths catalog (if present and `mocks=True`).
     objtruths : :class:`dict`
         Object type-specific truth metadata (if present and `mocks=True`).
-
     """
     start = time()
 
@@ -385,7 +388,11 @@ def read_data(targfile, mocks=False, downsample=None):
     cols = np.concatenate([colnames, targcols])
 
     # ADM read in the targets catalog and return it.
-    targs = read_targets_in_box(targfile, columns=cols, downsample=downsample)
+    if header:
+        targs, hdr = read_targets_in_box(targfile, columns=cols,
+                                         downsample=downsample, header=True)
+    else:
+        targs =  read_targets_in_box(targfile, columns=cols, header=False)
     log.info('Read in targets...t = {:.1f}s'.format(time()-start))
     truths, objtruths = None, None
 
@@ -410,7 +417,10 @@ def read_data(targfile, mocks=False, downsample=None):
 
         return targs, truths, objtruths
     else:
-        return targs, None, None
+        if header:
+            return targs, None, None, hdr
+        else:
+            return targs, None, None
 
 
 def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
