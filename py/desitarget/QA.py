@@ -423,46 +423,70 @@ def read_data(targfile, mocks=False, downsample=None, header=False):
             return targs, None, None
 
 
-def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
+def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
+             max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted
-    shamelessly from :mod:`desitarget.mock.QA` (which was originally written by `J. Moustakas`).
+    shamelessly from :mod:`desitarget.mock.QA` (which was originally
+    written by `J. Moustakas`).
 
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least ``RA`` and ``DEC`` columns for coordinate
-        information.
+        An array of targets that contains at least ``RA`` and ``DEC``
+        columns for coordinate information.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
+        The name of a DESI target class (e.g., ``"ELG"``) that
+        corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots.
     upclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the targets at the "high density" end to make plots
-        conform to similar density scales.
+        A cutoff at which to clip the targets at the "high density"
+        end to make plots conform to similar density scales.
     weights : :class:`~numpy.array`, optional, defaults to None
-        A weight for each of the passed targets (e.g., to upweight each target in a
-        partial pixel at the edge of the DESI footprint).
+        A weight for each of the passed targets (e.g., to upweight each
+        target in a partial pixel at the edge of the DESI footprint).
     max_bin_area : :class:`float`, optional, defaults to 1 degree
-        The bin size in RA/Dec in `targs` is chosen to be as close as possible to this value.
+        The bin size in RA/Dec in `targs` is chosen to be as close as
+        possible to this value.
     fileprefix : :class:`str`, optional, defaults to ``"radec"`` for (RA/Dec)
         String to be added to the front of the output file name.
 
     Returns
     -------
     Nothing
-        But a .png plot of target densities is written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{objtype}.png``.
+        But a .png plot of target densities is written to ``qadir``. The
+        file is called: ``{qadir}/{fileprefix}-{objtype}.png``.
     """
-    label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
+    label = r'{} (targets deg$^{{-2}}$'.format(objtype)
+
     fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        basemap = init_sky(galactic_plane_color='k', ax=ax[0])
-        plot_sky_binned(cat['RA'], cat['DEC'], weights=weights, max_bin_area=max_bin_area,
-                        clip_lo='!1', clip_hi=upclip, cmap='jet', plot_type='healpix',
-                        label=label, basemap=basemap)
+        # ADM grab the data needed to make the plot, masking values < 1
+        # ADM to ensure that areas outside of the footprint are empty.
+        _, data = plot_sky_binned(cat['RA'], cat['DEC'], weights=weights,
+                                  max_bin_area=max_bin_area, clip_lo='!1',
+                                  plot_type='healpix', colorbar=False,
+                                  return_grid_data=True)
+
+        # ADM if upclip was passed, just clip at that raw value.
+        if upclip is not None:
+            data.data[data.data > upclip] = upclip
+        # ADM otherwise, clip at percentiles and note them in the label.
+        else:
+            lo, hi = 5, 95
+            plo, phi = np.percentile(data[~data.mask], [lo, hi])
+            label += r'; {}% ({:.0f}) < densities < {} ({:.0f})%'.format(
+                lo, plo, hi, phi)
+            data.data[data.data > phi] = phi
+            data.data[data.data < plo] = plo
+        label += ')'
+
+        # ADM Make the plot.
+        bm = init_sky(galactic_plane_color='k', ax=ax[0])
+        plot_healpix_map(data, nest=False, cmap="jet", label=label, basemap=bm)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, objtype))
     fig.savefig(pngfile, bbox_inches='tight')
@@ -693,15 +717,20 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     counts = np.bincount(pixels, weights=weights, minlength=npix)
     dens = counts[np.flatnonzero(counts)] / bin_area
 
-    label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
+    dhi, dlo = dens.min(), dens.max()
 
-    densmin, densmax = dens.min(), dens.max()
-    ddens = 0.05 * (densmax - densmin)
-
-    if upclip:
+    if upclip is not None:
+        densmin, densmax = dhi, dlo
         xmin, xmax = 1, upclip
+        xplotmin, xplotmax = 0, upclip
+        label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
     else:
+        # ADM restrict density range to 0.5->99.5% to clip outliers.
+        densmin, densmax = np.percentile(dens, [0.5, 99.5])
         xmin, xmax = densmin, densmax
+        xplotmin, xplotmax = densmin*0.9, densmax*1.1
+        label = r'{} (targets deg$^{{-2}}$; central 99% of densities)'.format(objtype)
+    ddens = 0.05 * (densmax - densmin)
 
     if ddens == 0:  # small number of pixels
         nbins = 5
@@ -721,7 +750,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     # ADM set up and make the plot.
     plt.clf()
     # ADM only plot to just less than upclip, to prevent displaying pile-ups in that bin.
-    plt.xlim((0, 0.95*xmax))
+    plt.xlim((xplotmin, xplotmax))
     # ADM give a little space for labels on the y-axis.
     plt.ylim((0, ypeak*1.2))
     plt.xlabel(label)
@@ -737,7 +766,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
         plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k',
                     label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(
                         objtype, targdens[objtype]))
-    plt.legend(loc='upper left', frameon=False, fontsize=11)
+    plt.legend(loc='upper left', frameon=False, fontsize=10)
 
     # ADM add some metric conditions which are considered a failure for this
     # ADM target class...only for classes that have an expected target density.
@@ -1663,7 +1692,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     # ADM clip the target densities at an upper density to improve plot edges
     # ADM by rejecting highly dense outliers.
-    upclipdict = {k: 5000. for k in targdens}
+    upclipdict = {k: None for k in targdens}
     if bit_mask is not None:
         if cmx:
             d_mask = bit_mask[0]
@@ -1706,7 +1735,8 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
         if np.any(ii):
             # ADM make RA/Dec skymaps.
-            qaskymap(targs[ii], objtype, qadir=qadir, upclip=upclipdict[objtype],
+            qaskymap(targs[ii], objtype, qadir=qadir,
+                     upclip=upclipdict[objtype],
                      weights=weights[ii], max_bin_area=max_bin_area)
             log.info('Made sky map for {}...t = {:.1f}s'
                      .format(objtype, time()-start))
@@ -1719,14 +1749,14 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                      .format(objtype, time()-start))
 
             # ADM make color-color plots
-            qacolor(targs[ii], objtype, targs[ii], qadir=qadir, fileprefix="color")
-            log.info('Made color-color plot for {}...t = {:.1f}s'
-                     .format(objtype, time()-start))
+#            qacolor(targs[ii], objtype, targs[ii], qadir=qadir, fileprefix="color")
+#            log.info('Made color-color plot for {}...t = {:.1f}s'
+#                     .format(objtype, time()-start))
 
             # ADM make magnitude histograms
-            qamag(targs[ii], objtype, qadir=qadir, fileprefix="nmag", area=totarea)
-            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'
-                     .format(objtype, time()-start))
+#            qamag(targs[ii], objtype, qadir=qadir, fileprefix="nmag", area=totarea)
+#            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'
+#                     .format(objtype, time()-start))
 
             if truths is not None:
                 # ADM make noiseless color-color plots
@@ -1746,10 +1776,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 # log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
 
             # ADM make Gaia-based plots if we have Gaia columns
-            if "PARALLAX" in targs.dtype.names and np.any(targs['PARALLAX'] != 0):
-                qagaia(targs[ii], objtype, qadir=qadir, fileprefix="gaia")
-                log.info('Made Gaia-based plots for {}...t = {:.1f}s'
-                         .format(objtype, time()-start))
+#            if "PARALLAX" in targs.dtype.names and np.any(targs['PARALLAX'] != 0):
+#                qagaia(targs[ii], objtype, qadir=qadir, fileprefix="gaia")
+#                log.info('Made Gaia-based plots for {}...t = {:.1f}s'
+#                         .format(objtype, time()-start))
 
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
