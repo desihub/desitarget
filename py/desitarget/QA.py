@@ -392,7 +392,7 @@ def read_data(targfile, mocks=False, downsample=None, header=False):
         targs, hdr = read_targets_in_box(targfile, columns=cols,
                                          downsample=downsample, header=True)
     else:
-        targs =  read_targets_in_box(targfile, columns=cols, header=False)
+        targs = read_targets_in_box(targfile, columns=cols, header=False)
     log.info('Read in targets...t = {:.1f}s'.format(time()-start))
     truths, objtruths = None, None
 
@@ -453,11 +453,16 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
 
     Returns
     -------
-    Nothing
-        But a .png plot of target densities is written to ``qadir``. The
-        file is called: ``{qadir}/{fileprefix}-{objtype}.png``.
+    :class:`dict`
+        Dictionary of the 10 densest pixels in the DESI tiling. Includes
+        RA, DEC, DENSITY (per sq. deg.) and NSIDE for each HEALpixel.
+
+    Notes
+    -----
+    In addition to the returned dictionary, a .png sky map is written to
+    `qadir`. The file is called: `{qadir}/{fileprefix}-{objtype}.png`.
     """
-    label = r'{} (targets deg$^{{-2}}$'.format(objtype)
+    label = r'{} (targs deg$^{{-2}}$'.format(objtype)
 
     fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
@@ -471,6 +476,19 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
                                   plot_type='healpix', colorbar=False,
                                   return_grid_data=True)
 
+        # ADM use the plot data to find the densest pixels...
+        # ADM order indexes of unmasked HEALpixels by density.
+        denspix = np.arange(len(data))[~data.mask][np.argsort(data[~data.mask].data)]
+        # ADM find the RA/Dec of these ordered HEALPixels.
+        nside = hp.npix2nside(len(data))
+        theta, phi = hp.pix2ang(nside, denspix, nest=False)
+        ra, dec = np.degrees(phi), 90-np.degrees(theta)
+        # ADM clip to just Decs at which DESI will observe.
+        infoot = _in_desi_footprint([ra, dec], radec=True)
+        # ADM set up an output dictionary of the 10 densest pixels.
+        outdict = {"RA": ra[infoot][-10:], "DEC": dec[infoot][-10:],
+                   "DENSITY": data[denspix[infoot][-10:]].data, "NSIDE": nside}
+
         # ADM if upclip was passed, just clip at that raw value.
         if upclip is not None:
             data.data[data.data > upclip] = upclip
@@ -478,8 +496,8 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
         else:
             lo, hi = 5, 95
             plo, phi = np.percentile(data[~data.mask], [lo, hi])
-            label += r'; {}% ({:.0f}) < densities < {} ({:.0f})%'.format(
-                lo, plo, hi, phi)
+            label += r'; {}% ({:.0f} deg$^{{-2}}$) < dens '.format(lo, plo)
+            label += r'< {}% ({:.0f} deg$^{{-2}}$)'.format(hi, phi)
             data.data[data.data > phi] = phi
             data.data[data.data < plo] = plo
         label += ')'
@@ -493,7 +511,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
 
     plt.close()
 
-    return
+    return outdict
 
 
 def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None,
@@ -1527,7 +1545,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         plt.close()
 
 
-def _in_desi_footprint(targs):
+def _in_desi_footprint(targs, radec=False):
     """Convenience function for using is_point_in_desi to find which targets are in the footprint.
 
     Parameters
@@ -1535,7 +1553,9 @@ def _in_desi_footprint(targs):
     targs : :class:`~numpy.array` or `str`
         Targets in the DESI data model format, or any array that
         contains ``RA`` and ``DEC`` columns.
-
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead of
+        a rec array.
     Returns
     -------
     :class:`integer`
@@ -1547,13 +1567,18 @@ def _in_desi_footprint(targs):
     log.info('Start restricting to DESI footprint...t = {:.1f}s'
              .format(time()-start))
 
+    if radec:
+        ra, dec = targs
+    else:
+        ra, dec = targs["RA"], targs["DEC"]
+
     # ADM restrict targets to just the DESI footprint.
     from desimodel import io, footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(), targs["RA"], targs["DEC"])
+    indesi = footprint.is_point_in_desi(io.load_tiles(), ra, dec)
     windesi = np.where(indesi)
     if len(windesi[0]) > 0:
         log.info("{:.3f}% of targets are in official DESI footprint"
-                 .format(100.*len(windesi[0])/len(targs)))
+                 .format(100.*len(windesi[0])/len(ra)))
     else:
         log.error("ZERO input targets are within the official DESI footprint!!!")
 
@@ -1571,38 +1596,40 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     Parameters
     ----------
     targs : :class:`~numpy.array` or `str`
-        An array of targets in the DESI data model format. If a string is passed then the
-        targets are read from the file with the passed name (supply the full directory path).
+        Array of targets in the DESI data model format. If a string is
+        passed then the targets are read from the file with the passed
+        name (supply the full directory path).
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots.
-    targdens : :class:`dictionary`, optional, set automatically by the code if not passed
-        A dictionary of DESI target classes and the goal density for that class. Used to
-        label the goal density on histogram plots.
+    targdens : :class:`dictionary`, optional
+        A dictionary of DESI target classes and the goal density for
+        that class. Used to label the goal density on histogram plots.
     max_bin_area : :class:`float`, optional, defaults to 1 degree
-        The bin size in RA/Dec in `targs` is chosen to be as close as possible to this value.
+        The bin size for sky maps in RA/Dec correspond to this value.
     weight : :class:`boolean`, optional, defaults to True
-        If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
-        ameliorate under dense pixels at the footprint edges.
+        If set, weight pixels using the ``DESIMODEL`` HEALPix footprint
+        file to offset under-dense pixels at the footprint edges.
     imaging_map_file : :class:`str`, optional, defaults to no weights
-        If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:` desitarget.randoms.pixmap()` if this is not
-        sent, then the weights default to 1 everywhere (i.e. no weighting).
+        If `weight` is set, this file is the location of the imaging
+        HEALPixel map (e.g. made by :func:` desitarget.randoms.pixmap()`.
+        If not sent, then weights default to 1 (i.e. no weighting).
     truths : :class:`~numpy.array` or `str`
-        The truth objects from which the targs were derived in the DESI data model format.
-        If a string is passed then read from that file (supply the full directory path).
+        The truth objects from which the targs were derived in the DESI
+        data model format. If a string is passed then read from that file
+        (supply the full directory path).
     objtruths : :class:`dict`
         Object type-specific truth metadata.
     tcnames : :class:`list`, defaults to None
-        A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
-        for those specific bits. A useful speed-up when testing.
+        Strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA
+        pages for those specific bits. A useful speed-up when testing.
     cmx : :class:`boolean`, defaults to ``False``
-        Pass as ``True`` to operate on commissioning bits instead of SV or main survey
-        bits. Commissioning files have no MWS or BGS columns.
-    bit_mask : :class:`list` or `~numpy.array`, optional, defaults to ``None``
-        Load the bit names from this passed mask or list of masks (with zero density
-        constraints) instead of the main survey bits.
+        Pass as ``True`` to use commissioning bits instead of SV or main
+        survey bits. Commissioning files have no MWS or BGS columns.
+    bit_mask : :class:`list` or `~numpy.array`, optional
+        Load bit names from this passed mask or list of masks instead of
+        from the (default) main survey mask.
     mocks : :class:`boolean`, optional, default=False
-        If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
+        If ``True``, also make plots that are only relevant to mocks.
     numproc : :class:`int`, optional, defaults to 8
         The number of parallel processes to use to generate plots.
 
@@ -1610,12 +1637,16 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     -------
     :class:`float`
         The total area of the survey used to make the QA plots.
+    :class:`dict`
+        A nested dictionary of each of the bit-names. Each bit-key has a
+        dictionary of the 10 densest pixels in the DESI tiling. Includes
+        RA, DEC, DENSITY (per sq. deg.) and NSIDE for each HEALpixel.
 
     Notes
     -----
-        - The ``DESIMODEL`` environment variable must be set to find the default expected
-          target densities.
-        - On execution, a set of .png plots for target QA are written to `qadir`.
+        - The ``DESIMODEL`` environment variable must be set to find the
+          default expected target densities.
+        - When run, a set of targeting .png plots are written to `qadir`.
     """
     # ADM set up the default logger from desiutil.
     log = get_logger()
@@ -1712,6 +1743,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     nbit = np.ones((), dtype='i8')
     t0 = time()
 
+    # ADM this will hold dictionaries of the densest pixels for each bit.
+    densdict = {}
+
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
@@ -1735,9 +1769,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
         if np.any(ii):
             # ADM make RA/Dec skymaps.
-            qaskymap(targs[ii], objtype, qadir=qadir,
-                     upclip=upclipdict[objtype],
-                     weights=weights[ii], max_bin_area=max_bin_area)
+            densdict[objtype] = qaskymap(targs[ii], objtype, weights=weights[ii],
+                                         qadir=qadir, upclip=upclipdict[objtype],
+                                         max_bin_area=max_bin_area)
             log.info('Made sky map for {}...t = {:.1f}s'
                      .format(objtype, time()-start))
 
@@ -1749,14 +1783,14 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                      .format(objtype, time()-start))
 
             # ADM make color-color plots
-#            qacolor(targs[ii], objtype, targs[ii], qadir=qadir, fileprefix="color")
-#            log.info('Made color-color plot for {}...t = {:.1f}s'
-#                     .format(objtype, time()-start))
+            qacolor(targs[ii], objtype, targs[ii], qadir=qadir, fileprefix="color")
+            log.info('Made color-color plot for {}...t = {:.1f}s'
+                     .format(objtype, time()-start))
 
             # ADM make magnitude histograms
-#            qamag(targs[ii], objtype, qadir=qadir, fileprefix="nmag", area=totarea)
-#            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'
-#                     .format(objtype, time()-start))
+            qamag(targs[ii], objtype, qadir=qadir, fileprefix="nmag", area=totarea)
+            log.info('Made magnitude histogram plot for {}...t = {:.1f}s'
+                     .format(objtype, time()-start))
 
             if truths is not None:
                 # ADM make noiseless color-color plots
@@ -1776,10 +1810,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 # log.info('Made (mock) classification fraction plots for {}...t = {:.1f}s'.format(objtype, time()-start))
 
             # ADM make Gaia-based plots if we have Gaia columns
-#            if "PARALLAX" in targs.dtype.names and np.any(targs['PARALLAX'] != 0):
-#                qagaia(targs[ii], objtype, qadir=qadir, fileprefix="gaia")
-#                log.info('Made Gaia-based plots for {}...t = {:.1f}s'
-#                         .format(objtype, time()-start))
+            if "PARALLAX" in targs.dtype.names and np.any(targs['PARALLAX'] != 0):
+                qagaia(targs[ii], objtype, qadir=qadir, fileprefix="gaia")
+                log.info('Made Gaia-based plots for {}...t = {:.1f}s'
+                         .format(objtype, time()-start))
 
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
@@ -1790,7 +1824,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             _update_status(_generate_plots(objtype))
 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
-    return totarea
+    return totarea, densdict
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
@@ -1913,6 +1947,22 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     # ADM grab the magic string that writes the last-updated date to a webpage.
     js = _javastring()
 
+    # ADM make the plots for the page, if requested.
+    if makeplots:
+        if svs == "MAIN":
+            totarea, densdict = make_qa_plots(
+                targs, truths=truths, objtruths=objtruths, numproc=numproc,
+                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                weight=weight, imaging_map_file=imaging_map_file, mocks=mocks
+            )
+        else:
+            totarea, densdict = make_qa_plots(
+                targs, truths=truths, objtruths=objtruths, numproc=numproc,
+                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                weight=weight, imaging_map_file=imaging_map_file,
+                cmx=cmx, bit_mask=masks, mocks=mocks
+            )
+
     # ADM html preamble.
     htmlmain = open(htmlfile, 'w')
     htmlmain.write('<html><body>\n')
@@ -1937,6 +1987,22 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
         # ADM Target Densities.
         html.write('<h2>Target density</h2>\n')
+        # ADM Write out the densest pixels.
+        html.write('<pre>')
+        html.write('Densest HEALPixels (NSIDE={}; links are to LS viewer):\n'.format(
+            densdict[objtype]["NSIDE"]))
+        ras, decs, dens = densdict[objtype]["RA"], densdict[objtype]["DEC"], densdict[objtype]["DENSITY"]
+        for i in range(len(ras)):
+            ender = "   "
+            if i % 2 == 1:
+                ender = "\n"
+            link = '<A HREF="http://legacysurvey.org/viewer?'
+            link += 'ra={}&dec={}&layer={}&zoom=10" target="external">'.format(
+                ras[i], decs[i], DRs.split(",")[0].lower())
+            label = "RA: {:.3f}&deg; DEC: {:.3f}&deg;</A> DENSITY: {:.0f} deg<sup>-2</sup>".format(
+                ras[i], decs[i], dens[i])
+            html.write(link+label+ender)
+        html.write('</pre>')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots...
@@ -2065,18 +2131,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</html></body>\n')
         html.close()
 
-    # ADM make the QA plots, if requested:
     if makeplots:
-        if svs == "MAIN":
-            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths, numproc=numproc,
-                                    qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                                    weight=weight, imaging_map_file=imaging_map_file, mocks=mocks)
-        else:
-            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths, numproc=numproc,
-                                    qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                                    weight=weight, imaging_map_file=imaging_map_file,
-                                    cmx=cmx, bit_mask=masks, mocks=mocks)
-
         # ADM add a correlation matrix recording the overlaps between different target
         # ADM classes as a density.
         log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
