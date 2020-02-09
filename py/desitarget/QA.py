@@ -1767,11 +1767,12 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             else:
                 ii = targs["DESI_TARGET"] & d_mask[objtype] != 0
 
+        # ADM set up a dummy output in case there are no targets.
+        dd = {"RA": [], "DEC": [], "DENSITY": [], "NSIDE": []}
         if np.any(ii):
             # ADM make RA/Dec skymaps.
-            densdict[objtype] = qaskymap(targs[ii], objtype, weights=weights[ii],
-                                         qadir=qadir, upclip=upclipdict[objtype],
-                                         max_bin_area=max_bin_area)
+            dd = qaskymap(targs[ii], objtype, weights=weights[ii], qadir=qadir,
+                          upclip=upclipdict[objtype], max_bin_area=max_bin_area)
             log.info('Made sky map for {}...t = {:.1f}s'
                      .format(objtype, time()-start))
 
@@ -1815,13 +1816,19 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 log.info('Made Gaia-based plots for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
 
+        return {objtype: dd}
+
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            pool.map(_generate_plots, list(targdens.keys()), reduce=_update_status)
+            dens = pool.map(_generate_plots, list(targdens.keys()), reduce=_update_status)
     else:
+        dens = []
         for objtype in targdens:
-            _update_status(_generate_plots(objtype))
+            dens.append(_update_status(_generate_plots(objtype)))
+
+    # ADM manipulate the output array to make it a nested dictionary.
+    densdict = {list(i.keys())[0]: list(i.values())[0] for i in dens}
 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
     return totarea, densdict
