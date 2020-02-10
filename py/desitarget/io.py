@@ -2033,7 +2033,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
-   downsample : :class:`int`, optional, defaults to `None`
+    downsample : :class:`int`, optional, defaults to `None`
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
         targets returned.
