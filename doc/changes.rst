@@ -5,15 +5,21 @@ desitarget Change Log
 0.35.4 (unreleased)
 -------------------
 
-* Tune QSO SV selection for both North and South for dr9d [`PR #580`_].
 * Updates and fixes to QA for DR9 [`PR #584`_]. Includes:
     * Options to pre-process and downsample input files to speed testing.
     * Better labeling of QA output, including cleaning up labeling bugs.
     * Make points in scatter plots black to contrast with blue contours.
     * Smarter clipping of dense pixels in histogram plots and sky maps.
     * Print out densest pixels for each target class, with viewer links.
+* Update BGS Main target selection as stated in [`PR #581`_]. Includes:
+    * Changes in Fibre Magnitude Cut.
+    * LSLGA galaxies manually added to BGS.
+        * Future-proof LSLGA object references changing ('L2' --> 'LX').
+    * 'REF_CAT' information passed to throught '_prepare_optical_wise'.
+* Tune QSO SV selection for both North and South for dr9d [`PR #580`_].
 
 .. _`PR #580`: https://github.com/desihub/desitarget/pull/580
+.. _`PR #581`: https://github.com/desihub/desitarget/pull/581
 .. _`PR #584`: https://github.com/desihub/desitarget/pull/584
 
 0.35.3 (02-03-2020)
