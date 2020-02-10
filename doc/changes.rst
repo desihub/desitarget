@@ -10,6 +10,12 @@ desitarget Change Log
 0.35.3 (02-03-2020)
 -------------------
 
+* Updates and fixes to QA for DR9 [`PR #584`_]. Includes:
+    * Options to pre-process and downsample input files to speed testing.
+    * Better labeling of QA output, including cleaning up labeling bugs.
+    * Make points in scatter plots black to contrast with blue contours.
+    * Smarter clipping of dense pixels in histogram plots and sky maps.
+    * Print out densest pixels for each target class, with viewer links.
 * Further fixes for DR9 [`PR #579`_]. Includes:
     * Add ``SERSIC`` columns for the DR9 data model.
     * Read the bricks file in lower-case in :func:`get_brick_info()`:
@@ -17,15 +23,16 @@ desitarget Change Log
     * Set the default ``nside`` to ``None`` for the randoms:
         * To force the user to choose an ``nside``, or fail otherwise.
     * Fix a numpy future/deprecation warning.
-* Add LyA features to ``select_mock_targets`` [`PR #565`_].
 * Load yaml config file safely in ``mpi_select_mock_targets`` [`PR #577`_].
 * Fix bugs in updating primary targets with secondary bits set [`PR #574`_].
 * Adds more stellar SV targets [`PR #574`_].
+* Add LyA features to ``select_mock_targets`` [`PR #565`_].
 
 .. _`PR #565`: https://github.com/desihub/desitarget/pull/565
 .. _`PR #574`: https://github.com/desihub/desitarget/pull/574
 .. _`PR #577`: https://github.com/desihub/desitarget/pull/577
 .. _`PR #579`: https://github.com/desihub/desitarget/pull/579
+.. _`PR #584`: https://github.com/desihub/desitarget/pull/584
 
 0.35.2 (2019-12-20)
 -------------------
