@@ -5,7 +5,12 @@ desitarget Change Log
 0.35.4 (unreleased)
 -------------------
 
-* No changes yet.
+* Updates on BGS Main target selection as stated in [`PR #581`_]. Includes:
+    * Changes in Fibre Magnitude Cut.
+    * LSLGA galaxies manually added to BGS. Includes possible future changes to the reference to LSLGA objects ('L2' --> 'LX')
+    * 'REF_CAT' information passed to throught '_prepare_optical_wise'.
+    
+.. _`PR #581`: https://github.com/desihub/desitarget/pull/581
 
 0.35.3 (02-03-2020)
 -------------------

@@ -1476,7 +1476,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
                     tcnames, qso_optical_cuts, qso_selection,
-                    maskbits, Grr, primary, resolvetargs=True):
+                    maskbits, Grr, refcat, primary, resolvetargs=True):
     """Perform target selection on parameters, return target mask arrays.
 
     Returns
