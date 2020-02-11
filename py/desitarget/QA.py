@@ -216,7 +216,8 @@ def _load_targdens(tcnames=None, bit_mask=None):
         names = []
         for bit_mask in bit_masks:
             # ADM this is the list of words contained in bits that we don't want to consider for QA.
-            badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY", "BRIGHT_OBJECT", "SKY", "KNOWN"]
+            badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY",
+                        "BRIGHT_OBJECT", "SKY", "KNOWN", "BACKUP", "SCND"]
             names.append([name for name in bit_mask.names()
                           if not any(badname in name for badname in badnames)])
         targdens = {k: 0. for k in np.concatenate(names)}
@@ -1995,21 +1996,22 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         # ADM Target Densities.
         html.write('<h2>Target density</h2>\n')
         # ADM Write out the densest pixels.
-        html.write('<pre>')
-        html.write('Densest HEALPixels (NSIDE={}; links are to LS viewer):\n'.format(
-            densdict[objtype]["NSIDE"]))
-        ras, decs, dens = densdict[objtype]["RA"], densdict[objtype]["DEC"], densdict[objtype]["DENSITY"]
-        for i in range(len(ras)):
-            ender = "   "
-            if i % 2 == 1:
-                ender = "\n"
-            link = '<A HREF="http://legacysurvey.org/viewer?'
-            link += 'ra={}&dec={}&layer={}&zoom=10" target="external">'.format(
-                ras[i], decs[i], DRs.split(",")[0].lower())
-            label = "RA: {:.3f}&deg; DEC: {:.3f}&deg;</A> DENSITY: {:.0f} deg<sup>-2</sup>".format(
-                ras[i], decs[i], dens[i])
-            html.write(link+label+ender)
-        html.write('</pre>')
+        if makeplots:
+            html.write('<pre>')
+            html.write('Densest HEALPixels (NSIDE={}; links are to LS viewer):\n'.format(
+                densdict[objtype]["NSIDE"]))
+            ras, decs, dens = densdict[objtype]["RA"], densdict[objtype]["DEC"], densdict[objtype]["DENSITY"]
+            for i in range(len(ras)):
+                ender = "   "
+                if i % 2 == 1:
+                    ender = "\n"
+                link = '<A HREF="http://legacysurvey.org/viewer?'
+                link += 'ra={}&dec={}&layer={}&zoom=10" target="external">'.format(
+                    ras[i], decs[i], DRs.split(",")[0].lower())
+                label = "RA: {:.3f}&deg; DEC: {:.3f}&deg;</A> DENSITY: {:.0f} deg<sup>-2</sup>".format(
+                    ras[i], decs[i], dens[i])
+                html.write(link+label+ender)
+            html.write('</pre>')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots...
