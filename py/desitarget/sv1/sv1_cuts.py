@@ -584,8 +584,8 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.090+0.20)/2.5)
         mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.090+0.20)/2.5)
     else:
-        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.100+0.20)/2.5) 
-        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.100+0.20)/2.5) 
+        mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.100+0.20)/2.5)
+        mainseq &= rflux**(1+1.53) < gflux * zflux**1.53 * 10**((+0.100+0.20)/2.5)
 
     mainseq &= w2flux < w1flux * 10**(0.3/2.5)  # ADM W1 - W2 !(NOT) > 0.3
     qso &= ~mainseq
@@ -830,7 +830,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
         if south:
             pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
         else:
-            pcut = np.where(r_Reduced < 23.2,  0.50 + (r_Reduced-22.8)*.75, .80 + (r_Reduced-23.2)*.5) 
+            pcut = np.where(r_Reduced < 23.2,  0.50 + (r_Reduced-22.8)*.75, .80 + (r_Reduced-23.2)*.5)
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)

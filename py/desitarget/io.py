@@ -1776,7 +1776,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
 
 def read_target_files(filename, columns=None, rows=None, header=False,
-                      verbose=False):
+                      downsample=None, verbose=True):
     """Wrapper to cycle through allowed extensions to read target files.
 
     Parameters
@@ -1790,9 +1790,14 @@ def read_target_files(filename, columns=None, rows=None, header=False,
         Only read in these rows from the target file.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of the file.
+    downsample : :class:`int`, optional, defaults to `None`
+        If not `None`, downsample the file by this integer value, e.g.
+        for `downsample=10` a file with 900 rows would have 90 random
+        rows read in. Overrode by the `rows` kwarg if it is not `None`.
     verbose : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then log the file extension that was read.
+        If ``True`` then log the file and extension that was read.
     """
+    start = time()
     # ADM start with some checking that this is a target file.
     targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS"
     # ADM read in the FITS extention info.
@@ -1810,8 +1815,17 @@ def read_target_files(filename, columns=None, rows=None, header=False,
         log.error(msg)
         raise IOError(msg)
 
+    if downsample is not None and rows is None:
+        np.random.seed(616)
+        ntargs = fitsio.read_header(filename, extname)["NAXIS2"]
+        rows = np.random.choice(ntargs, ntargs//downsample, replace=False)
+
     targs, hdr = fitsio.read(filename, extname,
                              columns=columns, rows=rows, header=True)
+
+    if verbose:
+        log.info("Read {} targets from {}, extension {}...Took {:.1f}s".format(
+            len(targs), os.path.basename(filename), extname, time()-start))
 
     if header:
         return targs, hdr
@@ -1820,7 +1834,7 @@ def read_target_files(filename, columns=None, rows=None, header=False,
 
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
-                       header=False):
+                       header=False, downsample=None):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -1839,6 +1853,10 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+    downsample : :class:`int`, optional, defaults to `None`
+        If not `None`, downsample targets by (roughly) this value, e.g.
+        for `downsample=10` a set of 900 targets would have ~90 random
+        targets returned.
 
     Returns
     -------
@@ -1872,7 +1890,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the box.
         fn0 = list(filedict.values())[0]
-        notargs, nohdr = read_target_files(fn0, columns=columnscopy, header=True)
+        notargs, nohdr = read_target_files(fn0, columns=columnscopy,
+                                           header=True, downsample=downsample)
         notargs = np.zeros(0, dtype=notargs.dtype)
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -1890,7 +1909,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         start = time()
         for infile in infiles:
             targs, hdr = read_target_files(infile, columns=columnscopy,
-                                           header=True)
+                                           header=True, downsample=downsample)
             targets.append(targs)
         # ADM if targets is empty, return no targets.
         if len(targets) == 0:
@@ -1902,7 +1921,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     # ADM ...otherwise just read in the targets.
     else:
         targets, hdr = read_target_files(hpdirname, columns=columnscopy,
-                                         header=True)
+                                         header=True, downsample=downsample)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
@@ -1996,7 +2015,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
 
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
-                        columns=None, header=False):
+                        columns=None, header=False, downsample=None):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -2014,6 +2033,10 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+    downsample : :class:`int`, optional, defaults to `None`
+        If not `None`, downsample targets by (roughly) this value, e.g.
+        for `downsample=10` a set of 900 targets would have ~90 random
+        targets returned.
 
     Returns
     -------
@@ -2040,17 +2063,16 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     if os.path.isdir(hpdirname):
         # ADM approximate nside for area of passed box.
         nside = pixarea2nside(box_area(radecbox))
-
         # ADM HEALPixels that touch the box for that nside.
         pixlist = hp_in_box(nside, radecbox)
         # ADM read in targets in these HEALPixels.
         targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
-                                          columns=columnscopy,
-                                          header=True)
+                                          columns=columnscopy, header=True,
+                                          downsample=downsample)
     # ADM ...otherwise just read in the targets.
     else:
         targets, hdr = read_target_files(hpdirname, columns=columnscopy,
-                                         header=True)
+                                         header=True, downsample=downsample)
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
@@ -2140,7 +2162,7 @@ def read_targets_header(hpdirname):
 
     # ADM rows=[0] here, speeds up read_target_files retrieval
     # ADM of the header.
-    _, hdr = read_target_files(hpdirname, rows=[0], header=True)
+    _, hdr = read_target_files(hpdirname, rows=[0], header=True, verbose=False)
 
     return hdr
 

@@ -5,8 +5,9 @@ from __future__ import print_function, division
 import os, sys
 import numpy as np
 import fitsio
+from time import time
 
-from desitarget.QA import make_qa_page, _parse_tcnames
+from desitarget.QA import make_qa_page, _parse_tcnames, read_data
 from desitarget.io import read_targets_header
 
 from desiutil.log import get_logger
@@ -37,11 +38,17 @@ ap.add_argument('--nosystematics', action='store_true',
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use when generating plots [defaults to {}]'.format(nproc),
                 default=nproc)
+ap.add_argument("--downsample", type=int,
+                help='downsample the targets by (roughly) this value, as a speed-up.',
+                default=None)
+ap.add_argument("--prepare", action='store_true',
+                help='write a file to dest that is the equivalent of what is read from src (and just contains the columns needed for QA). This file can then be used in place of src in a subsequent run as a speed-up. Most effective is to run with --prepare set on a login node and then use the written file on compute nodes. Overrides all inputs except src, dest and downsample.')
 
+start = time()
 ns = ap.parse_args()
 
-# ADM fail if systematics were requested but no systematics map was passed
-if ns.weightmapfile is None and ns.nosystematics is False:
+# ADM fail if systematics were requested but no systematics map was passed.
+if ns.weightmapfile is None and ns.nosystematics is False and not ns.prepare:
     log.error("The weightmap file was not passed so systematics cannot be tracked. Try again sending --nosystematics.")
     raise IOError
 
@@ -71,11 +78,20 @@ if ns.nside:
 else:
     max_bin_area = 1.0
 
-log.info("generating plots on {} processors".format(ns.numproc))
-make_qa_page(ns.src, qadir=ns.dest, numproc=ns.numproc,
-             mocks=ns.mocks, makeplots=makeplots, max_bin_area=max_bin_area, 
-             imaging_map_file=ns.weightmapfile, tcnames=tcnames, systematics=systematics)
-log.info('Targeting QA pages and plots written to {}'.format(ns.dest))
-log.info('Mocks option was set to {}'.format(ns.mocks))
-log.info('No plots option was set to {}'.format(ns.noplots))
-log.info('No systematics option was set to {}'.format(ns.nosystematics))
+if ns.prepare:
+    fn = os.path.join(os.getenv("CSCRATCH"), ns.dest)
+    objs, _, _, hdr = read_data(ns.src, header=True, downsample=ns.downsample)
+    fitsio.write(fn+'.tmp', objs, extname='TARGETS', header=hdr, clobber=True)
+    os.rename(fn+'.tmp', fn)
+    log.info('{} targets written to {}'.format(len(objs), fn))
+else:
+    log.info("generating plots on {} processors".format(ns.numproc))
+    make_qa_page(ns.src, qadir=ns.dest, numproc=ns.numproc,
+                 mocks=ns.mocks, makeplots=makeplots, max_bin_area=max_bin_area,
+                 imaging_map_file=ns.weightmapfile, tcnames=tcnames,
+                 systematics=systematics, downsample=ns.downsample)
+    log.info('Targeting QA pages and plots written to {}...t={:.1f}s'.format(
+        ns.dest, time()-start))
+    log.info('Mocks option was set to {}'.format(ns.mocks))
+    log.info('No plots option was set to {}'.format(ns.noplots))
+    log.info('No systematics option was set to {}'.format(ns.nosystematics))

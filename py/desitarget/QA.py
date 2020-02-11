@@ -216,7 +216,8 @@ def _load_targdens(tcnames=None, bit_mask=None):
         names = []
         for bit_mask in bit_masks:
             # ADM this is the list of words contained in bits that we don't want to consider for QA.
-            badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY", "BRIGHT_OBJECT", "SKY", "KNOWN"]
+            badnames = ["NORTH", "SOUTH", "NO_TARGET", "SECONDARY",
+                        "BRIGHT_OBJECT", "SKY", "KNOWN", "BACKUP", "SCND"]
             names.append([name for name in bit_mask.names()
                           if not any(badname in name for badname in badnames)])
         targdens = {k: 0. for k in np.concatenate(names)}
@@ -334,19 +335,28 @@ def _javastring():
     return js
 
 
-def read_data(targfile, mocks=False):
+def read_data(targfile, mocks=False, downsample=None, header=False):
     """Read in the data, including any mock data (if present).
 
     Parameters
     ----------
     targfile : :class:`str`
-        The full path to a mock target file in the DESI X per cent survey directory structure
-        e.g., /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/, or to a
-        data file, or to a directory of HEALPixel-split target files which will be
-        read in with :func:`desitarget.io.read_targets_in_box`.
-
-    mocks : :class:`boolean`, optional, default=False
+        The full path to a mock target file in the DESI X per cent survey
+        directory structure, e.g.,
+        /global/projecta/projectdirs/desi/datachallenge/dc17b/targets/,
+        or to a data file, or to a directory of HEALPixel-split target
+        files which will be read in with
+        :func:`desitarget.io.read_targets_in_box`.
+    mocks : :class:`boolean`, optional, defaults to ``False``
         If ``True``, read in mock data.
+    downsample : :class:`int`, optional, defaults to `None`
+        If not `None`, downsample targets by (roughly) this value, e.g.
+        for `downsample=10` a set of 900 targets would have ~90 random
+        targets returned. A speed-up for experimenting with large files.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of the file as an additional
+        output (targs, truths, objtruths, header) instead of (targs,
+        truths, objtruths).
 
     Returns
     -------
@@ -356,7 +366,6 @@ def read_data(targfile, mocks=False):
         A rec array containing the truths catalog (if present and `mocks=True`).
     objtruths : :class:`dict`
         Object type-specific truth metadata (if present and `mocks=True`).
-
     """
     start = time()
 
@@ -380,7 +389,11 @@ def read_data(targfile, mocks=False):
     cols = np.concatenate([colnames, targcols])
 
     # ADM read in the targets catalog and return it.
-    targs = read_targets_in_box(targfile, columns=cols)
+    if header:
+        targs, hdr = read_targets_in_box(targfile, columns=cols,
+                                         downsample=downsample, header=True)
+    else:
+        targs = read_targets_in_box(targfile, columns=cols, header=False)
     log.info('Read in targets...t = {:.1f}s'.format(time()-start))
     truths, objtruths = None, None
 
@@ -405,56 +418,101 @@ def read_data(targfile, mocks=False):
 
         return targs, truths, objtruths
     else:
-        return targs, None, None
+        if header:
+            return targs, None, None, hdr
+        else:
+            return targs, None, None
 
 
-def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None, max_bin_area=1.0, fileprefix="skymap"):
+def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
+             max_bin_area=1.0, fileprefix="skymap"):
     """Visualize the target density with a skymap. First version lifted
-    shamelessly from :mod:`desitarget.mock.QA` (which was originally written by `J. Moustakas`).
+    shamelessly from :mod:`desitarget.mock.QA` (which was originally
+    written by `J. Moustakas`).
 
     Parameters
     ----------
     cat : :class:`~numpy.array`
-        An array of targets that contains at least ``RA`` and ``DEC`` columns for coordinate
-        information.
+        An array of targets that contains at least ``RA`` and ``DEC``
+        columns for coordinate information.
     objtype : :class:`str`
-        The name of a DESI target class (e.g., ``"ELG"``) that corresponds to the passed ``cat``.
+        The name of a DESI target class (e.g., ``"ELG"``) that
+        corresponds to the passed ``cat``.
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots.
     upclip : :class:`float`, optional, defaults to None
-        A cutoff at which to clip the targets at the "high density" end to make plots
-        conform to similar density scales.
+        A cutoff at which to clip the targets at the "high density"
+        end to make plots conform to similar density scales.
     weights : :class:`~numpy.array`, optional, defaults to None
-        A weight for each of the passed targets (e.g., to upweight each target in a
-        partial pixel at the edge of the DESI footprint).
+        A weight for each of the passed targets (e.g., to upweight each
+        target in a partial pixel at the edge of the DESI footprint).
     max_bin_area : :class:`float`, optional, defaults to 1 degree
-        The bin size in RA/Dec in `targs` is chosen to be as close as possible to this value.
+        The bin size in RA/Dec in `targs` is chosen to be as close as
+        possible to this value.
     fileprefix : :class:`str`, optional, defaults to ``"radec"`` for (RA/Dec)
         String to be added to the front of the output file name.
 
     Returns
     -------
-    Nothing
-        But a .png plot of target densities is written to ``qadir``. The file is called:
-        ``{qadir}/{fileprefix}-{objtype}.png``.
+    :class:`dict`
+        Dictionary of the 10 densest pixels in the DESI tiling. Includes
+        RA, DEC, DENSITY (per sq. deg.) and NSIDE for each HEALpixel.
+
+    Notes
+    -----
+    In addition to the returned dictionary, a .png sky map is written to
+    `qadir`. The file is called: `{qadir}/{fileprefix}-{objtype}.png`.
     """
-    label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
+    label = r'{} (targs deg$^{{-2}}$'.format(objtype)
+
     fig, ax = plt.subplots(1)
     ax = np.atleast_1d(ax)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        basemap = init_sky(galactic_plane_color='k', ax=ax[0])
-        plot_sky_binned(cat['RA'], cat['DEC'], weights=weights, max_bin_area=max_bin_area,
-                        clip_lo='!1', clip_hi=upclip, cmap='jet', plot_type='healpix',
-                        label=label, basemap=basemap)
+        # ADM grab the data needed to make the plot, masking values < 1
+        # ADM to ensure that areas outside of the footprint are empty.
+        _, data = plot_sky_binned(cat['RA'], cat['DEC'], weights=weights,
+                                  max_bin_area=max_bin_area, clip_lo='!1',
+                                  plot_type='healpix', colorbar=False,
+                                  return_grid_data=True)
+
+        # ADM use the plot data to find the densest pixels...
+        # ADM order indexes of unmasked HEALpixels by density.
+        denspix = np.arange(len(data))[~data.mask][np.argsort(data[~data.mask].data)]
+        # ADM find the RA/Dec of these ordered HEALPixels.
+        nside = hp.npix2nside(len(data))
+        theta, phi = hp.pix2ang(nside, denspix, nest=False)
+        ra, dec = np.degrees(phi), 90-np.degrees(theta)
+        # ADM clip to just Decs at which DESI will observe.
+        infoot = _in_desi_footprint([ra, dec], radec=True)
+        # ADM set up an output dictionary of the 10 densest pixels.
+        outdict = {"RA": ra[infoot][-10:], "DEC": dec[infoot][-10:],
+                   "DENSITY": data[denspix[infoot][-10:]].data, "NSIDE": nside}
+
+        # ADM if upclip was passed, just clip at that raw value.
+        if upclip is not None:
+            data.data[data.data > upclip] = upclip
+        # ADM otherwise, clip at percentiles and note them in the label.
+        else:
+            lo, hi = 5, 95
+            plo, phi = np.percentile(data[~data.mask], [lo, hi])
+            label += r'; {}% ({:.0f} deg$^{{-2}}$) < dens '.format(lo, plo)
+            label += r'< {}% ({:.0f} deg$^{{-2}}$)'.format(hi, phi)
+            data.data[data.data > phi] = phi
+            data.data[data.data < plo] = plo
+        label += ')'
+
+        # ADM Make the plot.
+        bm = init_sky(galactic_plane_color='k', ax=ax[0])
+        plot_healpix_map(data, nest=False, cmap="jet", label=label, basemap=bm)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, objtype))
     fig.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 
-    return
+    return outdict
 
 
 def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None,
@@ -678,15 +736,20 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     counts = np.bincount(pixels, weights=weights, minlength=npix)
     dens = counts[np.flatnonzero(counts)] / bin_area
 
-    label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
+    dhi, dlo = dens.min(), dens.max()
 
-    densmin, densmax = dens.min(), dens.max()
-    ddens = 0.05 * (densmax - densmin)
-
-    if upclip:
+    if upclip is not None:
+        densmin, densmax = dhi, dlo
         xmin, xmax = 1, upclip
+        xplotmin, xplotmax = 0, upclip
+        label = r'{} (targets deg$^{{-2}}$)'.format(objtype)
     else:
+        # ADM restrict density range to 0.5->99.5% to clip outliers.
+        densmin, densmax = np.percentile(dens, [0.5, 99.5])
         xmin, xmax = densmin, densmax
+        xplotmin, xplotmax = densmin*0.9, densmax*1.1
+        label = r'{} (targets deg$^{{-2}}$; central 99% of densities)'.format(objtype)
+    ddens = 0.05 * (densmax - densmin)
 
     if ddens == 0:  # small number of pixels
         nbins = 5
@@ -706,7 +769,7 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
     # ADM set up and make the plot.
     plt.clf()
     # ADM only plot to just less than upclip, to prevent displaying pile-ups in that bin.
-    plt.xlim((0, 0.95*xmax))
+    plt.xlim((xplotmin, xplotmax))
     # ADM give a little space for labels on the y-axis.
     plt.ylim((0, ypeak*1.2))
     plt.xlabel(label)
@@ -720,8 +783,9 @@ def qahisto(cat, objtype, qadir='.', targdens=None, upclip=None, weights=None, m
 
     if objtype in targdens.keys():
         plt.axvline(targdens[objtype], ymax=0.8, ls='--', color='k',
-                    label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(objtype, targdens[objtype]))
-    plt.legend(loc='upper left', frameon=False, fontsize=11)
+                    label=r'Goal {} Density (Goal={:.0f} deg$^{{-2}}$)'.format(
+                        objtype, targdens[objtype]))
+    plt.legend(loc='upper left', frameon=False, fontsize=10)
 
     # ADM add some metric conditions which are considered a failure for this
     # ADM target class...only for classes that have an expected target density.
@@ -1334,7 +1398,8 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     r = 22.5-2.5*np.log10(rflux.clip(loclip))
     z = 22.5-2.5*np.log10(zflux.clip(loclip))
     W1 = 22.5-2.5*np.log10(w1flux.clip(loclip))
-    W2 = 22.5-2.5*np.log10(w2flux.clip(loclip))
+    # ADM Modify W2 slightly so the W1-W2 color doesn't pile up at 0.
+    W2 = 22.5-2.5*np.log10(w2flux.clip(loclip*100))
 
     # For QSOs only--
     W = 0.75 * W1 + 0.25 * W2
@@ -1362,12 +1427,12 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     #     zW1lim = (-3, 2.5)
     #     W1W2lim = (-3, 2.5)
     # else:
-    zW1lim = (-1.0, 3.5)
-    W1W2lim = (-1.0, 1.2)
+    zW1lim = (-1.5, 3.5)
+    W1W2lim = (-1.5, 1.5)
 
     cmap = plt.cm.get_cmap('RdYlBu')
 
-    objcolor = {'ALL': 'black', objtype: 'blue'}
+    objcolor = {'ALL': 'black', objtype: 'black'}
     type2color = {**_type2color, **objcolor}
 
     #  Make the plots!
@@ -1481,7 +1546,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
         plt.close()
 
 
-def _in_desi_footprint(targs):
+def _in_desi_footprint(targs, radec=False):
     """Convenience function for using is_point_in_desi to find which targets are in the footprint.
 
     Parameters
@@ -1489,7 +1554,9 @@ def _in_desi_footprint(targs):
     targs : :class:`~numpy.array` or `str`
         Targets in the DESI data model format, or any array that
         contains ``RA`` and ``DEC`` columns.
-
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead of
+        a rec array.
     Returns
     -------
     :class:`integer`
@@ -1501,13 +1568,18 @@ def _in_desi_footprint(targs):
     log.info('Start restricting to DESI footprint...t = {:.1f}s'
              .format(time()-start))
 
+    if radec:
+        ra, dec = targs
+    else:
+        ra, dec = targs["RA"], targs["DEC"]
+
     # ADM restrict targets to just the DESI footprint.
     from desimodel import io, footprint
-    indesi = footprint.is_point_in_desi(io.load_tiles(), targs["RA"], targs["DEC"])
+    indesi = footprint.is_point_in_desi(io.load_tiles(), ra, dec)
     windesi = np.where(indesi)
     if len(windesi[0]) > 0:
         log.info("{:.3f}% of targets are in official DESI footprint"
-                 .format(100.*len(windesi[0])/len(targs)))
+                 .format(100.*len(windesi[0])/len(ra)))
     else:
         log.error("ZERO input targets are within the official DESI footprint!!!")
 
@@ -1525,38 +1597,40 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     Parameters
     ----------
     targs : :class:`~numpy.array` or `str`
-        An array of targets in the DESI data model format. If a string is passed then the
-        targets are read from the file with the passed name (supply the full directory path).
+        Array of targets in the DESI data model format. If a string is
+        passed then the targets are read from the file with the passed
+        name (supply the full directory path).
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots.
-    targdens : :class:`dictionary`, optional, set automatically by the code if not passed
-        A dictionary of DESI target classes and the goal density for that class. Used to
-        label the goal density on histogram plots.
+    targdens : :class:`dictionary`, optional
+        A dictionary of DESI target classes and the goal density for
+        that class. Used to label the goal density on histogram plots.
     max_bin_area : :class:`float`, optional, defaults to 1 degree
-        The bin size in RA/Dec in `targs` is chosen to be as close as possible to this value.
+        The bin size for sky maps in RA/Dec correspond to this value.
     weight : :class:`boolean`, optional, defaults to True
-        If this is set, weight pixels using the ``DESIMODEL`` HEALPix footprint file to
-        ameliorate under dense pixels at the footprint edges.
+        If set, weight pixels using the ``DESIMODEL`` HEALPix footprint
+        file to offset under-dense pixels at the footprint edges.
     imaging_map_file : :class:`str`, optional, defaults to no weights
-        If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:` desitarget.randoms.pixmap()` if this is not
-        sent, then the weights default to 1 everywhere (i.e. no weighting).
+        If `weight` is set, this file is the location of the imaging
+        HEALPixel map (e.g. made by :func:` desitarget.randoms.pixmap()`.
+        If not sent, then weights default to 1 (i.e. no weighting).
     truths : :class:`~numpy.array` or `str`
-        The truth objects from which the targs were derived in the DESI data model format.
-        If a string is passed then read from that file (supply the full directory path).
+        The truth objects from which the targs were derived in the DESI
+        data model format. If a string is passed then read from that file
+        (supply the full directory path).
     objtruths : :class:`dict`
         Object type-specific truth metadata.
     tcnames : :class:`list`, defaults to None
-        A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
-        for those specific bits. A useful speed-up when testing.
+        Strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA
+        pages for those specific bits. A useful speed-up when testing.
     cmx : :class:`boolean`, defaults to ``False``
-        Pass as ``True`` to operate on commissioning bits instead of SV or main survey
-        bits. Commissioning files have no MWS or BGS columns.
-    bit_mask : :class:`list` or `~numpy.array`, optional, defaults to ``None``
-        Load the bit names from this passed mask or list of masks (with zero density
-        constraints) instead of the main survey bits.
+        Pass as ``True`` to use commissioning bits instead of SV or main
+        survey bits. Commissioning files have no MWS or BGS columns.
+    bit_mask : :class:`list` or `~numpy.array`, optional
+        Load bit names from this passed mask or list of masks instead of
+        from the (default) main survey mask.
     mocks : :class:`boolean`, optional, default=False
-        If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
+        If ``True``, also make plots that are only relevant to mocks.
     numproc : :class:`int`, optional, defaults to 8
         The number of parallel processes to use to generate plots.
 
@@ -1564,12 +1638,16 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     -------
     :class:`float`
         The total area of the survey used to make the QA plots.
+    :class:`dict`
+        A nested dictionary of each of the bit-names. Each bit-key has a
+        dictionary of the 10 densest pixels in the DESI tiling. Includes
+        RA, DEC, DENSITY (per sq. deg.) and NSIDE for each HEALpixel.
 
     Notes
     -----
-        - The ``DESIMODEL`` environment variable must be set to find the default expected
-          target densities.
-        - On execution, a set of .png plots for target QA are written to `qadir`.
+        - The ``DESIMODEL`` environment variable must be set to find the
+          default expected target densities.
+        - When run, a set of targeting .png plots are written to `qadir`.
     """
     # ADM set up the default logger from desiutil.
     log = get_logger()
@@ -1646,7 +1724,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
 
     # ADM clip the target densities at an upper density to improve plot edges
     # ADM by rejecting highly dense outliers.
-    upclipdict = {k: 5000. for k in targdens}
+    upclipdict = {k: None for k in targdens}
     if bit_mask is not None:
         if cmx:
             d_mask = bit_mask[0]
@@ -1665,6 +1743,9 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
     nbits = len(targdens)
     nbit = np.ones((), dtype='i8')
     t0 = time()
+
+    # ADM this will hold dictionaries of the densest pixels for each bit.
+    densdict = {}
 
     def _update_status(result):
         """wrapper function for the critical reduction operation,
@@ -1687,10 +1768,12 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
             else:
                 ii = targs["DESI_TARGET"] & d_mask[objtype] != 0
 
+        # ADM set up a dummy output in case there are no targets.
+        dd = {"RA": [], "DEC": [], "DENSITY": [], "NSIDE": []}
         if np.any(ii):
             # ADM make RA/Dec skymaps.
-            qaskymap(targs[ii], objtype, qadir=qadir, upclip=upclipdict[objtype],
-                     weights=weights[ii], max_bin_area=max_bin_area)
+            dd = qaskymap(targs[ii], objtype, weights=weights[ii], qadir=qadir,
+                          upclip=upclipdict[objtype], max_bin_area=max_bin_area)
             log.info('Made sky map for {}...t = {:.1f}s'
                      .format(objtype, time()-start))
 
@@ -1734,57 +1817,68 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
                 log.info('Made Gaia-based plots for {}...t = {:.1f}s'
                          .format(objtype, time()-start))
 
+        return {objtype: dd}
+
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            pool.map(_generate_plots, list(targdens.keys()), reduce=_update_status)
+            dens = pool.map(_generate_plots, list(targdens.keys()), reduce=_update_status)
     else:
+        dens = []
         for objtype in targdens:
-            _update_status(_generate_plots(objtype))
+            dens.append(_update_status(_generate_plots(objtype)))
+
+    # ADM manipulate the output array to make it a nested dictionary.
+    densdict = {list(i.keys())[0]: list(i.values())[0] for i in dens}
 
     log.info('Made QA plots...t = {:.1f}s'.format(time()-start))
-    return totarea
+    return totarea, densdict
 
 
 def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.',
                  clip2foot=False, weight=True, imaging_map_file=None,
-                 tcnames=None, systematics=True, numproc=8):
-    """Create a directory containing a webpage structure in which to embed QA plots.
+                 tcnames=None, systematics=True, numproc=8, downsample=None):
+    """Make a directory containing a webpage in which to embed QA plots.
 
     Parameters
     ----------
     targs : :class:`~numpy.array` or `str`
-        An array of targets in the DESI data model format. If a string is passed then the
-        targets are read from the file with the passed name (supply the full directory path).
-        The string can also be a directory of HEALPixel-split target files which will be
-        read in with :func:`desitarget.io.read_targets_in_box`.
+        An array of targets in the DESI data model format. If a string is
+        passed then the targets are read from the file with the passed
+        name (supply the full directory path). The string can also be a
+        directory of HEALPixel-split target files which will be read in
+        using :func:`desitarget.io.read_targets_in_box`.
     mocks : :class:`boolean`, optional, default=False
-        If ``True``, add plots that are only relevant to mocks at the bottom of the webpage.
+        If ``True``, add plots only relevant to mocks to the webpage.
     makeplots : :class:`boolean`, optional, default=True
         If ``True``, then create the plots as well as the webpage.
     max_bin_area : :class:`float`, optional, defaults to 1 degree
-        The bin size in RA/Dec in `targs` is chosen to be as close as possible to this value.
+        Bin size in RA/Dec is set as close as possible to this value.
     qadir : :class:`str`, optional, defaults to the current directory
         The output directory to which to write produced plots.
     clip2foot : :class:`boolean`, optional, defaults to False
-        use :mod:`desimodel.footprint.is_point_in_desi` to restrict the passed targets to
-        only those that lie within the DESI spectroscopic footprint.
+        Use :mod:`desimodel.footprint.is_point_in_desi` to restrict
+        `targs` to the DESI spectroscopic footprint.
     weight : :class:`boolean`, optional, defaults to ``True``
-        If this is set, weight pixels to ameliorate under dense pixels at the footprint
-        edges. This uses the `imaging_map_file` HEALPix file for real targets and the default
-        ``DESIMODEL`` HEALPix footprint file for mock targets.
+        If set, weight pixels to offset under-dense pixels at footprint
+        edges. Uses the `imaging_map_file` HEALPix file for real targets
+        and the ``DESIMODEL`` HEALPix footprint file for mock targets.
     imaging_map_file : :class:`str`, optional, defaults to no weights
-        If `weight` is set, then this file contains the location of the imaging HEALPixel
-        map (e.g. made by :func:`desitarget.randoms.pixmap`. If this is not sent,
-        then the weights default to 1 everywhere (i.e. no weighting) for the real targets.
+        If `weight` is set, then this is the location of the imaging
+        HEALPix map (e.g. made by :func:`desitarget.randoms.pixmap`).
+        Defaults to 1 everywhere (i.e. no weights) for the real targets.
         If this is not set, then systematics plots cannot be made.
     tcnames : :class:`list`
-        A list of strings, e.g. ['QSO','LRG','ALL'] If passed, return only the QA pages
-        for those specific bits. A useful speed-up when testing
+        String-list, e.g. ['QSO','LRG','ALL'] If passed, return only QA
+        pages for those specific bits. A useful speed-up when testing.
     systematics : :class:`boolean`, optional, defaults to ``True``
         If sent, then add plots of systematics to the front page.
     numproc : :class:`int`, optional, defaults to 8
         The number of parallel processes to use to generate plots.
+    downsample : :class:`int`, optional, defaults to `None`
+        If not `None`, downsample targets by (roughly) this value, e.g.
+        for `downsample=10` a set of 900 targets would have ~90 random
+        targets returned. A speed-up for experimenting with large files.
 
     Returns
     -------
@@ -1812,8 +1906,12 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     start = time()
     log.info('Start making targeting QA page...t = {:.1f}s'.format(time()-start))
 
+    if downsample is not None:
+        log.info('Downsampling by a factor of {}'.format(downsample))
+
     if isinstance(targs, str):
-        targs, truths, objtruths = read_data(targs, mocks=mocks)
+        targs, truths, objtruths = read_data(targs, mocks=mocks,
+                                             downsample=downsample)
     else:
         if mocks:
             log.warning('Please pass the filename to the targeting catalog so the "mock" QA plots can be generated.')
@@ -1842,7 +1940,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         DRs = 'Mock Targets'
     else:
         if 'RELEASE' in targs.dtype.names:
-            DRs = ", ".join(["DR{}".format(release) for release in np.unique(targs["RELEASE"])//1000])
+            DRs = ", ".join(["DR{}".format(release)
+                             for release in np.unique(targs["RELEASE"]//1000)])
         else:
             DRs = "DR Unknown"
 
@@ -1855,6 +1954,22 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
     # ADM grab the magic string that writes the last-updated date to a webpage.
     js = _javastring()
+
+    # ADM make the plots for the page, if requested.
+    if makeplots:
+        if svs == "MAIN":
+            totarea, densdict = make_qa_plots(
+                targs, truths=truths, objtruths=objtruths, numproc=numproc,
+                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                weight=weight, imaging_map_file=imaging_map_file, mocks=mocks
+            )
+        else:
+            totarea, densdict = make_qa_plots(
+                targs, truths=truths, objtruths=objtruths, numproc=numproc,
+                qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
+                weight=weight, imaging_map_file=imaging_map_file,
+                cmx=cmx, bit_mask=masks, mocks=mocks
+            )
 
     # ADM html preamble.
     htmlmain = open(htmlfile, 'w')
@@ -1880,6 +1995,23 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
         # ADM Target Densities.
         html.write('<h2>Target density</h2>\n')
+        # ADM Write out the densest pixels.
+        if makeplots:
+            html.write('<pre>')
+            html.write('Densest HEALPixels (NSIDE={}; links are to LS viewer):\n'.format(
+                densdict[objtype]["NSIDE"]))
+            ras, decs, dens = densdict[objtype]["RA"], densdict[objtype]["DEC"], densdict[objtype]["DENSITY"]
+            for i in range(len(ras)):
+                ender = "   "
+                if i % 2 == 1:
+                    ender = "\n"
+                link = '<A HREF="http://legacysurvey.org/viewer?'
+                link += 'ra={}&dec={}&layer={}&zoom=10" target="external">'.format(
+                    ras[i], decs[i], DRs.split(",")[0].lower())
+                label = "RA: {:.3f}&deg; DEC: {:.3f}&deg;</A> DENSITY: {:.0f} deg<sup>-2</sup>".format(
+                    ras[i], decs[i], dens[i])
+                html.write(link+label+ender)
+            html.write('</pre>')
         html.write('<table COLS=2 WIDTH="100%">\n')
         html.write('<tr>\n')
         # ADM add the plots...
@@ -2008,18 +2140,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         html.write('</html></body>\n')
         html.close()
 
-    # ADM make the QA plots, if requested:
     if makeplots:
-        if svs == "MAIN":
-            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths, numproc=numproc,
-                                    qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                                    weight=weight, imaging_map_file=imaging_map_file, mocks=mocks)
-        else:
-            totarea = make_qa_plots(targs, truths=truths, objtruths=objtruths, numproc=numproc,
-                                    qadir=qadir, targdens=targdens, max_bin_area=max_bin_area,
-                                    weight=weight, imaging_map_file=imaging_map_file,
-                                    cmx=cmx, bit_mask=masks, mocks=mocks)
-
         # ADM add a correlation matrix recording the overlaps between different target
         # ADM classes as a density.
         log.info('Making correlation matrix...t = {:.1f}s'.format(time()-start))
@@ -2035,6 +2156,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         if svs[0:2] == 'SV':
             for tc in 'QSO', 'ELG', 'LRG', 'BGS', 'MWS':
                 hl = [h.replace(tc, tc[0]) for h in hl]
+                # ADM also change SUPER->SUP to squeeze space
+                hl = [h.replace('SUPER', 'SUP') for h in hl]
         # ADM truncate the bit names at "trunc" characters to pack them more easily.
         trunc = 8
         truncform = '{:>'+str(trunc)+'s}'
