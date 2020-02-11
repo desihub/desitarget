@@ -996,10 +996,10 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
                          gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
                          gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
 
-    bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, 
+    bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                         w2flux=w2flux, south=south, targtype=targtype, primary=primary)
-    
-    bgs |= isBGS_lslga(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, refcat=refcat, 
+
+    bgs |= isBGS_lslga(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, refcat=refcat,
                        south=south, targtype=targtype)
 
     return bgs
@@ -1046,7 +1046,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     return bgs
 
 
-def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, 
+def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
                  w2flux=None, south=True, targtype=None, primary=None):
     """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
@@ -1086,7 +1086,7 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     fmc |= ((rfib < 2.9 + r) & (r > 20))
 
     bgs &= fmc
-    
+
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
     elif targtype == 'faint':
@@ -1098,20 +1098,22 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
 
     return bgs
 
-def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None, 
+
+def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
                 south=True, targtype=None):
     """Module to recover the LSLGA objects in all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
-    
+
     bgs = np.zeros_like(rflux, dtype='?')
-    
-    #the LSLGA galaxies
+
+    # the LSLGA galaxies.
     if refcat is None:
         LX = bgs.copy()
     else:
-        #LX |= ((refcat == 'L2') | (refcat == b'L2') | (refcat == 'L2 ') | (refcat == b'L2 ')) #for DR8
+        # LX |= ((refcat == 'L2') | (refcat == b'L2') |
+        # (refcat == 'L2 ') | (refcat == b'L2 ')) #for DR8.
         LX = bgs.copy()
         try:
             LX = np.array([rc.decode()[0] == "L" for rc in refcat], dtype=bool)
@@ -1122,11 +1124,11 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
             for i, rc in enumerate(refcat):
                 if len(rc) > 0:
                     LX[i] = ((rc.decode()[0] == "L") | (rc[0] == ord("L")))
-                else: 
+                else:
                     LX[i] = False
-        
+
     bgs |= LX
-    
+
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
     elif targtype == 'faint':
@@ -1535,7 +1537,7 @@ def _prepare_optical_wise(objects, mask=True):
     zsnr = objects['FLUX_Z'] * np.sqrt(objects['FLUX_IVAR_Z'])
     w1snr = objects['FLUX_W1'] * np.sqrt(objects['FLUX_IVAR_W1'])
     w2snr = objects['FLUX_W2'] * np.sqrt(objects['FLUX_IVAR_W2'])
-    
+
     refcat = objects['REF_CAT']
 
     maskbits = objects['MASKBITS']
