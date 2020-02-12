@@ -5,6 +5,7 @@ desitarget Change Log
 0.35.4 (unreleased)
 -------------------
 
+* Noting (here) that we used the BFG to excise lots of junk [`PR #585`_].
 * Updates and fixes to QA for DR9 [`PR #584`_]. Includes:
     * Options to pre-process and downsample input files to speed testing.
     * Better labeling of QA output, including cleaning up labeling bugs.
@@ -21,6 +22,7 @@ desitarget Change Log
 .. _`PR #580`: https://github.com/desihub/desitarget/pull/580
 .. _`PR #581`: https://github.com/desihub/desitarget/pull/581
 .. _`PR #584`: https://github.com/desihub/desitarget/pull/584
+.. _`PR #585`: https://github.com/desihub/desitarget/pull/585
 
 0.35.3 (02-03-2020)
 -------------------
