@@ -1109,23 +1109,14 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
     bgs = np.zeros_like(rflux, dtype='?')
 
     # the LSLGA galaxies.
-    if refcat is None:
-        LX = bgs.copy()
-    else:
-        # LX |= ((refcat == 'L2') | (refcat == b'L2') |
-        # (refcat == 'L2 ') | (refcat == b'L2 ')) #for DR8.
-        LX = bgs.copy()
-        try:
-            LX = np.array([rc.decode()[0] == "L" for rc in refcat], dtype=bool)
-        except AttributeError:
-            LX = np.array([rc[0] == "L" for rc in refcat], dtype=bool)
-        except IndexError:
-            LX = np.empty(len(refcat), dtype=bool)
-            for i, rc in enumerate(refcat):
-                if len(rc) > 0:
-                    LX[i] = ((rc.decode()[0] == "L") | (rc[0] == ord("L")))
-                else:
-                    LX[i] = False
+    LX = bgs.copy()
+    # ADM Could check on "L2" for DR8, need to check on "LX" post-DR8.
+    if refcat is not None:
+        if isinstance(np.atleast_1d(refcat)[0], str):
+            LX = [(rc[0] == "L") if len(rc) > 0 else False for rc in refcat]
+        else:
+            LX = [(rc.decode()[0] == "L") if len(rc) > 0 else False for rc in refcat]
+        LX = np.array(LX, dtype=bool)
 
     bgs |= LX
 
