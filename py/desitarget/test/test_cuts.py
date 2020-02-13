@@ -143,9 +143,11 @@ class TestCuts(unittest.TestCase):
         for ff in zfiberflux, None:
             lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
                               zflux=zflux, w1flux=w1flux, zfiberflux=ff,
+                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                               rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
             lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux,
                               w1flux=w1flux, zfiberflux=ff,
+                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                               rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
             self.assertTrue(np.all(lrg1 == lrg2))
 
@@ -198,11 +200,15 @@ class TestCuts(unittest.TestCase):
         release = targets['RELEASE']
         # - Test that objtype and primary are optional
         psftype = targets['TYPE']
-        qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+        qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux,
+                               w1flux=w1flux, w2flux=w2flux,
+                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                                deltaChi2=deltaChi2, maskbits=maskbits,
                                w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
                                release=release)
-        qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+        qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux,
+                               w1flux=w1flux, w2flux=w2flux,
+                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                                deltaChi2=deltaChi2, maskbits=maskbits,
                                w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
                                release=release)

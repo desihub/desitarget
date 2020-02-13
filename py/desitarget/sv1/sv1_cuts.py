@@ -1592,7 +1592,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
-                    gnobs=gnobs, rnobs=rnobs, znobs=znobs
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     dchisq=dchisq, maskbits=maskbits,
                     objtype=objtype, w1snr=w1snr, w2snr=w2snr,
                     south=south
