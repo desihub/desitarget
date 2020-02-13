@@ -91,7 +91,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
           zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          primary=None, south=True):
+          gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
 
     Parameters
@@ -126,7 +126,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux,
+        zfiberflux=zfiberflux, gnobs=None, rnobs=None, znobs=None,
         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
     )
 
@@ -141,7 +141,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
-                  zfiberflux=None,
+                  zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
                   rflux_snr=None, zflux_snr=None, w1flux_snr=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
@@ -162,6 +162,9 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+
+    # ADM observed in every band.
+    lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     return lrg
 
@@ -1512,7 +1515,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 primary=primary, south=south,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, rflux_snr=rsnr, zflux_snr=zsnr,
-                w1flux_snr=w1snr
+                w1flux_snr=w1snr, gnobs=gnobs, rnobs=rnobs, znobs=znobs
             )
     lrg_north, lrginit_n_4, lrgsup_n_4, lrginit_n_8, lrgsup_n_8 = lrg_classes[0]
     lrg_south, lrginit_s_4, lrgsup_s_4, lrginit_s_8, lrgsup_s_8 = lrg_classes[1]
