@@ -198,7 +198,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          primary=None, south=True):
+          gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
     """
     Parameters
     ----------
@@ -225,7 +225,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM basic quality cuts.
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux,
+        zfiberflux=zfiberflux, gnobs=None, rnobs=None, znobs=None,
         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
     )
 
@@ -239,7 +239,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
-                  zfiberflux=None,
+                  zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
                   rflux_snr=None, zflux_snr=None, w1flux_snr=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
@@ -260,6 +260,9 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+
+    # ADM observed in every band.
+    lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     return lrg
 
