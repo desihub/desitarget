@@ -225,7 +225,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM basic quality cuts.
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux, gnobs=None, rnobs=None, znobs=None,
+        zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
     )
 
@@ -1803,7 +1803,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             lrg_classes[int(south)] = isLRG(
                 primary=primary,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                zfiberflux=zfiberflux,
+                zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
             )
     lrg_north, lrg_south = lrg_classes
@@ -1838,7 +1838,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
                     deltaChi2=deltaChi2, maskbits=maskbits,
-                    gnobs=None, rnobs=None, znobs=None,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
                     optical=qso_optical_cuts, south=south
                 )
@@ -1847,7 +1847,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 qso_classes[int(south)] = isQSO_randomforest(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
-                    maskbits=maskbits, gnobs=None, rnobs=None, znobs=None,
+                    maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     objtype=objtype, release=release, south=south
                 )
             else:
