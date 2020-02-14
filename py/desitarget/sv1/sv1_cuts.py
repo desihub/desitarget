@@ -91,7 +91,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
           zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          primary=None, south=True):
+          gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
 
     Parameters
@@ -126,7 +126,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux,
+        zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
     )
 
@@ -141,7 +141,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
-                  zfiberflux=None,
+                  zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
                   rflux_snr=None, zflux_snr=None, w1flux_snr=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
@@ -162,6 +162,9 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+
+    # ADM observed in every band.
+    lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     return lrg
 
@@ -478,7 +481,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 def isQSO_cuts(gflux=None, rflux=None, zflux=None,
                w1flux=None, w2flux=None, w1snr=None, w2snr=None,
                dchisq=None, maskbits=None, objtype=None,
-               primary=None, south=True):
+               gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
     """Definition of QSO target classes from color cuts. Returns a boolean array.
 
     Parameters
@@ -509,6 +512,9 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     if maskbits is not None:
         for bit in [1, 10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
+
+    # ADM observed in every band.
+    qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
@@ -593,7 +599,8 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return qso
 
 
-def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, south=True):
+def isQSO_color_high_z(gflux=None, rflux=None, zflux=None,
+                       w1flux=None, w2flux=None, south=True):
     """
     Color cut to select Highz QSO (z>~2.)
     """
@@ -623,8 +630,9 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     return qso_hz
 
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, dchisq=None, maskbits=None,
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
+                       w2flux=None, objtype=None, release=None, dchisq=None,
+                       maskbits=None, gnobs=None, rnobs=None, znobs=None,
                        primary=None, south=True):
     """Definition of QSO target class using random forest. Returns a boolean array.
 
@@ -663,6 +671,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     rMax = 23.0  # r < 23.0 (different for SV)
     rMin = 17.5  # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    # ADM observed in every band.
+    preSelection &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
@@ -736,9 +747,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     return qso
 
 
-def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      objtype=None, release=None, dchisq=None, maskbits=None,
-                      primary=None, south=True):
+def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
+                      w2flux=None, objtype=None, release=None, dchisq=None,
+                      gnobs=None, rnobs=None, znobs=None,
+                      maskbits=None, primary=None, south=True):
     """Definition of QSO target for highz (z>2.0) faint QSOs. Returns a boolean array.
 
     Parameters
@@ -777,6 +789,9 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     rMax = 23.5  # r < 23.5
     rMin = 22.7  # r > 22.7
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    # ADM observed in every band.
+    preSelection &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # Color Selection of QSO with z>2.0.
     wflux = 0.75*w1flux + 0.25*w2flux
@@ -845,10 +860,11 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
 def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
                  gsnr=None, rsnr=None, zsnr=None,
+                 gnobs=None, rnobs=None, znobs=None,
                  w1flux=None, w2flux=None, w1snr=None, w2snr=None,
                  dchisq=None, maskbits=None, objtype=None, primary=None,
                  south=True):
-    """Definition of z~5 QSO target classes from color cuts. Returns a boolean array.
+    """Definition of z~5 QSO targets from color cuts. Returns a boolean array.
 
     Parameters
     ----------
@@ -879,6 +895,9 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
         # for bit in [1, 10, 12, 13]:
         for bit in [10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
+
+    # ADM observed in every band.
+    qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
@@ -1512,7 +1531,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 primary=primary, south=south,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, rflux_snr=rsnr, zflux_snr=zsnr,
-                w1flux_snr=w1snr
+                w1flux_snr=w1snr, gnobs=gnobs, rnobs=rnobs, znobs=znobs
             )
     lrg_north, lrginit_n_4, lrgsup_n_4, lrginit_n_8, lrgsup_n_8 = lrg_classes[0]
     lrg_south, lrginit_s_4, lrgsup_s_4, lrginit_s_8, lrgsup_s_8 = lrg_classes[1]
@@ -1573,6 +1592,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     dchisq=dchisq, maskbits=maskbits,
                     objtype=objtype, w1snr=w1snr, w2snr=w2snr,
                     south=south
@@ -1588,6 +1608,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     isQSO_randomforest(
                         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                         w1flux=w1flux, w2flux=w2flux,
+                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         dchisq=dchisq, maskbits=maskbits,
                         objtype=objtype, south=south
                     )
@@ -1596,6 +1617,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     isQSO_highz_faint(
                         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                         w1flux=w1flux, w2flux=w2flux,
+                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         dchisq=dchisq, maskbits=maskbits,
                         objtype=objtype, south=south
                     )
@@ -1610,6 +1632,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 isQSOz5_cuts(
                     primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
                     gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     w1flux=w1flux, w2flux=w2flux, w1snr=w1snr, w2snr=w2snr,
                     dchisq=dchisq, maskbits=maskbits, objtype=objtype,
                     south=south

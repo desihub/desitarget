@@ -198,7 +198,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          primary=None, south=True):
+          gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
     """
     Parameters
     ----------
@@ -225,7 +225,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM basic quality cuts.
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux,
+        zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
     )
 
@@ -239,7 +239,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
-                  zfiberflux=None,
+                  zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
                   rflux_snr=None, zflux_snr=None, w1flux_snr=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
@@ -260,6 +260,9 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+
+    # ADM observed in every band.
+    lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     return lrg
 
@@ -1134,6 +1137,7 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
 
 def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                w1snr=None, w2snr=None, deltaChi2=None, maskbits=None,
+               gnobs=None, rnobs=None, znobs=None,
                release=None, objtype=None, primary=None, optical=False, south=True):
     """Definition of QSO target classes from color cuts. Returns a boolean array.
 
@@ -1169,6 +1173,9 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     else:
         qso &= w1snr > 4
         qso &= w2snr > 3
+
+    # ADM observed in every band.
+    qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM default to RELEASE of 6000 if nothing is passed.
     if release is None:
@@ -1231,9 +1238,10 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return qso
 
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, deltaChi2=None, maskbits=None,
-                       primary=None, south=True):
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
+                       w1flux=None, w2flux=None, objtype=None, release=None,
+                       gnobs=None, rnobs=None, znobs=None,
+                       deltaChi2=None, maskbits=None, primary=None, south=True):
     """Definition of QSO target classes from a Random Forest. Returns a boolean array.
 
     Parameters
@@ -1274,6 +1282,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     rMax = 22.7   # r < 22.7
     rMin = 17.5   # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    # ADM targets have to be observed in every band.
+    preSelection &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     if objtype is not None:
         preSelection &= _psflike(objtype)
@@ -1792,7 +1803,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             lrg_classes[int(south)] = isLRG(
                 primary=primary,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                zfiberflux=zfiberflux,
+                zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
             )
     lrg_north, lrg_south = lrg_classes
@@ -1827,6 +1838,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
                     deltaChi2=deltaChi2, maskbits=maskbits,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     objtype=objtype, w1snr=w1snr, w2snr=w2snr, release=release,
                     optical=qso_optical_cuts, south=south
                 )
@@ -1834,8 +1846,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 # ADM determine quasar targets in the north and the south separately
                 qso_classes[int(south)] = isQSO_randomforest(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                    w1flux=w1flux, w2flux=w2flux,
-                    deltaChi2=deltaChi2, maskbits=maskbits,
+                    w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
+                    maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     objtype=objtype, release=release, south=south
                 )
             else:
