@@ -34,6 +34,12 @@ from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.geomask import sweep_files_touch_hp, is_in_hp, bundle_bricks
 from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 
+# ADM Main Survey functions, used for mini-SV.
+from desitarget.cuts import isLRG as isLRG_MS
+from desitarget.cuts import isELG as isELG_MS
+from desitarget.cuts import isQSO_randomforest as isQSO_MS
+from desitarget.cuts import isBGS as isBGS_MS
+
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 log = get_logger()
@@ -2163,7 +2169,6 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     south_cuts = [False, True]
 
     # ADM Main Survey LRGs.
-    from desitarget.cuts import isLRG as isLRG_MS
     # ADM initially set everything to arrays of False for the LRGs
     # ADM the zeroth element stores northern targets bits (south=False).
     lrg_classes = [~primary, ~primary]
@@ -2179,7 +2184,6 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     mini_sv_lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
 
     # ADM Main Survey ELGs.
-    from desitarget.cuts import isELG as isELG_MS
     # ADM initially set everything to arrays of False for the ELGs
     # ADM the zeroth element stores northern targets bits (south=False).
     elg_classes = [~primary, ~primary]
@@ -2195,23 +2199,23 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     mini_sv_elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
     # ADM Main Survey QSOs.
-    from desitarget.cuts import isQSO_randomforest as isQSO_MS
     # ADM initially set everything to arrays of False for the QSOs
     # ADM the zeroth element stores northern targets bits (south=False).
     qso_classes = [~primary, ~primary]
-    for south in south_cuts:
-        qso_classes[int(south)] = isQSO_MS(
-            primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-            w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
-            maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            objtype=objtype, release=release, south=south
-        )
+    # ADM don't run quasar cuts if requested, for speed.
+    if not noqso:
+        for south in south_cuts:
+            qso_classes[int(south)] = isQSO_MS(
+                primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
+                maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                objtype=objtype, release=release, south=south
+            )
     qso_north, qso_south = qso_classes
     # ADM combine QSO target bits for a QSO target based on any imaging.
     mini_sv_qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 
     # ADM Main Survey BGS (Bright).
-    from desitarget.cuts import isBGS as isBGS_MS
     # ADM initially set everything to arrays of False for the BGS
     # ADM the zeroth element stores northern targets bits (south=False).
     bgs_classes = [~primary, ~primary]
