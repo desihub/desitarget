@@ -5,7 +5,7 @@ desitarget Change Log
 0.35.4 (unreleased)
 -------------------
 
-* Add Main Survey LRG/ELG/QSO/BGS bits to CMX for Mini-SV [`PR #590`_].
+* Add Main Survey LRG/ELG/QSO/BGS cuts to CMX for Mini-SV [`PR #590`_].
 * Cut on NOBS > 0 for QSOs and LRGs for Main Survey and SV [`PR #589`_].
 * Fix bug when adding LSLGA galaxies into Main Survey BGS [`PR #588`_]:
     * Catch cases of bytes/str types as well as zero-length strings.
