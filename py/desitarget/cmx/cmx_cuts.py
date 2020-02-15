@@ -2176,7 +2176,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         )
     lrg_north, lrg_south = lrg_classes
     # ADM combine LRG target bits for an LRG target based on any imaging.
-    lrg_mini_sv = (lrg_north & photsys_north) | (lrg_south & photsys_south)
+    mini_sv_lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
 
     # ADM Main Survey ELGs.
     from desitarget.cuts import isELG as isELG_MS
@@ -2192,7 +2192,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         )
     elg_north, elg_south = elg_classes
     # ADM combine ELG target bits for an ELG target based on any imaging.
-    elg_mini_sv = (elg_north & photsys_north) | (elg_south & photsys_south)
+    mini_sv_elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
     # ADM Main Survey QSOs.
     from desitarget.cuts import isQSO_randomforest as isQSO_MS
@@ -2208,7 +2208,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         )
     qso_north, qso_south = qso_classes
     # ADM combine QSO target bits for a QSO target based on any imaging.
-    qso_mini_sv = (qso_north & photsys_north) | (qso_south & photsys_south)
+    mini_sv_qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 
     # ADM Main Survey BGS (Bright).
     from desitarget.cuts import isBGS as isBGS_MS
@@ -2229,7 +2229,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     bgs_north, bgs_south = bgs_classes
 
     # ADM combine BGS targeting bits for a BGS selected in any imaging.
-    bgs_bright_mini_sv = (
+    mini_sv_bgs_bright = (
         bgs_north & photsys_north) | (bgs_south & photsys_south)
 
     # ADM Construct the target flag bits.
@@ -2247,10 +2247,10 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= sv0_wd * cmx_mask.SV0_WD
     cmx_target |= std_faint * cmx_mask.STD_FAINT
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
-    cmx_target |= lrg_mini_sv * cmx_mask.LRG_MINI_SV
-    cmx_target |= elg_mini_sv * cmx_mask.ELG_MINI_SV
-    cmx_target |= qso_mini_sv * cmx_mask.QSO_MINI_SV
-    cmx_target |= bgs_bright_mini_sv * cmx_mask.BGS_BRIGHT_MINI_SV
+    cmx_target |= mini_sv_lrg * cmx_mask.MINI_SV_LRG
+    cmx_target |= mini_sv_elg * cmx_mask.MINI_SV_ELG
+    cmx_target |= mini_sv_qso * cmx_mask.MINI_SV_QSO
+    cmx_target |= mini_sv_bgs_bright * cmx_mask.MINI_SV_BGS_BRIGHT
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.
