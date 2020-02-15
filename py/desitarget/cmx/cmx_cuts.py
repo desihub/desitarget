@@ -1796,7 +1796,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 
 def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
-    """First light targets based on reading in files from Arjun Dey.
+    """First light/Mini-SV targets via reading files from Arjun Dey.
 
     Parameters
     ----------

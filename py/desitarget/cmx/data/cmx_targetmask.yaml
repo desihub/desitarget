@@ -51,6 +51,13 @@ cmx_mask:
 
     #- ADM retain bits 49-52 for masking/convenience (to mirror the main survey)
 
+    - [LRG_MINI_SV,        53, "LRGs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ELG_MINI_SV,        54, "ELGs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [QSO_MINI_SV,        55, "QSOs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BGS_BRIGHT_MINI_SV, 56, "QSOs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [QSO_MINI_SV,        57, "QSOs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [HYA_MINI_SV,        58, "Hyades for Mini SV ", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
@@ -128,6 +135,11 @@ priorities:
         M33_QSO: {UNOBS: 1005, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M33_M33cen: {UNOBS: 1002, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M33_M33out: {UNOBS: 1001, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        LRG_MINI_SV: {UNOBS: 3201, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        ELG_MINI_SV: {UNOBS: 3001, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        QSO_MINI_SV: {UNOBS: 3401, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_BRIGHT_MINI_SV: {UNOBS: 2101, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        HYA_MINI_SV: {UNOBS: 1005, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -178,6 +190,11 @@ numobs:
         M33_QSO: 100
         M33_M33cen: 100
         M33_M33out: 100
+        ELG_MINI_SV: 1
+        LRG_MINI_SV: 2
+        QSO_MINI_SV: 4
+        BGS_BRIGHT_MINI_SV: 1
+        HYA_MINI_SV: 100
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1
