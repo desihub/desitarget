@@ -2214,7 +2214,6 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     from desitarget.cuts import isBGS as isBGS_MS
     # ADM initially set everything to arrays of False for the BGS
     # ADM the zeroth element stores northern targets bits (south=False).
-
     bgs_classes = [~primary, ~primary]
     for south in south_cuts:
         bgs_classes[int(south)] = isBGS_MS(
@@ -2248,6 +2247,10 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= sv0_wd * cmx_mask.SV0_WD
     cmx_target |= std_faint * cmx_mask.STD_FAINT
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
+    cmx_target |= lrg_mini_sv * cmx_mask.LRG_MINI_SV
+    cmx_target |= elg_mini_sv * cmx_mask.ELG_MINI_SV
+    cmx_target |= qso_mini_sv * cmx_mask.QSO_MINI_SV
+    cmx_target |= bgs_bright_mini_sv * cmx_mask.BGS_BRIGHT_MINI_SV
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.
