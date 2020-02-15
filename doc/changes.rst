@@ -5,7 +5,8 @@ desitarget Change Log
 0.35.4 (unreleased)
 -------------------
 
-* Cut on NOBS > 0 for QSOs and LRGs for Main Survey and SV [`PR #589`_]
+* Add Main Survey LRG/ELG/QSO/BGS bits to CMX for Mini-SV [`PR #590`_].
+* Cut on NOBS > 0 for QSOs and LRGs for Main Survey and SV [`PR #589`_].
 * Fix bug when adding LSLGA galaxies into Main Survey BGS [`PR #588`_]:
     * Catch cases of bytes/str types as well as zero-length strings.
 * Noting (here) that we used the BFG to excise lots of junk [`PR #587`_].
@@ -28,6 +29,7 @@ desitarget Change Log
 .. _`PR #587`: https://github.com/desihub/desitarget/pull/587
 .. _`PR #588`: https://github.com/desihub/desitarget/pull/588
 .. _`PR #589`: https://github.com/desihub/desitarget/pull/589
+.. _`PR #590`: https://github.com/desihub/desitarget/pull/590
 
 0.35.3 (02-03-2020)
 -------------------
