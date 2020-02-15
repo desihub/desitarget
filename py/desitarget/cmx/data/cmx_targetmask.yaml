@@ -55,8 +55,7 @@ cmx_mask:
     - [ELG_MINI_SV,        54, "ELGs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [QSO_MINI_SV,        55, "QSOs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [BGS_BRIGHT_MINI_SV, 56, "QSOs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [QSO_MINI_SV,        57, "QSOs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [HYA_MINI_SV,        58, "Hyades for Mini SV ", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [HYA_MINI_SV,        57, "Hyades for Mini SV ", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
 
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
