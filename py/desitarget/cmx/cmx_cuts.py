@@ -34,6 +34,12 @@ from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.geomask import sweep_files_touch_hp, is_in_hp, bundle_bricks
 from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 
+# ADM Main Survey functions, used for mini-SV.
+from desitarget.cuts import isLRG as isLRG_MS
+from desitarget.cuts import isELG as isELG_MS
+from desitarget.cuts import isQSO_randomforest as isQSO_MS
+from desitarget.cuts import isBGS as isBGS_MS
+
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 log = get_logger()
@@ -1796,7 +1802,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 
 def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
-    """First light targets based on reading in files from Arjun Dey.
+    """First light/Mini-SV targets via reading files from Arjun Dey.
 
     Parameters
     ----------
@@ -2157,6 +2163,79 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM identical to the SV0 cuts, so treat accordingly:
     std_faint, std_bright = sv0_std_classes
 
+    # ADM incorporate target classes from the Main Survey for Mini-SV.
+    # ADM this should be the combination of all of the northerna and all
+    # ADM of the southern cuts.
+    south_cuts = [False, True]
+
+    # ADM Main Survey LRGs.
+    # ADM initially set everything to arrays of False for the LRGs
+    # ADM the zeroth element stores northern targets bits (south=False).
+    lrg_classes = [~primary, ~primary]
+    for south in south_cuts:
+        lrg_classes[int(south)] = isLRG_MS(
+            primary=primary,
+            gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+            zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
+        )
+    lrg_north, lrg_south = lrg_classes
+    # ADM combine LRG target bits for an LRG target based on any imaging.
+    mini_sv_lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
+
+    # ADM Main Survey ELGs.
+    # ADM initially set everything to arrays of False for the ELGs
+    # ADM the zeroth element stores northern targets bits (south=False).
+    elg_classes = [~primary, ~primary]
+    for south in south_cuts:
+        elg_classes[int(south)] = isELG_MS(
+            primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
+            gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+            gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
+            south=south
+        )
+    elg_north, elg_south = elg_classes
+    # ADM combine ELG target bits for an ELG target based on any imaging.
+    mini_sv_elg = (elg_north & photsys_north) | (elg_south & photsys_south)
+
+    # ADM Main Survey QSOs.
+    # ADM initially set everything to arrays of False for the QSOs
+    # ADM the zeroth element stores northern targets bits (south=False).
+    qso_classes = [~primary, ~primary]
+    # ADM don't run quasar cuts if requested, for speed.
+    if not noqso:
+        for south in south_cuts:
+            qso_classes[int(south)] = isQSO_MS(
+                primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
+                maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                objtype=objtype, release=release, south=south
+            )
+    qso_north, qso_south = qso_classes
+    # ADM combine QSO target bits for a QSO target based on any imaging.
+    mini_sv_qso = (qso_north & photsys_north) | (qso_south & photsys_south)
+
+    # ADM Main Survey BGS (Bright).
+    # ADM initially set everything to arrays of False for the BGS
+    # ADM the zeroth element stores northern targets bits (south=False).
+    bgs_classes = [~primary, ~primary]
+    for south in south_cuts:
+        bgs_classes[int(south)] = isBGS_MS(
+            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+            w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+            gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+            gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            maskbits=maskbits, Grr=Grr, refcat=refcat, w1snr=w1snr, gaiagmag=gaiagmag,
+            objtype=objtype, primary=primary, south=south, targtype="bright"
+        )
+    bgs_north, bgs_south = bgs_classes
+
+    # ADM combine BGS targeting bits for a BGS selected in any imaging.
+    mini_sv_bgs_bright = (
+        bgs_north & photsys_north) | (bgs_south & photsys_south)
+
     # ADM Construct the target flag bits.
     cmx_target = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_dither_spec * cmx_mask.STD_DITHER
@@ -2172,6 +2251,10 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= sv0_wd * cmx_mask.SV0_WD
     cmx_target |= std_faint * cmx_mask.STD_FAINT
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
+    cmx_target |= mini_sv_lrg * cmx_mask.MINI_SV_LRG
+    cmx_target |= mini_sv_elg * cmx_mask.MINI_SV_ELG
+    cmx_target |= mini_sv_qso * cmx_mask.MINI_SV_QSO
+    cmx_target |= mini_sv_bgs_bright * cmx_mask.MINI_SV_BGS_BRIGHT
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.

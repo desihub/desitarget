@@ -1115,11 +1115,15 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
     LX = bgs.copy()
     # ADM Could check on "L2" for DR8, need to check on "LX" post-DR8.
     if refcat is not None:
-        if isinstance(np.atleast_1d(refcat)[0], str):
-            LX = [(rc[0] == "L") if len(rc) > 0 else False for rc in refcat]
+        rc1d = np.atleast_1d(refcat)
+        if isinstance(rc1d[0], str):
+            LX = [(rc[0] == "L") if len(rc) > 0 else False for rc in rc1d]
         else:
-            LX = [(rc.decode()[0] == "L") if len(rc) > 0 else False for rc in refcat]
-        LX = np.array(LX, dtype=bool)
+            LX = [(rc.decode()[0] == "L") if len(rc) > 0 else False for rc in rc1d]
+        if np.ndim(refcat) == 0:
+            LX = np.array(LX[0], dtype=bool)
+        else:
+            LX = np.array(LX, dtype=bool)
 
     bgs |= LX
 

@@ -51,6 +51,11 @@ cmx_mask:
 
     #- ADM retain bits 49-52 for masking/convenience (to mirror the main survey)
 
+    - [MINI_SV_LRG,        53, "LRGs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [MINI_SV_ELG,        54, "ELGs for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [MINI_SV_QSO,        55, "QSOs (RF) for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [MINI_SV_BGS_BRIGHT, 56, "BGS (bright) for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
@@ -128,6 +133,10 @@ priorities:
         M33_QSO: {UNOBS: 1005, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M33_M33cen: {UNOBS: 1002, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M33_M33out: {UNOBS: 1001, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
+        MINI_SV_LRG: {UNOBS: 3410, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MINI_SV_ELG: {UNOBS: 3001, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MINI_SV_QSO: {UNOBS: 3420, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MINI_SV_BGS_BRIGHT: {UNOBS: 2101, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -178,6 +187,10 @@ numobs:
         M33_QSO: 100
         M33_M33cen: 100
         M33_M33out: 100
+        MINI_SV_ELG: 1
+        MINI_SV_LRG: 2
+        MINI_SV_QSO: 4
+        MINI_SV_BGS_BRIGHT: 1
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1
