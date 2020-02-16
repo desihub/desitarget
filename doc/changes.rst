@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.35.4 (unreleased)
+0.36.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.36.0 (2020-02-16)
 -------------------
 
 * Add Main Survey LRG/ELG/QSO/BGS cuts to CMX for Mini-SV [`PR #590`_].
@@ -31,7 +36,7 @@ desitarget Change Log
 .. _`PR #589`: https://github.com/desihub/desitarget/pull/589
 .. _`PR #590`: https://github.com/desihub/desitarget/pull/590
 
-0.35.3 (02-03-2020)
+0.35.3 (2020-02-03)
 -------------------
 
 * Further fixes for DR9 [`PR #579`_]. Includes:
