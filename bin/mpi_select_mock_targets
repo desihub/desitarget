@@ -41,6 +41,7 @@ import desimodel.footprint
 from desiutil.log import get_logger, DEBUG
 from desitarget.mock.build import targets_truth
 import desitarget.mock.io as mockio
+from  desitarget.io import find_target_files
 from desispec.parallel import stdouterr_redirected
 
 if args.verbose:
@@ -89,12 +90,14 @@ if rank == 0:
     else:
         pixels = np.array(args.healpixels)
             
+    obscon_=['dark','bright']  #Needed to check if truth files from previous runs exists.
     keep = list()
     for i, pixnum in enumerate(pixels):
-        truthspecfile = mockio.findfile('truth', args.nside, pixnum,
-                                        basedir=args.output_dir)
-        if not os.path.exists(truthspecfile):
-            keep.append(i)
+        for obscon in obscon_:
+            truthfile = find_target_files(args.output_dir, flavor="truth", obscon=obscon,
+                                      hp=pixnum, nside=args.nside, mock=True)
+            if (not os.path.exists(truthfile)) and (i not in keep):
+                keep.append(i)
 
     log.info('{}/{} pixels remaining to do'.format(len(keep), len(pixels)))
     pixels = pixels[keep]

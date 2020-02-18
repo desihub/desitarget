@@ -73,14 +73,16 @@ else:
 if args.overwrite:
     log.info('Processing {} pixel(s).'.format(len(healpixels)))
 else:
+    obscon_=['dark','bright']  #Needed to check if truth files from previous runs exists.
     keep = list()
-    for i, pixnum in enumerate(healpixels):
-        truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
-        if not os.path.exists(truthfile):
-            keep.append(i)
-
-    log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
-    healpixels = healpixels[keep]
+    for i, pixnum in enumerate(pixels):
+        for obscon in obscon_:
+            truthfile = find_target_files(args.output_dir, flavor="truth", obscon=obscon,
+                                      hp=pixnum, nside=args.nside, mock=True)
+            if (not os.path.exists(truthfile)) and (i not in keep):
+                keep.append(i)
+    log.info('{}/{} pixels remaining to do'.format(len(keep), len(pixels)))
+    pixels = pixels[keep]
 
 if args.join:
     from desitarget.mock.build import join_targets_truth
@@ -90,15 +92,17 @@ if args.join:
 if not os.path.exists(args.config):
     log.fatal('No configuration file {} found.'.format(args.config))
     raise Exception()
+    
+if len(healpixels)>0:
+    # Read parameters from yaml file.
+    log.info('Reading configuration file {}'.format(args.config))
+    with open(args.config, 'r') as pfile:
+        params = yaml.safe_load(pfile)
 
-# Read parameters from yaml file.
-log.info('Reading configuration file {}'.format(args.config))
-with open(args.config, 'r') as pfile:
-    params = yaml.safe_load(pfile)
-
-log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
-targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 
+    log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
+    targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 
               output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,
               no_spectra=args.no_spectra, survey=args.survey)
+              
 log.info('All done at {}'.format(time.asctime()))
 
