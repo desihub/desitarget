@@ -91,7 +91,8 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
           zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
+          gnobs=None, rnobs=None, znobs=None, maskbits=None,
+          primary=None, south=True):
     """Target Definition of LRG. Returns a boolean array.
 
     Parameters
@@ -116,7 +117,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     Notes
     -----
-    - Current version (10/14/19) is version 104 on `the SV wiki`_.
+    - Current version (02/18/20) is version 123 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG SV targets.
@@ -128,6 +129,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+        maskbits=maskbits
     )
 
     # ADM pass the lrg that pass cuts as primary, to restrict to the
@@ -142,7 +144,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
                   zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
-                  rflux_snr=None, zflux_snr=None, w1flux_snr=None):
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+                  maskbits=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
     Returns
@@ -165,6 +168,10 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+
+    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
+    for bit in [1, 5, 6, 7, 11, 12, 13]:
+        lrg &= ((maskbits & 2**bit) == 0)
 
     return lrg
 
@@ -1531,7 +1538,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 primary=primary, south=south,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, rflux_snr=rsnr, zflux_snr=zsnr,
-                w1flux_snr=w1snr, gnobs=gnobs, rnobs=rnobs, znobs=znobs
+                w1flux_snr=w1snr, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                maskbits=maskbits
             )
     lrg_north, lrginit_n_4, lrgsup_n_4, lrginit_n_8, lrgsup_n_8 = lrg_classes[0]
     lrg_south, lrginit_s_4, lrgsup_s_4, lrginit_s_8, lrgsup_s_8 = lrg_classes[1]
