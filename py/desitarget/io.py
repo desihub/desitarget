@@ -2129,7 +2129,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
                                      columns=columnscopy)
     # ADM ...otherwise just read in the targets.
     else:
-        targets = read_target_file(hpdirname, columns=columnscopy)
+        targets = read_target_files(hpdirname, columns=columnscopy)
 
     # ADM restrict only to targets in the requested cap...
     ii = is_in_cap(targets, radecrad)
