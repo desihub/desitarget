@@ -198,7 +198,8 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-          gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
+          gnobs=None, rnobs=None, znobs=None, maskbits=None, primary=None,
+          south=True):
     """
     Parameters
     ----------
@@ -214,7 +215,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (09/03/19) is version 199 on `the wiki`_.
+    - Current version (02/18/20) is version 215 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -226,7 +227,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
+        maskbits=maskbits
     )
 
     # ADM color-based selection of LRGs.
@@ -240,7 +242,8 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
                   zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
-                  rflux_snr=None, zflux_snr=None, w1flux_snr=None):
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+                  maskbits=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
     Returns
@@ -263,6 +266,10 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+
+    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
+    for bit in [1, 5, 6, 7, 11, 12, 13]:
+        lrg &= ((maskbits & 2**bit) == 0)
 
     return lrg
 
@@ -1808,7 +1815,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 primary=primary,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
+                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+                maskbits=maskbits, south=south
             )
     lrg_north, lrg_south = lrg_classes
 
