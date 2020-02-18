@@ -15,7 +15,7 @@ from astropy.table import Table
 from desitarget.mock.build import targets_truth
 from desiutil.log import get_logger, DEBUG
 import desimodel
-import desitarget.mock.io as mockio
+from  desitarget.io import find_target_files
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
@@ -75,14 +75,14 @@ if args.overwrite:
 else:
     obscon_=['dark','bright']  #Needed to check if truth files from previous runs exists.
     keep = list()
-    for i, pixnum in enumerate(pixels):
+    for i, pixnum in enumerate(healpixels):
         for obscon in obscon_:
             truthfile = find_target_files(args.output_dir, flavor="truth", obscon=obscon,
                                       hp=pixnum, nside=args.nside, mock=True)
             if (not os.path.exists(truthfile)) and (i not in keep):
                 keep.append(i)
-    log.info('{}/{} pixels remaining to do'.format(len(keep), len(pixels)))
-    pixels = pixels[keep]
+    log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
+    healpixels = healpixels[keep]
 
 if args.join:
     from desitarget.mock.build import join_targets_truth
