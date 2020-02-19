@@ -741,7 +741,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (02/19/20) is version 50 on `the cmx wiki`_.
+    - Current version (02/19/20) is version 51 on `the cmx wiki`_.
     - Hardcoded for south=False.
     - Combines all QSO-like SV classes into one bit.
     """
@@ -1217,8 +1217,8 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     if maskbits is not None:
-        # for bit in [1, 10, 12, 13]:
-        for bit in [10, 12, 13]:
+        for bit in [1, 10, 12, 13]:
+        # for bit in [10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
 
     # ADM observed in every band.

@@ -886,7 +886,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (10/24/19) is version 112 on `the SV wiki`_.
+    - Current version (02/19/20) is version 125 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -899,8 +899,8 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     if maskbits is not None:
-        # for bit in [1, 10, 12, 13]:
-        for bit in [10, 12, 13]:
+        for bit in [1, 10, 12, 13]:
+        # for bit in [10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
 
     # ADM observed in every band.
