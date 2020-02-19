@@ -2178,7 +2178,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
             primary=primary,
             gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
             zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
+            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+            maskbits=maskbits, south=south
         )
     lrg_north, lrg_south = lrg_classes
     # ADM combine LRG target bits for an LRG target based on any imaging.
