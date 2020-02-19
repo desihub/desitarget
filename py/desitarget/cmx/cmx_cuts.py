@@ -510,7 +510,7 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
         maskbits=maskbits
     )
 
