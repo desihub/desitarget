@@ -2166,6 +2166,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
             primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             w1flux=w1flux, w2flux=w2flux,
             gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, w1snr=w1snr, w2snr=w2snr,
+            gnobs=gnobs, rnobs=rnobs, znobs=znobs,
             objtype=objtype, dchisq=dchisq, maskbits=maskbits
         )
 
