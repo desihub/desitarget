@@ -483,6 +483,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
 def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
               rfiberflux=None, zfiberflux=None,
               gflux_snr=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+              gnobs=None, rnobs=None, znobs=None, maskbits=None,
               primary=None):
     """Target Definition of an SV0-like LRG. Returns a boolean array.
 
@@ -498,7 +499,7 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     Notes
     -----
-    - Current version (10/14/19) is version 104 on `the SV wiki`_.
+    - Current version (02/19/20) is version 50 on `the cmx wiki`_.
     - Hardcoded for south=False.
     - Combines all LRG-like SV classes into one bit.
     """
@@ -508,8 +509,9 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux,
+        zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+        maskbits=maskbits
     )
 
     # ADM pass the lrg that pass cuts as primary, to restrict to the
@@ -534,8 +536,9 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
-                  zfiberflux=None,
-                  rflux_snr=None, zflux_snr=None, w1flux_snr=None):
+                  zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+                  maskbits=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
     Returns
@@ -550,6 +553,13 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+
+    # ADM observed in every band.
+    lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+
+    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
+    for bit in [1, 5, 6, 7, 11, 12, 13]:
+        lrg &= ((maskbits & 2**bit) == 0)
 
     return lrg
 
@@ -2118,6 +2128,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
         rfiberflux=rfiberflux, zfiberflux=zfiberflux,
         gflux_snr=gsnr, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
         primary=primary
     )
 
