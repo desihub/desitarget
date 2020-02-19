@@ -288,63 +288,6 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg, lrginit4, lrgsuper4, lrginit8, lrgsuper8
 
 
-def isfiller(gflux=None, rflux=None, zflux=None, w1flux=None,
-             gflux_snr=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-             rfiberflux=None, south=True, primary=None):
-    """Definition of LRG-like low-z filler sample selection.
-
-    Parameters
-    ----------
-    south: boolean, defaults to ``True``
-        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS)
-        if ``south=False``, otherwise use cuts appropriate to the
-        Southern imaging survey (DECaLS).
-
-    Returns
-    -------
-    :class:`array_like`
-        ``True`` if the object is an LRG-like low-z filler target.
-
-    Notes
-    -----
-    - Current version (09/03/19) is version 90 on `the SV wiki`_.
-    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
-    """
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-    filler = primary.copy()
-
-    # ADM to maintain backwards-compatibility with mocks.
-    if rfiberflux is None:
-        log.warning('Setting rfiberflux to rflux!!!')
-        rfiberflux = rflux.copy()
-
-    filler &= (gflux_snr > 0) & (gflux > 0)    # ADM quality in g.
-    filler &= (rflux_snr > 0) & (rflux > 0) & (rfiberflux > 0)   # ADM quality in r.
-    filler &= (zflux_snr > 0) & (zflux > 0)    # ADM quality in z.
-    filler &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
-
-    # ADM safe as these fluxes are set to > 0
-    gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
-    rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
-    zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
-    w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
-    rfibermag = 22.5 - 2.5 * np.log10(rfiberflux.clip(1e-7))
-
-    # North and South currently have the same cuts
-    filler &= (rmag > 19.5) & (rmag < 21) & (rfibermag < 22)  # magnitude limits
-    filler &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.8          # non-stellar cut
-    # high-z cuts
-    filler &= (rmag - w1mag) < 0.5 * (gmag - rmag) + 1.4
-    filler &= (rmag - w1mag) < 1.7 * ((gmag - rmag) - 0.8) + 1.2
-    filler &= (gmag - rmag) > 0.7                             # low-z cut
-    filler &= (rmag - zmag) > 0.25 * (rmag + 0.6) - 4.5       # sliding cut
-    # Remove overlap with BGS SV selection, these cuts don't apply to the final selection
-    filler &= (rmag > 20.5) & (rfibermag > 21.05)
-
-    return filler
-
-
 def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
           gfracflux=None, rfracflux=None, zfracflux=None,
           gfracmasked=None, rfracmasked=None, zfracmasked=None,
@@ -1544,25 +1487,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     lrg_north, lrginit_n_4, lrgsup_n_4, lrginit_n_8, lrgsup_n_8 = lrg_classes[0]
     lrg_south, lrginit_s_4, lrgsup_s_4, lrginit_s_8, lrgsup_s_8 = lrg_classes[1]
 
-    # ADM initialize arrays to False for the filler selection;
-    # ADM the zeroth element stores the northern bits (south=False).
-    filler_classes = [~primary, ~primary]
-    if "LRG" in tcnames:
-        for south in south_cuts:
-            filler_classes[int(south)] = isfiller(
-                primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                w1flux=w1flux, gflux_snr=gsnr, rflux_snr=rsnr, zflux_snr=zsnr,
-                w1flux_snr=w1snr, rfiberflux=rfiberflux, south=south
-            )
-    filler_n, filler_s = filler_classes
-
     # ADM combine LRG target bits for an LRG target based on any imaging
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
     lrginit_4 = (lrginit_n_4 & photsys_north) | (lrginit_s_4 & photsys_south)
     lrgsup_4 = (lrgsup_n_4 & photsys_north) | (lrgsup_s_4 & photsys_south)
     lrginit_8 = (lrginit_n_8 & photsys_north) | (lrginit_s_8 & photsys_south)
     lrgsup_8 = (lrgsup_n_8 & photsys_north) | (lrgsup_s_8 & photsys_south)
-    filler = (filler_n & photsys_north) | (filler_s & photsys_south)
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -1780,7 +1710,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrgsup_s_4 * desi_mask.LRG_SUPER_4PASS_SOUTH
     desi_target |= lrginit_s_8 * desi_mask.LRG_INIT_8PASS_SOUTH
     desi_target |= lrgsup_s_8 * desi_mask.LRG_SUPER_8PASS_SOUTH
-    desi_target |= filler_s * desi_mask.LOWZ_FILLER_SOUTH
     # ADM ...and ELGs...
     desi_target |= elgsvgtot_s * desi_mask.ELG_SV_GTOT_SOUTH
     desi_target |= elgsvgfib_s * desi_mask.ELG_SV_GFIB_SOUTH
@@ -1799,7 +1728,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrgsup_n_4 * desi_mask.LRG_SUPER_4PASS_NORTH
     desi_target |= lrginit_n_8 * desi_mask.LRG_INIT_8PASS_NORTH
     desi_target |= lrgsup_n_8 * desi_mask.LRG_SUPER_8PASS_NORTH
-    desi_target |= filler_n * desi_mask.LOWZ_FILLER_NORTH
     # ADM ...and ELGs...
     desi_target |= elgsvgtot_n * desi_mask.ELG_SV_GTOT_NORTH
     desi_target |= elgsvgfib_n * desi_mask.ELG_SV_GFIB_NORTH
@@ -1818,7 +1746,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrgsup_4 * desi_mask.LRG_SUPER_4PASS
     desi_target |= lrginit_8 * desi_mask.LRG_INIT_8PASS
     desi_target |= lrgsup_8 * desi_mask.LRG_SUPER_8PASS
-    desi_target |= filler * desi_mask.LOWZ_FILLER
     # ADM ...and ELGs...
     desi_target |= elgsvgtot * desi_mask.ELG_SV_GTOT
     desi_target |= elgsvgfib * desi_mask.ELG_SV_GFIB
