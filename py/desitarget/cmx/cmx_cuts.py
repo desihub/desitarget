@@ -209,7 +209,7 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary = np.ones_like(rflux, dtype='?')
     sv0_bgs = np.zeros_like(rflux, dtype='?')
 
-    for targtype in ["bright", "faint", "faint_ext", "lowq", "fibmag"]:
+    for targtype in ["bright", "faint", "faint_ext", "fibmag"]:
         bgs = isBGS(
             gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
             rfiberflux=rfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
