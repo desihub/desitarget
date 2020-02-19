@@ -201,9 +201,10 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (10/14/19) is version 105 on `the SV wiki`_.
+    - Current version (02/18/20) is version 49 on `the cmx wiki`_.
     - Hardcoded for south=False.
-    - Combines all BGS-like SV classes into one bit.
+    - Combines bright/faint/faint_ext/fibmag BGS-like SV classes into
+      one bit.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
