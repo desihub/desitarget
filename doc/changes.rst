@@ -12,6 +12,8 @@ desitarget Change Log
     * Remove the 'low quality' (`lowq`) component of `SV0_BGS`.
     * Add optical `MASKBITS` flags for LRGs (in Main Survey, SV and CMX).
 
+.. _`PR #592`: https://github.com/desihub/desitarget/pull/592
+
 0.36.0 (2020-02-16)
 -------------------
 
