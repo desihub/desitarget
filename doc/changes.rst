@@ -5,7 +5,12 @@ desitarget Change Log
 0.36.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Changes in CMX after running code for Mini-SV [`PR #592`_]. Includes:
+    * Explicit g/G >= 16 cuts for `SV0_BGS`/`SV0_MWS`/`SV0_WD`.
+    * Remove the LRG `LOWZ_FILLER` class (both in SV and CMX).
+    * Mask on `bright` in `MASKBITS` for z~5 QSOs (both in SV and CMX).
+    * Remove the 'low quality' (`lowq`) component of `SV0_BGS`.
+    * Add optical `MASKBITS` flags for LRGs (in Main Survey, SV and CMX).
 
 0.36.0 (2020-02-16)
 -------------------

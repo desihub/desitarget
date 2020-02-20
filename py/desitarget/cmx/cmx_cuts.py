@@ -201,10 +201,13 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (02/18/20) is version 49 on `the cmx wiki`_.
+    - Current version (02/19/20) is version 55 on `the cmx wiki`_.
     - Hardcoded for south=False.
     - Combines bright/faint/faint_ext/fibmag BGS-like SV classes into
       one bit.
+    - `desitarget.cmx.cmx_cuts.apply_cuts()` also additionally removes
+      objects from this class that either have Gaia provenance and Gaia
+      G < 16 OR that have Legacy Surveys g < 16.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -379,11 +382,14 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     Notes
     -----
     - All Gaia quantities are as in `the Gaia data model`_.
-    - Returns the equivalent of PRIMARY target classes from version 181
-      (07/07/19) of `the wiki`_ (the main survey wiki). Ignores target
-      classes that "smell" like secondary targets (as they are outside
-      of the footprint or are based on catalog-matching). Simplifies flag
-      cuts, and simplifies the MWS_MAIN class to not include sub-classes.
+    - Returns the equivalent of PRIMARY target classes from version 55
+      (02/19/20) of `the cmx wiki`_. Ignores target classes that "smell"
+      like secondary targets (as they are outside of the footprint or are
+      based on catalog-matching). Simplifies flag cuts, and simplifies
+      the MWS_MAIN class to not include sub-classes.
+    - `desitarget.cmx.cmx_cuts.apply_cuts()` also additionally removes
+      objects from this class that either have Gaia provenance and Gaia
+      G < 16 OR that have Legacy Surveys g < 16.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -2080,6 +2086,14 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         gaiaaen=gaiaaen, paramssolved=gaiaparamssolved,
         galb=galb, gaia=gaia, primary=primary
     )
+
+    # ADM explicitly restrict "bright" target classes to G/g >= 16.
+    # ADM clip to avoid NaN on np.log10 of -ve numbers.
+    obs_gmag = 22.5-2.5*np.log10(np.clip(obs_gflux, 1e-16, 1e16))
+    too_bright = (obs_gmag < 16) | (gaia & (gaiagmag < 16))
+    sv0_bgs &= ~too_bright
+    sv0_mws &= ~too_bright
+    sv0_wd &= ~too_bright
 
     # ADM determine if an object is SV0_LRG.
     sv0_lrg = isSV0_LRG(
