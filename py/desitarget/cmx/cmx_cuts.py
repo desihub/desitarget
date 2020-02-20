@@ -2087,14 +2087,6 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         galb=galb, gaia=gaia, primary=primary
     )
 
-    # ADM explicitly restrict "bright" target classes to G/g >= 16.
-    # ADM clip to avoid NaN on np.log10 of -ve numbers.
-    obs_gmag = 22.5-2.5*np.log10(np.clip(obs_gflux, 1e-16, 1e16))
-    too_bright = (obs_gmag < 16) | (gaia & (gaiagmag < 16))
-    sv0_bgs &= ~too_bright
-    sv0_mws &= ~too_bright
-    sv0_wd &= ~too_bright
-
     # ADM determine if an object is SV0_LRG.
     sv0_lrg = isSV0_LRG(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
@@ -2221,6 +2213,15 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM combine BGS targeting bits for a BGS selected in any imaging.
     mini_sv_bgs_bright = (
         bgs_north & photsys_north) | (bgs_south & photsys_south)
+
+    # ADM explicitly restrict "bright" target classes to G/g >= 16.
+    # ADM clip to avoid NaN on np.log10 of -ve numbers.
+    obs_gmag = 22.5-2.5*np.log10(np.clip(obs_gflux, 1e-16, 1e16))
+    too_bright = (obs_gmag < 16) | (gaia & (gaiagmag < 16))
+    sv0_bgs &= ~too_bright
+    sv0_mws &= ~too_bright
+    sv0_wd &= ~too_bright
+    mini_sv_bgs_bright &= ~too_bright
 
     # ADM Construct the target flag bits.
     cmx_target = std_dither * cmx_mask.STD_GAIA
