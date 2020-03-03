@@ -5,6 +5,7 @@ desitarget Change Log
 0.36.1 (unreleased)
 -------------------
 
+* Restrict skies to the geometric boundaries of their brick [`PR #595`_].
 * Changes in CMX after running code for Mini-SV [`PR #592`_]. Includes:
     * g/G >= 16 for `SV0_BGS`/`SV0_MWS`/`SV0_WD`/`MINI_SV_BGS_BRIGHT`.
     * Remove the LRG `LOWZ_FILLER` class (both in SV and CMX).
@@ -13,6 +14,7 @@ desitarget Change Log
     * Add optical `MASKBITS` flags for LRGs (in Main Survey, SV and CMX).
 
 .. _`PR #592`: https://github.com/desihub/desitarget/pull/592
+.. _`PR #595`: https://github.com/desihub/desitarget/pull/595
 
 0.36.0 (2020-02-16)
 -------------------
