@@ -88,10 +88,9 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
     if isinstance(drdirs, str):
         drdirs = [drdirs, ]
 
-    # ADM initialize the bricks class, retrieve the brick information look-up
-    # ADM table and turn it into a fast look-up dictionary.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
+    # ADM turn the brick info table into a fast look-up dictionary.
+    # ADM (note the bricks class is instantiated at the top of the code.)
+    bricktable = bricks.to_table()
     brickdict = {}
     for b in bricktable:
         brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
