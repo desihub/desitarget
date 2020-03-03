@@ -1010,7 +1010,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
                         w2flux=w2flux, south=south, targtype=targtype, primary=primary)
 
     bgs |= isBGS_lslga(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, refcat=refcat,
-                       south=south, targtype=targtype)
+                       maskbits=maskbits, south=south, targtype=targtype)
 
     return bgs
 
@@ -1110,7 +1110,7 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
 
 
 def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
-                south=True, targtype=None):
+                maskbits=None, south=True, targtype=None):
     """Module to recover the LSLGA objects in all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
@@ -1133,6 +1133,7 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
             LX = np.array(LX, dtype=bool)
 
     bgs |= LX
+    bgs &= ((maskbits & 2**1) == 0)
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
