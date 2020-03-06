@@ -1134,6 +1134,7 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
 
     bgs |= LX
     bgs &= ((maskbits & 2**1) == 0)
+    bgs &= ((maskbits & 2**13) == 0)
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
