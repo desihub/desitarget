@@ -749,7 +749,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM The individual routines return arrays, so we need
     # ADM a check to preserve the single-object case.
     if _is_row(rflux):
-        return qso_north[0]
+        return qso_north[0], qsoz5_north[0]
 
     return qso_north, qsoz5_north
 
