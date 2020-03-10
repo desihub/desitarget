@@ -15,6 +15,7 @@ cmx_mask:
     - [SV0_ELG,        11, "SV-like ELG bit is set (very early SV selection)", {obsconditions: DARK|GRAY}]
     - [SV0_QSO,        12, "SV-like QSO bit is set (very early SV/RF selection)", {obsconditions: DARK}]
     - [SV0_WD,         13, "SV-like WD bit is set (very early MWS_WD selection)", {obsconditions: BRIGHT}]
+    - [SV0_QSO_Z5,     14, "SV-like QSO bit is set (specifically for the QSO_Z5 selection from SV", {obsconditions: DARK}]
 
     # ADM back-up targets for poor conditions.
     - [BACKUP_BRIGHT,  16, "Bright Gaia targets for poor conditions",  {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
@@ -107,6 +108,7 @@ priorities:
         SV0_LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_QSO: {UNOBS: 3400, MORE_ZGOOD: 3500, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_WD: {UNOBS: 2998, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV0_QSO_Z5: {UNOBS: 3600, MORE_ZGOOD: 3700, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BACKUP_BRIGHT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         BACKUP_FAINT: {UNOBS: 10, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
         M31_STD_BRIGHT: {UNOBS: 1008, DONE: 10, OBS: 10, DONOTOBSERVE: 0}
@@ -161,6 +163,7 @@ numobs:
         SV0_LRG: 2
         SV0_QSO: 4
         SV0_WD: 1
+        SV0_QSO_Z5: 4
         BACKUP_BRIGHT: 1
         BACKUP_FAINT: 1
         M31_STD_BRIGHT: 100
