@@ -5,6 +5,7 @@ desitarget Change Log
 0.36.1 (unreleased)
 -------------------
 
+* Flag the high-z quasar selection in CMX (as `SV0_QSO_Z5`) [`PR #598`_].
 * Leak of Bright Stars in BGS Main Survey and BGS SV fixed [`PR #596`_].
 * Restrict skies to the geometric boundaries of their brick [`PR #595`_].
 * Changes in CMX after running code for Mini-SV [`PR #592`_]. Includes:
@@ -17,6 +18,7 @@ desitarget Change Log
 .. _`PR #592`: https://github.com/desihub/desitarget/pull/592
 .. _`PR #595`: https://github.com/desihub/desitarget/pull/595
 .. _`PR #596`: https://github.com/desihub/desitarget/pull/596
+.. _`PR #598`: https://github.com/desihub/desitarget/pull/598
 
 0.36.0 (2020-02-16)
 -------------------
