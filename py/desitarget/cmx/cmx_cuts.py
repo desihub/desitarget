@@ -685,10 +685,15 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     :class:`array_like` or :class:`float`
         ``True`` if and only if the object is an SV-like QSO target.
          If `floats` are passed, a `float` is returned.
+    :class:`array_like` or :class:`float`
+        ``True`` if and only if the object is an SV-like QSO target that
+        passes something like the QSO_Z5 (high-z) selection from SV.
 
     Notes
     -----
     - Current version (02/19/20) is version 51 on `the cmx wiki`_.
+    - Current version (03/10/20) for the high-z (QSO_Z5 selection)
+      is version 58 on `the cmx wiki`_.
     - Hardcoded for south=False.
     - Combines all QSO-like SV classes into one bit.
     """
@@ -746,7 +751,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if _is_row(rflux):
         return qso_north[0]
 
-    return qso_north
+    return qso_north, qsoz5_north
 
 
 def isQSO_cuts(gflux=None, rflux=None, zflux=None,
@@ -2107,9 +2112,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM determine if an object is SV0_QSO.
     if noqso:
         # ADM don't run quasar cuts if requested, for speed.
-        sv0_qso = ~primary
+        sv0_qso, sv0_qso_z5 = ~primary, ~primary
     else:
-        sv0_qso = isSV0_QSO(
+        sv0_qso, sv0_qso_z5 = isSV0_QSO(
             primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             w1flux=w1flux, w2flux=w2flux,
             gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, w1snr=w1snr, w2snr=w2snr,
@@ -2235,6 +2240,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= sv0_lrg * cmx_mask.SV0_LRG
     cmx_target |= sv0_elg * cmx_mask.SV0_ELG
     cmx_target |= sv0_qso * cmx_mask.SV0_QSO
+    cmx_target |= sv0_qso_z5 * cmx_mask.SV0_QSO_Z5
     cmx_target |= sv0_wd * cmx_mask.SV0_WD
     cmx_target |= std_faint * cmx_mask.STD_FAINT
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
