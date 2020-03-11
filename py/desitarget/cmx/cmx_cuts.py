@@ -1808,10 +1808,13 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
     # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
     # ADM get the M31 objects.
-
     cmx_target = []
     flout = []
-    for filenum, prog in enumerate(["M31", "ORI", "ROS", "M33"]):
+    progs = ["M31", "ORI", "ROS", "M33", "SV0_MWS_CLUSTER"]
+    for filenum, prog in enumerate(progs):
+        # ADM flag whether this is not a "true" first light program.
+        isfl = prog[:3] != 'SV0'
+
         cmxfile = os.path.join(cmxdir, "{}-targets.fits".format(prog))
         flobjsin = fitsio.read(cmxfile)
 
@@ -1819,46 +1822,56 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
         flobjsout = np.zeros(len(flobjsin), dtype=gaiadtype)
 
         # ADM set the Gaia Source ID and DR where possible.
-        gaiaid = []
-        for flobjs in flobjsin["DESIGNATION"]:
-            try:
-                # ADM the if/else is to maintain compatibility with
-                # ADM both fitsio 0.9.11 and 1.0+.
-                if isinstance(flobjs, np.bytes_):
-                    gid = int(flobjs.decode().split("DR2")[-1])
-                else:
-                    gid = int(flobjs.split("DR2")[-1])
-                gaiaid.append(gid)
-            except ValueError:
-                gaiaid.append(-1)
-        flobjsout['REF_ID'] = gaiaid
-        flobjsout['REF_CAT'] = 'F1'
+        if isfl:
+            gaiaid = []
+            for flobjs in flobjsin["DESIGNATION"]:
+                try:
+                    # ADM the if/else is to maintain compatibility with
+                    # ADM both fitsio 0.9.11 and 1.0+.
+                    if isinstance(flobjs, np.bytes_):
+                        gid = int(flobjs.decode().split("DR2")[-1])
+                    else:
+                        gid = int(flobjs.split("DR2")[-1])
+                    gaiaid.append(gid)
+                except ValueError:
+                    gaiaid.append(-1)
+            flobjsout['REF_ID'] = gaiaid
+            flobjsout['REF_CAT'] = 'F1'
+        else:
+            flobjsout['REF_ID'] = flobjsin['REF_ID']
+            flobjsout['REF_CAT'] = 'F1'
 
         # ADM transfer columns from Arjun's files to standard data model.
         for col in ["RA", "DEC"]:
             flobjsout[col] = flobjsin[col]
         for col in ["PMRA", "PMDEC"]:
             flobjsout[col] = flobjsin[col]
-            ii = flobjsin[col+"_ERROR"] != 0
-            flobjsout[col+"_IVAR"][ii] = 1./(flobjsin[col+"_ERROR"][ii]**2.)
-        flobjsout["REF_EPOCH"] = flobjsin["EPOCH"]
-        flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["GAIA_G"]
-
+            if isfl:
+                ii = flobjsin[col+"_ERROR"] != 0
+                flobjsout[col+"_IVAR"][ii] = 1./(flobjsin[col+"_ERROR"][ii]**2.)
+                flobjsout["REF_EPOCH"] = flobjsin["EPOCH"]
+                flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["GAIA_G"]
+            else:
+                flobjsout["REF_EPOCH"] = flobjsin["REF_EPOCH"]
         # ADM add unique identifiers based on the file and row-in-file.
         flobjsout["GAIA_BRICKID"] = filenum
         flobjsout["GAIA_OBJID"] = np.arange(len(flobjsin))
 
         # ADM record the bit values for each class name. The if/else is
         # ADM to maintain compatibility with both fitsio 0.9.11 and 1.0+.
-        if isinstance(flobjsin["CLASS"][0], np.bytes_):
-            cmx_target.append(
-                [cmx_mask[prog+"_"+c.decode().rstrip()]
-                 for c in flobjsin["CLASS"]]
-            )
+        if isfl:
+            if isinstance(flobjsin["CLASS"][0], np.bytes_):
+                cmx_target.append(
+                    [cmx_mask[prog+"_"+c.decode().rstrip()]
+                     for c in flobjsin["CLASS"]]
+                )
+            else:
+                cmx_target.append(
+                    [cmx_mask[prog+"_"+c.rstrip()] for c in flobjsin["CLASS"]]
+                )
         else:
-            cmx_target.append(
-                [cmx_mask[prog+"_"+c.rstrip()] for c in flobjsin["CLASS"]]
-            )
+            cmx_target.append([cmx_mask[prog] for c in flobjsin])
+
         flout.append(flobjsout)
 
     cmx_target = np.concatenate(cmx_target)
