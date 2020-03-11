@@ -829,7 +829,7 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (02/19/20) is version 125 on `the SV wiki`_.
+    - Current version (03/11/20) is version 126 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -1020,7 +1020,7 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
     bgs_qcs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
     bgs_qcs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
-    
+
     # color box
     bgs_qcs &= rflux > gflux * 10**(-1.0/2.5)
     bgs_qcs &= rflux < gflux * 10**(4.0/2.5)
@@ -1040,7 +1040,7 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
 
     bgs &= (maskbits & 2**1) == 0
     bgs &= (maskbits & 2**13) == 0
-    
+
     return bgs
 
 
