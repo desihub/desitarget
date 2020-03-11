@@ -693,7 +693,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     -----
     - Current version (02/19/20) is version 51 on `the cmx wiki`_.
     - Current version (03/10/20) for the high-z (QSO_Z5 selection)
-      is version 58 on `the cmx wiki`_.
+      is version 59 on `the cmx wiki`_.
     - Hardcoded for south=False.
     - Combines all QSO-like SV classes into one bit.
     """
