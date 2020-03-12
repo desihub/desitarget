@@ -1810,7 +1810,8 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
     # ADM get the M31 objects.
     cmx_target = []
     flout = []
-    progs = ["M31", "ORI", "ROS", "M33", "SV0_MWS_CLUSTER"]
+    progs = ["M31", "ORI", "ROS", "M33",
+             "SV0_MWS_CLUSTER", "SV0_MWS_CLUSTER_BRIGHT"]
     for filenum, prog in enumerate(progs):
         # ADM flag whether this is not a "true" first light program.
         isfl = prog[:3] != 'SV0'
