@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.36.1 (unreleased)
+0.37.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.37.0 (2020-03-12)
 -------------------
 
 * Add `SV0_MWS_CLUSTER_` target classes for commissioning [`PR #599`_].
