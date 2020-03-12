@@ -1854,6 +1854,7 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
                 flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["GAIA_G"]
             else:
                 flobjsout["REF_EPOCH"] = flobjsin["REF_EPOCH"]
+                flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["PHOT_G_MEAN_MAG"]
         # ADM add unique identifiers based on the file and row-in-file.
         flobjsout["GAIA_BRICKID"] = filenum
         flobjsout["GAIA_OBJID"] = np.arange(len(flobjsin))
