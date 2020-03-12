@@ -5,6 +5,7 @@ desitarget Change Log
 0.36.1 (unreleased)
 -------------------
 
+* Add `SV0_MWS_CLUSTER_` target classes for commissioning [`PR #599`_].
 * Flag the high-z quasar selection in CMX (as `SV0_QSO_Z5`) [`PR #598`_].
 * Leak of Bright Stars in BGS Main Survey and BGS SV fixed [`PR #596`_].
 * Restrict skies to the geometric boundaries of their brick [`PR #595`_].
@@ -19,6 +20,7 @@ desitarget Change Log
 .. _`PR #595`: https://github.com/desihub/desitarget/pull/595
 .. _`PR #596`: https://github.com/desihub/desitarget/pull/596
 .. _`PR #598`: https://github.com/desihub/desitarget/pull/598
+.. _`PR #599`: https://github.com/desihub/desitarget/pull/599
 
 0.36.0 (2020-02-16)
 -------------------
