@@ -5,7 +5,9 @@ desitarget Change Log
 0.37.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #600`_].
+
+.. _`PR #600`: https://github.com/desihub/desitarget/pull/600
 
 0.37.0 (2020-03-12)
 -------------------
