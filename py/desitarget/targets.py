@@ -548,7 +548,7 @@ def calc_priority(targets, zcat, obscon):
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
-        for name in ['SV0_' + label for label in ('BGS', 'MWS')]:
+        for name in ['SV0_' + label for label in ('BGS', 'MWS', 'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]:
             ii = (targets['CMX_TARGET'] & cmx_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], cmx_mask[name].priorities['UNOBS'])
             priority[ii & done] = np.maximum(priority[ii & done],  cmx_mask[name].priorities['DONE'])
