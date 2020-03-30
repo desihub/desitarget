@@ -155,20 +155,20 @@ priorities:
 # ADM -1 means that the concept of NUMOBS doesn't apply to this bit
 numobs:
     cmx_mask:
-        STD_GAIA: 1
-        SV0_STD_FAINT: 1
-        SV0_STD_BRIGHT: 1
+        STD_GAIA: 100
+        SV0_STD_FAINT: 100
+        SV0_STD_BRIGHT: 100
         STD_TEST: 1
-        STD_CALSPEC: 1
+        STD_CALSPEC: 100
         STD_DITHER: 1
-        SV0_MWS_CLUSTER: 1
-        SV0_MWS_CLUSTER_VERYBRIGHT: 1
+        SV0_MWS_CLUSTER: 100
+        SV0_MWS_CLUSTER_VERYBRIGHT: 100
         SV0_BGS: 1
-        SV0_MWS: 1
+        SV0_MWS: 100
         SV0_ELG: 1
         SV0_LRG: 2
         SV0_QSO: 4
-        SV0_WD: 1
+        SV0_WD: 100
         SV0_QSO_Z5: 4
         BACKUP_BRIGHT: 1
         BACKUP_FAINT: 1
