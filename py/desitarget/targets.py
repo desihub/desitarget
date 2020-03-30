@@ -548,12 +548,16 @@ def calc_priority(targets, zcat, obscon):
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
-        for name in ['SV0_' + label for label in ('BGS', 'MWS', 'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]:
-            ii = (targets['CMX_TARGET'] & cmx_mask[name]) != 0
-            priority[ii & unobs] = np.maximum(priority[ii & unobs], cmx_mask[name].priorities['UNOBS'])
-            priority[ii & done] = np.maximum(priority[ii & done],  cmx_mask[name].priorities['DONE'])
-            priority[ii & zgood] = np.maximum(priority[ii & zgood], cmx_mask[name].priorities['MORE_ZGOOD'])
-            priority[ii & zwarn] = np.maximum(priority[ii & zwarn], cmx_mask[name].priorities['MORE_ZWARN'])
+        names_to_update = ['SV0_' + label for label in ('STD_FAINT', 'BGS', 'MWS', 'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]
+        names_to_update.extend(['BACKUP_BRIGHT', 'BACKUP_FAINT'])
+        for name in names_to_update:
+            pricon = obsconditions.mask(cmx_mask[name].obsconditions)
+            if (obsconditions.mask(obscon) & pricon) != 0:
+                ii = (targets['CMX_TARGET'] & cmx_mask[name]) != 0
+                priority[ii & unobs] = np.maximum(priority[ii & unobs], cmx_mask[name].priorities['UNOBS'])
+                priority[ii & done] = np.maximum(priority[ii & done],  cmx_mask[name].priorities['DONE'])
+                priority[ii & zgood] = np.maximum(priority[ii & zgood], cmx_mask[name].priorities['MORE_ZGOOD'])
+                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], cmx_mask[name].priorities['MORE_ZWARN'])
 
     return priority
 
