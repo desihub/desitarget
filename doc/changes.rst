@@ -5,9 +5,11 @@ desitarget Change Log
 0.37.1 (unreleased)
 -------------------
 
+* Fix mock QSO density bug reported in #594 [`PR #602`_].
 * Fixes a typo in the priority of MWS_WD_SV targets [`PR #600`_].
 
 .. _`PR #600`: https://github.com/desihub/desitarget/pull/600
+.. _`PR #602`: https://github.com/desihub/desitarget/pull/602
 
 0.37.0 (2020-03-12)
 -------------------
