@@ -1286,7 +1286,8 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
                                    outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
 
         #- Make initial merged target list (MTL) using rank 0
-        if rank == 0 and todo['mtl-{}'.format(obscon)]:
+        exists = os.path.isfile(outdir+'/targets-{}.fits'.format(obscon))
+        if rank == 0 and todo['mtl-{}'.format(obscon)] and exists:
             from desitarget import mtl
             from desiutil.log import get_logger
             log = get_logger()
