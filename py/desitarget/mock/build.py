@@ -197,7 +197,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
             qsodndz *= np.sum(dndz[target_type]['dndz']) / np.sum(qsodndz)
 
             if target_name == 'QSO' and 'zmax_qso' in params.keys():
-                extrafactor = np.sum(qsodndz[zbins <= 2.1]) / np.sum(qsodndz[zbins <= params['zmax_qso']])
+                extrafactor = np.sum(qsodndz[zbins <= params['zmax_qso']]) / np.sum(qsodndz[zbins <= 2.1])
             if target_name == 'LYA' and 'zmin_lya' in params.keys():
                 extrafactor = np.sum(qsodndz[zbins >= params['zmin_lya']]) / np.sum(qsodndz[zbins >= 2.1])
             log.info('Density adjustment factor for target type {}: {:.3f}.'.format(target_name, extrafactor))
