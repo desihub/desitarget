@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.37.1 (unreleased)
+0.37.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.37.1 (2020-04-07)
 -------------------
 
 * Fix mock QSO density bug reported in #594 [`PR #602`_].
