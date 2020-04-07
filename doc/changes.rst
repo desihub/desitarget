@@ -2,10 +2,34 @@
 desitarget Change Log
 =====================
 
-0.36.1 (unreleased)
+0.37.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Fix mock QSO density bug reported in #594 [`PR #602`_].
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #600`_].
+
+.. _`PR #600`: https://github.com/desihub/desitarget/pull/600
+.. _`PR #602`: https://github.com/desihub/desitarget/pull/602
+
+0.37.0 (2020-03-12)
+-------------------
+
+* Add `SV0_MWS_CLUSTER_` target classes for commissioning [`PR #599`_].
+* Flag the high-z quasar selection in CMX (as `SV0_QSO_Z5`) [`PR #598`_].
+* Leak of Bright Stars in BGS Main Survey and BGS SV fixed [`PR #596`_].
+* Restrict skies to the geometric boundaries of their brick [`PR #595`_].
+* Changes in CMX after running code for Mini-SV [`PR #592`_]. Includes:
+    * g/G >= 16 for `SV0_BGS`/`SV0_MWS`/`SV0_WD`/`MINI_SV_BGS_BRIGHT`.
+    * Remove the LRG `LOWZ_FILLER` class (both in SV and CMX).
+    * Mask on `bright` in `MASKBITS` for z~5 QSOs (both in SV and CMX).
+    * Remove the 'low quality' (`lowq`) component of `SV0_BGS`.
+    * Add optical `MASKBITS` flags for LRGs (in Main Survey, SV and CMX).
+
+.. _`PR #592`: https://github.com/desihub/desitarget/pull/592
+.. _`PR #595`: https://github.com/desihub/desitarget/pull/595
+.. _`PR #596`: https://github.com/desihub/desitarget/pull/596
+.. _`PR #598`: https://github.com/desihub/desitarget/pull/598
+.. _`PR #599`: https://github.com/desihub/desitarget/pull/599
 
 0.36.0 (2020-02-16)
 -------------------

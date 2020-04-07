@@ -349,7 +349,7 @@ priorities:
     sv1_scnd_mask:
         VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         DR14Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD_SV:                    {UNOBS: 2296, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD_SV:                    {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD_SV_VERYBRIGHT:         SAME_AS_MWS_WD_SV
         MWS_CALIB_APOGEE:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
