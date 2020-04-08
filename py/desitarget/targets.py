@@ -548,9 +548,9 @@ def calc_priority(targets, zcat, obscon):
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
-        names_to_update = ['SV0_' + label for label in ('STD_FAINT', 'BGS', 'MWS','WD',
+        names_to_update = ['SV0_' + label for label in ('STD_FAINT','STD_BRIGHT','BGS', 'MWS','WD',
                 'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]
-        names_to_update.extend(['BACKUP_BRIGHT', 'BACKUP_FAINT'])
+        names_to_update.extend(['BACKUP_BRIGHT', 'BACKUP_FAINT','MINI_SV_MWS_FAINT'])
         for name in names_to_update:
             pricon = obsconditions.mask(cmx_mask[name].obsconditions)
             if (obsconditions.mask(obscon) & pricon) != 0:
