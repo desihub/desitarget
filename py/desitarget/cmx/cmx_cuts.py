@@ -378,6 +378,9 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     :class:`array_like`
         ``True`` if and only if the object is an early-SV/main survey
         MWS_WD target.
+    :class:`array_like`
+        ``True`` if and only if the object is an early-SV/main survey
+        MINI_SV_MWS_FAINT target.
 
     Notes
     -----
@@ -394,6 +397,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     ismws = primary.copy()
+    ismws_faint = primary.copy()
     isnear = primary.copy()
     iswd = primary.copy()
 
@@ -402,6 +406,13 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     ismws &= gaia
     # ADM main targets are point-like.
     ismws &= _psflike(objtype)
+
+    # APC faint MWS filler for minsv3+ tiles
+    # APC no constraint on obs_rflux
+    ismws_faint &= ismws
+    ismws_faint &= rflux > 10**((22.5-21.0)/2.5)
+    ismws_faint &= rflux <= 10**((22.5-19.0)/2.5)
+
     # ADM main targets are 16 <= r < 19.
     ismws &= rflux > 10**((22.5-19.0)/2.5)
     ismws &= rflux <= 10**((22.5-16.0)/2.5)
@@ -483,7 +494,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
                  ((gaiaaen < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
     # ADM return any object that passes the MWS cuts.
-    return ismws | isnear, iswd
+    return ismws | isnear, iswd, ismws_faint
 
 
 def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
@@ -2095,8 +2106,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         objtype=objtype, primary=primary
     )
 
-    # ADM determine if an object is SV0_MWS or WD.
-    sv0_mws, sv0_wd = isSV0_MWS(
+    # ADM determine if an object is SV0_MWS, WD or MINI_SV_MWS_FAINT.
+    sv0_mws, sv0_wd, mini_sv_mws_faint = isSV0_MWS(
         rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         pmra=pmra, pmdec=pmdec, parallax=parallax,
@@ -2263,6 +2274,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= mini_sv_elg * cmx_mask.MINI_SV_ELG
     cmx_target |= mini_sv_qso * cmx_mask.MINI_SV_QSO
     cmx_target |= mini_sv_bgs_bright * cmx_mask.MINI_SV_BGS_BRIGHT
+    cmx_target |= mini_sv_mws_faint * cmx_mask.MINI_SV_MWS_FAINT
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.
