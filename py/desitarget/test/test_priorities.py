@@ -195,11 +195,17 @@ class TestPriorities(unittest.TestCase):
         colnames, masks, _ = main_cmx_or_sv(t)
         cmx_mask = masks[0]
 
-        # ADM test handling of unobserved SV0_BGS and SV0_MWS.
-        for name in ["SV0_BGS", "SV0_MWS"]:
+        # ADM test handling of unobserved SV0_BGS.
+        for name in ["SV0_BGS"]:
             t['CMX_TARGET'] = cmx_mask[name]
             self.assertTrue(np.all(calc_priority(
                 t, z, "GRAY|DARK") == cmx_mask[name].priorities['UNOBS']))
+
+        # APC test handling of unobserved SV0_MWS.
+        for name in ["SV0_MWS"]:
+            t['CMX_TARGET'] = cmx_mask[name]
+            self.assertTrue(np.all(calc_priority(
+                t, z, "POOR") == cmx_mask[name].priorities['UNOBS']))
 
         # ADM done is Done, regardless of ZWARN.
         for name in ["SV0_BGS", "SV0_MWS"]:
