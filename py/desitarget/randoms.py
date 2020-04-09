@@ -19,6 +19,7 @@ from glob import glob
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targets import resolve, main_cmx_or_sv
+
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
 
@@ -1209,47 +1210,40 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None,
 
 def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
                    bundlebricks=None, brickspersec=2.5, extra=None,
-                   dustdir=None, resolverands=True, aprad=0.75, seed=1):
+                   dustdir=None, aprad=0.75, seed=1):
     """NOBS, DEPTHs (per-band), MASKs for random points in a Legacy Surveys DR.
 
     Parameters
     ----------
     drdir : :class:`str`
-       The root directory pointing to a Data Release from the Legacy Surveys
-       e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
+        Root directory for a Data Release from the Legacy Surveys
+        e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
     density : :class:`int`, optional, defaults to 100,000
-        The number of random points to return per sq. deg. As a typical brick is
-        ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned.
+        Number of random points to return per sq. deg. As a brick is
+        ~0.25 x 0.25 sq. deg. ~0.0625*density points will be returned.
     numproc : :class:`int`, optional, defaults to 32
         The number of processes over which to parallelize.
     nside : :class:`int`, optional, defaults to `None`
-        The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlebricks` input.
-    pixlist : :class:`list` or `int`, optional, defaults to None
-        Bricks will only be processed if the CENTER of the brick lies within the bounds of
-        pixels that are in this list of integers, at the supplied HEALPixel `nside`.
-        Uses the HEALPix NESTED scheme. Useful for parallelizing. If pixlist is None
-        then all bricks in the passed `survey` will be processed.
-    bundlebricks : :class:`int`, defaults to None
-        If not None, then instead of selecting the skies, print, to screen, the slurm
-        script that will approximately balance the brick distribution at `bundlebricks`
-        bricks per node. So, for instance, if bundlebricks is 14000 (which as of
-        the latest git push works well to fit on the interactive nodes on Cori and run
-        in about an hour), then commands would be returned with the correct pixlist values
-        to pass to the code to pack at about 14000 bricks per node across all of the bricks
-        in `survey`.
+        (NESTED) HEALPixel nside to be used with the `pixlist` and
+        `bundlebricks` input.
+    pixlist : :class:`list` or `int`, optional, defaults to ``None``
+        Bricks will only be processed if the brick CENTER is within the
+        HEALpixels in this list, at the input `nside`. Uses the HEALPix
+        NESTED scheme. Useful for parallelizing. If pixlist is ``None``
+        then all bricks in the input `survey` will be processed.
+    bundlebricks : :class:`int`, defaults to ``None``
+        If not ``None``, then instead of selecting randoms, print a slurm
+        script to balance the bricks at `bundlebricks` bricks per node.
     brickspersec : :class:`float`, optional, defaults to 2.5
-        The rough number of bricks processed per second by the code (parallelized across
-        a chosen number of nodes). Used in conjunction with `bundlebricks` for the code
-        to estimate time to completion when parallelizing across pixels.
+        The rough number of bricks processed per second (parallelized
+        across a chosen number of nodes). Used with `bundlebricks` to
+        estimate time to completion when parallelizing across pixels.
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script. Used in conjunction with `bundlefiles`.
     dustdir : :class:`str`, optional, defaults to $DUST_DIR+'maps'
         The root directory pointing to SFD dust maps. If None the code
         will try to use $DUST_DIR+'maps') before failing.
-    resolverands : :class:`boolean`, optional, defaults to ``True``
-        If ``True``, resolve randoms into northern randoms in northern regions
-        and southern randoms in southern regions.
     aprad : :class:`float`, optional, defaults to 0.75
         Radii in arcsec of aperture for which to derive sky fluxes
         defaults to the DESI fiber radius.
@@ -1262,7 +1256,12 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the same columns as returned by
-        :func:`~desitarget.randoms.get_quantities_in_a_brick`.
+        :func:`~desitarget.randoms.get_quantities_in_a_brick` that
+        includes all of the randoms resolved by the north/south divide.
+    :class:`~numpy.ndarray`
+        as above but just for randoms in northern bricks.
+    :class:`~numpy.ndarray`
+        as above but just for randoms in southern bricks.
     """
     # ADM grab brick information for this data release. Depending on whether this
     # ADM is pre-or-post-DR8 we need to find the correct directory or directories.
@@ -1308,12 +1307,16 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
     qinfo = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
                                   drdir=drdir, density=density, dustdir=dustdir,
                                   aprad=aprad, seed=seed)
-    # ADM remove bricks that overlap between two surveys, if requested.
-    if resolverands:
-        qinfo = resolve(qinfo)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(615+seed)
     np.random.shuffle(qinfo)
 
-    return qinfo
+    # ADM remove bricks that overlap between two surveys.
+    qres = resolve(qinfo)
+
+    # ADM a flag for which targets are from the 'N' photometry.
+    from desitarget.cuts import _isonnorthphotsys
+    isn = _isonnorthphotsys(qinfo["PHOTSYS"])
+
+    return qres, qinfo[isn], qinfo[~isn]

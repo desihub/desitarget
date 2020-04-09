@@ -51,8 +51,6 @@ ap.add_argument("--brickspersec", type=float,
 ap.add_argument("--dustdir",
                 help="Directory of SFD dust maps (defaults to the equivalent of $DUST_DIR+'/maps')",
                 default=None)
-ap.add_argument("--noresolve", action='store_true',
-                help="Do NOT resolve into northern randoms in northern regions and southern randoms in southern regions")
 ap.add_argument("--aprad", type=float,
                 help="Radius of aperture in arcsec in which to generate sky background flux levels (defaults to 0.75; the DESI fiber radius)",
                 default=0.75)
@@ -65,7 +63,7 @@ ns = ap.parse_args()
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "noresolve", "aprad", "density", "seed":
+for nskey in "aprad", "density", "seed":
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)
@@ -104,19 +102,24 @@ if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
         if 'BITNM' in record:
             hdr[record] = rmhdr['_record_map'][record]
 
-randoms = select_randoms(ns.surveydir, density=ns.density, numproc=ns.numproc,
-                         nside=ns.nside, pixlist=pixlist, aprad=ns.aprad, extra=extra,
-                         bundlebricks=ns.bundlebricks, brickspersec=ns.brickspersec,
-                         dustdir=ns.dustdir, resolverands=not(ns.noresolve), seed=ns.seed)
+randres, randnorth, randsouth = select_randoms(
+    ns.surveydir, density=ns.density, numproc=ns.numproc, nside=ns.nside,
+    pixlist=pixlist, aprad=ns.aprad, extra=extra, bundlebricks=ns.bundlebricks,
+    seed=ns.seed, brickspersec=ns.brickspersec, dustdir=ns.dustdir)
 
 if ns.bundlebricks is None:
     # ADM extra header keywords for the output fits file.
     extra = {k: v for k, v in zip(["density", "aprad", "seed"],
                                   [ns.density, ns.aprad, ns.seed])}
 
+    randoms = [randres, randnorth, randsouth]
+    ress = [True, False, False]
+    norths =  [None, True, False]
 
-    nrands, outfile = io.write_randoms(
-        ns.dest, randoms, indir=ns.surveydir, hdr=hdr, nside=nside, extra=extra,
-        resolve=not(ns.noresolve), nsidefile=ns.nside, hpxlist=pixlist)
-    log.info('wrote file of {} randoms to {}...t = {:.1f}s'
-             .format(nrands, outfile, time()-start))
+    for random, res, north in zip(randoms, ress, norths):
+        nrands, outfile = io.write_randoms(
+            ns.dest, random, indir=ns.surveydir, hdr=hdr, nside=nside,
+            extra=extra, resolve=res, nsidefile=ns.nside, hpxlist=pixlist,
+            north=north)
+        log.info('wrote file of {} randoms to {}...t = {:.1f}s'
+                 .format(nrands, outfile, time()-start))
