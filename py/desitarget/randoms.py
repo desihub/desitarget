@@ -23,16 +23,21 @@ from desitarget.targets import resolve, main_cmx_or_sv
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
 
-# ADM the parallelization script
+# ADM the parallelization script.
 from desitarget.internal import sharedmem
 
-# ADM set up the DESI default logger
+# ADM set up the DESI default logger.
+from desiutil import brick
 from desiutil.log import get_logger
 
-# ADM set up the default logger from desiutil
+# ADM set up the Legacy Surveys bricks objects.
+bricks = brick.Bricks(bricksize=0.25)
+bricktable = bricks.to_table()
+
+# ADM set up the default logger from desiutil.
 log = get_logger()
 
-# ADM start the clock
+# ADM start the clock.
 start = time()
 
 
@@ -452,7 +457,7 @@ def hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     decmax : :class:`float`
         The maximum "edge" of the brick in Declination.
     brickname : :class:`~numpy.array`
-        Brick names that corresponnds to the brick edges, e.g., '1351p320'.
+        Brick names that corresponds to the brick edges, e.g., '1351p320'.
     drdir : :class:`str`
        The root directory pointing to a Data Release from the Legacy Surveys
        e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
@@ -551,7 +556,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     decmax : :class:`float`
         The maximum "edge" of the brick in Declination
     brickname : :class:`~numpy.array`
-        Brick names that corresponnds to the brick edges, e.g., '1351p320'
+        Brick names that corresponds to the brick edges, e.g., '1351p320'
     density : :class:`int`, optional, defaults to 100,000
         The number of random points to return per sq. deg. As a typical brick is
         ~0.25 x 0.25 sq. deg. about (0.0625*density) points will be returned
@@ -562,10 +567,10 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
         Radii in arcsec of aperture for which to derive sky fluxes
         defaults to the DESI fiber radius.
     zeros : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then don't look up pixel-level information for the
-        brick, just return zeros. The only quantities populated are
-        those that don't need pixels (`RA`, `DEC`, `BRICKNAME`, `EBV`)
-        and the `NOBS_` quantities (which are set to zero).
+        If ``True`` don't look up pixel-level info for the brick, just
+        return zeros. The only quantities populated are those that don't
+        need pixels (`RA`, `DEC`, `BRICKID`, `BRICKNAME`, `EBV`) and the
+        `NOBS_` quantities (which are set to zero).
     drdir : :class:`str`, optional, defaults to None
         The root directory pointing to a DR from the Legacy Surveys
         e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
@@ -578,6 +583,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     :class:`~numpy.ndarray`
         a numpy structured array with the following columns:
             RA, DEC: Right Ascension, Declination of a random location.
+            BRICKID: ID that corresponds to the passed brick name.
             BRICKNAME: Passed brick name.
             NOBS_G, R, Z: Number of observations in g, r, z-band.
             PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
@@ -621,7 +627,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
         # ADM the structured array to output.
         qinfo = np.zeros(
             len(ras),
-            dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKNAME', 'S8'),
+            dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
                    ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                    ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                    ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
@@ -653,8 +659,11 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
             for col in cols:
                 qinfo[col.upper()] = qdict[col]
 
-    # ADM add the RAs/Decs and brick name.
-    qinfo["RA"], qinfo["DEC"], qinfo["BRICKNAME"] = ras, decs, brickname
+    # ADM add the RAs/Decs, brick id and brick name.
+    bricktable = bricks.to_table()
+    brickid = bricktable[bricktable["BRICKNAME"] == brickname]["BRICKID"]
+    qinfo["RA"], qinfo["DEC"] = ras, decs
+    qinfo["BRICKNAME"], qinfo["BRICKID"] = brickname, brickid
 
     # ADM add the dust values.
     qinfo["EBV"] = ebv
@@ -1154,8 +1163,6 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
         for brickname in bricknames:
             qinfo.append(_update_status(_get_quantities(brickname)))
 
-    # ADM concatenate the randoms into a single long list and resolve
-    # ADM whether they are officially in the north or the south.
     qinfo = np.concatenate(qinfo)
 
     return qinfo
