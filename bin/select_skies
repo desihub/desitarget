@@ -5,6 +5,7 @@ import os, sys
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 from desitarget.skyfibers import select_skies, density_of_sky_fibers, get_brick_info
 from desitarget import io
+from desitarget.io import _check_both_set
 from desitarget.geomask import bundle_bricks
 from desitarget.targets import resolve
 
@@ -42,8 +43,8 @@ ap.add_argument("--apertures",
                 help='Aperture radii in arcseconds at which to derive flux measurements for each sky location (e.g, "0.75, 1.0"; defaults to "0.75")',
                 default="0.75")
 ap.add_argument('--nside', type=int,
-                help='Process sky locations in parallel in bricks that have centers within HEALPixels at this resolution (defaults to 2)',
-                default=2)
+                help='Process sky locations in parallel in bricks that have centers within HEALPixels at this resolution (defaults to None)',
+                default=None)
 ap.add_argument('--healpixels', 
                 help='HEALPixels (corresponding to nside) to process (e.g. "5,7,11"). If not passed, run all bricks in the Data Release',
                 default=None)
@@ -108,6 +109,10 @@ if ns.bundlebricks is not None:
     bundle_bricks(allpixnum, ns.bundlebricks, ns.nside, prefix='skies',
                   gather=False, surveydirs=drdirs, brickspersec=ns.brickspersec)
 else:
+    log.info("running on {} processors".format(ns.numproc))
+    # ADM formally writing pixelized files requires both the nside
+    # ADM and the list of healpixels to be set.
+    _check_both_set(ns.healpixels, ns.nside)
     # ADM run the main sky selection code over the passed surveys.
     skies = []
     for survey in surveys:

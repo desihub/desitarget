@@ -535,11 +535,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        _check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -875,11 +871,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        _check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -979,11 +971,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        _check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -1090,11 +1078,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        _check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -2226,5 +2210,15 @@ def _check_hpx_length(hpxlist, length=68, warning=False):
         if warning:
             log.warning(msg)
         else:
+            log.critical(msg)
+            raise ValueError(msg)
+
+
+def _check_both_set(hpxlist, nside):
+    """Check that if one of two variables is set, the other is too"""
+    if hpxlist is not None or nside is not None:
+        if hpxlist is None or nside is None:
+            msg = 'Both hpxlist (={}) and nside (={}) need to be set' \
+                .format(hpxlist, nside)
             log.critical(msg)
             raise ValueError(msg)

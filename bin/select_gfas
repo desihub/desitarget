@@ -6,6 +6,7 @@ import argparse
 from desitarget.gfa import select_gfas
 from desitarget.geomask import is_in_gal_box, is_in_box
 from desitarget import io
+from desitarget.io import _check_both_set
 from time import time
 t0 = time()
 
@@ -75,7 +76,11 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
-log.info('running on {} processors...t = {:.1f} mins'.format(ns.numproc, (time()-t0)/60.))
+if ns.bundlefiles is None:
+    log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc, time()-t0))
+    # ADM formally writing pixelized files requires both the nside
+    # ADM and the list of healpixels to be set.
+    _check_both_set(ns.healpixels, ns.nside)
 
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels

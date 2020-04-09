@@ -950,7 +950,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
 
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
-                 apertures_arcsec=[0.75], nside=2, pixlist=None, writebricks=False):
+                 apertures_arcsec=[0.75], nside=None, pixlist=None, writebricks=False):
     """Generate skies in parallel for bricks in a Legacy Surveys DR.
 
     Parameters
@@ -967,7 +967,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         List of bands to be used to define good sky locations.
     apertures_arcsec : :class:`list`, optional, defaults to [0.75]
         Radii in arcsec of apertures for which to derive flux at a sky location.
-    nside : :class:`int`, optional, defaults to nside=2 (859.4 sq. deg.)
+    nside : :class:`int`, optional, defaults to ``None``
         The HEALPixel nside number to be used with the `pixlist` input.
     pixlist : :class:`list` or `int`, optional, defaults to None
         Bricks will only be processed if the CENTER of the brick lies within the bounds of
