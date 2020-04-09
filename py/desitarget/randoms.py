@@ -32,7 +32,9 @@ from desiutil.log import get_logger
 
 # ADM set up the Legacy Surveys bricks objects.
 bricks = brick.Bricks(bricksize=0.25)
+# ADM make a BRICKNAME->BRICKID look-up table for speed.
 bricktable = bricks.to_table()
+bricklookup = {bt["BRICKNAME"]: bt["BRICKID"] for bt in bricktable}
 
 # ADM set up the default logger from desiutil.
 log = get_logger()
@@ -660,8 +662,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
                 qinfo[col.upper()] = qdict[col]
 
     # ADM add the RAs/Decs, brick id and brick name.
-    bricktable = bricks.to_table()
-    brickid = bricktable[bricktable["BRICKNAME"] == brickname]["BRICKID"]
+    brickid = bricklookup[brickname]
     qinfo["RA"], qinfo["DEC"] = ras, decs
     qinfo["BRICKNAME"], qinfo["BRICKID"] = brickname, brickid
 
