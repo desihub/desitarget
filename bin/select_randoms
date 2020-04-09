@@ -92,8 +92,14 @@ if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
         hdrall = fitsio.read_header(fn, 1)
     except StopIteration:
         gen = iglob(os.path.join(ns.surveydir, "coadd", "*", "*", "*maskbits*"))
-        fn = next(gen)
-        hdrall = fitsio.read_header(fn, 0)
+        try:
+            fn = next(gen)
+            hdrall = fitsio.read_header(fn, 0)
+        except StopIteration:
+            log.critical(
+                "No coadd or north/coadd south/coadd directories in {}?!".format(
+                    ns.surveydir))
+            sys.exit(1)
     # ADM retrieve the record dictionary for the entire header.
     rmhdr = vars(hdrall)
     # ADM write only the maskbits-relevant headers to a new header.
