@@ -15,7 +15,7 @@ from time import time
 import healpy as hp
 import fitsio
 import photutils
-from glob import glob
+from glob import glob, iglob
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targets import resolve, main_cmx_or_sv
@@ -59,9 +59,6 @@ def dr_extension(drdir):
     :class:`int`
         The corresponding FITS extension number that needs to be read (0 or 1).
     """
-
-    from glob import iglob
-
     # ADM for speed, create a generator of all of the nexp files in the coadd directory.
     gen = iglob(drdir+"/coadd/*/*/*nexp*")
     # ADM and pop the first one.
@@ -286,6 +283,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     aprad : :class:`float`, optional, defaults to 0.75
         Radii in arcsec of aperture for which to derive sky fluxes
         defaults to the DESI fiber radius.
+
     Returns
     -------
     :class:`dictionary`
@@ -295,6 +293,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
        at each passed position in each band x=g,r,z. Plus, the
        `psfdepth_w1` and `_w2` depths and the `maskbits`, `wisemask_w1`
        and `_w2` information at each passed position for the brick.
+       Also adds a unique `objid` for each random, and a `release` if
+       a release number can be determined from the input `drdir`.
 
     Notes
     -----
@@ -441,6 +441,19 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
             else:
                 qdict[qout+'_'+band] = np.zeros(npts, dtype=qform)
 
+    # ADM look up the RELEASE based on "standard" DR directory structure.
+    gen = iglob(os.path.join(drdir, "tractor", "*", "tractor*fits"))
+    try:
+        release = fitsio.read(next(gen), columns="release", rows=0)[0]
+    # ADM if this isn't a standard DR structure, default to release=0.
+    except StopIteration:
+        release = 0
+    qdict["release"] = np.zeros_like((qdict['nobs_g'])) + release
+
+    # ADM assign OBJID based on ordering by RA. The ordering ensures that
+    # ADM northern and southern objects get the same OBJID.
+    qdict["objid"] = np.argsort(ras)
+
     return qdict
 
 
@@ -584,9 +597,11 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the following columns:
-            RA, DEC: Right Ascension, Declination of a random location.
+            RELEASE: The Legacy Surveys release number.
+            OBJID: A unique (to each brick) source identifier.
             BRICKID: ID that corresponds to the passed brick name.
             BRICKNAME: Passed brick name.
+            RA, DEC: Right Ascension, Declination of a random location.
             NOBS_G, R, Z: Number of observations in g, r, z-band.
             PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
             GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
@@ -629,7 +644,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
         # ADM the structured array to output.
         qinfo = np.zeros(
             len(ras),
-            dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
+            dtype=[('RELEASE', '>i2'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
+                   ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', 'f8'),
                    ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                    ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
                    ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
@@ -643,7 +659,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     else:
         qinfo = np.zeros(
             len(ras),
-            dtype=[('RA', 'f8'), ('DEC', 'f8'), ('BRICKNAME', 'S8'),
+            dtype=[('BRICKID', '>i4'), ('BRICKNAME', 'S8'), ('RA', 'f8'), ('DEC', 'f8'),
                    ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
                    ('EBV', 'f4')]
         )
