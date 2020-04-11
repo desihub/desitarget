@@ -16,10 +16,10 @@ import healpy as hp
 import fitsio
 import photutils
 from glob import glob, iglob
+
 from desitarget.gaiamatch import _get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
-from desitarget.targets import resolve, main_cmx_or_sv
-
+from desitarget.targets import resolve, main_cmx_or_sv, finalize
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
 
@@ -1328,19 +1328,28 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     # ADM recover the pixel-level quantities in the DR bricks.
-    qinfo = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
-                                  drdir=drdir, density=density, dustdir=dustdir,
-                                  aprad=aprad, seed=seed)
+    qi = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
+                               drdir=drdir, density=density,
+                               dustdir=dustdir, aprad=aprad, seed=seed)
+
+    # ADM make every random the highest-priority target.
+    from desitarget.targetmask import desi_mask as dMx
+    bitperprio = {dMx[bn].priorities["UNOBS"]: dMx[bn] for bn in dMx.names()
+                  if len(dMx[bn].priorities) > 0}
+    desi_target = np.zeros_like(qi["RA"]) + bitperprio[np.max(list(bitperprio))]
+
+    # ADM add the standard columns that are also added in targeting.
+    randoms = finalize(qi, desi_target, desi_target, desi_target, randoms=True)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(615+seed)
-    np.random.shuffle(qinfo)
+    np.random.shuffle(randoms)
 
     # ADM remove bricks that overlap between two surveys.
-    qres = resolve(qinfo)
+    randomsres = resolve(randoms)
 
     # ADM a flag for which targets are from the 'N' photometry.
     from desitarget.cuts import _isonnorthphotsys
-    isn = _isonnorthphotsys(qinfo["PHOTSYS"])
+    isn = _isonnorthphotsys(randoms["PHOTSYS"])
 
-    return qres, qinfo[isn], qinfo[~isn]
+    return randomsres, randoms[isn], randoms[~isn]

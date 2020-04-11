@@ -335,7 +335,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     # ADM add target bit columns to the output array, note that mws_target
     # ADM and bgs_target should be zeros for all sky objects.
     dum = np.zeros_like(desi_target)
-    skies = finalize(skies, desi_target, dum, dum, sky=1)
+    skies = finalize(skies, desi_target, dum, dum, sky=True)
 
     if write:
         outfile = survey.find_file('skies', brick=brickname)
@@ -942,7 +942,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
-    supp = finalize(supp, desi_target, dum, dum, sky=1)
+    supp = finalize(supp, desi_target, dum, dum, sky=True)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
