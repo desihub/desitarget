@@ -5,7 +5,9 @@ desitarget Change Log
 0.37.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Fix `select_mock_targets` I/O bug reported in #603 [`PR #604`_].
+
+.. _`PR #603`: https://github.com/desihub/desitarget/pull/604
 
 0.37.1 (2020-04-07)
 -------------------
