@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.37.2 (unreleased)
+0.37.3 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.37.2 (2020-04-13)
 -------------------
 
 * Fix `select_mock_targets` I/O bug reported in #603 [`PR #604`_].
