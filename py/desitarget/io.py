@@ -579,10 +579,15 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         if len(objtruth) > 0:
             for obj in sorted(set(truthdata['TEMPLATETYPE'])):
                 out = objtruth[obj]
+
+                # TODO: fix desitarget #529, double check with #603, then remove this
                 # Temporarily remove the `TRANSIENT_` columns--
                 # see https://github.com/desihub/desitarget/issues/603#issuecomment-612678359 and
                 # https://github.com/desihub/desisim/issues/529
-                [out.remove_column(col) for col in out.colnames if 'TRANSIENT_' in col]
+                for col in out.colnames.copy():
+                    if 'TRANSIENT_' in col:
+                        out.remove_column(col)
+
                 fitsio.write(truthfile+'.tmp', out.as_array(), append=True, extname='TRUTH_{}'.format(obj))
         os.rename(truthfile+'.tmp', truthfile)
 
