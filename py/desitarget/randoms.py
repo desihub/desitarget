@@ -1158,7 +1158,7 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
         # ADM make every random the highest-priority target.
         dt = np.zeros_like(randoms["RA"]) + bitperprio[np.max(list(bitperprio))]
 
-        return finalize(randoms, dt, dt, dt, randoms=True)
+        return finalize(randoms, dt, dt*0, dt*0, randoms=True)
 
     # ADM this is just to count bricks in _update_status.
     nbrick = np.zeros((), dtype='i8')

@@ -748,12 +748,6 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     # ADM set the OBSCONDITIONS.
     done["OBSCONDITIONS"] = set_obsconditions(done)
 
-    # ADM we only need the DESI_TARGET-like column for randoms.
-    if randoms:
-        colnames = np.array(colnames)[
-            np.array(['BGS_TARGET' in i or 'MWS_TARGET' in i for i in colnames])]
-        done = rfn.drop_fields(done, colnames)
-
     # ADM some final checks that the targets conform to expectations...
     # ADM check that each target has a unique ID.
     if len(done["TARGETID"]) != len(set(done["TARGETID"])):
