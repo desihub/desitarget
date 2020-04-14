@@ -22,6 +22,10 @@ from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targets import resolve, main_cmx_or_sv, finalize
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
+from desitarget.targetmask import desi_mask as dMx
+# ADM a look-up dictionary that converts priorities to bit-names.
+bitperprio = {dMx[bn].priorities["UNOBS"]: dMx[bn] for bn in dMx.names()
+              if len(dMx[bn].priorities) > 0}
 
 # ADM the parallelization script.
 from desitarget.internal import sharedmem
@@ -1142,10 +1146,19 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
 
         # ADM populate the brick with random points, and retrieve the quantities
         # ADM of interest at those points.
-        return get_quantities_in_a_brick(
+        randoms = get_quantities_in_a_brick(
             bramin, bramax, bdecmin, bdecmax, brickname, drdir=drdir,
             density=density, dustdir=dustdir, aprad=aprad, zeros=zeros,
             seed=seed)
+
+        return _finalize_randoms(randoms)
+
+    # ADM add the standard "final" columns that are also added in targeting.
+    def _finalize_randoms(randoms):
+        # ADM make every random the highest-priority target.
+        dt = np.zeros_like(randoms["RA"]) + bitperprio[np.max(list(bitperprio))]
+
+        return finalize(randoms, dt, dt, dt, randoms=True)
 
     # ADM this is just to count bricks in _update_status.
     nbrick = np.zeros((), dtype='i8')
@@ -1329,18 +1342,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
         log.info('Running on Node {}'.format(os.getenv('SLURMD_NODENAME')))
 
     # ADM recover the pixel-level quantities in the DR bricks.
-    qi = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
-                               drdir=drdir, density=density,
-                               dustdir=dustdir, aprad=aprad, seed=seed)
-
-    # ADM make every random the highest-priority target.
-    from desitarget.targetmask import desi_mask as dMx
-    bitperprio = {dMx[bn].priorities["UNOBS"]: dMx[bn] for bn in dMx.names()
-                  if len(dMx[bn].priorities) > 0}
-    desi_target = np.zeros_like(qi["RA"]) + bitperprio[np.max(list(bitperprio))]
-
-    # ADM add the standard columns that are also added in targeting.
-    randoms = finalize(qi, desi_target, desi_target, desi_target, randoms=True)
+    randoms = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
+                                    drdir=drdir, density=density,
+                                    dustdir=dustdir, aprad=aprad, seed=seed)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(615+seed)
