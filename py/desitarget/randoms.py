@@ -1309,7 +1309,8 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
         bundle_bricks(allpixnum, bundlebricks, nside,
                       brickspersec=brickspersec, prefix='randoms',
                       surveydirs=[drdir], extra=extra, seed=seed)
-        return
+        # ADM because the broader function returns three outputs.
+        return None, None, None
 
     # ADM restrict to only bricks in a set of HEALPixels, if requested.
     if pixlist is not None:
