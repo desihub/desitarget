@@ -1026,11 +1026,11 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         conjunction with `nsidefile`.
     resolve : :class:`bool`, optional, defaults to ``True``
         Written to the output file header as `RESOLVE`. If ``True``
-        (``False``) output directory includes \resolve\ (\noresolve).
+        (``False``) output directory includes "resolve" ("noresolve").
     north : :class:`bool`, optional
         If passed (and not ``None``), then, if ``True`` (``False``),
         REGION=north (south) is written to the output header and the
-        output directory name is appended by \north\ (\south\).
+        output directory name is appended by "north" ("south").
     extra : :class:`dict`, optional
         If passed (and not ``None``), write these extra dictionary keys
         and values to the output header.
@@ -1056,7 +1056,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
             drint = None
 
     # ADM whether this is a north-specific or south-specific file.
-    region=None
+    region = None
     if north is not None:
         region = ["south", "north"][north]
         hdr["REGION"] = region

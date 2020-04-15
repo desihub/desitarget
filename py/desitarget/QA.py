@@ -398,7 +398,7 @@ def read_data(targfile, mocks=False, downsample=None, header=False):
     truths, objtruths = None, None
 
     if mocks:
-        truthfile = targfile.replace('targets-', 'truth-') # fragile!
+        truthfile = targfile.replace('targets-', 'truth-')  # fragile!
 
         # ADM check that the truth file exists.
         if not os.path.exists(truthfile):

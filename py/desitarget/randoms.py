@@ -23,9 +23,6 @@ from desitarget.targets import resolve, main_cmx_or_sv, finalize
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
 from desitarget.targetmask import desi_mask as dMx
-# ADM a look-up dictionary that converts priorities to bit-names.
-bitperprio = {dMx[bn].priorities["UNOBS"]: dMx[bn] for bn in dMx.names()
-              if len(dMx[bn].priorities) > 0}
 
 # ADM the parallelization script.
 from desitarget.internal import sharedmem
@@ -33,6 +30,10 @@ from desitarget.internal import sharedmem
 # ADM set up the DESI default logger.
 from desiutil import brick
 from desiutil.log import get_logger
+
+# ADM a look-up dictionary that converts priorities to bit-names.
+bitperprio = {dMx[bn].priorities["UNOBS"]: dMx[bn] for bn in dMx.names()
+              if len(dMx[bn].priorities) > 0}
 
 # ADM set up the Legacy Surveys bricks objects.
 bricks = brick.Bricks(bricksize=0.25)
