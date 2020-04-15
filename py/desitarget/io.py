@@ -1055,20 +1055,6 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         except (ValueError, IndexError, AttributeError):
             drint = None
 
-    # ADM add HEALPix column, if requested by input.
-    if nside is not None:
-        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
-        hppix = hp.ang2pix(nside, theta, phi, nest=True)
-        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
-
-    # ADM note if this is a supplemental (outside-of-footprint) file.
-    hdr['SUPP'] = supp
-
-    # ADM add whether or not the randoms were resolved to the header.
-    hdr["RESOLVE"] = resolve
-
     # ADM whether this is a north-specific or south-specific file.
     region=None
     if north is not None:
@@ -1105,12 +1091,31 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
                                  hp=hpxlist, resolve=resolve, supp=supp,
                                  region=region, seed=seed, nohp=True)
 
+    nrands = len(data)
+    # ADM die immediately if there are no targets to write.
+    if nrands == 0:
+        return nrands, filename
+
+    # ADM add HEALPix column, if requested by input.
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+
+    # ADM note if this is a supplemental (outside-of-footprint) file.
+    hdr['SUPP'] = supp
+
+    # ADM add whether or not the randoms were resolved to the header.
+    hdr["RESOLVE"] = resolve
+
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
 
-    return len(data), filename
+    return nrands, filename
 
 
 def iter_files(root, prefix, ext='fits'):
