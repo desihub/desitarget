@@ -803,10 +803,20 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print("wait")
     print("")
     if gather:
-        print("gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
-            # ADM prefix2 handles inputs that look like "sv1_targets".
-            ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
-    print("")
+        if prefix == 'randoms':
+            for region in "resolve/", "noresolve/north/", "noresolve/south/":
+                routfiles = [outfile.replace("randoms/", "randoms/{}".format(
+                    region)) for outfile in outfiles]
+                print("")
+                print(
+                    "gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
+                        ";".join(routfiles), prefix, drstr,
+                        prefix2.split("_")[-1]))
+        else:
+            print("gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
+                # ADM prefix2 handles inputs that look like "sv1_targets".
+                ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
+        print("")
 
     return
 
