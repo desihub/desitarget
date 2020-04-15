@@ -293,13 +293,14 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     -------
     :class:`dictionary`
        The number of observations (`nobs_x`), PSF depth (`psfdepth_x`)
-       Galaxy depth (`galdepth_x`), PSF size (`psfsize_x`), sky
+       galaxy depth (`galdepth_x`), PSF size (`psfsize_x`), sky
        background (`apflux_x`) and inverse variance (`apflux_ivar_x`)
        at each passed position in each band x=g,r,z. Plus, the
        `psfdepth_w1` and `_w2` depths and the `maskbits`, `wisemask_w1`
        and `_w2` information at each passed position for the brick.
-       Also adds a unique `objid` for each random, and a `release` if
-       a release number can be determined from the input `drdir`.
+       Also adds a unique `objid` for each random, a `release` if
+       a release number can be determined from the input `drdir`, and
+       the photometric system `photsys` ("N" or "S" for north or south).
 
     Notes
     -----
@@ -621,6 +622,8 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
             WISEMASK_W2: mask info. See header of extension 3 of e.g.
               'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
             EBV: E(B-V) at this location from the SFD dust maps.
+            PHOTSYS: resolved north/south ('N' for an MzLS/BASS location,
+              'S' for a DECaLS location).
     """
     # ADM only intended to work on one brick, so die for larger arrays.
     if not isinstance(brickname, str):
@@ -1125,7 +1128,9 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the same columns as returned by
-        :func:`~desitarget.randoms.get_quantities_in_a_brick`.
+        :func:`~desitarget.randoms.get_quantities_in_a_brick`. If
+        `zeros` is ``False`` additional columns are returned, as added
+        by :func:`~desitarget.targets.finalize`.
 
     Notes
     -----
@@ -1152,6 +1157,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
             density=density, dustdir=dustdir, aprad=aprad, zeros=zeros,
             seed=seed)
 
+        if zeros:
+            return randoms
         return _finalize_randoms(randoms)
 
     # ADM add the standard "final" columns that are also added in targeting.
