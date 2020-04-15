@@ -27,7 +27,6 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from desiutil import brick
 from desiutil.log import get_logger
-from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targets import main_cmx_or_sv
@@ -472,6 +471,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
         warnings.simplefilter('ignore')
         # ADM grab the data needed to make the plot, masking values < 1
         # ADM to ensure that areas outside of the footprint are empty.
+        from desiutil.plots import plot_sky_binned
         _, data = plot_sky_binned(cat['RA'], cat['DEC'], weights=weights,
                                   max_bin_area=max_bin_area, clip_lo='!1',
                                   plot_type='healpix', colorbar=False,
@@ -504,6 +504,7 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
         label += ')'
 
         # ADM Make the plot.
+        from desiutil.plots import init_sky, plot_healpix_map
         bm = init_sky(galactic_plane_color='k', ax=ax[0])
         plot_healpix_map(data, nest=False, cmap="jet", label=label, basemap=bm)
 
@@ -555,10 +556,12 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
             downclip = '!' + str(downclip)
 
     # ADM prepare the data to be plotted by matplotlib routines.
+    from desiutil.plots import prepare_data
     pixmap = prepare_data(pixmap, clip_lo=downclip, clip_hi=upclip)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
+        from desiutil.plots import init_sky, plot_healpix_map
         basemap = init_sky(galactic_plane_color='k', ax=ax[0])
         plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, basemap=basemap)
 
