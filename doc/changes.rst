@@ -5,7 +5,17 @@ desitarget Change Log
 0.37.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Extra columns and features in the random catalogs [`PR #605`_]:
+    * Pass the randoms through the "finalize" and "make_mtl" functions:
+        * To populate columns needed to run fiberassign on the randoms.
+        * Addresses `issue #597`_.
+    * Add a realistic `TARGETID` (and `RELEASE, OBJID`) to the randoms.
+    * Recognize failure modes more quickly (and fail more quickly).
+    * Add `BRICKID` to the random catalogs.
+    * Write out both "resolve" and "noresolve" (North/South) catalogs.
+
+.. _`issue #597`: https://github.com/desihub/desitarget/issues/597
+.. _`PR #605`: https://github.com/desihub/desitarget/pull/605
 
 0.37.1 (2020-04-07)
 -------------------
