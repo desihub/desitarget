@@ -340,7 +340,7 @@ class SelectTargets(object):
         extinction = Rv * ext_odonnell(self.wave, Rv=Rv)
         return extinction
 
-    def imaging_depth(self, data):
+    def simple_imaging_depth(self, data):
         """Add the imaging depth to the data dictionary.
 
         Note: In future, this should be a much more sophisticated model based on the
@@ -392,6 +392,68 @@ class SelectTargets(object):
             wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
             data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
 
+    def imaging_depth(self, data, release=8):
+        import  desitarget.randoms as randoms
+
+        from    desitarget.targets import resolve
+        from    astropy.table      import Table
+
+
+        log.info('Setting realistic imaging depths (including MASKBITS).')
+        
+        bricks      = self.Bricks
+
+        # Return brick name of brick covering (ra, dec).
+        bricknames  = bricks.brickname(data['RA'], data['DEC'])
+
+        ubricknames = np.unique(bricknames)
+        
+        drdir       = '/global/project/projectdirs/cosmo/data/legacysurvey/dr{}'.format(release)
+
+        # determine if we must traverse two sets of brick directories, i.e. north/, south/.                                                                                                                
+        drdirs      = randoms._pre_or_post_dr8(drdir)
+
+        #
+        keep        = ['MASKBITS', 'PHOTSYS']  
+        bands       = ['G', 'R', 'Z', 'W1', 'W2']
+        bandkeep    = ['NOBS', 'PSFDEPTH', 'GALDEPTH']
+
+        toremove    = np.zeros_like(data['RA'], dtype=bool)
+
+        #
+        data['BRICKNAME'] = bricknames
+        
+        for ubrickname in ubricknames:
+            indx    = data['BRICKNAME'] == ubrickname
+
+            rtn     = randoms.dr8_quantities_at_positions_in_a_brick(data['RA'][indx], data['DEC'][indx], ubrickname, drdir)
+      
+            if rtn:
+                for key in list(rtn.keys()):
+                    rtn[key.upper()] = rtn.pop(key)
+
+                rtn        = Table(rtn)
+                rtn['RA']  = data['RA'][indx]
+                rtn['DEC'] = data['DEC'][indx]
+
+                rtn        = resolve(rtn)
+
+                for key in keep:
+                    data[key][indx] = rtn[key]
+
+                for band in bands:
+                    for bk in bandkeep:
+                        key = bk + '_' + band
+                        data[key][indx] = rtn[key]
+
+            else:
+                toremove[indx] = True
+
+        log.info('Removing {} of {} targets not in reduced DESI imaging.'.format(np.count_nonzero(toremove), len(data['RA'])))
+                
+        for key in data:
+            data[key] = data[key][~toremove]
+        
     def scatter_photometry(self, data, truth, targets, indx=None, 
                            seed=None, qaplot=False):
         """Add noise to the input (noiseless) photometry based on the depth (as well as
