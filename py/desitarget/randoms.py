@@ -1346,6 +1346,19 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
                                     drdir=drdir, density=density,
                                     dustdir=dustdir, aprad=aprad, seed=seed)
 
+    # ADM add columns that are added by MTL.
+    from desitarget.mtl import make_mtl
+    randoms = np.array(make_mtl(randoms, obscon="DARK"))
+
+    # ADM add OBCONDITIONS that will work for any obscon.
+    from desitarget.targetmask import obsconditions as obscon
+    randoms["OBSCONDITIONS"] = obscon.mask("|".join(obscon.names()))
+
+    # ADM add a random SUBPRIORITY.
+    np.random.seed(616+seed)
+    nrands = len(randoms)
+    randoms["SUBPRIORITY"] = np.random.random(nrands)
+
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(615+seed)
     np.random.shuffle(randoms)
