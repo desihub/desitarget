@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.37.3 (unreleased)
+0.37.4 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.37.3 (2020-04-15)
 -------------------
 
 * Update QA now basemap dependency is removed [`PR #605`_]:
