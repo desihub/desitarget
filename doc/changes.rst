@@ -5,7 +5,12 @@ desitarget Change Log
 0.37.3 (unreleased)
 -------------------
 
-* No changes yet.
+* Update QA now basemap dependency is removed [`PR #605`_]:
+    * Also reintroduce unit tests in `test_qa.py`.
+    * basemap dependency was removed in `desiutil PR #141`_
+
+.. _`desiutil PR #141`: https://github.com/desihub/desiutil/pull/141
+.. _`PR #605`: https://github.com/desihub/desitarget/pull/605
 
 0.37.2 (2020-04-13)
 -------------------
