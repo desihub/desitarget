@@ -53,7 +53,7 @@ ap.add_argument("--dustdir",
                 help="Directory of SFD dust maps (defaults to the equivalent of $DUST_DIR+'/maps')",
                 default=None)
 ap.add_argument("--aprad", type=float,
-                help="Radius of aperture in arcsec in which to generate sky background flux levels (defaults to 0.75; the DESI fiber radius)",
+                help="Radius of aperture in arcsec in which to generate sky background flux levels (defaults to 0.75; the DESI fiber radius). If aprad < 1e-8 is passed, the code to produce these values is skipped, as a speed-up, and `APFLUX_` output values are set to zero.",
                 default=0.75)
 ap.add_argument("--seed", type=int,
                 help="Random seed passed to desitarget.randoms.select_randoms()",

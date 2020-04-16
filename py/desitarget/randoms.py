@@ -286,8 +286,10 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
        The root directory pointing to a Data Release from the Legacy Surveys
        e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
     aprad : :class:`float`, optional, defaults to 0.75
-        Radii in arcsec of aperture for which to derive sky fluxes
-        defaults to the DESI fiber radius.
+        Radii in arcsec of aperture for which to derive sky/fiber fluxes.
+        Defaults to the DESI fiber radius. If aprad < 1e-8 is passed,
+        the code to produce these values is skipped, as a speed-up, and 
+        `apflux_` output values are set to zero.
 
     Returns
     -------
@@ -338,7 +340,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         for qin, qout, qform in qnames:
             fn = fileform.format(brickname, qin, filt, extn)
             # ADM only process the WCS if there's a file for this filter.
-            if os.path.exists(fn):
+            # ADM also skip calculating aperture fluxes if aprad ~ 0.
+            if os.path.exists(fn) and not (qout == 'apflux' and aprad < 1e-8):
                 img = fits.open(fn)[extn_nb]
                 if not iswcs:
                     # ADM store the instrument name, if it isn't stored.
@@ -585,8 +588,10 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
         The root directory pointing to SFD dust maps. If not
         sent the code will try to use $DUST_DIR+'/maps' before failing.
     aprad : :class:`float`, optional, defaults to 0.75
-        Radii in arcsec of aperture for which to derive sky fluxes
-        defaults to the DESI fiber radius.
+        Radii in arcsec of aperture for which to derive sky/fiber fluxes.
+        Defaults to the DESI fiber radius. If aprad < 1e-8 is passed,
+        the code to produce these values is skipped, as a speed-up, and 
+        `apflux_` output values are set to zero.
     zeros : :class:`bool`, optional, defaults to ``False``
         If ``True`` don't look up pixel-level info for the brick, just
         return zeros. The only quantities populated are those that don't
@@ -614,7 +619,9 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
             PSFDEPTH_W1, W2: (PSF) depth in W1, W2 (AB mag system).
             PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec).
             APFLUX_G, R, Z: Sky background extracted in `aprad`.
+                Will be zero if `aprad` < 1e-8 is passed.
             APFLUX_IVAR_G, R, Z: Inverse variance of sky background.
+                Will be zero if `aprad` < 1e-8 is passed.
             MASKBITS: mask information. See header of extension 1 of e.g.
               'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
             WISEMASK_W1: mask info. See header of extension 2 of e.g.
@@ -1290,8 +1297,10 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
         The root directory pointing to SFD dust maps. If None the code
         will try to use $DUST_DIR+'maps') before failing.
     aprad : :class:`float`, optional, defaults to 0.75
-        Radii in arcsec of aperture for which to derive sky fluxes
-        defaults to the DESI fiber radius.
+        Radii in arcsec of aperture for which to derive sky/fiber fluxes.
+        Defaults to the DESI fiber radius. If aprad < 1e-8 is passed,
+        the code to produce these values is skipped, as a speed-up, and 
+        `apflux_` output values are set to zero.
     seed : :class:`int`, optional, defaults to 1
         Random seed to use when shuffling across brick boundaries.
         The actual np.random.seed defaults to 615+`seed`. See also use
