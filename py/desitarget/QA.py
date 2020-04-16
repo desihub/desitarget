@@ -493,11 +493,13 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
         # ADM otherwise, clip at percentiles and note them in the label.
         else:
             lo, hi = 5, 95
-            plo, phi = np.percentile(data[~data.mask], [lo, hi])
-            label += r'; {}% ({:.0f} deg$^{{-2}}$) < dens '.format(lo, plo)
-            label += r'< {}% ({:.0f} deg$^{{-2}}$)'.format(hi, phi)
-            data.data[data.data > phi] = phi
-            data.data[data.data < plo] = plo
+            # ADM catch the corner case of no unmasked data.
+            if np.any(~data.mask):
+                plo, phi = np.percentile(data[~data.mask], [lo, hi])
+                label += r'; {}% ({:.0f} deg$^{{-2}}$) < dens '.format(lo, plo)
+                label += r'< {}% ({:.0f} deg$^{{-2}}$)'.format(hi, phi)
+                data.data[data.data > phi] = phi
+                data.data[data.data < plo] = plo
         label += ')'
 
         # ADM Make the plot.
