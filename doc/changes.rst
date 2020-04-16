@@ -5,7 +5,8 @@ desitarget Change Log
 0.37.2 (unreleased)
 -------------------
 
-* Extra columns and features in the random catalogs [`PR #605`_]:
+* Extra columns and features in the random catalogs [`PR #606`_]:
+    * Don't calculate APFLUX quantities if aprad=0 is passed.
     * Pass the randoms through the "finalize" and "make_mtl" functions:
         * To populate columns needed to run fiberassign on the randoms.
         * Addresses `issue #597`_.
@@ -15,7 +16,7 @@ desitarget Change Log
     * Write out both "resolve" and "noresolve" (North/South) catalogs.
 
 .. _`issue #597`: https://github.com/desihub/desitarget/issues/597
-.. _`PR #605`: https://github.com/desihub/desitarget/pull/605
+.. _`PR #606`: https://github.com/desihub/desitarget/pull/606
 
 0.37.1 (2020-04-07)
 -------------------
