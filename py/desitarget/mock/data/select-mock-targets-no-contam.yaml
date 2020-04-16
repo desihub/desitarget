@@ -1,0 +1,63 @@
+# Parameter file for desitarget/bin/select_mock_targets, including contaminants.
+targets:
+    BGS: {
+        target_type: BGS,
+        mockfile: '{DESI_ROOT}/mocks/bgs/MXXL/full_sky/v0.0.4/BGS_r20.6.hdf5',
+        format: durham_mxxl_hdf5,
+        magcut: 20.3,
+    }
+    ELG: {
+        target_type: ELG,
+        mockfile: '{DESI_ROOT}/mocks/DarkSky/v1.0.1/elg_0_inpt.fits',
+        format: gaussianfield,
+        density: 2200,
+    }
+    LRG: {
+        target_type: LRG,
+        mockfile: '{DESI_ROOT}/mocks/DarkSky/v1.0.1/lrg_0_inpt.fits',
+        format: gaussianfield,
+        density: 480,
+    }
+    QSO: {
+        target_type: QSO,
+        mockfile: '{DESI_ROOT}/mocks/DarkSky/v1.0.1/qso_0_inpt.fits',
+        format: gaussianfield,
+        zmax_qso: 1.8,
+        use_simqso: True,
+        density: 120,
+    }
+    LYA: {
+        target_type: QSO,
+        mockfile: '{DESI_ROOT}/mocks/lya_forest/london/v9.0/v9.0.0/master.fits',
+        format: CoLoRe,
+        nside_lya: 16,
+        zmin_lya: 1.8,
+        density: 50,
+        use_simqso: True,
+        sqmodel: 'default',  #Other options are 'lya_simqso_model_develop' and 'lya_simqso_model' (same as quickquasars)
+        balprob: 0.0,
+        add_dla: False,
+        add_metals: False,    #If adding metals use 'all', this is to keep the same argument as in quickquasars.
+        add_lyb: False
+        }
+    MWS_MAIN: {
+        target_type: STAR,
+        mockfile: '{DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix',
+        nside_galaxia: 8,
+        format: galaxia,
+    }
+    MWS_NEARBY: {
+        target_type: STAR,
+        mockfile: '{DESI_ROOT}/mocks/mws/100pc/v0.0.4/mock_100pc.fits',
+        format: mws_100pc,
+    }
+    WD: {
+        target_type: WD,
+        mockfile: '{DESI_ROOT}/mocks/mws/wd/v1.0.0/mock_wd.fits',
+        format: mws_wd,
+    }
+    SKY: {
+        target_type: SKY,
+        mockfile: '{DESI_ROOT}/mocks/uniformsky/0.2/uniformsky-2048-0.2.fits',
+        format: uniformsky,
+    }

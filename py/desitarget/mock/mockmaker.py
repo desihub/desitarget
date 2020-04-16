@@ -132,7 +132,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FIBERTOTFLUX_G', length=nobj, dtype='>f4'))
     targets.add_column(Column(name='FIBERTOTFLUX_R', length=nobj, dtype='>f4'))
     targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='>f4'))
-
+    
     # Gaia columns
     targets.add_column(Column(name='REF_CAT', length=nobj, dtype='S2'))
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
@@ -340,6 +340,37 @@ class SelectTargets(object):
         extinction = Rv * ext_odonnell(self.wave, Rv=Rv)
         return extinction
 
+    def set_wise_depth(self, data):
+        import astropy.units as u
+        from astropy.coordinates import SkyCoord
+
+        # compute the WISE depth, which is largely a function of ecliptic latitude                                                                                                                         
+        coord = SkyCoord(data['RA']*u.deg, data['DEC']*u.deg)
+        ecoord = coord.transform_to('barycentrictrueecliptic')
+        beta = ecoord.lat.value
+
+        if np.count_nonzero(beta > 89) > 0: # don't explode at the pole!                                                                                                                                   
+            beta[beta > 89] = 89
+
+        if np.count_nonzero(beta < -89) > 0: # don't explode at the pole!                                                                                                                                  
+            beta[beta < -89] = -89
+
+        beta = np.radians(ecoord.lat.value)     # [radians]                                                                                                                                                
+
+        sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level                                                                                                                 
+                                                # background structure e.g. striping                                                                                                                       
+        neff = [15.7832, 18.5233]               # effective number of pixels in PSF                                                                                                                        
+        vega2ab = [2.699, 3.339]
+        sig_stat_beta0 = [3.5127802, 9.1581879] # random uncertainty [AB nanomaggies]
+        
+        for ii, band in enumerate(('W1', 'W2')):
+            sig_stat = sig_stat_beta0[ii] / np.sqrt( 1.0 / np.cos(beta) )
+            sig = np.sqrt( sig_stat**2 + sig_syst[ii]**2 )
+
+            wisedepth_mag = 22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) + vega2ab[ii] # 1-sigma, AB mag                                                                                                
+            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2                                                                                                   
+            data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
+ 
     def simple_imaging_depth(self, data):
         """Add the imaging depth to the data dictionary.
 
@@ -368,92 +399,113 @@ class SelectTargets(object):
             data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
             data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
 
-        # compute the WISE depth, which is largely a function of ecliptic latitude 
-        coord = SkyCoord(data['RA']*u.deg, data['DEC']*u.deg)
-        ecoord = coord.transform_to('barycentrictrueecliptic')
-        beta = ecoord.lat.value
-        if np.count_nonzero(beta > 89) > 0: # don't explode at the pole!
-            beta[beta > 89] = 89
-        if np.count_nonzero(beta < -89) > 0: # don't explode at the pole!
-            beta[beta < -89] = -89
-        beta = np.radians(ecoord.lat.value) # [radians]
+        self.set_wise_depth(data)
 
-        sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level 
-                                                # background structure e.g. striping
-        neff = [15.7832, 18.5233]               # effective number of pixels in PSF
-        vega2ab = [2.699, 3.339]
-        sig_stat_beta0 = [3.5127802, 9.1581879] # random uncertainty [AB nanomaggies]
-
-        for ii, band in enumerate(('W1', 'W2')):
-            sig_stat = sig_stat_beta0[ii] / np.sqrt( 1.0 / np.cos(beta) )
-            sig = np.sqrt( sig_stat**2 + sig_syst[ii]**2 )
-
-            wisedepth_mag = 22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) + vega2ab[ii] # 1-sigma, AB mag
-            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-            data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
-
-    def imaging_depth(self, data, release=8):
-        import  desitarget.randoms as randoms
+    def imaging_depth(self, data, release=8, aprad=0.0, simple=True):
+        import  pandas             as     pd 
+        import  desitarget.randoms as     randoms
 
         from    desitarget.targets import resolve
         from    astropy.table      import Table
+        from    desitarget.io      import basetsdatamodel
 
-
-        log.info('Setting realistic imaging depths (including MASKBITS).')
+        if not simple:
+            log.info('Setting realistic imaging depths (including MASKBITS).')
         
-        bricks      = self.Bricks
+            bricks      = self.Bricks
 
-        # Return brick name of brick covering (ra, dec).
-        bricknames  = bricks.brickname(data['RA'], data['DEC'])
+            # Return brick name of brick covering (ra, dec).
+            bricknames  = bricks.brickname(data['RA'], data['DEC'])
 
-        ubricknames = np.unique(bricknames)
+            ubricknames = np.unique(bricknames)
         
-        drdir       = '/global/project/projectdirs/cosmo/data/legacysurvey/dr{}'.format(release)
+            drdir       = '/global/project/projectdirs/cosmo/data/legacysurvey/dr{}'.format(release)
 
-        # determine if we must traverse two sets of brick directories, i.e. north/, south/.                                                                                                                
-        drdirs      = randoms._pre_or_post_dr8(drdir)
+            # determine if we must traverse two sets of brick directories, i.e. north/, south/.                                                                                                                
+            drdirs      = randoms._pre_or_post_dr8(drdir)
 
-        #
-        keep        = ['MASKBITS', 'PHOTSYS']  
-        bands       = ['G', 'R', 'Z', 'W1', 'W2']
-        bandkeep    = ['NOBS', 'PSFDEPTH', 'GALDEPTH']
-
-        toremove    = np.zeros_like(data['RA'], dtype=bool)
-
-        #
-        data['BRICKNAME'] = bricknames
+            #
+            keep        = ['MASKBITS', 'PHOTSYS']  
+            
+            bands       = ['G', 'R', 'Z']
+            bandkeep    = ['NOBS', 'PSFDEPTH', 'GALDEPTH']
         
-        for ubrickname in ubricknames:
-            indx    = data['BRICKNAME'] == ubrickname
+            _           = empty_targets_table(nobj=1)
+            dtypes      = dict(zip(_.columns, [_[x].dtype for x in _.columns]))
 
-            rtn     = randoms.dr8_quantities_at_positions_in_a_brick(data['RA'][indx], data['DEC'][indx], ubrickname, drdir)
+            #
+            data['BRICKNAME'] = bricknames
+        
+            for key in keep:
+                data[key]     = np.zeros(len(data['RA']), dtype=dtypes[key])
+
+            for band in bands:
+                for bk in bandkeep:
+                    key       = bk + '_' + band
+                    data[key] = np.zeros(len(data['RA']), dtype=dtypes[key])
+
+            data['PSFDEPTH_W1'] = np.zeros(len(data['RA']), dtype=dtypes['PSFDEPTH_G'])
+            data['PSFDEPTH_W2'] = np.zeros(len(data['RA']), dtype=dtypes['PSFDEPTH_G'])
+
+            toremove            = np.zeros_like(data['RA'], dtype=bool)
+        
+            for ubrickname in ubricknames:
+                indx    = np.atleast_1d(data['BRICKNAME'] == ubrickname)
+
+                # Defaults to no sky background ap. fluxes. 
+                rtn     = randoms.dr8_quantities_at_positions_in_a_brick(data['RA'][indx], data['DEC'][indx], ubrickname, drdir, aprad=aprad)
       
-            if rtn:
-                for key in list(rtn.keys()):
-                    rtn[key.upper()] = rtn.pop(key)
+                if rtn:
+                    for key in list(rtn.keys()):
+                        rtn[key.upper()] = rtn.pop(key)
 
-                rtn        = Table(rtn)
-                rtn['RA']  = data['RA'][indx]
-                rtn['DEC'] = data['DEC'][indx]
+                    rtn            = Table(rtn)
 
-                rtn        = resolve(rtn)
+                    if len(rtn['PHOTSYS']) == len(data['RA'][indx]):
+                        rtn['RA']  = data['RA'][indx]
+                        rtn['DEC'] = data['DEC'][indx]
 
-                for key in keep:
-                    data[key][indx] = rtn[key]
+                    else:
+                        rtn['RA']  = np.concatenate((data['RA'][indx],  data['RA'][indx]))
+                        rtn['DEC'] = np.concatenate((data['DEC'][indx], data['DEC'][indx]))
+                  
+                        rtn        = resolve(rtn)
 
-                for band in bands:
-                    for bk in bandkeep:
-                        key = bk + '_' + band
+                    for key in keep:
                         data[key][indx] = rtn[key]
 
-            else:
-                toremove[indx] = True
+                    for band in bands:
+                        for bk in bandkeep:
+                            key = bk + '_' + band
+                            data[key][indx] = rtn[key]
 
-        log.info('Removing {} of {} targets not in reduced DESI imaging.'.format(np.count_nonzero(toremove), len(data['RA'])))
-                
-        for key in data:
-            data[key] = data[key][~toremove]
+                    data['PSFDEPTH_W1'][indx] = rtn['PSFDEPTH_W1']
+                    data['PSFDEPTH_W2'][indx] = rtn['PSFDEPTH_W2']
+                        
+                else:
+                    # Empty dict: missing brick.  Remove these targets. 
+                    toremove[np.where(indx)[0]] = True
+
+            log.info('Removing {} targets not in reduced DESI imaging (of {}).'.format(np.count_nonzero(toremove), len(data['RA'])))
         
+            for key in list(data.keys()):
+                try:
+                    if len(data[key]) == len(data['RA']):            
+                        data[key] = data[key][~toremove]
+
+                except(TypeError):
+                    pass
+
+            # Overwrite with simple depths for now.
+            self.simple_imaging_depth(data)
+            
+        else:
+            log.info('Setting simple imaging depths.')
+                
+            self.simple_imaging_depth(data)
+            
+        # print(pd.DataFrame(data))
+            
     def scatter_photometry(self, data, truth, targets, indx=None, 
                            seed=None, qaplot=False):
         """Add noise to the input (noiseless) photometry based on the depth (as well as
@@ -507,11 +559,11 @@ class SelectTargets(object):
 
         # WISE sources are all point sources
         for band in ('W1', 'W2'):
-            fluxkey = 'FLUX_{}'.format(band)
-            ivarkey = 'FLUX_IVAR_{}'.format(band)
+            fluxkey  = 'FLUX_{}'.format(band)
+            ivarkey  = 'FLUX_IVAR_{}'.format(band)
             depthkey = 'PSFDEPTH_{}'.format(band)
 
-            sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
+            sigma    = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
             targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
             targets[ivarkey][:] = 1 / sigma**2
@@ -1075,11 +1127,18 @@ class SelectTargets(object):
         # Assign RELEASE, PHOTSYS, [RA,DEC]_IVAR, and DCHISQ
         targets['RELEASE'][:] = 9999
 
-        isouth = self.is_south(targets['DEC'])
+        if 'PHOTSYS' in list(data.keys()):
+          isouth = targets['PHOTSYS'] == 'S'
+
+        else:
+          isouth = self.is_south(targets['DEC'])
+          
         south = np.where( isouth )[0]
         north = np.where( ~isouth )[0]
+
         if len(south) > 0:
             targets['PHOTSYS'][south] = 'S'
+
         if len(north) > 0:
             targets['PHOTSYS'][north] = 'N'
             
@@ -1091,12 +1150,23 @@ class SelectTargets(object):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
 
+        _keys = []
+            
         for band in ('G', 'R', 'Z'):
             for prefix in ('PSF', 'GAL'):
                 key = '{}DEPTH_{}'.format(prefix, band)
-                targets[key][:] = data[key][indx]
+                _keys.append(key)
+
             nobskey = 'NOBS_{}'.format(band)
-            targets[nobskey][:] = 2 # assume constant!
+            _keys.append(nobskey)
+            
+        for key in _keys:
+            if key not in list(data.keys()):
+              if key.split('_')[0] == 'NOBS':
+                  targets[key][:] = 2 # assume constant! 
+
+              else:
+                  targets[key][:] = data[key][indx]
 
         # Add spectral / template type and subtype.
         for value, key in zip( (truespectype, templatetype, templatesubtype),
