@@ -6,13 +6,14 @@ desitarget Change Log
 -------------------
 
 * Extra columns and features in the random catalogs [`PR #606`_]:
+    * Better error messages and defaults for `bin/supplement_randoms`.
     * Don't calculate APFLUX quantities if aprad=0 is passed.
-    * Pass the randoms through the "finalize" and "make_mtl" functions:
+    * Pass the randoms through the `finalize` and `make_mtl` functions:
         * To populate columns needed to run fiberassign on the randoms.
         * Addresses `issue #597`_.
-    * Add a realistic `TARGETID` (and `RELEASE, OBJID`) to the randoms.
+    * Add the `BRICKID` column to the random catalogs.
+    * Also add a realistic `TARGETID` (and `RELEASE, BRICK_OBJID`).
     * Recognize failure modes more quickly (and fail more quickly).
-    * Add `BRICKID` to the random catalogs.
     * Write out both "resolve" and "noresolve" (North/South) catalogs.
 
 .. _`issue #597`: https://github.com/desihub/desitarget/issues/597
