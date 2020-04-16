@@ -464,9 +464,6 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
     """
     label = r'{} (targs deg$^{{-2}}$'.format(objtype)
 
-    fig, ax = plt.subplots(1)
-    ax = np.atleast_1d(ax)
-
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         # ADM grab the data needed to make the plot, masking values < 1
@@ -505,11 +502,11 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
 
         # ADM Make the plot.
         from desiutil.plots import init_sky, plot_healpix_map
-        bm = init_sky(galactic_plane_color='k', ax=ax[0])
-        plot_healpix_map(data, nest=False, cmap="jet", label=label, basemap=bm)
+        ax = init_sky(galactic_plane_color='k')
+        ax = plot_healpix_map(data, nest=False, cmap="jet", label=label, ax=ax)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, objtype))
-    fig.savefig(pngfile, bbox_inches='tight')
+    plt.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 
@@ -546,8 +543,6 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
     """
 
     label = '{}'.format(plottitle)
-    fig, ax = plt.subplots(1)
-    ax = np.atleast_1d(ax)
 
     # ADM if downclip was passed as a number, turn it to a string with
     # ADM an exclamation mark to mask the plot background completely.
@@ -562,11 +557,11 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         from desiutil.plots import init_sky, plot_healpix_map
-        basemap = init_sky(galactic_plane_color='k', ax=ax[0])
-        plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, basemap=basemap)
+        ax = init_sky(galactic_plane_color='k')
+        ax = plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, ax=ax)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, colname))
-    fig.savefig(pngfile, bbox_inches='tight')
+    plt.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 
