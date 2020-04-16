@@ -288,7 +288,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     aprad : :class:`float`, optional, defaults to 0.75
         Radii in arcsec of aperture for which to derive sky/fiber fluxes.
         Defaults to the DESI fiber radius. If aprad < 1e-8 is passed,
-        the code to produce these values is skipped, as a speed-up, and 
+        the code to produce these values is skipped, as a speed-up, and
         `apflux_` output values are set to zero.
 
     Returns
@@ -590,7 +590,7 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     aprad : :class:`float`, optional, defaults to 0.75
         Radii in arcsec of aperture for which to derive sky/fiber fluxes.
         Defaults to the DESI fiber radius. If aprad < 1e-8 is passed,
-        the code to produce these values is skipped, as a speed-up, and 
+        the code to produce these values is skipped, as a speed-up, and
         `apflux_` output values are set to zero.
     zeros : :class:`bool`, optional, defaults to ``False``
         If ``True`` don't look up pixel-level info for the brick, just
@@ -1299,7 +1299,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
     aprad : :class:`float`, optional, defaults to 0.75
         Radii in arcsec of aperture for which to derive sky/fiber fluxes.
         Defaults to the DESI fiber radius. If aprad < 1e-8 is passed,
-        the code to produce these values is skipped, as a speed-up, and 
+        the code to produce these values is skipped, as a speed-up, and
         `apflux_` output values are set to zero.
     seed : :class:`int`, optional, defaults to 1
         Random seed to use when shuffling across brick boundaries.
