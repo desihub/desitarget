@@ -5,10 +5,13 @@ desitarget Change Log
 0.37.1 (unreleased)
 -------------------
 
-* Fixes a typo in the priority of MWS_WD_SV targets [`PR #600`_].
-* Updates test_priorities to deal with new scheme for MWS CMX targets [`PR #600`_].
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
+* Fixes calc_priority logic for MWS cmx targets [`PR #601`_].
+* Alter cmx targetmask such taht obsconditionsc can be used to work around MWS/BGS
+  conflicts on MWS CMX tiles [`PR #601`_].
+* Updates test_priorities to deal with new scheme for MWS CMX targets [`PR #601`_].
 
-.. _`PR #600`: https://github.com/desihub/desitarget/pull/600
+.. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 
 0.37.0 (2020-03-12)
 -------------------
