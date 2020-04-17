@@ -195,25 +195,22 @@ class TestPriorities(unittest.TestCase):
         colnames, masks, _ = main_cmx_or_sv(t)
         cmx_mask = masks[0]
 
-        # ADM test handling of unobserved SV0_BGS.
-        for name in ["SV0_BGS"]:
+        # ADM test handling of unobserved SV0_BGS and SV0_MWS
+        for name, obscon in [("SV0_BGS", "BRIGHT"), ("SV0_MWS", "POOR")]:
             t['CMX_TARGET'] = cmx_mask[name]
             self.assertTrue(np.all(calc_priority(
-                t, z, "GRAY|DARK") == cmx_mask[name].priorities['UNOBS']))
-
-        # APC test handling of unobserved SV0_MWS.
-        for name in ["SV0_MWS"]:
-            t['CMX_TARGET'] = cmx_mask[name]
-            self.assertTrue(np.all(calc_priority(
-                t, z, "POOR") == cmx_mask[name].priorities['UNOBS']))
+                t, z, obscon) == cmx_mask[name].priorities['UNOBS']))
 
         # ADM done is Done, regardless of ZWARN.
-        for name in ["SV0_BGS", "SV0_MWS"]:
+        for name, obscon in [("SV0_BGS", "BRIGHT"), ("SV0_MWS", "POOR")]:
             t['CMX_TARGET'] = cmx_mask[name]
             t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
-            z['NUMOBS'] = [0, 1, 1]
+
+            # APC: Use NUMOBS_INIT here to avoid hardcoding NOBS corresponding to "done".
+            numobs_done = t['NUMOBS_INIT'][0]
+            z['NUMOBS'] = [0, numobs_done, numobs_done]
             z['ZWARN'] = [1, 1, 0]
-            p = make_mtl(t, "GRAY|DARK", zcat=z)["PRIORITY"]
+            p = make_mtl(t, obscon, zcat=z)["PRIORITY"]
 
             self.assertEqual(p[0], cmx_mask[name].priorities['UNOBS'])
             self.assertEqual(p[1], cmx_mask[name].priorities['DONE'])
