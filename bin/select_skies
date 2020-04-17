@@ -5,7 +5,7 @@ import os, sys
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 from desitarget.skyfibers import select_skies, density_of_sky_fibers, get_brick_info
 from desitarget import io
-from desitarget.io import _check_both_set
+from desitarget.io import check_both_set
 from desitarget.geomask import bundle_bricks
 from desitarget.targets import resolve
 
@@ -112,7 +112,7 @@ else:
     log.info("running on {} processors".format(ns.numproc))
     # ADM formally writing pixelized files requires both the nside
     # ADM and the list of healpixels to be set.
-    _check_both_set(ns.healpixels, ns.nside)
+    check_both_set(ns.healpixels, ns.nside)
     # ADM run the main sky selection code over the passed surveys.
     skies = []
     for survey in surveys:

@@ -8,7 +8,7 @@ from time import time
 start = time()
 
 from desitarget import io
-from desitarget.io import _check_both_set
+from desitarget.io import check_both_set
 from desitarget.randoms import pixweight, select_randoms
 from glob import iglob
 import fitsio
@@ -84,7 +84,7 @@ if ns.bundlebricks is None:
     log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc, time()-start))
     # ADM formally writing pixelized files requires both the nside
     # ADM and the list of healpixels to be set.
-    _check_both_set(ns.healpixels, ns.nside)
+    check_both_set(ns.healpixels, ns.nside)
 
 # ADM go looking for a maskbits file to steal the header for the
 # ADM bit names. Try a couple of configurations (pre/post DR8).
