@@ -335,7 +335,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     # ADM add target bit columns to the output array, note that mws_target
     # ADM and bgs_target should be zeros for all sky objects.
     dum = np.zeros_like(desi_target)
-    skies = finalize(skies, desi_target, dum, dum, sky=1)
+    skies = finalize(skies, desi_target, dum, dum, sky=True)
 
     if write:
         outfile = survey.find_file('skies', brick=brickname)
@@ -852,7 +852,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
              .format(mindec, time()-start))
     from desitarget.randoms import randoms_in_a_brick_from_edges
     ras, decs = randoms_in_a_brick_from_edges(
-        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False)
+        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False, seed=538)
 
     # ADM limit randoms by HEALPixel, if requested.
     if pixlist is not None:
@@ -942,7 +942,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
-    supp = finalize(supp, desi_target, dum, dum, sky=1)
+    supp = finalize(supp, desi_target, dum, dum, sky=True)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
@@ -950,7 +950,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
 
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
-                 apertures_arcsec=[0.75], nside=2, pixlist=None, writebricks=False):
+                 apertures_arcsec=[0.75], nside=None, pixlist=None, writebricks=False):
     """Generate skies in parallel for bricks in a Legacy Surveys DR.
 
     Parameters
@@ -967,7 +967,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         List of bands to be used to define good sky locations.
     apertures_arcsec : :class:`list`, optional, defaults to [0.75]
         Radii in arcsec of apertures for which to derive flux at a sky location.
-    nside : :class:`int`, optional, defaults to nside=2 (859.4 sq. deg.)
+    nside : :class:`int`, optional, defaults to ``None``
         The HEALPixel nside number to be used with the `pixlist` input.
     pixlist : :class:`list` or `int`, optional, defaults to None
         Bricks will only be processed if the CENTER of the brick lies within the bounds of
