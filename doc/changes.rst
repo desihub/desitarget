@@ -11,6 +11,7 @@ desitarget Change Log
 * Alter cmx targetmask such taht obsconditionsc can be used to work around MWS/BGS
   conflicts on MWS CMX tiles [`PR #601`_].
 * Updates test_priorities to deal with new scheme for MWS CMX targets [`PR #601`_].
+* Adds SV0_MWS_FAINT bit [`PR #601`_].
 
 .. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 

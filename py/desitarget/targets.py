@@ -591,9 +591,9 @@ def _cmx_calc_priority(targets, priority, unobs, done, zgood, zwarn, cmx_mask, o
     """
     # Build a whitelist of targets to update
     names_to_update = ['SV0_' + label for label in ('STD_FAINT', 'STD_BRIGHT',
-                                                    'BGS', 'MWS', 'WD',
+                                                    'BGS', 'MWS', 'WD', 'MWS_FAINT',
                                                     'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]
-    names_to_update.extend(['BACKUP_BRIGHT', 'BACKUP_FAINT', 'MINI_SV_MWS_FAINT'])
+    names_to_update.extend(['BACKUP_BRIGHT', 'BACKUP_FAINT'])
 
     for name in names_to_update:
         pricon = obsconditions.mask(cmx_mask[name].obsconditions)

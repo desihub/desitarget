@@ -380,7 +380,7 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
         MWS_WD target.
     :class:`array_like`
         ``True`` if and only if the object is an early-SV/main survey
-        MINI_SV_MWS_FAINT target.
+        SV0_MWS_FAINT target.
 
     Notes
     -----
@@ -2106,8 +2106,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         objtype=objtype, primary=primary
     )
 
-    # ADM determine if an object is SV0_MWS, WD or MINI_SV_MWS_FAINT.
-    sv0_mws, sv0_wd, mini_sv_mws_faint = isSV0_MWS(
+    # ADM determine if an object is SV0_MWS, WD or SV0_MWS_FAINT.
+    sv0_mws, sv0_wd, sv0_mws_faint = isSV0_MWS(
         rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         pmra=pmra, pmdec=pmdec, parallax=parallax,
@@ -2274,7 +2274,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= mini_sv_elg * cmx_mask.MINI_SV_ELG
     cmx_target |= mini_sv_qso * cmx_mask.MINI_SV_QSO
     cmx_target |= mini_sv_bgs_bright * cmx_mask.MINI_SV_BGS_BRIGHT
-    cmx_target |= mini_sv_mws_faint * cmx_mask.MINI_SV_MWS_FAINT
+    cmx_target |= sv0_mws_faint * cmx_mask.SV0_MWS_FAINT
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.
