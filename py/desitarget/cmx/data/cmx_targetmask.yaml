@@ -145,7 +145,7 @@ priorities:
         MINI_SV_ELG: {UNOBS: 3001, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MINI_SV_QSO: {UNOBS: 3420, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MINI_SV_BGS_BRIGHT: {UNOBS: 2101, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MINI_SV_MWS_FAINT: {UNOBS: 5, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        SV0_MWS_FAINT: {UNOBS: 5, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -203,7 +203,7 @@ numobs:
         MINI_SV_LRG: 2
         MINI_SV_QSO: 4
         MINI_SV_BGS_BRIGHT: 1
-        MINI_SV_MWS_FAINT: 1
+        SV0_MWS_FAINT: 1
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1
