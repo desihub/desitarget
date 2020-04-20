@@ -6,7 +6,8 @@ desitarget Change Log
 -------------------
 
 * Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
-* Fixes calc_priority logic for MWS cmx targets [`PR #601`_].
+* Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
+* Separates special case in calc_priority for CMX into a separate function [`PR #601`_].
 * Alter cmx targetmask such taht obsconditionsc can be used to work around MWS/BGS
   conflicts on MWS CMX tiles [`PR #601`_].
 * Updates test_priorities to deal with new scheme for MWS CMX targets [`PR #601`_].
