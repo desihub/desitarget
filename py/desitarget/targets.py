@@ -548,13 +548,13 @@ def calc_priority(targets, zcat, obscon):
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
-        priority = _cmx_calc_priority(targets, priority,
+        priority = _cmx_calc_priority(targets, priority, obscon,
                                       unobs, done, zgood, zwarn, cmx_mask, obsconditions)
 
     return priority
 
 
-def _cmx_calc_priority(targets, priority, unobs, done, zgood, zwarn, cmx_mask, obsconditions):
+def _cmx_calc_priority(targets, priority, obscon, unobs, done, zgood, zwarn, cmx_mask, obsconditions):
     """Special-case logic for target priorities in CMX.
 
     Parameters
@@ -564,6 +564,11 @@ def _cmx_calc_priority(targets, priority, unobs, done, zgood, zwarn, cmx_mask, o
         the column `CMX_TARGET`.
     priority : :class:`~numpy.ndarray`
         Initial priority values set, in calc_priorities().
+    obscon : :class:`str`
+        A combination of strings that are in the desitarget bitmask yaml
+        file (specifically in `desitarget.targetmask.obsconditions`), e.g.
+        "DARK|GRAY". Governs the behavior of how priorities are set based
+        on "obsconditions" in the desitarget bitmask yaml file.
     unobs : :class:`~numpy.ndarray`
         Boolean flag on targets indicating state UNOBS.
     done : :class:`~numpy.ndarray`
