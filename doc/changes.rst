@@ -2,7 +2,7 @@
 desitarget Change Log
 =====================
 
-0.37.1 (unreleased)
+0.37.4 (unreleased)
 -------------------
 
 * Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
@@ -12,8 +12,46 @@ desitarget Change Log
   conflicts on MWS CMX tiles [`PR #601`_].
 * Updates test_priorities to deal with new scheme for MWS CMX targets [`PR #601`_].
 * Adds SV0_MWS_FAINT bit [`PR #601`_].
+* Extra columns and features in the random catalogs [`PR #606`_]:
+    * Better error messages and defaults for `bin/supplement_randoms`.
+    * Don't calculate APFLUX quantities if aprad=0 is passed.
+    * Pass the randoms through the `finalize` and `make_mtl` functions:
+        * To populate columns needed to run fiberassign on the randoms.
+        * Addresses `issue #597`_.
+    * Add the `BRICKID` column to the random catalogs.
+    * Also add a realistic `TARGETID` (and `RELEASE, BRICK_OBJID`).
+    * Recognize failure modes more quickly (and fail more quickly).
+    * Write out both "resolve" and "noresolve" (North/South) catalogs.
 
 .. _`PR #601`: https://github.com/desihub/desitarget/pull/601
+.. _`issue #597`: https://github.com/desihub/desitarget/issues/597
+.. _`PR #606`: https://github.com/desihub/desitarget/pull/606
+
+0.37.3 (2020-04-15)
+-------------------
+
+* Update QA now basemap dependency is removed [`PR #605`_]:
+    * Also reintroduce unit tests in `test_qa.py`.
+    * basemap dependency was removed in `desiutil PR #141`_
+
+.. _`desiutil PR #141`: https://github.com/desihub/desiutil/pull/141
+.. _`PR #605`: https://github.com/desihub/desitarget/pull/605
+
+0.37.2 (2020-04-13)
+-------------------
+
+* Fix `select_mock_targets` I/O bug reported in #603 [`PR #604`_].
+
+.. _`PR #604`: https://github.com/desihub/desitarget/pull/604
+
+0.37.1 (2020-04-07)
+-------------------
+
+* Fix mock QSO density bug reported in #594 [`PR #602`_].
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #600`_].
+
+.. _`PR #600`: https://github.com/desihub/desitarget/pull/600
+.. _`PR #602`: https://github.com/desihub/desitarget/pull/602
 
 0.37.0 (2020-03-12)
 -------------------

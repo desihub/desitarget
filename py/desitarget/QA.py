@@ -27,7 +27,6 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 from desiutil import brick
 from desiutil.log import get_logger
-from desiutil.plots import init_sky, plot_sky_binned, plot_healpix_map, prepare_data
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 from desitarget.targets import main_cmx_or_sv
@@ -398,7 +397,7 @@ def read_data(targfile, mocks=False, downsample=None, header=False):
     truths, objtruths = None, None
 
     if mocks:
-        truthfile = '{}/truth.fits'.format(targdir)
+        truthfile = targfile.replace('targets-', 'truth-')  # fragile!
 
         # ADM check that the truth file exists.
         if not os.path.exists(truthfile):
@@ -465,13 +464,11 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
     """
     label = r'{} (targs deg$^{{-2}}$'.format(objtype)
 
-    fig, ax = plt.subplots(1)
-    ax = np.atleast_1d(ax)
-
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
         # ADM grab the data needed to make the plot, masking values < 1
         # ADM to ensure that areas outside of the footprint are empty.
+        from desiutil.plots import plot_sky_binned
         _, data = plot_sky_binned(cat['RA'], cat['DEC'], weights=weights,
                                   max_bin_area=max_bin_area, clip_lo='!1',
                                   plot_type='healpix', colorbar=False,
@@ -496,19 +493,22 @@ def qaskymap(cat, objtype, qadir='.', upclip=None, weights=None,
         # ADM otherwise, clip at percentiles and note them in the label.
         else:
             lo, hi = 5, 95
-            plo, phi = np.percentile(data[~data.mask], [lo, hi])
-            label += r'; {}% ({:.0f} deg$^{{-2}}$) < dens '.format(lo, plo)
-            label += r'< {}% ({:.0f} deg$^{{-2}}$)'.format(hi, phi)
-            data.data[data.data > phi] = phi
-            data.data[data.data < plo] = plo
+            # ADM catch the corner case of no unmasked data.
+            if np.any(~data.mask):
+                plo, phi = np.percentile(data[~data.mask], [lo, hi])
+                label += r'; {}% ({:.0f} deg$^{{-2}}$) < dens '.format(lo, plo)
+                label += r'< {}% ({:.0f} deg$^{{-2}}$)'.format(hi, phi)
+                data.data[data.data > phi] = phi
+                data.data[data.data < plo] = plo
         label += ')'
 
         # ADM Make the plot.
-        bm = init_sky(galactic_plane_color='k', ax=ax[0])
-        plot_healpix_map(data, nest=False, cmap="jet", label=label, basemap=bm)
+        from desiutil.plots import init_sky, plot_healpix_map
+        ax = init_sky(galactic_plane_color='k')
+        ax = plot_healpix_map(data, nest=False, cmap="jet", label=label, ax=ax)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, objtype))
-    fig.savefig(pngfile, bbox_inches='tight')
+    plt.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 
@@ -545,8 +545,6 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
     """
 
     label = '{}'.format(plottitle)
-    fig, ax = plt.subplots(1)
-    ax = np.atleast_1d(ax)
 
     # ADM if downclip was passed as a number, turn it to a string with
     # ADM an exclamation mark to mask the plot background completely.
@@ -555,15 +553,17 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
             downclip = '!' + str(downclip)
 
     # ADM prepare the data to be plotted by matplotlib routines.
+    from desiutil.plots import prepare_data
     pixmap = prepare_data(pixmap, clip_lo=downclip, clip_hi=upclip)
 
     with warnings.catch_warnings():
         warnings.simplefilter('ignore')
-        basemap = init_sky(galactic_plane_color='k', ax=ax[0])
-        plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, basemap=basemap)
+        from desiutil.plots import init_sky, plot_healpix_map
+        ax = init_sky(galactic_plane_color='k')
+        ax = plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, ax=ax)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, colname))
-    fig.savefig(pngfile, bbox_inches='tight')
+    plt.savefig(pngfile, bbox_inches='tight')
 
     plt.close()
 

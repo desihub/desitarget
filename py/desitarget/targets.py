@@ -41,8 +41,8 @@ def encode_targetid(objid=None, brickid=None, release=None,
         'data/targetmask.yaml'. Or, if < 1000 and `sky` is not
         ``None``, the HEALPixel processing number for SUPP_SKIES.
     mock : :class:`int` or :class:`~numpy.ndarray`, optional
-        1 if this object is a mock object (generated from
-        mocks, not from real survey data), 0 otherwise
+        1 if this object is a mock object (generated from mocks or from
+        a random catalog, not from real survey data), 0 otherwise
     sky : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a blank sky object, 0 otherwise
     gaiadr : :class:`int` or :class:`~numpy.ndarray`, optional
@@ -147,8 +147,8 @@ def decode_targetid(targetid):
         'data/targetmask.yaml'. Or, if < 1000 and `sky` is not
         ``None``, the HEALPixel processing number for SUPP_SKIES.
     :class:`int` or :class:`~numpy.ndarray`
-        1 if this object is a mock object (generated from
-        mocks, not from real survey data), 0 otherwise
+        1 if this object is a mock object (generated from mocks or from
+        a random catalog, not from real survey data), 0 otherwise
     :class:`int` or :class:`~numpy.ndarray`
         1 if this object is a blank sky object, 0 otherwise
     :class:`int` or :class:`~numpy.ndarray`
@@ -668,8 +668,8 @@ def resolve(targets):
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,
-             sky=0, survey='main', darkbright=False, gaiadr=None,
-             targetid=None):
+             sky=False, randoms=False, survey='main', darkbright=False,
+             gaiadr=None, targetid=None):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -682,8 +682,10 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         1D array of target selection bit flags.
     mws_target : :class:`~numpy.ndarray`
         1D array of target selection bit flags.
-    sky : :class:`int`, defaults to 0
-        Pass `1` to indicate these are blank sky targets, `0` otherwise.
+    sky : :class:`bool`, defaults to ``False``
+        Pass ``True`` for sky targets, ``False`` otherwise.
+    randoms : :class:`bool`, defaults to ``False``
+        ``True`` if `targets` is a random catalog, ``False`` otherwise.
     survey : :class:`str`, defaults to `main`
         Specifies which target masks yaml file to use. Options are `main`,
         `cmx` and `svX` (where X = 1, 2, 3 etc.) for the main survey,
@@ -739,13 +741,15 @@ def finalize(targets, desi_target, bgs_target, mws_target,
             targetid = encode_targetid(objid=targets['GAIA_OBJID'],
                                        brickid=targets['GAIA_BRICKID'],
                                        release=0,
-                                       sky=sky,
+                                       mock=int(randoms),
+                                       sky=int(sky),
                                        gaiadr=gaiadr)
         else:
             targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                        brickid=targets['BRICKID'],
                                        release=targets['RELEASE'],
-                                       sky=sky)
+                                       mock=int(randoms),
+                                       sky=int(sky))
     assert ntargets == len(targetid)
 
     nodata = np.zeros(ntargets, dtype='int')-1
@@ -806,7 +810,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         raise AssertionError(msg)
 
     # ADM check all LRG targets have LRG_1PASS/2PASS set.
-    # ADM we've moved away from LRG PASSes this so deprecate for now.
+    # ADM we've moved away from LRG PASSes so deprecate this for now.
 #    if survey == 'main':
 #        lrgset = done["DESI_TARGET"] & desi_mask.LRG != 0
 #        pass1lrgset = done["DESI_TARGET"] & desi_mask.LRG_1PASS != 0

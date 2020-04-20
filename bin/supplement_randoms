@@ -25,8 +25,8 @@ ap.add_argument("randomcat",
 ap.add_argument("dest",
                 help="Output directory for random catalog (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--density", type=int,
-                help='Number of points per sq. deg. to generate (defaults to 10,000)',
-                default="10000")
+                help='Number of points per sq. deg. to generate (defaults to the value of DENSITY in the header of the "randomcat" input file)',
+                default=None)
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
@@ -42,25 +42,53 @@ if not os.path.exists(ns.randomcat):
 
 log.info('running on {} processors...t = {:.1f}s'.format(ns.numproc, time()-start))
 
-# ADM just the filename for the input random catalog.
-rancatfn = os.path.basename(ns.randomcat)
-
-# ADM find the bricknames covered by the existing random catalog.
-donebns = fitsio.read(ns.randomcat, columns="BRICKNAME")
+# ADM check that the passed file looks like a random catalog.
+try:
+    ranhead = fitsio.read_header(ns.randomcat, "RANDOMS")
+except OSError:
+    msg = 'Passed input file does not appear to be a random catalog: {}'.format(ns.randomcat)
+    log.critical(msg)
+    sys.exit(1)
 
 # ADM determine the seed used for the existing random catalog.
 try:
-    seed = fitsio.read_header(ns.randomcat, "RANDOMS")["SEED"]
+    seed = ranhead["SEED"]
+    log.info('read seed of {} from {}'.format(seed, ns.randomcat))
 except KeyError:
     seed = 1
+    log.info('defaulting to a SEED of {}'.format(seed))
+
+# ADM grab the density used for the existing random catalog, if needed.
+if ns.density is None:
+    try:
+        density = ranhead["DENSITY"]
+        log.info('read DENSITY of {} from {}'.format(density, ns.randomcat))
+    except KeyError:
+        msg = 'No DENSITY keyword in header of: {}, so --density must be passed'.format(ns.randomcat)
+        log.critical(msg)
+        sys.exit(1)
+else:
+    density = ns.density
+
+# ADM find the bricknames covered by the existing random catalog.
+try:
+    donebns = fitsio.read(ns.randomcat, columns="BRICKNAME")
+except ValueError:
+    msg = 'No BRICKNAME column in passed input file: {}'.format(ns.randomcat)
+    log.critical(msg)
+    sys.exit(1)
 
 # ADM make the array of "zerod" bricks.
-randoms = supplement_randoms(donebns, density=ns.density, numproc=ns.numproc,
+randoms = supplement_randoms(donebns, density=density, numproc=ns.numproc,
                              dustdir=ns.dustdir, seed=seed)
+
+# ADM extra header keywords for the output fits file.
+extra = {k: v for k, v in zip(["density", "seed"],
+                              [density, seed])}
 
 # ADM write out the supplemental random catalog.
 nrands, outfile = io.write_randoms(ns.dest, randoms, indir=ns.randomcat,
-                                   supp=True, density=ns.density, seed=seed)
+                                   supp=True, extra=extra)
 
 log.info('wrote file of {} randoms to {}...t = {:.1f}s'
          .format(nrands, outfile, time()-start))

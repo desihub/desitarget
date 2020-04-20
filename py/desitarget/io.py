@@ -535,11 +535,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -578,9 +574,17 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
         if len(objtruth) > 0:
             for obj in sorted(set(truthdata['TEMPLATETYPE'])):
-                fitsio.write(truthfile+'.tmp', objtruth[obj].as_array(), append=True,
-                             extname='TRUTH_{}'.format(obj))
+                out = objtruth[obj]
 
+                # TODO: fix desitarget #529, double check with #603, then remove this
+                # Temporarily remove the `TRANSIENT_` columns--
+                # see https://github.com/desihub/desitarget/issues/603#issuecomment-612678359 and
+                # https://github.com/desihub/desisim/issues/529
+                for col in out.colnames.copy():
+                    if 'TRANSIENT_' in col:
+                        out.remove_column(col)
+
+                fitsio.write(truthfile+'.tmp', out.as_array(), append=True, extname='TRUTH_{}'.format(obj))
         os.rename(truthfile+'.tmp', truthfile)
 
     return ntargs, filename
@@ -875,11 +879,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -979,11 +979,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -1005,7 +1001,8 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
 
 
 def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
-                  nsidefile=None, hpxlist=None, resolve=True, extra=None):
+                  nsidefile=None, hpxlist=None, resolve=True, north=None,
+                  extra=None):
     """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
@@ -1017,8 +1014,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         Array of randoms to write to file.
     indir : :class:`str`, optional, defaults to None
         Name of input Legacy Survey Data Release directory, write to
-        header of output file if passed (and if not None).
-    hdr : :class:`str`, optional, defaults to `None`
+        header of output file if passed (and if not ``None``).
+    hdr : :class:`str`, optional, defaults to ``None``
         If passed, use this header to start the header for `filename`.
     nside: :class:`int`
         If passed, add a column to the randoms array popluated with
@@ -1027,19 +1024,24 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         Written to the header of the output file to indicate whether
         this is a supplemental file (i.e. random locations that are
         outside the Legacy Surveys footprint).
-    nsidefile : :class:`int`, optional, defaults to `None`
+    nsidefile : :class:`int`, optional, defaults to ``None``
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
         nside. Used in conjunction with `hpxlist`.
-    hpxlist : :class:`list`, optional, defaults to `None`
+    hpxlist : :class:`list`, optional, defaults to ``None``
         Passed to indicate in the output file header that the targets
         have been limited to only this list of HEALPixels. Used in
         conjunction with `nsidefile`.
     resolve : :class:`bool`, optional, defaults to ``True``
-        Written to the output file header as `RESOLVE`.
+        Written to the output file header as `RESOLVE`. If ``True``
+        (``False``) output directory includes "resolve" ("noresolve").
+    north : :class:`bool`, optional
+        If passed (and not ``None``), then, if ``True`` (``False``),
+        REGION=north (south) is written to the output header and the
+        output directory name is appended by "north" ("south").
     extra : :class:`dict`, optional
-        If passed (and not None), write these extra dictionary keys and
-        values to the output header.
+        If passed (and not ``None``), write these extra dictionary keys
+        and values to the output header.
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
@@ -1053,7 +1055,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
             depend.setdep(hdr, 'input-random-catalog', indir)
         else:
             depend.setdep(hdr, 'input-data-release', indir)
-        # ADM use RELEASE to find the release string for the input randoms.
+        # ADM use input directory to (try to) determine the Data Release.
         try:
             drint = int(indir.split("dr")[1][0])
             drstring = 'dr'+str(drint)
@@ -1061,28 +1063,16 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         except (ValueError, IndexError, AttributeError):
             drint = None
 
-    # ADM add HEALPix column, if requested by input.
-    if nside is not None:
-        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
-        hppix = hp.ang2pix(nside, theta, phi, nest=True)
-        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr['HPXNSIDE'] = nside
-        hdr['HPXNEST'] = True
-
-    # ADM note if this is a supplemental (outside-of-footprint) file.
-    hdr['SUPP'] = supp
-
-    # ADM add whether or not the randoms were resolved to the header.
-    hdr["RESOLVE"] = resolve
+    # ADM whether this is a north-specific or south-specific file.
+    region = None
+    if north is not None:
+        region = ["south", "north"][north]
+        hdr["REGION"] = region
 
     # ADM record whether this file has been limited to only certain HEALPixels.
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
-        if hpxlist is None or nsidefile is None:
-            msg = 'Both hpxlist (={}) and nsidefile (={}) need to be set' \
-                .format(hpxlist, nsidefile)
-            log.critical(msg)
-            raise ValueError(msg)
+        check_both_set(hpxlist, nsidefile)
         hdr['FILENSID'] = nsidefile
         hdr['FILENEST'] = True
         # ADM warn if we've stored a pixel string that is too long.
@@ -1107,14 +1097,33 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM construct the output file name.
     filename = find_target_files(targdir, dr=drint, flavor="randoms",
                                  hp=hpxlist, resolve=resolve, supp=supp,
-                                 seed=seed, nohp=True)
+                                 region=region, seed=seed, nohp=True)
+
+    nrands = len(data)
+    # ADM die immediately if there are no targets to write.
+    if nrands == 0:
+        return nrands, filename
+
+    # ADM add HEALPix column, if requested by input.
+    if nside is not None:
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        hdr['HPXNSIDE'] = nside
+        hdr['HPXNEST'] = True
+
+    # ADM note if this is a supplemental (outside-of-footprint) file.
+    hdr['SUPP'] = supp
+
+    # ADM add whether or not the randoms were resolved to the header.
+    hdr["RESOLVE"] = resolve
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
 
-    return len(data), filename
+    return nrands, filename
 
 
 def iter_files(root, prefix, ext='fits'):
@@ -1631,8 +1640,8 @@ def _get_targ_dir():
 
 
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
-                      obscon=None, hp=None, nside=None, resolve=True,
-                      supp=False, mock=False, nohp=False, seed=None):
+                      obscon=None, hp=None, nside=None, resolve=True, supp=False,
+                      mock=False, nohp=False, seed=None, region=None):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1655,7 +1664,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         Nside corresponding to healpixel `hp`.
     resolve : :class:`bool`, optional, defaults to ``True``
         If ``True`` then find the `resolve` file. Otherwise find the
-        `noresolve` file. Only relevant if `flavor` is `targets`.
+        `noresolve` file. Relevant if `flavor` is `targets` or `randoms`.
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental targets file. Overrides
         the `obscon` option.
@@ -1669,6 +1678,9 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         If `seed` is not ``None``, then it is added to the file name just
         before the ".fits" extension (i.e. "-8.fits" for `seed` of 8).
         Only relevant if `flavor` is "randoms".
+    region : :class:`int`, optional
+        If `region` is not ``None``, then it is added to the directory
+        name after `resolve`. Only relevant if `flavor` is "randoms".
 
     Returns
     -------
@@ -1752,6 +1764,11 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                 fn = os.path.join(fn, surv, res)
         else:
             fn = os.path.join(fn, surv)
+
+    if flavor == "randoms":
+        fn = os.path.join(fn, res)
+        if region is not None:
+            fn = os.path.join(fn, region)
 
     if flavor in ["skies", "targets"]:
         if supp:
@@ -2206,5 +2223,15 @@ def _check_hpx_length(hpxlist, length=68, warning=False):
         if warning:
             log.warning(msg)
         else:
+            log.critical(msg)
+            raise ValueError(msg)
+
+
+def check_both_set(hpxlist, nside):
+    """Check that if one of two variables is set, the other is too"""
+    if hpxlist is not None or nside is not None:
+        if hpxlist is None or nside is None:
+            msg = 'Both hpxlist (={}) and nside (={}) need to be set' \
+                .format(hpxlist, nside)
             log.critical(msg)
             raise ValueError(msg)
