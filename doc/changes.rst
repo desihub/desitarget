@@ -5,6 +5,13 @@ desitarget Change Log
 0.37.4 (unreleased)
 -------------------
 
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
+* Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
+* Separates special case in calc_priority for CMX into a separate function [`PR #601`_].
+* Alter cmx targetmask such taht obsconditionsc can be used to work around MWS/BGS
+  conflicts on MWS CMX tiles [`PR #601`_].
+* Updates test_priorities to deal with new scheme for MWS CMX targets [`PR #601`_].
+* Adds SV0_MWS_FAINT bit [`PR #601`_].
 * Extra columns and features in the random catalogs [`PR #606`_]:
     * Better error messages and defaults for `bin/supplement_randoms`.
     * Don't calculate APFLUX quantities if aprad=0 is passed.
@@ -16,6 +23,7 @@ desitarget Change Log
     * Recognize failure modes more quickly (and fail more quickly).
     * Write out both "resolve" and "noresolve" (North/South) catalogs.
 
+.. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 .. _`issue #597`: https://github.com/desihub/desitarget/issues/597
 .. _`PR #606`: https://github.com/desihub/desitarget/pull/606
 

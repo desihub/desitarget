@@ -548,7 +548,61 @@ def calc_priority(targets, zcat, obscon):
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
-        for name in ['SV0_' + label for label in ('BGS', 'MWS')]:
+        priority = _cmx_calc_priority(targets, priority, obscon,
+                                      unobs, done, zgood, zwarn, cmx_mask, obsconditions)
+
+    return priority
+
+
+def _cmx_calc_priority(targets, priority, obscon, unobs, done, zgood, zwarn, cmx_mask, obsconditions):
+    """Special-case logic for target priorities in CMX.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.ndarray`
+        numpy structured array or astropy Table of targets. Must include
+        the column `CMX_TARGET`.
+    priority : :class:`~numpy.ndarray`
+        Initial priority values set, in calc_priorities().
+    obscon : :class:`str`
+        A combination of strings that are in the desitarget bitmask yaml
+        file (specifically in `desitarget.targetmask.obsconditions`), e.g.
+        "DARK|GRAY". Governs the behavior of how priorities are set based
+        on "obsconditions" in the desitarget bitmask yaml file.
+    unobs : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state UNOBS.
+    done : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state DONE.
+    zgood : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state ZGOOD.
+    zwarn : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state ZWARN.
+    cmx_mask : :class:`~desiutil.bitmask.BitMask`
+        The CMX target bitmask.
+    obscondtions : :class:`~desiutil.bitmask.BitMask`
+        The CMX obsconditions bitmask.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The updated priority values.
+
+    Notes
+    -----
+        - Intended to be called only from within calc_priority(), where any
+          pre-processing of the target state flags (uobs, done, zgood, zwarn) is
+          handled.
+
+    """
+    # Build a whitelist of targets to update
+    names_to_update = ['SV0_' + label for label in ('STD_FAINT', 'STD_BRIGHT',
+                                                    'BGS', 'MWS', 'WD', 'MWS_FAINT',
+                                                    'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]
+    names_to_update.extend(['BACKUP_BRIGHT', 'BACKUP_FAINT'])
+
+    for name in names_to_update:
+        pricon = obsconditions.mask(cmx_mask[name].obsconditions)
+        if (obsconditions.mask(obscon) & pricon) != 0:
             ii = (targets['CMX_TARGET'] & cmx_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], cmx_mask[name].priorities['UNOBS'])
             priority[ii & done] = np.maximum(priority[ii & done],  cmx_mask[name].priorities['DONE'])
