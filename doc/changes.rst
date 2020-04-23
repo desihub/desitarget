@@ -5,12 +5,13 @@ desitarget Change Log
 0.37.4 (unreleased)
 -------------------
 
+* Minor updates for latest DR9 imaging versions (dr9f/dr9g) [`PR #607`_].
 * Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
 * Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
-* Separates special case in calc_priority for CMX into a separate function [`PR #601`_].
-* Alter cmx targetmask such taht obsconditionsc can be used to work around MWS/BGS
-  conflicts on MWS CMX tiles [`PR #601`_].
-* Updates test_priorities to deal with new scheme for MWS CMX targets [`PR #601`_].
+* Separate calc_priority() for CMX into a separate function [`PR #601`_].
+* Alter cmx targetmask such that obsconditions can be used to work
+  around MWS/BGS conflicts on MWS CMX tiles [`PR #601`_].
+* Update test_priorities() for new MWS CMX targets scheme [`PR #601`_].
 * Adds SV0_MWS_FAINT bit [`PR #601`_].
 * Extra columns and features in the random catalogs [`PR #606`_]:
     * Better error messages and defaults for `bin/supplement_randoms`.
@@ -26,6 +27,7 @@ desitarget Change Log
 .. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 .. _`issue #597`: https://github.com/desihub/desitarget/issues/597
 .. _`PR #606`: https://github.com/desihub/desitarget/pull/606
+.. _`PR #607`: https://github.com/desihub/desitarget/pull/607
 
 0.37.3 (2020-04-15)
 -------------------
