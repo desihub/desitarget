@@ -2,7 +2,13 @@
 desitarget Change Log
 =====================
 
-0.37.4 (unreleased)
+0.38.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+
+0.38.0 (2020-04-23)
 -------------------
 
 * Minor updates for latest DR9 imaging versions (dr9f/dr9g) [`PR #607`_].
