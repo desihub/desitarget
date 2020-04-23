@@ -35,7 +35,7 @@ log = get_logger()
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
-               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N'}
+               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N'}
 
 # ADM This is an empty array of most of the TS data model columns and
 # ADM dtypes. Note that other columns are added in read_tractor and
@@ -67,10 +67,10 @@ basetsdatamodel = np.array([], dtype=[
 
 # ADM columns that are new for the DR9 data model.
 dr9addedcols = np.array([], dtype=[
-    ('LC_FLUX_W1', '>f4', (13,)), ('LC_FLUX_W2', '>f4', (13,)),
-    ('LC_FLUX_IVAR_W1', '>f4', (13,)), ('LC_FLUX_IVAR_W2', '>f4', (13,)),
-    ('LC_NOBS_W1', '>i2', (13,)), ('LC_NOBS_W2', '>i2', (13,)),
-    ('LC_MJD_W1', '>f8', (13,)), ('LC_MJD_W2', '>f8', (13,)),
+    ('LC_FLUX_W1', '>f4', (15,)), ('LC_FLUX_W2', '>f4', (15,)),
+    ('LC_FLUX_IVAR_W1', '>f4', (15,)), ('LC_FLUX_IVAR_W2', '>f4', (15,)),
+    ('LC_NOBS_W1', '>i2', (15,)), ('LC_NOBS_W2', '>i2', (15,)),
+    ('LC_MJD_W1', '>f8', (15,)), ('LC_MJD_W2', '>f8', (15,)),
     ('SHAPE_R', '>f4'), ('SHAPE_E1', '>f4'), ('SHAPE_E2', '>f4'),
     ('SHAPE_R_IVAR', '>f4'), ('SHAPE_E1_IVAR', '>f4'), ('SHAPE_E2_IVAR', '>f4'),
     ('SERSIC', '>f4'), ('SERSIC_IVAR', '>f4')

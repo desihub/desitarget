@@ -228,8 +228,7 @@ def _pre_or_post_dr8(drdir):
     if os.path.exists(os.path.join(drdir, "coadd")):
         drdirs = [drdir]
     else:
-        wcoadd = glob(os.path.join(drdir, '*', "coadd"))
-        drdirs = [os.path.dirname(dd) for dd in wcoadd]
+        drdirs = [os.path.join(drdir, region) for region in ["north", "south"]]
 
     return drdirs
 
