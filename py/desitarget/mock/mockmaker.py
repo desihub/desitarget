@@ -402,7 +402,6 @@ class SelectTargets(object):
         self.set_wise_depth(data)
 
     def imaging_depth(self, data, release=8, aprad=0.0, simple=False):
-        import  pandas             as     pd 
         import  desitarget.randoms as     randoms
 
         from    desitarget.targets import resolve
@@ -476,8 +475,8 @@ class SelectTargets(object):
 
                     for band in bands:
                         for bk in bandkeep:
-                            key = bk + '_' + band
-                            data[key][indx] = rtn[key]
+                            key               = bk + '_' + band
+                            data[key][indx]   = rtn[key]
 
                     data['PSFDEPTH_W1'][indx] = rtn['PSFDEPTH_W1']
                     data['PSFDEPTH_W2'][indx] = rtn['PSFDEPTH_W2']
