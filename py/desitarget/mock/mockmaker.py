@@ -401,7 +401,7 @@ class SelectTargets(object):
 
         self.set_wise_depth(data)
 
-    def imaging_depth(self, data, release=8, aprad=0.0, simple=True):
+    def imaging_depth(self, data, release=8, aprad=0.0, simple=False):
         import  pandas             as     pd 
         import  desitarget.randoms as     randoms
 
@@ -487,15 +487,11 @@ class SelectTargets(object):
                     toremove[np.where(indx)[0]] = True
 
             log.info('Removing {} targets not in reduced DESI imaging (of {}).'.format(np.count_nonzero(toremove), len(data['RA'])))
-        
+            
             for key in list(data.keys()):
-                try:
-                    if len(data[key]) == len(data['RA']):            
-                        data[key] = data[key][~toremove]
-
-                except(TypeError):
-                    pass
-
+                if isinstance(data[key], np.ndarray):
+                      data[key] = data[key][~toremove]
+            
             # Overwrite with simple depths for now.
             self.simple_imaging_depth(data)
             
@@ -503,8 +499,6 @@ class SelectTargets(object):
             log.info('Setting simple imaging depths.')
                 
             self.simple_imaging_depth(data)
-            
-        # print(pd.DataFrame(data))
             
     def scatter_photometry(self, data, truth, targets, indx=None, 
                            seed=None, qaplot=False):
@@ -1575,16 +1569,18 @@ class ReadGaussianField(SelectTargets):
         # fig.savefig('/global/homes/i/ioannis/rmag-vs-oiiflux.png')
 
         if target_name.upper() == 'ELG' and gmmout is not None:
-            rmagpivot = 22
-            rand = np.random.RandomState(seed)
+            rmagpivot        = 22
+            rand             = np.random.RandomState(seed)
 
-            oiicoeff_median = np.array([ -5.31384197e-04, -4.24876618e-01, 1.17861064e+00])
+            oiicoeff_median  = np.array([ -5.31384197e-04, -4.24876618e-01, 1.17861064e+00])
             oiicoeff_scatter = np.array([-0.00188197, -0.00077902, 0.30842156])
-            oiiflux = np.polyval(oiicoeff_median, gmmout['MAG'] - rmagpivot)
-            oiiflux_sigma = np.polyval(oiicoeff_scatter, gmmout['MAG'] - rmagpivot)
+            oiiflux          = np.polyval(oiicoeff_median, gmmout['MAG'] - rmagpivot)
+            oiiflux_sigma    = np.polyval(oiicoeff_scatter, gmmout['MAG'] - rmagpivot)
+
             for ii, sigma in enumerate(oiiflux_sigma):
                 if sigma < 0: # edge case
-                    sigma = np.polyval(oiicoeff_scatter, 0) 
+                    sigma    = np.polyval(oiicoeff_scatter, 0) 
+
                 oiiflux[ii] += rand.normal(loc=0, scale=sigma)
 
             gmmout.update({'OIIFLUX': 1e-17 * oiiflux})
