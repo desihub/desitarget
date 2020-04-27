@@ -1998,8 +1998,11 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         # ADM Write out the densest pixels.
         if makeplots:
             html.write('<pre>')
-            html.write('Densest HEALPixels (NSIDE={}; links are to LS viewer):\n'.format(
-                densdict[objtype]["NSIDE"]))
+            resol = 0
+            if isinstance(densdict[objtype]["NSIDE"], int):
+                resol = hp.nside2resol(densdict[objtype]["NSIDE"], arcmin=True)
+            html.write('Densest HEALPixels (NSIDE={}; ~{:.0f} arcmin across; links are to LS viewer):\n'.format(
+                densdict[objtype]["NSIDE"], resol))
             ras, decs, dens = densdict[objtype]["RA"], densdict[objtype]["DEC"], densdict[objtype]["DENSITY"]
             for i in range(len(ras)):
                 ender = "   "
@@ -2226,7 +2229,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                             down = 0.9
                         qasystematics_scatterplot(pixmap, sysname, objtype, qadir=qadir,
                                                   downclip=down, upclip=up, nbins=10, xlabel=plotlabel)
-
+                log.info('Made systematics plots for {}...t ={:.1f}s'.format(
+                    sysname, time()-start))
         log.info('Done with systematics...t = {:.1f}s'.format(time()-start))
 
     # ADM html postamble for main page.
