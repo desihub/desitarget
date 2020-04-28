@@ -1379,7 +1379,7 @@ class ReadGaussianField(SelectTargets):
         
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  zmax_qso=None, target_name='', mock_density=False,
-                 only_coords=False, seed=None):
+                 only_coords=False, seed=None, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -1596,7 +1596,7 @@ class ReadGaussianField(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1612,7 +1612,8 @@ class ReadBuzzard(SelectTargets):
         super(ReadBuzzard, self).__init__(**kwargs)
         
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_buzzard=8,
-                 target_name='', magcut=None, only_coords=False, seed=None):
+                 target_name='', magcut=None, only_coords=False, seed=None,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -1793,7 +1794,7 @@ class ReadBuzzard(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         ## Optionally compute the mean mock density.
         #if mock_density:
@@ -1809,7 +1810,8 @@ class ReadUniformSky(SelectTargets):
         super(ReadUniformSky, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', mock_density=False, only_coords=False):
+                 target_name='', mock_density=False, only_coords=False,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -1919,7 +1921,7 @@ class ReadUniformSky(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1936,7 +1938,7 @@ class ReadGalaxia(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
                  target_name='MWS_MAIN', magcut=None, faintstar_mockfile=None,
-                 faintstar_magcut=None, seed=None):
+                 faintstar_magcut=None, seed=None, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2182,7 +2184,7 @@ class ReadGalaxia(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally include faint stars.
         if faintstar_mockfile is not None:
@@ -2212,7 +2214,8 @@ class ReadLyaCoLoRe(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
-                 mock_density=False, sqmodel='default',only_coords=False, seed=None):
+                 mock_density=False, sqmodel='default',only_coords=False, seed=None,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2435,7 +2438,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2648,7 +2651,8 @@ class ReadGAMA(SelectTargets):
         super(ReadGAMA, self).__init__(**kwargs)
         
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', magcut=None, only_coords=False):
+                 target_name='', magcut=None, only_coords=False,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2764,7 +2768,7 @@ class ReadGAMA(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         return out
 
@@ -2776,7 +2780,7 @@ class ReadMWS_WD(SelectTargets):
         super(ReadMWS_WD, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='WD', mock_density=False):
+                 target_name='WD', mock_density=False, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2920,7 +2924,7 @@ class ReadMWS_WD(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2936,7 +2940,8 @@ class ReadMWS_NEARBY(SelectTargets):
         super(ReadMWS_NEARBY, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='MWS_NEARBY', mock_density=False):
+                 target_name='MWS_NEARBY', mock_density=False,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -3076,7 +3081,7 @@ class ReadMWS_NEARBY(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -3174,7 +3179,8 @@ class QSOMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords, seed=self.seed,
-                                   zmax_qso=zmax_qso, mock_density=mock_density)
+                                   zmax_qso=zmax_qso, mock_density=mock_density,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -3398,7 +3404,8 @@ class LYAMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya, zmin_lya=zmin_lya,
                                    mock_density=mock_density,
-                                   only_coords=only_coords, seed=self.seed)
+                                   only_coords=only_coords, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
         return data
 
     def make_spectra(self, data=None, indx=None, seed=None,no_spectra=False,add_dlas=None,add_metals=None,add_lyb=None):
@@ -3761,7 +3768,8 @@ class LRGMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords,
-                                   mock_density=mock_density, seed=self.seed)
+                                   mock_density=mock_density, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -3984,7 +3992,8 @@ class ELGMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords,
-                                   mock_density=mock_density, seed=self.seed)
+                                   mock_density=mock_density, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
 
         return data
             
@@ -4563,7 +4572,7 @@ class MWS_MAINMaker(STARMaker):
                                    nside_galaxia=nside_galaxia, magcut=magcut,
                                    faintstar_mockfile=faintstar_mockfile,
                                    faintstar_magcut=faintstar_magcut,
-                                   seed=self.seed)
+                                   seed=self.seed, legacy_dir=self.legacy_dir)
 
         return data
     
@@ -4758,7 +4767,7 @@ class MWS_NEARBYMaker(STARMaker):
 
         data = MockReader.readmock(mockfile, target_name='MWS_NEARBY',
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density, legacy_dir=self.legacy_dir)
 
         return data
     
@@ -5031,7 +5040,7 @@ class WDMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density, legacy_dir=self.legacy_dir)
 
         return data
 
@@ -5283,7 +5292,8 @@ class SKYMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -5555,7 +5565,7 @@ class BuzzardMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside,
                                    nside_buzzard=nside_buzzard,
                                    only_coords=only_coords,
-                                   magcut=magcut)
+                                   magcut=magcut, legacy_dir=self.legacy_dir)
 
         return data
 

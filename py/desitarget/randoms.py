@@ -334,7 +334,13 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                     iswcs = True
                 # ADM get the quantity of interest at each location and
                 # ADM store in a dictionary with the filter and quantity.
-                if qout == 'apflux':
+                if (qout == 'apflux'):
+                    if aprad == 0.0:
+                        qdict['apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
+                        qdict[qout+'_'+filt]       = np.zeros(npts, dtype=qform)
+
+                        continue
+                        
                     # ADM special treatment to photometer sky.
                     # ADM Read in the ivar image.
                     fnivar = fileform.format(brickname, 'invvar', filt, extn)
