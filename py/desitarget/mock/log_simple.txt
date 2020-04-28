@@ -1,0 +1,147 @@
+21:04:38
+INFO:select_mock_targets:44:<module>: Starting select_mock_targets at Wed Apr 15 21:04:44 2020
+INFO:select_mock_targets:74:<module>: Processing 1 pixel(s).
+INFO:select_mock_targets:95:<module>: Reading configuration file data/select-mock-targets-no-contam.yaml
+INFO:select_mock_targets:99:<module>: Calling targets_truth with survey=main at Wed Apr 15 21:04:44 2020
+WARNING:build.py:87:initialize_targets_truth: Output directory /global/cscratch1/sd/mjwilson/trash is not empty.
+INFO:build.py:91:initialize_targets_truth: Writing to output directory /global/cscratch1/sd/mjwilson/trash
+INFO:build.py:95:initialize_targets_truth: Processing 1 healpixel(s) (nside = 64, 0.839 deg2/pixel) spanning 0.839 deg2.
+INFO:build.py:846:targets_truth: Initializing and caching all MockMaker classes.
+INFO:io.py:959:read_basis_templates: Reading /global/cfs/cdirs/desi/spectro/templates/basis_templates/v3.2/bgs_templates_v2.3.fits
+INFO:io.py:959:read_basis_templates: Reading /global/cfs/cdirs/desi/spectro/templates/basis_templates/v3.2/elg_templates_v2.2.fits
+INFO:io.py:959:read_basis_templates: Reading /global/cfs/cdirs/desi/spectro/templates/basis_templates/v3.2/lrg_templates_v2.2.fits
+WARNING:templates.py:2350:__init__: Using default SIMQSO model
+INFO:io.py:959:read_basis_templates: Reading /global/cfs/cdirs/desi/spectro/templates/basis_templates/v3.2/star_templates_v3.1.fits
+INFO:mockmaker.py:4366:__init__: Caching stellar template photometry.
+WARNING:templates.py:2350:__init__: Using default SIMQSO model
+INFO:io.py:959:read_basis_templates: Reading /global/cfs/cdirs/desi/spectro/templates/basis_templates/v3.2/wd_templates_v2.2.fits
+INFO:io.py:959:read_basis_templates: Reading /global/cfs/cdirs/desi/spectro/templates/basis_templates/v3.2/wd_templates_v2.2.fits
+INFO:mockmaker.py:4933:__init__: Caching WD template photometry.
+INFO:build.py:891:targets_truth: Working on healpixel 0
+INFO:build.py:904:targets_truth: Working on target class BGS on healpixel 0
+INFO:build.py:162:read_mock: Target: BGS, type: BGS, format: durham_mxxl_hdf5, mockfile: {DESI_ROOT}/mocks/bgs/MXXL/full_sky/v0.0.4/BGS_r20.6.hdf5
+INFO:mockmaker.py:2545:_read_mockfile: Assigning healpix pixels with nside = 64
+INFO:mockmaker.py:2580:readmock: Trimmed to 2653 BGSs in 1 healpixel(s).
+INFO:mockmaker.py:2608:readmock: Trimmed to 1950 BGSs with r < 20.3.
+INFO:mockmaker.py:2621:readmock: Sampling from BGS Gaussian mixture model.
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 1950 BGS targets (2323.38 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 1365 BGS targets (1626.37 / deg2).
+INFO:build.py:588:get_spectra: Total time for BGSs = 0.507 minutes (1160.167 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class ELG on healpixel 0
+INFO:build.py:162:read_mock: Target: ELG, type: ELG, format: gaussianfield, mockfile: {DESI_ROOT}/mocks/DarkSky/v1.0.1/elg_0_inpt.fits
+INFO:mockmaker.py:230:_get_radec: Reading /global/cfs/cdirs/desi/mocks/DarkSky/v1.0.1/elg_0_inpt.fits
+INFO:mockmaker.py:235:_get_radec: Assigning healpix pixels with nside = 64.
+INFO:mockmaker.py:1480:readmock: Trimmed to 4324 ELGs in 1 healpixel(s)
+INFO:mockmaker.py:1520:readmock: Sampling from ELG Gaussian mixture model.
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:216:read_mock: Computed median mock density for ELGs of 4863.61 targets/deg2.
+INFO:build.py:218:read_mock: Target density = 2200.00 targets/deg2 (downsampling factor = 0.452).
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 1955 ELG targets (2329.34 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 1955 ELG targets (2329.34 / deg2).
+INFO:build.py:588:get_spectra: Total time for ELGs = 0.818 minutes (1870.664 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class LRG on healpixel 0
+INFO:build.py:162:read_mock: Target: LRG, type: LRG, format: gaussianfield, mockfile: {DESI_ROOT}/mocks/DarkSky/v1.0.1/lrg_0_inpt.fits
+INFO:mockmaker.py:230:_get_radec: Reading /global/cfs/cdirs/desi/mocks/DarkSky/v1.0.1/lrg_0_inpt.fits
+INFO:mockmaker.py:235:_get_radec: Assigning healpix pixels with nside = 64.
+INFO:mockmaker.py:1480:readmock: Trimmed to 575 LRGs in 1 healpixel(s)
+INFO:mockmaker.py:1520:readmock: Sampling from LRG Gaussian mixture model.
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+WARNING:cuts.py:292:isLRG_colors: Setting zfiberflux to zflux!!!
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:216:read_mock: Computed median mock density for LRGs of 770.89 targets/deg2.
+INFO:build.py:218:read_mock: Target density = 480.00 targets/deg2 (downsampling factor = 0.623).
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 358 LRG targets (426.55 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 358 LRG targets (426.55 / deg2).
+INFO:build.py:588:get_spectra: Total time for LRGs = 0.645 minutes (1474.886 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class LYA on healpixel 0
+INFO:build.py:162:read_mock: Target: LYA, type: QSO, format: CoLoRe, mockfile: {DESI_ROOT}/mocks/lya_forest/london/v9.0/v9.0.0/master.fits
+INFO:mockmaker.py:2309:readmock: Reading /global/cfs/cdirs/desi/mocks/lya_forest/london/v9.0/v9.0.0/master.fits
+INFO:mockmaker.py:2329:readmock: Assigning healpix pixels with nside = 64
+INFO:mockmaker.py:2345:readmock: Trimmed to 167 LYAs in 1 healpixel(s)
+INFO:mockmaker.py:2361:readmock: Trimmed to 167 LYAs with z>=1.800
+INFO:mockmaker.py:2424:readmock: Sampling from LYA Gaussian mixture model.
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:203:read_mock: Density adjustment factor for target type LYA: 1.495.
+INFO:build.py:216:read_mock: Computed median mock density for LYAs of 181.10 targets/deg2.
+INFO:build.py:218:read_mock: Target density = 50.00 targets/deg2 (downsampling factor = 0.413).
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 69 LYA targets (82.21 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 69 LYA targets (82.21 / deg2).
+INFO:build.py:588:get_spectra: Total time for LYAs = 0.602 minutes (1377.425 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class MWS_MAIN on healpixel 0
+INFO:build.py:162:read_mock: Target: MWS_MAIN, type: STAR, format: galaxia, mockfile: {DESI_ROOT}/mocks/mws/galaxia/alpha/v0.0.6/healpix
+INFO:mockmaker.py:2053:readmock: Reading /global/cfs/cdirs/desi/mocks/mws/galaxia/alpha/v0.0.6/healpix/8/0/0/mock_allsky_galaxia_desi-8-0.fits
+INFO:mockmaker.py:2074:readmock: Trimmed to 1660 MWS_MAINs in 1 healpixel(s)
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 1660 MWS_MAIN targets (1977.85 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 1338 MWS_MAIN targets (1594.20 / deg2).
+INFO:build.py:588:get_spectra: Total time for MWS_MAINs = 0.549 minutes (1255.991 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class MWS_NEARBY on healpixel 0
+INFO:build.py:162:read_mock: Target: MWS_NEARBY, type: STAR, format: mws_100pc, mockfile: {DESI_ROOT}/mocks/mws/100pc/v0.0.4/mock_100pc.fits
+INFO:mockmaker.py:230:_get_radec: Reading /global/cfs/cdirs/desi/mocks/mws/100pc/v0.0.4/mock_100pc.fits
+INFO:mockmaker.py:235:_get_radec: Assigning healpix pixels with nside = 64.
+INFO:mockmaker.py:3027:readmock: Trimmed to 4 MWS_NEARBYs in 1 healpixel(s).
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 4 MWS_NEARBY targets (4.77 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 4 MWS_NEARBY targets (4.77 / deg2).
+INFO:build.py:588:get_spectra: Total time for MWS_NEARBYs = 0.568 minutes (1298.248 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class QSO on healpixel 0
+INFO:build.py:162:read_mock: Target: QSO, type: QSO, format: gaussianfield, mockfile: {DESI_ROOT}/mocks/DarkSky/v1.0.1/qso_0_inpt.fits
+INFO:mockmaker.py:230:_get_radec: Reading /global/cfs/cdirs/desi/mocks/DarkSky/v1.0.1/qso_0_inpt.fits
+INFO:mockmaker.py:235:_get_radec: Assigning healpix pixels with nside = 64.
+INFO:mockmaker.py:1480:readmock: Trimmed to 272 QSOs in 1 healpixel(s)
+INFO:mockmaker.py:1500:readmock: Trimmed to 220 objects with z<1.800
+INFO:mockmaker.py:1520:readmock: Sampling from QSO Gaussian mixture model.
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:203:read_mock: Density adjustment factor for target type QSO: 0.793.
+INFO:build.py:216:read_mock: Computed median mock density for QSOs of 266.89 targets/deg2.
+INFO:build.py:218:read_mock: Target density = 120.00 targets/deg2 (downsampling factor = 0.356).
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 78 QSO targets (92.94 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 78 QSO targets (92.94 / deg2).
+INFO:build.py:588:get_spectra: Total time for QSOs = 0.686 minutes (1570.189 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class SKY on healpixel 0
+INFO:build.py:162:read_mock: Target: SKY, type: SKY, format: uniformsky, mockfile: {DESI_ROOT}/mocks/uniformsky/0.2/uniformsky-2048-0.2.fits
+INFO:mockmaker.py:230:_get_radec: Reading /global/cfs/cdirs/desi/mocks/uniformsky/0.2/uniformsky-2048-0.2.fits
+INFO:mockmaker.py:235:_get_radec: Assigning healpix pixels with nside = 64.
+INFO:mockmaker.py:1902:readmock: Trimmed to 1024 SKYs in 1 healpixel(s).
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 1024 SKY targets (1220.07 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 1024 SKY targets (1220.07 / deg2).
+INFO:build.py:588:get_spectra: Total time for SKYs = 0.633 minutes (1448.551 cpu minutes/deg2).
+INFO:build.py:904:targets_truth: Working on target class WD on healpixel 0
+INFO:build.py:162:read_mock: Target: WD, type: WD, format: mws_wd, mockfile: {DESI_ROOT}/mocks/mws/wd/v1.0.0/mock_wd.fits
+INFO:mockmaker.py:230:_get_radec: Reading /global/cfs/cdirs/desi/mocks/mws/wd/v1.0.0/mock_wd.fits
+INFO:mockmaker.py:235:_get_radec: Assigning healpix pixels with nside = 64.
+INFO:mockmaker.py:2868:readmock: Trimmed to 2 WDs in 1 healpixel(s).
+INFO:mockmaker.py:503:imaging_depth: Setting simple imaging depths.
+INFO:build.py:400:density_fluctuations: Dividing each nside=64 healpixel (0.84 deg2) into 4 nside=128 healpixel(s) (0.21 deg2).
+INFO:build.py:510:get_spectra: Goal: Generate spectra for 2 WD targets (2.38 / deg2).
+INFO:build.py:586:get_spectra: Done: Generated spectra for 1 WD targets (1.19 / deg2).
+INFO:build.py:588:get_spectra: Total time for WDs = 0.627 minutes (1435.281 cpu minutes/deg2).
+INFO:build.py:1037:finish_catalog: Summary: ntargets = 5168 (6157.56 targets/deg2), nsky = 1024 (1220.07 targets/deg2) in pixel 0.
+INFO:build.py:982:targets_truth: 2708 targets written to /global/cscratch1/sd/mjwilson/trash/0/0/bright/targets-bright-64-0.fits
+INFO:build.py:982:targets_truth: 4064 targets written to /global/cscratch1/sd/mjwilson/trash/0/0/dark/targets-dark-64-0.fits
+INFO:build.py:987:targets_truth: Writing 1024 SKY targets to /global/cscratch1/sd/mjwilson/trash/0/0/sky-64-0.fits
+INFO:select_mock_targets:103:<module>: All done at Wed Apr 15 21:14:31 2020
+21:14:35

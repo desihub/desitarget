@@ -42,10 +42,15 @@ def findfile(filetype, nside, pixnum, basedir='.', ext='fits', obscon=None):
         obscon: (str) e.g. 'dark', 'bright' to add extra dir grouping
     '''
     path = get_healpix_dir(nside, pixnum, basedir=basedir)
+
     if obscon is not None:
         path = os.path.join(path, obscon.lower())
 
-    filename = '{filetype}-{nside}-{pixnum}.{ext}'.format(
-        filetype=filetype, nside=nside, pixnum=pixnum, ext=ext)
+        filename = '{filetype}-{obscon}-{nside}-{pixnum}.{ext}'.format(
+            filetype=filetype, obscon=obscon.lower(), nside=nside, pixnum=pixnum, ext=ext)
+        
+    else:
+        filename = '{filetype}-{nside}-{pixnum}.{ext}'.format(
+            filetype=filetype, nside=nside, pixnum=pixnum, ext=ext)
 
     return os.path.join(path, filename)

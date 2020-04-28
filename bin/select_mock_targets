@@ -69,19 +69,19 @@ if args.healpixels is None:
     healpixels = desimodel.footprint.tiles2pix(args.nside, tiles)
 else:
     healpixels = np.array(args.healpixels)
-
+    
 if args.overwrite:
     log.info('Processing {} pixel(s).'.format(len(healpixels)))
 else:
     keep = list()
     for i, pixnum in enumerate(healpixels):
-        truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
+        truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir, obscon='dark')
         if not os.path.exists(truthfile):
             keep.append(i)
 
-    log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
+    log.info('{}/{} pixels remaining to do. {}'.format(len(keep), len(healpixels), healpixels[keep]))
     healpixels = healpixels[keep]
-
+    
 if args.join:
     from desitarget.mock.build import join_targets_truth
     join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, overwrite=args.overwrite)
@@ -95,6 +95,26 @@ if not os.path.exists(args.config):
 log.info('Reading configuration file {}'.format(args.config))
 with open(args.config, 'r') as pfile:
     params = yaml.safe_load(pfile)
+
+# Set up MASKBITS lookup. Logic check for the necessary files, if not there wget the per brick files for
+# all overlapping pixels. 
+if 'legacy_dir' in params.keys():    
+  # E.g. global/project/projectdirs/cosmo/data/legacysurvey/dr8/
+  # wget https://portal.nersc.gov/project/cosmo/data/legacysurvey/dr8/north/coadd/338/3380p295/    
+  log.info('Assuming maskbits & depths based on LEGACYDIR={}'.format(params['legacy_dir']))
+
+  # Check the survey bricks file exists.  We'll use this to ensure that the local files are compelte for
+  # the healpixels being requested.  
+  legacy_dir = params['legacy_dir']
+  allbricks  = legacy_dir + '/survey-bricks.fits.gz'
+
+  if not os.path.isfile(allbricks):
+      raise  RuntimeError('survey-bricks.fits.gz is required under legacy_dir.')
+  
+else:
+  params['legacy_dir'] = None
+    
+  log.info('Assuming simple homogeneous depths & no masking.')
 
 log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
 targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 

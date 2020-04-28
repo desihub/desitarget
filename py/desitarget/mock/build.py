@@ -141,7 +141,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     magcut = params.get('magcut')
     nside_galaxia = params.get('nside_galaxia')
     calib_only = params.get('calib_only', False)
-
+    
     # QSO/Lya parameters
     nside_lya = params.get('nside_lya')
     zmin_lya = params.get('zmin_lya')
@@ -152,7 +152,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     add_dla = params.get('add_dla', False)
     add_metals = params.get('add_metals', False)
     add_lyb = params.get('add_lyb', False)
-
+    
     if 'density' in params.keys():
         mock_density = True
     else:
@@ -160,14 +160,17 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
 
     log.info('Target: {}, type: {}, format: {}, mockfile: {}'.format(
         target_name, target_type, mockformat, mockfile))
-
+    
     if MakeMock is None:
         MakeMock = getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
             use_simqso=use_simqso, sqmodel=sqmodel, balprob=balprob, add_dla=add_dla,
-            add_metals=add_metals, add_lyb=add_lyb)
+            add_metals=add_metals, add_lyb=add_lyb, legacy_dir=legacy_dir)
+        
     else:
         MakeMock.seed = seed # updated seed
+
+    print(target_name, MakeMock.legacy_dir)
         
     data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                          healpixels=healpixels, nside=nside,
@@ -176,7 +179,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
                          nside_galaxia=nside_galaxia, mock_density=mock_density)
     if not bool(data):
         return data, MakeMock
-
+    
     # Add the information we need to incorporate density fluctuations.
     if 'density' in params.keys():
         if 'MOCK_DENSITY' not in data.keys():
@@ -854,11 +857,13 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         add_dla = params['targets'][target_name].get('add_dla', False)
         add_metals = params['targets'][target_name].get('add_metals', False)
         add_lyb = params['targets'][target_name].get('add_lyb', False)
+        legacy_dir = params['legacy_dir']
+        
         AllMakeMock.append(getattr(mockmaker, '{}Maker'.format(target_name))(
             seed=seed, nside_chunk=nside_chunk, calib_only=calib_only,
             use_simqso=use_simqso, sqmodel=sqmodel, balprob=balprob, add_dla=add_dla,
             add_metals=add_metals, add_lyb=add_lyb, no_spectra=no_spectra,
-            survey=survey))
+            survey=survey, legacy_dir=legacy_dir))
 
     # Are we adding contaminants?  If so, cache the relevant classes here.
     if 'contaminants' in params.keys():
@@ -870,7 +875,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             star_name, _ = list(params['contaminants']['stars'].items())[0]
             ContamStarsMock = getattr(mockmaker, '{}Maker'.format(star_name))(
                 seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra,
-                survey=survey)
+                survey=survey, legacy_dir=legacy_dir)
         else:
             ContamStarsMock = None
                 
@@ -882,7 +887,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             galaxies_name, _ = list(params['contaminants']['galaxies'].items())[0]
             ContamGalaxiesMock = getattr(mockmaker, '{}Maker'.format(galaxies_name))(
                 seed=seed, nside_chunk=nside_chunk, no_spectra=no_spectra,
-                target_name='CONTAM_GALAXY', survey=survey)
+                target_name='CONTAM_GALAXY', survey=survey, legacy_dir=legacy_dir)
         else:
             ContamGalaxiesMock = None
             

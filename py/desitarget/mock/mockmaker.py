@@ -132,7 +132,7 @@ def empty_targets_table(nobj=1):
     targets.add_column(Column(name='FIBERTOTFLUX_G', length=nobj, dtype='>f4'))
     targets.add_column(Column(name='FIBERTOTFLUX_R', length=nobj, dtype='>f4'))
     targets.add_column(Column(name='FIBERTOTFLUX_Z', length=nobj, dtype='>f4'))
-
+    
     # Gaia columns
     targets.add_column(Column(name='REF_CAT', length=nobj, dtype='S2'))
     targets.add_column(Column(name='REF_ID', data=np.repeat(-1, nobj).astype('int64'))) # default is -1
@@ -171,6 +171,10 @@ def empty_targets_table(nobj=1):
     #targets.add_column(Column(name='NUMOBS_INIT', length=nobj, dtype='i8'))
     #targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
 
+    # Default MASKBITS for all mock targets to non-zero.  If populating with realistic depths
+    # these will later be overwritten.
+    targets['MASKBITS'] = 2**10
+    
     return targets
 
 def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
@@ -265,7 +269,7 @@ class SelectTargets(object):
     """
     GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
-    def __init__(self, bricksize=0.25, survey='main', **kwargs):
+    def __init__(self, bricksize=0.25, survey='main', legacy_dir=None, **kwargs):
         from astropy.io import fits
 
         from speclite import filters
@@ -274,6 +278,8 @@ class SelectTargets(object):
         from specsim.fastfiberacceptance import FastFiberAcceptance
 
         self.survey = survey
+        self.legacy_dir = legacy_dir
+        
         if survey == 'main':
             from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
         elif survey == 'sv1':
@@ -340,7 +346,38 @@ class SelectTargets(object):
         extinction = Rv * ext_odonnell(self.wave, Rv=Rv)
         return extinction
 
-    def imaging_depth(self, data):
+    def set_wise_depth(self, data):
+        import astropy.units as u
+        from astropy.coordinates import SkyCoord
+
+        # compute the WISE depth, which is largely a function of ecliptic latitude                                                                                                                         
+        coord = SkyCoord(data['RA']*u.deg, data['DEC']*u.deg)
+        ecoord = coord.transform_to('barycentrictrueecliptic')
+        beta = ecoord.lat.value
+
+        if np.count_nonzero(beta > 89) > 0: # don't explode at the pole!                                                                                                                                   
+            beta[beta > 89] = 89
+
+        if np.count_nonzero(beta < -89) > 0: # don't explode at the pole!                                                                                                                                  
+            beta[beta < -89] = -89
+
+        beta = np.radians(ecoord.lat.value)     # [radians]                                                                                                                                                
+
+        sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level                                                                                                                 
+                                                # background structure e.g. striping                                                                                                                       
+        neff = [15.7832, 18.5233]               # effective number of pixels in PSF                                                                                                                        
+        vega2ab = [2.699, 3.339]
+        sig_stat_beta0 = [3.5127802, 9.1581879] # random uncertainty [AB nanomaggies]
+        
+        for ii, band in enumerate(('W1', 'W2')):
+            sig_stat = sig_stat_beta0[ii] / np.sqrt( 1.0 / np.cos(beta) )
+            sig = np.sqrt( sig_stat**2 + sig_syst[ii]**2 )
+
+            wisedepth_mag = 22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) + vega2ab[ii] # 1-sigma, AB mag                                                                                                
+            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2                                                                                                   
+            data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
+ 
+    def simple_imaging_depth(self, data):
         """Add the imaging depth to the data dictionary.
 
         Note: In future, this should be a much more sophisticated model based on the
@@ -368,30 +405,113 @@ class SelectTargets(object):
             data['PSFDEPTH_{}'.format(band)] = np.repeat(psfdepth_ivar[ii], nobj)
             data['GALDEPTH_{}'.format(band)] = np.repeat(galdepth_ivar[ii], nobj)
 
-        # compute the WISE depth, which is largely a function of ecliptic latitude 
-        coord = SkyCoord(data['RA']*u.deg, data['DEC']*u.deg)
-        ecoord = coord.transform_to('barycentrictrueecliptic')
-        beta = ecoord.lat.value
-        if np.count_nonzero(beta > 89) > 0: # don't explode at the pole!
-            beta[beta > 89] = 89
-        if np.count_nonzero(beta < -89) > 0: # don't explode at the pole!
-            beta[beta < -89] = -89
-        beta = np.radians(ecoord.lat.value) # [radians]
+        self.set_wise_depth(data)
 
-        sig_syst = [0.5, 2.0]                   # systematic uncertainty due to low-level 
-                                                # background structure e.g. striping
-        neff = [15.7832, 18.5233]               # effective number of pixels in PSF
-        vega2ab = [2.699, 3.339]
-        sig_stat_beta0 = [3.5127802, 9.1581879] # random uncertainty [AB nanomaggies]
+    def imaging_depth(self, data, legacy_dir=None, aprad=0.0):
+        import  desitarget.randoms as     randoms
 
-        for ii, band in enumerate(('W1', 'W2')):
-            sig_stat = sig_stat_beta0[ii] / np.sqrt( 1.0 / np.cos(beta) )
-            sig = np.sqrt( sig_stat**2 + sig_syst[ii]**2 )
+        from    desitarget.targets import resolve
+        from    astropy.table      import Table
+        from    desitarget.io      import basetsdatamodel
 
-            wisedepth_mag = 22.5 - 2.5 * np.log10( sig * np.sqrt(neff[ii]) ) + vega2ab[ii] # 1-sigma, AB mag
-            wisedepth_ivar = 1 / (5 * 10**(-0.4 * (wisedepth_mag - 22.5)))**2 # 5-sigma, 1/nanomaggies**2
-            data['PSFDEPTH_{}'.format(band)] = wisedepth_ivar
+        if legacy_dir is not None:
+            log.info('Populating image depths & maskbits.')
+            
+            bricks      = self.Bricks
 
+            # Return brick name of brick covering (ra, dec).
+            bricknames  = bricks.brickname(data['RA'], data['DEC'])
+
+            ubricknames = np.unique(bricknames)
+
+            # All bricks potentially available in this release.  If not present,
+            # code has exited before targets_truth call.
+            standard    = fitsio.read(legacy_dir + '/survey-bricks.fits.gz')
+            standard    = np.char.decode(standard['BRICKNAME'], 'UTF-8')
+            
+            #
+            keep        = ['MASKBITS', 'PHOTSYS']  
+            
+            bands       = ['G', 'R', 'Z']
+            bandkeep    = ['NOBS', 'PSFDEPTH', 'GALDEPTH']
+        
+            _           = empty_targets_table(nobj=1)
+            dtypes      = dict(zip(_.columns, [_[x].dtype for x in _.columns]))
+
+            #
+            data['BRICKNAME'] = bricknames
+        
+            for key in keep:
+                data[key]     = np.zeros(len(data['RA']), dtype=dtypes[key])
+
+            for band in bands:
+                for bk in bandkeep:
+                    key       = bk + '_' + band
+                    data[key] = np.zeros(len(data['RA']), dtype=dtypes[key])
+
+            data['PSFDEPTH_W1'] = np.zeros(len(data['RA']), dtype=dtypes['PSFDEPTH_G'])
+            data['PSFDEPTH_W2'] = np.zeros(len(data['RA']), dtype=dtypes['PSFDEPTH_G'])
+
+            # toflag            = np.zeros_like(data['RA'], dtype=bool)
+        
+            for ubrickname in ubricknames:
+                indx    = np.atleast_1d(data['BRICKNAME'] == ubrickname)
+
+                # Defaults to no sky background ap. fluxes. 
+                rtn     = randoms.dr8_quantities_at_positions_in_a_brick(data['RA'][indx], data['DEC'][indx], ubrickname, legacy_dir, aprad=aprad)
+      
+                if rtn:
+                    for key in list(rtn.keys()):
+                        rtn[key.upper()] = rtn.pop(key)
+
+                    rtn            = Table(rtn)
+
+                    if len(rtn['PHOTSYS']) == len(data['RA'][indx]):
+                        rtn['RA']  = data['RA'][indx]
+                        rtn['DEC'] = data['DEC'][indx]
+
+                    else:
+                        rtn['RA']  = np.concatenate((data['RA'][indx],  data['RA'][indx]))
+                        rtn['DEC'] = np.concatenate((data['DEC'][indx], data['DEC'][indx]))
+                  
+                        rtn        = resolve(rtn)
+
+                    for key in keep:
+                        data[key][indx] = rtn[key]
+
+                    for band in bands:
+                        for bk in bandkeep:
+                            key               = bk + '_' + band
+                            data[key][indx]   = rtn[key]
+
+                    data['PSFDEPTH_W1'][indx] = rtn['PSFDEPTH_W1']
+                    data['PSFDEPTH_W2'][indx] = rtn['PSFDEPTH_W2']
+                        
+                else:
+                    # dr8_quantities_at_positions_in_a_brick suggest this a brick is missing.  This is either because
+                    # the brick was not successully reduced, or is not present locally but should be.  Check the latter.
+                    if np.isin(ubrickname, standard):
+                        raise  RuntimeError('{} should be under {}, but was not found.'.format(ubrickname, legacy_dir))
+
+                    else:
+                      # DEPRECATED:  Empty dict = missing brick.  Potentially remove these targets. 
+                      # toflag[np.where(indx)[0]] = True
+                      pass
+                        
+            # DEPRECATED:  Remove targets not in a stack, as for randoms. 
+            # log.info('Removing {} targets not in reduced DESI imaging (of {}).'.format(np.count_nonzero(toremove), len(data['RA'])))
+            # for key in list(data.keys()):
+            #     if isinstance(data[key], np.ndarray):
+            #          data[key] = data[key][~toremove]
+            
+            # Overwrite with simple depths for now.
+            self.simple_imaging_depth(data)
+            
+        else:
+            log.info('Setting simple imaging depths.')
+                
+            self.simple_imaging_depth(data)
+            
     def scatter_photometry(self, data, truth, targets, indx=None, 
                            seed=None, qaplot=False):
         """Add noise to the input (noiseless) photometry based on the depth (as well as
@@ -445,11 +565,11 @@ class SelectTargets(object):
 
         # WISE sources are all point sources
         for band in ('W1', 'W2'):
-            fluxkey = 'FLUX_{}'.format(band)
-            ivarkey = 'FLUX_IVAR_{}'.format(band)
+            fluxkey  = 'FLUX_{}'.format(band)
+            ivarkey  = 'FLUX_IVAR_{}'.format(band)
             depthkey = 'PSFDEPTH_{}'.format(band)
 
-            sigma = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
+            sigma    = 1 / np.sqrt(data[depthkey][indx]) / 5 # nanomaggies, 1-sigma
             targets[fluxkey][:] = truth[fluxkey] + rand.normal(scale=sigma)
 
             targets[ivarkey][:] = 1 / sigma**2
@@ -1013,11 +1133,18 @@ class SelectTargets(object):
         # Assign RELEASE, PHOTSYS, [RA,DEC]_IVAR, and DCHISQ
         targets['RELEASE'][:] = 9999
 
-        isouth = self.is_south(targets['DEC'])
+        if 'PHOTSYS' in list(data.keys()):
+          isouth = targets['PHOTSYS'] == 'S'
+
+        else:
+          isouth = self.is_south(targets['DEC'])
+          
         south = np.where( isouth )[0]
         north = np.where( ~isouth )[0]
+
         if len(south) > 0:
             targets['PHOTSYS'][south] = 'S'
+
         if len(north) > 0:
             targets['PHOTSYS'][north] = 'N'
             
@@ -1029,12 +1156,23 @@ class SelectTargets(object):
             key = 'MW_TRANSMISSION_{}'.format(band)
             targets[key][:] = data[key][indx]
 
+        _keys = []
+            
         for band in ('G', 'R', 'Z'):
             for prefix in ('PSF', 'GAL'):
                 key = '{}DEPTH_{}'.format(prefix, band)
-                targets[key][:] = data[key][indx]
+                _keys.append(key)
+
             nobskey = 'NOBS_{}'.format(band)
-            targets[nobskey][:] = 2 # assume constant!
+            _keys.append(nobskey)
+            
+        for key in _keys:
+            if key not in list(data.keys()):
+              if key.split('_')[0] == 'NOBS':
+                  targets[key][:] = 2 # assume constant! 
+
+              else:
+                  targets[key][:] = data[key][indx]
 
         # Add spectral / template type and subtype.
         for value, key in zip( (truespectype, templatetype, templatesubtype),
@@ -1254,7 +1392,7 @@ class ReadGaussianField(SelectTargets):
         
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  zmax_qso=None, target_name='', mock_density=False,
-                 only_coords=False, seed=None):
+                 only_coords=False, seed=None, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -1443,16 +1581,18 @@ class ReadGaussianField(SelectTargets):
         # fig.savefig('/global/homes/i/ioannis/rmag-vs-oiiflux.png')
 
         if target_name.upper() == 'ELG' and gmmout is not None:
-            rmagpivot = 22
-            rand = np.random.RandomState(seed)
+            rmagpivot        = 22
+            rand             = np.random.RandomState(seed)
 
-            oiicoeff_median = np.array([ -5.31384197e-04, -4.24876618e-01, 1.17861064e+00])
+            oiicoeff_median  = np.array([ -5.31384197e-04, -4.24876618e-01, 1.17861064e+00])
             oiicoeff_scatter = np.array([-0.00188197, -0.00077902, 0.30842156])
-            oiiflux = np.polyval(oiicoeff_median, gmmout['MAG'] - rmagpivot)
-            oiiflux_sigma = np.polyval(oiicoeff_scatter, gmmout['MAG'] - rmagpivot)
+            oiiflux          = np.polyval(oiicoeff_median, gmmout['MAG'] - rmagpivot)
+            oiiflux_sigma    = np.polyval(oiicoeff_scatter, gmmout['MAG'] - rmagpivot)
+
             for ii, sigma in enumerate(oiiflux_sigma):
                 if sigma < 0: # edge case
-                    sigma = np.polyval(oiicoeff_scatter, 0) 
+                    sigma    = np.polyval(oiicoeff_scatter, 0) 
+
                 oiiflux[ii] += rand.normal(loc=0, scale=sigma)
 
             gmmout.update({'OIIFLUX': 1e-17 * oiiflux})
@@ -1469,7 +1609,7 @@ class ReadGaussianField(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1485,7 +1625,8 @@ class ReadBuzzard(SelectTargets):
         super(ReadBuzzard, self).__init__(**kwargs)
         
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_buzzard=8,
-                 target_name='', magcut=None, only_coords=False, seed=None):
+                 target_name='', magcut=None, only_coords=False, seed=None,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -1666,7 +1807,7 @@ class ReadBuzzard(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         ## Optionally compute the mean mock density.
         #if mock_density:
@@ -1682,7 +1823,8 @@ class ReadUniformSky(SelectTargets):
         super(ReadUniformSky, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', mock_density=False, only_coords=False):
+                 target_name='', mock_density=False, only_coords=False,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -1792,7 +1934,7 @@ class ReadUniformSky(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -1809,7 +1951,7 @@ class ReadGalaxia(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_galaxia=8, 
                  target_name='MWS_MAIN', magcut=None, faintstar_mockfile=None,
-                 faintstar_magcut=None, seed=None):
+                 faintstar_magcut=None, seed=None, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2055,7 +2197,7 @@ class ReadGalaxia(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally include faint stars.
         if faintstar_mockfile is not None:
@@ -2085,7 +2227,8 @@ class ReadLyaCoLoRe(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='LYA', nside_lya=16, zmin_lya=None,
-                 mock_density=False, sqmodel='default',only_coords=False, seed=None):
+                 mock_density=False, sqmodel='default',only_coords=False, seed=None,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2308,7 +2451,7 @@ class ReadLyaCoLoRe(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2325,7 +2468,7 @@ class ReadMXXL(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='BGS', magcut=None, only_coords=False,
-                 mock_density=False, seed=None):
+                 mock_density=False, seed=None, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2389,7 +2532,7 @@ class ReadMXXL(SelectTargets):
         if nside is None:
             log.warning('Nside must be a scalar input.')
             raise ValueError
-
+        
         # Read the data, generate mockid, and then restrict to the input
         # healpixel.
         def _read_mockfile(mockfile, nside, pixmap):
@@ -2504,7 +2647,7 @@ class ReadMXXL(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2521,7 +2664,8 @@ class ReadGAMA(SelectTargets):
         super(ReadGAMA, self).__init__(**kwargs)
         
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='', magcut=None, only_coords=False):
+                 target_name='', magcut=None, only_coords=False,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2637,7 +2781,7 @@ class ReadGAMA(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         return out
 
@@ -2649,7 +2793,7 @@ class ReadMWS_WD(SelectTargets):
         super(ReadMWS_WD, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='WD', mock_density=False):
+                 target_name='WD', mock_density=False, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2793,7 +2937,7 @@ class ReadMWS_WD(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2809,7 +2953,8 @@ class ReadMWS_NEARBY(SelectTargets):
         super(ReadMWS_NEARBY, self).__init__(**kwargs)
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
-                 target_name='MWS_NEARBY', mock_density=False):
+                 target_name='MWS_NEARBY', mock_density=False,
+                 legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2949,7 +3094,7 @@ class ReadMWS_NEARBY(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -2974,11 +3119,11 @@ class QSOMaker(SelectTargets):
     """
     wave, template_maker, GMM_QSO = None, None, None
     
-    def __init__(self, seed=None, use_simqso=True, survey='main', **kwargs):
+    def __init__(self, seed=None, use_simqso=True, survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(QSOMaker, self).__init__(survey=survey)
+        super(QSOMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'QSO'
@@ -3047,7 +3192,8 @@ class QSOMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords, seed=self.seed,
-                                   zmax_qso=zmax_qso, mock_density=mock_density)
+                                   zmax_qso=zmax_qso, mock_density=mock_density,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -3190,11 +3336,11 @@ class LYAMaker(SelectTargets):
 
     def __init__(self, seed=None, use_simqso=True,sqmodel='default',\
                  balprob=0.0,add_dla=False,add_metals=False,add_lyb=False,\
-                 survey='main', **kwargs):
+                 survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LYAMaker, self).__init__(survey=survey)
+        super(LYAMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'LYA'
@@ -3271,7 +3417,8 @@ class LYAMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside,
                                    nside_lya=nside_lya, zmin_lya=zmin_lya,
                                    mock_density=mock_density,
-                                   only_coords=only_coords, seed=self.seed)
+                                   only_coords=only_coords, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
         return data
 
     def make_spectra(self, data=None, indx=None, seed=None,no_spectra=False,add_dlas=None,add_metals=None,add_lyb=None):
@@ -3537,11 +3684,11 @@ class LRGMaker(SelectTargets):
     wave, template_maker = None, None
     GMM_LRG, KDTree_north, KDTree_south = None, None, None
 
-    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LRGMaker, self).__init__(survey=survey)
+        super(LRGMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -3634,7 +3781,8 @@ class LRGMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords,
-                                   mock_density=mock_density, seed=self.seed)
+                                   mock_density=mock_density, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -3765,11 +3913,11 @@ class ELGMaker(SelectTargets):
     wave, template_maker = None, None
     GMM_ELG, KDTree_north, KDTree_south = None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(ELGMaker, self).__init__(survey=survey)
+        super(ELGMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -3857,7 +4005,8 @@ class ELGMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords,
-                                   mock_density=mock_density, seed=self.seed)
+                                   mock_density=mock_density, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
 
         return data
             
@@ -3986,8 +4135,8 @@ class BGSMaker(SelectTargets):
     """
     wave, template_maker, GMM_BGS, KDTree = None, None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
-        super(BGSMaker, self).__init__(survey=survey)
+    def __init__(self, seed=None, nside_chunk=128, survey='main', legacy_dir=None, **kwargs):
+        super(BGSMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -4070,7 +4219,8 @@ class BGSMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    magcut=magcut, only_coords=only_coords,
-                                   mock_density=mock_density, seed=self.seed)
+                                   mock_density=mock_density, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -4209,15 +4359,15 @@ class STARMaker(SelectTargets):
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
-    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
+    def __init__(self, seed=None, no_spectra=False, survey='main', legacy_dir=None, **kwargs):
         from speclite import filters
         from desisim.templates import STAR
 
-        super(STARMaker, self).__init__(survey=survey)
+        super(STARMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'STAR'
-
+        
         if self.wave is None:
             STARMaker.wave = _default_wave()
         self.extinction = self.mw_dust_extinction()
@@ -4370,9 +4520,9 @@ class MWS_MAINMaker(STARMaker):
 
     """
     def __init__(self, seed=None, calib_only=False, no_spectra=False,
-                 survey='main', **kwargs):
+                 survey='main', legacy_dir=None, **kwargs):
         super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra,
-                                            survey=survey)
+                                            survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.calib_only = calib_only
@@ -4435,7 +4585,7 @@ class MWS_MAINMaker(STARMaker):
                                    nside_galaxia=nside_galaxia, magcut=magcut,
                                    faintstar_mockfile=faintstar_mockfile,
                                    faintstar_magcut=faintstar_magcut,
-                                   seed=self.seed)
+                                   seed=self.seed, legacy_dir=self.legacy_dir)
 
         return data
     
@@ -4584,9 +4734,9 @@ class MWS_NEARBYMaker(STARMaker):
         (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
-    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
+    def __init__(self, seed=None, no_spectra=False, survey='main', legacy_dir=None, **kwargs):
         super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra,
-                                              survey=survey)
+                                              survey=survey, legacy_dir=legacy_dir)
 
     def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
              nside=None, mock_density=False, **kwargs):
@@ -4630,7 +4780,7 @@ class MWS_NEARBYMaker(STARMaker):
 
         data = MockReader.readmock(mockfile, target_name='MWS_NEARBY',
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density, legacy_dir=self.legacy_dir)
 
         return data
     
@@ -4771,11 +4921,11 @@ class WDMaker(SelectTargets):
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
     def __init__(self, seed=None, calib_only=False, no_spectra=False,
-                 survey='main', **kwargs):
+                 survey='main', legacy_dir=None, **kwargs):
         from speclite import filters
         from desisim.templates import WD
         
-        super(WDMaker, self).__init__(survey=survey)
+        super(WDMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'WD'
@@ -4903,7 +5053,7 @@ class WDMaker(SelectTargets):
 
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density, legacy_dir=self.legacy_dir)
 
         return data
 
@@ -5096,8 +5246,8 @@ class SKYMaker(SelectTargets):
     """
     wave = None
     
-    def __init__(self, seed=None, survey='main', **kwargs):
-        super(SKYMaker, self).__init__(survey=survey)
+    def __init__(self, seed=None, survey='main', legacy_dir=None, **kwargs):
+        super(SKYMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'SKY'
@@ -5155,7 +5305,8 @@ class SKYMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    only_coords=only_coords,
-                                   mock_density=mock_density)
+                                   mock_density=mock_density,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -5245,8 +5396,8 @@ class BuzzardMaker(SelectTargets):
     wave, template_maker = None, None
     
     def __init__(self, seed=None, nside_chunk=128, no_spectra=False,
-                 survey='main', **kwargs):
-        super(BuzzardMaker, self).__init__(survey=survey)
+                 survey='main', legacy_dir=None, **kwargs):
+        super(BuzzardMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'BGS'
@@ -5427,7 +5578,7 @@ class BuzzardMaker(SelectTargets):
                                    healpixels=healpixels, nside=nside,
                                    nside_buzzard=nside_buzzard,
                                    only_coords=only_coords,
-                                   magcut=magcut)
+                                   magcut=magcut, legacy_dir=self.legacy_dir)
 
         return data
 

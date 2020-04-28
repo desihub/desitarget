@@ -92,13 +92,13 @@ if rank == 0:
     keep = list()
     for i, pixnum in enumerate(pixels):
         truthspecfile = mockio.findfile('truth', args.nside, pixnum,
-                                        basedir=args.output_dir)
+                                        basedir=args.output_dir, obscon='dark')
         if not os.path.exists(truthspecfile):
             keep.append(i)
 
     log.info('{}/{} pixels remaining to do'.format(len(keep), len(pixels)))
     pixels = pixels[keep]
-
+    
     #- pre-create output directories
     for pixnum in pixels:
         outdir = os.path.dirname(mockio.findfile('blat', args.nside, pixnum,
