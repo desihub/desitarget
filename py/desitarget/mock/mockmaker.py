@@ -173,7 +173,7 @@ def empty_targets_table(nobj=1):
 
     # Default MASKBITS for all mock targets to non-zero.  If populating with realistic depths
     # these will later be overwritten.
-    targets['MASKBITS'] = 2e10
+    targets['MASKBITS'] = 2**10
     
     return targets
 
