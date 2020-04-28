@@ -96,6 +96,18 @@ log.info('Reading configuration file {}'.format(args.config))
 with open(args.config, 'r') as pfile:
     params = yaml.safe_load(pfile)
 
+# Set up MASKBITS lookup. Logic check for the necessary files, if not there wget the per brick files for
+# all overlapping pixels. 
+if 'legacy_dir' in params.keys():    
+  # E.g. global/project/projectdirs/cosmo/data/legacysurvey/dr8/
+  # wget https://portal.nersc.gov/project/cosmo/data/legacysurvey/dr8/north/coadd/338/3380p295/    
+  log.info('Assuming maskbits & depths based on LEGACYDIR={}'.format(params['legacy_dir']))
+
+else:
+  params['legacy_dir'] = None
+    
+  log.info('Assuming simple homogeneous depths & no masking.')
+
 log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
 targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 
               output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,

@@ -265,7 +265,7 @@ class SelectTargets(object):
     """
     GMM_LRG, GMM_ELG, GMM_BGS, GMM_QSO, FFA = None, None, None, None, None
 
-    def __init__(self, bricksize=0.25, survey='main', **kwargs):
+    def __init__(self, bricksize=0.25, survey='main', legacy_dir=None, **kwargs):
         from astropy.io import fits
 
         from speclite import filters
@@ -274,6 +274,8 @@ class SelectTargets(object):
         from specsim.fastfiberacceptance import FastFiberAcceptance
 
         self.survey = survey
+        self.legacy_dir = legacy_dir
+        
         if survey == 'main':
             from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
         elif survey == 'sv1':
@@ -401,27 +403,25 @@ class SelectTargets(object):
 
         self.set_wise_depth(data)
 
-    def imaging_depth(self, data, release=8, aprad=0.0, simple=False):
+    def imaging_depth(self, data, legacy_dir=None, aprad=0.0):
         import  desitarget.randoms as     randoms
 
         from    desitarget.targets import resolve
         from    astropy.table      import Table
         from    desitarget.io      import basetsdatamodel
 
-        if not simple:
-            log.info('Setting realistic imaging depths (including MASKBITS).')
-        
+        if legacy_dir is not None:
+            log.info('Populating image depths & maskbits.')
+            
             bricks      = self.Bricks
 
             # Return brick name of brick covering (ra, dec).
             bricknames  = bricks.brickname(data['RA'], data['DEC'])
 
             ubricknames = np.unique(bricknames)
-        
-            drdir       = '/global/project/projectdirs/cosmo/data/legacysurvey/dr{}'.format(release)
 
             # determine if we must traverse two sets of brick directories, i.e. north/, south/.                                                                                                                
-            drdirs      = randoms._pre_or_post_dr8(drdir)
+            # drdirs    = randoms._pre_or_post_dr8(legacy_dir)
 
             #
             keep        = ['MASKBITS', 'PHOTSYS']  
@@ -452,7 +452,7 @@ class SelectTargets(object):
                 indx    = np.atleast_1d(data['BRICKNAME'] == ubrickname)
 
                 # Defaults to no sky background ap. fluxes. 
-                rtn     = randoms.dr8_quantities_at_positions_in_a_brick(data['RA'][indx], data['DEC'][indx], ubrickname, drdir, aprad=aprad)
+                rtn     = randoms.dr8_quantities_at_positions_in_a_brick(data['RA'][indx], data['DEC'][indx], ubrickname, legacy_dir, aprad=aprad)
       
                 if rtn:
                     for key in list(rtn.keys()):
@@ -2452,7 +2452,7 @@ class ReadMXXL(SelectTargets):
 
     def readmock(self, mockfile=None, healpixels=None, nside=None,
                  target_name='BGS', magcut=None, only_coords=False,
-                 mock_density=False, seed=None):
+                 mock_density=False, seed=None, legacy_dir=None):
         """Read the catalog.
 
         Parameters
@@ -2516,7 +2516,7 @@ class ReadMXXL(SelectTargets):
         if nside is None:
             log.warning('Nside must be a scalar input.')
             raise ValueError
-
+        
         # Read the data, generate mockid, and then restrict to the input
         # healpixel.
         def _read_mockfile(mockfile, nside, pixmap):
@@ -2631,7 +2631,7 @@ class ReadMXXL(SelectTargets):
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
-        self.imaging_depth(out)
+        self.imaging_depth(out, legacy_dir=legacy_dir)
 
         # Optionally compute the mean mock density.
         if mock_density:
@@ -3101,11 +3101,11 @@ class QSOMaker(SelectTargets):
     """
     wave, template_maker, GMM_QSO = None, None, None
     
-    def __init__(self, seed=None, use_simqso=True, survey='main', **kwargs):
+    def __init__(self, seed=None, use_simqso=True, survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(QSOMaker, self).__init__(survey=survey)
+        super(QSOMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'QSO'
@@ -3317,11 +3317,11 @@ class LYAMaker(SelectTargets):
 
     def __init__(self, seed=None, use_simqso=True,sqmodel='default',\
                  balprob=0.0,add_dla=False,add_metals=False,add_lyb=False,\
-                 survey='main', **kwargs):
+                 survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import SIMQSO, QSO
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LYAMaker, self).__init__(survey=survey)
+        super(LYAMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'LYA'
@@ -3664,11 +3664,11 @@ class LRGMaker(SelectTargets):
     wave, template_maker = None, None
     GMM_LRG, KDTree_north, KDTree_south = None, None, None
 
-    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import LRG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(LRGMaker, self).__init__(survey=survey)
+        super(LRGMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -3892,11 +3892,11 @@ class ELGMaker(SelectTargets):
     wave, template_maker = None, None
     GMM_ELG, KDTree_north, KDTree_south = None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
+    def __init__(self, seed=None, nside_chunk=128, survey='main', legacy_dir=None, **kwargs):
         from desisim.templates import ELG
         from desiutil.sklearn import GaussianMixtureModel
 
-        super(ELGMaker, self).__init__(survey=survey)
+        super(ELGMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -4113,8 +4113,8 @@ class BGSMaker(SelectTargets):
     """
     wave, template_maker, GMM_BGS, KDTree = None, None, None, None
     
-    def __init__(self, seed=None, nside_chunk=128, survey='main', **kwargs):
-        super(BGSMaker, self).__init__(survey=survey)
+    def __init__(self, seed=None, nside_chunk=128, survey='main', legacy_dir=None, **kwargs):
+        super(BGSMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.nside_chunk = nside_chunk
@@ -4197,7 +4197,8 @@ class BGSMaker(SelectTargets):
         data = MockReader.readmock(mockfile, target_name=self.objtype,
                                    healpixels=healpixels, nside=nside,
                                    magcut=magcut, only_coords=only_coords,
-                                   mock_density=mock_density, seed=self.seed)
+                                   mock_density=mock_density, seed=self.seed,
+                                   legacy_dir=self.legacy_dir)
 
         return data
 
@@ -4336,15 +4337,15 @@ class STARMaker(SelectTargets):
     star_maggies_g_north, star_maggies_r_north = None, None
     star_maggies_g_south, star_maggies_r_south = None, None
     
-    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
+    def __init__(self, seed=None, no_spectra=False, survey='main', legacy_dir=None, **kwargs):
         from speclite import filters
         from desisim.templates import STAR
 
-        super(STARMaker, self).__init__(survey=survey)
+        super(STARMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'STAR'
-
+        
         if self.wave is None:
             STARMaker.wave = _default_wave()
         self.extinction = self.mw_dust_extinction()
@@ -4497,9 +4498,9 @@ class MWS_MAINMaker(STARMaker):
 
     """
     def __init__(self, seed=None, calib_only=False, no_spectra=False,
-                 survey='main', **kwargs):
+                 survey='main', legacy_dir=None, **kwargs):
         super(MWS_MAINMaker, self).__init__(seed=seed, no_spectra=no_spectra,
-                                            survey=survey)
+                                            survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.calib_only = calib_only
@@ -4711,9 +4712,9 @@ class MWS_NEARBYMaker(STARMaker):
         (main survey) and `sv1` (first iteration of SV).  Defaults to `main`.
 
     """
-    def __init__(self, seed=None, no_spectra=False, survey='main', **kwargs):
+    def __init__(self, seed=None, no_spectra=False, survey='main', legacy_dir=None, **kwargs):
         super(MWS_NEARBYMaker, self).__init__(seed=seed, no_spectra=no_spectra,
-                                              survey=survey)
+                                              survey=survey, legacy_dir=legacy_dir)
 
     def read(self, mockfile=None, mockformat='mws_100pc', healpixels=None,
              nside=None, mock_density=False, **kwargs):
@@ -4898,11 +4899,11 @@ class WDMaker(SelectTargets):
     wd_maggies_db_south, wd_maggies_db_south = None, None
 
     def __init__(self, seed=None, calib_only=False, no_spectra=False,
-                 survey='main', **kwargs):
+                 survey='main', legacy_dir=None, **kwargs):
         from speclite import filters
         from desisim.templates import WD
         
-        super(WDMaker, self).__init__(survey=survey)
+        super(WDMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'WD'
@@ -5223,8 +5224,8 @@ class SKYMaker(SelectTargets):
     """
     wave = None
     
-    def __init__(self, seed=None, survey='main', **kwargs):
-        super(SKYMaker, self).__init__(survey=survey)
+    def __init__(self, seed=None, survey='main', legacy_dir=None, **kwargs):
+        super(SKYMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'SKY'
@@ -5372,8 +5373,8 @@ class BuzzardMaker(SelectTargets):
     wave, template_maker = None, None
     
     def __init__(self, seed=None, nside_chunk=128, no_spectra=False,
-                 survey='main', **kwargs):
-        super(BuzzardMaker, self).__init__(survey=survey)
+                 survey='main', legacy_dir=None, **kwargs):
+        super(BuzzardMaker, self).__init__(survey=survey, legacy_dir=legacy_dir)
 
         self.seed = seed
         self.objtype = 'BGS'
