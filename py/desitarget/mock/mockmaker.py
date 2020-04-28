@@ -171,6 +171,10 @@ def empty_targets_table(nobj=1):
     #targets.add_column(Column(name='NUMOBS_INIT', length=nobj, dtype='i8'))
     #targets.add_column(Column(name='HPXPIXEL', length=nobj, dtype='i8'))
 
+    # Default MASKBITS for all mock targets to non-zero.  If populating with realistic depths
+    # these will later be overwritten.
+    targets['MASKBITS'] = 2e10
+    
     return targets
 
 def empty_truth_table(nobj=1, templatetype='', use_simqso=True):
@@ -420,9 +424,11 @@ class SelectTargets(object):
 
             ubricknames = np.unique(bricknames)
 
-            # determine if we must traverse two sets of brick directories, i.e. north/, south/.                                                                                                                
-            # drdirs    = randoms._pre_or_post_dr8(legacy_dir)
-
+            # All bricks potentially available in this release.  If not present,
+            # code has exited before targets_truth call.
+            standard    = fitsio.read(legacy_dir + '/survey-bricks.fits.gz')
+            standard    = np.char.decode(standard['BRICKNAME'], 'UTF-8')
+            
             #
             keep        = ['MASKBITS', 'PHOTSYS']  
             
@@ -446,7 +452,7 @@ class SelectTargets(object):
             data['PSFDEPTH_W1'] = np.zeros(len(data['RA']), dtype=dtypes['PSFDEPTH_G'])
             data['PSFDEPTH_W2'] = np.zeros(len(data['RA']), dtype=dtypes['PSFDEPTH_G'])
 
-            toremove            = np.zeros_like(data['RA'], dtype=bool)
+            # toflag            = np.zeros_like(data['RA'], dtype=bool)
         
             for ubrickname in ubricknames:
                 indx    = np.atleast_1d(data['BRICKNAME'] == ubrickname)
@@ -482,14 +488,21 @@ class SelectTargets(object):
                     data['PSFDEPTH_W2'][indx] = rtn['PSFDEPTH_W2']
                         
                 else:
-                    # Empty dict: missing brick.  Remove these targets. 
-                    toremove[np.where(indx)[0]] = True
+                    # dr8_quantities_at_positions_in_a_brick suggest this a brick is missing.  This is either because
+                    # the brick was not successully reduced, or is not present locally but should be.  Check the latter.
+                    if np.isin(ubrickname, standard):
+                        raise  RuntimeError('{} should be under {}, but was not found.'.format(ubrickname, legacy_dir))
 
-            log.info('Removing {} targets not in reduced DESI imaging (of {}).'.format(np.count_nonzero(toremove), len(data['RA'])))
-            
-            for key in list(data.keys()):
-                if isinstance(data[key], np.ndarray):
-                      data[key] = data[key][~toremove]
+                    else:
+                      # DEPRECATED:  Empty dict = missing brick.  Potentially remove these targets. 
+                      # toflag[np.where(indx)[0]] = True
+                      pass
+                        
+            # DEPRECATED:  Remove targets not in a stack, as for randoms. 
+            # log.info('Removing {} targets not in reduced DESI imaging (of {}).'.format(np.count_nonzero(toremove), len(data['RA'])))
+            # for key in list(data.keys()):
+            #     if isinstance(data[key], np.ndarray):
+            #          data[key] = data[key][~toremove]
             
             # Overwrite with simple depths for now.
             self.simple_imaging_depth(data)

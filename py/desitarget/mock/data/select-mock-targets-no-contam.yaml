@@ -1,5 +1,6 @@
 # Parameter file for desitarget/bin/select_mock_targets, including contaminants.
 # legacy_dir: /global/project/projectdirs/cosmo/data/legacysurvey/dr8/
+legacy_dir: /global/homes/m/mjwilson/desi/survey-validation/svdc-spring2020g-onepercent/legacydir
 
 targets:
     BGS: {

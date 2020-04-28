@@ -103,6 +103,14 @@ if 'legacy_dir' in params.keys():
   # wget https://portal.nersc.gov/project/cosmo/data/legacysurvey/dr8/north/coadd/338/3380p295/    
   log.info('Assuming maskbits & depths based on LEGACYDIR={}'.format(params['legacy_dir']))
 
+  # Check the survey bricks file exists.  We'll use this to ensure that the local files are compelte for
+  # the healpixels being requested.  
+  legacy_dir = params['legacy_dir']
+  allbricks  = legacy_dir + '/survey-bricks.fits.gz'
+
+  if not os.path.isfile(allbricks):
+      raise  RuntimeError('survey-bricks.fits.gz is required under legacy_dir.')
+  
 else:
   params['legacy_dir'] = None
     
