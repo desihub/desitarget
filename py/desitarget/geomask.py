@@ -883,7 +883,8 @@ def brick_names_touch_hp(nside, numproc=1):
 
     Notes
     -----
-        - Runs in about X (Y) seconds for numproc=1 (32).
+        - Runs in about 65 (10) seconds for numproc=1 (32) at nside=2.
+        - Runs in about 325 (20) seconds for numproc=1 (32) at nside=64.
     """
     t0 = time()
     # ADM grab the standard table of bricks.

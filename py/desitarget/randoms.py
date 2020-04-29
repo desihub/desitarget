@@ -49,29 +49,40 @@ start = time()
 
 
 def dr_extension(drdir):
-    """Determine the extension information for files in a legacy survey coadd directory
+    """Extension information for files in a Legacy Survey coadd directory
 
     Parameters
     ----------
     drdir : :class:`str`
-       The root directory pointing to a Data Release from the Legacy Surveys
-       e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
+        The root directory for a Data Release from the Legacy Surveys
+        e.g. /global/project/projectdirs/cosmo/data/legacysurvey/dr7.
 
     Returns
     -------
     :class:`str`
         Whether the file extension is 'gz' or 'fz'.
     :class:`int`
-        The corresponding FITS extension number that needs to be read (0 or 1).
-    """
-    # ADM for speed, create a generator of all of the nexp files in the coadd directory.
-    gen = iglob(drdir+"/coadd/*/*/*nexp*")
-    # ADM and pop the first one.
-    anexpfile = next(gen)
-    extn = anexpfile[-2:]
+        Corresponding FITS extension number to be read (0 or 1).
 
-    if extn == 'gz':
-        return 'gz', 0
+    Notes
+    -----
+        - If the directory structure seems wrong or can't be found then
+          the post-DR4 convention (.fz files) is returned.
+    """
+    try:
+        # ADM a generator of all of the nexp files in the coadd directory.
+        gen = iglob(drdir+"/coadd/*/*/*nexp*")
+        # ADM pop the first file in the generator.
+        anexpfile = next(gen)
+        extn = anexpfile[-2:]
+        if extn == 'gz':
+            return 'gz', 0
+    # ADM this is triggered if the generator is empty.
+    except StopIteration:
+        msg = "couldn't find any nexp files in {}...".format(
+            os.path.join(drdir, "coadd"))
+        msg += "Defaulting to '.fz' extensions for Legacy Surveys coadd files"
+        log.info(msg)
 
     return 'fz', 1
 
