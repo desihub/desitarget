@@ -863,6 +863,65 @@ def add_hp_neighbors(nside, pixnum):
     return pixnum
 
 
+def brick_names_touch_hp(nside, numproc=1):
+    """Determine which of a set of brick names touch a set of HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    numproc : :class:`int`, optional, defaults to 1
+        The number of parallel processes to use.
+
+    Returns
+    -------
+    :class:`list`
+        A list of lists of input brick names that touch each HEALPixel
+        at `nside`. So, e.g. for `nside=2` the returned list will have
+        48 entries, and, for example, output[0] will be a list of names
+        of bricks that touch HEALPixel 0.
+
+    Notes
+    -----
+        - Runs in about X (Y) seconds for numproc=1 (32).
+    """
+    t0 = time()
+    # ADM grab the standard table of bricks.
+    bricktable = brick.Bricks(bricksize=0.25).to_table()
+
+    def _make_lookupdict(indexes):
+        """for a set of indexes that correspond to bricktable rows, make
+        a look-up dictionary of which pixels touch each brick"""
+
+        lookupdict = {bt["BRICKNAME"]: hp_in_box(
+            nside, [bt["RA1"], bt["RA2"], bt["DEC1"], bt["DEC2"]]
+        ) for bt in bricktable[indexes]}
+
+        return lookupdict
+
+    # ADM split the length of the bricktable into arrays of indexes.
+    indexes = np.array_split(np.arange(len(bricktable)), numproc)
+
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            lookupdict = pool.map(_make_lookupdict, indexes)
+        lookupdict = {key: val for lud in lookupdict for key, val in lud.items()}
+    else:
+        lookupdict = _make_lookupdict(indexes[0])
+
+    # ADM change the pixels-in-brick look-up table to a
+    # ADM bricks-in-pixel look-up table.
+    bricksperpixel = [[] for pix in range(hp.nside2npix(nside))]
+    for brickname in lookupdict:
+        for pixel in lookupdict[brickname]:
+            bricksperpixel[pixel].append(brickname)
+
+    log.info("Done...t = {:.1f}s".format(time()-t0))
+
+    return bricksperpixel
+
+
 def sweep_files_touch_hp(nside, pixlist, infiles):
     """Determine which of a set of sweep files touch a set of HEALPixels.
 
