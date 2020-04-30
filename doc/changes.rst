@@ -12,7 +12,7 @@ desitarget Change Log
       `justlist` option to list the (maximal) required input files.
     * Minor bug fixes and documentation updates.
 
-.. _`PR #607`: https://github.com/desihub/desitarget/pull/611
+.. _`PR #611`: https://github.com/desihub/desitarget/pull/611
 
 0.38.0 (2020-04-23)
 -------------------
