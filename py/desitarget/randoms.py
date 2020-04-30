@@ -220,7 +220,7 @@ def randoms_in_a_brick_from_name(brickname, drdir, density=100000):
     return ras, decs
 
 
-def _pre_or_post_dr8(drdir):
+def pre_or_post_dr8(drdir):
     """Whether the imaging surveys directory structure is before or after DR8
 
     Parameters
@@ -235,6 +235,11 @@ def _pre_or_post_dr8(drdir):
        For DR8, this just returns the original directory as a list. For DR8
        this returns a list of two directories, one corresponding to DECaLS
        and one corresponding to BASS/MzLS.
+
+    Notes
+    -----
+        - If the directory structure seems wrong or missing then the DR8
+          (and after) convention of a north/south split is assumed.
     """
     if os.path.exists(os.path.join(drdir, "coadd")):
         drdirs = [drdir]
@@ -257,7 +262,7 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
       wrapper also defaults to the behavior for only having one survey.
     """
     # ADM determine if we must traverse two sets of brick directories.
-    drdirs = _pre_or_post_dr8(drdir)
+    drdirs = pre_or_post_dr8(drdir)
 
     # ADM make the dictionary of quantities for one or two directories.
     qall = []
@@ -302,7 +307,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         `apflux_` output values are set to zero.
     justlist : :class:`bool`, optional, defaults to ``False``
         If ``True``, return a MAXIMAL list of all POSSIBLE files needed
-        to run for `brickname` and `drdir`. Overrides other inputs.
+        to run for `brickname` and `drdir`. Overrides other inputs, but
+        ra/dec still have to be passed as *something* (e.g., [1], [1]).
 
     Returns
     -------
@@ -1354,7 +1360,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
     """
     # ADM grab brick information for this data release. Depending on whether this
     # ADM is pre-or-post-DR8 we need to find the correct directory or directories.
-    drdirs = _pre_or_post_dr8(drdir)
+    drdirs = pre_or_post_dr8(drdir)
     brickdict = get_brick_info(drdirs, counts=True)
     # ADM this is just the UNIQUE brick names across all surveys.
     bricknames = np.array(list(brickdict.keys()))
