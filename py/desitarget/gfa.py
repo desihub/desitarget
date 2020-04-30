@@ -297,7 +297,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     else:
         # ADM this is critical for, e.g., unit tests for which the
         # ADM Gaia "00000" pixel file might not exist.
-        dummyfile = find_gaia_files_hp(_get_gaia_nside(), pixlist[0],
+        dummyfile = find_gaia_files_hp(nside, pixlist[0],
                                        neighbors=False)[0]
     dummygfas = np.array([], gaia_in_file(dummyfile).dtype)
 

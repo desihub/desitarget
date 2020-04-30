@@ -5,8 +5,14 @@ desitarget Change Log
 0.38.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Help the mocks run on pixel-level imaging data [`PR #611`_]. Includes:
+    * New :func:`geomask.get_brick_info()` function to look up the
+      brick names associated with each HEALPixel.
+    * In :func:`randoms.quantities_at_positions_in_a_brick()`, add a
+      `justlist` option to list the (maximal) required input files.
+    * Minor bug fixes and documentation updates.
 
+.. _`PR #611`: https://github.com/desihub/desitarget/pull/611
 
 0.38.0 (2020-04-23)
 -------------------
