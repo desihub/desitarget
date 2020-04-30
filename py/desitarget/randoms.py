@@ -281,7 +281,7 @@ def dr8_quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
 
 
 def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
-                                       aprad=0.75):
+                                       aprad=0.75, justlist=False):
     """Observational quantities (per-band) at positions in a Legacy Surveys brick.
 
     Parameters
@@ -300,6 +300,9 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         Defaults to the DESI fiber radius. If aprad < 1e-8 is passed,
         the code to produce these values is skipped, as a speed-up, and
         `apflux_` output values are set to zero.
+    justlist : :class:`bool`, optional, defaults to ``False``
+        If ``True``, return a MAXIMAL list of all POSSIBLE files needed
+        to run for `brickname` and `drdir`. Overrides other inputs.
 
     Returns
     -------
@@ -325,7 +328,11 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         log.critical(msg)
         raise ValueError(msg)
 
-    # ADM determine whether the coadd files have extension .gz or .fz based on the DR directory.
+    # ADM a list to populate with the files required to run the code.
+    fnlist = []
+
+    # ADM determine whether the coadd files have extension .gz or .fz
+    # based on the DR directory.
     extn, extn_nb = dr_extension(drdir)
 
     # ADM the output dictionary.
@@ -349,46 +356,49 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                      ['i2', 'f4', 'f4', 'f4', 'f4'])
         for qin, qout, qform in qnames:
             fn = fileform.format(brickname, qin, filt, extn)
-            # ADM only process the WCS if there's a file for this filter.
-            # ADM also skip calculating aperture fluxes if aprad ~ 0.
-            if os.path.exists(fn) and not (qout == 'apflux' and aprad < 1e-8):
-                img = fits.open(fn)[extn_nb]
-                if not iswcs:
-                    # ADM store the instrument name, if it isn't stored.
-                    instrum = img.header["INSTRUME"].lower().strip()
-                    w = WCS(img.header)
-                    x, y = w.all_world2pix(ras, decs, 0)
-                    iswcs = True
-                # ADM get the quantity of interest at each location and
-                # ADM store in a dictionary with the filter and quantity.
-                if qout == 'apflux':
-                    # ADM special treatment to photometer sky.
-                    # ADM Read in the ivar image.
-                    fnivar = fileform.format(brickname, 'invvar', filt, extn)
-                    ivar = fits.open(fnivar)[extn_nb].data
-                    with np.errstate(divide='ignore', invalid='ignore'):
-                        # ADM ivars->errors, guard against 1/0.
-                        imsigma = 1./np.sqrt(ivar)
-                        imsigma[ivar == 0] = 0
-                    # ADM aperture photometry at requested radius (aprad).
-                    apxy = np.vstack((x, y)).T
-                    aper = photutils.CircularAperture(apxy, aprad)
-                    p = photutils.aperture_photometry(img.data, aper, error=imsigma)
-                    # ADM store the results.
-                    qdict[qout+'_'+filt] = np.array(p.field('aperture_sum'))
-                    err = p.field('aperture_sum_err')
-                    with np.errstate(divide='ignore', invalid='ignore'):
-                        # ADM errors->ivars, guard against 1/0.
-                        ivar = 1./err**2.
-                        ivar[err == 0] = 0.
-                    qdict[qout+'_ivar_'+filt] = np.array(ivar)
-                else:
-                    qdict[qout+'_'+filt] = img.data[y.astype("int"), x.astype("int")]
-            # ADM if the file doesn't exist, set quantities to zero.
+            if justlist:
+                fnlist.append(fn)
             else:
-                if qout == 'apflux':
-                    qdict['apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
-                qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
+                # ADM only process the WCS if there's a file for this filter.
+                # ADM also skip calculating aperture fluxes if aprad ~ 0.
+                if os.path.exists(fn) and not (qout == 'apflux' and aprad < 1e-8):
+                    img = fits.open(fn)[extn_nb]
+                    if not iswcs:
+                        # ADM store the instrument name, if it isn't stored.
+                        instrum = img.header["INSTRUME"].lower().strip()
+                        w = WCS(img.header)
+                        x, y = w.all_world2pix(ras, decs, 0)
+                        iswcs = True
+                    # ADM get the quantity of interest at each location and
+                    # ADM store in a dictionary with the filter and quantity.
+                    if qout == 'apflux':
+                        # ADM special treatment to photometer sky.
+                        # ADM Read in the ivar image.
+                        fnivar = fileform.format(brickname, 'invvar', filt, extn)
+                        ivar = fits.open(fnivar)[extn_nb].data
+                        with np.errstate(divide='ignore', invalid='ignore'):
+                            # ADM ivars->errors, guard against 1/0.
+                            imsigma = 1./np.sqrt(ivar)
+                            imsigma[ivar == 0] = 0
+                        # ADM aperture photometry at requested radius (aprad).
+                        apxy = np.vstack((x, y)).T
+                        aper = photutils.CircularAperture(apxy, aprad)
+                        p = photutils.aperture_photometry(img.data, aper, error=imsigma)
+                        # ADM store the results.
+                        qdict[qout+'_'+filt] = np.array(p.field('aperture_sum'))
+                        err = p.field('aperture_sum_err')
+                        with np.errstate(divide='ignore', invalid='ignore'):
+                            # ADM errors->ivars, guard against 1/0.
+                            ivar = 1./err**2.
+                            ivar[err == 0] = 0.
+                        qdict[qout+'_ivar_'+filt] = np.array(ivar)
+                    else:
+                        qdict[qout+'_'+filt] = img.data[y.astype("int"), x.astype("int")]
+                # ADM if the file doesn't exist, set quantities to zero.
+                else:
+                    if qout == 'apflux':
+                        qdict['apflux_ivar_'+filt] = np.zeros(npts, dtype=qform)
+                    qdict[qout+'_'+filt] = np.zeros(npts, dtype=qform)
 
     # ADM add the MASKBITS and WISEMASK information.
     fn = os.path.join(rootdir,
@@ -397,35 +407,39 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     mnames = zip([extn_nb, extn_nb+1, extn_nb+2],
                  ['maskbits', 'wisemask_w1', 'wisemask_w2'],
                  ['>i2', '|u1', '|u1'])
-    for mextn, mout, mform in mnames:
-        if os.path.exists(fn):
-            img = fits.open(fn)[mextn]
-            # ADM use the WCS for the per-filter quantities if it exists.
-            if not iswcs:
-                # ADM store the instrument name, if it isn't yet stored.
-                instrum = img.header["INSTRUME"].lower().strip()
-                w = WCS(img.header)
-                x, y = w.all_world2pix(ras, decs, 0)
-                iswcs = True
-            # ADM add the maskbits to the dictionary.
-            qdict[mout] = img.data[y.astype("int"), x.astype("int")]
-        else:
-            # ADM if no files are found, populate with zeros.
-            qdict[mout] = np.zeros(npts, dtype=mform)
-            # ADM if there was no maskbits file, populate with BAILOUT.
-            if mout == 'maskbits':
-                qdict[mout] |= 2**10
+    if justlist:
+        fnlist.append(fn)
+    else:
+        for mextn, mout, mform in mnames:
+            if os.path.exists(fn):
+                img = fits.open(fn)[mextn]
+                # ADM use the WCS for the per-filter quantities if it exists.
+                if not iswcs:
+                    # ADM store the instrument name, if it isn't yet stored.
+                    instrum = img.header["INSTRUME"].lower().strip()
+                    w = WCS(img.header)
+                    x, y = w.all_world2pix(ras, decs, 0)
+                    iswcs = True
+                # ADM add the maskbits to the dictionary.
+                qdict[mout] = img.data[y.astype("int"), x.astype("int")]
+            else:
+                # ADM if no files are found, populate with zeros.
+                qdict[mout] = np.zeros(npts, dtype=mform)
+                # ADM if there was no maskbits file, populate with BAILOUT.
+                if mout == 'maskbits':
+                    qdict[mout] |= 2**10
 
     # ADM populate the photometric system in the quantity dictionary.
-    if instrum is None:
-        # ADM don't count bricks where we never read a file header.
-        return
-    elif instrum == 'decam':
-        qdict['photsys'] = np.array([b"S" for x in range(npts)], dtype='|S1')
-    else:
-        qdict['photsys'] = np.array([b"N" for x in range(npts)], dtype='|S1')
-#    log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
-#                  .format(brickname,time()-start))
+    if not justlist:
+        if instrum is None:
+            # ADM don't count bricks where we never read a file header.
+            return
+        elif instrum == 'decam':
+            qdict['photsys'] = np.array([b"S" for x in range(npts)], dtype='|S1')
+        else:
+            qdict['photsys'] = np.array([b"N" for x in range(npts)], dtype='|S1')
+#        log.info('Recorded quantities for each point in brick {}...t = {:.1f}s'
+#                      .format(brickname,time()-start))
 
     # ADM calculate and add WISE depths. The WCS is different for WISE.
     iswcs = False
@@ -439,28 +453,39 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         qnames = zip(['invvar'], ['psfdepth'], ['f4'])
         for qin, qout, qform in qnames:
             fn = fileform.format(brickname, qin, band, extn)
-            # ADM only process the WCS if there's a file for this band.
-            if os.path.exists(fn):
-                img = fits.open(fn)[extn_nb]
-                # ADM calculate the WCS if it wasn't, already.
-                if not iswcs:
-                    w = WCS(img.header)
-                    x, y = w.all_world2pix(ras, decs, 0)
-                    iswcs = True
-                # ADM get the inverse variance at each location.
-                ivar = img.data[y.astype("int"), x.astype("int")]
-                # ADM convert to WISE depth in AB. From Dustin Lang on the
-                # decam-chatter mailing list on 06/20/19, 1:59PM MST:
-                # psfdepth_Wx_AB = invvar_Wx * norm_Wx**2 / fluxfactor_Wx**2
-                # where fluxfactor = 10.** (dm / -2.5), dm = vega_to_ab[band]
-                ff = 10.**(vega_to_ab[band] / -2.5)
-                # ADM store in a dictionary with the band and quantity.
-                qdict[qout+'_'+band] = ivar * norm[band]**2 / ff**2
-            # ADM if the file doesn't exist, set quantities to zero.
+            if justlist:
+                fnlist.append(fn)
             else:
-                qdict[qout+'_'+band] = np.zeros(npts, dtype=qform)
+                # ADM only process the WCS if there's a file for this band.
+                if os.path.exists(fn):
+                    img = fits.open(fn)[extn_nb]
+                    # ADM calculate the WCS if it wasn't, already.
+                    if not iswcs:
+                        w = WCS(img.header)
+                        x, y = w.all_world2pix(ras, decs, 0)
+                        iswcs = True
+                    # ADM get the inverse variance at each location.
+                    ivar = img.data[y.astype("int"), x.astype("int")]
+                    # ADM convert to WISE depth in AB. From Dustin Lang on the
+                    # decam-chatter mailing list on 06/20/19, 1:59PM MST:
+                    # psfdepth_Wx_AB = invvar_Wx * norm_Wx**2 / fluxfactor_Wx**2
+                    # where fluxfactor = 10.** (dm / -2.5), dm = vega_to_ab[band]
+                    ff = 10.**(vega_to_ab[band] / -2.5)
+                    # ADM store in a dictionary with the band and quantity.
+                    qdict[qout+'_'+band] = ivar * norm[band]**2 / ff**2
+                # ADM if the file doesn't exist, set quantities to zero.
+                else:
+                    qdict[qout+'_'+band] = np.zeros(npts, dtype=qform)
 
     # ADM look up the RELEASE based on "standard" DR directory structure.
+    if justlist:
+        # ADM we need a tractor file. Then we have a list of all needed
+        # ADM files. So, return if justlist was passed as True.
+        tracdir = os.path.join(drdir, 'tractor', brickname[:3])
+        tracfile = os.path.join(tracdir, 'tractor-{}.fits'.format(brickname))
+        fnlist.append(tracfile)
+        return fnlist
+
     gen = iglob(os.path.join(drdir, "tractor", "*", "tractor*fits"))
     try:
         release = fitsio.read(next(gen), columns="release", rows=0)[0]
