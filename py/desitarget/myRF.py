@@ -90,7 +90,7 @@ class myRF(object):
 
     def loadForest(self, forestFileName):
         # loads forest
-        t = np.load(forestFileName, encoding='bytes', allow_pickle=True)
+        t = np.load(forestFileName, encoding='bytes')
         self.forest = t['arr_0']
         return
 
