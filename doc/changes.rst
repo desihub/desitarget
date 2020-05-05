@@ -5,7 +5,9 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
-No changes yet.
+* Add a new notebook tutorial about the Merged Target List [`PR #614`_].
+
+.. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 
 0.39.0 (2020-05-01)
 -------------------
