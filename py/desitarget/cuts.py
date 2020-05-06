@@ -1204,7 +1204,6 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
-    # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
     if maskbits is not None:
         for bit in [1, 5, 6, 7, 10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
@@ -1307,8 +1306,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
     if maskbits is not None:
-        for bit in [1, 10, 12, 13]:
+        for bit in [1, 5, 6, 7, 10, 12, 13]:
             preSelection &= ((maskbits & 2**bit) == 0)
 
     # "qso" mask initialized to "preSelection" mask.
