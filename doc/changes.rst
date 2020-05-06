@@ -2,11 +2,26 @@
 desitarget Change Log
 =====================
 
-0.38.1 (unreleased)
+0.39.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add a new notebook tutorial about the Merged Target List [`PR #614`_].
 
+.. _`PR #614`: https://github.com/desihub/desitarget/pull/614
+
+0.39.0 (2020-05-01)
+-------------------
+
+* Help the mocks run on pixel-level imaging data [`PR #611`_]. Includes:
+    * New :func:`geomask.get_brick_info()` function to look up the
+      brick names associated with each HEALPixel.
+    * In :func:`randoms.quantities_at_positions_in_a_brick()`, add a
+      `justlist` option to list the (maximal) required input files.
+    * Minor bug fixes and documentation updates.
+* Update QSO Random Forest selection (and files) for DR8 [`PR #610`_].
+
+.. _`PR #610`: https://github.com/desihub/desitarget/pull/610
+.. _`PR #611`: https://github.com/desihub/desitarget/pull/611
 
 0.38.0 (2020-04-23)
 -------------------
