@@ -6,8 +6,10 @@ desitarget Change Log
 -------------------
 
 * Add a new notebook tutorial about the Merged Target List [`PR #614`_].
+* Update masks for QSO Random Forest selection for DR8 [`PR #615`]
 
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
+.. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 
 0.39.0 (2020-05-01)
 -------------------
