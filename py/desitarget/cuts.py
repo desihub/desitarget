@@ -1205,7 +1205,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     if maskbits is not None:
-        for bit in [1, 10, 12, 13]:
+        for bit in [1, 5, 6, 7, 10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
 
     return qso
