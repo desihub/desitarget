@@ -131,6 +131,8 @@ class TestMTL(unittest.TestCase):
     def test_merged_qso(self):
         """Test QSO tracers that are also other target types get 1 observation.
         """
+        # ADM there are other tests of this kind in test_multiple_mtl.py.
+
         # ADM create a set of targets that are QSOs and
         # ADM (perhaps) also another target class.
         qtargets = self.targets.copy()
