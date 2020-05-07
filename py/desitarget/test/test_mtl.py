@@ -8,6 +8,7 @@ import numpy as np
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
+from desitarget.targetmask import bgs_mask
 from desitarget.sv1.sv1_targetmask import desi_mask as MxSV
 from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
@@ -31,7 +32,7 @@ class TestMTL(unittest.TestCase):
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
         # ADM determine the initial PRIORITY and NUMOBS.
-        pinit, ninit = initial_priority_numobs(self.targets)
+        pinit, ninit = initial_priority_numobs(self.targets, obscon="DARK|GRAY")
         self.targets["PRIORITY_INIT"] = pinit
         self.targets["NUMOBS_INIT"] = ninit
 
@@ -127,10 +128,54 @@ class TestMTL(unittest.TestCase):
             if x.masked:
                 self.assertTrue(np.all(mtl['NUMOBS_MORE'].mask == x['NUMOBS_MORE'].mask))
 
+    def test_merged_qso(self):
+        """Test QSO tracers that are also other target types get 1 observation.
+        """
+        # ADM create a set of targets that are QSOs and
+        # ADM (perhaps) also another target class.
+        qtargets = self.targets.copy()
+        qtargets["DESI_TARGET"] |= Mx["QSO"]
+
+        # ADM give them all a "tracer" redshift (below a LyA QSO).
+        qzcat = self.zcat.copy()
+        qzcat["Z"] = 0.5
+
+        # ADM set their initial conditions to be that of a QSO.
+        pinit, ninit = initial_priority_numobs(qtargets, obscon="DARK|GRAY")
+        qtargets["PRIORITY_INIT"] = pinit
+        qtargets["NUMOBS_INIT"] = ninit
+
+        # ADM run through MTL.
+        mtl = make_mtl(qtargets, obscon="DARK|GRAY", zcat=qzcat)
+
+        # ADM all confirmed tracer quasars should have NUMOBS_MORE=0.
+        self.assertTrue(np.all(qzcat["NUMOBS_MORE"]==0))
+
+    def test_endless_bgs(self):
+        """Test BGS targets always get another observation in bright time.
+        """
+        # ADM create a set of BGS FAINT/BGS_BRIGHT targets
+        # ADM (perhaps) also another target class.
+        bgstargets = self.targets.copy()
+        bgstargets["DESI_TARGET"] = Mx["BGS_ANY"]
+        bgstargets["BGS_TARGET"] = bgs_mask["BGS_FAINT"] | bgs_mask["BGS_BRIGHT"]
+
+        # ADM set their initial conditions for the bright-time survey.
+        pinit, ninit = initial_priority_numobs(bgstargets, obscon="BRIGHT")
+        bgstargets["PRIORITY_INIT"] = pinit
+        bgstargets["NUMOBS_INIT"] = ninit
+
+        # ADM create a copy of the zcat.
+        bgszcat = self.zcat.copy()
+
+        # ADM run through MTL.
+        mtl = make_mtl(bgstargets, obscon="BRIGHT", zcat=bgszcat)
+
+        # ADM all BGS targets should always have NUMOBS_MORE=1.
+        self.assertTrue(np.all(bgszcat["NUMOBS_MORE"]==1))
 
 if __name__ == '__main__':
     unittest.main()
-
 
 def test_suite():
     """Allows testing of only this module with the command:
