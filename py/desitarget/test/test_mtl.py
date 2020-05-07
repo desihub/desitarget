@@ -151,7 +151,7 @@ class TestMTL(unittest.TestCase):
         mtl = make_mtl(qtargets, obscon="DARK|GRAY", zcat=qzcat)
 
         # ADM all confirmed tracer quasars should have NUMOBS_MORE=0.
-        self.assertTrue(np.all(qzcat["NUMOBS_MORE"]==0))
+        self.assertTrue(np.all(qzcat["NUMOBS_MORE"] == 0))
 
     def test_endless_bgs(self):
         """Test BGS targets always get another observation in bright time.
@@ -174,10 +174,12 @@ class TestMTL(unittest.TestCase):
         mtl = make_mtl(bgstargets, obscon="BRIGHT", zcat=bgszcat)
 
         # ADM all BGS targets should always have NUMOBS_MORE=1.
-        self.assertTrue(np.all(bgszcat["NUMOBS_MORE"]==1))
+        self.assertTrue(np.all(bgszcat["NUMOBS_MORE"] == 1))
+
 
 if __name__ == '__main__':
     unittest.main()
+
 
 def test_suite():
     """Allows testing of only this module with the command:

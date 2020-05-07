@@ -1350,7 +1350,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
 
-        tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced<8000)
+        tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced < 8000)
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,

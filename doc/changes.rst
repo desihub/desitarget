@@ -5,11 +5,19 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
-* Add a new notebook tutorial about the Merged Target List [`PR #614`_].
+* `NUMOBS_MORE` for tracer QSOs that are also other targets [`PR #617`]:
+    * Separate the calculation of `NUMOBS_MORE` into its own function.
+    * Consistently use `zcut` = 2.1 to define Lyman-Alpha QSOs.
+    * Check tracer QSOs that are other targets drop to `NUMOBS_MORE` = 0.
+    * New unit test to enforce that check on such tracer QSOs.
+    * New unit test to check BGS always gets `NUMOBS_MORE` = 1 in BRIGHT.
+    * Enforce maximum seed in :func:`randoms_in_a_brick_from_edges()`.
 * Update masks for QSO Random Forest selection for DR8 [`PR #615`]
+* Add a new notebook tutorial about the Merged Target List [`PR #614`_].
 
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
+.. _`PR #617`: https://github.com/desihub/desitarget/pull/617
 
 0.39.0 (2020-05-01)
 -------------------

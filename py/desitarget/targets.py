@@ -23,6 +23,7 @@ log = get_logger()
 # ADM common redshift that defines a Lyman-Alpha QSO.
 zcut = 2.1
 
+
 def encode_targetid(objid=None, brickid=None, release=None,
                     mock=None, sky=None, gaiadr=None):
     """Create the DESI TARGETID from input source and imaging info.
