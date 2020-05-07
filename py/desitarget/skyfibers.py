@@ -852,7 +852,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
              .format(mindec, time()-start))
     from desitarget.randoms import randoms_in_a_brick_from_edges
     ras, decs = randoms_in_a_brick_from_edges(
-        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False, seed=538)
+        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False, seed=414)
 
     # ADM limit randoms by HEALPixel, if requested.
     if pixlist is not None:

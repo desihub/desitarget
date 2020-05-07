@@ -126,6 +126,12 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=100000,
     # ADM note this is only unique for bricksize=0.25 for bricks
     # ADM that are more than 0.25 degrees from the poles.
     uniqseed = seed*int(1e7)+int(4*ramin)*1000+int(4*(decmin+90))
+    # ADM np.random only allows seeds < 2**32...
+    maxseed = (2**32-int(4*ramin)*1000-int(4*(decmin+90)))/1e7
+    if seed > maxseed:
+        msg = 'seed must be < {} but you passed {}!!!'.format(maxseed, seed)
+        log.critical(msg)
+        raise ValueError(msg)
     np.random.seed(uniqseed)
 
     # ADM generate random points within the brick at the requested density
