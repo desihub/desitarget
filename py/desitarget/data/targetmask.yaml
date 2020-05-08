@@ -158,7 +158,7 @@ targetid_mask:
 #- SAME_AS_XXX means to use the priorities for bitname XXX
 #- -1 means the concept of priority doesn't really apply to this target class
 #- Every target bit must define priority for "UNOBS"
-#- Default priority for "MORE_ZGOOD" is same as "UNOBS"
+#- Default priority for "MORE_ZGOOD" and "MORE_ZWARN" is same as "UNOBS"
 #- Other states are default 1 unless specified here
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
@@ -197,10 +197,10 @@ priorities:
     # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
     #- reobserving successes has lower priority than MWS
     bgs_mask:
-        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BGS_FAINT_HIP: {UNOBS: 2100, MORE_ZWARN: 2100, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_FAINT_HIP: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         BGS_FAINT_SOUTH: {UNOBS: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT_SOUTH
