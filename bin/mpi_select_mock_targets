@@ -90,14 +90,15 @@ if rank == 0:
     else:
         pixels = np.array(args.healpixels)
             
-    obscon_=['dark','bright']  #Needed to check if truth files from previous runs exists.
     keep = list()
     for i, pixnum in enumerate(pixels):
-        for obscon in obscon_:
-            truthfile = find_target_files(args.output_dir, flavor="truth", obscon=obscon,
-                                      hp=pixnum, nside=args.nside, mock=True)
-            if (not os.path.exists(truthfile)) and (i not in keep):
-                keep.append(i)
+        truth_dark = find_target_files(args.output_dir, flavor="truth", obscon='dark',
+                                        hp=pixnum, nside=args.nside, mock=True)
+        truth_bright = find_target_files(args.output_dir, flavor="truth", obscon='bright',
+                                        hp=pixnum, nside=args.nside, mock=True)
+        if os.path.exists(truth_dark) or os.path.exists(truth_bright):
+            continue
+        keep.append(i)
 
     log.info('{}/{} pixels remaining to do'.format(len(keep), len(pixels)))
     pixels = pixels[keep]
