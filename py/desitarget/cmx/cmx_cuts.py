@@ -201,15 +201,19 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (10/14/19) is version 105 on `the SV wiki`_.
+    - Current version (02/19/20) is version 55 on `the cmx wiki`_.
     - Hardcoded for south=False.
-    - Combines all BGS-like SV classes into one bit.
+    - Combines bright/faint/faint_ext/fibmag BGS-like SV classes into
+      one bit.
+    - `desitarget.cmx.cmx_cuts.apply_cuts()` also additionally removes
+      objects from this class that either have Gaia provenance and Gaia
+      G < 16 OR that have Legacy Surveys g < 16.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     sv0_bgs = np.zeros_like(rflux, dtype='?')
 
-    for targtype in ["bright", "faint", "faint_ext", "lowq", "fibmag"]:
+    for targtype in ["bright", "faint", "faint_ext", "fibmag"]:
         bgs = isBGS(
             gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
             rfiberflux=rfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
@@ -374,19 +378,26 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     :class:`array_like`
         ``True`` if and only if the object is an early-SV/main survey
         MWS_WD target.
+    :class:`array_like`
+        ``True`` if and only if the object is an early-SV/main survey
+        SV0_MWS_FAINT target.
 
     Notes
     -----
     - All Gaia quantities are as in `the Gaia data model`_.
-    - Returns the equivalent of PRIMARY target classes from version 181
-      (07/07/19) of `the wiki`_ (the main survey wiki). Ignores target
-      classes that "smell" like secondary targets (as they are outside
-      of the footprint or are based on catalog-matching). Simplifies flag
-      cuts, and simplifies the MWS_MAIN class to not include sub-classes.
+    - Returns the equivalent of PRIMARY target classes from version 55
+      (02/19/20) of `the cmx wiki`_. Ignores target classes that "smell"
+      like secondary targets (as they are outside of the footprint or are
+      based on catalog-matching). Simplifies flag cuts, and simplifies
+      the MWS_MAIN class to not include sub-classes.
+    - `desitarget.cmx.cmx_cuts.apply_cuts()` also additionally removes
+      objects from this class that either have Gaia provenance and Gaia
+      G < 16 OR that have Legacy Surveys g < 16.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     ismws = primary.copy()
+    ismws_faint = primary.copy()
     isnear = primary.copy()
     iswd = primary.copy()
 
@@ -395,6 +406,13 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     ismws &= gaia
     # ADM main targets are point-like.
     ismws &= _psflike(objtype)
+
+    # APC faint MWS filler for minsv3+ tiles
+    # APC no constraint on obs_rflux
+    ismws_faint &= ismws
+    ismws_faint &= rflux > 10**((22.5-21.0)/2.5)
+    ismws_faint &= rflux <= 10**((22.5-19.0)/2.5)
+
     # ADM main targets are 16 <= r < 19.
     ismws &= rflux > 10**((22.5-19.0)/2.5)
     ismws &= rflux <= 10**((22.5-16.0)/2.5)
@@ -476,12 +494,13 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
                  ((gaiaaen < 1.) & (parallaxovererror > 4.) & (pm > 10.)))
 
     # ADM return any object that passes the MWS cuts.
-    return ismws | isnear, iswd
+    return ismws | isnear, iswd, ismws_faint
 
 
 def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
               rfiberflux=None, zfiberflux=None,
               gflux_snr=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+              gnobs=None, rnobs=None, znobs=None, maskbits=None,
               primary=None):
     """Target Definition of an SV0-like LRG. Returns a boolean array.
 
@@ -493,11 +512,11 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     -------
     :class:`array_like` or :class:`float`
         ``True`` if and only if the object is an LRG color-selected
-        or filler target. If `floats` are passed, a `float` is returned.
+        target. If `floats` are passed, a `float` is returned.
 
     Notes
     -----
-    - Current version (10/14/19) is version 104 on `the SV wiki`_.
+    - Current version (02/19/20) is version 50 on `the cmx wiki`_.
     - Hardcoded for south=False.
     - Combines all LRG-like SV classes into one bit.
     """
@@ -507,23 +526,17 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux,
-        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr
+        zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
+        maskbits=maskbits
     )
 
     # ADM pass the lrg that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
-    lrg_colors, _, _, _, _ = isLRG_colors(
+    lrg, _, _, _, _ = isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, south=False, primary=lrg
     )
-
-    lrg_filler = isfiller(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                          gflux_snr=gflux_snr, rflux_snr=rflux_snr,
-                          zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
-                          rfiberflux=rfiberflux, south=False, primary=primary)
-
-    lrg = lrg_colors | lrg_filler
 
     # ADM isLRG_colors() forces arrays, so catch the single-object case.
     if _is_row(rflux):
@@ -533,8 +546,9 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
-                  zfiberflux=None,
-                  rflux_snr=None, zflux_snr=None, w1flux_snr=None):
+                  zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
+                  rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+                  maskbits=None):
     """See :func:`~desitarget.sv1.sv1_cuts.isLRG` for details.
 
     Returns
@@ -549,6 +563,13 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+
+    # ADM observed in every band.
+    lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+
+    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
+    for bit in [1, 5, 6, 7, 11, 12, 13]:
+        lrg &= ((maskbits & 2**bit) == 0)
 
     return lrg
 
@@ -660,61 +681,10 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg, lrginit4, lrgsuper4, lrginit8, lrgsuper8
 
 
-def isfiller(gflux=None, rflux=None, zflux=None, w1flux=None,
-             gflux_snr=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
-             rfiberflux=None, south=True, primary=None):
-    """Definition of LRG-like low-z filler sample selection.
-
-    Parameters
-    ----------
-    south: boolean, defaults to ``True``
-        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS)
-        if ``south=False``, otherwise use cuts appropriate to the
-        Southern imaging survey (DECaLS).
-
-    Returns
-    -------
-    :class:`array_like`
-        ``True`` if the object is an LRG-like low-z filler target.
-
-    Notes
-    -----
-    - Current version (09/03/19) is version 90 on `the SV wiki`_.
-    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
-    """
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-    filler = primary.copy()
-
-    filler &= (gflux_snr > 0) & (gflux > 0)    # ADM quality in g.
-    filler &= (rflux_snr > 0) & (rflux > 0) & (rfiberflux > 0)   # ADM quality in r.
-    filler &= (zflux_snr > 0) & (zflux > 0)    # ADM quality in z.
-    filler &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
-
-    # ADM safe as these fluxes are set to > 0
-    gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
-    rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
-    zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
-    w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
-    rfibermag = 22.5 - 2.5 * np.log10(rfiberflux.clip(1e-7))
-
-    # North and South currently have the same cuts
-    filler &= (rmag > 19.5) & (rmag < 21) & (rfibermag < 22)  # magnitude limits
-    filler &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.8          # non-stellar cut
-    # high-z cuts
-    filler &= (rmag - w1mag) < 0.5 * (gmag - rmag) + 1.4
-    filler &= (rmag - w1mag) < 1.7 * ((gmag - rmag) - 0.8) + 1.2
-    filler &= (gmag - rmag) > 0.7                             # low-z cut
-    filler &= (rmag - zmag) > 0.25 * (rmag + 0.6) - 4.5       # sliding cut
-    # Remove overlap with BGS SV selection, these cuts don't apply to the final selection
-    filler &= (rmag > 20.5) & (rfibermag > 21.05)
-
-    return filler
-
-
 def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
               gsnr=None, rsnr=None, zsnr=None, w1snr=None, w2snr=None,
-              dchisq=None, maskbits=None, objtype=None, primary=None):
+              gnobs=None, rnobs=None, znobs=None, maskbits=None,
+              dchisq=None, objtype=None, primary=None):
     """Target Definition of an SV0-like QSO. Returns a boolean array.
 
     Parameters
@@ -726,10 +696,15 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     :class:`array_like` or :class:`float`
         ``True`` if and only if the object is an SV-like QSO target.
          If `floats` are passed, a `float` is returned.
+    :class:`array_like` or :class:`float`
+        ``True`` if and only if the object is an SV-like QSO target that
+        passes something like the QSO_Z5 (high-z) selection from SV.
 
     Notes
     -----
-    - Current version (10/14/19) is version 112 on `the SV wiki`_.
+    - Current version (02/19/20) is version 51 on `the cmx wiki`_.
+    - Current version (03/10/20) for the high-z (QSO_Z5 selection)
+      is version 59 on `the cmx wiki`_.
     - Hardcoded for south=False.
     - Combines all QSO-like SV classes into one bit.
     """
@@ -739,6 +714,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qsocolor_north = isQSO_cuts(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         w1flux=w1flux, w2flux=w2flux,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, w1snr=w1snr, w2snr=w2snr,
         south=False
@@ -747,6 +723,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qsorf_north = isQSO_randomforest(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         w1flux=w1flux, w2flux=w2flux,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, south=False
         )
@@ -754,6 +731,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qsohizf_north = isQSO_highz_faint(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
         w1flux=w1flux, w2flux=w2flux,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, south=False
         )
@@ -766,6 +744,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     qsoz5_north = isQSOz5_cuts(
         primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
         gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         w1flux=w1flux, w2flux=w2flux, w1snr=w1snr, w2snr=w2snr,
         dchisq=dchisq, maskbits=maskbits, objtype=objtype,
         south=False
@@ -781,15 +760,15 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM The individual routines return arrays, so we need
     # ADM a check to preserve the single-object case.
     if _is_row(rflux):
-        return qso_north[0]
+        return qso_north[0], qsoz5_north[0]
 
-    return qso_north
+    return qso_north, qsoz5_north
 
 
 def isQSO_cuts(gflux=None, rflux=None, zflux=None,
                w1flux=None, w2flux=None, w1snr=None, w2snr=None,
                dchisq=None, maskbits=None, objtype=None,
-               primary=None, south=True):
+               gnobs=None, rnobs=None, znobs=None, primary=None, south=True):
     """Definition of QSO target classes from color cuts. Returns a boolean array.
 
     Parameters
@@ -805,7 +784,6 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -820,6 +798,9 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
     if maskbits is not None:
         for bit in [1, 10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
+
+    # ADM observed in every band.
+    qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
@@ -901,7 +882,8 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return qso
 
 
-def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, south=True):
+def isQSO_color_high_z(gflux=None, rflux=None, zflux=None,
+                       w1flux=None, w2flux=None, south=True):
     """
     Color cut to select Highz QSO (z>~2.)
     """
@@ -938,8 +920,9 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     return qso_hz
 
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                       objtype=None, release=None, dchisq=None, maskbits=None,
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
+                       w2flux=None, objtype=None, release=None, dchisq=None,
+                       maskbits=None, gnobs=None, rnobs=None, znobs=None,
                        primary=None, south=True):
     """Definition of QSO target class using random forest. Returns a boolean array.
 
@@ -956,7 +939,6 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
 
     Notes
     -----
-    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -978,6 +960,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     rMax = 23.0  # r < 23.0 (different for SV)
     rMin = 17.5  # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    # ADM observed in every band.
+    preSelection &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
@@ -1052,9 +1037,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     return qso
 
 
-def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      objtype=None, release=None, dchisq=None, maskbits=None,
-                      primary=None, south=True):
+def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
+                      w2flux=None, objtype=None, release=None, dchisq=None,
+                      gnobs=None, rnobs=None, znobs=None,
+                      maskbits=None, primary=None, south=True):
     """Definition of QSO target for highz (z>2.0) faint QSOs. Returns a boolean array.
 
     Parameters
@@ -1070,7 +1056,6 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
     Notes
     -----
-    - Current version (09/25/19) is version 100 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # BRICK_PRIMARY
@@ -1093,6 +1078,9 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     rMax = 23.5  # r < 23.5
     rMin = 22.7  # r > 22.7
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
+
+    # ADM observed in every band.
+    preSelection &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # Color Selection of QSO with z>2.0.
     wflux = 0.75*w1flux + 0.25*w2flux
@@ -1161,6 +1149,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
 
 def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
                  gsnr=None, rsnr=None, zsnr=None,
+                 gnobs=None, rnobs=None, znobs=None,
                  w1flux=None, w2flux=None, w1snr=None, w2snr=None,
                  dchisq=None, maskbits=None, objtype=None, primary=None,
                  south=True):
@@ -1179,7 +1168,6 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (10/24/19) is version 112 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -1192,9 +1180,12 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     if maskbits is not None:
-        # for bit in [1, 10, 12, 13]:
-        for bit in [10, 12, 13]:
+        # for bit in [10, 12, 13]:
+        for bit in [1, 10, 12, 13]:
             qso &= ((maskbits & 2**bit) == 0)
+
+    # ADM observed in every band.
+    qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM relaxed morphology cut for SV.
     # ADM we never target sources with dchisq[..., 0] = 0, so force
@@ -1828,10 +1819,14 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
     # ADM retrieve/check the cmxdir.
     cmxdir = _get_cmxdir(cmxdir)
     # ADM get the M31 objects.
-
     cmx_target = []
     flout = []
-    for filenum, prog in enumerate(["M31", "ORI", "ROS", "M33"]):
+    progs = ["M31", "ORI", "ROS", "M33",
+             "SV0_MWS_CLUSTER", "SV0_MWS_CLUSTER_VERYBRIGHT"]
+    for filenum, prog in enumerate(progs):
+        # ADM flag whether this is not a "true" first light program.
+        isfl = prog[:3] != 'SV0'
+
         cmxfile = os.path.join(cmxdir, "{}-targets.fits".format(prog))
         flobjsin = fitsio.read(cmxfile)
 
@@ -1839,46 +1834,57 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
         flobjsout = np.zeros(len(flobjsin), dtype=gaiadtype)
 
         # ADM set the Gaia Source ID and DR where possible.
-        gaiaid = []
-        for flobjs in flobjsin["DESIGNATION"]:
-            try:
-                # ADM the if/else is to maintain compatibility with
-                # ADM both fitsio 0.9.11 and 1.0+.
-                if isinstance(flobjs, np.bytes_):
-                    gid = int(flobjs.decode().split("DR2")[-1])
-                else:
-                    gid = int(flobjs.split("DR2")[-1])
-                gaiaid.append(gid)
-            except ValueError:
-                gaiaid.append(-1)
-        flobjsout['REF_ID'] = gaiaid
-        flobjsout['REF_CAT'] = 'F1'
+        if isfl:
+            gaiaid = []
+            for flobjs in flobjsin["DESIGNATION"]:
+                try:
+                    # ADM the if/else is to maintain compatibility with
+                    # ADM both fitsio 0.9.11 and 1.0+.
+                    if isinstance(flobjs, np.bytes_):
+                        gid = int(flobjs.decode().split("DR2")[-1])
+                    else:
+                        gid = int(flobjs.split("DR2")[-1])
+                    gaiaid.append(gid)
+                except ValueError:
+                    gaiaid.append(-1)
+            flobjsout['REF_ID'] = gaiaid
+            flobjsout['REF_CAT'] = 'F1'
+        else:
+            flobjsout['REF_ID'] = flobjsin['REF_ID']
+            flobjsout['REF_CAT'] = 'F1'
 
         # ADM transfer columns from Arjun's files to standard data model.
         for col in ["RA", "DEC"]:
             flobjsout[col] = flobjsin[col]
         for col in ["PMRA", "PMDEC"]:
             flobjsout[col] = flobjsin[col]
-            ii = flobjsin[col+"_ERROR"] != 0
-            flobjsout[col+"_IVAR"][ii] = 1./(flobjsin[col+"_ERROR"][ii]**2.)
-        flobjsout["REF_EPOCH"] = flobjsin["EPOCH"]
-        flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["GAIA_G"]
-
+            if isfl:
+                ii = flobjsin[col+"_ERROR"] != 0
+                flobjsout[col+"_IVAR"][ii] = 1./(flobjsin[col+"_ERROR"][ii]**2.)
+                flobjsout["REF_EPOCH"] = flobjsin["EPOCH"]
+                flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["GAIA_G"]
+            else:
+                flobjsout["REF_EPOCH"] = flobjsin["REF_EPOCH"]
+                flobjsout["GAIA_PHOT_G_MEAN_MAG"] = flobjsin["PHOT_G_MEAN_MAG"]
         # ADM add unique identifiers based on the file and row-in-file.
         flobjsout["GAIA_BRICKID"] = filenum
         flobjsout["GAIA_OBJID"] = np.arange(len(flobjsin))
 
         # ADM record the bit values for each class name. The if/else is
         # ADM to maintain compatibility with both fitsio 0.9.11 and 1.0+.
-        if isinstance(flobjsin["CLASS"][0], np.bytes_):
-            cmx_target.append(
-                [cmx_mask[prog+"_"+c.decode().rstrip()]
-                 for c in flobjsin["CLASS"]]
-            )
+        if isfl:
+            if isinstance(flobjsin["CLASS"][0], np.bytes_):
+                cmx_target.append(
+                    [cmx_mask[prog+"_"+c.decode().rstrip()]
+                     for c in flobjsin["CLASS"]]
+                )
+            else:
+                cmx_target.append(
+                    [cmx_mask[prog+"_"+c.rstrip()] for c in flobjsin["CLASS"]]
+                )
         else:
-            cmx_target.append(
-                [cmx_mask[prog+"_"+c.rstrip()] for c in flobjsin["CLASS"]]
-            )
+            cmx_target.append([cmx_mask[prog] for c in flobjsin])
+
         flout.append(flobjsout)
 
     cmx_target = np.concatenate(cmx_target)
@@ -2100,8 +2106,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         objtype=objtype, primary=primary
     )
 
-    # ADM determine if an object is SV0_MWS or WD.
-    sv0_mws, sv0_wd = isSV0_MWS(
+    # ADM determine if an object is SV0_MWS, WD or SV0_MWS_FAINT.
+    sv0_mws, sv0_wd, sv0_mws_faint = isSV0_MWS(
         rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         pmra=pmra, pmdec=pmdec, parallax=parallax,
@@ -2117,6 +2123,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
         rfiberflux=rfiberflux, zfiberflux=zfiberflux,
         gflux_snr=gsnr, rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
         primary=primary
     )
 
@@ -2131,12 +2138,13 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM determine if an object is SV0_QSO.
     if noqso:
         # ADM don't run quasar cuts if requested, for speed.
-        sv0_qso = ~primary
+        sv0_qso, sv0_qso_z5 = ~primary, ~primary
     else:
-        sv0_qso = isSV0_QSO(
+        sv0_qso, sv0_qso_z5 = isSV0_QSO(
             primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
             w1flux=w1flux, w2flux=w2flux,
             gsnr=gsnr, rsnr=rsnr, zsnr=zsnr, w1snr=w1snr, w2snr=w2snr,
+            gnobs=gnobs, rnobs=rnobs, znobs=znobs,
             objtype=objtype, dchisq=dchisq, maskbits=maskbits
         )
 
@@ -2177,7 +2185,8 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
             primary=primary,
             gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
             zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr, south=south
+            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+            maskbits=maskbits, south=south
         )
     lrg_north, lrg_south = lrg_classes
     # ADM combine LRG target bits for an LRG target based on any imaging.
@@ -2236,6 +2245,15 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     mini_sv_bgs_bright = (
         bgs_north & photsys_north) | (bgs_south & photsys_south)
 
+    # ADM explicitly restrict "bright" target classes to G/g >= 16.
+    # ADM clip to avoid NaN on np.log10 of -ve numbers.
+    obs_gmag = 22.5-2.5*np.log10(np.clip(obs_gflux, 1e-16, 1e16))
+    too_bright = (obs_gmag < 16) | (gaia & (gaiagmag < 16))
+    sv0_bgs &= ~too_bright
+    sv0_mws &= ~too_bright
+    sv0_wd &= ~too_bright
+    mini_sv_bgs_bright &= ~too_bright
+
     # ADM Construct the target flag bits.
     cmx_target = std_dither * cmx_mask.STD_GAIA
     cmx_target |= std_dither_spec * cmx_mask.STD_DITHER
@@ -2248,6 +2266,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= sv0_lrg * cmx_mask.SV0_LRG
     cmx_target |= sv0_elg * cmx_mask.SV0_ELG
     cmx_target |= sv0_qso * cmx_mask.SV0_QSO
+    cmx_target |= sv0_qso_z5 * cmx_mask.SV0_QSO_Z5
     cmx_target |= sv0_wd * cmx_mask.SV0_WD
     cmx_target |= std_faint * cmx_mask.STD_FAINT
     cmx_target |= std_bright * cmx_mask.STD_BRIGHT
@@ -2255,6 +2274,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     cmx_target |= mini_sv_elg * cmx_mask.MINI_SV_ELG
     cmx_target |= mini_sv_qso * cmx_mask.MINI_SV_QSO
     cmx_target |= mini_sv_bgs_bright * cmx_mask.MINI_SV_BGS_BRIGHT
+    cmx_target |= sv0_mws_faint * cmx_mask.SV0_MWS_FAINT
 
     # ADM update the priority with any shifts.
     # ADM we may need to update this logic if there are other shifts.

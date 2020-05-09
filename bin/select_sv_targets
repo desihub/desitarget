@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.io import desitarget_version
+from desitarget.io import desitarget_version, check_both_set
 from desitarget.cuts import select_targets
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
@@ -121,6 +121,9 @@ if (np.max(data['PMRA']) == 0.) & np.any(data["RELEASE"] < 7000):
 
 if ns.bundlefiles is None:
     log.info("running on {} processors".format(ns.numproc))
+    # ADM formally writing pixelized files requires both the nside
+    # ADM and the list of healpixels to be set.
+    check_both_set(ns.healpixels, ns.nside)
 
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels

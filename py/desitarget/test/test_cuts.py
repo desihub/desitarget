@@ -144,10 +144,12 @@ class TestCuts(unittest.TestCase):
             lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
                               zflux=zflux, w1flux=w1flux, zfiberflux=ff,
                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                              maskbits=maskbits,
                               rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
             lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux,
                               w1flux=w1flux, zfiberflux=ff,
                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                              maskbits=maskbits,
                               rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
             self.assertTrue(np.all(lrg1 == lrg2))
 

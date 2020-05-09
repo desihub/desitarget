@@ -2,10 +2,101 @@
 desitarget Change Log
 =====================
 
-0.36.1 (unreleased)
+0.39.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add a new notebook tutorial about the Merged Target List [`PR #614`_].
+* Update masks for QSO Random Forest selection for DR8 [`PR #615`]
+
+.. _`PR #614`: https://github.com/desihub/desitarget/pull/614
+.. _`PR #615`: https://github.com/desihub/desitarget/pull/615
+
+0.39.0 (2020-05-01)
+-------------------
+
+* Help the mocks run on pixel-level imaging data [`PR #611`_]. Includes:
+    * New :func:`geomask.get_brick_info()` function to look up the
+      brick names associated with each HEALPixel.
+    * In :func:`randoms.quantities_at_positions_in_a_brick()`, add a
+      `justlist` option to list the (maximal) required input files.
+    * Minor bug fixes and documentation updates.
+* Update QSO Random Forest selection (and files) for DR8 [`PR #610`_].
+
+.. _`PR #610`: https://github.com/desihub/desitarget/pull/610
+.. _`PR #611`: https://github.com/desihub/desitarget/pull/611
+
+0.38.0 (2020-04-23)
+-------------------
+
+* Minor updates for latest DR9 imaging versions (dr9f/dr9g) [`PR #607`_].
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
+* Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
+* Separate calc_priority() for CMX into a separate function [`PR #601`_].
+* Alter cmx targetmask such that obsconditions can be used to work
+  around MWS/BGS conflicts on MWS CMX tiles [`PR #601`_].
+* Update test_priorities() for new MWS CMX targets scheme [`PR #601`_].
+* Adds SV0_MWS_FAINT bit [`PR #601`_].
+* Extra columns and features in the random catalogs [`PR #606`_]:
+    * Better error messages and defaults for `bin/supplement_randoms`.
+    * Don't calculate APFLUX quantities if aprad=0 is passed.
+    * Pass the randoms through the `finalize` and `make_mtl` functions:
+        * To populate columns needed to run fiberassign on the randoms.
+        * Addresses `issue #597`_.
+    * Add the `BRICKID` column to the random catalogs.
+    * Also add a realistic `TARGETID` (and `RELEASE, BRICK_OBJID`).
+    * Recognize failure modes more quickly (and fail more quickly).
+    * Write out both "resolve" and "noresolve" (North/South) catalogs.
+
+.. _`PR #601`: https://github.com/desihub/desitarget/pull/601
+.. _`issue #597`: https://github.com/desihub/desitarget/issues/597
+.. _`PR #606`: https://github.com/desihub/desitarget/pull/606
+.. _`PR #607`: https://github.com/desihub/desitarget/pull/607
+
+0.37.3 (2020-04-15)
+-------------------
+
+* Update QA now basemap dependency is removed [`PR #605`_]:
+    * Also reintroduce unit tests in `test_qa.py`.
+    * basemap dependency was removed in `desiutil PR #141`_
+
+.. _`desiutil PR #141`: https://github.com/desihub/desiutil/pull/141
+.. _`PR #605`: https://github.com/desihub/desitarget/pull/605
+
+0.37.2 (2020-04-13)
+-------------------
+
+* Fix `select_mock_targets` I/O bug reported in #603 [`PR #604`_].
+
+.. _`PR #604`: https://github.com/desihub/desitarget/pull/604
+
+0.37.1 (2020-04-07)
+-------------------
+
+* Fix mock QSO density bug reported in #594 [`PR #602`_].
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #600`_].
+
+.. _`PR #600`: https://github.com/desihub/desitarget/pull/600
+.. _`PR #602`: https://github.com/desihub/desitarget/pull/602
+
+0.37.0 (2020-03-12)
+-------------------
+
+* Add `SV0_MWS_CLUSTER_` target classes for commissioning [`PR #599`_].
+* Flag the high-z quasar selection in CMX (as `SV0_QSO_Z5`) [`PR #598`_].
+* Leak of Bright Stars in BGS Main Survey and BGS SV fixed [`PR #596`_].
+* Restrict skies to the geometric boundaries of their brick [`PR #595`_].
+* Changes in CMX after running code for Mini-SV [`PR #592`_]. Includes:
+    * g/G >= 16 for `SV0_BGS`/`SV0_MWS`/`SV0_WD`/`MINI_SV_BGS_BRIGHT`.
+    * Remove the LRG `LOWZ_FILLER` class (both in SV and CMX).
+    * Mask on `bright` in `MASKBITS` for z~5 QSOs (both in SV and CMX).
+    * Remove the 'low quality' (`lowq`) component of `SV0_BGS`.
+    * Add optical `MASKBITS` flags for LRGs (in Main Survey, SV and CMX).
+
+.. _`PR #592`: https://github.com/desihub/desitarget/pull/592
+.. _`PR #595`: https://github.com/desihub/desitarget/pull/595
+.. _`PR #596`: https://github.com/desihub/desitarget/pull/596
+.. _`PR #598`: https://github.com/desihub/desitarget/pull/598
+.. _`PR #599`: https://github.com/desihub/desitarget/pull/599
 
 0.36.0 (2020-02-16)
 -------------------

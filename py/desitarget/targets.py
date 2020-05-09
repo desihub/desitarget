@@ -41,8 +41,8 @@ def encode_targetid(objid=None, brickid=None, release=None,
         'data/targetmask.yaml'. Or, if < 1000 and `sky` is not
         ``None``, the HEALPixel processing number for SUPP_SKIES.
     mock : :class:`int` or :class:`~numpy.ndarray`, optional
-        1 if this object is a mock object (generated from
-        mocks, not from real survey data), 0 otherwise
+        1 if this object is a mock object (generated from mocks or from
+        a random catalog, not from real survey data), 0 otherwise
     sky : :class:`int` or :class:`~numpy.ndarray`, optional
         1 if this object is a blank sky object, 0 otherwise
     gaiadr : :class:`int` or :class:`~numpy.ndarray`, optional
@@ -147,8 +147,8 @@ def decode_targetid(targetid):
         'data/targetmask.yaml'. Or, if < 1000 and `sky` is not
         ``None``, the HEALPixel processing number for SUPP_SKIES.
     :class:`int` or :class:`~numpy.ndarray`
-        1 if this object is a mock object (generated from
-        mocks, not from real survey data), 0 otherwise
+        1 if this object is a mock object (generated from mocks or from
+        a random catalog, not from real survey data), 0 otherwise
     :class:`int` or :class:`~numpy.ndarray`
         1 if this object is a blank sky object, 0 otherwise
     :class:`int` or :class:`~numpy.ndarray`
@@ -548,7 +548,61 @@ def calc_priority(targets, zcat, obscon):
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
-        for name in ['SV0_' + label for label in ('BGS', 'MWS')]:
+        priority = _cmx_calc_priority(targets, priority, obscon,
+                                      unobs, done, zgood, zwarn, cmx_mask, obsconditions)
+
+    return priority
+
+
+def _cmx_calc_priority(targets, priority, obscon, unobs, done, zgood, zwarn, cmx_mask, obsconditions):
+    """Special-case logic for target priorities in CMX.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.ndarray`
+        numpy structured array or astropy Table of targets. Must include
+        the column `CMX_TARGET`.
+    priority : :class:`~numpy.ndarray`
+        Initial priority values set, in calc_priorities().
+    obscon : :class:`str`
+        A combination of strings that are in the desitarget bitmask yaml
+        file (specifically in `desitarget.targetmask.obsconditions`), e.g.
+        "DARK|GRAY". Governs the behavior of how priorities are set based
+        on "obsconditions" in the desitarget bitmask yaml file.
+    unobs : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state UNOBS.
+    done : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state DONE.
+    zgood : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state ZGOOD.
+    zwarn : :class:`~numpy.ndarray`
+        Boolean flag on targets indicating state ZWARN.
+    cmx_mask : :class:`~desiutil.bitmask.BitMask`
+        The CMX target bitmask.
+    obscondtions : :class:`~desiutil.bitmask.BitMask`
+        The CMX obsconditions bitmask.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The updated priority values.
+
+    Notes
+    -----
+        - Intended to be called only from within calc_priority(), where any
+          pre-processing of the target state flags (uobs, done, zgood, zwarn) is
+          handled.
+
+    """
+    # Build a whitelist of targets to update
+    names_to_update = ['SV0_' + label for label in ('STD_FAINT', 'STD_BRIGHT',
+                                                    'BGS', 'MWS', 'WD', 'MWS_FAINT',
+                                                    'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]
+    names_to_update.extend(['BACKUP_BRIGHT', 'BACKUP_FAINT'])
+
+    for name in names_to_update:
+        pricon = obsconditions.mask(cmx_mask[name].obsconditions)
+        if (obsconditions.mask(obscon) & pricon) != 0:
             ii = (targets['CMX_TARGET'] & cmx_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], cmx_mask[name].priorities['UNOBS'])
             priority[ii & done] = np.maximum(priority[ii & done],  cmx_mask[name].priorities['DONE'])
@@ -614,8 +668,8 @@ def resolve(targets):
 
 
 def finalize(targets, desi_target, bgs_target, mws_target,
-             sky=0, survey='main', darkbright=False, gaiadr=None,
-             targetid=None):
+             sky=False, randoms=False, survey='main', darkbright=False,
+             gaiadr=None, targetid=None):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -628,8 +682,10 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         1D array of target selection bit flags.
     mws_target : :class:`~numpy.ndarray`
         1D array of target selection bit flags.
-    sky : :class:`int`, defaults to 0
-        Pass `1` to indicate these are blank sky targets, `0` otherwise.
+    sky : :class:`bool`, defaults to ``False``
+        Pass ``True`` for sky targets, ``False`` otherwise.
+    randoms : :class:`bool`, defaults to ``False``
+        ``True`` if `targets` is a random catalog, ``False`` otherwise.
     survey : :class:`str`, defaults to `main`
         Specifies which target masks yaml file to use. Options are `main`,
         `cmx` and `svX` (where X = 1, 2, 3 etc.) for the main survey,
@@ -685,13 +741,15 @@ def finalize(targets, desi_target, bgs_target, mws_target,
             targetid = encode_targetid(objid=targets['GAIA_OBJID'],
                                        brickid=targets['GAIA_BRICKID'],
                                        release=0,
-                                       sky=sky,
+                                       mock=int(randoms),
+                                       sky=int(sky),
                                        gaiadr=gaiadr)
         else:
             targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                        brickid=targets['BRICKID'],
                                        release=targets['RELEASE'],
-                                       sky=sky)
+                                       mock=int(randoms),
+                                       sky=int(sky))
     assert ntargets == len(targetid)
 
     nodata = np.zeros(ntargets, dtype='int')-1
@@ -752,7 +810,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         raise AssertionError(msg)
 
     # ADM check all LRG targets have LRG_1PASS/2PASS set.
-    # ADM we've moved away from LRG PASSes this so deprecate for now.
+    # ADM we've moved away from LRG PASSes so deprecate this for now.
 #    if survey == 'main':
 #        lrgset = done["DESI_TARGET"] & desi_mask.LRG != 0
 #        pass1lrgset = done["DESI_TARGET"] & desi_mask.LRG_1PASS != 0

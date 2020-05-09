@@ -88,10 +88,9 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
     if isinstance(drdirs, str):
         drdirs = [drdirs, ]
 
-    # ADM initialize the bricks class, retrieve the brick information look-up
-    # ADM table and turn it into a fast look-up dictionary.
-    from desiutil import brick
-    bricktable = brick.Bricks(bricksize=0.25).to_table()
+    # ADM turn the brick info table into a fast look-up dictionary.
+    # ADM (note the bricks class is instantiated at the top of the code.)
+    bricktable = bricks.to_table()
     brickdict = {}
     for b in bricktable:
         brickdict[b["BRICKNAME"]] = [b["RA"], b["DEC"],
@@ -203,9 +202,12 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
 
     Notes
     -----
-    The code generates unique OBJIDs based on an integer counter for the numbers of
-    objects (objs) passed. It will therefore fail if the length of objs is longer
-    than the number of bits reserved for OBJID in `desitarget.targetmask`.
+        - The code generates unique OBJIDs based on an integer counter
+          for the numbers of objects (objs) passed. So, it will fail if
+          the length of objs is longer than the number of bits reserved
+          for OBJID in `desitarget.targetmask`.
+        - The generated sky fiber locations will cover the pixel-based brick
+          grid, which extends beyond the "true" geometric brick boundaries.
     """
     # ADM this is only intended to work on one brick, so die if a larger array is passed
     # ADM needs a hack on string type as Python 2 only considered bytes to be type str.
@@ -333,7 +335,7 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     # ADM add target bit columns to the output array, note that mws_target
     # ADM and bgs_target should be zeros for all sky objects.
     dum = np.zeros_like(desi_target)
-    skies = finalize(skies, desi_target, dum, dum, sky=1)
+    skies = finalize(skies, desi_target, dum, dum, sky=True)
 
     if write:
         outfile = survey.find_file('skies', brick=brickname)
@@ -378,6 +380,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     Notes
     -----
         - Initial version written by Dustin Lang (@dstndstn).
+        - The generated sky fiber locations will cover the pixel-based brick
+          grid, which extends beyond the "true" geometric brick boundaries.
     """
 
     fn = survey.find_file('blobmap', brick=brickname)
@@ -679,7 +683,6 @@ def plot_good_bad_skies(survey, brickname, skies,
         - The array `skies` must contain at least the columns 'BRICKNAME', 'RA', 'DEC',
           and 'DESI_TARGET', but can contain multiple different values of 'BRICKNAME',
           provided that one of them corresponds to the passed `brickname`.
-
         - If the passed `survey` object doesn't correspond to the Data Release from which
           the passed `skies` array was derived, then the sky locations could be plotted
           at slightly incorrect positions. If the `skies` array was read from file, this
@@ -849,7 +852,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
              .format(mindec, time()-start))
     from desitarget.randoms import randoms_in_a_brick_from_edges
     ras, decs = randoms_in_a_brick_from_edges(
-        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False)
+        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False, seed=538)
 
     # ADM limit randoms by HEALPixel, if requested.
     if pixlist is not None:
@@ -939,7 +942,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
-    supp = finalize(supp, desi_target, dum, dum, sky=1)
+    supp = finalize(supp, desi_target, dum, dum, sky=True)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
@@ -947,7 +950,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
 
 
 def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
-                 apertures_arcsec=[0.75], nside=2, pixlist=None, writebricks=False):
+                 apertures_arcsec=[0.75], nside=None, pixlist=None, writebricks=False):
     """Generate skies in parallel for bricks in a Legacy Surveys DR.
 
     Parameters
@@ -964,7 +967,7 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
         List of bands to be used to define good sky locations.
     apertures_arcsec : :class:`list`, optional, defaults to [0.75]
         Radii in arcsec of apertures for which to derive flux at a sky location.
-    nside : :class:`int`, optional, defaults to nside=2 (859.4 sq. deg.)
+    nside : :class:`int`, optional, defaults to ``None``
         The HEALPixel nside number to be used with the `pixlist` input.
     pixlist : :class:`list` or `int`, optional, defaults to None
         Bricks will only be processed if the CENTER of the brick lies within the bounds of
@@ -1057,6 +1060,13 @@ def select_skies(survey, numproc=16, nskiespersqdeg=None, bands=['g', 'r', 'z'],
     skies = [sk for sk in skies if sk is not None]
     # ADM Concatenate the parallelized results into one rec array.
     skies = np.concatenate(skies)
+
+    # ADM make_skies_for_a_brick is pixel-based, so the locations can
+    # ADM extend beyond the "true" geometric brick boundaries. Use the
+    # ADM brick look-up table to remove these cases.
+    brickid = bricks.brickid(skies["RA"], skies["DEC"])
+    inbrick = skies["BRICKID"] == brickid
+    skies = skies[inbrick]
 
     log.info('Done with (nside={}, HEALPixels={}, DRdir={})...t={:.1f}s'
              .format(nside, pixlist, survey.survey_dir, time()-start))
