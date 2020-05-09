@@ -8,6 +8,9 @@ desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
 
+    #- ADM QSO sub-classes
+    - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
+
     #- North vs. South selections
     - [LRG_NORTH,   8, "LRG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK}]
     - [ELG_NORTH,   9, "ELG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK|GRAY}]
@@ -186,6 +189,7 @@ priorities:
         NO_TARGET:  -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the priorities
+        QSO_HIZ: -1
         BRIGHT_OBJECT: -1
         IN_BRIGHT_OBJECT: -1
         NEAR_BRIGHT_OBJECT: -1
@@ -262,6 +266,7 @@ numobs:
         NO_TARGET:  -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the number of observations
+        QSO_HIZ: -1
         BRIGHT_OBJECT: -1
         IN_BRIGHT_OBJECT: -1
         NEAR_BRIGHT_OBJECT: -1

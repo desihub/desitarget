@@ -1313,6 +1313,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
 
     # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
+    # ADM to specifically store the selection from the "HighZ" RF.
+    qsohiz = np.copy(preSelection)
 
     if np.any(preSelection):
 
@@ -1349,6 +1351,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
                             0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
+            # ADM no high-z selection for DR3.
+            qsohiz &= False
 
         tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced<8000)
         if np.any(tmpReleaseOK):
@@ -1375,6 +1379,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
+            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_HighZ_proba >= pcut_HighZ)
 
         tmpReleaseOK = releaseReduced >= 8000
         if np.any(tmpReleaseOK):
@@ -1397,13 +1404,17 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
+            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_HighZ_proba >= pcut_HighZ)
 
     # In case of call for a single object passed to the function with scalar arguments
     # Return "numpy.bool_" instead of "~numpy.ndarray"
     if nbEntries == 1:
         qso = qso[0]
+        qsohiz = qsohiz[0]
 
-    return qso
+    return qso, qsohiz
 
 
 def _psflike(psftype):
@@ -1847,7 +1858,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             )
     lrg_north, lrg_south = lrg_classes
 
-    # ADM combine LRG target bits for an LRG target based on any imaging
+    # ADM combine LRG target bits for an LRG target based on any imaging.
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the ELG selection
@@ -1868,12 +1879,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    qso_classes = [~primary, ~primary]
+    qso_classes = [[~primary, ~primary], [~primary, ~primary]]
     if "QSO" in tcnames:
         for south in south_cuts:
             if qso_selection == 'colorcuts':
                 # ADM determine quasar targets in the north and the south separately
-                qso_classes[int(south)] = isQSO_cuts(
+                # ADM the [0] here is critical as isQSO_cuts only returns one bit
+                # ADM and the other bit (which is the "high-z" bit from the Random
+                # ADM Forest needs to be set to all "False".
+                qso_classes[int(south)][0] = isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
                     deltaChi2=deltaChi2, maskbits=maskbits,
@@ -1892,10 +1906,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             else:
                 raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
                     qso_selection, qso_selection_options))
-    qso_north, qso_south = qso_classes
+    qso_north, qso_hiz_north = qso_classes[0]
+    qso_south, qso_hiz_south = qso_classes[1]
 
-    # ADM combine quasar target bits for a quasar target based on any imaging
+    # ADM combine QSO targeting bits for a QSO selected in any imaging.
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
+    qsohiz = (qso_hiz_north & photsys_north) | (qso_hiz_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the BGS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -1921,7 +1937,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_bright_north, bgs_faint_north, bgs_wise_north = bgs_classes[0]
     bgs_bright_south, bgs_faint_south, bgs_wise_south = bgs_classes[1]
 
-    # ADM combine BGS targeting bits for a BGS selected in any imaging
+    # ADM combine BGS targeting bits for a BGS selected in any imaging.
     bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
     bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
@@ -2014,6 +2030,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
+    desi_target |= qsohiz * desi_mask.QSO_HIZ
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
