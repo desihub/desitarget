@@ -41,6 +41,7 @@ import desimodel.footprint
 from desiutil.log import get_logger, DEBUG
 from desitarget.mock.build import targets_truth
 import desitarget.mock.io as mockio
+from  desitarget.io import find_target_files
 from desispec.parallel import stdouterr_redirected
 
 if args.verbose:
@@ -91,10 +92,13 @@ if rank == 0:
             
     keep = list()
     for i, pixnum in enumerate(pixels):
-        truthspecfile = mockio.findfile('truth', args.nside, pixnum,
-                                        basedir=args.output_dir)
-        if not os.path.exists(truthspecfile):
-            keep.append(i)
+        truth_dark = find_target_files(args.output_dir, flavor="truth", obscon='dark',
+                                        hp=pixnum, nside=args.nside, mock=True)
+        truth_bright = find_target_files(args.output_dir, flavor="truth", obscon='bright',
+                                        hp=pixnum, nside=args.nside, mock=True)
+        if os.path.exists(truth_dark) or os.path.exists(truth_bright):
+            continue
+        keep.append(i)
 
     log.info('{}/{} pixels remaining to do'.format(len(keep), len(pixels)))
     pixels = pixels[keep]
