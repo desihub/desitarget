@@ -5,9 +5,12 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
+* Recognize (and skip) existing (completed) healpixels when running
+  `select_mock_targets` [`PR #591`].
 * Add a new notebook tutorial about the Merged Target List [`PR #614`_].
-* Update masks for QSO Random Forest selection for DR8 [`PR #615`]
+* Update masks for QSO Random Forest selection for DR8 [`PR #615`].
 
+.. _`PR #591`: https://github.com/desihub/desitarget/pull/591
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 
