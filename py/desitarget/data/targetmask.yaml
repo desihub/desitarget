@@ -172,6 +172,7 @@ priorities:
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        QSO_HIZ: SAME_AS_LRG_NORTH
         ELG_NORTH: SAME_AS_LRG_NORTH
         QSO_NORTH: SAME_AS_LRG_NORTH
         LRG_SOUTH: SAME_AS_LRG_NORTH
@@ -189,7 +190,6 @@ priorities:
         NO_TARGET:  -1
         #- placeholders to show we haven't forgotten these bits, but the
         #- exact bits in the other sections define the priorities
-        QSO_HIZ: -1
         BRIGHT_OBJECT: -1
         IN_BRIGHT_OBJECT: -1
         NEAR_BRIGHT_OBJECT: -1
