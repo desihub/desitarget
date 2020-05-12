@@ -15,10 +15,13 @@ desitarget Change Log
     * Update the default priorities for reobserving Lyman-alpha QSOs
       (as described in `issue #486`_, which this addresses).
 * Add a new notebook tutorial about the Merged Target List [`PR #614`_].
-* Update masks for QSO Random Forest selection for DR8 [`PR #615`]
+* Update masks for QSO Random Forest selection for DR8 [`PR #615`].
+* Recognize (and skip) existing (completed) healpixels when running
+  `select_mock_targets` [`PR #591`].
 
 .. _`issue #349`: https://github.com/desihub/desitarget/issues/349
 .. _`issue #486`: https://github.com/desihub/desitarget/issues/486
+.. _`PR #591`: https://github.com/desihub/desitarget/pull/591
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 .. _`PR #619`: https://github.com/desihub/desitarget/pull/619
