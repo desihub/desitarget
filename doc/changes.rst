@@ -5,11 +5,23 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
+* Various updates to targeting bits and MTL [`PR #619`_]. Includes:
+    * Don't select any BGS_WISE targets in the Main Survey.
+    * Always set BGS targets with a ZWARN > 0 to a priority of DONE.
+    * Add an informational bit for QSOs selected with the high-z RF
+      (addresses `issue #349`_).
+    * MWS targets should drop to a priority of DONE after one observation
+      (but will always be higher priority than BGS for that observation).
+    * Update the default priorities for reobserving Lyman-alpha QSOs
+      (as described in `issue #486`_, which this addresses).
 * Add a new notebook tutorial about the Merged Target List [`PR #614`_].
 * Update masks for QSO Random Forest selection for DR8 [`PR #615`]
 
+.. _`issue #349`: https://github.com/desihub/desitarget/issues/349
+.. _`issue #486`: https://github.com/desihub/desitarget/issues/486
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
+.. _`PR #619`: https://github.com/desihub/desitarget/pull/619
 
 0.39.0 (2020-05-01)
 -------------------
