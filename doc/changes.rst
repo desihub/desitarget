@@ -14,7 +14,10 @@ desitarget Change Log
     * Enforce maximum seed in :func:`randoms_in_a_brick_from_edges()`.
 * Update masks for QSO Random Forest selection for DR8 [`PR #615`_]
 * Add a new notebook tutorial about the Merged Target List [`PR #614`_].
+* Recognize (and skip) existing (completed) healpixels when running
+  `select_mock_targets` [`PR #591`_].
 
+.. _`PR #591`: https://github.com/desihub/desitarget/pull/591
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 .. _`PR #617`: https://github.com/desihub/desitarget/pull/617
