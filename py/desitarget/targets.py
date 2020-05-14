@@ -20,6 +20,9 @@ from desitarget.targetmask import obsconditions
 from desiutil.log import get_logger
 log = get_logger()
 
+# ADM common redshift that defines a Lyman-Alpha QSO.
+zcut = 2.1
+
 
 def encode_targetid(objid=None, brickid=None, release=None,
                     mock=None, sky=None, gaiadr=None):
@@ -387,6 +390,90 @@ def initial_priority_numobs(targets, scnd=False,
     return outpriority, outnumobs
 
 
+def calc_numobs_more(targets, zcat, obscon):
+    """
+    Calculate target NUMOBS_MORE from masks, observation/redshift status.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.ndarray`
+        numpy structured array or astropy Table of targets. Must include
+        the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`
+        (or their SV/cmx equivalents) `TARGETID` and `NUMOBS_INIT`.
+    zcat : :class:`~numpy.ndarray`
+        numpy structured array or Table of redshift info. Must include
+        `Z`, `ZWARN`, `NUMOBS` and `TARGETID` and BE SORTED ON TARGETID
+        to match `targets` row-by-row. May also contain `NUMOBS_MORE` if
+        this isn't the first time through MTL and `NUMOBS > 0`.
+    obscon : :class:`str`
+        A combination of strings that are in the desitarget bitmask yaml
+        file (specifically in `desitarget.targetmask.obsconditions`), e.g.
+        "DARK|GRAY". Governs the behavior of how priorities are set based
+        on "obsconditions" in the desitarget bitmask yaml file.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        Integer array of number of additional observations (NUMOBS_MORE).
+
+    Notes
+    -----
+        - Will automatically detect if the passed targets are main
+          survey, commissioning or SV and behave accordingly.
+        - Most targets are updated to NUMOBS_MORE = NUMOBS_INIT-NUMOBS.
+          Special cases include BGS targets which always get NUMOBS_MORE
+          of 1 in bright time and QSO "tracer" targets which always get
+          NUMOBS_MORE=0 in dark time.
+    """
+    # ADM check input arrays are sorted to match row-by-row on TARGETID.
+    assert np.all(targets["TARGETID"] == zcat["TARGETID"])
+
+    # ADM determine whether the input targets are main survey, cmx or SV.
+    colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
+    # ADM the target bits/names should be shared between main survey and SV.
+    if survey != 'cmx':
+        desi_target, bgs_target, mws_target, scnd_target = colnames
+        desi_mask, bgs_mask, mws_mask, scnd_mask = masks
+    else:
+        cmx_mask = masks[0]
+
+    # ADM Default is 0 , i.e. no more observations.
+    numobs_more = np.zeros(len(targets), dtype='i8')
+
+    # ADM main case, just decrement by NUMOBS.
+    numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
+
+    if survey != 'cmx':
+        # ADM BGS targets are observed during the BRIGHT survey, regardless
+        # ADM of how often they've previously been observed.
+        if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
+            ii = targets[desi_target] & desi_mask.BGS_ANY > 0
+            numobs_more[ii] = 1
+
+    if survey == 'main':
+        # ADM If a DARK layer target is confirmed to have a good redshift
+        # ADM at z < zcut it always needs just one total observation.
+        # ADM (zcut is defined at the top of this module).
+        if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
+            ii = (zcat['ZWARN'] == 0)
+            ii &= (zcat['Z'] < zcut)
+            ii &= (zcat['NUMOBS'] > 0)
+            numobs_more[ii] = 0
+
+        # ADM We will have to be more careful if some DARK layer targets
+        # ADM other than QSOs request more than one observation.
+        check = {bit: desi_mask[bit].numobs for bit in desi_mask.names() if
+                 'DARK' in desi_mask[bit].obsconditions and 'QSO' not in bit
+                 and desi_mask[bit].numobs > 1}
+        if len(check) > 1:
+            msg = "logic not programmed for main survey dark-time targets other"
+            msg += " than QSOs having NUMOBS_INIT > 1: {}".format(check)
+            log.critical(msg)
+            raise ValueError(msg)
+
+    return numobs_more
+
+
 def calc_priority(targets, zcat, obscon):
     """
     Calculate target priorities from masks, observation/redshift status.
@@ -396,12 +483,12 @@ def calc_priority(targets, zcat, obscon):
     targets : :class:`~numpy.ndarray`
         numpy structured array or astropy Table of targets. Must include
         the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`
-        (or their SV/cmx equivalents).
+        (or their SV/cmx equivalents) and `TARGETID`.
     zcat : :class:`~numpy.ndarray`
-        numpy structured array or Table of redshift information. Must
-        include 'Z', `ZWARN`, `NUMOBS` and be the same length as
-        `targets`. May also contain `NUMOBS_MORE` if this isn't the
-        first time through MTL and `NUMOBS > 0`.
+        numpy structured array or Table of redshift info. Must include
+        `Z`, `ZWARN`, `NUMOBS` and `TARGETID` and BE SORTED ON TARGETID
+        to match `targets` row-by-row. May also contain `NUMOBS_MORE` if
+        this isn't the first time through MTL and `NUMOBS > 0`.
     obscon : :class:`str`
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
@@ -419,8 +506,8 @@ def calc_priority(targets, zcat, obscon):
         - Will automatically detect if the passed targets are main
           survey, commissioning or SV and behave accordingly.
     """
-    # ADM check the input arrays are the same length.
-    assert len(targets) == len(zcat)
+    # ADM check input arrays are sorted to match row-by-row on TARGETID.
+    assert np.all(targets["TARGETID"] == zcat["TARGETID"])
 
     # ADM determine whether the input targets are main survey, cmx or SV.
     colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
@@ -485,7 +572,8 @@ def calc_priority(targets, zcat, obscon):
             if (obsconditions.mask(obscon) & pricon) != 0:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
                 # ADM all redshifts require more observations in SV.
-                good_hiz = zgood & (zcat['Z'] >= 2.15) & (zcat['ZWARN'] == 0)
+                # ADM (zcut is defined at the top of this module).
+                good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
                 if survey[0:2] == 'sv':
                     good_hiz = zgood & (zcat['ZWARN'] == 0)
                 priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
