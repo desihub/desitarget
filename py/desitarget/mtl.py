@@ -12,7 +12,8 @@ import fitsio
 from time import time
 
 from desitarget.targetmask import obsmask, obsconditions
-from desitarget.targets import calc_priority, main_cmx_or_sv, set_obsconditions
+from desitarget.targets import calc_priority, calc_numobs_more
+from desitarget.targets import main_cmx_or_sv, set_obsconditions
 from desitarget.io import read_targets_in_box
 
 
@@ -128,28 +129,8 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM extract just the targets that match the input zcat.
     targets_zmatcher = targets[zmatcher]
 
-    # ADM use passed value of NUMOBS_INIT instead of calling the memory-heavy calc_numobs.
-    # ztargets['NUMOBS_MORE'] = np.maximum(0, calc_numobs(ztargets) - ztargets['NUMOBS'])
-    ztargets['NUMOBS_MORE'] = np.maximum(0, targets_zmatcher['NUMOBS_INIT'] - ztargets['NUMOBS'])
-
-    # ADM need a minor hack to ensure BGS targets are observed once
-    # ADM (and only once) every time during the BRIGHT survey, regardless
-    # ADM of how often they've previously been observed. I've turned this
-    # ADM off for commissioning. Not sure if we'll keep it in general.
-    if survey != 'cmx':
-        # ADM only if we're considering bright survey conditions.
-        if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
-            ii = targets_zmatcher[desi_target] & desi_mask.BGS_ANY > 0
-            ztargets['NUMOBS_MORE'][ii] = 1
-    if survey == 'main':
-        # If the object is confirmed to be a tracer QSO, then don't request more observations
-        if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
-            if zcat is not None:
-                ii = ztargets['SPECTYPE'] == 'QSO'
-                ii &= (ztargets['ZWARN'] == 0)
-                ii &= (ztargets['Z'] < 2.1)
-                ii &= (ztargets['NUMOBS'] > 0)
-                ztargets['NUMOBS_MORE'][ii] = 0
+    # ADM update the number of observations for the targets.
+    ztargets['NUMOBS_MORE'] = calc_numobs_more(targets_zmatcher, ztargets, obscon)
 
     # ADM assign priorities, note that only things in the zcat can have changed priorities.
     # ADM anything else will be assigned PRIORITY_INIT, below.

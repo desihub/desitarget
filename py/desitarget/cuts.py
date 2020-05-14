@@ -1354,7 +1354,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # ADM no high-z selection for DR3.
             qsohiz &= False
 
-        tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced<8000)
+        tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced < 8000)
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
