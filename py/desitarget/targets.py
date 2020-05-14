@@ -399,12 +399,12 @@ def calc_numobs_more(targets, zcat, obscon):
     targets : :class:`~numpy.ndarray`
         numpy structured array or astropy Table of targets. Must include
         the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`
-        (or their SV/cmx equivalents).
+        (or their SV/cmx equivalents) `TARGETID` and `NUMOBS_INIT`.
     zcat : :class:`~numpy.ndarray`
-        numpy structured array or Table of redshift information. Must
-        include 'Z', `ZWARN`, `NUMOBS` and be the same length as
-        `targets`. May also contain `NUMOBS_MORE` if this isn't the
-        first time through MTL and `NUMOBS > 0`.
+        numpy structured array or Table of redshift info. Must include
+        `Z`, `ZWARN`, `NUMOBS` and `TARGETID` and BE SORTED ON TARGETID
+        to match `targets` row-by-row. May also contain `NUMOBS_MORE` if
+        this isn't the first time through MTL and `NUMOBS > 0`.
     obscon : :class:`str`
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
@@ -425,8 +425,8 @@ def calc_numobs_more(targets, zcat, obscon):
           of 1 in bright time and QSO "tracer" targets which always get
           NUMOBS_MORE=0 in dark time.
     """
-    # ADM check the input arrays are the same length.
-    assert len(targets) == len(zcat)
+    # ADM check input arrays are sorted to match row-by-row on TARGETID.
+    assert np.all(targets["TARGETID"] == zcat["TARGETID"])
 
     # ADM determine whether the input targets are main survey, cmx or SV.
     colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
@@ -483,12 +483,12 @@ def calc_priority(targets, zcat, obscon):
     targets : :class:`~numpy.ndarray`
         numpy structured array or astropy Table of targets. Must include
         the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`
-        (or their SV/cmx equivalents).
+        (or their SV/cmx equivalents) and `TARGETID`.
     zcat : :class:`~numpy.ndarray`
-        numpy structured array or Table of redshift information. Must
-        include 'Z', `ZWARN`, `NUMOBS` and be the same length as
-        `targets`. May also contain `NUMOBS_MORE` if this isn't the
-        first time through MTL and `NUMOBS > 0`.
+        numpy structured array or Table of redshift info. Must include
+        `Z`, `ZWARN`, `NUMOBS` and `TARGETID` and BE SORTED ON TARGETID
+        to match `targets` row-by-row. May also contain `NUMOBS_MORE` if
+        this isn't the first time through MTL and `NUMOBS > 0`.
     obscon : :class:`str`
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
@@ -506,8 +506,8 @@ def calc_priority(targets, zcat, obscon):
         - Will automatically detect if the passed targets are main
           survey, commissioning or SV and behave accordingly.
     """
-    # ADM check the input arrays are the same length.
-    assert len(targets) == len(zcat)
+    # ADM check input arrays are sorted to match row-by-row on TARGETID.
+    assert np.all(targets["TARGETID"] == zcat["TARGETID"])
 
     # ADM determine whether the input targets are main survey, cmx or SV.
     colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
