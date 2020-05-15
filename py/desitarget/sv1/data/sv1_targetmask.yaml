@@ -367,7 +367,7 @@ priorities:
         # Other SV special targets
         MWS_SPECIAL_DWARF_SV:                {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_SPECIAL_DDOGIANTS_SV:            SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_WDBINARY_SV:             {UNOBS: 1451, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_WDBINARY_SV:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_SPECIAL_CV_SV:                   SAME_AS_MWS_SPECIAL_WDBINARY_SV
         MWS_SPECIAL_RRLYR_SV:                SAME_AS_MWS_SPECIAL_DWARF_SV
         MWS_SPECIAL_GC_SV:                   SAME_AS_MWS_SPECIAL_DWARF_SV
