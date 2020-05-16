@@ -1126,6 +1126,66 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     return nrands, filename
 
 
+def is_sky_dir_official(skydirname):
+    """Check a sky file or directory has the correct HEALPixel structure.
+
+    Parameters
+    ----------
+    skydirname : :class:`str`
+        Full path to either a directory containing skies that have been
+        partitioned by HEALPixel (i.e. as made by `select_skies` with the
+        `bundle_files` option). Or the name of a single file of skies.
+
+    Returns
+    -------
+    :class:`bool`
+        ``True`` if the passed sky file or (the first sky file in the
+        passed directory) is structured so that the list of healpixels in
+        the file header ("FILEHPX") at the file nside ("FILENSID") in the
+        file nested (or ring) scheme ("FILENEST") is a true reflection of
+        the HEALPixels in the file.
+    :class:`int`
+        The nside that is recorded in the file header.
+    :class:`list`
+        The HEALPixels that are recorded in the file header.
+    :class:`list`
+        The HEALPixels that are actually covered by the file at the nside
+        that is recorded in the file header.
+
+    Notes
+    -----
+        - A necessary check because although the targets and GFAs are
+          parallelized to run in the exact boundaries of HEALPixels, the
+          skies are parallelized across bricks that have CENTERS in a
+          given HEALPixel.
+        - If this function returns ``False`` the remedy is typically to
+          run `bin/repartition_skies`
+        - If a directory is passed, this isn't an exhaustive check as
+          only the first file is tested. That's enough for just checking
+          the output of `select_skies`, though.
+    """
+    # ADM if skydirname is a directory, just work with one file.
+    if os.path.isdir(skydirname):
+        gen = iglob(os.path.join(skydirname, '*fits'))
+        skydirname = next(gen)
+
+    # ADM read the locations from the file and grab the header.
+    data, hdr = read_target_files(skydirname, columns=["RA", "DEC"],
+                                  header=True, verbose=False)
+
+    # ADM determine which HEALPixels are in the file.
+    nside = hdr["FILENSID"]
+    theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+    spixinfile = set(hp.ang2pix(nside, theta, phi, nest=hdr["FILENEST"]))
+
+    # ADM determine which HEALPixels are in the header.
+    hdrpix = hdr["FILEHPX"]
+    if isinstance(hdrpix, int):
+        hdrpix = [hdrpix]
+
+    return spixinfile == set(hdrpix), nside, hdrpix, list(spixinfile)
+
+
 def iter_files(root, prefix, ext='fits'):
     """Iterator over files under in `root` directory with given `prefix` and
     extension.
