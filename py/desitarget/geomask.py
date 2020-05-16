@@ -809,8 +809,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                     region)) for outfile in outfiles]
                 print("")
                 print(
-                    "gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
-                        ";".join(routfiles), prefix, drstr,
+                    "gather_targets '{}' $CSCRATCH/{}/{}{}{}.fits {}".format(
+                        ";".join(routfiles), prefix, region, prefix, drstr,
                         prefix2.split("_")[-1]))
         else:
             print("gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
@@ -863,7 +863,7 @@ def add_hp_neighbors(nside, pixnum):
     return pixnum
 
 
-def brick_names_touch_hp(nside, numproc=1):
+def brick_names_touch_hp(nside, numproc=1, fact=2**20):
     """Determine which of a set of brick names touch a set of HEALPixels.
 
     Parameters
@@ -872,6 +872,8 @@ def brick_names_touch_hp(nside, numproc=1):
         (NESTED) HEALPixel nside.
     numproc : :class:`int`, optional, defaults to 1
         The number of parallel processes to use.
+    fact : :class:`int`, optional defaults to 2**20
+        see documentation for `healpy.query_polygon()`.
 
     Returns
     -------
@@ -883,8 +885,10 @@ def brick_names_touch_hp(nside, numproc=1):
 
     Notes
     -----
-        - Runs in about 65 (10) seconds for numproc=1 (32) at nside=2.
-        - Runs in about 325 (20) seconds for numproc=1 (32) at nside=64.
+        - Runs in ~65 (10) secs for numproc=1 (32) at nside=2 (fact=4).
+        - Runs in ~325 (20) secs for numproc=1 (32) at nside=64 (fact=4).
+        - Takes ~2x as long at the default fact=2**20 compared to fact=4,
+          but fact=2**20 returns far fewer bricks for small `nside`.
     """
     t0 = time()
     # ADM grab the standard table of bricks.
@@ -895,7 +899,7 @@ def brick_names_touch_hp(nside, numproc=1):
         a look-up dictionary of which pixels touch each brick"""
 
         lookupdict = {bt["BRICKNAME"]: hp_in_box(
-            nside, [bt["RA1"], bt["RA2"], bt["DEC1"], bt["DEC2"]]
+            nside, [bt["RA1"], bt["RA2"], bt["DEC1"], bt["DEC2"]], fact=fact
         ) for bt in bricktable[indexes]}
 
         return lookupdict
@@ -1010,14 +1014,14 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
           defines the range as that with the smallest area (i.e the box
           can wrap-around in RA). To avoid any ambiguity, this function
           will only limit by the passed Decs in such cases.
-        - Only strictly correct for Decs from -90+1e-5(o) to 90-1e5(o).
+        - Only strictly correct for Decs from -90+1e-3(o) to 90-1e3(o).
     """
     ramin, ramax, decmin, decmax = radecbox
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
     if np.abs(ramax-ramin) <= 180.:
-        # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
-        npole, spole = 90-1e-5, -90+1e-5
+        # ADM retrieve RA range. The 1e-3 prevents edge effects near poles.
+        npole, spole = 90-1e-3, -90+1e-3
         # ADM convert RA/Dec to co-latitude and longitude in radians.
         rapairs = np.array([ramin, ramin, ramax, ramax])
         decpairs = np.array([spole, npole, npole, spole])
