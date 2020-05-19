@@ -1144,13 +1144,6 @@ def is_sky_dir_official(skydirname):
         the file header ("FILEHPX") at the file nside ("FILENSID") in the
         file nested (or ring) scheme ("FILENEST") is a true reflection of
         the HEALPixels in the file.
-    :class:`int`
-        The nside that is recorded in the file header.
-    :class:`list`
-        The HEALPixels that are recorded in the file header.
-    :class:`list`
-        The HEALPixels that are actually covered by the file at the nside
-        that is recorded in the file header.
 
     Notes
     -----
@@ -1174,16 +1167,15 @@ def is_sky_dir_official(skydirname):
                                   header=True, verbose=False)
 
     # ADM determine which HEALPixels are in the file.
-    nside = hdr["FILENSID"]
     theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
-    spixinfile = set(hp.ang2pix(nside, theta, phi, nest=hdr["FILENEST"]))
+    pixinfile = hp.ang2pix(hdr["FILENSID"], theta, phi, nest=hdr["FILENEST"])
 
     # ADM determine which HEALPixels are in the header.
     hdrpix = hdr["FILEHPX"]
     if isinstance(hdrpix, int):
         hdrpix = [hdrpix]
 
-    return spixinfile == set(hdrpix), nside, hdrpix, list(spixinfile)
+    return set(pixinfile) == set(hdrpix)
 
 
 def iter_files(root, prefix, ext='fits'):
@@ -2234,8 +2226,12 @@ def read_targets_header(hpdirname):
         of the first file encountered in `hpdirname`
     """
     if os.path.isdir(hpdirname):
-        gen = iglob(os.path.join(hpdirname, '*fits'))
-        hpdirname = next(gen)
+        try:
+            gen = iglob(os.path.join(hpdirname, '*fits'))
+            hpdirname = next(gen)
+        except StopIteration:
+            msg = "couldn't find any FITS files in {}...".format(hpdirname)
+            log.info(msg)
 
     # ADM rows=[0] here, speeds up read_target_files retrieval
     # ADM of the header.

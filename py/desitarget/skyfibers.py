@@ -26,7 +26,7 @@ from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import finalize
-from desitarget.io import brickname_from_filename
+from desitarget import io
 from desitarget.gaiamatch import find_gaia_files
 from desitarget.geomask import is_in_gal_box, is_in_circle, is_in_hp
 
@@ -113,7 +113,8 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
         else:
             # ADM hack for test bricks where we don't generate the bricks file.
             fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
-            bricknames.append([brickname_from_filename(fn) for fn in fns])
+            bricknames.append([io.brickname_from_filename(fn)
+                               for fn in fns])
 
     # ADM don't count bricks twice, but record number of duplicate bricks.
     bricknames, cnts = np.unique(np.concatenate(bricknames), return_counts=True)
@@ -737,6 +738,91 @@ def plot_good_bad_skies(survey, brickname, skies,
     outplotname = '{}/skies-{}-{}.png'.format(outplotdir, brickname, bandstr)
     log.info("Writing plot to {}".format(outplotname))
     plt.savefig(outplotname)
+
+
+def repartition_skies(skydirname):
+    """Rewrite sky directory so files contain HEALPixels in their headers
+
+    Parameters
+    ----------
+    skydirname : :class:`str`
+        Full path to a directory containing files of skies that have been
+        partitioned by HEALPixel (i.e. as made by `select_skies` with the
+        `bundle_files` option).
+
+    Returns
+    -------
+    Nothing, but rewrites the input directory such that each file only
+    contains the HEALPixels listed in the file header.
+
+    Notes
+    -----
+        - Necessary as although the targets and GFAs are parallelized
+          to run in exact HEALPixel boundaries, skies are parallelized
+          across bricks that have CENTERS in a given HEALPixel.
+        - The original files, before the rewrite, are retained in the
+          original directory, appended by "-unpartitioned".
+    """
+    # ADM grab the typical file header in the passed directory.
+    hdr = io.read_targets_header(skydirname)
+
+    # ADM grab the typical nside for files in the passed directory.
+    nside = hdr["FILENSID"]
+    npix = np.arange(hp.nside2npix(nside))
+
+    # ADM grab the Data Release number for files in the passed directory.
+    depdict = {k: v for k, v in zip(
+        [hdr[key].rstrip() for key in hdr if 'DEPNAM' in key],
+        [hdr[key].rstrip() for key in hdr if 'DEPVER' in key])}
+    drint = depdict['photcat'].lstrip("dr")
+
+    # ADM each element of this array will be a HEALPixel, each HEALPixel
+    # ADM will contain a dictionary with file names as keys and arrays of
+    # ADM which rows of the file are in the HEALPixel as values.
+    pixorderdict = [{} for pix in npix]
+
+    # ADM loop over the files in the sky directory and build the info.
+    skyfiles = glob(os.path.join(skydirname, '*fits'))
+    for skyfile in skyfiles:
+        # ADM rename the sky file so as not to overwrite.
+        sfnewname = skyfile+"-unpartitioned"
+        os.rename(skyfile, sfnewname)
+        data, hdr = io.read_target_files(sfnewname, columns=["RA", "DEC"],
+                                         header=True, verbose=False)
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        pixinfile = hp.ang2pix(nside, theta, phi, nest=hdr["FILENEST"])
+        spixinfile = set(pixinfile)
+        for pix in spixinfile:
+            pixorderdict[pix][sfnewname] = np.where(pixinfile == pix)[0]
+        log.info("Read from (file NOW called) {}...t={:.1f}s".format(
+            sfnewname, time()-start))
+
+    # ADM now we've assembled the dictionary, write the files back out
+    # ADM with the correct partitioning by HEALPixel.
+    for pix in npix:
+        skies = []
+        if len(pixorderdict[pix]) > 0:
+            for fn in pixorderdict[pix]:
+                skies.append(fitsio.read(fn, rows=pixorderdict[pix][fn]))
+            skies = np.concatenate(skies)
+            # ADM the header entry corresponding to the pixel number
+            # ADM needs to be updated.
+            hdr.delete("FILEHPX")
+            hdr['FILEHPX'] = pix
+
+            # ADM get the appropriate file name and write out.
+            outfile = io.find_target_files(skydirname, drint, flavor="skies",
+                                           hp=pix, nside=nside)
+            # ADM file likely been through find_target_files() already.
+            outfile = outfile.replace("skies/skies", "skies")
+            fitsio.write(outfile+'.tmp', skies, extname='SKY_TARGETS',
+                         header=hdr, clobber=True)
+            os.rename(outfile+'.tmp', outfile)
+
+            log.info('{} skies written to {}...t={:.1f}s'.format(
+                len(skies), outfile, time()-start))
+
+    return
 
 
 def get_supp_skies(ras, decs, radius=2.):
