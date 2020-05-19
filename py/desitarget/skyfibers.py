@@ -740,7 +740,7 @@ def plot_good_bad_skies(survey, brickname, skies,
     plt.savefig(outplotname)
 
 
-def repartition_skies(skydirname):
+def repartition_skies(skydirname, numproc=1):
     """Rewrite sky directory so files contain HEALPixels in their headers
 
     Parameters
@@ -749,6 +749,8 @@ def repartition_skies(skydirname):
         Full path to a directory containing files of skies that have been
         partitioned by HEALPixel (i.e. as made by `select_skies` with the
         `bundle_files` option).
+    numproc : :class:`int`, optional, defaults to 1
+        The number of processes over which to parallelize writing files.
 
     Returns
     -------
@@ -762,13 +764,16 @@ def repartition_skies(skydirname):
           across bricks that have CENTERS in a given HEALPixel.
         - The original files, before the rewrite, are retained in the
           original directory, appended by "-unpartitioned".
+        - Takes about 40 (10, 7, 5) minutes for numproc=1 (8, 16, 32).
     """
+    log.info("running on {} processors".format(numproc))
+
     # ADM grab the typical file header in the passed directory.
     hdr = io.read_targets_header(skydirname)
 
     # ADM grab the typical nside for files in the passed directory.
     nside = hdr["FILENSID"]
-    npix = np.arange(hp.nside2npix(nside))
+    hps = np.arange(hp.nside2npix(nside))
 
     # ADM grab the Data Release number for files in the passed directory.
     depdict = {k: v for k, v in zip(
@@ -779,7 +784,7 @@ def repartition_skies(skydirname):
     # ADM each element of this array will be a HEALPixel, each HEALPixel
     # ADM will contain a dictionary with file names as keys and arrays of
     # ADM which rows of the file are in the HEALPixel as values.
-    pixorderdict = [{} for pix in npix]
+    pixorderdict = [{} for pix in hps]
 
     # ADM loop over the files in the sky directory and build the info.
     skyfiles = glob(os.path.join(skydirname, '*fits'))
@@ -797,30 +802,44 @@ def repartition_skies(skydirname):
         log.info("Read from (file NOW called) {}...t={:.1f}s".format(
             sfnewname, time()-start))
 
-    # ADM now we've assembled the dictionary, write the files back out
-    # ADM with the correct partitioning by HEALPixel.
-    for pix in npix:
-        skies = []
-        if len(pixorderdict[pix]) > 0:
-            for fn in pixorderdict[pix]:
-                skies.append(fitsio.read(fn, rows=pixorderdict[pix][fn]))
-            skies = np.concatenate(skies)
-            # ADM the header entry corresponding to the pixel number
-            # ADM needs to be updated.
-            hdr.delete("FILEHPX")
-            hdr['FILEHPX'] = pix
+    def _write_hp_skies(healpixels):
+        """Use pixorderdict to write files partitioned by HEALPixel.
+        """
+        for pix in healpixels:
+            skies = []
+            if len(pixorderdict[pix]) > 0:
+                for fn in pixorderdict[pix]:
+                    skies.append(fitsio.read(fn, rows=pixorderdict[pix][fn]))
+                skies = np.concatenate(skies)
+                # ADM the header entry corresponding to the pixel number
+                # ADM needs to be updated.
+                hdr.delete("FILEHPX")
+                hdr['FILEHPX'] = pix
 
-            # ADM get the appropriate file name and write out.
-            outfile = io.find_target_files(skydirname, drint, flavor="skies",
-                                           hp=pix, nside=nside)
-            # ADM file likely been through find_target_files() already.
-            outfile = outfile.replace("skies/skies", "skies")
-            fitsio.write(outfile+'.tmp', skies, extname='SKY_TARGETS',
-                         header=hdr, clobber=True)
-            os.rename(outfile+'.tmp', outfile)
+                # ADM get the appropriate file name and write out.
+                outfile = io.find_target_files(skydirname, drint, flavor="skies",
+                                                hp=pix, nside=nside)
+                # ADM the file name has likely been passed through
+                # ADM find_target_files() already (which adds "/skies").
+                outfile = outfile.replace("skies/skies", "skies")
+                fitsio.write(outfile+'.tmp', skies, extname='SKY_TARGETS',
+                             header=hdr, clobber=True)
+                os.rename(outfile+'.tmp', outfile)
+                log.info('{} skies written to {}...t={:.1f}s'.format(
+                    len(skies), outfile, time()-start))
 
-            log.info('{} skies written to {}...t={:.1f}s'.format(
-                len(skies), outfile, time()-start))
+        return
+
+    # ADM split the pixels up into blocks of arrays to parallelize.
+    hpsplit = np.array_split(hps, numproc)
+
+    # ADM Parallel process writing of HEALPixel-partitioned files.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            skies = pool.map(_write_hp_skies, hpsplit)
+    else:
+            _write_hp_skies(hpsplit[0])
 
     return
 
