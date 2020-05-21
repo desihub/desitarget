@@ -764,12 +764,17 @@ def repartition_skies(skydirname, numproc=1):
           across bricks that have CENTERS in a given HEALPixel.
         - The original files, before the rewrite, are retained in the
           original directory, appended by "-unpartitioned".
-        - Takes about 40 (10, 7, 5) minutes for numproc=1 (8, 16, 32).
+        - Takes about 35 (6.5, 5, 3.5) minutes for numproc=1 (8, 16, 32).
     """
     log.info("running on {} processors".format(numproc))
 
     # ADM grab the typical file header in the passed directory.
     hdr = io.read_targets_header(skydirname)
+    # ADM remove the "standard" FITS header keys.
+    protected = ["TFORM", "TTYPE", "EXTNAME", "XTENSION", "BITPIX", "NAXIS",
+                 "PCOUNT", "GCOUNT", "TFIELDS"]
+    hdrdict = {key: hdr[key] for key in hdr.keys()
+               if not np.any([prot in key for prot in protected])}
 
     # ADM grab the typical nside for files in the passed directory.
     nside = hdr["FILENSID"]
@@ -806,6 +811,8 @@ def repartition_skies(skydirname, numproc=1):
         """Use pixorderdict to write files partitioned by HEALPixel.
         """
         for pix in healpixels:
+            # ADM copy the header to avoid race conditions.
+            newhdr = hdrdict.copy()
             skies = []
             if len(pixorderdict[pix]) > 0:
                 for fn in pixorderdict[pix]:
@@ -813,21 +820,19 @@ def repartition_skies(skydirname, numproc=1):
                 skies = np.concatenate(skies)
                 # ADM the header entry corresponding to the pixel number
                 # ADM needs to be updated.
-                hdr.delete("FILEHPX")
-                hdr['FILEHPX'] = pix
+                newhdr['FILEHPX'] = pix
 
                 # ADM get the appropriate file name and write out.
                 outfile = io.find_target_files(skydirname, drint, flavor="skies",
-                                                hp=pix, nside=nside)
+                                               hp=pix, nside=nside)
                 # ADM the file name has likely been passed through
                 # ADM find_target_files() already (which adds "/skies").
                 outfile = outfile.replace("skies/skies", "skies")
                 fitsio.write(outfile+'.tmp', skies, extname='SKY_TARGETS',
-                             header=hdr, clobber=True)
+                             header=newhdr, clobber=True)
                 os.rename(outfile+'.tmp', outfile)
                 log.info('{} skies written to {}...t={:.1f}s'.format(
                     len(skies), outfile, time()-start))
-
         return
 
     # ADM split the pixels up into blocks of arrays to parallelize.
