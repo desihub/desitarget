@@ -1959,8 +1959,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the box.
         fn0 = list(filedict.values())[0]
-        notargs, nohdr = read_target_files(fn0, columns=columnscopy,
-                                           header=True, downsample=downsample)
+        notargs, nohdr = read_target_files(
+            fn0, columns=columnscopy, rows=0, header=True,
+            downsample=downsample, verbose=False)
         notargs = np.zeros(0, dtype=notargs.dtype)
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -1995,7 +1996,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
     # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    if len(addedcols) > 0:
+        targets = rfn.drop_fields(targets[ii], addedcols)
 
     if header:
         return targets, hdr
