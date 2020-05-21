@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from desitarget.skyfibers import supp_skies, density_of_sky_fibers
+from desitarget.skyfibers import supplement_skies, density_of_sky_fibers
 from desitarget import io
 from desitarget.geomask import bundle_bricks
 
@@ -103,10 +103,10 @@ if pixlist is not None:
 # ADM only proceed if we're not writing a slurm script.
 if ns.bundlefiles is None:
     # ADM generate the supplemental sky locations.
-    skies = supp_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
-                       gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
-                       pixlist=pixlist, mindec=ns.mindec,
-                       mingalb=ns.mingalb)
+    skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
+                             gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
+                             pixlist=pixlist, mindec=ns.mindec,
+                             mingalb=ns.mingalb)
 
     # ADM extra header keywords for the output fits file.
     extra = {k: v for k, v in zip(["radius", "mindec", "mingalb"],
