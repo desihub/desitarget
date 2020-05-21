@@ -741,7 +741,8 @@ def plot_good_bad_skies(survey, brickname, skies,
 
 
 def repartition_skies(skydirname, numproc=1):
-    """Rewrite sky directory so files contain HEALPixels in their headers
+    """Rewrite a skies directory so each file actually only contains sky
+    locations in the HEALPixels that are listed in the file header.
 
     Parameters
     ----------
@@ -764,7 +765,7 @@ def repartition_skies(skydirname, numproc=1):
           across bricks that have CENTERS in a given HEALPixel.
         - The original files, before the rewrite, are retained in the
           original directory, appended by "-unpartitioned".
-        - Takes about 35 (6.5, 5, 3.5) minutes for numproc=1 (8, 16, 32).
+        - Takes about 25 (6.5, 5, 3.5) minutes for numproc=1 (8, 16, 32).
     """
     log.info("running on {} processors".format(numproc))
 

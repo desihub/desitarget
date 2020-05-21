@@ -1,0 +1,21 @@
+#!/usr/bin/env python
+
+from desitarget.skyfibers import repartition_skies
+
+import multiprocessing
+nproc = multiprocessing.cpu_count() // 2
+
+#import warnings
+#warnings.simplefilter('error')
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Rewrite a skies directory so each file actually only contains sky locations in the HEALPixels that are listed in the file header.')
+ap.add_argument("skydirname",
+                help="Full path to a directory containing files of skies that have been partitioned by HEALPixel (i.e. as made by `select_skies` with the `bundle_files` option).")
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use [defaults to {}]'.format(nproc),
+                default=nproc)
+
+ns = ap.parse_args()
+
+repartition_skies(ns.skydirname, numproc=ns.numproc)
