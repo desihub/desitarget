@@ -1491,3 +1491,48 @@ def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
         return idmatchto[ii], idobjs[ii], d2d[ii].arcsec
 
     return idmatchto[ii], idobjs[ii]
+
+
+def shares_hp(nside, objs1, objs2, radec=False):
+    """Check if arrays of objects occupy the same HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        HEALPixel nside integer (NESTED scheme).
+    objs1 : :class:`~numpy.ndarray` or `list`
+        First set of objects. Must include columns "RA" and "DEC".
+    objs : :class:`~numpy.ndarray` or `list`
+        Second set of objects. Must include "RA" and "DEC".
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then `objs1` and `objs2` are [RA, Dec] lists
+        instead of rec arrays.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` (of booleans)
+        ``True`` for objects in `objs1` that share a HEALPixel with
+         objects in ``objs2`` at `nside`. Same length as `objs1`
+    :class:`~numpy.ndarray` (of booleans)
+        ``True`` for objects in `objs2` that share a HEALPixel with
+         objects in ``objs1`` at `nside`. Same length as `objs2`
+    """
+    if radec:
+        ra1, dec1 = objs1
+        ra2, dec2 = objs2
+    else:
+        ra1, dec1 = objs1["RA"], objs1["DEC"]
+        ra2, dec2 = objs2["RA"], objs2["DEC"]
+
+    theta1, phi1 = np.radians(90-dec1), np.radians(ra1)
+    pix1 = hp.ang2pix(nside, theta1, phi1, nest=True)
+    spix1 = set(pix1)
+
+    theta2, phi2 = np.radians(90-dec2), np.radians(ra2)
+    pix2 = hp.ang2pix(nside, theta2, phi2, nest=True)
+    spix2 = set(pix2)
+
+    one = np.array([pix in spix2 for pix in pix1])
+    two = np.array([pix in spix1 for pix in pix2])
+
+    return one, two
