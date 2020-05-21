@@ -902,9 +902,9 @@ def get_supp_skies(ras, decs, radius=2.):
     return supsky
 
 
-def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
-                     nside=None, pixlist=None, mindec=-30., mingalb=10.,
-                     radius=2.):
+def supp_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
+               nside=None, pixlist=None, mindec=-30., mingalb=10.,
+               radius=2.):
     """Generate supplemental sky locations using Gaia-G-band avoidance.
 
     Parameters
