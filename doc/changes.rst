@@ -5,6 +5,17 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
+* Repartition sky files so skies lie in HEALPix boundaries [`PR #621`_]:
+    * Previously, unlike other target classes, skies were written such
+      that the *brick centers* in which they were processed, rather
+      than the sky locations themselves, lay within given HEALPixels.
+    * :func:`is_sky_dir_official` now checks skies are partitioned right.
+    * `bin/repartition_skies` now reassigns skies to correct HEALPixels.
+    * In addition, also includes:
+        * Significant (5-10x) speed-ups in :func:`read_targets_in_hp`.
+        * Remove supplemental skies that are near existing sky locations.
+          (which addresses `issue #534`_).
+        * A handful of more minor fixes and speed-ups.
 * `NUMOBS_MORE` for tracer QSOs that are also other targets [`PR #617`_]:
     * Separate the calculation of `NUMOBS_MORE` into its own function.
     * Consistently use `zcut` = 2.1 to define Lyman-Alpha QSOs.
@@ -17,10 +28,12 @@ desitarget Change Log
 * Recognize (and skip) existing (completed) healpixels when running
   `select_mock_targets` [`PR #591`_].
 
+.. _`issue #534`: https://github.com/desihub/desitarget/issues/534
 .. _`PR #591`: https://github.com/desihub/desitarget/pull/591
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 .. _`PR #617`: https://github.com/desihub/desitarget/pull/617
+.. _`PR #621`: https://github.com/desihub/desitarget/pull/621
 
 0.39.0 (2020-05-01)
 -------------------
