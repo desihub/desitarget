@@ -2,7 +2,7 @@
 
 from desitarget.skyfibers import supplement_skies, density_of_sky_fibers
 from desitarget import io
-from desitarget.geomask import bundle_bricks
+from desitarget.geomask import bundle_bricks, shares_hp, pixarea2nside
 
 import os, sys
 import numpy as np
@@ -24,6 +24,8 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate supplemental sky locations using Gaia-G-band avoidance (for regions beyond the Legacy Surveys) while also NOT generating supplemental skies near an existing sky location')
+ap.add_argument("skydir",
+                help="Full path to the directory of skies to supplement. Skies in this directory must have the same HEALPixel nside, and number of sky locations per sq. deg. in their header (note that those quantities have to passed anyway, as supplemental skies in some pixels are outside of the Legacy surveys footprint, so won't have a corresponding skies file)")
 ap.add_argument("dest",
                 help="Output supplemental sky targets directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--nskiespersqdeg", type=float,
@@ -57,6 +59,15 @@ ap.add_argument("--radius", type=float,
 
 ns = ap.parse_args()
 
+# ADM check the input sky file is in the "official" format.
+official = io.is_sky_dir_official(ns.skydir)
+if not official:
+    msg = "Files in input sky directory ({}) not in official format!!!".format(
+        ns.skydir)
+    msg += " The remedy is typically to run bin/repartition_skies"
+    log.critical(msg)
+    raise ValueError
+
 if ns.bundlefiles is not None:
     # ADM a check that nside isn't too large for RELEASE numbers < 1000.
     if hp.nside2npix(ns.nside) >= 1000:
@@ -88,31 +99,53 @@ nsdict = vars(ns)
 for nskey in "mindec", "mingalb", "radius":
     extra += " --{} {}".format(nskey, nsdict[nskey])
 
-# ADM parse the list of HEALPixels in which to run.
-pixlist = ns.healpixels
-if pixlist is not None:
-    pixlist = [int(pix) for pix in pixlist.split(',')]
-    # ADM if splitting by HEALPixels they will be used to set
-    # ADM RELEASE. Check this won't produce duplicate TARGETIDs.
-    if pixlist[0] >= 1000:
-        msg = "First entry in pixlist ({}) > 1000. This sets ".format(pixlist[0])
-        msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
-        log.critical(msg)
-        raise IOError
-
 # ADM only proceed if we're not writing a slurm script.
 if ns.bundlefiles is None:
+    # ADM parse the list of HEALPixels in which to run.
+    pixlist = ns.healpixels
+    if pixlist is not None:
+        pixlist = [int(pix) for pix in pixlist.split(',')]
+        # ADM if splitting by HEALPixels they will be used to set
+        # ADM RELEASE. Check this won't produce duplicate TARGETIDs.
+        if pixlist[0] >= 1000:
+            msg = "First entry in pixlist ({}) > 1000. This sets ".format(pixlist[0])
+            msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
+            log.critical(msg)
+            raise ValueError
+
+    # ADM read the locations and the header for skies in this healpixel.
+    skies, hdr = io.read_targets_in_hp(ns.skydir, ns.nside, pixlist,
+                                       columns=["RA", "DEC"], header=True)
+
+    # ADM check passed quantities for supp_skies are consistent with skies.
+    msg = ""
+    if hdr["NPERSDEG"] != nskiespersqdeg:
+        msg += "num/sq. deg. differs: sky files ({}), supp_skies ({})".format(
+            hdr["NPERSDEG"], nskiespersqdeg)
+    if hdr["FILENSID"] != ns.nside:
+        msg += " nside differs: sky files ({}), supp_skies ({})".format(
+            hdr["FILENSID"], ns.nside)
+    if len(msg) > 0:
+        log.critical(msg)
+        raise ValueError
+
     # ADM generate the supplemental sky locations.
-    skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
-                             gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
-                             pixlist=pixlist, mindec=ns.mindec,
-                             mingalb=ns.mingalb)
+    supp_skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
+                                  gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
+                                  pixlist=pixlist, mindec=ns.mindec,
+                                  mingalb=ns.mingalb)
+
+    # ADM remove supplemental skies that share HEALPixels with skies.
+    nside_resol = pixarea2nside(1./18000)//2
+    ii, _ = shares_hp(nside_resol, supp_skies, skies)
+    supp_skies = supp_skies[~ii]
+    log.info("Removed {} supp skies that matched skies".format(np.sum(ii)))
 
     # ADM extra header keywords for the output fits file.
     extra = {k: v for k, v in zip(["radius", "mindec", "mingalb"],
                                   [ns.radius, ns.mindec, ns.mingalb])}
 
-    nskies, outfile = io.write_skies(ns.dest, skies, supp=True, indir=gaiadir,
+    nskies, outfile = io.write_skies(ns.dest, supp_skies, supp=True, indir=gaiadir,
                                      nside=nside, nskiespersqdeg=nskiespersqdeg,
                                      extra=extra, nsidefile=ns.nside,
                                      hpxlist=pixlist)
@@ -121,4 +154,4 @@ if ns.bundlefiles is None:
 else:
     # ADM if the bundlefiles option was sent, call the slurming code.
     bundle_bricks([0], ns.bundlefiles, ns.nside, gather=False,
-                  prefix='supp-skies', surveydirs=" ", extra=extra)
+                  prefix='supp-skies', surveydirs=[ns.skydir], extra=extra)
