@@ -5,6 +5,15 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
+* Various updates to targeting bits and MTL [`PR #619`_]. Includes:
+    * Don't select any BGS_WISE targets in the Main Survey.
+    * Always set BGS targets with a ZWARN > 0 to a priority of DONE.
+    * Add an informational bit for QSOs selected with the high-z RF
+      (addresses `issue #349`_).
+    * MWS targets should drop to a priority of DONE after one observation
+      (but will always be higher priority than BGS for that observation).
+    * Update the default priorities for reobserving Lyman-alpha QSOs
+      (as described in `issue #486`_, which this addresses).
 * `NUMOBS_MORE` for tracer QSOs that are also other targets [`PR #617`_]:
     * Separate the calculation of `NUMOBS_MORE` into its own function.
     * Consistently use `zcut` = 2.1 to define Lyman-Alpha QSOs.
@@ -17,10 +26,13 @@ desitarget Change Log
 * Recognize (and skip) existing (completed) healpixels when running
   `select_mock_targets` [`PR #591`_].
 
+.. _`issue #349`: https://github.com/desihub/desitarget/issues/349
+.. _`issue #486`: https://github.com/desihub/desitarget/issues/486
 .. _`PR #591`: https://github.com/desihub/desitarget/pull/591
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 .. _`PR #617`: https://github.com/desihub/desitarget/pull/617
+.. _`PR #619`: https://github.com/desihub/desitarget/pull/619
 
 0.39.0 (2020-05-01)
 -------------------
@@ -40,13 +52,6 @@ desitarget Change Log
 -------------------
 
 * Minor updates for latest DR9 imaging versions (dr9f/dr9g) [`PR #607`_].
-* Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
-* Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
-* Separate calc_priority() for CMX into a separate function [`PR #601`_].
-* Alter cmx targetmask such that obsconditions can be used to work
-  around MWS/BGS conflicts on MWS CMX tiles [`PR #601`_].
-* Update test_priorities() for new MWS CMX targets scheme [`PR #601`_].
-* Adds SV0_MWS_FAINT bit [`PR #601`_].
 * Extra columns and features in the random catalogs [`PR #606`_]:
     * Better error messages and defaults for `bin/supplement_randoms`.
     * Don't calculate APFLUX quantities if aprad=0 is passed.
@@ -57,9 +62,16 @@ desitarget Change Log
     * Also add a realistic `TARGETID` (and `RELEASE, BRICK_OBJID`).
     * Recognize failure modes more quickly (and fail more quickly).
     * Write out both "resolve" and "noresolve" (North/South) catalogs.
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
+* Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
+* Separate calc_priority() for CMX into a separate function [`PR #601`_].
+* Alter cmx targetmask such that obsconditions can be used to work
+  around MWS/BGS conflicts on MWS CMX tiles [`PR #601`_].
+* Update test_priorities() for new MWS CMX targets scheme [`PR #601`_].
+* Adds SV0_MWS_FAINT bit [`PR #601`_].
 
-.. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 .. _`issue #597`: https://github.com/desihub/desitarget/issues/597
+.. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 .. _`PR #606`: https://github.com/desihub/desitarget/pull/606
 .. _`PR #607`: https://github.com/desihub/desitarget/pull/607
 
