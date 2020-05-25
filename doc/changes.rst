@@ -5,6 +5,7 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
+* Add RELEASE for dr9i, dr9j (etc.) of the Legacy Surveys [`PR #622`_].
 * Various updates to targeting bits and MTL [`PR #619`_]. Includes:
     * Don't select any BGS_WISE targets in the Main Survey.
     * Always set BGS targets with a ZWARN > 0 to a priority of DONE.
@@ -33,6 +34,7 @@ desitarget Change Log
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 .. _`PR #617`: https://github.com/desihub/desitarget/pull/617
 .. _`PR #619`: https://github.com/desihub/desitarget/pull/619
+.. _`PR #622`: https://github.com/desihub/desitarget/pull/622
 
 0.39.0 (2020-05-01)
 -------------------
