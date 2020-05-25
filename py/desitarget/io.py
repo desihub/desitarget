@@ -35,7 +35,8 @@ log = get_logger()
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
-               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N'}
+               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
+               9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N'}
 
 # ADM This is an empty array of most of the TS data model columns and
 # ADM dtypes. Note that other columns are added in read_tractor and
