@@ -1473,10 +1473,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         # ADM only northern it will be [False], else it wil be both.
         south_cuts = list(set(photsys_south))
 
+    # ADM default for target classes we WON'T process is all False.
+    tcfalse = primary & False
+
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [[~primary, ~primary, ~primary, ~primary, ~primary],
-                   [~primary, ~primary, ~primary, ~primary, ~primary]]
+    lrg_classes = [[tcfalse, tcfalse, tcfalse, tcfalse, tcfalse],
+                   [tcfalse, tcfalse, tcfalse, tcfalse, tcfalse]]
     if "LRG" in tcnames:
         # ADM run the LRG target types (potentially) for both north and south.
         for south in south_cuts:
@@ -1499,8 +1502,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    elg_classes = [[~primary, ~primary, ~primary, ~primary],
-                   [~primary, ~primary, ~primary, ~primary]]
+    elg_classes = [[tcfalse, tcfalse, tcfalse, tcfalse],
+                   [tcfalse, tcfalse, tcfalse, tcfalse]]
     if "ELG" in tcnames:
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
@@ -1524,8 +1527,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    qso_classes = [[~primary, ~primary, ~primary, ~primary, ~primary],
-                   [~primary, ~primary, ~primary, ~primary, ~primary]]
+    qso_classes = [[tcfalse, tcfalse, tcfalse, tcfalse, tcfalse],
+                   [tcfalse, tcfalse, tcfalse, tcfalse, tcfalse]]
     if "QSO" in tcnames:
         for south in south_cuts:
             qso_store = []
@@ -1542,8 +1545,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             # ADM SV mock selection needs to apply only the color cuts
             # ADM and ignore the Random Forest selections.
             if qso_selection == 'colorcuts':
-                qso_store.append(~primary)
-                qso_store.append(~primary)
+                qso_store.append(tcfalse)
+                qso_store.append(tcfalse)
             else:
                 qso_store.append(
                     isQSO_randomforest(
@@ -1608,8 +1611,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the BGS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    bgs_classes = [[~primary, ~primary, ~primary, ~primary, ~primary],
-                   [~primary, ~primary, ~primary, ~primary, ~primary]]
+    bgs_classes = [[tcfalse, tcfalse, tcfalse, tcfalse, tcfalse],
+                   [tcfalse, tcfalse, tcfalse, tcfalse, tcfalse]]
     if "BGS" in tcnames:
         for south in south_cuts:
             bgs_store = []
@@ -1639,8 +1642,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    mws_classes = [[~primary, ~primary], [~primary, ~primary]]
-    mws_nearby = ~primary
+    mws_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
+    mws_nearby = tcfalse
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
@@ -1663,7 +1666,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM white dwarfs for standards
     # APC Science WDs now enter as secondary targets, so in principle the
     # APC assignment std_wd = mws_wd could be done here rather than below.
-    mws_wd = ~primary
+    mws_wd = tcfalse
     if "MWS" in tcnames or "STD" in tcnames:
         mws_wd = isMWS_WD(
             gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
@@ -1672,10 +1675,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
     else:
-        mws_wd = ~primary
+        mws_wd = tcfalse
 
     # ADM initially set everything to False for the standards.
-    std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
+    std_faint, std_bright, std_wd = tcfalse, tcfalse, tcfalse
     if "STD" in tcnames:
         # ADM run the STD target types for both faint and bright.
         # ADM Make sure to pass all of the needed columns! At one point we stopped
