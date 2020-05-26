@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.39.1 (unreleased)
+0.40.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.40.0 (2020-05-26)
 -------------------
 
 * Add RELEASE for dr9i, dr9j (etc.) of the Legacy Surveys [`PR #622`_].
