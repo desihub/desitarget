@@ -6,6 +6,17 @@ desitarget Change Log
 -------------------
 
 * Add RELEASE for dr9i, dr9j (etc.) of the Legacy Surveys [`PR #622`_].
+* Repartition sky files so skies lie in HEALPix boundaries [`PR #621`_]:
+    * Previously, unlike other target classes, skies were written such
+      that the *brick centers* in which they were processed, rather
+      than the sky locations themselves, lay within given HEALPixels.
+    * :func:`is_sky_dir_official` now checks skies are partitioned right.
+    * `bin/repartition_skies` now reassigns skies to correct HEALPixels.
+    * In addition, also includes:
+        * Significant (5-10x) speed-ups in :func:`read_targets_in_hp`.
+        * Remove supplemental skies that are near existing sky locations.
+          (which addresses `issue #534`_).
+        * A handful of more minor fixes and speed-ups.
 * Various updates to targeting bits and MTL [`PR #619`_]. Includes:
     * Don't select any BGS_WISE targets in the Main Survey.
     * Always set BGS targets with a ZWARN > 0 to a priority of DONE.
@@ -29,11 +40,13 @@ desitarget Change Log
 
 .. _`issue #349`: https://github.com/desihub/desitarget/issues/349
 .. _`issue #486`: https://github.com/desihub/desitarget/issues/486
+.. _`issue #534`: https://github.com/desihub/desitarget/issues/534
 .. _`PR #591`: https://github.com/desihub/desitarget/pull/591
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
 .. _`PR #617`: https://github.com/desihub/desitarget/pull/617
 .. _`PR #619`: https://github.com/desihub/desitarget/pull/619
+.. _`PR #621`: https://github.com/desihub/desitarget/pull/621
 .. _`PR #622`: https://github.com/desihub/desitarget/pull/622
 
 0.39.0 (2020-05-01)
