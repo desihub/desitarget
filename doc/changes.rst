@@ -5,6 +5,7 @@ desitarget Change Log
 0.39.1 (unreleased)
 -------------------
 
+* Add RELEASE for dr9i, dr9j (etc.) of the Legacy Surveys [`PR #622`_].
 * Repartition sky files so skies lie in HEALPix boundaries [`PR #621`_]:
     * Previously, unlike other target classes, skies were written such
       that the *brick centers* in which they were processed, rather
@@ -46,6 +47,7 @@ desitarget Change Log
 .. _`PR #617`: https://github.com/desihub/desitarget/pull/617
 .. _`PR #619`: https://github.com/desihub/desitarget/pull/619
 .. _`PR #621`: https://github.com/desihub/desitarget/pull/621
+.. _`PR #622`: https://github.com/desihub/desitarget/pull/622
 
 0.39.0 (2020-05-01)
 -------------------
