@@ -35,6 +35,7 @@ In .txt files it should be 1 or 0 instead of True/False, and will be
 loaded from the text file as the corresponding Boolean.
 """
 import os
+import re
 import fitsio
 import itertools
 import numpy as np
@@ -558,7 +559,8 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     return targs
 
 
-def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
+def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
+                       darkbright=False):
     """Assign secondary targets a realistic TARGETID, finalize columns.
 
     Parameters
@@ -571,6 +573,10 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
         A mask corresponding to a set of secondary targets, e.g, could
         be ``from desitarget.targetmask import scnd_mask`` for the
         main survey mask.
+    survey : :class:`str`, optional, defaults to "main"
+        string indicating whether we are working in the context of the
+        Main Survey (`main`) or SV (e.g. `sv1`, `sv2` etc.). Used to
+        set the `RELEASE` number in the `TARGETID` (see Notes).
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match secondary targets to
         themselves in ARCSECONDS.
@@ -599,8 +605,11 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
         priority, the first one encountered retains its `PRIORITY_INIT`
         - The secondary `TARGETID` is designed to be reproducible. It
         combines `BRICKID` based on location, `OBJID` based on the
-        order of the target in the secondary file (`SCND_ORDER`) and
-        `RELEASE` from the secondary bit number (`SCND_TARGET`).
+        order of the targets in the secondary file (`SCND_ORDER`) and
+        `RELEASE` from the secondary bit number (`SCND_TARGET`) and the
+        input `survey`. `RELEASE` is set to ((X-1)*100)+np.log2(scnd_bit)
+        with X from the `survey` string survey=svX and scnd_bit from
+        `SCND_TARGET`. For the main survey (survey="main") X-1 is 5.
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
@@ -608,8 +617,25 @@ def finalize_secondary(scxtargs, scnd_mask, sep=1., darkbright=False):
     # ADM get the BRICKIDs for each source.
     brxid = bricks.brickid(scxtargs["RA"], scxtargs["DEC"])
 
+    # ADM ensure unique secondary bits for different iterations of SV
+    # ADM and the Main Survey.
+    if survey == 'main':
+        Xm1 = 5
+    elif survey[0:2] == 'sv':
+        # ADM the re.search just extracts the numbers in the string.
+        Xm1 = int(re.search(r'\d+', survey).group())-1
+        # ADM we've allowed a max of up to sv5 (!). Fail if surpassed.
+        if Xm1 >= 5:
+            msg = "Only coded for up to 'sv5', not {}!!!".format(survey)
+            log.critical(msg)
+            raise ValueError(msg)
+    else:
+        msg = "allowed surveys: 'main', 'svX', not {}!!!".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+
     # ADM the RELEASE for each source is the `SCND_TARGET` bit NUMBER.
-    release = np.log2(scxtargs["SCND_TARGET_INIT"]).astype('int')
+    release = (Xm1*100)+np.log2(scxtargs["SCND_TARGET_INIT"]).astype('int')
 
     # ADM build the OBJIDs based on the values of SCND_ORDER.
     t0 = time()
@@ -794,7 +820,7 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
         if survey == 'sv2':
             from desitarget.sv2.sv2_targetmask import scnd_mask
     elif survey != 'main':
-        msg = "allowed surveys: 'main', 'sv1', 'sv2', not {}!!!".format(survey)
+        msg = "allowed surveys: 'main', 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
@@ -818,7 +844,7 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
 
     log.info("Finalizing secondaries...t={:.1f}m".format((time()-start)/60.))
     # ADM assign TARGETIDs to secondaries that did not match a primary.
-    scxout = finalize_secondary(scxout, scnd_mask,
+    scxout = finalize_secondary(scxout, scnd_mask, survey=survey,
                                 sep=sep, darkbright=darkbright)
 
     return scxout
