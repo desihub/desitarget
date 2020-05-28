@@ -1812,9 +1812,9 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
             prefix = "{}-{}".format(survey, prefix)
         if surv in ["main", "sv"]:
             if not supp and obscon is not None:
-                fn = os.path.join(fn, surv, res, obscon)
+                fn = os.path.join(fn, survey, res, obscon)
             elif obscon is None:
-                fn = os.path.join(fn, surv, res)
+                fn = os.path.join(fn, survey, res)
         else:
             fn = os.path.join(fn, surv)
 
