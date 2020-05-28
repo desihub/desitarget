@@ -23,6 +23,7 @@ import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
 import numpy.lib.recfunctions as rfn
+from importlib import import_module
 
 from astropy.table import Table, Row
 
@@ -2121,19 +2122,27 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
         - Only run on Gaia-only target selections.
         - The environment variable $GAIA_DIR must be set.
 
-    See desitarget.sv1.sv1_targetmask.desi_mask
-    and desitarget.targetmask.desi_mask for bit definitions.
+    See desitarget.svX.svX_targetmask.desi_mask or
+    desitarget.targetmask.desi_mask for bit definitions.
     """
     # ADM set different bits based on whether we're using the main survey
     # code or an iteration of SV.
     if survey == 'main':
         import desitarget.cuts as targcuts
         from desitarget.targetmask import desi_mask, mws_mask
-    elif survey == 'sv1':
-        import desitarget.sv1.sv1_cuts as targcuts
-        from desitarget.sv1.sv1_targetmask import desi_mask, mws_mask
+    elif survey[:2] == 'sv':
+        try:
+            targcuts = import_module("desitarget.{}.{}_cuts".format(survey, survey))
+            targmask = import_module("desitarget.{}.{}_targetmask".format(
+                survey, survey))
+        except ModuleNotFoundError:
+            msg = 'Bitmask yaml or cuts do not exist for survey type {}'.format(
+                survey)
+            log.critical(msg)
+            raise ModuleNotFoundError(msg)
+        desi_mask, mws_mask = targmask.desi_mask, targmask.mws_mask
     else:
-        msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
+        msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
@@ -2283,10 +2292,10 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # code or an iteration of SV.
     if survey == 'main':
         import desitarget.cuts as targcuts
-    elif survey == 'sv1':
-        import desitarget.sv1.sv1_cuts as targcuts
+    elif survey[:2] == 'sv':
+        targcuts = import_module("desitarget.{}.{}_cuts".format(survey, survey))
     else:
-        msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
+        msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 

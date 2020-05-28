@@ -763,7 +763,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     except ValueError:
         drstr = ""
 
-    # ADM to handle inputs that look like "sv1_targets".
+    # ADM to handle inputs that look like "svX_targets".
     prefix2 = prefix
     if prefix[0:2] == "sv":
         prefix2 = "sv_targets"
@@ -789,7 +789,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM check that we won't overwhelm the pixel scheme.
             _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            # ADM the replace is to handle inputs that look like "sv1_targets".
+            # ADM the replace is to handle inputs that look like "svX_targets".
             outfile = "$CSCRATCH/{}/{}{}-hp-{}.fits".format(
                 prefix2, prefix.replace("_", "-"), drstr, strgoodpix)
             # ADM random catalogs have an additional seed in their file name.
@@ -814,7 +814,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                         prefix2.split("_")[-1]))
         else:
             print("gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
-                # ADM prefix2 handles inputs that look like "sv1_targets".
+                # ADM prefix2 handles inputs that look like "svX_targets".
                 ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
         print("")
 

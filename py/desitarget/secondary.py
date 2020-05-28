@@ -49,6 +49,7 @@ from astropy.table import Table, Row
 
 from time import time
 from glob import glob
+from importlib import import_module
 
 from collections import defaultdict
 
@@ -77,7 +78,7 @@ indatamodel = np.array([], dtype=[
 #  OVERRIDE - If True/1 force as a target even if there is a primary.
 #           - If False/0 allow this to be replaced by a primary target.
 #  SCND_TARGET - Corresponds to the bit mask from data/targetmask.yaml
-#                or sv1/data/sv1_targetmask.yaml (scnd_mask).
+#                or svX/data/svX_targetmask.yaml (scnd_mask).
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is < 1000 (before DR1) for secondary-only targets.
 outdatamodel = np.array([], dtype=[
@@ -785,7 +786,7 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
         and secondary targets to recover the unique primary TARGETIDs.
         The first file in this directory should have a header keyword
         SURVEY indicating whether we are working in the context of the
-        Main Survey (`main`) or SV (e.g. `sv1`).
+        Main Survey (`main`) or SV (e.g. `sv1`, `sv2` etc.).
     sep : :class:`float`, defaults to 1 arcsecond
         The separation at which to match in ARCSECONDS.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
@@ -817,11 +818,15 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
 
     # ADM load the correct mask.
     from desitarget.targetmask import scnd_mask
-    if survey[0:2] == 'sv':
-        if survey == 'sv1':
-            from desitarget.sv1.sv1_targetmask import scnd_mask
-        if survey == 'sv2':
-            from desitarget.sv2.sv2_targetmask import scnd_mask
+    if survey[:2] == 'sv':
+        try:
+            targmask = import_module("desitarget.{}.{}_targetmask".format(
+                survey, survey))
+        except ModuleNotFoundError:
+            msg = 'Bitmask yaml does not exist for survey type {}'.format(survey)
+            log.critical(msg)
+            raise ModuleNotFoundError(msg)
+        scnd_mask = targmask.scnd_mask
     elif survey != 'main':
         msg = "allowed surveys: 'main', 'svX', not {}!!!".format(survey)
         log.critical(msg)

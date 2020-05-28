@@ -1036,7 +1036,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
               :func:`desitarget.QA._load_targdens()`. Each column
               contains the target density in the pixel.
     :class:`str`
-        Survey to which `targets` corresponds, e.g., 'main', 'sv1', etc.
+        Survey to which `targets` corresponds, e.g., 'main', 'svX', etc.
 
     Notes
     -----
