@@ -142,15 +142,26 @@ class TestPriorities(unittest.TestCase):
             mws_names = [name for name in mws_mask.names() if 'NORTH' not in name
                          and 'SOUTH' not in name and 'BACKUP' not in name]
 
-            lowest_bgs_priority_zgood = min([bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_names])
+            lowest_mws_priority_unobs = [mws_mask[n].priorities['UNOBS']
+                                         for n in mws_names]
 
-            lowest_mws_priority_unobs = min([mws_mask[n].priorities['UNOBS'] for n in mws_names])
-            lowest_mws_priority_zwarn = min([mws_mask[n].priorities['MORE_ZWARN'] for n in mws_names])
-            lowest_mws_priority_zgood = min([mws_mask[n].priorities['MORE_ZGOOD'] for n in mws_names])
+            lowest_bgs_priority_zgood = np.min(
+                [bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_names])
 
-            lowest_mws_priority = min(lowest_mws_priority_unobs,
-                                      lowest_mws_priority_zwarn,
-                                      lowest_mws_priority_zgood)
+            # ADM MORE_ZGOOD and MORE_ZWARN are only meaningful if a
+            # ADM target class requests more than 1 observation (except
+            # ADM for BGS, which has a numobs=infinity exception)
+            lowest_mws_priority_zwarn = [mws_mask[n].priorities['MORE_ZWARN']
+                                         for n in mws_names
+                                         if mws_mask[n].numobs > 1]
+            lowest_mws_priority_zgood = [mws_mask[n].priorities['MORE_ZGOOD']
+                                         for n in mws_names
+                                         if mws_mask[n].numobs > 1]
+
+            lowest_mws_priority = np.min(np.concatenate([
+                lowest_mws_priority_unobs,
+                lowest_mws_priority_zwarn,
+                lowest_mws_priority_zgood]))
 
             self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
 

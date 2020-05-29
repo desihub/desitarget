@@ -2210,7 +2210,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM Main Survey QSOs.
     # ADM initially set everything to arrays of False for the QSOs
     # ADM the zeroth element stores northern targets bits (south=False).
-    qso_classes = [~primary, ~primary]
+    qso_classes = [[~primary, ~primary], [~primary, ~primary]]
     # ADM don't run quasar cuts if requested, for speed.
     if not noqso:
         for south in south_cuts:
@@ -2220,7 +2220,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
                 maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 objtype=objtype, release=release, south=south
             )
-    qso_north, qso_south = qso_classes
+    qso_north, qso_hiz_north = qso_classes[0]
+    qso_south, qso_hiz_south = qso_classes[1]
+
     # ADM combine QSO target bits for a QSO target based on any imaging.
     mini_sv_qso = (qso_north & photsys_north) | (qso_south & photsys_south)
 

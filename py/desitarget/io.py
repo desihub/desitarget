@@ -35,7 +35,8 @@ log = get_logger()
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
-               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N'}
+               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
+               9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N'}
 
 # ADM This is an empty array of most of the TS data model columns and
 # ADM dtypes. Note that other columns are added in read_tractor and
@@ -1126,6 +1127,58 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     return nrands, filename
 
 
+def is_sky_dir_official(skydirname):
+    """Check a sky file or directory has the correct HEALPixel structure.
+
+    Parameters
+    ----------
+    skydirname : :class:`str`
+        Full path to either a directory containing skies that have been
+        partitioned by HEALPixel (i.e. as made by `select_skies` with the
+        `bundle_files` option). Or the name of a single file of skies.
+
+    Returns
+    -------
+    :class:`bool`
+        ``True`` if the passed sky file or (the first sky file in the
+        passed directory) is structured so that the list of healpixels in
+        the file header ("FILEHPX") at the file nside ("FILENSID") in the
+        file nested (or ring) scheme ("FILENEST") is a true reflection of
+        the HEALPixels in the file.
+
+    Notes
+    -----
+        - A necessary check because although the targets and GFAs are
+          parallelized to run in the exact boundaries of HEALPixels, the
+          skies are parallelized across bricks that have CENTERS in a
+          given HEALPixel.
+        - If this function returns ``False`` the remedy is typically to
+          run `bin/repartition_skies`
+        - If a directory is passed, this isn't an exhaustive check as
+          only the first file is tested. That's enough for just checking
+          the output of `select_skies`, though.
+    """
+    # ADM if skydirname is a directory, just work with one file.
+    if os.path.isdir(skydirname):
+        gen = iglob(os.path.join(skydirname, '*fits'))
+        skydirname = next(gen)
+
+    # ADM read the locations from the file and grab the header.
+    data, hdr = read_target_files(skydirname, columns=["RA", "DEC"],
+                                  header=True, verbose=False)
+
+    # ADM determine which HEALPixels are in the file.
+    theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+    pixinfile = hp.ang2pix(hdr["FILENSID"], theta, phi, nest=hdr["FILENEST"])
+
+    # ADM determine which HEALPixels are in the header.
+    hdrpix = hdr["FILEHPX"]
+    if isinstance(hdrpix, int):
+        hdrpix = [hdrpix]
+
+    return set(pixinfile) == set(hdrpix)
+
+
 def iter_files(root, prefix, ext='fits'):
     """Iterator over files under in `root` directory with given `prefix` and
     extension.
@@ -1907,8 +1960,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the box.
         fn0 = list(filedict.values())[0]
-        notargs, nohdr = read_target_files(fn0, columns=columnscopy,
-                                           header=True, downsample=downsample)
+        notargs, nohdr = read_target_files(
+            fn0, columns=columnscopy, rows=0, header=True,
+            downsample=downsample, verbose=False)
         notargs = np.zeros(0, dtype=notargs.dtype)
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -1943,7 +1997,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
     # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    if len(addedcols) > 0:
+        targets = rfn.drop_fields(targets[ii], addedcols)
 
     if header:
         return targets, hdr
@@ -2174,8 +2229,12 @@ def read_targets_header(hpdirname):
         of the first file encountered in `hpdirname`
     """
     if os.path.isdir(hpdirname):
-        gen = iglob(os.path.join(hpdirname, '*fits'))
-        hpdirname = next(gen)
+        try:
+            gen = iglob(os.path.join(hpdirname, '*fits'))
+            hpdirname = next(gen)
+        except StopIteration:
+            msg = "couldn't find any FITS files in {}...".format(hpdirname)
+            log.info(msg)
 
     # ADM rows=[0] here, speeds up read_target_files retrieval
     # ADM of the header.
