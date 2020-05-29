@@ -1,0 +1,55 @@
+#!/usr/bin/env python
+
+import os
+import numpy as np
+
+#import warnings
+#warnings.simplefilter('error')
+
+from pkg_resources import resource_filename
+from glob import glob
+from time import time
+start = time()
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser("Make a new sv directory, based on the highest existing sv directory (i.e., if sv1 exists, make sv2)")
+
+# ADM the standard root name for a desitarget SV directory.
+svroot = resource_filename('desitarget', 'sv')
+
+# ADM retrieve the highest current sv directory.
+fns = glob(svroot+'*')
+svlist = [int(fn[-1]) for fn in fns if os.path.isdir(fn)]
+maxsv = np.max(svlist)
+
+# ADM copy the highest previous SV directory to make a new one.
+newdir = "{}{}".format(svroot, maxsv+1)
+cmd = 'cp -R {}{} {}'.format(svroot, maxsv, newdir)
+success = os.system(cmd)
+if success != 0:
+    msg = "problem creating new directory (copy command was: '{}')".format(cmd)
+    log.critical(msg)
+    raise OSError
+
+# ADM change into the new directory and remove any caches.
+os.chdir(newdir)
+if len(glob("*cache*")) > 0:
+    _ = os.system('rm -r *cache*')
+
+# ADM update standard file names and references within those files.
+oldsv, newsv = "sv{}".format(maxsv), "sv{}".format(maxsv+1)
+for fn in '{}_cuts.py', '{}_targetmask.py', 'data/{}_targetmask.yaml':
+    os.rename(fn.format(oldsv), fn.format(newsv))
+    # ADM the I on the end makes the search-and-replace case-insensitive.
+    cmd = "sed -i 's/{}/{}/gI' {}".format(oldsv, newsv, fn.format(newsv))
+    success = os.system(cmd)
+    if success != 0:
+        msg = "problem editing new files in {} (command was: '{}')".format(
+            newdir, cmd)
+        log.critical(msg)
+        raise OSError
+
+log.info('Made {}...t={:.1f}s'.format(newdir, time()-start))
