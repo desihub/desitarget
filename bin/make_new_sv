@@ -16,6 +16,7 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser("Make a new sv directory, based on the highest existing sv directory (i.e., if sv1 exists, make sv2)")
+_ = ap.parse_args()
 
 # ADM the standard root name for a desitarget SV directory.
 svroot = resource_filename('desitarget', 'sv')
