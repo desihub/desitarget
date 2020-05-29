@@ -144,10 +144,10 @@ sv1_mws_mask:
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
 #- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.fits for VETO targets.
 sv1_scnd_mask:
-    #- [VETO,        0, "Never observe, even if a primary target bit is set",
-    #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-    #- [DR14Q,       1, "Known quasars from the SDSS DR14Q catalog",
-    #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
+    - [VETO,        0, "Never observe, even if a primary target bit is set",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+    - [DR14Q,       1, "Known quasars from the SDSS DR14Q catalog",
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
     - [MWS_WD_SV,                10, "Milky Way Survey White Dwarf (SV cuts)",  
         {obsconditions: BRIGHT|GRAY|DARK, filename: 'MWS_WD_SV'}]
     - [MWS_SPECIAL_DWARF_SV,     11, "Likely dwarf galaxy members (SV cuts)",
