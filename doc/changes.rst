@@ -5,7 +5,12 @@ desitarget Change Log
 0.40.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Adjust MWS SV1 target classes in response to new SV schedule [`PR #623`].:
+    * More generic names for clusters, stream, dwarf targets.
+    * Remove ORPHAN, add CV.
+    * Lower priority for SEGUE targets.
+
+.. _`PR #623`: https://github.com/desihub/desitarget/pull/623
 
 0.40.0 (2020-05-26)
 -------------------

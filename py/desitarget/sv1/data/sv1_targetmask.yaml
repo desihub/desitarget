@@ -150,36 +150,38 @@ sv1_scnd_mask:
        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
     - [MWS_WD_SV,                10, "Milky Way Survey White Dwarf (SV cuts)",  
         {obsconditions: BRIGHT|GRAY|DARK, filename: 'MWS_WD_SV'}]
-    - [MWS_SPECIAL_DRACO_SV,     11, "Likely Draco members (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DRACO_SV'}]
+    - [MWS_SPECIAL_DWARF_SV,     11, "Likely dwarf galaxy members (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DWARF_SV'}]
     - [MWS_SPECIAL_DDOGIANTS_SV, 12, "DDO-selected giants (SV cuts)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DDOGIANTS_SV'}]
     - [MWS_SPECIAL_WDBINARY_SV,  13, "White dwarf binaries (SV cuts)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_WDBINARY_SV'}]
     - [MWS_SPECIAL_RRLYR_SV,     14, "RR Lyrae, Gaia-selected (SV cuts)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_RRLYR_SV'}]
-    - [MWS_SPECIAL_HYADES_SV,    15, "Likely Hyades members",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_HYADES_SV'}]
+    - [MWS_SPECIAL_OC_SV,    15, "Likely open cluster members",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_OC_SV'}]
     - [MWS_SPECIAL_GC_SV,        16, "Likely globular cluster members (SV cuts)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_GC_SV'}]
     - [MWS_SPECIAL_BHB_SV,       17, "BHB candidates (SV cuts)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_BHB_SV'}]
-    - [MWS_SPECIAL_HYADES_FILLER_SV, 18, "Less likely Hyades members",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_HYADES_FILLER_SV'}]
-    - [MWS_SPECIAL_GD1_SV,       19, "Likely GD1 members",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_GD1_SV'}]
-    - [MWS_WD_SV_VERYBRIGHT,                20, "Milky Way Survey White Dwarf (SV cuts, very bright)",    
+    - [MWS_SPECIAL_OC_FILLER_SV, 18, "Less likely open cluster members",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_OC_FILLER_SV'}]
+    - [MWS_SPECIAL_STREAM_SV,       19, "Likely stream members",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_STREAM_SV'}]
+    - [MWS_SPECIAL_CV_SV,  20, "CV candidates (SV cuts)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_CV_SV'}]
+    - [MWS_WD_SV_VERYBRIGHT,                21, "Milky Way Survey White Dwarf (SV cuts, very bright)",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_WD_VERYBRIGHT_SV'}]
     - [MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV, 22, "DDO-selected giants (SV cuts, very bright)",    
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_HYADES_VERYBRIGHT_SV,    25, "Likely Hyades members (very bright)",    
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_VERYBRIGHT_SV'}]
+    - [MWS_SPECIAL_OC_VERYBRIGHT_SV,    25, "Likely open cluster members (very bright)",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_OC_VERYBRIGHT_SV'}]
     - [MWS_SPECIAL_GC_VERYBRIGHT_SV,        26, "Likely globular cluster members (very bright)",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_GC_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_HYADES_FILLER_VERYBRIGHT_SV, 28, "Less likely Hyades members (very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_HYADES_FILLER_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_GD1_VERYBRIGHT_SV,       29, "Likely GD1 members (very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_GD1_VERYBRIGHT_SV'}]
+    - [MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV, 28, "Less likely open cluster members (very bright)",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV'}]
+    - [MWS_SPECIAL_STREAM_VERYBRIGHT_SV,       29, "Likely stream members (very bright)",
+       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_STREAM_VERYBRIGHT_SV'}]
     - [MWS_CALIB_APOGEE,                    30, "Stars 16 < G < 19 with APOGEE data",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_APOGEE'}]
     - [MWS_CALIB_APOGEE_VERYBRIGHT,         31, "Stars  9 < G < 16 with APOGEE data",
@@ -200,8 +202,6 @@ sv1_scnd_mask:
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_BOSS'}]
     - [MWS_CALIB_BOSS_VERYBRIGHT,           39, "Stars  9 < G < 16 with BOSS data",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_BOSS_VERYBRIGHT'}]
-    - [MWS_SPECIAL_ORPHAN_SV,       40, "Likely Orphan members",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_ORPHAN_SV'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -329,7 +329,7 @@ priorities:
         # Special/Sparse targets
         # NB DONE is not very relevant here since we assign "infinite" observations
         # MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
-        # Note NEARBY > HYADES (otherwise nearby targets swamped by fainter HYADES members)
+        # Note NEARBY > OC (otherwise nearby targets swamped by fainter OC members)
         MWS_NEARBY:                   {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
 
         # Main survey targets 
@@ -353,32 +353,33 @@ priorities:
         MWS_WD_SV_VERYBRIGHT:         SAME_AS_MWS_WD_SV
         MWS_CALIB_APOGEE:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE:              SAME_AS_MWS_CALIB_APOGEE
+        # Too many segue targets, tread them the same as MWS_MAIN_BROAD
+        MWS_CALIB_SEGUE:              {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
         MWS_CALIB_GALAH:              SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_BOSS:               SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_APOGEE_VERYBRIGHT:  SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_GAIAESO_VERYBRIGHT: SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE_VERYBRIGHT:   SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE_VERYBRIGHT:   SAME_AS_MWS_CALIB_SEGUE
         MWS_CALIB_GALAH_VERYBRIGHT:   SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_BOSS_VERYBRIGHT:    SAME_AS_MWS_CALIB_APOGEE
-        # Note HYADES < NEARBY
-        MWS_SPECIAL_HYADES_SV:         {UNOBS: 1600, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_HYADES_FILLER_SV:  {UNOBS: 1599, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        # Note OC < NEARBY
+        MWS_SPECIAL_OC_SV:         {UNOBS: 1600, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_OC_FILLER_SV:  {UNOBS: 1599, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         # Other SV special targets
-        MWS_SPECIAL_DRACO_SV:                {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_DDOGIANTS_SV:            SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_WDBINARY_SV:             SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_RRLYR_SV:                SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_GC_SV:                   SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_BHB_SV:                  SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_GD1_SV:                  SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_ORPHAN_SV:              SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_DWARF_SV:                {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_DDOGIANTS_SV:            SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_WDBINARY_SV:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_SPECIAL_CV_SV:                   SAME_AS_MWS_SPECIAL_WDBINARY_SV
+        MWS_SPECIAL_RRLYR_SV:                SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_GC_SV:                   SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_BHB_SV:                  SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_STREAM_SV:                  SAME_AS_MWS_SPECIAL_DWARF_SV
         # Backup time very bright special targets
-        MWS_SPECIAL_HYADES_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_HYADES_SV
-        MWS_SPECIAL_HYADES_FILLER_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_HYADES_FILLER_SV
+        MWS_SPECIAL_OC_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_OC_SV
+        MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_OC_FILLER_SV
         MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV: SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
         MWS_SPECIAL_GC_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_GC_SV
-        MWS_SPECIAL_GD1_VERYBRIGHT_SV:       SAME_AS_MWS_SPECIAL_GD1_SV
+        MWS_SPECIAL_STREAM_VERYBRIGHT_SV:       SAME_AS_MWS_SPECIAL_STREAM_SV
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -500,27 +501,27 @@ numobs:
         MWS_WD_SV_VERYBRIGHT:            SAME_AS_MWS_WD_SV
         MWS_CALIB_APOGEE:                100
         MWS_CALIB_GAIAESO:               SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE:                 SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE:                 1
         MWS_CALIB_GALAH:                 SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_BOSS:                  SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_APOGEE_VERYBRIGHT:     SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_GAIAESO_VERYBRIGHT:    SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE_VERYBRIGHT:      SAME_AS_MWS_CALIB_APOGEE
+        MWS_CALIB_SEGUE_VERYBRIGHT:      SAME_AS_MWS_CALIB_SEGUE
         MWS_CALIB_GALAH_VERYBRIGHT:      SAME_AS_MWS_CALIB_APOGEE
         MWS_CALIB_BOSS_VERYBRIGHT:       SAME_AS_MWS_CALIB_APOGEE
-        MWS_SPECIAL_DRACO_SV:            1
-        MWS_SPECIAL_DDOGIANTS_SV:        SAME_AS_MWS_SPECIAL_DRACO_SV
+        MWS_SPECIAL_DWARF_SV:            1
+        MWS_SPECIAL_DDOGIANTS_SV:        SAME_AS_MWS_SPECIAL_DWARF_SV
         MWS_SPECIAL_WDBINARY_SV:         100
-        MWS_SPECIAL_RRLYR_SV:            SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_HYADES_SV:           100
-        MWS_SPECIAL_HYADES_FILLER_SV:    1
-        MWS_SPECIAL_GC_SV:               SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_BHB_SV:              SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_GD1_SV:              SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_ORPHAN_SV:           SAME_AS_MWS_SPECIAL_DRACO_SV
-        MWS_SPECIAL_HYADES_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_HYADES_SV
-        MWS_SPECIAL_HYADES_FILLER_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_HYADES_FILLER_SV
+        MWS_SPECIAL_CV_SV:               100
+        MWS_SPECIAL_RRLYR_SV:            SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_OC_SV:           100
+        MWS_SPECIAL_OC_FILLER_SV:    1
+        MWS_SPECIAL_GC_SV:               SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_BHB_SV:              SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_STREAM_SV:              SAME_AS_MWS_SPECIAL_DWARF_SV
+        MWS_SPECIAL_OC_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_OC_SV
+        MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_OC_FILLER_SV
         MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV:     SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
         MWS_SPECIAL_GC_VERYBRIGHT_SV:            SAME_AS_MWS_SPECIAL_GC_SV
-        MWS_SPECIAL_GD1_VERYBRIGHT_SV:           SAME_AS_MWS_SPECIAL_GD1_SV
+        MWS_SPECIAL_STREAM_VERYBRIGHT_SV:           SAME_AS_MWS_SPECIAL_STREAM_SV
 
