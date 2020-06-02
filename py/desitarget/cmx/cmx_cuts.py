@@ -2060,6 +2060,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
         primary = np.ones_like(objects, dtype=bool)
         priority_shift = np.zeros_like(objects, dtype=int)
 
+    # ADM default for target classes we WON'T process is all False.
+    tcfalse = primary & False
+
     # ADM determine if an object passes the default logic for cmx stars.
     isgood, istight = passesSTD_logic(
         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
@@ -2138,7 +2141,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM determine if an object is SV0_QSO.
     if noqso:
         # ADM don't run quasar cuts if requested, for speed.
-        sv0_qso, sv0_qso_z5 = ~primary, ~primary
+        sv0_qso, sv0_qso_z5 = tcfalse, tcfalse
     else:
         sv0_qso, sv0_qso_z5 = isSV0_QSO(
             primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
@@ -2179,7 +2182,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM Main Survey LRGs.
     # ADM initially set everything to arrays of False for the LRGs
     # ADM the zeroth element stores northern targets bits (south=False).
-    lrg_classes = [~primary, ~primary]
+    lrg_classes = [tcfalse, tcfalse]
     for south in south_cuts:
         lrg_classes[int(south)] = isLRG_MS(
             primary=primary,
@@ -2195,7 +2198,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM Main Survey ELGs.
     # ADM initially set everything to arrays of False for the ELGs
     # ADM the zeroth element stores northern targets bits (south=False).
-    elg_classes = [~primary, ~primary]
+    elg_classes = [tcfalse, tcfalse]
     for south in south_cuts:
         elg_classes[int(south)] = isELG_MS(
             primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
@@ -2210,7 +2213,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM Main Survey QSOs.
     # ADM initially set everything to arrays of False for the QSOs
     # ADM the zeroth element stores northern targets bits (south=False).
-    qso_classes = [[~primary, ~primary], [~primary, ~primary]]
+    qso_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
     # ADM don't run quasar cuts if requested, for speed.
     if not noqso:
         for south in south_cuts:
@@ -2229,7 +2232,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM Main Survey BGS (Bright).
     # ADM initially set everything to arrays of False for the BGS
     # ADM the zeroth element stores northern targets bits (south=False).
-    bgs_classes = [~primary, ~primary]
+    bgs_classes = [tcfalse, tcfalse]
     for south in south_cuts:
         bgs_classes[int(south)] = isBGS_MS(
             rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,

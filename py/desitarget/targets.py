@@ -9,6 +9,7 @@ Presumably this defines targets.
 import numpy as np
 import healpy as hp
 import numpy.lib.recfunctions as rfn
+from importlib import import_module
 
 from astropy.table import Table
 
@@ -229,18 +230,21 @@ def main_cmx_or_sv(targets, rename=False, scnd=False):
     if np.any(notmain):
         outcolnames = list(incolnames[notmain])
         survey = outcolnames[0].split('_')[0].lower()
-    if survey[0:2] == 'sv':
+    if survey[:2] == 'sv':
         outcolnames = ["{}_{}".format(survey.upper(), col) for col in maincolnames]
 
     # ADM retrieve the correct masks, depending on the survey type.
     if survey == 'cmx':
         from desitarget.cmx.cmx_targetmask import cmx_mask
         masks = [cmx_mask]
-    elif survey[0:2] == 'sv':
-        if survey == 'sv1':
-            import desitarget.sv1.sv1_targetmask as targmask
-        if survey == 'sv2':
-            import desitarget.sv2.sv2_targetmask as targmask
+    elif survey[:2] == 'sv':
+        try:
+            targmask = import_module("desitarget.{}.{}_targetmask".format(
+                survey, survey))
+        except ModuleNotFoundError:
+            msg = 'Bitmask yaml does not exist for survey type {}'.format(survey)
+            log.critical(msg)
+            raise ModuleNotFoundError(msg)
         masks = [targmask.desi_mask, targmask.bgs_mask,
                  targmask.mws_mask, targmask.scnd_mask]
     elif survey != 'main':
@@ -574,7 +578,7 @@ def calc_priority(targets, zcat, obscon):
                 # ADM all redshifts require more observations in SV.
                 # ADM (zcut is defined at the top of this module).
                 good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
-                if survey[0:2] == 'sv':
+                if survey[:2] == 'sv':
                     good_hiz = zgood & (zcat['ZWARN'] == 0)
                 priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
                 priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
@@ -848,7 +852,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         colnames = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
     elif survey == 'cmx':
         colnames = ['CMX_TARGET']
-    elif survey[0:2] == 'sv':
+    elif survey[:2] == 'sv':
         colnames = ["{}_{}_TARGET".format(survey.upper(), tc)
                     for tc in ["DESI", "BGS", "MWS"]]
     else:

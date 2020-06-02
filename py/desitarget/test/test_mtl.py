@@ -9,7 +9,6 @@ from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
 from desitarget.targetmask import bgs_mask
-from desitarget.sv1.sv1_targetmask import desi_mask as MxSV
 from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
@@ -58,12 +57,6 @@ class TestMTL(unittest.TestCase):
         else:
             for name in main_names:
                 t.rename_column(name, prefix+name)
-
-#        if prefix == "SV1_":
-            # ADM change any occurences of LRG_2PASS to just LRG.
-            # ADM technically not needed as 2PASS no longer exists.
-#            ii = t["SV1_DESI_TARGET"] == Mx.LRG_2PASS
-#            t["SV1_DESI_TARGET"][ii] = MxSV.LRG
 
         return t
 

@@ -5,12 +5,22 @@ desitarget Change Log
 0.40.1 (unreleased)
 -------------------
 
-* Adjust MWS SV1 target classes in response to new SV schedule [`PR #623`].:
+* Functionality for iterations of SV beyond sv1 [`PR #624`_]. Includes:
+    * A script to create the necessary files for new iterations of SV.
+    * Generalized mask/cuts handling for survey=svX, X being any integer.
+    * :func:`targets.main_cmx_or_sv` also updated to handle survey=svX.
+    * Alter the automated creation of output SV target directory names:
+        * write svX targets to /targets/svX/ instead of just targets/sv/.
+    * Make TARGETID for secondary targets unique for iterations of SVX:
+        * Schema is RELEASE=(X-1)*100 + SCND_BIT for SVX-like surveys...
+	* ...and RELEASE=5*100 + SCND_BIT for the Main Survey.
+* Adjust MWS SV1 target classes for new SV schedule [`PR #623`_]:
     * More generic names for clusters, stream, dwarf targets.
     * Remove ORPHAN, add CV.
     * Lower priority for SEGUE targets.
 
 .. _`PR #623`: https://github.com/desihub/desitarget/pull/623
+.. _`PR #624`: https://github.com/desihub/desitarget/pull/624
 
 0.40.0 (2020-05-26)
 -------------------

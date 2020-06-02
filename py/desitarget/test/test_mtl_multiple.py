@@ -8,7 +8,6 @@ import numpy as np
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
-from desitarget.sv1.sv1_targetmask import desi_mask as MxSV
 from desitarget.targetmask import obsconditions
 from desitarget.mtl import make_mtl
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv

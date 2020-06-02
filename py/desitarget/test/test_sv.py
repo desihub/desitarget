@@ -7,6 +7,7 @@ import fitsio
 import os
 import numpy as np
 import healpy as hp
+from glob import glob
 
 from pkg_resources import resource_filename
 from desitarget import io, cuts
@@ -44,9 +45,9 @@ class TestSV(unittest.TestCase):
     def test_sv_cuts(self):
         """Test SV cuts work.
         """
-        # ADM increase maxsv if we add more iterations of SV!!!
-        maxsv = 1
-        svlist = ['sv{}'.format(i) for i in range(1, maxsv+1)]
+        # ADM find all svX sub-directories in the desitarget directory.
+        fns = glob(resource_filename('desitarget', 'sv*'))
+        svlist = [os.path.basename(fn) for fn in fns if os.path.isdir(fn)]
 
         for survey in svlist:
             desicol, bgscol, mwscol = ["{}_{}_TARGET".format(survey.upper(), tc)
