@@ -535,6 +535,7 @@ def find_urat_files(objs, neighbors=True, radec=False):
     # ADM which flavor of RA/Dec was passed.
     if radec:
         ra, dec = objs
+        dec = np.array(dec)
     else:
         ra, dec = objs["RA"], objs["DEC"]
 
