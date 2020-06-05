@@ -577,7 +577,7 @@ def match_to_urat(objs, matchrad=1., radec=False):
     :class:`~numpy.ndarray`
         The matching URAT information for each object. The returned
         format is as for desitarget.uratmatch.uratdatamodel with
-        and extra column "URAT_SEP" which is the matching distance
+        an extra column "URAT_SEP" which is the matching distance
         in ARCSECONDS.
 
     Notes
