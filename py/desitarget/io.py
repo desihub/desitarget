@@ -2294,3 +2294,21 @@ def check_both_set(hpxlist, nside):
                 .format(hpxlist, nside)
             log.critical(msg)
             raise ValueError(msg)
+
+
+def hpx_filename(hpx):
+    """Return the standard name for HEALPixel-split input files
+
+    Parameters
+    ----------
+    hpx : :class:`str` or `int`
+        A HEALPixel integer.
+
+    Returns
+    -------
+    :class: `str`
+        Filename in the format used throughout desitarget for
+        HEALPixel-split input databases.
+    """
+
+    return 'healpix-{:05d}.fits'.format(hpx)

@@ -393,7 +393,7 @@ def urat_fits_to_healpix(numproc=5):
                 else:
                     done = np.hstack([done, objs[pix == pixnum]])
             # ADM construct the name of the output file.
-            outfilename = 'healpix-{:05d}.fits'.format(pixnum)
+            outfilename = io.hpx_filename(pixnum)
             outfile = os.path.join(hpxdir, outfilename)
             # ADM write out the file.
             hdr = fitsio.FITSHDR()
@@ -550,8 +550,7 @@ def find_urat_files(objs, neighbors=True, radec=False):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat file names in the URAT healpix format.
-    uratfiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn))
-                 for pn in pixnum]
+    uratfiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     # ADM restrict to only files/HEALPixels actually covered by URAT.
     uratfiles = [fn for fn in uratfiles if os.path.exists(fn)]

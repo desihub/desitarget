@@ -39,14 +39,16 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt    # noqa: E402
 
 # ADM factor by which the "in" radius is smaller than the "near" radius
-# ADM and vice-versa.
 infac = 0.5
+# ADM and vice-versa.
 nearfac = 1./infac
+# ADM size of the bright star mask (NEAR_RADIUS) in arcseconds.
+masksize = 5.
 
 maskdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'),
-    ('REF_CAT', '|S2'), ('REF_ID', '>i8'),
-    ('IN_RADIUS', '>f4'), ('NEAR_RADIUS', '>f4'),
+    ('REF_CAT', '|S2'), ('REF_ID', '>i8'), ('REF_MAG', '>f4'),
+    ('URAT_ID', '>i8'), ('IN_RADIUS', '>f4'), ('NEAR_RADIUS', '>f4'),
     ('E1', '>f4'), ('E2', '>f4'), ('TYPE', '|S3')
 ])
 
@@ -103,7 +105,52 @@ def max_objid_bricks(targs):
     return dict(ordered[maxind])
 
 
-def make_bright_star_mask(bands, maglim, numproc=4,
+def make_bright_star_mask(maglim, numproc=1, epoch=2023.0):
+    """Make a bright star mask using Tycho, Gaia and URAT.
+
+    Parameters
+    ----------
+    maglim : :class:`float`
+        Faintest magnitude at which to make the mask (e.g. 12). This mag
+        is interpreted as G-band for Gaia and, in order of preference, VT
+        then HP then BT for Tycho (not every Tycho source has each band).
+    numproc : :class:`int`, optional, defaults to 1
+        Number of processes over which to parallelize.
+    epoch : :class:`float`
+        The mask is built at this epoch. Not all sources have proper
+        motions from every survey, so proper motions are used, in order
+        of preference, from Gaia, URAT, then Tycho.
+
+    Returns
+    -------
+    :class:`recarray`
+        - The bright source mask in the form of `maskdatamodel.dtype`:
+        - `REF_CAT` is `"T2"` for Tycho, `"G2"` for Gaia, `"U2"` for
+          Gaia positions with URAT proper motions.
+        - `REF_ID` is `Tyc1`*1,000,000+`Tyc2`*10+`Tyc3` for Tycho2;
+          `"sourceid"` for Gaia-DR2 and Gaia-DR2 with URAT.
+        - `REF_MAG` is, in order of preference, G-band for Gaia, VT
+          then HP then BT for Tycho.
+        - `URAT_ID` contains the URAT reference number for Gaia objects
+          that use the URAT proper motion (objects with `REF_CAT=U2`).
+        - The radii are in ARCSECONDS.
+        - `E1` and `E2` are placeholders for ellipticity components, and
+          are set to 0 for Gaia and Tycho sources.
+        - `TYPE` is always `PSF` for star-like objects.
+
+    Notes
+    -----
+        - `IN_RADIUS` corresponds to the `IN_BRIGHT_OBJECT` bit in
+          `data/targetmask.yaml` (related to `NEAR_RADIUS` by `nearfac`).
+        - `NEAR_RADIUS` corresponds to the `NEAR_BRIGHT_OBJECT` bit in
+          `data/targetmask.yaml` (currently fixed at `masksize`).
+        - The correct mask size for DESI is an open question.
+        - The `GAIA_DIR`, `URAT_DIR`, `TYCHO_DIR` and `MASK_DIR`
+          environment variables must be set.
+    """
+
+
+def make_bright_star_mask_old(bands, maglim, numproc=4,
                           rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',
                           infilename=None, outfilename=None):
     """Make a bright star mask from a structure of bright stars drawn from the sweeps.

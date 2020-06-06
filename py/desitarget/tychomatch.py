@@ -198,7 +198,7 @@ def tycho_fits_to_healpix():
     # ADM loop through the pixels and write out the files.
     for pixnum in range(npix):
         # ADM construct the name of the output file.
-        outfilename = "healpix-{:05d}.fits".format(pixnum)
+        outfilename = io.hpx_filename(pixnum)
         outfile = os.path.join(hpxdir, outfilename)
         # ADM update the header with new information.
         hdr = dict(allhdr).copy()
@@ -311,8 +311,7 @@ def find_tycho_files(objs, neighbors=True, radec=False):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat file names in the Tycho healpix format.
-    tychofiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn))
-                  for pn in pixnum]
+    tychofiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     # ADM restrict to only files/HEALPixels actually covered by Tycho.
     tychofiles = [fn for fn in tychofiles if os.path.exists(fn)]

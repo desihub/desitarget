@@ -421,7 +421,7 @@ def gaia_fits_to_healpix(numproc=4):
                 else:
                     done = np.hstack([done, objs[pix == pixnum]])
             # ADM construct the name of the output file.
-            outfilename = 'healpix-{:05d}.fits'.format(pixnum)
+            outfilename = io.hpx_filename(pixnum)
             outfile = os.path.join(hpxdir, outfilename)
             # ADM write out the file.
             hdr = fitsio.FITSHDR()
@@ -679,7 +679,7 @@ def find_gaia_files(objs, neighbors=True, radec=False):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -727,7 +727,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
         pixnum = add_hp_neighbors(filenside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -775,7 +775,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -822,8 +822,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn))
-                 for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -872,7 +871,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
