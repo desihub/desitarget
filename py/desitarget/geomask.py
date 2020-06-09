@@ -1495,7 +1495,8 @@ def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
     return idmatchto[ii], idobjs[ii]
 
 
-def rewind_coords(ranow, decnow, pmra, pmdec, epochnow=2015.5,
+def rewind_coords(ranow, decnow, pmra, pmdec,
+                  epochnow=2015.5, epochnowdec=None,
                   epochpast=1991.5, epochpastdec=None):
     """Shift coordinates into the past based on proper motions.
 
@@ -1511,6 +1512,9 @@ def rewind_coords(ranow, decnow, pmra, pmdec, epochnow=2015.5,
         Proper motion in Dec (mas/yr).
     epochnow : :class:`flt` or `~numpy.ndarray`, optional
         The "current" epoch (years). Defaults to Gaia DR2 (2015.5).
+    epochnowdec : :class:`flt` or `~numpy.ndarray`, optional
+        If passed and not ``None`` then epochnow is interpreted as the
+        epoch of the RA and this is interpreted as the epoch of the Dec.
     epochpast : :class:`flt` or `~numpy.ndarray`, optional
         Epoch in the past (years). Defaults to Tycho DR2 mean (1991.5).
     epochpastdec : :class:`flt` or `~numpy.ndarray`, optional
@@ -1527,15 +1531,29 @@ def rewind_coords(ranow, decnow, pmra, pmdec, epochnow=2015.5,
     Notes
     -----
         - All output RAs will be in the range 0 < RA < 360o.
+        - Only called "rewind_coords" to correspond to the default
+          `epochnow` > `epochpast`. "fast forwarding" works fine, too,
+          i.e., you can pass `epochpast` > `epochnow` to move coordinates
+          to a future epoch.
+        - Inaccurate to ~0.1" for motions as high as ~10"/yr (Barnard's
+          Star) after ~200 years because of the simplified cosdec term.
     """
     # ADM allow for different RA/Dec coordinates.
+    if epochnowdec is None:
+        epochnowdec = epochnow
     if epochpastdec is None:
         epochpastdec = epochpast
 
-    # ADM rewind coordinates.
+    # ADM enforce "double-type" precision for RA/Dec floats.
+    if isinstance(ranow, float):
+        ranow = np.array([ranow], dtype='f8')
+    if isinstance(decnow, float):
+        decnow = np.array([decnow], dtype='f8')
+
+    # ADM "rewind" coordinates.
     cosdec = np.cos(np.deg2rad(decnow))
     ra = ranow - ((epochnow-epochpast) * pmra / 3600. / 1000. / cosdec)
-    dec = decnow - ((epochnow-epochpastdec) * pmdec / 3600. / 1000.)
+    dec = decnow - ((epochnowdec-epochpastdec) * pmdec / 3600. / 1000.)
 
     # ADM %360. is to deal with wraparound bugs.
     return ra%360., dec

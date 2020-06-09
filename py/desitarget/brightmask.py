@@ -51,7 +51,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt    # noqa: E402
 
 maskdatamodel = np.array([], dtype=[
-    ('RA', '>f8'), ('DEC', '>f8'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
     ('REF_CAT', '|S2'), ('REF_ID', '>i8'), ('REF_MAG', '>f4'),
     ('URAT_ID', '>i8'), ('IN_RADIUS', '>f4'), ('NEAR_RADIUS', '>f4'),
     ('E1', '>f4'), ('E2', '>f4'), ('TYPE', '|S3')
@@ -132,8 +132,8 @@ def max_objid_bricks(targs):
     return dict(ordered[maxind])
 
 
-def make_bright_star_mask_in_hp(nside, pixnum,
-                                maglim=12., matchrad=1., epoch=2023.0):
+def make_bright_star_mask_in_hp(nside, pixnum, gaiaepoch=2015.5,
+                                maglim=12., matchrad=1., maskepoch=2023.0):
     """Make a bright star mask in a HEALPixel using Tycho, Gaia and URAT.
 
     Parameters
@@ -142,6 +142,9 @@ def make_bright_star_mask_in_hp(nside, pixnum,
         (NESTED) HEALPixel nside.
     pixnum : :class:`int`
         A single HEALPixel number.
+    gaiaepoch: :class:`float`, optional, defaults to Gaia DR2 (2015.5)
+        The epoch of the Gaia observations. Should be 2015.5 unless we
+        move beyond Gaia DR2.
     maglim : :class:`float`, optional, defaults to 12.
         Faintest magnitude at which to make the mask. This magnitude is
         interpreted as G-band for Gaia and, in order of preference, VT
@@ -150,7 +153,7 @@ def make_bright_star_mask_in_hp(nside, pixnum,
         Tycho sources that match a Gaia source at this separation in
         ARCSECONDS are NOT included in the output mask. The matching is
         performed rigorously, accounting for Gaia proper motions.
-    epoch : :class:`float`
+    maskepoch : :class:`float`
         The mask is built at this epoch. Not all sources have proper
         motions from every survey, so proper motions are used, in order
         of preference, from Gaia, URAT, then Tycho.
@@ -197,8 +200,8 @@ def make_bright_star_mask_in_hp(nside, pixnum,
     # ADM discard any Tycho objects below the input magnitude limit.
     ii = tychomag < maglim
     tychomag, tychoobjs = tychomag[ii], tychoobjs[ii]
-    log.info('Read {} (mag < {}) Tycho objects...t = {:.1f} mins'.format(
-        np.sum(ii), maglim, (time()-t0)/60))
+    log.info('Read {} (mag < {}) Tycho objects (pix={})...t={:.1f} mins'.format(
+        np.sum(ii), maglim, pixnum, (time()-t0)/60))
 
     # ADM read in the associated Gaia files. Also grab
     # ADM neighboring pixels to prevent edge effects.
@@ -212,17 +215,17 @@ def make_bright_star_mask_in_hp(nside, pixnum,
     # ADM limit Gaia objects to 3 magnitudes fainter than the passed
     # ADM limit. This leaves some (!) leeway when matching to Tycho.
     gaiaobjs = gaiaobjs[gaiaobjs['PHOT_G_MEAN_MAG'] < maglim + 3]
-    log.info('Read {} (G < {}) Gaia sources...t = {:.1f} mins'.format(
-        len(gaiaobjs), maglim + 3, (time()-t0)/60))
+    log.info('Read {} (G < {}) Gaia sources (pix={})...t={:.1f} mins'.format(
+        len(gaiaobjs), maglim+3, pixnum, (time()-t0)/60))
 
     # ADM substitute URAT where Gaia proper motions don't exist.
     ii = ((np.isnan(gaiaobjs["PMRA"]) | (gaiaobjs["PMRA"] == 0)) &
           (np.isnan(gaiaobjs["PMDEC"]) | (gaiaobjs["PMDEC"] == 0)))
-    log.info('Add URAT for {} Gaia objects with no PMs...t = {:.1f} mins'.format(
-        np.sum(ii), (time()-t0)/60))
+    log.info('Add URAT for {} Gaia objects with no PMs (pix={})...t={:.1f} mins'
+             .format(np.sum(ii), pixnum, (time()-t0)/60))
     urat = add_urat_pms(gaiaobjs[ii], numproc=1)
-    log.info('Found an additional {} URAT objects...t = {:.1f} mins'.format(
-        np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
+    log.info('Found an additional {} URAT objects (pix={})...t={:.1f} mins'
+             .format(np.sum(urat["URAT_ID"] != -1), pixnum, (time()-t0)/60))
     for col in "PMRA", "PMDEC":
         gaiaobjs[col][ii] = urat[col]
     # ADM need to track the URATID to track which objects have
@@ -237,15 +240,16 @@ def make_bright_star_mask_in_hp(nside, pixnum,
     # ADM (10.3 arcsec) can be off by a significant margin (~10").
     margin = 10.
     ra, dec = rewind_coords(gaiaobjs["RA"], gaiaobjs["DEC"],
-                            gaiaobjs["PMRA"], gaiaobjs["PMDEC"])
+                            gaiaobjs["PMRA"], gaiaobjs["PMDEC"],
+                            epochnow=gaiaepoch)
     # ADM match Gaia to Tycho with a suitable margin.
-    log.info('Match Gaia to Tycho with margin={}"...t = {:.1f} mins'.format(
-        margin, (time()-t0)/60))
+    log.info('Match Gaia to Tycho with margin={}" (pix={})...t={:.1f} mins'
+             .format(margin, pixnum, (time()-t0)/60))
     igaia, itycho = radec_match_to([ra, dec],
                                    [tychoobjs["RA"], tychoobjs["DEC"]],
                                    sep=margin, radec=True)
-    log.info('{} matches. Refining at 1"...t = {:.1f} mins'.format(
-        len(itycho), (time()-t0)/60))
+    log.info('{} matches. Refining at 1" (pix={})...t={:.1f} mins'.format(
+        len(itycho), pixnum, (time()-t0)/60))
     # ADM match Gaia to Tycho at the more exact reference epoch.
     epoch_ra = tychoobjs[itycho]["EPOCH_RA"]
     epoch_dec = tychoobjs[itycho]["EPOCH_DEC"]
@@ -253,6 +257,7 @@ def make_bright_star_mask_in_hp(nside, pixnum,
     epoch_ra[epoch_ra == 0], epoch_dec[epoch_dec == 0] = 1991.5, 1991.5
     ra, dec = rewind_coords(gaiaobjs["RA"][igaia], gaiaobjs["DEC"][igaia],
                             gaiaobjs["PMRA"][igaia], gaiaobjs["PMDEC"][igaia],
+                            epochnow = gaiaepoch,
                             epochpast=epoch_ra, epochpastdec=epoch_dec)
     _, refined = radec_match_to([ra, dec], [tychoobjs["RA"][itycho],
                                 tychoobjs["DEC"][itycho]], radec=True)
@@ -260,8 +265,8 @@ def make_bright_star_mask_in_hp(nside, pixnum,
     keep = np.ones(len(tychoobjs), dtype='bool')
     keep[itycho[refined]] = False
     tychokeep, tychomag = tychoobjs[keep], tychomag[keep]
-    log.info('Kept {} Tycho sources with no Gaia match...t = {:.1f} mins'.format(
-        len(tychokeep), (time()-t0)/60))
+    log.info('Kept {} Tycho sources with no Gaia match (pix={})...t={:.1f} mins'
+             .format(len(tychokeep), pixnum, (time()-t0)/60))
 
     # ADM now we're done matching to Gaia, limit Gaia to the passed
     # ADM magnitude limit and to the HEALPixel boundary of interest.
@@ -269,18 +274,35 @@ def make_bright_star_mask_in_hp(nside, pixnum,
     gaiahpx = hp.ang2pix(nside, theta, phi, nest=True)
     ii = (gaiahpx == pixnum) & (gaiaobjs['PHOT_G_MEAN_MAG'] < maglim)
     gaiakeep, uratid = gaiaobjs[ii], uratid[ii]
+    log.info('Mask also comprises {} Gaia sources (pix={})...t={:.1f} mins'
+             .format(len(gaiakeep), pixnum, (time()-t0)/60))
+
+    # ADM move the coordinates forwards to the input mask epoch.
+    epoch_ra, epoch_dec = tychokeep["EPOCH_RA"], tychokeep["EPOCH_DEC"]
+    # ADM some of the Tycho epochs aren't populated.
+    epoch_ra[epoch_ra == 0], epoch_dec[epoch_dec == 0] = 1991.5, 1991.5
+    ra, dec = rewind_coords(
+        tychokeep["RA"], tychokeep["DEC"], tychokeep["PM_RA"], tychokeep["PM_DEC"],
+        epochnow=epoch_ra, epochnowdec=epoch_dec, epochpast=maskepoch)
+    tychokeep["RA"], tychokeep["DEC"] = ra, dec
+    ra, dec = rewind_coords(
+        gaiakeep["RA"], gaiakeep["DEC"], gaiakeep["PMRA"], gaiakeep["PMDEC"],
+        epochnow=gaiaepoch, epochpast=maskepoch)
+    gaiakeep["RA"], gaiakeep["DEC"] = ra, dec
 
     # ADM finally, format according to the mask data model...
     gaiamask = np.zeros(len(gaiakeep), dtype=maskdatamodel.dtype)
     tychomask = np.zeros(len(tychokeep), dtype=maskdatamodel.dtype)
     for col in "RA", "DEC":
         gaiamask[col] = gaiakeep[col]
+        gaiamask["PM"+col] = gaiakeep["PM"+col]
         tychomask[col] = tychokeep[col]
+        tychomask["PM"+col] = tychokeep["PM_"+col]
     gaiamask["REF_ID"] = gaiakeep["REF_ID"]
-    # ADM take care to rigorously convert to int64.
-    tychomask["REF_ID"] = tychokeep["TYC1"]
-    tychomask["REF_ID"] *= int(1e6)
-    tychomask["REF_ID"] += tychokeep["TYC2"]*10 + tychokeep["TYC3"]
+    # ADM take care to rigorously convert to int64 for Tycho.
+    tychomask["REF_ID"] = tychokeep["TYC1"].astype('int64')*int(1e6) + \
+                          tychokeep["TYC2"].astype('int64')*10 + \
+                          tychokeep["TYC3"]
     gaiamask["REF_CAT"], tychomask["REF_CAT"] = 'G2', 'T2'
     gaiamask["REF_MAG"] = gaiakeep['PHOT_G_MEAN_MAG']
     tychomask["REF_MAG"] = tychomag
