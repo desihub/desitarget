@@ -5,7 +5,7 @@
 desitarget.geomask
 ==================
 
-Utility functions for restricting targets to regions on the sky
+Utility functions for geometry on the sky, masking, etc.
 
 """
 from __future__ import (absolute_import, division)
@@ -835,6 +835,8 @@ def add_hp_neighbors(nside, pixnum):
     -------
     :class:`list`
         The passed list of pixels with all neighbors added to the list.
+        Only unique pixels are returned, so any duplicate integers in
+        the passed `pixnum` are removed.
 
     Notes
     -----
@@ -1491,6 +1493,52 @@ def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
         return idmatchto[ii], idobjs[ii], d2d[ii].arcsec
 
     return idmatchto[ii], idobjs[ii]
+
+
+def rewind_coords(ranow, decnow, pmra, pmdec, epochnow=2015.5,
+                  epochpast=1991.5, epochpastdec=None):
+    """Shift coordinates into the past based on proper motions.
+
+    Parameters
+    ----------
+    ranow : :class:`flt` or `~numpy.ndarray`
+        Right Ascension (degrees) at "current" epoch.
+    decnow : :class:`flt` or `~numpy.ndarray`
+        Declination (degrees) at "current" epoch.
+    pmra : :class:`flt` or `~numpy.ndarray`
+        Proper motion in RA (mas/yr).
+    pmdec : :class:`flt` or `~numpy.ndarray`
+        Proper motion in Dec (mas/yr).
+    epochnow : :class:`flt` or `~numpy.ndarray`, optional
+        The "current" epoch (years). Defaults to Gaia DR2 (2015.5).
+    epochpast : :class:`flt` or `~numpy.ndarray`, optional
+        Epoch in the past (years). Defaults to Tycho DR2 mean (1991.5).
+    epochpastdec : :class:`flt` or `~numpy.ndarray`, optional
+        If passed and not ``None`` then epochpast is interpreted as the
+        epoch of the RA and this is interpreted as the epoch of the Dec.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Right Ascension in the past (degrees).
+    :class:`~numpy.ndarray`
+        Declination in the past (degrees).
+
+    Notes
+    -----
+        - All output RAs will be in the range 0 < RA < 360o.
+    """
+    # ADM allow for different RA/Dec coordinates.
+    if epochpastdec is None:
+        epochpastdec = epochpast
+
+    # ADM rewind coordinates.
+    cosdec = np.cos(np.deg2rad(decnow))
+    ra = ranow - ((epochnow-epochpast) * pmra / 3600. / 1000. / cosdec)
+    dec = decnow - ((epochnow-epochpastdec) * pmdec / 3600. / 1000.)
+
+    # ADM %360. is to deal with wraparound bugs.
+    return ra%360., dec
 
 
 def shares_hp(nside, objs1, objs2, radec=False):

@@ -24,6 +24,7 @@ import healpy as hp
 from desitarget.internal import sharedmem
 from desimodel.footprint import radec2pix
 from desitarget.geomask import add_hp_neighbors, radec_match_to
+from desitarget import io
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -544,6 +545,14 @@ def find_urat_files(objs, neighbors=True, radec=False):
 
     # ADM retrieve the pixels in which the locations lie.
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
+    # ADM one pixel was produced, so guard against pixnum being non-iterable.
+    if not isinstance(pixnum, np.integer):
+        pixnum = list(set(pixnum))
+    else:
+        pixnum = [pixnum]
+
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:

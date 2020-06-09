@@ -17,7 +17,7 @@ import fitsio
 import photutils
 from glob import glob, iglob
 
-from desitarget.gaiamatch import _get_gaia_dir
+from desitarget.gaiamatch import get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targets import resolve, main_cmx_or_sv, finalize
 from desitarget.skyfibers import get_brick_info
@@ -864,7 +864,7 @@ def stellar_density(nside=256):
         - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpdir = os.path.join(gaiadir, 'healpix')
 
     # ADM the number of pixels and the pixel area at nside.

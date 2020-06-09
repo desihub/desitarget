@@ -11,28 +11,40 @@ Module for studying and masking bright sources in the sweeps
 .. _`the DR5 sweeps`: http://legacysurvey.org/dr5/files/#sweep-catalogs
 .. _`Legacy Surveys catalogs`: http://legacysurvey.org/dr5/catalogs/
 """
-from __future__ import (absolute_import, division)
 from time import time
-import numpy as np
 import fitsio
 import healpy as hp
 import os
 import re
-import numpy.lib.recfunctions as rfn
 from glob import glob
+
+import numpy as np
+import numpy.lib.recfunctions as rfn
+
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
-from . import __version__ as desitarget_version
+
 from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid
+from desitarget.gaiamatch import find_gaia_files
 from desitarget.geomask import circles, cap_area, circle_boundaries
 from desitarget.geomask import ellipses, ellipse_boundary, is_in_ellipse
+from desitarget.geomask import radec_match_to, rewind_coords
 from desitarget.cuts import _psflike
+from desitarget.tychomatch import get_tycho_dir, get_tycho_nside
+from desitarget.tychomatch import find_tycho_files_hp
+from desitarget.gfa import add_urat_pms
+
 from desiutil import depend, brick
+# ADM set up default logger
+from desiutil.log import get_logger
+log = get_logger()
+
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
@@ -55,10 +67,6 @@ maskdatamodel = np.array([], dtype=[
 
 def _rexlike(rextype):
     """If the object is REX (a round exponential galaxy)"""
-
-    # ADM set up default logger.
-    from desiutil.log import get_logger
-    log = get_logger()
 
     # ADM explicitly checking for an empty input.
     if rextype is None:
@@ -105,17 +113,24 @@ def max_objid_bricks(targs):
     return dict(ordered[maxind])
 
 
-def make_bright_star_mask(maglim, numproc=1, epoch=2023.0):
-    """Make a bright star mask using Tycho, Gaia and URAT.
+def make_bright_star_mask_in_hp(nside, pixnum,
+                                maglim=12., matchrad=1., epoch=2023.0):
+    """Make a bright star mask in a HEALPixel using Tycho, Gaia and URAT.
 
     Parameters
     ----------
-    maglim : :class:`float`
-        Faintest magnitude at which to make the mask (e.g. 12). This mag
-        is interpreted as G-band for Gaia and, in order of preference, VT
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    pixnum : :class:`int`
+        A single HEALPixel number.
+    maglim : :class:`float`, optional, defaults to 12.
+        Faintest magnitude at which to make the mask. This magnitude is
+        interpreted as G-band for Gaia and, in order of preference, VT
         then HP then BT for Tycho (not every Tycho source has each band).
-    numproc : :class:`int`, optional, defaults to 1
-        Number of processes over which to parallelize.
+    matchrad : :class:`int`, optional, defaults to 1.
+        Tycho sources that match a Gaia source at this separation in
+        ARCSECONDS are NOT included in the output mask. The matching is
+        performed rigorously, accounting for Gaia proper motions.
     epoch : :class:`float`
         The mask is built at this epoch. Not all sources have proper
         motions from every survey, so proper motions are used, in order
@@ -125,14 +140,13 @@ def make_bright_star_mask(maglim, numproc=1, epoch=2023.0):
     -------
     :class:`recarray`
         - The bright source mask in the form of `maskdatamodel.dtype`:
-        - `REF_CAT` is `"T2"` for Tycho, `"G2"` for Gaia, `"U2"` for
-          Gaia positions with URAT proper motions.
+        - `REF_CAT` is `"T2"` for Tycho and `"G2"` for Gaia.
         - `REF_ID` is `Tyc1`*1,000,000+`Tyc2`*10+`Tyc3` for Tycho2;
           `"sourceid"` for Gaia-DR2 and Gaia-DR2 with URAT.
         - `REF_MAG` is, in order of preference, G-band for Gaia, VT
           then HP then BT for Tycho.
         - `URAT_ID` contains the URAT reference number for Gaia objects
-          that use the URAT proper motion (objects with `REF_CAT=U2`).
+          that use the URAT proper motion, or -1 otherwise.
         - The radii are in ARCSECONDS.
         - `E1` and `E2` are placeholders for ellipticity components, and
           are set to 0 for Gaia and Tycho sources.
@@ -140,14 +154,122 @@ def make_bright_star_mask(maglim, numproc=1, epoch=2023.0):
 
     Notes
     -----
-        - `IN_RADIUS` corresponds to the `IN_BRIGHT_OBJECT` bit in
-          `data/targetmask.yaml` (related to `NEAR_RADIUS` by `nearfac`).
-        - `NEAR_RADIUS` corresponds to the `NEAR_BRIGHT_OBJECT` bit in
-          `data/targetmask.yaml` (currently fixed at `masksize`).
+        - `IN_RADIUS` (`NEAR_RADIUS`) corresponds to `IN_BRIGHT_OBJECT`
+          (`NEAR_BRIGHT_OBJECT`) in `data/targetmask.yaml`. These radii
+          are set in the function `desitarget.brightmask.radius()`.
         - The correct mask size for DESI is an open question.
-        - The `GAIA_DIR`, `URAT_DIR`, `TYCHO_DIR` and `MASK_DIR`
-          environment variables must be set.
+        - The `GAIA_DIR`, `URAT_DIR` and `TYCHO_DIR` environment
+          variables must be set.
     """
+    # ADM start the clock.
+    t0 = time()
+
+    # ADM read in the Tycho files.
+    tychofns = find_tycho_files_hp(nside, pixnum, neighbors=False)
+    tychoobjs = []
+    for fn in tychofns:
+        tychoobjs.append(fitsio.read(fn, ext='TYCHOHPX'))
+    tychoobjs = np.concatenate(tychoobjs)
+    # ADM create the Tycho reference magnitude, which is VT then HP
+    # ADM then BT in order of preference.
+    tychomag = tychoobjs["MAG_VT"].copy()
+    tychomag[tychomag == 0] = tychoobjs["MAG_HP"][tychomag == 0]
+    tychomag[tychomag == 0] = tychoobjs["MAG_BT"][tychomag == 0]
+    # ADM discard any Tycho objects below the input magnitude limit.
+    ii = tychomag < maglim
+    tychomag, tychoobjs = tychomag[ii], tychoobjs[ii]
+    log.info('Read {} (mag < {}) Tycho objects...t = {:.1f} mins'.format(
+        np.sum(ii), maglim, (time()-t0)/60))
+
+    # ADM read in the associated Gaia files. Also grab
+    # ADM neighboring pixels to prevent edge effects.
+    gaiafns = find_gaia_files(tychoobjs, neighbors=True)
+    gaiaobjs = []
+    cols = 'SOURCE_ID', 'RA', 'DEC', 'PHOT_G_MEAN_MAG', 'PMRA', 'PMDEC'
+    for fn in gaiafns:
+        gaiaobjs.append(fitsio.read(fn, ext='GAIAHPX', columns=cols))
+    gaiaobjs = np.concatenate(gaiaobjs)
+    gaiaobjs = rfn.rename_fields(gaiaobjs, {"SOURCE_ID":"REF_ID"})
+    # ADM limit Gaia objects to 3 magnitudes fainter than the passed
+    # ADM limit. This leaves some (!) leeway when matching to Tycho.
+    gaiaobjs = gaiaobjs[gaiaobjs['PHOT_G_MEAN_MAG'] < maglim + 3]
+    log.info('Read {} (G < {}) Gaia sources...t = {:.1f} mins'.format(
+        len(gaiaobjs), maglim + 3, (time()-t0)/60))
+
+    # ADM substitute URAT where Gaia proper motions don't exist.
+    ii = ((np.isnan(gaiaobjs["PMRA"]) | (gaiaobjs["PMRA"] == 0)) &
+          (np.isnan(gaiaobjs["PMDEC"]) | (gaiaobjs["PMDEC"] == 0)))
+    log.info('Add URAT for {} Gaia objects with no PMs...t = {:.1f} mins'.format(
+        np.sum(ii), (time()-t0)/60))
+    urat = add_urat_pms(gaiaobjs[ii], numproc=1)
+    log.info('Found an additional {} URAT objects...t = {:.1f} mins'.format(
+        np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
+    for col in "PMRA", "PMDEC":
+        gaiaobjs[col][ii] = urat[col]
+    # ADM need to track the URATID to track which objects have
+    # ADM substituted proper motions.
+    uratid = np.zeros_like(gaiaobjs["REF_ID"])-1
+    uratid[ii] = urat["URAT_ID"]
+
+    # ADM match to remove Tycho objects already in Gaia. Prefer the more
+    # ADM accurate Gaia proper motions. Note, however, that Tycho epochs
+    # ADM can differ from the mean (1991.5) by as as much as 0.86 years,
+    # ADM so a star with a proper motion as large as Barnard's Star
+    # ADM (10.3 arcsec) can be off by a significant margin (~10").
+    margin = 10.
+    ra, dec = rewind_coords(gaiaobjs["RA"], gaiaobjs["DEC"],
+                            gaiaobjs["PMRA"], gaiaobjs["PMDEC"])
+    # ADM match Gaia to Tycho with a suitable margin.
+    log.info('Match Gaia to Tycho with margin={}"...t = {:.1f} mins'.format(
+        margin, (time()-t0)/60))
+    igaia, itycho = radec_match_to([ra, dec],
+                                   [tychoobjs["RA"], tychoobjs["DEC"]],
+                                   sep=margin, radec=True)
+    log.info('{} matches. Refining at 1"...t = {:.1f} mins'.format(
+        len(itycho), (time()-t0)/60))
+    # ADM match Gaia to Tycho at the more exact reference epoch.
+    epoch_ra = tychoobjs[itycho]["EPOCH_RA"]
+    epoch_dec = tychoobjs[itycho]["EPOCH_DEC"]
+    # ADM some of the Tycho epochs aren't populated.
+    epoch_ra[epoch_ra == 0], epoch_dec[epoch_dec == 0] = 1991.5, 1991.5
+    ra, dec = rewind_coords(gaiaobjs["RA"][igaia], gaiaobjs["DEC"][igaia],
+                            gaiaobjs["PMRA"][igaia], gaiaobjs["PMDEC"][igaia],
+                            epochpast=epoch_ra, epochpastdec=epoch_dec)
+    _, refined = radec_match_to([ra, dec], [tychoobjs["RA"][itycho],
+                                tychoobjs["DEC"][itycho]], radec=True)
+    # ADM retain Tycho objects that DON'T match Gaia.
+    keep = np.ones(len(tychoobjs), dtype='bool')
+    keep[itycho[refined]] = False
+    tychokeep, tychomag = tychoobjs[keep], tychomag[keep]
+    log.info('Kept {} Tycho sources with no Gaia match...t = {:.1f} mins'.format(
+        len(tychokeep), (time()-t0)/60))
+
+    # ADM now we're done matching to Gaia, limit Gaia to the passed
+    # ADM magnitude limit and to the HEALPixel boundary of interest.
+    theta, phi = np.radians(90-gaiaobjs["DEC"]), np.radians(gaiaobjs["RA"])
+    gaiahpx = hp.ang2pix(nside, theta, phi, nest=True)
+    ii = (gaiahpx == pixnum) & (gaiaobjs['PHOT_G_MEAN_MAG'] < maglim)
+    gaiakeep, uratid = gaiaobjs[ii], uratid[ii]
+
+    # ADM finally, format according to the mask data model...
+    gaiamask = np.zeros(len(gaiakeep), dtype=maskdatamodel.dtype)
+    tychomask = np.zeros(len(tychokeep), dtype=maskdatamodel.dtype)
+    for col in "RA", "DEC":
+        gaiamask[col] = gaiakeep[col]
+        tychomask[col] = tychokeep[col]
+    gaiamask["REF_ID"] = gaiakeep["REF_ID"]
+    # ADM take care to rigorously convert to int64.
+    tychomask["REF_ID"] = tychokeep["TYC1"]
+    tychomask["REF_ID"] *= int(1e6)
+    tychomask["REF_ID"] += tychokeep["TYC2"]*10 + tychokeep["TYC3"]
+    gaiamask["REF_CAT"], tychomask["REF_CAT"] = 'G2', 'T2'
+    gaiamask["REF_MAG"] = gaiakeep['PHOT_G_MEAN_MAG']
+    tychomask["REF_MAG"] = tychomag
+    gaiamask["URAT_ID"], tychomask["URAT_ID"] = uratid, -1
+    gaiamask["TYPE"], tychomask["TYPE"] = 'PSF', 'PSF'
+    mask = np.concatenate([gaiamask, tychomask])
+
+    return mask
 
 
 def make_bright_star_mask_old(bands, maglim, numproc=4,
@@ -202,10 +324,6 @@ def make_bright_star_mask_old(bands, maglim, numproc=4,
           and half that radius to set the ``IN_RADIUS``. We convert this from arcminutes to arcseconds.
         - It's an open question as to what the correct radii are for DESI observations.
     """
-    # ADM set up default logger
-    from desiutil.log import get_logger
-    log = get_logger()
-
     # ADM this is just a special case of make_bright_source_mask
     sourcemask = make_bright_source_mask(bands, maglim,
                                          numproc=numproc, rootdirname=rootdirname,
@@ -386,10 +504,6 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
     -------
     Nothing
     """
-    # ADM set up the default log.
-    from desiutil.log import get_logger, DEBUG
-    log = get_logger(DEBUG)
-
     # ADM make this work even for a single mask.
     mask = np.atleast_1d(mask)
 
@@ -460,12 +574,7 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
     near_mask : array_like.
         ``True`` for array entries that correspond to a target that is NEAR a mask.
     """
-
     t0 = time()
-
-    # ADM set up default logger.
-    from desiutil.log import get_logger
-    log = get_logger()
 
     # ADM initialize an array of all False (nothing is yet in a mask).
     in_mask = np.zeros(len(targs), dtype=bool)
@@ -828,10 +937,6 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10
         - See `Tech Note 2346`_ for more details about SAFE (BADSKY) locations.
         - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10).
     """
-
-    # ADM set up default logger.
-    from desiutil.log import get_logger
-    log = get_logger()
 
     t0 = time()
 

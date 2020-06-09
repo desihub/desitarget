@@ -64,7 +64,7 @@ gaiadatamodel = np.array([], dtype=[
                                    ])
 
 
-def _get_gaia_dir():
+def get_gaia_dir():
     """Convenience function to grab the Gaia environment variable.
 
     Returns
@@ -178,7 +178,7 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nf
         - Runs in about 26 hours for 60,000 Gaia files.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM construct the directory to which to write files.
     csvdir = os.path.join(gaiadir, 'csv')
@@ -252,7 +252,7 @@ def gaia_csv_to_fits(numproc=4):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     log.info("running on {} processors".format(numproc))
 
     # ADM construct the directories for reading/writing files.
@@ -376,7 +376,7 @@ def gaia_fits_to_healpix(numproc=4):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM construct the directories for reading/writing files.
     fitsdir = os.path.join(gaiadir, 'fits')
@@ -496,7 +496,7 @@ def make_gaia_files(numproc=4, download=False):
     log.info('Begin making Gaia files...t={:.1f}s'.format(time()-t0))
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
@@ -658,7 +658,7 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM which flavor of RA/Dec was passed.
@@ -673,6 +673,14 @@ def find_gaia_files(objs, neighbors=True, radec=False):
 
     # ADM retrieve the pixels in which the locations lie.
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
+    # ADM one pixel was produced, so guard against pixnum being non-iterable.
+    if not isinstance(pixnum, np.integer):
+        pixnum = list(set(pixnum))
+    else:
+        pixnum = [pixnum]
+
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the provided locations, to prevent edge effects...
     if neighbors:
@@ -712,7 +720,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
     filenside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM work with pixlist as an array.
@@ -763,7 +771,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the box.
@@ -810,7 +818,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels beyond mingalb.
@@ -858,7 +866,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the tiles.
@@ -1068,7 +1076,7 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
         - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):

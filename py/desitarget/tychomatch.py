@@ -20,9 +20,10 @@ from astropy.io import ascii
 from glob import glob
 import healpy as hp
 
+from desitarget import io
 from desitarget.internal import sharedmem
 from desimodel.footprint import radec2pix
-from desitarget.geomask import add_hp_neighbors, radec_match_to
+from desitarget.geomask import add_hp_neighbors, radec_match_to, nside2nside
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -45,7 +46,7 @@ tychodatamodel = np.array([], dtype=[
     ('JMAG', '>f4'), ('HMAG', '>f4'), ('KMAG', '>f4'), ('ZGUESS', '>f4')
 ])
 
-def _get_tycho_dir():
+def get_tycho_dir():
     """Convenience function to grab the Tycho environment variable.
 
     Returns
@@ -63,7 +64,7 @@ def _get_tycho_dir():
     return tychodir
 
 
-def _get_tycho_nside():
+def get_tycho_nside():
     """Grab the HEALPixel nside to be used throughout this module.
 
     Returns
@@ -96,7 +97,7 @@ def grab_tycho(cosmodir="/global/cfs/cdirs/cosmo/staging/tycho2/"):
           standards (e.g. all columns are converted to upper-case).
     """
     # ADM check that the TYCHO_DIR is set and retrieve it.
-    tychodir = _get_tycho_dir()
+    tychodir = get_tycho_dir()
 
     # ADM construct the directory to which to write files.
     fitsdir = os.path.join(tychodir, 'fits')
@@ -160,7 +161,7 @@ def tycho_fits_to_healpix():
     Nothing
         But the archived Tycho FITS files in $TYCHO_DIR/fits are
         rearranged by HEALPixel in the directory $TYCHO_DIR/healpix.
-        The HEALPixel sense is nested with nside=_get_tycho_nside(), and
+        The HEALPixel sense is nested with nside=get_tycho_nside(), and
         each file in $TYCHO_DIR/healpix is called healpix-xxxxx.fits,
         where xxxxx corresponds to the HEALPixel number.
 
@@ -169,11 +170,11 @@ def tycho_fits_to_healpix():
         - The environment variable $TYCHO_DIR must be set.
     """
     # ADM the resolution at which the Tycho HEALPix files are stored.
-    nside = _get_tycho_nside()
+    nside = get_tycho_nside()
     npix = hp.nside2npix(nside)
 
     # ADM check that the TYCHO_DIR is set.
-    tychodir = _get_tycho_dir()
+    tychodir = get_tycho_dir()
 
     # ADM construct the directories for reading/writing files.
     fitsdir = os.path.join(tychodir, "fits")
@@ -227,7 +228,7 @@ def make_tycho_files():
           `tychodatamodel`, and a README in $TYCHO_DIR/fits.
         - FITS files reorganized by HEALPixel in $TYCHO_DIR/healpix.
 
-        The HEALPixel sense is nested with nside=_get_tycho_nside(), and
+        The HEALPixel sense is nested with nside=get_tycho_nside(), and
         each file in $TYCHO_DIR/healpix is called healpix-xxxxx.fits,
         where xxxxx corresponds to the HEALPixel number.
 
@@ -239,7 +240,7 @@ def make_tycho_files():
     log.info('Begin making Tycho files...t={:.1f}s'.format(time()-t0))
 
     # ADM check that the TYCHO_DIR is set.
-    tychodir = _get_tycho_dir()
+    tychodir = get_tycho_dir()
 
     # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
@@ -287,10 +288,10 @@ def find_tycho_files(objs, neighbors=True, radec=False):
         - The environment variable $TYCHO_DIR must be set.
     """
     # ADM the resolution at which the Tycho HEALPix files are stored.
-    nside = _get_tycho_nside()
+    nside = get_tycho_nside()
 
     # ADM check that the TYCHO_DIR is set and retrieve it.
-    tychodir = _get_tycho_dir()
+    tychodir = get_tycho_dir()
     hpxdir = os.path.join(tychodir, 'healpix')
 
     # ADM which flavor of RA/Dec was passed.
@@ -305,6 +306,14 @@ def find_tycho_files(objs, neighbors=True, radec=False):
 
     # ADM retrieve the pixels in which the locations lie.
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
+    # ADM one pixel was produced, so guard against pixnum being non-iterable.
+    if not isinstance(pixnum, np.integer):
+        pixnum = list(set(pixnum))
+    else:
+        pixnum = [pixnum]
+
     # ADM if neighbors was sent, then retrieve all pixels that touch each
     # ADM pixel covered by the input RA/Dec, to prevent edge effects.
     if neighbors:
@@ -315,6 +324,54 @@ def find_tycho_files(objs, neighbors=True, radec=False):
 
     # ADM restrict to only files/HEALPixels actually covered by Tycho.
     tychofiles = [fn for fn in tychofiles if os.path.exists(fn)]
+
+    return tychofiles
+
+
+def find_tycho_files_hp(nside, pixlist, neighbors=True):
+    """Find full paths to Tycho healpix files in a set of HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int`
+        A set of HEALPixels at `nside`.
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        Also return files corresponding to all neighbors that touch the
+        pixels in `pixlist` to prevent edge effects (e.g. a Tycho source
+        is 1 arcsec outside of `pixlist` and so in an adjacent pixel).
+
+    Returns
+    -------
+    :class:`list`
+        A list of all Tycho files that need to be read in to account for
+        objects in the passed list of pixels.
+
+    Notes
+    -----
+        - The environment variable $TYCHO_DIR must be set.
+    """
+    # ADM the resolution at which the healpix files are stored.
+    filenside = get_tycho_nside()
+
+    # ADM check that the TYCHO_DIR is set and retrieve it.
+    tychodir = get_tycho_dir()
+    hpxdir = os.path.join(tychodir, 'healpix')
+
+    # ADM work with pixlist as an array.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM determine the pixels that touch the passed pixlist.
+    pixnum = nside2nside(nside, filenside, pixlist)
+
+    # ADM if neighbors was sent, then retrieve all pixels that touch each
+    # ADM pixel covered by the provided locations, to prevent edge effects...
+    if neighbors:
+        pixnum = add_hp_neighbors(filenside, pixnum)
+
+    # ADM reformat in the healpix format used by desitarget.
+    tychofiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return tychofiles
 
