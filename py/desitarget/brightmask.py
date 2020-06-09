@@ -50,19 +50,38 @@ import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt    # noqa: E402
 
-# ADM factor by which the "in" radius is smaller than the "near" radius
-infac = 0.5
-# ADM and vice-versa.
-nearfac = 1./infac
-# ADM size of the bright star mask (NEAR_RADIUS) in arcseconds.
-masksize = 5.
-
 maskdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'),
     ('REF_CAT', '|S2'), ('REF_ID', '>i8'), ('REF_MAG', '>f4'),
     ('URAT_ID', '>i8'), ('IN_RADIUS', '>f4'), ('NEAR_RADIUS', '>f4'),
     ('E1', '>f4'), ('E2', '>f4'), ('TYPE', '|S3')
 ])
+
+
+def radius(mag):
+    """The relation used to set the radius of bright star masks.
+
+    Parameters
+    ----------
+    mag : :class:`flt` or :class:`recarray`
+        Magnitude. Typically, in order of preference, G-band for Gaia
+        or VT then HP then BT for Tycho.
+
+    Returns
+    -------
+    :class:`recarray`
+        The `IN_RADIUS`, corresponding to the `IN_BRIGHT_OBJECT` bit
+        in `data/targetmask.yaml`.
+    :class:`recarray`
+        The `NEAR_RADIUS`, corresponding to the `NEAR_BRIGHT_OBJECT` bit
+        in data/targetmask.yaml`.
+    """
+    # ADM mask all sources with mag < 12 at 5 arcsecs.
+    nearrad = (mag < 12.) * 5
+    # ADM the IN_RADIUS is half the near radius.
+    inrad = nearrad/2.
+
+    return inrad, nearrad
 
 
 def _rexlike(rextype):
