@@ -81,8 +81,8 @@ if ns.bundlefiles is not None:
 gaiadir = ns.gaiadir
 if gaiadir is None:
     # ADM ...otherwise retrieve it from the environment variable.
-    from desitarget.gaiamatch import _get_gaia_dir
-    gaiadir = _get_gaia_dir()
+    from desitarget.gaiamatch import get_gaia_dir
+    gaiadir = get_gaia_dir()
 
 # ADM if needed, determine the minimum density of sky fibers to generate.
 nskiespersqdeg = ns.nskiespersqdeg

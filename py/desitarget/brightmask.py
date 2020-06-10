@@ -57,6 +57,24 @@ maskdatamodel = np.array([], dtype=[
 ])
 
 
+def get_mask_dir():
+    """Convenience function to grab the MASK_DIR environment variable.
+
+    Returns
+    -------
+    :class:`str`
+        The directory stored in the $TYCHO_DIR environment variable.
+    """
+    # ADM check that the $MASK_DIR environment variable is set.
+    maskdir = os.environ.get('MASK_DIR')
+    if maskdir is None:
+        msg = "Set $MASK_DIR environment variable!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return maskdir
+
+
 def radii(mag):
     """The relation used to set the radius of bright star masks.
 
