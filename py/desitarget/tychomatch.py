@@ -46,6 +46,7 @@ tychodatamodel = np.array([], dtype=[
     ('JMAG', '>f4'), ('HMAG', '>f4'), ('KMAG', '>f4'), ('ZGUESS', '>f4')
 ])
 
+
 def get_tycho_dir():
     """Convenience function to grab the Tycho environment variable.
 
@@ -147,7 +148,7 @@ def grab_tycho(cosmodir="/global/cfs/cdirs/cosmo/staging/tycho2/"):
         readme = f.read()
     with open(routfile, 'w') as f:
         f.write(readme+msg)
-    
+
     log.info('Wrote Tycho FITS file...t={:.1f}s'.format(time()-start))
 
     return

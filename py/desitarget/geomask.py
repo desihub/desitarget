@@ -1555,8 +1555,8 @@ def rewind_coords(ranow, decnow, pmra, pmdec,
     ra = ranow - ((epochnow-epochpast) * pmra / 3600. / 1000. / cosdec)
     dec = decnow - ((epochnowdec-epochpastdec) * pmdec / 3600. / 1000.)
 
-    # ADM %360. is to deal with wraparound bugs.
-    return ra%360., dec
+    # ADM % 360. is to deal with wraparound bugs.
+    return ra % 360., dec
 
 
 def shares_hp(nside, objs1, objs2, radec=False):

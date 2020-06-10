@@ -43,12 +43,13 @@ from desitarget.gfa import add_urat_pms
 from desiutil import depend, brick
 # ADM set up default logger
 from desiutil.log import get_logger
-log = get_logger()
 
 # ADM fake the matplotlib display so it doesn't die on allocated nodes.
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt    # noqa: E402
+
+log = get_logger()
 
 maskdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
@@ -173,6 +174,10 @@ def make_bright_star_mask_in_hp(nside, pixnum, gaiaepoch=2015.5,
         - `E1` and `E2` are placeholders for ellipticity components, and
           are set to 0 for Gaia and Tycho sources.
         - `TYPE` is always `PSF` for star-like objects.
+        - Note that the mask is based on objects in the pixel AT THEIR
+          NATIVE EPOCH *NOT* AT THE INPUT `maskepoch`. It is therefore
+          possible for locations in the output mask to be just beyond
+          the boundaries of the input pixel.
 
     Notes
     -----
@@ -211,7 +216,7 @@ def make_bright_star_mask_in_hp(nside, pixnum, gaiaepoch=2015.5,
     for fn in gaiafns:
         gaiaobjs.append(fitsio.read(fn, ext='GAIAHPX', columns=cols))
     gaiaobjs = np.concatenate(gaiaobjs)
-    gaiaobjs = rfn.rename_fields(gaiaobjs, {"SOURCE_ID":"REF_ID"})
+    gaiaobjs = rfn.rename_fields(gaiaobjs, {"SOURCE_ID": "REF_ID"})
     # ADM limit Gaia objects to 3 magnitudes fainter than the passed
     # ADM limit. This leaves some (!) leeway when matching to Tycho.
     gaiaobjs = gaiaobjs[gaiaobjs['PHOT_G_MEAN_MAG'] < maglim + 3]
@@ -257,7 +262,7 @@ def make_bright_star_mask_in_hp(nside, pixnum, gaiaepoch=2015.5,
     epoch_ra[epoch_ra == 0], epoch_dec[epoch_dec == 0] = 1991.5, 1991.5
     ra, dec = rewind_coords(gaiaobjs["RA"][igaia], gaiaobjs["DEC"][igaia],
                             gaiaobjs["PMRA"][igaia], gaiaobjs["PMDEC"][igaia],
-                            epochnow = gaiaepoch,
+                            epochnow=gaiaepoch,
                             epochpast=epoch_ra, epochpastdec=epoch_dec)
     _, refined = radec_match_to([ra, dec], [tychoobjs["RA"][itycho],
                                 tychoobjs["DEC"][itycho]], radec=True)
@@ -301,8 +306,7 @@ def make_bright_star_mask_in_hp(nside, pixnum, gaiaepoch=2015.5,
     gaiamask["REF_ID"] = gaiakeep["REF_ID"]
     # ADM take care to rigorously convert to int64 for Tycho.
     tychomask["REF_ID"] = tychokeep["TYC1"].astype('int64')*int(1e6) + \
-                          tychokeep["TYC2"].astype('int64')*10 + \
-                          tychokeep["TYC3"]
+        tychokeep["TYC2"].astype('int64')*10 + tychokeep["TYC3"]
     gaiamask["REF_CAT"], tychomask["REF_CAT"] = 'G2', 'T2'
     gaiamask["REF_MAG"] = gaiakeep['PHOT_G_MEAN_MAG']
     tychomask["REF_MAG"] = tychomag
