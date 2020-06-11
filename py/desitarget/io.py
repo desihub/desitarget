@@ -439,7 +439,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         The number of targets that were written to file.
     :class:`str`
         The name of the file to which targets were written.
-
     """
     # ADM create header.
     hdr = fitsio.FITSHDR()
@@ -483,7 +482,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                                      resolve=resolve, supp=supp)
 
     ntargs = len(data)
-    # ADM die immediately if there are no targets to write.
+    # ADM die if there are no targets to write.
     if ntargs == 0:
         return ntargs, filename
 
@@ -818,6 +817,12 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     mock : :class:`bool`, optional, defaults to ``False``.
         If ``True`` then construct the file path for mock sky target catalogs.
 
+    Returns
+    -------
+    :class:`int`
+        The number of skies that were written to file.
+    :class:`str`
+        The name of the file to which skies were written.
     """
     nskies = len(data)
 
@@ -936,6 +941,13 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+
+    Returns
+    -------
+    :class:`int`
+        The number of gfas that were written to file.
+    :class:`str`
+        The name of the file to which gfas were written.
     """
     # ADM if passed, use the indir to determine the Data Release
     # ADM integer and string for the input targets.
@@ -1043,6 +1055,13 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     extra : :class:`dict`, optional
         If passed (and not ``None``), write these extra dictionary keys
         and values to the output header.
+
+    Returns
+    -------
+    :class:`int`
+        The number of randoms that were written to file.
+    :class:`str`
+        The name of the file to which randoms were written.
     """
     # ADM create header to include versions, etc. If a `hdr` was
     # ADM passed, then use it, if not then create a new header.
@@ -1101,7 +1120,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
                                  region=region, seed=seed, nohp=True)
 
     nrands = len(data)
-    # ADM die immediately if there are no targets to write.
+    # ADM die if there are no targets to write.
     if nrands == 0:
         return nrands, filename
 
@@ -1125,6 +1144,77 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
 
     return nrands, filename
+
+
+def write_masks(maskdir, data,
+                maglim=None, maskepoch=None, nside=None, extra=None):
+    """Write a catalogue of masks and associated pixel-level info.
+
+    Parameters
+    ----------
+    maskdir : :class:`str`
+        Path to output mask directory (the file names are built
+        on-the-fly from other inputs).
+    data  : :class:`~numpy.ndarray`
+        Array of masks to write to file. Must contain at least the
+        columns "RA" and "DEC".
+    maglim : :class:`float`, optional, defaults to ``None``
+        Magnitude limit to which the mask was made.
+    maskepoch : :class:`float`, optional, defaults to ``None``
+        Epoch at which the mask was made.
+    nside: :class:`int`, defaults to not splitting by HEALPixel.
+        The HEALPix nside at which to write the output files.
+    extra : :class:`dict`, optional
+        If passed (and not ``None``), write these extra dictionary keys
+        and values to the output header.
+
+    Returns
+    -------
+    :class:`int`
+        The total number of masks that were written.
+    :class:`str`
+        The name of the directory to which masks were written.
+    """
+    # ADM create header to include versions, etc.
+    hdr = fitsio.FITSHDR()
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion())
+    # ADM add the magnitude and epoch to the header.
+    hdr["MAGLIM"] = maglim
+    hdr["MASKEPOC"] = maskepoch
+    # ADM add the extra dictionary to the header.
+    if extra is not None:
+        for key in extra:
+            hdr[key] = extra[key]
+    # ADM add the HEALPixel information to the header.
+    hdr["FILENSID"] = nside
+    hdr["FILENEST"] = True
+
+    nmasks = len(data)
+    # ADM die if there are no masks to write.
+    if nmasks == 0:
+        return nmasks, None
+
+    # ADM write across HEAPixels at input nside.
+    npix = hp.nside2npix(nside)
+    theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+    hpx = hp.ang2pix(nside, theta, phi, nest=True)
+    for pix in range(npix):
+        outdata = data[hpx==pix]
+        outhdr = dict(hdr).copy()
+        outhdr["FILEHPX"] = pix
+        # ADM construct the output file name.
+        fn = find_target_files(maskdir, flavor="masks",
+                               hp=pix, maglim=maglim, epoch=maskepoch)
+        # ADM create necessary directory, if it doesn't exist.
+        os.makedirs(os.path.dirname(fn), exist_ok=True)
+        # ADM write the output file.
+        if len(outdata) > 0:
+            fitsio.write(
+                fn, outdata, extname='MASKS', header=outhdr, clobber=True)
+            log.info('wrote {} masks to {}'.format(len(outdata), fn))
+
+    return nmasks, os.path.dirname(fn)
 
 
 def is_sky_dir_official(skydirname):
@@ -1694,7 +1784,8 @@ def _get_targ_dir():
 
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
-                      mock=False, nohp=False, seed=None, region=None):
+                      mock=False, nohp=False, seed=None, region=None,
+                      maglim=None, epoch=None):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1704,7 +1795,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     dr : :class:`str` or :class:`int`, optional, defaults to "X"
         Name of a Legacy Surveys Data Release (e.g. 8)
     flavor : :class:`str`, optional, defaults to `targets`
-        Options include "skies", "gfas", "targets", "randoms".
+        Options include "skies", "gfas", "targets", "randoms", "masks".
     survey : :class:`str`, optional, defaults to `main`
         Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
         Only relevant if `flavor` is "targets".
@@ -1734,6 +1825,12 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     region : :class:`int`, optional
         If `region` is not ``None``, then it is added to the directory
         name after `resolve`. Only relevant if `flavor` is "randoms".
+    maglim : :class:`float`, optional
+        Magnitude limit to which the mask was made. Only relevant if
+        `flavor` is "masks". Must be passed if `flavor` is "masks".
+    epoch : :class:`float`
+        Epoch at which the mask was made. Only relevant if `flavor` is
+        "masks". Must be passed if `flavor` is "masks".
 
     Returns
     -------
@@ -1760,7 +1857,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     if mock:
         allowed_flavor = ["targets", "truth", "sky"]
     else:
-        allowed_flavor = ["targets", "skies", "gfas", "randoms"]
+        allowed_flavor = ["targets", "skies", "gfas", "randoms", "masks"]
     if flavor not in allowed_flavor:
         msg = "flavor must be {}, not {}".format(' or '.join(allowed_flavor), flavor)
         log.critical(msg)
@@ -1806,6 +1903,9 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         surv = survey[0:2]
     prefix = flavor
     fn = os.path.join(targdir, flavor)
+    if flavor == "masks":
+        maskdir = "maglim-{}-epoch-{}".format(maglim, epoch)
+        fn = os.path.join(targdir, maskdir)
 
     if flavor == "targets":
         if surv in ["cmx", "sv"]:
@@ -1831,6 +1931,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     if hp is not None:
         hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
         backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
+        if flavor == "masks":
+            backend = "{}-hp-{}.fits".format(prefix, hpstr)
         fn = os.path.join(fn, backend)
     else:
         if nohp:

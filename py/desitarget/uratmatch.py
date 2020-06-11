@@ -43,7 +43,7 @@ uratdatamodel = np.array([], dtype=[
 ])
 
 
-def _get_urat_dir():
+def get_urat_dir():
     """Convenience function to grab the URAT environment variable.
 
     Returns
@@ -96,7 +96,7 @@ def scrape_urat(url="http://cdsarc.u-strasbg.fr/ftp/I/329/URAT1/v12/",
         - Runs in about 50 minutes for 575 URAT files.
     """
     # ADM check that the URAT_DIR is set and retrieve it.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM construct the directory to which to write files.
     bindir = os.path.join(uratdir, 'binary')
@@ -161,7 +161,7 @@ def urat_binary_to_csv():
         - Runs in about 40 minutes for 575 files.
     """
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM a quick check that the csv directory is empty before writing.
     csvdir = os.path.join(uratdir, 'csv')
@@ -221,7 +221,7 @@ def urat_csv_to_fits(numproc=5):
     nside = _get_urat_nside()
 
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
     log.info("running on {} processors".format(numproc))
 
     # ADM construct the directories for reading/writing files.
@@ -349,7 +349,7 @@ def urat_fits_to_healpix(numproc=5):
     nside = _get_urat_nside()
 
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM construct the directories for reading/writing files.
     fitsdir = os.path.join(uratdir, 'fits')
@@ -470,7 +470,7 @@ def make_urat_files(numproc=5, download=False):
     log.info('Begin making URAT files...t={:.1f}s'.format(time()-t0))
 
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
@@ -530,7 +530,7 @@ def find_urat_files(objs, neighbors=True, radec=False):
     nside = _get_urat_nside()
 
     # ADM check that the URAT_DIR is set and retrieve it.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
     hpxdir = os.path.join(uratdir, 'healpix')
 
     # ADM which flavor of RA/Dec was passed.

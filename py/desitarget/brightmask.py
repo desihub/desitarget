@@ -316,7 +316,7 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
     return mask
 
 
-def make_bright_star_mask(maglim=12., matchrad=1., numproc=16,
+def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
                           maskepoch=2023.0, gaiaepoch=2015.5):
     """Make an all-sky bright star mask using Tycho, Gaia and URAT.
 
@@ -362,8 +362,7 @@ def make_bright_star_mask(maglim=12., matchrad=1., numproc=16,
 
     Notes
     -----
-        - Takes about 20 minutes to run parallelized at `numproc`=16 for
-          `maglim`=12
+        - Runs in about 20 minutes for `numproc`=32 and `maglim`=12.
         - `IN_RADIUS` (`NEAR_RADIUS`) corresponds to `IN_BRIGHT_OBJECT`
           (`NEAR_BRIGHT_OBJECT`) in `data/targetmask.yaml`. These radii
           are set in the function `desitarget.brightmask.radius()`.
@@ -499,8 +498,7 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
         A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`.
     sourcemask : :class:`recarray`
         A recarray containing a mask as made by, e.g.,
-        :mod:`desitarget.brightmask.make_bright_star_mask` or
-        :mod:`desitarget.brightmask.make_bright_source_mask`.
+        :mod:`desitarget.brightmask.make_bright_star_mask`
     inonly : :class:`boolean`, optional, defaults to False
         If True, then only calculate the in_mask return but not the near_mask return,
         which is about a factor of 2 faster.
@@ -827,7 +825,6 @@ def set_target_bits(targs, sourcemask):
 
 
 def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10, 10], numproc=4,
-                 rootdirname='/global/project/projectdirs/cosmo/data/legacysurvey/dr3.1/sweep/3.1',
                  outfilename=None, drbricks=None):
     """Add bits for if objects are in a bright mask, and SAFE (BADSKY) locations, to a target set.
 
@@ -854,9 +851,6 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10
         same length (e.g., "GRZ" for [12.3,12.7,12.6])
     numproc : :class:`int`, optional
         Number of processes over which to parallelize
-    rootdirname : :class:`str`, optional, defaults to dr3
-        Root directory containing either sweeps or tractor files...e.g. for dr3 this might be
-        /global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/dr3.1
     outfilename : :class:`str`, optional, defaults to not writing anything to file
         (FITS) File name to which to write the output mask ONE OF outfilename or
         inmaskfile MUST BE PASSED
@@ -887,12 +881,7 @@ def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10
             raise ValueError("{} doesn't exist".format(targs))
         targs = fitsio.read(targs)
 
-    # ADM check if a file for the bright source mask was passed, if not then create it.
-    if inmaskfile is None:
-        sourcemask = make_bright_source_mask(bands, maglim, numproc=numproc,
-                                             rootdirname=rootdirname, outfilename=outfilename)
-    else:
-        sourcemask = fitsio.read(inmaskfile)
+    sourcemask = fitsio.read(inmaskfile)
 
     ntargsin = len(targs)
     log.info('Number of targets {}...t={:.1f}s'.format(ntargsin, time()-t0))
