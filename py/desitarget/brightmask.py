@@ -432,7 +432,7 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
     radius : :class: `str`, optional
         Which mask radius to plot (``IN_RADIUS`` or ``NEAR_RADIUS``).
     show : :class:`boolean`
-        If ``True``, then display the plot, Otherwise, just execute the 
+        If ``True``, then display the plot, Otherwise, just execute the
         plot commands so it can be added to or saved to file later.
 
     Returns
@@ -878,6 +878,8 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
     else:
         # ADM in case an integer was passed.
         pixlist = np.atleast_1d(pixlist)
+    log.info("Masking using masks in {} at nside={} in HEALPixels={}".format(
+        inmaskdir, nside, pixlist))
     pixlist = add_hp_neighbors(nside, pixlist)
 
     # ADM read in the (potentially HEALPixel-split) mask.
