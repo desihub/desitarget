@@ -32,7 +32,7 @@ from desitarget.targets import encode_targetid
 from desitarget.gaiamatch import find_gaia_files
 from desitarget.geomask import circles, cap_area, circle_boundaries
 from desitarget.geomask import ellipses, ellipse_boundary, is_in_ellipse
-from desitarget.geomask import radec_match_to, rewind_coords
+from desitarget.geomask import radec_match_to, rewind_coords, add_hp_neighbors
 from desitarget.cuts import _psflike
 from desitarget.tychomatch import get_tycho_dir, get_tycho_nside
 from desitarget.tychomatch import find_tycho_files_hp
@@ -94,9 +94,9 @@ def radii(mag):
         in data/targetmask.yaml`.
     """
     # ADM mask all sources with mag < 12 at 5 arcsecs.
-    nearrad = (mag < 12.) * 5
-    # ADM the IN_RADIUS is half the near radius.
-    inrad = nearrad/2.
+    inrad = (mag < 12.) * 5.
+    # ADM the NEAR_RADIUS is twice the IN_RADIUS.
+    nearrad = inrad*2.
 
     return inrad, nearrad
 
@@ -421,21 +421,19 @@ def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
 
 
 def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
-    """Make a plot of a mask and either display it or retain the plot object for over-plotting.
+    """Plot a mask or masks.
 
     Parameters
     ----------
     mask : :class:`recarray`
-        A mask constructed by ``make_bright_source_mask``
-        (or read in from file in the ``make_bright_source_mask`` format).
+        A mask, as constructed by, e.g. :func:`make_bright_star_mask()`.
     limits : :class:`list`, optional
-        The RA/Dec limits of the plot in the form [ramin, ramax, decmin, decmax].
+        RA/Dec plot limits in the form [ramin, ramax, decmin, decmax].
     radius : :class: `str`, optional
-        Which mask radius to plot (``IN_RADIUS`` or ``NEAR_RADIUS``). Both can be plotted
-        by calling this function twice with show=False and then with ``over=True``.
+        Which mask radius to plot (``IN_RADIUS`` or ``NEAR_RADIUS``).
     show : :class:`boolean`
-        If ``True``, then display the plot, Otherwise, just execute the plot commands
-        so it can be added to, shown or saved to file later.
+        If ``True``, then display the plot, Otherwise, just execute the 
+        plot commands so it can be added to or saved to file later.
 
     Returns
     -------
@@ -463,20 +461,25 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
     tol = 3.*np.max(mask[radius])/3600.
     # ADM the np.min/np.max combinations are to guard against people
     # ADM passing flipped RAs (so RA increases to the east).
-    w = np.where((mask["RA"] > np.min(limits[:2])-tol) & (mask["RA"] < np.max(limits[:2])+tol) &
-                 (mask["DEC"] > np.min(limits[-2:])-tol) & (mask["DEC"] < np.max(limits[-2:])+tol))
-    if len(w[0]) == 0:
-        log.error('No mask entries within specified limits ({})'.format(limits))
+    ii = ((mask["RA"] > np.min(limits[:2])-tol) &
+          (mask["RA"] < np.max(limits[:2])+tol) &
+          (mask["DEC"] > np.min(limits[-2:])-tol) &
+          (mask["DEC"] < np.max(limits[-2:])+tol))
+    if np.sum(ii) == 0:
+        msg = 'No mask entries within specified limits ({})'.format(limits)
+        log.error(msg)
+        raise ValueError(msg)
     else:
-        mask = mask[w]
+        mask = mask[ii]
 
     # ADM create ellipse polygons for each entry in the mask and
     # ADM make a list of matplotlib patches for them.
     patches = []
     for i, ellipse in enumerate(mask):
         # ADM create points on the ellipse boundary.
-        ras, decs = ellipse_boundary(ellipse["RA"], ellipse["DEC"], ellipse[radius],
-                                     ellipse["E1"], ellipse["E2"])
+        ras, decs = ellipse_boundary(
+            ellipse["RA"], ellipse["DEC"],
+            ellipse[radius], ellipse["E1"], ellipse["E2"])
         polygon = Polygon(np.array(list(zip(ras, decs))), True)
         patches.append(polygon)
 
@@ -490,38 +493,46 @@ def plot_mask(mask, limits=None, radius="IN_RADIUS", show=True):
 
 
 def is_in_bright_mask(targs, sourcemask, inonly=False):
-    """Determine whether a set of targets is in a bright source mask.
+    """Determine whether a set of targets is in a bright star mask.
 
     Parameters
     ----------
     targs : :class:`recarray`
-        A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`.
+        A recarray of targets, skies etc., as made by, e.g.,
+        :func:`desitarget.cuts.select_targets()`.
     sourcemask : :class:`recarray`
         A recarray containing a mask as made by, e.g.,
-        :mod:`desitarget.brightmask.make_bright_star_mask`
+        :func:`desitarget.brightmask.make_bright_star_mask()`
     inonly : :class:`boolean`, optional, defaults to False
-        If True, then only calculate the in_mask return but not the near_mask return,
-        which is about a factor of 2 faster.
+        If ``True``, then only calculate the `in_mask` return but not
+        the `near_mask` return, which is about a factor of 2 faster.
 
     Returns
     -------
-    in_mask : array_like.
-        ``True`` for array entries that correspond to a target that is IN a mask.
-    near_mask : array_like.
-        ``True`` for array entries that correspond to a target that is NEAR a mask.
+    :class:`list`
+        [`in_mask`, `near_mask`] where `in_mask` (`near_mask`) is a
+        boolean array that is ``True`` for `targs` that are IN (NEAR) a
+        mask. If `inonly` is ``True`` then this is just [`in_mask`].
+    :class: `list`
+        [`used_in_mask`, `used_near_mask`] where `used_in_mask`
+        (`used_near_mask`) is a boolean array that is ``True`` for masks
+        in `sourcemask` that contain a target at the IN (NEAR) radius.
+        If `inonly` is ``True`` then this is just [`used_in_mask`].
     """
     t0 = time()
 
-    # ADM initialize an array of all False (nothing is yet in a mask).
+    # ADM initialize arrays of all False (nothing is yet in a mask).
     in_mask = np.zeros(len(targs), dtype=bool)
     near_mask = np.zeros(len(targs), dtype=bool)
+    used_in_mask = np.zeros(len(sourcemask), dtype=bool)
+    used_near_mask = np.zeros(len(sourcemask), dtype=bool)
 
-    # ADM turn the coordinates of the masks and the targets into SkyCoord objects.
+    # ADM turn the mask and target coordinates into SkyCoord objects.
     ctargs = SkyCoord(targs["RA"]*u.degree, targs["DEC"]*u.degree)
     cmask = SkyCoord(sourcemask["RA"]*u.degree, sourcemask["DEC"]*u.degree)
 
-    # ADM this is the largest search radius we should need to consider
-    # ADM in the future an obvious speed up is to split on radius
+    # ADM this is the largest search radius we should need to consider.
+    # ADM In the future an obvious speed up is to split on radius
     # ADM as large radii are rarer but take longer.
     maxrad = max(sourcemask["IN_RADIUS"])*u.arcsec
     if not inonly:
@@ -534,12 +545,13 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
     # ADM catch the case where nothing fell in a mask.
     if len(idmask) == 0:
         if inonly:
-            return in_mask
-        return in_mask, near_mask
+            return [in_mask], [used_in_mask]
+        return [in_mask, near_mask], [used_in_mask, used_near_mask]
 
-    # ADM need to differentiate targets that are in ellipse-on-the-sky masks
-    # ADM from targets that are in circle-on-the-sky masks.
-    rex_or_psf = _rexlike(sourcemask[idmask]["TYPE"]) | _psflike(sourcemask[idmask]["TYPE"])
+    # ADM need to differentiate targets that are in ellipse-on-the-sky
+    # ADM masks from targets that are in circle-on-the-sky masks.
+    rex_or_psf = _rexlike(sourcemask[idmask]["TYPE"]) | _psflike(
+        sourcemask[idmask]["TYPE"])
     w_ellipse = np.where(~rex_or_psf)
 
     # ADM only continue if there are any elliptical masks.
@@ -547,11 +559,11 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
         idelltargs = idtargs[w_ellipse]
         idellmask = idmask[w_ellipse]
 
-        log.info('Testing {} total targets against {} total elliptical masks...t={:.1f}s'
+        log.info('Testing {} targets against {} elliptical masks...t={:.1f}s'
                  .format(len(set(idelltargs)), len(set(idellmask)), time()-t0))
 
-        # ADM to speed the calculation, make a dictionary of which targets (the
-        # ADM values) are associated with each mask (the keys).
+        # ADM to speed the calculation, make a dictionary of which
+        # ADM targets (the values) associate with each mask (the keys).
         targidineachmask = {}
         # ADM first initiate a list for each relevant key (mask ID).
         for maskid in set(idellmask):
@@ -561,58 +573,64 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
         for index, targid in enumerate(idelltargs):
             targidineachmask[idellmask[index]].append(targid)
 
-        # ADM loop through the masks and determine which relevant points occupy
-        # ADM them for both the IN_RADIUS and the NEAR_RADIUS.
+        # ADM loop through the masks and determine which relevant points
+        # ADM occupy them for both the IN_RADIUS and the NEAR_RADIUS.
         for maskid in targidineachmask:
             targids = targidineachmask[maskid]
             ellras, elldecs = targs[targids]["RA"], targs[targids]["DEC"]
             mask = sourcemask[maskid]
-            # ADM Refine True/False for being in a mask based on the elliptical masks.
-            in_mask[targids] |= is_in_ellipse(ellras, elldecs, mask["RA"], mask["DEC"],
-                                              mask["IN_RADIUS"], mask["E1"], mask["E2"])
+            # ADM Refine being in a mask based on the elliptical masks.
+            in_ell = is_in_ellipse(
+                ellras, elldecs, mask["RA"], mask["DEC"],
+                mask["IN_RADIUS"], mask["E1"], mask["E2"])
+            in_mask[targids] |= in_ell
+            used_in_mask[maskid] |= np.any(in_ell)
             if not inonly:
-                near_mask[targids] |= is_in_ellipse(ellras, elldecs,
-                                                    mask["RA"], mask["DEC"],
-                                                    mask["NEAR_RADIUS"],
-                                                    mask["E1"], mask["E2"])
+                in_ell = is_in_ellipse(ellras, elldecs,
+                                       mask["RA"], mask["DEC"],
+                                       mask["NEAR_RADIUS"],
+                                       mask["E1"], mask["E2"])
+                near_mask[targids] |= in_ell
+                used_near_mask[maskid] |= np.any(in_ell)
 
         log.info('Done with elliptical masking...t={:1f}s'.format(time()-t0))
 
-    # ADM finally, record targets that were in a circles-on-the-sky mask, which
+    # ADM Finally, record targets in a circles-on-the-sky mask, which
     # ADM trumps any information about just being in an elliptical mask.
-    # ADM find angular separations less than the mask radius for circle masks
-    # ADM matches that meet these criteria are in a circle mask (at least one).
-    w_in = np.where((d2d.arcsec < sourcemask[idmask]["IN_RADIUS"]) & rex_or_psf)
+    # ADM Find separations less than the mask radius for circle masks
+    # ADM matches meeting these criteria are in at least one circle mask.
+    w_in = (d2d.arcsec < sourcemask[idmask]["IN_RADIUS"]) & (rex_or_psf)
     in_mask[idtargs[w_in]] = True
+    used_in_mask[idmask[w_in]] = True
 
     if not inonly:
-        w_near = np.where((d2d.arcsec < sourcemask[idmask]["NEAR_RADIUS"]) & rex_or_psf)
+        w_near = (d2d.arcsec < sourcemask[idmask]["NEAR_RADIUS"]) & (rex_or_psf)
         near_mask[idtargs[w_near]] = True
-        return in_mask, near_mask
+        used_near_mask[idmask[w_near]] = True
+        return [in_mask, near_mask], [used_in_mask, used_near_mask]
 
-    return in_mask
+    return [in_mask], [used_in_mask]
 
 
 def is_bright_source(targs, sourcemask):
-    """Determine whether any of a set of targets are, themselves, a bright source mask.
+    """Determine whether targets are, themselves, a bright source mask.
 
     Parameters
     ----------
     targs : :class:`recarray`
-        A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`.
+        Targets as made by, e.g., :func:`desitarget.cuts.select_targets()`.
     sourcemask : :class:`recarray`
         A recarray containing a bright source mask as made by, e.g.,
-        :mod:`desitarget.brightmask.make_bright_star_mask` or
-        :mod:`desitarget.brightmask.make_bright_source_mask`.
+        :func:`desitarget.brightmask.make_bright_star_mask()`
 
     Returns
     -------
     is_mask : array_like
-        True for array entries that correspond to targets that are, themselves, a mask.
-
+        ``True`` for `targs` that are, themselves, a mask.
     """
 
-    # ADM initialize an array of all False (nothing yet has been shown to correspond to a mask).
+    # ADM initialize an array of all False (nothing yet has been shown
+    # ADM to correspond to a mask).
     is_mask = np.zeros(len(targs), dtype=bool)
 
     # ADM calculate the TARGETID for the targets.
@@ -620,29 +638,28 @@ def is_bright_source(targs, sourcemask):
                                brickid=targs['BRICKID'],
                                release=targs['RELEASE'])
 
-    # ADM super-fast set-based look-up of which TARGETIDs are matches between the masks and the targets.
+    # ADM super-fast set-based look-up of which TARGETIDs are match
+    # ADM between the masks and the targets.
     matches = set(sourcemask["TARGETID"]).intersection(set(targetid))
-    # ADM determine the indexes of the targets that have a TARGETID in matches.
+    # ADM indexes of the targets that have a TARGETID in matches.
     w_mask = [index for index, item in enumerate(targetid) if item in matches]
 
-    # ADM w_mask now contains the target indices that match to a bright mask on TARGETID.
+    # ADM w_mask now holds target indices that match a mask on TARGETID.
     is_mask[w_mask] = True
 
     return is_mask
 
 
 def generate_safe_locations(sourcemask, Nperradius=1):
-    """Given a bright source mask, generate SAFE (BADSKY) locations at its periphery.
+    """Given a mask, generate SAFE (BADSKY) locations at its periphery.
 
     Parameters
     ----------
     sourcemask : :class:`recarray`
         A recarray containing a bright mask as made by, e.g.,
-        :mod:`desitarget.brightmask.make_bright_star_mask` or
-        :mod:`desitarget.brightmask.make_bright_source_mask`.
-    Nperradius : :class:`int`, optional, defaults to 1 per arcsec of radius
-        The number of safe locations to generate scaled by the radius of each mask
-        in ARCSECONDS (i.e. the number of positions per arcsec of radius).
+        :func:`desitarget.brightmask.make_bright_star_mask()`
+    Nperradius : :class:`int`, optional, defaults to 1.
+        Number of safe locations to make per arcsec radius of each mask.
 
     Returns
     -------
@@ -688,51 +705,47 @@ def generate_safe_locations(sourcemask, Nperradius=1):
                                                sourcemask[w]["DEC"], radius[w],
                                                sourcemask[w]["E1"],
                                                sourcemask[w]["E2"], Nsafe[w])
-            ras, decs = np.concatenate((ras, ellras)), np.concatenate((decs, elldecs))
+            ras = np.concatenate((ras, ellras))
+            decs = np.concatenate((decs, elldecs))
 
     return ras, decs
 
 
-def append_safe_targets(targs, sourcemask, nside=None, drbricks=None):
-    """Append targets at SAFE (BADSKY) locations to target list, set bits in TARGETID and DESI_TARGET.
+def get_safe_targets(targs, sourcemask):
+    """Get SAFE (BADSKY) locations for targs, set TARGETID/DESI_TARGET.
 
     Parameters
     ----------
     targs : :class:`~numpy.ndarray`
-        A recarray of targets as made by, e.g. :mod:`desitarget.cuts.select_targets`.
-    nside : :class:`integer`
-        The HEALPix nside used throughout the DESI data model.
+        Targets made by, e.g. :func:`desitarget.cuts.select_targets()`.
     sourcemask : :class:`~numpy.ndarray`
-        A recarray containing a bright source mask as made by, e.g.
-        :mod:`desitarget.brightmask.make_bright_star_mask` or
-        :mod:`desitarget.brightmask.make_bright_source_mask`.
-    drbricks : :class:`~numpy.ndarray`, optional
-        A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file.
-        This is typically used for testing only.
+        A bright source mask as made by, e.g.
+        :func:`desitarget.brightmask.make_bright_star_mask()`.
 
     Returns
     -------
-        The original recarray of targets (targs) is returned with additional SAFE (BADSKY) targets appended to it.
+    :class:`~numpy.ndarray`
+        SAFE (BADSKY) locations for `targs` with the same data model as
+        for `targs`.
 
     Notes
     -----
-        - See `Tech Note 2346`_ for more on the SAFE (BADSKY) locations.
-        - See `Tech Note 2348`_ for more on setting the SKY bit in TARGETID.
-        - Currently hard-coded to create an additional 1 safe location per arcsec of mask radius.
-          The correct number per radial element (Nperradius) for DESI is an open question.
+        - `Tech Note 2346`_ details SAFE (BADSKY) locations.
+        - `Tech Note 2348`_ details setting the SKY bit in TARGETID.
+        - Hard-coded to create 1 safe location per arcsec of mask radius.
+          The correct number (Nperradius) for DESI is an open question.
     """
-
     # ADM Number of safe locations per radial arcsec of each mask.
     Nperradius = 1
 
-    # ADM generate SAFE locations at the periphery of the masks appropriate to a density of Nperradius.
+    # ADM grab SAFE locations around masks at a density of Nperradius.
     ra, dec = generate_safe_locations(sourcemask, Nperradius)
 
-    # ADM duplicate the targs rec array with a number of rows equal to the generated safe locations.
+    # ADM duplicate targs data model for safe locations.
     nrows = len(ra)
     safes = np.zeros(nrows, dtype=targs.dtype)
 
-    # ADM populate the safes recarray with the RA/Dec of the SAFE locations.
+    # ADM populate the safes with the RA/Dec of the SAFE locations.
     safes["RA"] = ra
     safes["DEC"] = dec
 
@@ -744,76 +757,64 @@ def append_safe_targets(targs, sourcemask, nside=None, drbricks=None):
     safes["BRICKID"] = b.brickid(safes["RA"], safes["DEC"])
     safes["BRICKNAME"] = b.brickname(safes["RA"], safes["DEC"])
 
-    # ADM get the string version of the data release (to find directories for brick information).
-    drint = np.max(targs['RELEASE']//1000)
-    # ADM check the targets all have the same release.
-    checker = np.min(targs['RELEASE']//1000)
-    if drint != checker:
-        raise IOError('Objects from multiple data releases in same input numpy array?!')
-    drstring = 'dr'+str(drint)
+    # ADM now add OBJIDs, counting backwards from the maximum possible
+    # ADM OBJID to ensure no duplicateion of TARGETIDs for real targets.
+    maxobjid = 2**targetid_mask.OBJID.nbits - 1
+    sortid = np.argsort(safes["BRICKID"])
+    _, cnts = np.unique(safes["BRICKID"], return_counts=True)
+    brickids = np.concatenate([np.arange(i) for i in cnts])
+    safes["BRICK_OBJID"][sortid] = brickids
 
-    # ADM now add the OBJIDs, ensuring they start higher than any other OBJID in the DR
-    # ADM read in the Data Release bricks file.
-    if drbricks is None:
-        rootdir = "/project/projectdirs/cosmo/data/legacysurvey/"+drstring.strip()+"/"
-        drbricks = fitsio.read(rootdir+"survey-bricks-"+drstring.strip()+".fits.gz")
-    # ADM the BRICK IDs that are populated for this DR.
-    drbrickids = b.brickid(drbricks["ra"], drbricks["dec"])
-    # ADM the maximum possible BRICKID at bricksize=0.25.
-    brickmax = 662174
-    # ADM create a histogram of how many SAFE/BADSKY objects are in each brick.
-    hsafes = np.histogram(safes["BRICKID"], range=[0, brickmax+1], bins=brickmax+1)[0]
-    # ADM create a histogram of how many objects are in each brick in this DR.
-    hnobjs = np.zeros(len(hsafes), dtype=int)
-    hnobjs[drbrickids] = drbricks["nobjs"]
-    # ADM make each OBJID for a SAFE/BADSKY +1 higher than any other OBJID in the DR.
-    safes["BRICK_OBJID"] = hnobjs[safes["BRICKID"]] + 1
-    # ADM sort the safes array on BRICKID.
-    safes = safes[safes["BRICKID"].argsort()]
-    # ADM remove zero entries from the histogram of BRICKIDs in safes, for speed.
-    hsafes = hsafes[np.where(hsafes > 0)]
-    # ADM the count by which to augment each OBJID to make unique OBJIDs for safes.
-    objsadd = np.hstack([np.arange(i) for i in hsafes])
-    # ADM finalize the OBJID for each SAFE target.
-    safes["BRICK_OBJID"] += objsadd
-
-    # ADM finally, update the TARGETID with the OBJID, the BRICKID, and the fact these are skies.
+    # ADM finally, update the TARGETID.
     safes["TARGETID"] = encode_targetid(objid=safes['BRICK_OBJID'],
                                         brickid=safes['BRICKID'],
                                         sky=1)
 
     # ADM return the input targs with the SAFE targets appended.
-    return np.hstack([targs, safes])
+    return safes
 
 
-def set_target_bits(targs, sourcemask):
+def set_target_bits(targs, sourcemask, return_masks=False):
     """Apply bright source mask to targets, return desi_target array.
 
     Parameters
     ----------
     targs : :class:`recarray`
-        A recarray of targets as made by, e.g., :mod:`desitarget.cuts.select_targets`.
+        Targets as made by, e.g., :func:`desitarget.cuts.select_targets()`.
     sourcemask : :class:`recarray`
         A recarray containing a bright source mask as made by, e.g.
         :mod:`desitarget.brightmask.make_bright_star_mask` or
         :mod:`desitarget.brightmask.make_bright_source_mask`.
+    return_masks : :class:`bool`
+        If ``True`` also return boolean arrays of which of the
+        masks in `sourcemask` contain a target.
+
 
     Returns
     -------
-        an ndarray of the updated desi_target bit that includes bright source information.
+    :class:`recarray`
+        `DESI_TARGET` column updates with bright source information bits.
+    :class:`list`, only returned if `return_masks` is ``True``
+        [`used_in_mask`, `used_near_mask`] where `used_in_mask`
+        (`used_near_mask`) is a boolean array that is ``True`` for masks
+        in `sourcemask` that contain a target at the IN (NEAR) radius.
 
     Notes
     -----
-        - Sets ``IN_BRIGHT_OBJECT`` and ``NEAR_BRIGHT_OBJECT`` via matches to
-          circular and/or elliptical masks.
-        - Sets BRIGHT_OBJECT via an index match on TARGETID
-          (defined as in :mod:`desitarget.targets.encode_targetid`).
+        - Sets ``IN_BRIGHT_OBJECT`` and ``NEAR_BRIGHT_OBJECT`` via
+          matches to circular and/or elliptical masks.
+        - Sets ``BRIGHT_OBJECT`` via an index match on ``TARGETID``
+          (defined as in :func:`desitarget.targets.encode_targetid()`).
 
     See :mod:`desitarget.targetmask` for the definition of each bit.
     """
+    if "TARGETID" in sourcemask.dtype.names:
+        bright_object = is_bright_source(targs, sourcemask)
+    else:
+        bright_object = 0
 
-    bright_object = is_bright_source(targs, sourcemask)
-    in_bright_object, near_bright_object = is_in_bright_mask(targs, sourcemask)
+    intargs, inmasks = is_in_bright_mask(targs, sourcemask)
+    in_bright_object, near_bright_object = intargs
 
     desi_target = targs["DESI_TARGET"].copy()
 
@@ -821,90 +822,95 @@ def set_target_bits(targs, sourcemask):
     desi_target |= in_bright_object * desi_mask.IN_BRIGHT_OBJECT
     desi_target |= near_bright_object * desi_mask.NEAR_BRIGHT_OBJECT
 
+    if return_masks:
+        return desi_target, inmasks
     return desi_target
 
 
-def mask_targets(targs, inmaskfile=None, nside=None, bands="GRZ", maglim=[10, 10, 10], numproc=4,
-                 outfilename=None, drbricks=None):
-    """Add bits for if objects are in a bright mask, and SAFE (BADSKY) locations, to a target set.
+def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
+    """Add bits for if objects occupy masks, and SAFE (BADSKY) locations.
 
     Parameters
     ----------
     targs : :class:`str` or `~numpy.ndarray`
-        A recarray of targets created by :mod:`desitarget.cuts.select_targets` OR a filename of
-        a file that contains such a set of targets
-    inmaskfile : :class:`str`, optional
-        An input bright source mask created by, e.g.
-        :mod:`desitarget.brightmask.make_bright_star_mask` or
-        :mod:`desitarget.brightmask.make_bright_source_mask`
-        If None, defaults to making the bright mask from scratch
-        The next 5 parameters are only relevant to making the bright mask from scratch
-    nside : :class:`integer`
-        The HEALPix nside used throughout the DESI data model
-    bands : :class:`str`
-        A magnitude band from the sweeps, e.g., "G", "R", "Z".
-        Can pass multiple bands as string, e.g. "GRZ", in which case maglim has to be a
-        list of the same length as the string
-    maglim : :class:`float`
-        The upper limit in that magnitude band for which to assemble a list of bright sources.
-        Can pass a list of magnitude limits, in which case bands has to be a string of the
-        same length (e.g., "GRZ" for [12.3,12.7,12.6])
-    numproc : :class:`int`, optional
-        Number of processes over which to parallelize
-    outfilename : :class:`str`, optional, defaults to not writing anything to file
-        (FITS) File name to which to write the output mask ONE OF outfilename or
-        inmaskfile MUST BE PASSED
-    drbricks : :class:`~numpy.ndarray`, optional
-        A rec array containing at least the "release", "ra", "dec" and "nobjs" columns from a survey bricks file
-        This is typically used for testing only.
+        An array of targets/skies etc. created by, e.g.,
+        :func:`desitarget.cuts.select_targets()` OR the filename of a
+        file that contains such a set of targets/skies, etc.
+    inmaskdir : :class:`str`, optional
+        An input bright star mask file or HEALPixel-split directory as
+        made by :func:`desitarget.brightmask.make_bright_star_mask()`
+    nside : :class:`int`, optional, defaults to 2
+        The nside at which the targets were generated. If the mask is
+        a HEALPixel-split directory, then this helps to perform more
+        efficient masking as only the subset of masks that are in
+        pixels containing `targs` at this `nside` will be considered
+        (together with neighboring pixels to account for edge effects).
+    pixlist : :class:`list` or `int`, optional
+        A set of HEALPixels corresponding to the `targs`. Only the subset
+        of masks in HEALPixels in `pixlist` at `nside` will be considered
+        (together with neighboring pixels to account for edge effects). 
+        If ``None``, then the pixels touched by `targs` is derived from
+        from `targs` itself.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        the input targets with the DESI_TARGET column updated to reflect the BRIGHT_OBJECT bits
-        and SAFE (BADSKY) sky locations added around the perimeter of the bright source mask.
+        Input targets with the `DESI_TARGET` column updated to reflect
+        the `BRIGHT_OBJECT` bits and SAFE (`BADSKY`) sky locations added
+        around the perimeter of the mask.
 
     Notes
     -----
-        - See `Tech Note 2346`_ for more details about SAFE (BADSKY) locations.
-        - Runs in about 10 minutes for 20M targets and 50k masks (roughly maglim=10).
+        - `Tech Note 2346`_ details SAFE (BADSKY) locations.
     """
-
     t0 = time()
 
-    if inmaskfile is None and outfilename is None:
-        raise IOError('One of inmaskfile or outfilename must be passed')
-
-    # ADM Check if targs is a filename or the structure itself.
+    # ADM Check if targs is a file name or the structure itself.
     if isinstance(targs, str):
         if not os.path.exists(targs):
             raise ValueError("{} doesn't exist".format(targs))
         targs = fitsio.read(targs)
 
-    sourcemask = fitsio.read(inmaskfile)
+    # ADM determine which pixels are occupied by targets.
+    if pixlist is None:
+        theta, phi = np.radians(90-targs["DEC"]), np.radians(targs["RA"])
+        pixlist = list(set(hp.ang2pix(nside, theta, phi, nest=True)))
+    else:
+        # ADM in case an integer was passed.
+        pixlist = np.atleast_1d(pixlist)
+    pixlist = add_hp_neighbors(nside, pixlist)
 
-    ntargsin = len(targs)
-    log.info('Number of targets {}...t={:.1f}s'.format(ntargsin, time()-t0))
-    log.info('Number of masks {}...t={:.1f}s'.format(len(sourcemask), time()-t0))
+    # ADM read in the (potentially HEALPixel-split) mask.
+    sourcemask = io.read_targets_in_hp(inmaskdir, nside, pixlist)
 
-    # ADM generate SAFE locations and add them to the target list.
-    targs = append_safe_targets(targs, sourcemask, nside=nside, drbricks=drbricks)
-
-    log.info('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(len(targs)-ntargsin, time()-t0))
+    ntargs = len(targs)
+    log.info('Total number of masks {}'.format(len(sourcemask)))
+    log.info('Total number of targets {}...t={:.1f}s'.format(ntargs, time()-t0))
 
     # ADM update the bits depending on whether targets are in a mask.
-    dt = set_target_bits(targs, sourcemask)
-    done = targs.copy()
-    done["DESI_TARGET"] = dt
+    # ADM also grab masks that contain or are near a target.
+    dt, mx = set_target_bits(targs, sourcemask, return_masks=True)
+    targs["DESI_TARGET"] = dt
+    inmasks, nearmasks = mx
+
+    # ADM generate SAFE locations for masks that contain a target.
+    safes = get_safe_targets(targs, sourcemask[inmasks])
+    # ADM update the bits for the safe locations depending on whether
+    # ADM they're in a mask.
+    safes["DESI_TARGET"] = set_target_bits(safes, sourcemask)
+    # ADM combine the targets and safe locations.
+    done = np.concatenate([targs, safes])
+
+    log.info('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(
+        len(done)-ntargs, time()-t0))
 
     # ADM remove any SAFE locations that are in bright masks (because they aren't really safe).
-    w = np.where(((done["DESI_TARGET"] & desi_mask.BAD_SKY) == 0) |
-                 ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0))
-    if len(w[0]) > 0:
-        done = done[w]
+    ii = (((done["DESI_TARGET"] & desi_mask.BAD_SKY) == 0) |
+          ((done["DESI_TARGET"] & desi_mask.IN_BRIGHT_OBJECT) == 0))
+    done = done[ii]
 
     log.info("...of these, {} SAFE (BADSKY) locations aren't in masks...t={:.1f}s"
-             .format(len(done)-ntargsin, time()-t0))
+             .format(len(done)-ntargs, time()-t0))
 
     log.info('Finishing up...t={:.1f}s'.format(time()-t0))
 

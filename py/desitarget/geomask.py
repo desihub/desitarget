@@ -580,27 +580,28 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
         The Declinations of nloc equally space locations on the periphery
             of the mask
     """
-
-    # ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
+    # ADM radius in degrees with a 0.1% kick to push beyond the edge.
     radius = 1.001*r/3600.
 
-    # ADM determine nloc Dec offsets equally spaced around the perimeter for each mask
-    offdec = [rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(nloc, radius)]
+    # ADM nloc Dec offsets equally spaced around the circle perimeter.
+    offdec = np.array([rad*np.sin(np.arange(ns)*2*np.pi/ns)
+                       for ns, rad in zip(nloc, radius)]).transpose()
 
-    # ADM use offsets to determine DEC positions
+    # ADM use offsets to determine DEC positions.
     decs = DECcens + offdec
 
-    # ADM determine the offsets in RA at these Decs given the mask center Dec
-    offrapos = [sphere_circle_ra_off(th, cen, declocs) for th, cen, declocs in zip(radius, DECcens, decs)]
+    # ADM offsets in RA at these Decs given the mask center Dec.
+    offrapos = [sphere_circle_ra_off(th, cen, declocs)
+                for th, cen, declocs in zip(radius, DECcens, decs.transpose())]
 
-    # ADM determine which of the RA offsets are in the positive direction
+    # ADM determine which RA offsets are in the positive direction.
     sign = [np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in nloc]
 
-    # ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
-    offra = [o*s for o, s in zip(offrapos, sign)]
+    # ADM add RA offsets with the right sign to the the circle center.
+    offra = np.array([o*s for o, s in zip(offrapos, sign)]).transpose()
     ras = RAcens + offra
 
-    # ADM have to turn the generated locations into 1-D arrays before returning them
+    # ADM return the results as 1-D arrays.
     return np.hstack(ras), np.hstack(decs)
 
 
