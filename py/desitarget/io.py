@@ -1200,7 +1200,7 @@ def write_masks(maskdir, data,
     theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
     hpx = hp.ang2pix(nside, theta, phi, nest=True)
     for pix in range(npix):
-        outdata = data[hpx==pix]
+        outdata = data[hpx == pix]
         outhdr = dict(hdr).copy()
         outhdr["FILEHPX"] = pix
         # ADM construct the output file name.
@@ -1948,7 +1948,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
 
 def read_target_files(filename, columns=None, rows=None, header=False,
-                      downsample=None, verbose=True):
+                      downsample=None, verbose=False):
     """Wrapper to cycle through allowed extensions to read target files.
 
     Parameters
@@ -2006,7 +2006,7 @@ def read_target_files(filename, columns=None, rows=None, header=False,
 
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
-                       header=False, downsample=None):
+                       header=False, downsample=None, verbose=False):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -2029,6 +2029,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
         targets returned.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        Passed to :func:`read_target_files()`.
 
     Returns
     -------
@@ -2064,7 +2066,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         fn0 = list(filedict.values())[0]
         notargs, nohdr = read_target_files(
             fn0, columns=columnscopy, rows=0, header=True,
-            downsample=downsample, verbose=False)
+            downsample=downsample, verbose=verbose)
         notargs = np.zeros(0, dtype=notargs.dtype)
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -2081,8 +2083,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets = []
         start = time()
         for infile in infiles:
-            targs, hdr = read_target_files(infile, columns=columnscopy,
-                                           header=True, downsample=downsample)
+            targs, hdr = read_target_files(
+                infile, columns=columnscopy, header=True,
+                downsample=downsample, verbose=verbose)
             targets.append(targs)
         # ADM if targets is empty, return no targets.
         if len(targets) == 0:
@@ -2093,8 +2096,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
-                                         header=True, downsample=downsample)
+        targets, hdr = read_target_files(
+            hpdirname, columns=columnscopy, header=True,
+            downsample=downsample, verbose=verbose)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)

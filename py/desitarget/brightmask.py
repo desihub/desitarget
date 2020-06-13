@@ -848,7 +848,7 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
     pixlist : :class:`list` or `int`, optional
         A set of HEALPixels corresponding to the `targs`. Only the subset
         of masks in HEALPixels in `pixlist` at `nside` will be considered
-        (together with neighboring pixels to account for edge effects). 
+        (together with neighboring pixels to account for edge effects).
         If ``None``, then the pixels touched by `targs` is derived from
         from `targs` itself.
 
