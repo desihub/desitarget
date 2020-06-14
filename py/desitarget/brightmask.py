@@ -735,7 +735,7 @@ def get_safe_targets(targs, sourcemask):
         - Hard-coded to create 1 safe location per arcsec of mask radius.
           The correct number (Nperradius) for DESI is an open question.
     """
-    # ADM Number of safe locations per radial arcsec of each mask.
+    # ADM number of safe locations per radial arcsec of each mask.
     Nperradius = 1
 
     # ADM grab SAFE locations around masks at a density of Nperradius.
@@ -744,6 +744,9 @@ def get_safe_targets(targs, sourcemask):
     # ADM duplicate targs data model for safe locations.
     nrows = len(ra)
     safes = np.zeros(nrows, dtype=targs.dtype)
+    # ADM return early if there are no safe locations.
+    if nrows == 0:
+        return safes
 
     # ADM populate the safes with the RA/Dec of the SAFE locations.
     safes["RA"] = ra
