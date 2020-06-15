@@ -102,9 +102,9 @@ def get_recent_mask_dir(input_dir=None):
             raise IOError(msg)
         # ADM a fairly exhaustive list of possible mask directories.
         mds = glob(os.path.join(md, "*maglim*")) + \
-              glob(os.path.join(md, "*/*maglim*")) + \
-              glob(os.path.join(md, "*/*/*maglim*"))
-        if len(mds)==0:
+            glob(os.path.join(md, "*/*maglim*")) + \
+            glob(os.path.join(md, "*/*/*maglim*"))
+        if len(mds) == 0:
             msg = "no mask sub-directories found in {}".format(md)
             log.error(msg)
             raise IOError(msg)
