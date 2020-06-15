@@ -53,14 +53,7 @@ class TestBRIGHTMASK(unittest.TestCase):
         self.unmasktargs = rfn.append_fields(unmasktargs, "BRICK_OBJID", zeros, usemask=False, dtypes='>i4')
         self.unmasktargs["BRICK_OBJID"] = self.unmasktargs["OBJID"]
 
-        # ADM set up brick information for just the brick with brickID 330368 (bricksize=0.25)
-        self.drbricks = np.zeros(1, dtype=[('ra', '>f8'), ('dec', '>f8'), ('nobjs', '>i2')])
-        self.drbricks["ra"] = 0.125
-        self.drbricks["dec"] = 0.0
-        self.drbricks["nobjs"] = 1000
-
         # ADM invent a mask with differing radii (1' and 20') and declinations
-        # ADM some elliptical components, and some different formats for TYPE
         self.mask = np.zeros(3, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f4'),
                                        ('E1', '>f4'), ('E2', '>f4'), ('TYPE', 'S4')])
         self.mask["DEC"] = [0, 70, 35]
@@ -77,19 +70,6 @@ class TestBRIGHTMASK(unittest.TestCase):
             os.remove(self.testtargfile)
         if os.path.exists(self.testbsfile):
             os.remove(self.testbsfile)
-
-    def test_collect_bright_sources(self):
-        """Test the collection of bright sources from the sweeps
-        """
-        # ADM collect the bright sources from the sweeps in the data directory and write to file...
-        bs1 = brightmask.collect_bright_sources('grz', [9, 9, 9],
-                                                rootdirname=self.bsdatadir, outfilename=self.testbsfile)
-        # ADM ...and read in the file that was written
-        bs2 = fitsio.read(self.testbsfile)
-        # ADM the created collection of objects from the sweeps should be the same as the read-in file
-        bs1ids = bs1['BRICKID'].astype(np.int64)*1000000 + bs1['OBJID']
-        bs2ids = bs2['BRICKID'].astype(np.int64)*1000000 + bs2['OBJID']
-        self.assertTrue(np.all(bs1ids == bs2ids))
 
     def test_make_bright_source_mask(self):
         """Test the construction of a bright source mask
@@ -111,9 +91,8 @@ class TestBRIGHTMASK(unittest.TestCase):
         """Test that targets in masks are flagged as being in masks
         """
         # ADM mask the targets, creating the mask
-        targs = brightmask.mask_targets(self.masktargs, bands="RZ", maglim=[8, 10], numproc=1,
-                                        rootdirname=self.bsdatadir, outfilename=self.testmaskfile,
-                                        drbricks=self.drbricks)
+        targs = brightmask.mask_targets(self.masktargs, maglim=[8, 10], numproc=1,
+                                        rootdirname=self.bsdatadir, outfilename=self.testmaskfile)
         self.assertTrue(np.any(targs["DESI_TARGET"] != 0))
 
     def test_non_mask_targets(self):
@@ -125,8 +104,8 @@ class TestBRIGHTMASK(unittest.TestCase):
         mask = brightmask.make_bright_source_mask('RZ', [8, 10],
                                                   rootdirname=self.bsdatadir, outfilename=self.testmaskfile)
         # ADM mask the targets, reading in the mask
-        targs = brightmask.mask_targets(self.testtargfile,
-                                        inmaskfile=self.testmaskfile, drbricks=self.drbricks)
+        targs = brightmask.mask_targets(self.testtargfile, inmaskfile=self.testmaskfile)
+
         # ADM none of the targets should have been masked
         self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.BAD_SKY) != 0)))
 
@@ -134,7 +113,8 @@ class TestBRIGHTMASK(unittest.TestCase):
         """Test that SAFE/BADSKY locations are equidistant from mask centers
         """
         # ADM append SAFE (BADSKY) locations around the perimeter of the mask
-        targs = brightmask.append_safe_targets(self.unmasktargs, self.mask, drbricks=self.drbricks)
+        safes = brightmask.get_safe_targets(self.unmasktargs, self.mask)
+        targs = np.concatenate([self.unmasktargs, safes])
         # ADM restrict to just SAFE (BADSKY) locations
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
         safes = targs[np.where(skybitset)]
@@ -153,7 +133,8 @@ class TestBRIGHTMASK(unittest.TestCase):
         """Test SKY/RELEASE/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
         """
         # ADM append SAFE (BADSKY) locations around the periphery of the mask
-        targs = brightmask.append_safe_targets(self.unmasktargs, self.mask, drbricks=self.drbricks)
+        safes = brightmask.get_safe_targets(self.unmasktargs, self.mask)
+        targs = np.concatenate([self.unmasktargs, safes])
 
         # ADM first check that the SKY bit and BADSKY bits are appropriately set
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
@@ -179,17 +160,6 @@ class TestBRIGHTMASK(unittest.TestCase):
         drbitshould = targs["RELEASE"][0]
         self.assertEqual(drbitset, drbitshould)
         self.assertEqual(drbitset, 0)
-
-        # ADM check that the OBJIDs proceed from "nobjs" in self.drbricks
-        rmostbit = targetid_mask.OBJID.bitnum
-        lmostbit = targetid_mask.OBJID.bitnum + targetid_mask.OBJID.nbits
-        # ADM guard against the fact that when written the rmostbit for OBJID is 0
-        if rmostbit == 0:
-            objidset = np.array([int(bintargid[-lmostbit:], 2) for bintargid in bintargids])
-        else:
-            objidset = np.array([int(bintargid[-lmostbit:-rmostbit], 2) for bintargid in bintargids])
-        objidshould = self.drbricks["nobjs"]+np.arange(len(objidset))+1
-        self.assertTrue(np.all(objidset == objidshould))
 
         # ADM finally check that the BRICKIDs are all 330368
         rmostbit = targetid_mask.BRICKID.bitnum

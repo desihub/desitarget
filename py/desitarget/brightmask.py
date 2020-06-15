@@ -223,8 +223,11 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
     tychomag = tychoobjs["MAG_VT"].copy()
     tychomag[tychomag == 0] = tychoobjs["MAG_HP"][tychomag == 0]
     tychomag[tychomag == 0] = tychoobjs["MAG_BT"][tychomag == 0]
-    # ADM discard any Tycho objects below the input magnitude limit.
-    ii = tychomag < maglim
+    # ADM discard any Tycho objects below the input magnitude limit
+    # ADM and outside of the HEALPixels of interest.
+    theta, phi = np.radians(90-tychoobjs["DEC"]), np.radians(tychoobjs["RA"])
+    tychohpx = hp.ang2pix(nside, theta, phi, nest=True)
+    ii = (tychohpx == pixnum) & (tychomag < maglim)
     tychomag, tychoobjs = tychomag[ii], tychoobjs[ii]
     if verbose:
         log.info('Read {} (mag < {}) Tycho objects (pix={})...t={:.1f} mins'.
