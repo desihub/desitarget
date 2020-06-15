@@ -8,7 +8,7 @@ from desitarget import io
 from desitarget.io import check_both_set
 from desitarget.geomask import bundle_bricks
 from desitarget.targets import resolve
-from desitarget.brightmask import mask_targets
+from desitarget.brightmask import mask_targets, get_recent_mask_dir
 
 import numpy as np
 import healpy as hp
@@ -160,26 +160,7 @@ else:
 
     # ADM mask the sky locations using a bright star mask.
     if do_mask:
-        if ns.maskdir is not None:
-            maskdir = ns.maskdir
-        else:
-            # ADM default to finding the most recent mask directory.
-            try:
-                md = os.environ["MASK_DIR"]
-            except KeyError:
-                msg = "either pass maskdir or set $MASK_DIR!"
-                log.error(msg)
-                raise IOError(msg)
-            # ADM a fairly exhaustive list of possible mask directories.
-            mds = glob(os.path.join(md, "*maglim*")) + \
-                  glob(os.path.join(md, "*/*maglim*")) + \
-                  glob(os.path.join(md, "*/*/*maglim*"))
-            if len(mds)==0:
-                msg = "no mask directories found (maybe pass --nomasking?)!"
-                log.error(msg)
-                raise IOError(msg)
-        maskdir = max(mds, key=os.path.getctime)
-
+        maskdir = get_recent_mask_dir(ns.maskdir)
         skies = mask_targets(skies, maskdir, nside=ns.nside, pixlist=pixlist)
 
     # ADM extra header keywords for the output fits file.

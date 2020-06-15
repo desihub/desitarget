@@ -63,7 +63,7 @@ def get_mask_dir():
     Returns
     -------
     :class:`str`
-        The directory stored in the $TYCHO_DIR environment variable.
+        The directory stored in the $MASK_DIR environment variable.
     """
     # ADM check that the $MASK_DIR environment variable is set.
     maskdir = os.environ.get('MASK_DIR')
@@ -73,6 +73,42 @@ def get_mask_dir():
         raise ValueError(msg)
 
     return maskdir
+
+
+def get_recent_mask_dir(input_dir=None):
+    """Grab the most recent sub-directory of masks in MASK_DIR.
+
+    Parameters
+    ----------
+    input_dir : :class:`str`, optional, defaults to ``None``
+        If passed and not ``None``, then this is returned as the output.
+
+    Returns
+    -------
+    :class:`str`
+        If `input_dir` is not ``None``, then the most recently created
+        sub-directory (with the appropriate format for a mask directory)
+        in $MASK_DIR is returned.
+    """
+    if input_dir is not None:
+        return input_dir
+    else:
+        # ADM glob the most recent mask directory.
+        try:
+            md = os.environ["MASK_DIR"]
+        except KeyError:
+            msg = "pass a mask directory, turn off masking, or set $MASK_DIR!"
+            log.error(msg)
+            raise IOError(msg)
+        # ADM a fairly exhaustive list of possible mask directories.
+        mds = glob(os.path.join(md, "*maglim*")) + \
+              glob(os.path.join(md, "*/*maglim*")) + \
+              glob(os.path.join(md, "*/*/*maglim*"))
+        if len(mds)==0:
+            msg = "no mask sub-directories found in {}".format(md)
+            log.error(msg)
+            raise IOError(msg)
+        return max(mds, key=os.path.getctime)
 
 
 def radii(mag):
