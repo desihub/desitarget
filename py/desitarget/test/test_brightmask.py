@@ -10,6 +10,8 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from glob import glob
+import healpy as hp
 
 from desitarget import brightmask, io
 from desitarget.targetmask import desi_mask, targetid_mask
@@ -19,17 +21,32 @@ from desiutil import brick
 
 class TestBRIGHTMASK(unittest.TestCase):
 
-    def setUp(self):
-        # ADM some locations of output test files
-        self.testbsfile = 'bs.fits'
-        self.testmaskfile = 'bsmask.fits'
-        self.testtargfile = 'bstargs.fits'
+    @classmethod
+    def setUpClass(cls):
+        # ADM set up the necessary environment variables.
+        cls.gaiadir_orig = os.getenv("GAIA_DIR")
+        os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
+        cls.tychodir_orig = os.getenv("TYCHO_DIR")
+        os.environ["TYCHO_DIR"] = resource_filename('desitarget.test', 't4/tycho')
+        cls.uratdir_orig = os.getenv("URAT_DIR")
+        os.environ["URAT_DIR"] = resource_filename('desitarget.test', 't4/urat')
 
-        # ADM some locations of input files
-        self.bsdatadir = resource_filename('desitarget.test', 't2')
-        self.datadir = resource_filename('desitarget.test', 't')
-        maskablefile = self.bsdatadir + '/sweep-190m005-200p000.fits'
-        unmaskablefile = self.datadir + '/sweep-320m005-330p000.fits'
+        # ADM some locations of input files.
+        cls.bsdatadir = resource_filename('desitarget.test', 't2')
+        cls.datadir = resource_filename('desitarget.test', 't')
+        maskablefile = cls.bsdatadir + '/sweep-190m005-200p000.fits'
+        unmaskablefile = cls.datadir + '/sweep-320m005-330p000.fits'
+
+        # ADM allowed HEALPixels in the Tycho directory.
+        pixnum = []
+        fns = glob(os.path.join(os.environ["TYCHO_DIR"], 'healpix', '*fits'))
+        for fn in fns:
+            data, hdr = fitsio.read(fn, "TYCHOHPX", header=True)
+            nside = hdr["HPXNSIDE"]
+            theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+            pixnum.append(list(set(hp.ang2pix(nside, theta, phi, nest=True))))
+        cls.pixnum = [i for eachlist in pixnum for i in eachlist]
+        cls.nside = nside
 
         # ADM read in the "maskable targets" (targets that ARE in masks)
         masktargs = fitsio.read(maskablefile)
@@ -39,8 +56,8 @@ class TestBRIGHTMASK(unittest.TestCase):
                                       [zeros, zeros], usemask=False, dtypes='>i8')
         # ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
         # ADM column "BRICK_OBJID" and include it as the new column "OBJID"
-        self.masktargs = rfn.append_fields(masktargs, "BRICK_OBJID", zeros, usemask=False, dtypes='>i4')
-        self.masktargs["BRICK_OBJID"] = self.masktargs["OBJID"]
+        cls.masktargs = rfn.append_fields(masktargs, "BRICK_OBJID", zeros, usemask=False, dtypes='>i4')
+        cls.masktargs["BRICK_OBJID"] = cls.masktargs["OBJID"]
 
         # ADM read in the "unmaskable targets" (targets that are NOT in masks)
         unmasktargs = fitsio.read(unmaskablefile)
@@ -50,41 +67,40 @@ class TestBRIGHTMASK(unittest.TestCase):
                                         [zeros, zeros], usemask=False, dtypes='>i8')
         # ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
         # ADM column "BRICK_OBJID" and include it as the new column "OBJID"
-        self.unmasktargs = rfn.append_fields(unmasktargs, "BRICK_OBJID", zeros, usemask=False, dtypes='>i4')
-        self.unmasktargs["BRICK_OBJID"] = self.unmasktargs["OBJID"]
+        cls.unmasktargs = rfn.append_fields(unmasktargs, "BRICK_OBJID", zeros, usemask=False, dtypes='>i4')
+        cls.unmasktargs["BRICK_OBJID"] = cls.unmasktargs["OBJID"]
 
         # ADM invent a mask with differing radii (1' and 20') and declinations
-        self.mask = np.zeros(3, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f4'),
-                                       ('E1', '>f4'), ('E2', '>f4'), ('TYPE', 'S4')])
-        self.mask["DEC"] = [0, 70, 35]
-        self.mask["IN_RADIUS"] = [1, 20, 10]
-        self.mask["E1"] = [0., 0., -0.3]
-        self.mask["E2"] = [0., 0., 0.5]
-        self.mask["TYPE"] = ['REX', b'PSF ', 'EXP ']
+        cls.mask = np.zeros(3, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f4'),
+                                      ('E1', '>f4'), ('E2', '>f4'), ('TYPE', 'S4')])
+        cls.mask["DEC"] = [0, 70, 35]
+        cls.mask["IN_RADIUS"] = [1, 20, 10]
+        cls.mask["E1"] = [0., 0., -0.3]
+        cls.mask["E2"] = [0., 0., 0.5]
+        cls.mask["TYPE"] = ['REX', b'PSF ', 'EXP ']
 
-    def tearDown(self):
+    @classmethod
+    def tearDownClass(cls):
         # ADM remove any existing test files in this directory
-        if os.path.exists(self.testmaskfile):
-            os.remove(self.testmaskfile)
-        if os.path.exists(self.testtargfile):
-            os.remove(self.testtargfile)
-        if os.path.exists(self.testbsfile):
-            os.remove(self.testbsfile)
+        if os.path.exists(cls.testmaskfile):
+            os.remove(cls.testmaskfile)
+        if os.path.exists(cls.testtargfile):
+            os.remove(cls.testtargfile)
+        if os.path.exists(cls.testbsfile):
+            os.remove(cls.testbsfile)
+        # ADM reset the environment variables.
+        if cls.gaiadir_orig is not None:
+            os.environ["GAIA_DIR"] = cls.gaiadir_orig
+        if cls.tychodir_orig is not None:
+            os.environ["TYCHO_DIR"] = cls.tychodir_orig
+        if cls.uratdir_orig is not None:
+            os.environ["URAT_DIR"] = cls.uratdir_orig
 
-    def test_make_bright_source_mask(self):
-        """Test the construction of a bright source mask
+    def test_make_bright_star_mask(self):
+        """Test the construction of a bright star mask.
         """
-        # ADM create a collection of bright sources and write to file
-        bs1 = brightmask.collect_bright_sources('grz', [9, 9, 9],
-                                                rootdirname=self.bsdatadir, outfilename=self.testbsfile)
-        # ADM create a bright source mask from the collection of bright sources and write to file...
-        mask = brightmask.make_bright_source_mask('grz', [9, 9, 9],
-                                                  infilename=self.testbsfile, outfilename=self.testmaskfile)
-        # ADM ...and read it back in
-        mask1 = fitsio.read(self.testmaskfile)
-        # ADM create the bright source mask from scratch
-        mask2 = brightmask.make_bright_source_mask('grz', [9, 9, 9], rootdirname=self.bsdatadir)
-        # ADM the created-from-scratch mask should be the same as the read-in mask
+        mask = make_bright_star_mask_in_hp(cls.nside, cls.pixnum[0], maglim=20.)
+
         self.assertTrue(np.all(mask1["TARGETID"] == mask2["TARGETID"]))
 
     def test_mask_targets(self):

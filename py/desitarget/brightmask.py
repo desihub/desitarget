@@ -239,7 +239,9 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
     gaiaobjs = []
     cols = 'SOURCE_ID', 'RA', 'DEC', 'PHOT_G_MEAN_MAG', 'PMRA', 'PMDEC'
     for fn in gaiafns:
-        gaiaobjs.append(fitsio.read(fn, ext='GAIAHPX', columns=cols))
+        if os.path.exists(fn):
+            gaiaobjs.append(fitsio.read(fn, ext='GAIAHPX', columns=cols))
+
     gaiaobjs = np.concatenate(gaiaobjs)
     gaiaobjs = rfn.rename_fields(gaiaobjs, {"SOURCE_ID": "REF_ID"})
     # ADM limit Gaia objects to 3 magnitudes fainter than the passed
@@ -255,6 +257,7 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
     if verbose:
         log.info('Add URAT for {} Gaia objs with no PMs (pix={})...t={:.1f} mins'
                  .format(np.sum(ii), pixnum, (time()-t0)/60))
+
     urat = add_urat_pms(gaiaobjs[ii], numproc=1)
     if verbose:
         log.info('Found an additional {} URAT objects (pix={})...t={:.1f} mins'
@@ -285,6 +288,7 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
     if verbose:
         log.info('{} matches. Refining at 1" (pix={})...t={:.1f} mins'.format(
             len(itycho), pixnum, (time()-t0)/60))
+
     # ADM match Gaia to Tycho at the more exact reference epoch.
     epoch_ra = tychoobjs[itycho]["EPOCH_RA"]
     epoch_dec = tychoobjs[itycho]["EPOCH_DEC"]
@@ -294,8 +298,12 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
                             gaiaobjs["PMRA"][igaia], gaiaobjs["PMDEC"][igaia],
                             epochnow=gaiaepoch,
                             epochpast=epoch_ra, epochpastdec=epoch_dec)
-    _, refined = radec_match_to([ra, dec], [tychoobjs["RA"][itycho],
-                                tychoobjs["DEC"][itycho]], radec=True)
+    # ADM catch the corner case where there are no initial matches.
+    if ra > 0:
+        _, refined = radec_match_to([ra, dec], [tychoobjs["RA"][itycho],
+                                    tychoobjs["DEC"][itycho]], radec=True)
+    else:
+        refined = np.array([], dtype='int')
     # ADM retain Tycho objects that DON'T match Gaia.
     keep = np.ones(len(tychoobjs), dtype='bool')
     keep[itycho[refined]] = False
