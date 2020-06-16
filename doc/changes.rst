@@ -5,6 +5,18 @@ desitarget Change Log
 0.40.1 (unreleased)
 -------------------
 
+* Update masking to be "all-sky" using Gaia/Tycho/URAT [`PR #625`_]:
+    * General desitarget functionality to work with Tycho files.
+    * Deprecate using the sweeps to mask bright objects as this is now
+      being done using MASKBITS from the imaging catalogs.
+    * Functionality to allow masks to be built at different epochs, via
+      careful treatment of Tycho/Gaia/URAT proper motions.
+    * Bright star masks are now explicitly written to a $MASK_DIR.
+    * The radius-magnitude relationship is now a single function.
+    * Refactoring of unit tests to be simpler and have more coverage.
+    * Skies and supplemental skies are now always masked by default.
+    * A lack of backward compatibility, which should be OK as the masking
+      formalism wasn't being extensively used.
 * Functionality for iterations of SV beyond sv1 [`PR #624`_]. Includes:
     * A script to create the necessary files for new iterations of SV.
     * Generalized mask/cuts handling for survey=svX, X being any integer.
@@ -21,6 +33,7 @@ desitarget Change Log
 
 .. _`PR #623`: https://github.com/desihub/desitarget/pull/623
 .. _`PR #624`: https://github.com/desihub/desitarget/pull/624
+.. _`PR #625`: https://github.com/desihub/desitarget/pull/625
 
 0.40.0 (2020-05-26)
 -------------------
