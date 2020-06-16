@@ -123,13 +123,13 @@ fitsio.write('t/cmx-targets.fits', cmx_targets, extname='TARGETS', header=hdr, c
 
 # ADM adding a file to make a mask for bright stars
 # ADM this should go in its own directory /t2 (others are in t1)
-filepath = '{}/sweep-{}.fits'.format(sweepdir, '190m005-200p000')
-data, hdr = read_tractor(filepath, header=True)
+# filepath = '{}/sweep-{}.fits'.format(sweepdir, '190m005-200p000')
+# data, hdr = read_tractor(filepath, header=True)
 # ADM the "CONTINUE" comment keyword is not yet implemented
 # ADM in fitsio, so delete it to prevent fitsio barfing on headers
-hdr.delete("CONTINUE")
-keep = np.where(data["FLUX_Z"] > 100000)
-fitsio.write('t2/'+basename(filepath), data[keep], header=hdr, clobber=True)
+# hdr.delete("CONTINUE")
+# keep = np.where(data["FLUX_Z"] > 100000)
+# fitsio.write('t2/'+basename(filepath), data[keep], header=hdr, clobber=True)
 
 # ADM adding a fake pixel weight map
 sysdic = _load_systematics()

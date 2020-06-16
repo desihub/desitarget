@@ -1180,8 +1180,10 @@ def write_masks(maskdir, data,
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     # ADM add the magnitude and epoch to the header.
-    hdr["MAGLIM"] = maglim
-    hdr["MASKEPOC"] = maskepoch
+    if maglim is not None:
+        hdr["MAGLIM"] = maglim
+    if maskepoch is not None:
+        hdr["MASKEPOC"] = maskepoch
     # ADM add the extra dictionary to the header.
     if extra is not None:
         for key in extra:
@@ -1196,23 +1198,32 @@ def write_masks(maskdir, data,
         return nmasks, None
 
     # ADM write across HEAPixels at input nside.
-    npix = hp.nside2npix(nside)
-    theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
-    hpx = hp.ang2pix(nside, theta, phi, nest=True)
-    for pix in range(npix):
-        outdata = data[hpx == pix]
-        outhdr = dict(hdr).copy()
-        outhdr["FILEHPX"] = pix
-        # ADM construct the output file name.
-        fn = find_target_files(maskdir, flavor="masks",
-                               hp=pix, maglim=maglim, epoch=maskepoch)
-        # ADM create necessary directory, if it doesn't exist.
+    if nside is not None:
+        npix = hp.nside2npix(nside)
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        hpx = hp.ang2pix(nside, theta, phi, nest=True)
+        for pix in range(npix):
+            outdata = data[hpx == pix]
+            outhdr = dict(hdr).copy()
+            outhdr["FILEHPX"] = pix
+            # ADM construct the output file name.
+            fn = find_target_files(maskdir, flavor="masks",
+                                   hp=pix, maglim=maglim, epoch=maskepoch)
+            # ADM create necessary directory, if it doesn't exist.
+            os.makedirs(os.path.dirname(fn), exist_ok=True)
+            # ADM write the output file.
+            if len(outdata) > 0:
+                fitsio.write(
+                    fn, outdata, extname='MASKS', header=outhdr, clobber=True)
+                log.info('wrote {} masks to {}'.format(len(outdata), fn))
+    else:
+        fn = find_target_files(maskdir, flavor="masks", hp="X",
+                               maglim=maglim, epoch=maskepoch)
         os.makedirs(os.path.dirname(fn), exist_ok=True)
-        # ADM write the output file.
-        if len(outdata) > 0:
+        if len(data) > 0:
             fitsio.write(
-                fn, outdata, extname='MASKS', header=outhdr, clobber=True)
-            log.info('wrote {} masks to {}'.format(len(outdata), fn))
+                fn, data, extname='MASKS', header=hdr, clobber=True)
+            log.info('wrote {} masks to {}'.format(len(data), fn))
 
     return nmasks, os.path.dirname(fn)
 

@@ -4,7 +4,7 @@
 """
 import unittest
 from pkg_resources import resource_filename
-import os.path
+import os
 import fitsio
 import numpy as np
 import numpy.lib.recfunctions as rfn
@@ -12,6 +12,8 @@ from astropy.coordinates import SkyCoord
 from astropy import units as u
 from glob import glob
 import healpy as hp
+import tempfile
+import shutil
 
 from desitarget import brightmask, io
 from desitarget.targetmask import desi_mask, targetid_mask
@@ -25,17 +27,15 @@ class TestBRIGHTMASK(unittest.TestCase):
     def setUpClass(cls):
         # ADM set up the necessary environment variables.
         cls.gaiadir_orig = os.getenv("GAIA_DIR")
-        os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
+        testdir = 'desitarget.test'
+        os.environ["GAIA_DIR"] = resource_filename(testdir, 't4')
         cls.tychodir_orig = os.getenv("TYCHO_DIR")
-        os.environ["TYCHO_DIR"] = resource_filename('desitarget.test', 't4/tycho')
+        os.environ["TYCHO_DIR"] = resource_filename(testdir, 't4/tycho')
         cls.uratdir_orig = os.getenv("URAT_DIR")
-        os.environ["URAT_DIR"] = resource_filename('desitarget.test', 't4/urat')
+        os.environ["URAT_DIR"] = resource_filename(testdir, 't4/urat')
 
-        # ADM some locations of input files.
-        cls.bsdatadir = resource_filename('desitarget.test', 't2')
-        cls.datadir = resource_filename('desitarget.test', 't')
-        maskablefile = cls.bsdatadir + '/sweep-190m005-200p000.fits'
-        unmaskablefile = cls.datadir + '/sweep-320m005-330p000.fits'
+        # ADM a temporary output directory to test writing masks.
+        cls.maskdir = tempfile.mkdtemp()
 
         # ADM allowed HEALPixels in the Tycho directory.
         pixnum = []
@@ -48,46 +48,42 @@ class TestBRIGHTMASK(unittest.TestCase):
         cls.pixnum = [i for eachlist in pixnum for i in eachlist]
         cls.nside = nside
 
-        # ADM read in the "maskable targets" (targets that ARE in masks)
-        masktargs = fitsio.read(maskablefile)
-        # ADM because the input file has not been through Target Selection we need to add DESI_TARGET and TARGETID
-        zeros = np.zeros(len(masktargs))
-        masktargs = rfn.append_fields(masktargs, ["DESI_TARGET", "TARGETID"],
-                                      [zeros, zeros], usemask=False, dtypes='>i8')
-        # ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
-        # ADM column "BRICK_OBJID" and include it as the new column "OBJID"
-        cls.masktargs = rfn.append_fields(masktargs, "BRICK_OBJID", zeros, usemask=False, dtypes='>i4')
-        cls.masktargs["BRICK_OBJID"] = cls.masktargs["OBJID"]
+        # ADM pick a faint maglim (as unit tests deal with few objects).
+        cls.maglim = 20.
+        # ADM also pick a reasonable epoch at which to make the mask.
+        cls.maskepoch = 2025.5
 
-        # ADM read in the "unmaskable targets" (targets that are NOT in masks)
-        unmasktargs = fitsio.read(unmaskablefile)
-        # ADM because the input file has not been through Target Selection we need to add DESI_TARGET and TARGETID
-        zeros = np.zeros(len(unmasktargs))
-        unmasktargs = rfn.append_fields(unmasktargs, ["DESI_TARGET", "TARGETID"],
-                                        [zeros, zeros], usemask=False, dtypes='>i8')
-        # ADM As the sweeps file is also doubling as a targets file, we have to duplicate the
-        # ADM column "BRICK_OBJID" and include it as the new column "OBJID"
-        cls.unmasktargs = rfn.append_fields(unmasktargs, "BRICK_OBJID", zeros, usemask=False, dtypes='>i4')
-        cls.unmasktargs["BRICK_OBJID"] = cls.unmasktargs["OBJID"]
+        # ADM an example mask, made from all of the test HEALPixels.
+        cls.allmx = brightmask.make_bright_star_mask(
+            numproc=1, nside=cls.nside, pixels=cls.pixnum,
+            maglim=cls.maglim, maskepoch=cls.maskepoch)
 
-        # ADM invent a mask with differing radii (1' and 20') and declinations
-        cls.mask = np.zeros(3, dtype=[('RA', '>f8'), ('DEC', '>f8'), ('IN_RADIUS', '>f4'),
-                                      ('E1', '>f4'), ('E2', '>f4'), ('TYPE', 'S4')])
+        # ADM read in some targets.
+        targdir = resource_filename(testdir, 't')
+        fn = os.path.join(targdir, 'sweep-320m005-330p000.fits')
+        ts = fitsio.read(fn)
+        # ADM targets are really sweeps objects, so add target fields.
+        zs = np.zeros(len(ts))
+        targs = rfn.append_fields(ts, ["DESI_TARGET", "TARGETID"], [zs, zs],
+                                  usemask=False, dtypes='>i8')
+        cls.targs = rfn.append_fields(targs, "BRICK_OBJID", zs, usemask=False,
+                                      dtypes='>i4')
+        cls.targs["BRICK_OBJID"] = cls.targs["OBJID"]
+
+        # ADM invent a mask with various testing properties.
+        cls.mask = np.zeros(3, dtype=brightmask.maskdatamodel.dtype)
         cls.mask["DEC"] = [0, 70, 35]
         cls.mask["IN_RADIUS"] = [1, 20, 10]
         cls.mask["E1"] = [0., 0., -0.3]
         cls.mask["E2"] = [0., 0., 0.5]
-        cls.mask["TYPE"] = ['REX', b'PSF ', 'EXP ']
+        cls.mask["TYPE"] = ['PSF', b'PSF ', 'PSF ']
 
     @classmethod
     def tearDownClass(cls):
-        # ADM remove any existing test files in this directory
-        if os.path.exists(cls.testmaskfile):
-            os.remove(cls.testmaskfile)
-        if os.path.exists(cls.testtargfile):
-            os.remove(cls.testtargfile)
-        if os.path.exists(cls.testbsfile):
-            os.remove(cls.testbsfile)
+        # ADM remove the temporary output directory.
+        if os.path.exists(cls.maskdir):
+            shutil.rmtree(cls.maskdir)
+
         # ADM reset the environment variables.
         if cls.gaiadir_orig is not None:
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
@@ -99,77 +95,153 @@ class TestBRIGHTMASK(unittest.TestCase):
     def test_make_bright_star_mask(self):
         """Test the construction of a bright star mask.
         """
-        mask = make_bright_star_mask_in_hp(cls.nside, cls.pixnum[0], maglim=20.)
+        # ADM test making the mask in an individual pixel.
+        mx = brightmask.make_bright_star_mask_in_hp(
+            self.nside, self.pixnum[0],
+            maglim=self.maglim, maskepoch=self.maskepoch)
 
-        self.assertTrue(np.all(mask1["TARGETID"] == mask2["TARGETID"]))
+        # ADM check that running across all pixels contains the subset
+        # ADM of masks in the single pixel.
+        self.assertTrue(len(set(mx["REF_ID"]) - set(self.allmx["REF_ID"])) == 0)
+        self.assertTrue(len(set(self.allmx["REF_ID"]) - set(mx["REF_ID"])) > 0)
+
+    def test_make_bright_star_mask_parallel(self):
+        """Check running the mask-making code in parallel.
+        """
+        # ADM run on two processors.
+        two = brightmask.make_bright_star_mask(
+            numproc=2, nside=self.nside, pixels=self.pixnum,
+            maglim=self.maglim, maskepoch=self.maskepoch)
+
+        # ADM check that running in parallel recovers the same masks as
+        # ADM running on one processor.
+        one = self.allmx[np.argsort(self.allmx["REF_ID"])]
+        two = two[np.argsort(two["REF_ID"])]
+        self.assertTrue(np.all(one == two))
+
+    def test_mask_write(self):
+        """Test that masks are written to file correctly.
+        """
+        # ADM some meaningless magnitude limits and mask epochs.
+        ml, me = 62.3, 2062.3
+        # ADM a keyword dictionary to write to the output file header.
+        extra = {'BLAT': 'blat', 'FOO': 'foo'}
+
+        # ADM test writing without HEALPixel-split.
+        _, mxdir = io.write_masks(self.maskdir, self.allmx, maglim=ml,
+                                  maskepoch=me, extra=extra)
+
+        # ADM test writing with HEALPixel-split.
+        _, mxdir = io.write_masks(self.maskdir, self.allmx, maglim=ml,
+                                  maskepoch=me, extra=extra, nside=self.nside)
+
+        # ADM construct the output directory and file name.
+        mxd = io.find_target_files(self.maskdir, flavor="masks",
+                                   maglim=ml, epoch=me)
+        mxfn = io.find_target_files(self.maskdir, flavor="masks",
+                                    maglim=ml, epoch=me, hp=self.pixnum[0])
+
+        # ADM check the output directory is as expected.
+        self.assertEqual(mxdir, mxd)
+
+        # ADM check all of the files were made in the correct place.
+        fns = glob(os.path.join(mxdir, "masks-hp*fits"))
+        self.assertEqual(len(fns), len(self.pixnum)+1)
+
+        # ADM check the extra kwargs were written to the header.
+        for key in extra:
+            hdr = fitsio.read_header(mxfn, "MASKS")
+            self.assertEqual(hdr[key].rstrip(), extra[key])
 
     def test_mask_targets(self):
-        """Test that targets in masks are flagged as being in masks
+        """Test that targets in masks are flagged accordingly.
         """
-        # ADM mask the targets, creating the mask
-        targs = brightmask.mask_targets(self.masktargs, maglim=[8, 10], numproc=1,
-                                        rootdirname=self.bsdatadir, outfilename=self.testmaskfile)
-        self.assertTrue(np.any(targs["DESI_TARGET"] != 0))
+        # ADM create the output mask directory.
+        _, mxdir = io.write_masks(self.maskdir, self.allmx, maglim=self.maglim,
+                                  maskepoch=self.maskepoch, nside=self.nside)
+
+        # ADM make targets with the same coordinates as the masks.
+        # ADM remembering to select masks that actually have a radius.
+        ii = self.allmx["IN_RADIUS"] > 0
+        targs = self.targs.copy()
+        targs["RA"] = self.allmx["RA"][ii][:len(targs)]
+        targs["DEC"] = self.allmx["DEC"][ii][:len(targs)]
+
+        # ADM add mask information to DESI_TARGET.
+        mxt = brightmask.mask_targets(targs, mxdir, nside=self.nside,
+                                      pixlist=self.pixnum)
+
+        # ADM all the targs should have been masked.
+        nmasked = np.sum(mxt["DESI_TARGET"] & desi_mask["IN_BRIGHT_OBJECT"] != 0)
+        self.assertEqual(nmasked, len(targs))
+
+        # ADM and we should have added some safe targets that will be
+        # ADM "near" bright objects.
+        is_nbo = mxt["DESI_TARGET"] & desi_mask["NEAR_BRIGHT_OBJECT"] != 0
+        self.assertTrue(np.all(is_nbo))
 
     def test_non_mask_targets(self):
-        """Test that targets that are NOT in masks are flagged as not being in masks
+        """Test targets that are NOT in masks are flagged accordingly.
         """
-        # ADM write targs to file in order to check input file method
-        fitsio.write(self.testtargfile, self.unmasktargs, clobber=True)
-        # ADM create the mask and write it to file
-        mask = brightmask.make_bright_source_mask('RZ', [8, 10],
-                                                  rootdirname=self.bsdatadir, outfilename=self.testmaskfile)
-        # ADM mask the targets, reading in the mask
-        targs = brightmask.mask_targets(self.testtargfile, inmaskfile=self.testmaskfile)
+        # ADM create the output mask directory.
+        _, mxdir = io.write_masks(self.maskdir, self.allmx, maglim=self.maglim,
+                                  maskepoch=self.maskepoch, nside=self.nside)
 
-        # ADM none of the targets should have been masked
-        self.assertTrue(np.all((targs["DESI_TARGET"] == 0) | ((targs["DESI_TARGET"] & desi_mask.BAD_SKY) != 0)))
+        # ADM update DESI_TARGET for any targets in masks.
+        mxtargs = brightmask.mask_targets(self.targs, mxdir, nside=self.nside,
+                                          pixlist=self.pixnum)
+
+        # ADM none of the targets should be in a mask.
+        self.assertTrue(np.all(mxtargs["DESI_TARGET"] == 0))
 
     def test_safe_locations(self):
-        """Test that SAFE/BADSKY locations are equidistant from mask centers
+        """Test SAFE/BADSKY locations are equidistant from mask centers.
         """
-        # ADM append SAFE (BADSKY) locations around the perimeter of the mask
-        safes = brightmask.get_safe_targets(self.unmasktargs, self.mask)
-        targs = np.concatenate([self.unmasktargs, safes])
-        # ADM restrict to just SAFE (BADSKY) locations
+        # ADM append SAFE locations around the perimeter of the mask.
+        safes = brightmask.get_safe_targets(self.targs, self.mask)
+        targs = np.concatenate([self.targs, safes])
+        # ADM restrict to just SAFE locations.
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
         safes = targs[np.where(skybitset)]
-        # ADM for each mask location check that every safe location is equidistant from the mask center
+        # ADM for each mask location check that every safe location is
+        # ADM equidistant from the mask center.
         c = SkyCoord(safes["RA"]*u.deg, safes["DEC"]*u.deg)
         for i in range(2):
             cent = SkyCoord(self.mask[i]["RA"]*u.deg, self.mask[i]["DEC"]*u.deg)
             sep = cent.separation(c)
             # ADM only things close to mask i
             w = np.where(sep < np.min(sep)*1.002)
-            # ADM are these all the same distance to a very high precision?
-            print("mask information", self.mask[i])
+            # ADM are these all the same distance to high precision?
             self.assertTrue(np.max(sep[w] - sep[w[0]]) < 1e-15*u.deg)
 
     def test_targetid(self):
-        """Test SKY/RELEASE/BRICKID/OBJID are set correctly in TARGETID and DESI_TARGET for SAFE/BADSKY locations
+        """Test SKY/RELEASE/BRICKID/OBJID are set correctly in TARGETID
+        and DESI_TARGET for SAFE/BADSKY locations.
         """
-        # ADM append SAFE (BADSKY) locations around the periphery of the mask
-        safes = brightmask.get_safe_targets(self.unmasktargs, self.mask)
-        targs = np.concatenate([self.unmasktargs, safes])
+        # ADM append SAFE locations around the perimeter of the mask.
+        safes = brightmask.get_safe_targets(self.targs, self.mask)
+        targs = np.concatenate([self.targs, safes])
 
-        # ADM first check that the SKY bit and BADSKY bits are appropriately set
+        # ADM first check the SKY and BADSKY bits are appropriately set.
         skybitset = ((targs["TARGETID"] & targetid_mask.SKY) != 0)
         badskybitset = ((targs["DESI_TARGET"] & desi_mask.BAD_SKY) != 0)
         self.assertTrue(np.all(skybitset == badskybitset))
 
         # ADM now check that the other bits are in the correct locations
-        # ADM first restrict to just things in BRICK 330368
-        w = np.where(targs["BRICKID"] == 330368)
-        targs = targs[w]
+        # ADM first restrict to the ~half-dozen targets in BRICK 521233.
+        bid = 521233
+        ii = targs["BRICKID"] == bid
+        targs = targs[ii]
 
-        # ADM check that the TARGETIDs are unique
-        self.assertEqual(len(set(targs["TARGETID"])), len(targs["TARGETID"]))
+        # ADM check that the TARGETIDs are unique.
+        s = set(targs["TARGETID"])
+        self.assertEqual(len(s), len(targs["TARGETID"]))
 
-        # ADM the targetids as a binary string
+        # ADM the TARGETIDs as a binary string.
         bintargids = [np.binary_repr(targid) for targid in targs["TARGETID"]]
 
-        # ADM check that the data release is set (in a way unlike the normal bit-setting in brightmask.py)
-        # ADM note that release should be zero for SAFE LOCATIONS
+        # ADM check the DR is set (in a way unlike the normal bit-setting
+        # in brightmask.py). Release should be zero for SAFE locations.
         rmostbit = targetid_mask.RELEASE.bitnum
         lmostbit = targetid_mask.RELEASE.bitnum + targetid_mask.RELEASE.nbits
         drbitset = int(bintargids[0][-lmostbit:-rmostbit], 2)
@@ -177,11 +249,12 @@ class TestBRIGHTMASK(unittest.TestCase):
         self.assertEqual(drbitset, drbitshould)
         self.assertEqual(drbitset, 0)
 
-        # ADM finally check that the BRICKIDs are all 330368
+        # ADM check that the BRICKIDs are as restricted/requested.
         rmostbit = targetid_mask.BRICKID.bitnum
         lmostbit = targetid_mask.BRICKID.bitnum + targetid_mask.BRICKID.nbits
-        brickidset = np.array([int(bintargid[-lmostbit:-rmostbit], 2) for bintargid in bintargids])
-        self.assertTrue(np.all(brickidset == 330368))
+        brickidset = np.array(
+            [int(bintargid[-lmostbit:-rmostbit], 2) for bintargid in bintargids])
+        self.assertTrue(np.all(brickidset == bid))
 
 
 if __name__ == '__main__':

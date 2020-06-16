@@ -299,7 +299,7 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
                             epochnow=gaiaepoch,
                             epochpast=epoch_ra, epochpastdec=epoch_dec)
     # ADM catch the corner case where there are no initial matches.
-    if ra > 0:
+    if ra.size > 0:
         _, refined = radec_match_to([ra, dec], [tychoobjs["RA"][itycho],
                                     tychoobjs["DEC"][itycho]], radec=True)
     else:
@@ -364,7 +364,8 @@ def make_bright_star_mask_in_hp(nside, pixnum, verbose=True, gaiaepoch=2015.5,
 
 
 def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
-                          maskepoch=2023.0, gaiaepoch=2015.5):
+                          maskepoch=2023.0, gaiaepoch=2015.5,
+                          nside=None, pixels=None):
     """Make an all-sky bright star mask using Tycho, Gaia and URAT.
 
     Parameters
@@ -383,9 +384,17 @@ def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
         The mask is built at this epoch. Not all sources have proper
         motions from every survey, so proper motions are used, in order
         of preference, from Gaia, URAT, then Tycho.
-    gaiaepoch: :class:`float`, optional, defaults to Gaia DR2 (2015.5)
+    gaiaepoch : :class:`float`, optional, defaults to Gaia DR2 (2015.5)
         The epoch of the Gaia observations. Should be 2015.5 unless we
         move beyond Gaia DR2.
+    nside : :class:`int`, optional, defaults to ``None``
+        If passed, create a mask only in nested HEALPixels in `pixels`
+        at this `nside`. Otherwise, run for the whole sky. If `nside`
+        is passed then `pixels` must be passed too.
+    pixels :class:`list`, optional, defaults to ``None``
+        If passed, create a mask only in nested HEALPixels at `nside` for
+        pixel integers in `pixels`. Otherwise, run for the whole sky. If
+        `pixels` is passed then `nside` must be passed too.
 
     Returns
     -------
@@ -409,7 +418,7 @@ def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
 
     Notes
     -----
-        - Runs in about 20 minutes for `numproc`=32 and `maglim`=12.
+        - Runs (all-sky) in ~20 minutes for `numproc`=32 and `maglim`=12.
         - `IN_RADIUS` (`NEAR_RADIUS`) corresponds to `IN_BRIGHT_OBJECT`
           (`NEAR_BRIGHT_OBJECT`) in `data/targetmask.yaml`. These radii
           are set in the function `desitarget.brightmask.radius()`.
@@ -419,15 +428,18 @@ def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
     """
     log.info("running on {} processors".format(numproc))
 
+    # ADM check if HEALPixel parameters have been correctly sent.
+    io.check_both_set(pixels, nside)
+
     # ADM grab the nside of the Tycho files, which is a reasonable
     # ADM resolution for bright stars.
-    nside = get_tycho_nside()
-    npixels = hp.nside2npix(nside)
-
-    # ADM array of HEALPixels over which to parallelize...
-    pixels = np.arange(npixels)
-    # ADM ...shuffle for better balance across nodes (as there are more
-    # ADM stars in certain regions of the sky where pixels adjoin).
+    if nside is None:
+        nside = get_tycho_nside()
+        npixels = hp.nside2npix(nside)
+        # ADM array of HEALPixels over which to parallelize...
+        pixels = np.arange(npixels)
+        # ADM ...shuffle for better balance across nodes (as there are
+        # ADM more stars in regions of the sky where pixels adjoin).
     np.random.shuffle(pixels)
 
     # ADM the common function that is actually parallelized across.
