@@ -391,7 +391,7 @@ def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
         If passed, create a mask only in nested HEALPixels in `pixels`
         at this `nside`. Otherwise, run for the whole sky. If `nside`
         is passed then `pixels` must be passed too.
-    pixels :class:`list`, optional, defaults to ``None``
+    pixels : :class:`list`, optional, defaults to ``None``
         If passed, create a mask only in nested HEALPixels at `nside` for
         pixel integers in `pixels`. Otherwise, run for the whole sky. If
         `pixels` is passed then `nside` must be passed too.
@@ -418,7 +418,7 @@ def make_bright_star_mask(maglim=12., matchrad=1., numproc=32,
 
     Notes
     -----
-        - Runs (all-sky) in ~20 minutes for `numproc`=32 and `maglim`=12.
+        - Runs (all-sky) in ~20 minutes for `numproc=32` and `maglim=12`.
         - `IN_RADIUS` (`NEAR_RADIUS`) corresponds to `IN_BRIGHT_OBJECT`
           (`NEAR_BRIGHT_OBJECT`) in `data/targetmask.yaml`. These radii
           are set in the function `desitarget.brightmask.radius()`.
