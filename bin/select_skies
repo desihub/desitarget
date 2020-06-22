@@ -8,9 +8,11 @@ from desitarget import io
 from desitarget.io import check_both_set
 from desitarget.geomask import bundle_bricks
 from desitarget.targets import resolve
+from desitarget.brightmask import mask_targets, get_recent_mask_dir
 
 import numpy as np
 import healpy as hp
+from glob import glob
 
 #import warnings
 #warnings.simplefilter('error')
@@ -58,10 +60,26 @@ ap.add_argument("--brickspersec", type=float,
                 help="estimate of bricks completed per second by the (parallelized) code. Used with `bundlebricks` to guess run times (defaults to 1.6)",
                 default=1.6)
 ap.add_argument("--numproc", type=int,
-                help='number of concurrent processes to use [{}]'.format(nproc),
+                help="number of concurrent processes to use [{}]".format(nproc),
                 default=nproc)
+ap.add_argument("--nomasking", action='store_true',
+                help="Masking occurs by default. If this is set, do NOT use a bright star mask to mask the sky locations")
+ap.add_argument("--maskdir",
+                help="Name of the specific directory (or file) containing the bright star mask (defaults to the most recent directory in $MASK_DIR)",
+                default=None)
 
 ns = ap.parse_args()
+do_mask = not(ns.nomasking)
+# ADM build the list of command line arguments as
+# ADM bundlefiles potentially needs to know about them.
+extra = " --numproc {}".format(ns.numproc)
+nsdict = vars(ns)
+for nskey in "nskiespersqdeg", "bands", "apertures", "nomasking", "maskdir":
+    if isinstance(nsdict[nskey], bool):
+        if nsdict[nskey]:
+            extra += " --{}".format(nskey)
+    elif nsdict[nskey] is not None:
+        extra += " --{} {}".format(nskey, nsdict[nskey])
 
 for indir in ns.surveydir, ns.surveydir2:
     if indir is not None:
@@ -106,8 +124,9 @@ if ns.bundlebricks is not None:
     # ADM pixnum only contains unique bricks, need to add duplicates.
     allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix
                         for cnt, pix in zip(cnts.astype(int), pixnum)])
-    bundle_bricks(allpixnum, ns.bundlebricks, ns.nside, prefix='skies',
-                  gather=False, surveydirs=drdirs, brickspersec=ns.brickspersec)
+    bundle_bricks(
+        allpixnum, ns.bundlebricks, ns.nside, prefix='skies', extra=extra,
+        gather=False, surveydirs=drdirs, brickspersec=ns.brickspersec)
 else:
     log.info("running on {} processors".format(ns.numproc))
     # ADM formally writing pixelized files requires both the nside
@@ -139,11 +158,20 @@ else:
     else:
         skies = resolved
 
+    # ADM mask the sky locations using a bright star mask.
+    if do_mask:
+        maskdir = get_recent_mask_dir(ns.maskdir)
+        skies = mask_targets(skies, maskdir, nside=ns.nside, pixlist=pixlist)
+
+    # ADM extra header keywords for the output fits file.
+    extra = {k: v for k, v in zip(["masked"],
+                                  [do_mask])}
+
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
     nskies, outfile = io.write_skies(ns.dest, skies, indir=ns.surveydir,
                                      indir2=ns.surveydir2, nside=nside,
-                                     apertures_arcsec=apertures,
+                                     apertures_arcsec=apertures, extra=extra,
                                      nskiespersqdeg=nskiespersqdeg,
                                      nsidefile=ns.nside, hpxlist=pixlist)
 

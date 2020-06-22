@@ -5,7 +5,7 @@
 desitarget.geomask
 ==================
 
-Utility functions for restricting targets to regions on the sky
+Utility functions for geometry on the sky, masking, etc.
 
 """
 from __future__ import (absolute_import, division)
@@ -580,27 +580,28 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
         The Declinations of nloc equally space locations on the periphery
             of the mask
     """
-
-    # ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
+    # ADM radius in degrees with a 0.1% kick to push beyond the edge.
     radius = 1.001*r/3600.
 
-    # ADM determine nloc Dec offsets equally spaced around the perimeter for each mask
-    offdec = [rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(nloc, radius)]
+    # ADM nloc Dec offsets equally spaced around the circle perimeter.
+    offdec = np.array([rad*np.sin(np.arange(ns)*2*np.pi/ns)
+                       for ns, rad in zip(nloc, radius)]).transpose()
 
-    # ADM use offsets to determine DEC positions
+    # ADM use offsets to determine DEC positions.
     decs = DECcens + offdec
 
-    # ADM determine the offsets in RA at these Decs given the mask center Dec
-    offrapos = [sphere_circle_ra_off(th, cen, declocs) for th, cen, declocs in zip(radius, DECcens, decs)]
+    # ADM offsets in RA at these Decs given the mask center Dec.
+    offrapos = [sphere_circle_ra_off(th, cen, declocs)
+                for th, cen, declocs in zip(radius, DECcens, decs.transpose())]
 
-    # ADM determine which of the RA offsets are in the positive direction
+    # ADM determine which RA offsets are in the positive direction.
     sign = [np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in nloc]
 
-    # ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
-    offra = [o*s for o, s in zip(offrapos, sign)]
+    # ADM add RA offsets with the right sign to the the circle center.
+    offra = np.array([o*s for o, s in zip(offrapos, sign)]).transpose()
     ras = RAcens + offra
 
-    # ADM have to turn the generated locations into 1-D arrays before returning them
+    # ADM return the results as 1-D arrays.
     return np.hstack(ras), np.hstack(decs)
 
 
@@ -835,6 +836,8 @@ def add_hp_neighbors(nside, pixnum):
     -------
     :class:`list`
         The passed list of pixels with all neighbors added to the list.
+        Only unique pixels are returned, so any duplicate integers in
+        the passed `pixnum` are removed.
 
     Notes
     -----
@@ -1491,6 +1494,70 @@ def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
         return idmatchto[ii], idobjs[ii], d2d[ii].arcsec
 
     return idmatchto[ii], idobjs[ii]
+
+
+def rewind_coords(ranow, decnow, pmra, pmdec,
+                  epochnow=2015.5, epochnowdec=None,
+                  epochpast=1991.5, epochpastdec=None):
+    """Shift coordinates into the past based on proper motions.
+
+    Parameters
+    ----------
+    ranow : :class:`flt` or `~numpy.ndarray`
+        Right Ascension (degrees) at "current" epoch.
+    decnow : :class:`flt` or `~numpy.ndarray`
+        Declination (degrees) at "current" epoch.
+    pmra : :class:`flt` or `~numpy.ndarray`
+        Proper motion in RA (mas/yr).
+    pmdec : :class:`flt` or `~numpy.ndarray`
+        Proper motion in Dec (mas/yr).
+    epochnow : :class:`flt` or `~numpy.ndarray`, optional
+        The "current" epoch (years). Defaults to Gaia DR2 (2015.5).
+    epochnowdec : :class:`flt` or `~numpy.ndarray`, optional
+        If passed and not ``None`` then epochnow is interpreted as the
+        epoch of the RA and this is interpreted as the epoch of the Dec.
+    epochpast : :class:`flt` or `~numpy.ndarray`, optional
+        Epoch in the past (years). Defaults to Tycho DR2 mean (1991.5).
+    epochpastdec : :class:`flt` or `~numpy.ndarray`, optional
+        If passed and not ``None`` then epochpast is interpreted as the
+        epoch of the RA and this is interpreted as the epoch of the Dec.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Right Ascension in the past (degrees).
+    :class:`~numpy.ndarray`
+        Declination in the past (degrees).
+
+    Notes
+    -----
+        - All output RAs will be in the range 0 < RA < 360o.
+        - Only called "rewind_coords" to correspond to the default
+          `epochnow` > `epochpast`. "fast forwarding" works fine, too,
+          i.e., you can pass `epochpast` > `epochnow` to move coordinates
+          to a future epoch.
+        - Inaccurate to ~0.1" for motions as high as ~10"/yr (Barnard's
+          Star) after ~200 years because of the simplified cosdec term.
+    """
+    # ADM allow for different RA/Dec coordinates.
+    if epochnowdec is None:
+        epochnowdec = epochnow
+    if epochpastdec is None:
+        epochpastdec = epochpast
+
+    # ADM enforce "double-type" precision for RA/Dec floats.
+    if isinstance(ranow, float):
+        ranow = np.array([ranow], dtype='f8')
+    if isinstance(decnow, float):
+        decnow = np.array([decnow], dtype='f8')
+
+    # ADM "rewind" coordinates.
+    cosdec = np.cos(np.deg2rad(decnow))
+    ra = ranow - ((epochnow-epochpast) * pmra / 3600. / 1000. / cosdec)
+    dec = decnow - ((epochnowdec-epochpastdec) * pmdec / 3600. / 1000.)
+
+    # ADM % 360. is to deal with wraparound bugs.
+    return ra % 360., dec
 
 
 def shares_hp(nside, objs1, objs2, radec=False):

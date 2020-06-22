@@ -3,6 +3,7 @@
 from desitarget.skyfibers import supplement_skies, density_of_sky_fibers
 from desitarget import io
 from desitarget.geomask import bundle_bricks, shares_hp, pixarea2nside
+from desitarget.brightmask import mask_targets, get_recent_mask_dir
 
 import os, sys
 import numpy as np
@@ -56,8 +57,14 @@ ap.add_argument("--mingalb", type=float,
 ap.add_argument("--radius", type=float,
                 help="Radius at which to avoid (all) Gaia sources (arcseconds; defaults to [2])",
                 default=2.)
+ap.add_argument("--nomasking", action='store_true',
+                help="Masking occurs by default. If this is set, do NOT use Tycho+Gaia+URAT bright star mask to mask the sky locations")
+ap.add_argument("--maskdir",
+                help="Name of the specific directory (or file) containing the bright star mask (defaults to the most recent directory in $MASK_DIR)",
+                default=None)
 
 ns = ap.parse_args()
+do_mask = not(ns.nomasking)
 
 # ADM check the input sky file is in the "official" format.
 official = io.is_sky_dir_official(ns.skydir)
@@ -81,8 +88,8 @@ if ns.bundlefiles is not None:
 gaiadir = ns.gaiadir
 if gaiadir is None:
     # ADM ...otherwise retrieve it from the environment variable.
-    from desitarget.gaiamatch import _get_gaia_dir
-    gaiadir = _get_gaia_dir()
+    from desitarget.gaiamatch import get_gaia_dir
+    gaiadir = get_gaia_dir()
 
 # ADM if needed, determine the minimum density of sky fibers to generate.
 nskiespersqdeg = ns.nskiespersqdeg
@@ -96,8 +103,12 @@ extra = " --numproc {}".format(ns.numproc)
 extra += " --nskiespersqdeg {}".format(nskiespersqdeg)
 extra += " --gaiadir {}".format(gaiadir)
 nsdict = vars(ns)
-for nskey in "mindec", "mingalb", "radius":
-    extra += " --{} {}".format(nskey, nsdict[nskey])
+for nskey in "mindec", "mingalb", "radius", "nomasking", "maskdir":
+    if isinstance(nsdict[nskey], bool):
+        if nsdict[nskey]:
+            extra += " --{}".format(nskey)
+    elif nsdict[nskey] is not None:
+        extra += " --{} {}".format(nskey, nsdict[nskey])
 
 # ADM only proceed if we're not writing a slurm script.
 if ns.bundlefiles is None:
@@ -135,6 +146,12 @@ if ns.bundlefiles is None:
                                   pixlist=pixlist, mindec=ns.mindec,
                                   mingalb=ns.mingalb)
 
+    # ADM mask the supplemental sky locations using a bright star mask.
+    if do_mask:
+        maskdir = get_recent_mask_dir(ns.maskdir)
+        supp_skies = mask_targets(supp_skies, maskdir,
+                                  nside=ns.nside, pixlist=pixlist)
+
     # ADM remove supplemental skies that share HEALPixels with skies.
     nside_resol = pixarea2nside(1./18000)//2
     ii, _ = shares_hp(nside_resol, supp_skies, skies)
@@ -142,8 +159,8 @@ if ns.bundlefiles is None:
     log.info("Removed {} supp skies that matched skies".format(np.sum(ii)))
 
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["radius", "mindec", "mingalb"],
-                                  [ns.radius, ns.mindec, ns.mingalb])}
+    extra = {k: v for k, v in zip(["radius", "mindec", "mingalb", "masked"],
+                                  [ns.radius, ns.mindec, ns.mingalb, do_mask])}
 
     nskies, outfile = io.write_skies(ns.dest, supp_skies, supp=True, indir=gaiadir,
                                      nside=nside, nskiespersqdeg=nskiespersqdeg,
