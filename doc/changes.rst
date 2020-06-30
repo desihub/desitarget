@@ -5,6 +5,7 @@ desitarget Change Log
 0.40.1 (unreleased)
 -------------------
 
+* Cleanup: Avoid absolute path in resource_filename [`PR #626`_].
 * Update masking to be "all-sky" using Gaia/Tycho/URAT [`PR #625`_]:
     * General desitarget functionality to work with Tycho files.
     * Deprecate using the sweeps to mask bright objects as this is now
@@ -34,6 +35,7 @@ desitarget Change Log
 .. _`PR #623`: https://github.com/desihub/desitarget/pull/623
 .. _`PR #624`: https://github.com/desihub/desitarget/pull/624
 .. _`PR #625`: https://github.com/desihub/desitarget/pull/625
+.. _`PR #626`: https://github.com/desihub/desitarget/pull/626
 
 0.40.0 (2020-05-26)
 -------------------
