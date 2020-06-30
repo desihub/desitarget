@@ -533,38 +533,8 @@ def find_urat_files(objs, neighbors=True, radec=False):
     uratdir = get_urat_dir()
     hpxdir = os.path.join(uratdir, 'healpix')
 
-    # ADM which flavor of RA/Dec was passed.
-    if radec:
-        ra, dec = objs
-        dec = np.array(dec)
-    else:
-        ra, dec = objs["RA"], objs["DEC"]
-
-    # ADM convert RA/Dec to co-latitude and longitude in radians.
-    theta, phi = np.radians(90-dec), np.radians(ra)
-
-    # ADM retrieve the pixels in which the locations lie.
-    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
-
-    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
-    # ADM one pixel was produced, so guard against pixnum being non-iterable.
-    if not isinstance(pixnum, np.integer):
-        pixnum = list(set(pixnum))
-    else:
-        pixnum = [pixnum]
-
-    # ADM if neighbors was sent, then retrieve all pixels that touch each
-    # ADM pixel covered by the provided locations, to prevent edge effects...
-    if neighbors:
-        pixnum = add_hp_neighbors(nside, pixnum)
-
-    # ADM reformat file names in the URAT healpix format.
-    uratfiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
-
-    # ADM restrict to only files/HEALPixels actually covered by URAT.
-    uratfiles = [fn for fn in uratfiles if os.path.exists(fn)]
-
-    return uratfiles
+    return io.find_star_files(objs, hpxdir, nside,
+                              neighbors=neighbors, radec=radec)
 
 
 def match_to_urat(objs, matchrad=1., radec=False):

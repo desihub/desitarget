@@ -661,35 +661,8 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
-    # ADM which flavor of RA/Dec was passed.
-    if radec:
-        ra, dec = objs
-        dec = np.array(dec)
-    else:
-        ra, dec = objs["RA"], objs["DEC"]
-
-    # ADM convert RA/Dec to co-latitude and longitude in radians.
-    theta, phi = np.radians(90-dec), np.radians(ra)
-
-    # ADM retrieve the pixels in which the locations lie.
-    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
-
-    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
-    # ADM one pixel was produced, so guard against pixnum being non-iterable.
-    if not isinstance(pixnum, np.integer):
-        pixnum = list(set(pixnum))
-    else:
-        pixnum = [pixnum]
-
-    # ADM if neighbors was sent, then retrieve all pixels that touch each
-    # ADM pixel covered by the provided locations, to prevent edge effects...
-    if neighbors:
-        pixnum = add_hp_neighbors(nside, pixnum)
-
-    # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
-
-    return gaiafiles
+    return io.find_star_files(objs, hpxdir, nside,
+                              neighbors=neighbors, radec=radec)
 
 
 def find_gaia_files_hp(nside, pixlist, neighbors=True):
