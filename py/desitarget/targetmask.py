@@ -4,6 +4,7 @@ desitarget.targetmask
 
 This looks more like a script than an actual module.
 """
+import os.path
 from desiutil.bitmask import BitMask
 import yaml
 from pkg_resources import resource_filename
@@ -16,7 +17,7 @@ def load_mask_bits(prefix=""):
     if len(prefix) > 0:
         us = '_'
     prename = prefix+us
-    fn = "{}/data/{}targetmask.yaml".format(prefix, prename)
+    fn = os.path.join(prefix, "data", "{}targetmask.yaml".format(prename))
     _filepath = resource_filename('desitarget', fn)
     with open(_filepath) as fx:
         bitdefs = yaml.safe_load(fx)
