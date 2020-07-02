@@ -74,9 +74,9 @@ mws_mask:
     # input catalogues. 
 
     #- Bits 0-3 (7 ids)
-    - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT}]
     - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT}]
 
     # Second layer flags additional subclasses that could apply to any
     # of the main classes. These sort targets in each input catalog into
@@ -90,18 +90,18 @@ mws_mask:
     # targeted for reobservation if possible.
 
     #- 4: MWS_BROAD north/south splits
-    - [MWS_BROAD_NORTH,     4, "Milky Way Survey cuts tuned for Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_BROAD_SOUTH,     5, "Milky Way Survey cuts tuned for DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BROAD_NORTH,     4, "Milky Way Survey cuts tuned for Bok/Mosaic",               {obsconditions: BRIGHT}]
+    - [MWS_BROAD_SOUTH,     5, "Milky Way Survey cuts tuned for DECam",                    {obsconditions: BRIGHT}]
 
     #- 8: Sub-classes of MWS_MAIN
-    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",              {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample tuned for DECam",          {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",              {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",              {obsconditions: BRIGHT}]
+    - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT}]
+    - [MWS_MAIN_BLUE_SOUTH, 10, "MWS magnitude limited blue sample tuned for DECam",          {obsconditions: BRIGHT}]
+    - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",              {obsconditions: BRIGHT}]
+    - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT}]
+    - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT}]
 
-    # ADM back-up targets for poor conditions.
+    # ADM back-up targets for poor conditions and as filler.
     - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
