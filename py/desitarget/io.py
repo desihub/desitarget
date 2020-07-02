@@ -2490,4 +2490,3 @@ def find_star_files(objs, hpxdir, nside, neighbors=True, radec=False):
     fns = [os.path.join(hpxdir, hpx_filename(pn)) for pn in pixnum]
 
     return fns
-
