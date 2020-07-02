@@ -533,7 +533,8 @@ def find_urat_files(objs, neighbors=True, radec=False):
     uratdir = get_urat_dir()
     hpxdir = os.path.join(uratdir, 'healpix')
 
-    return io.find_star_files(objs, hpxdir, nside,
+    # ADM remember to pass "strict", as URAT doesn't cover the whole sky.
+    return io.find_star_files(objs, hpxdir, nside, strict=True,
                               neighbors=neighbors, radec=radec)
 
 

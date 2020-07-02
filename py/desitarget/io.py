@@ -2431,7 +2431,8 @@ def hpx_filename(hpx):
     return 'healpix-{:05d}.fits'.format(hpx)
 
 
-def find_star_files(objs, hpxdir, nside, neighbors=True, radec=False):
+def find_star_files(objs, hpxdir, nside, neighbors=True, radec=False,
+                    strict=False):
     """Full paths to HEALPixel-split star files for objects by RA/Dec.
 
     Parameters
@@ -2450,6 +2451,10 @@ def find_star_files(objs, hpxdir, nside, neighbors=True, radec=False):
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` then the passed `objs` is an [RA, Dec] list instead
         of a rec array.
+    strict : :class:`bool`, optional, defaults to ``False``
+        Only return files that actually exist. This is useful for, e.g.,
+        URAT files, which don't cover the whole sky and so don't have
+        files for every HEALPixel.
 
     Returns
     -------
@@ -2488,5 +2493,9 @@ def find_star_files(objs, hpxdir, nside, neighbors=True, radec=False):
 
     # ADM reformat in the general healpix format used by desitarget.
     fns = [os.path.join(hpxdir, hpx_filename(pn)) for pn in pixnum]
+
+    # ADM restrict to only files/HEALPixels actually covered.
+    if strict:
+        fns = [fn for fn in fns if os.path.exists(fn)]
 
     return fns
