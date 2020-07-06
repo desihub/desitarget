@@ -5,6 +5,9 @@ desitarget Change Log
 0.40.1 (unreleased)
 -------------------
 
+* Minor data model fixes, error checks and streamlining [`PR #627`_].
+    * The most important change is that MWS science targets are no
+      longer observed in GRAY or DARK, except for MWS_WDs.
 * Cleanup: Avoid absolute path in resource_filename [`PR #626`_].
 * Update masking to be "all-sky" using Gaia/Tycho/URAT [`PR #625`_]:
     * General desitarget functionality to work with Tycho files.
@@ -36,6 +39,7 @@ desitarget Change Log
 .. _`PR #624`: https://github.com/desihub/desitarget/pull/624
 .. _`PR #625`: https://github.com/desihub/desitarget/pull/625
 .. _`PR #626`: https://github.com/desihub/desitarget/pull/626
+.. _`PR #627`: https://github.com/desihub/desitarget/pull/627
 
 0.40.0 (2020-05-26)
 -------------------

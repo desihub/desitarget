@@ -22,7 +22,7 @@ from time import time
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
-from desitarget.geomask import hp_in_cap, cap_area, is_in_cap
+from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv
 
@@ -2429,3 +2429,73 @@ def hpx_filename(hpx):
     """
 
     return 'healpix-{:05d}.fits'.format(hpx)
+
+
+def find_star_files(objs, hpxdir, nside, neighbors=True, radec=False,
+                    strict=False):
+    """Full paths to HEALPixel-split star files for objects by RA/Dec.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Array of objects. Must contain at least columns "RA" and "DEC".
+    hpxdir : :class:`str`
+        Name of the directory that hosts the HEALPixel-split files. Most
+        likely this directory ends in "/healpix".
+    nside : :class:`int`
+        The (NESTED) HEALPixel nside integer.
+    neighbors : :class:`bool`, optional, defaults to ``True``
+        Also return all neighboring pixels that touch the files of
+        interest to prevent edge effects (e.g. if a, say, Gaia source is
+        1 arcsec away from a primary source and so in an adjacent pixel).
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then the passed `objs` is an [RA, Dec] list instead
+        of a rec array.
+    strict : :class:`bool`, optional, defaults to ``False``
+        Only return files that actually exist. This is useful for, e.g.,
+        URAT files, which don't cover the whole sky and so don't have
+        files for every HEALPixel.
+
+    Returns
+    -------
+    :class:`list`
+        A list of all files that need to be read in to account for
+        objects at the passed locations.
+
+    Notes
+    -----
+        - "star" files, here might be Gaia, Tycho or URAT files.
+    """
+    # ADM which flavor of RA/Dec was passed.
+    if radec:
+        ra, dec = objs
+        dec = np.array(dec)
+    else:
+        ra, dec = objs["RA"], objs["DEC"]
+
+    # ADM convert RA/Dec to co-latitude and longitude in radians.
+    theta, phi = np.radians(90-dec), np.radians(ra)
+
+    # ADM retrieve the pixels in which the locations lie.
+    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM retrieve only the UNIQUE pixel numbers. It's possible that only
+    # ADM one pixel was produced, so ensure pixnum is iterable.
+    if not isinstance(pixnum, np.integer):
+        pixnum = list(set(pixnum))
+    else:
+        pixnum = [pixnum]
+
+    # ADM if neighbors was sent, then retrieve all pixels that touch each
+    # ADM pixel covered by the passed ras/decs, to prevent edge effects...
+    if neighbors:
+        pixnum = add_hp_neighbors(nside, pixnum)
+
+    # ADM reformat in the general healpix format used by desitarget.
+    fns = [os.path.join(hpxdir, hpx_filename(pn)) for pn in pixnum]
+
+    # ADM restrict to only files/HEALPixels actually covered.
+    if strict:
+        fns = [fn for fn in fns if os.path.exists(fn)]
+
+    return fns

@@ -2509,8 +2509,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         if nbrick % 50 == 0 and nbrick > 0:
             elapsed = time() - t0
             rate = elapsed / nbrick
-            log.info('{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
-                     .format(nbrick, rate, elapsed/60.))
+            log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
+                     .format(nbrick, len(infiles), rate, elapsed/60.))
 
         nbrick[...] += 1    # this is an in-place modification
         return result
