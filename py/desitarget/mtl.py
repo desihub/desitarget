@@ -16,6 +16,48 @@ from desitarget.targets import calc_priority, calc_numobs_more
 from desitarget.targets import main_cmx_or_sv, set_obsconditions
 from desitarget.io import read_targets_in_box
 
+# ADM the data model for MTL. Note that the _TARGET columns will have
+# ADM to be changed on the fly for SV1_, SV2_, etc. files.
+mtldatamodel = np.array([], dtype=[
+    ('RA', '>f8'), ('DEC', '>f8'),
+    ('PMRA', '>f4'), ('PMDEC', '>f4'), ('REF_EPOCH', '>f4'),
+    ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'), ('MWS_TARGET', '>i8'),
+    ('SCND_TARGET', '>i8'), ('TARGETID', '>i8'),
+    ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i8'),
+    ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
+    ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
+    ('TIMESTAMP', 'S19'), ('TARGET_STATE', 'S12')
+    ])
+
+
+def get_mtl_dir():
+    """Convenience function to grab the MTL environment variable.
+
+    Returns
+    -------
+    :class:`str`
+        The directory stored in the $MTL_DIR environment variable.
+    """
+    # ADM check that the $MTL_DIR environment variable is set.
+    mtldir = os.environ.get('MTL_DIR')
+    if mtldir is None:
+        msg = "Set $MTL_DIR environment variable!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return mtldir
+
+def _get_mtl_nside():
+    """Grab the HEALPixel nside to be used for MTL ledger files.
+
+    Returns
+    -------
+    :class:`int`
+        The HEALPixel nside number for MTL file creation and retrieval.
+    """
+    nside = 32
+
+    return nside
 
 def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
