@@ -1854,7 +1854,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           is ``None``, the directory name where all of the `hp` files
           are stored is returned. The directory name is the expected
           input for the `desitarget.io.read*` convenience functions
-          (:func:`desimodel.io.read_targets_in_hp()`, etc.).
+          (:func:`desitarget.io.read_targets_in_hp()`, etc.).
         - On the other hand, if `hp` is ``None`` and `nohp` is ``True``
           then a filename is returned that just omits the `-hpX-` part.
     """
@@ -2052,6 +2052,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     -----
         - If `header` is ``True``, then a second output (the file
           header is returned).
+        - In general, this will be quicker if `pixlist` contains closely
+          grouped HEALPixels, as fewer files will need to be read.
     """
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -2113,9 +2115,11 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
+    targets = targets[ii]
+
     # ADM ...and remove RA/Dec columns if we added them.
     if len(addedcols) > 0:
-        targets = rfn.drop_fields(targets[ii], addedcols)
+        targets = rfn.drop_fields(targets, addedcols)
 
     if header:
         return targets, hdr
@@ -2328,7 +2332,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     return targets
 
 
-def read_targets_header(hpdirname):
+def read_targets_header(hpdirname, dtype=False):
     """Read in header of a targets file.
 
     Parameters
@@ -2338,12 +2342,17 @@ def read_targets_header(hpdirname):
         have been partitioned by HEALPixel (i.e. as made by
         `select_targets` with the `bundle_files` option). Or the
         name of a single file of targets.
+    dtype : :class:`bool`, optional, defaults to ``False``
+        if ``True``, also return the data model (dtype) of the targets.
 
     Returns
     -------
     :class:`FITSHDR`
         The header of `hpdirname` if it is a file, or the header
         of the first file encountered in `hpdirname`
+    :class:`FITSHDR`
+        The dtype of the file that corresponds to the header. Only
+        returned if `dtype` is ``True``.
     """
     if os.path.isdir(hpdirname):
         try:
@@ -2355,10 +2364,11 @@ def read_targets_header(hpdirname):
 
     # ADM rows=[0] here, speeds up read_target_files retrieval
     # ADM of the header.
-    _, hdr = read_target_files(hpdirname, rows=[0], header=True, verbose=False)
+    row, hdr = read_target_files(hpdirname, rows=[0], header=True, verbose=False)
 
+    if dtype:
+        return hdr, row.dtype
     return hdr
-
 
 def target_columns_from_header(hpdirname):
     """Grab the _TARGET column names from a TARGETS file or directory.
