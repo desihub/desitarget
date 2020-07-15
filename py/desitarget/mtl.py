@@ -27,7 +27,7 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'S19'), ('TARGET_STATE', 'S20')
+    ('TIMESTAMP', 'S19'), ('TARGET_STATE', 'S15')
     ])
 
 
@@ -94,6 +94,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
 
         * NUMOBS_MORE    - number of additional observations requested
         * PRIORITY       - target priority (larger number = higher priority)
+        * TARGET_STATE   - the observing state that corresponds to PRIORITY
         * OBSCONDITIONS  - replaces old GRAYLAYER
     """
     start = time()
@@ -175,11 +176,13 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM update the number of observations for the targets.
     ztargets['NUMOBS_MORE'] = calc_numobs_more(targets_zmatcher, ztargets, obscon)
 
-    # ADM assign priorities, note that only things in the zcat can have changed priorities.
-    # ADM anything else will be assigned PRIORITY_INIT, below.
-    priority = calc_priority(targets_zmatcher, ztargets, obscon)
+    # ADM assign priorities. Only things in the zcat can have changed
+    # ADM priorities. Anything else is assigned PRIORITY_INIT, below.
+    priority, target_state = calc_priority(
+        targets_zmatcher, ztargets, obscon, state=True)
 
-    # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then NUMOBS_MORE should also be 0.
+    # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then
+    # NUMOBS_MORE should also be 0.
     # ## mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (priority <= 2)
     log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii), n))
@@ -196,13 +199,17 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM set up the output mtl table.
     mtl = Table(targets)
     mtl.meta['EXTNAME'] = 'MTL'
+
     # ADM any target that wasn't matched to the ZCAT should retain its
     # ADM original (INIT) value of PRIORITY and NUMOBS.
     mtl['NUMOBS_MORE'] = mtl['NUMOBS_INIT']
     mtl['PRIORITY'] = mtl['PRIORITY_INIT']
+    mtl['TARGET_STATE'] = np.array(
+        "UNOBS", dtype=mtldatamodel["TARGET_STATE"].dtype)
     # ADM now populate the new mtl columns with the updated information.
     mtl['OBSCONDITIONS'] = obsconmask
     mtl['PRIORITY'][zmatcher] = priority
+    mtl['TARGET_STATE'][zmatcher] = target_state
     mtl['NUMOBS_MORE'][zmatcher] = ztargets['NUMOBS_MORE']
 
     # Filter out any targets marked as done.
@@ -259,29 +266,7 @@ def make_ledger_in_hp(hpdirname, nside, pixnum, obscon="DARK"):
     mtl["TIMESTAMP"] = datetime.utcnow().isoformat(timespec='seconds')
     _, Mxs, _ = main_cmx_or_sv(targs)
 
-    # ADM add the target state based on what PRIORITY was assigned.
-    # ADM first set the null name and length for the TARGET_STATE column.
-    nostate = np.empty(len(mtl), dtype=mtldm["TARGET_STATE"].dtype)
-    nostate[:] = "NOSTATE"
-    mtl["TARGET_STATE"] = nostate
-    # ADM this just builds a dictonary of bitnames for each priority.
-    bitnames, prios = [], []
-    for Mx in Mxs:
-        for bitname in Mx.names():
-            try:
-                prio = Mx[bitname].priorities["UNOBS"]
-                if prio not in prios:
-                    bitnames.append(bitname)
-                    prios.append(Mx[bitname].priorities["UNOBS"])
-            except:
-                pass
-    priodict = {key:val for key, val in zip(prios, bitnames)}
-    # ADM anything with 0 priority should be for calibration.
-    priodict[0] = "CALIBRATION"
-    # ADM now loop through the priorities to add the state string.
-    for prio in priodict:    
-        ii = mtl["PRIORITY_INIT"] == prio
-        mtl["TARGET_STATE"][ii] = priodict[prio]
+
 
     return
     

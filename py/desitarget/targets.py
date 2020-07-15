@@ -517,7 +517,7 @@ def calc_numobs_more(targets, zcat, obscon):
     return numobs_more
 
 
-def calc_priority(targets, zcat, obscon):
+def calc_priority(targets, zcat, obscon, state=False):
     """
     Calculate target priorities from masks, observation/redshift status.
 
@@ -537,11 +537,18 @@ def calc_priority(targets, zcat, obscon):
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
         "DARK|GRAY". Governs the behavior of how priorities are set based
         on "obsconditions" in the desitarget bitmask yaml file.
+    state : :class:`bool`
+        If ``True`` then also return a string denoting the state that
+        was set. The state is a string combining the observational
+        state (e.g. "DONE", "MORE_ZGOOD") from the targeting yaml file
+        and the target type (e.g. "ELG", "LRG").
 
     Returns
     -------
     :class:`~numpy.array`
         integer array of priorities.
+    :class:`~numpy.array`
+        string array of states. Only returned if `state`=``True``
 
     Notes
     -----
@@ -563,6 +570,10 @@ def calc_priority(targets, zcat, obscon):
 
     # Default is 0 priority, i.e. do not observe.
     priority = np.zeros(len(targets), dtype='i8')
+    # ADM set up a string to record the state of each target.
+    from desitarget.mtl import mtldatamodel
+    target_state = np.zeros(len(targets),
+                            dtype=mtldatamodel["TARGET_STATE"].dtype)
 
     # Determine which targets have been observed.
     # TODO: this doesn't distinguish between really unobserved vs not yet
@@ -603,10 +614,18 @@ def calc_priority(targets, zcat, obscon):
                 pricon = obsconditions.mask(desi_mask[name].obsconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[desi_target] & desi_mask[name]) != 0
-                    priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-                    priority[ii & done] = np.maximum(priority[ii & done],  desi_mask[name].priorities['DONE'])
-                    priority[ii & zgood] = np.maximum(priority[ii & zgood], desi_mask[name].priorities['MORE_ZGOOD'])
-                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+                    for sbool, sname in zip(
+                        [unobs, done, zgood, zwarn],
+                        ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                    ):
+                        # ADM update priorities and target states.
+                        Mxp = desi_mask[name].priorities[sname]
+                        # ADM update states BEFORE changing priorities.
+                        ts = "{}|{}".format(name, sname)
+                        target_state[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                        priority[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
             # QSO could be Lyman-alpha or Tracer.
             name = 'QSO'
@@ -619,11 +638,18 @@ def calc_priority(targets, zcat, obscon):
                 good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
                 if survey[:2] == 'sv':
                     good_hiz = zgood & (zcat['ZWARN'] == 0)
-                priority[ii & unobs] = np.maximum(priority[ii & unobs], desi_mask[name].priorities['UNOBS'])
-                priority[ii & done] = np.maximum(priority[ii & done], desi_mask[name].priorities['DONE'])
-                priority[ii & good_hiz] = np.maximum(priority[ii & good_hiz], desi_mask[name].priorities['MORE_ZGOOD'])
-                priority[ii & ~good_hiz] = np.maximum(priority[ii & ~good_hiz], desi_mask[name].priorities['DONE'])
-                priority[ii & zwarn] = np.maximum(priority[ii & zwarn], desi_mask[name].priorities['MORE_ZWARN'])
+                for sbool, sname in zip(
+                        [unobs, done, good_hiz, ~good_hiz, zwarn],
+                        ["UNOBS", "DONE", "MORE_ZGOOD", "DONE", "MORE_ZWARN"]
+                ):
+                    # ADM update priorities and target states.
+                    Mxp = desi_mask[name].priorities[sname]
+                    # ADM update states BEFORE changing priorities.
+                    ts = "{}|{}".format(name, sname)
+                    target_state[ii & sbool] = np.where(
+                        priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                    priority[ii & sbool] = np.where(
+                        priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
         # BGS targets.
         if bgs_target in targets.dtype.names:
@@ -632,10 +658,18 @@ def calc_priority(targets, zcat, obscon):
                 pricon = obsconditions.mask(bgs_mask[name].obsconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[bgs_target] & bgs_mask[name]) != 0
-                    priority[ii & unobs] = np.maximum(priority[ii & unobs], bgs_mask[name].priorities['UNOBS'])
-                    priority[ii & done] = np.maximum(priority[ii & done],  bgs_mask[name].priorities['DONE'])
-                    priority[ii & zgood] = np.maximum(priority[ii & zgood], bgs_mask[name].priorities['MORE_ZGOOD'])
-                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], bgs_mask[name].priorities['MORE_ZWARN'])
+                    for sbool, sname in zip(
+                            [unobs, done, zgood, zwarn],
+                            ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                    ):
+                        # ADM update priorities and target states.
+                        Mxp = bgs_mask[name].priorities[sname]
+                        # ADM update states BEFORE changing priorities.
+                        ts = "{}|{}".format("BGS", sname)
+                        target_state[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                        priority[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
         # MWS targets.
         if mws_target in targets.dtype.names:
@@ -644,10 +678,18 @@ def calc_priority(targets, zcat, obscon):
                 pricon = obsconditions.mask(mws_mask[name].obsconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[mws_target] & mws_mask[name]) != 0
-                    priority[ii & unobs] = np.maximum(priority[ii & unobs], mws_mask[name].priorities['UNOBS'])
-                    priority[ii & done] = np.maximum(priority[ii & done],  mws_mask[name].priorities['DONE'])
-                    priority[ii & zgood] = np.maximum(priority[ii & zgood], mws_mask[name].priorities['MORE_ZGOOD'])
-                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], mws_mask[name].priorities['MORE_ZWARN'])
+                    for sbool, sname in zip(
+                            [unobs, done, zgood, zwarn],
+                            ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                    ):
+                        # ADM update priorities and target states.
+                        Mxp = mws_mask[name].priorities[sname]
+                        # ADM update states BEFORE changing priorities.
+                        ts = "{}|{}".format("MWS", sname)
+                        target_state[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                        priority[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
         # ADM Secondary targets.
         if scnd_target in targets.dtype.names:
@@ -657,10 +699,12 @@ def calc_priority(targets, zcat, obscon):
             if np.any(scnd_update):
                 # APC Allow changes to primaries if the DESI_TARGET bitmask has any of the
                 # APC following bits set, but not any other bits.
-                update_from_scnd_bits = (desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
-                                         desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] | desi_mask['STD_WD'])
+                update_from_scnd_bits = (
+                    desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
+                    desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
+                    desi_mask['STD_WD'])
                 scnd_update &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
-                print('{} scnd targets to be updated'.format(scnd_update.sum()))
+                log.info('{} scnd targets to be updated'.format(scnd_update.sum()))
 
             for name in scnd_mask.names():
                 # ADM only update priorities for passed observing conditions.
@@ -668,24 +712,36 @@ def calc_priority(targets, zcat, obscon):
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[scnd_target] & scnd_mask[name]) != 0
                     ii &= scnd_update
-                    priority[ii & unobs] = np.maximum(priority[ii & unobs], scnd_mask[name].priorities['UNOBS'])
-                    priority[ii & done] = np.maximum(priority[ii & done],  scnd_mask[name].priorities['DONE'])
-                    priority[ii & zgood] = np.maximum(priority[ii & zgood], scnd_mask[name].priorities['MORE_ZGOOD'])
-                    priority[ii & zwarn] = np.maximum(priority[ii & zwarn], scnd_mask[name].priorities['MORE_ZWARN'])
+                    for sbool, sname in zip(
+                            [unobs, done, zgood, zwarn],
+                            ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                    ):
+                        # ADM update priorities and target states.
+                        Mxp = scnd_mask[name].priorities[sname]
+                        # ADM update states BEFORE changing priorities.
+                        ts = "{}|{}".format("SCND", sname)
+                        target_state[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                        priority[ii & sbool] = np.where(
+                            priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
         # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
         ii = (targets[desi_target] & desi_mask.IN_BRIGHT_OBJECT) != 0
         priority[ii] = -1
+        target_state[ii] = "IN_BRIGHT_OBJECT"
 
     # ADM Special case: SV-like commissioning targets.
     if 'CMX_TARGET' in targets.dtype.names:
         priority = _cmx_calc_priority(targets, priority, obscon,
                                       unobs, done, zgood, zwarn, cmx_mask, obsconditions)
 
+    if state:
+        return priority, target_state
     return priority
 
 
-def _cmx_calc_priority(targets, priority, obscon, unobs, done, zgood, zwarn, cmx_mask, obsconditions):
+def _cmx_calc_priority(targets, priority, obscon,
+                       unobs, done, zgood, zwarn, cmx_mask, obsconditions):
     """Special-case logic for target priorities in CMX.
 
     Parameters
