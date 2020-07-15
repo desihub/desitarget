@@ -20,7 +20,7 @@ from desitarget import io
 # ADM the data model for MTL. Note that the _TARGET columns will have
 # ADM to be changed on the fly for SV1_, SV2_, etc. files.
 mtldatamodel = np.array([], dtype=[
-    ('RA', '>f8'), ('DEC', '>f8'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('PARALLAX', '>f4'),
     ('PMRA', '>f4'), ('PMDEC', '>f4'), ('REF_EPOCH', '>f4'),
     ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'), ('MWS_TARGET', '>i8'),
     ('SCND_TARGET', '>i8'), ('TARGETID', '>i8'),
