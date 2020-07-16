@@ -61,8 +61,8 @@ def _get_mtl_nside():
 
     return nside
 
-def make_mtl(targets, obscon, zcat=None,
-             trim=False, scnd=None, trimcols=True):
+def make_mtl(targets, obscon, zcat=None, scnd=None,
+             trim=False, trimcols=True, trimtozcat=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
     Parameters
@@ -79,18 +79,21 @@ def make_mtl(targets, obscon, zcat=None,
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
         ``ZWARN``.
-    trim : :class:`bool`, optional
-        If ``True`` (default), don't include targets that don't need
-        any more observations.  If ``False``, include every input target.
     scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
         A set of secondary targets associated with the `targets`. As with
         the `target` must include at least ``TARGETID``, ``NUMOBS_INIT``,
         ``PRIORITY_INIT`` or the corresponding SV columns.
         The secondary targets will be padded to have the same columns
         as the targets, and concatenated with them.
+    trim : :class:`bool`, optional
+        If ``True`` (default), don't include targets that don't need
+        any more observations.  If ``False``, include every input target.
     trimcols : :class:`bool`, optional, defaults to ``True``
         Only pass through columns in `targets` that are actually needed
         for fiberassign (see `desitarget.mtl.mtldatamodel`).
+    trimtozcat : :class:`bool`, optional, defaults to ``False``
+        Only return targets that have been UPDATED (i.e. the targets with
+        a match in `zcat`). Returns all targets if `zcat` is ``None``.
 
     Returns
     -------
@@ -240,6 +243,8 @@ def make_mtl(targets, obscon, zcat=None,
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
+    if trimtozcat:
+        return mtl[zmatcher]
     return mtl
 
 def make_ledger_in_hp(hpdirname, nside, pixnum, obscon="DARK"):
