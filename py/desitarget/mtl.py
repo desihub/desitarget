@@ -11,7 +11,9 @@ import sys
 from astropy.table import Table
 import fitsio
 from time import time
+from datetime import datetime
 
+from . import __version__ as dt_version
 from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, calc_numobs_more
 from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
@@ -28,7 +30,7 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'S19'), ('TARGET_STATE', 'S15')
+    ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S15')
     ])
 
 
@@ -104,6 +106,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         * PRIORITY       - target priority (larger number = higher priority)
         * TARGET_STATE   - the observing state that corresponds to PRIORITY
         * OBSCONDITIONS  - replaces old GRAYLAYER
+        * TIMESTAMP      - time that (this) make_mtl() function was run
+        * VERSION        - version of desitarget used to run make_mtl()
     """
     start = time()
     # ADM set up the default logger.
@@ -148,8 +152,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             zcat = zcat[ok]
 
     n = len(targets)
-    # ADM if the input target columns were incorrectly called NUMOBS or PRIORITY
-    # ADM rename them to NUMOBS_INIT or PRIORITY_INIT.
+    # ADM if the input target columns were incorrectly called NUMOBS
+    # ADM or PRIORITY rename them to NUMOBS_INIT or PRIORITY_INIT.
     # ADM Note that the syntax is slightly different for a Table.
     for name in ['NUMOBS', 'PRIORITY']:
         if isinstance(targets, Table):
@@ -158,7 +162,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             except KeyError:
                 pass
         else:
-            targets.dtype.names = [name+'_INIT' if col == name else col for col in targets.dtype.names]
+            targets.dtype.names = [name+'_INIT' if col == name else col
+                                   for col in targets.dtype.names]
 
     # ADM if a redshift catalog was passed, order it to match the input targets
     # ADM catalog on 'TARGETID'.
@@ -201,7 +206,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # NUMOBS_MORE should also be 0.
     # ## mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (priority <= 2)
-    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(np.sum(ii), n))
+    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(
+        np.sum(ii), n))
     ztargets['NUMOBS_MORE'][ii] = 0
 
     # - Set the OBSCONDITIONS mask for each target bit.
@@ -227,6 +233,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['PRIORITY'][zmatcher] = priority
     mtl['TARGET_STATE'][zmatcher] = target_state
     mtl['NUMOBS_MORE'][zmatcher] = ztargets['NUMOBS_MORE']
+    # ADM add the time and version of the desitarget code that was run.
+    mtl["TIMESTAMP"] = datetime.utcnow().isoformat(timespec='seconds')
+    mtl["VERSION"] = np.array(dt_version, dtype=mtldatamodel["VERSION"].dtype)
 
     # Filter out any targets marked as done.
     if trim:
@@ -272,19 +281,13 @@ def make_ledger_in_hp(hpdirname, nside, pixnum, obscon="DARK"):
     _, dt = io.read_targets_header(hpdirname, dtype=True)
     # ADM the MTL datamodel must reflect the target flavor (SV, etc.).
     mtldm = switch_main_cmx_or_sv(mtldatamodel, np.array([], dt))
+    # ADM a slight speed-up by only reading necessary columns.
     sharedcols = list(set(mtldm.dtype.names).intersection(dt.names))
-
     # ADM read in the needed columns from the targets.
     targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=sharedcols)
         
     # ADM execute MTL.
     mtl = make_mtl(targs, obscon)
-
-    # ADM add the timestamp for when MTL was run.
-    mtl["TIMESTAMP"] = datetime.utcnow().isoformat(timespec='seconds')
-    _, Mxs, _ = main_cmx_or_sv(targs)
-
-
 
     return
     
