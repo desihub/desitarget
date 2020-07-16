@@ -6,6 +6,7 @@ Merged target lists.
 """
 
 import numpy as np
+import numpy.lib.recfunctions as rfn
 import sys
 from astropy.table import Table
 import fitsio
@@ -60,7 +61,8 @@ def _get_mtl_nside():
 
     return nside
 
-def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
+def make_mtl(targets, obscon, zcat=None,
+             trim=False, scnd=None, trimcols=True):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
 
     Parameters
@@ -86,6 +88,9 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         ``PRIORITY_INIT`` or the corresponding SV columns.
         The secondary targets will be padded to have the same columns
         as the targets, and concatenated with them.
+    trimcols : :class:`bool`, optional, defaults to ``True``
+        Only pass through columns in `targets` that are actually needed
+        for fiberassign (see `desitarget.mtl.mtldatamodel`).
 
     Returns
     -------
@@ -101,6 +106,14 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM set up the default logger.
     from desiutil.log import get_logger
     log = get_logger()
+
+    # ADM if trimcols was passed, reduce input target columns to minimal.
+    mtldm = switch_main_cmx_or_sv(mtldatamodel, targets)
+    cullcols = list(set(targets.dtype.names) - set(mtldm.dtype.names))
+    if isinstance(targets, Table):
+        targets.remove_columns(cullcols)
+    else:
+        targets = rfn.drop_fields(targets, cullcols)
 
     # ADM determine whether the input targets are main survey, cmx or SV.
     colnames, masks, survey = main_cmx_or_sv(targets)
@@ -122,7 +135,7 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
         is_scnd[-nrows:] = True
         log.info('Done with padding...t={:.1f}s'.format(time()-start))
 
-    # Trim targets from zcat that aren't in original targets table
+    # Trim targets from zcat that aren't in original targets table.
     if zcat is not None:
         ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
@@ -204,8 +217,8 @@ def make_mtl(targets, obscon, zcat=None, trim=False, scnd=None):
     # ADM original (INIT) value of PRIORITY and NUMOBS.
     mtl['NUMOBS_MORE'] = mtl['NUMOBS_INIT']
     mtl['PRIORITY'] = mtl['PRIORITY_INIT']
-    mtl['TARGET_STATE'] = np.array(
-        "UNOBS", dtype=mtldatamodel["TARGET_STATE"].dtype)
+    mtl['TARGET_STATE'] = np.array("UNOBS",
+                                   dtype=mtldatamodel["TARGET_STATE"].dtype)
     # ADM now populate the new mtl columns with the updated information.
     mtl['OBSCONDITIONS'] = obsconmask
     mtl['PRIORITY'][zmatcher] = priority
