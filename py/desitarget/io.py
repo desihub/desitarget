@@ -651,13 +651,16 @@ def write_mtl(mtldir, data, indir=None, survey="main", nsidefile=None,
 
     # ADM determine the data release from a TARGETID.
     _, _, release, _, _, _ = decode_targetid(data["TARGETID"])
-    rel = np.unique(release)
-    try:
-        drint = int(rel//1000)
-    except TypeError:
-        msg = "Multiple data releases in MTL. Release={}".format(rel)
-        log.error(msg)
-        raise TypeError(msg)
+    dr = np.unique(release//1000)
+    if len(dr) == 0:
+        drint = 'X'
+    else:
+        try:
+            drint = int(dr)
+        except TypeError:
+            msg = "Multiple data releases in MTL ({})".format(dr)
+            log.error(msg)
+            raise TypeError(msg)
 
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
@@ -670,6 +673,9 @@ def write_mtl(mtldir, data, indir=None, survey="main", nsidefile=None,
     # ADM die if there are no targets to write.
     if ntargs == 0:
         return ntargs, fn
+
+    # ADM sort the output file on TARGETID.
+    data = data[np.argsort(data["TARGETID"])]
 
     # ADM if we want to write ecsv, we need to Table-ify and write.
     if ecsv:

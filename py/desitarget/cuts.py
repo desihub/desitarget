@@ -37,7 +37,6 @@ from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_h
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
-
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 log = get_logger()

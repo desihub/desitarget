@@ -7,6 +7,7 @@ Merged target lists.
 
 import os
 import numpy as np
+import healpy as hp
 import numpy.lib.recfunctions as rfn
 import sys
 from astropy.table import Table
@@ -19,7 +20,12 @@ from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, calc_numobs_more
 from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
 from desitarget.targets import set_obsconditions
+from desitarget.internal import sharedmem
 from desitarget import io
+
+# ADM set up the DESI default logger.
+from desiutil.log import get_logger
+log = get_logger()
 
 # ADM the data model for MTL. Note that the _TARGET columns will have
 # ADM to be changed on the fly for SV1_, SV2_, etc. files.
@@ -52,6 +58,7 @@ def get_mtl_dir():
 
     return mtldir
 
+
 def _get_mtl_nside():
     """Grab the HEALPixel nside to be used for MTL ledger files.
 
@@ -63,6 +70,7 @@ def _get_mtl_nside():
     nside = 32
 
     return nside
+
 
 def make_mtl(targets, obscon, zcat=None, scnd=None,
              trim=False, trimcols=True, trimtozcat=False):
@@ -116,12 +124,13 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     log = get_logger()
 
     # ADM if trimcols was passed, reduce input target columns to minimal.
-    mtldm = switch_main_cmx_or_sv(mtldatamodel, targets)
-    cullcols = list(set(targets.dtype.names) - set(mtldm.dtype.names))
-    if isinstance(targets, Table):
-        targets.remove_columns(cullcols)
-    else:
-        targets = rfn.drop_fields(targets, cullcols)
+    if trimcols:
+        mtldm = switch_main_cmx_or_sv(mtldatamodel, targets)
+        cullcols = list(set(targets.dtype.names) - set(mtldm.dtype.names))
+        if isinstance(targets, Table):
+            targets.remove_columns(cullcols)
+        else:
+            targets = rfn.drop_fields(targets, cullcols)
 
     # ADM determine whether the input targets are main survey, cmx or SV.
     colnames, masks, survey = main_cmx_or_sv(targets)
@@ -223,21 +232,25 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl = Table(targets)
     mtl.meta['EXTNAME'] = 'MTL'
 
+    # ADM best to initialize string columns to avoid zero-length errors.
+    for col in "TARGET_STATE", "TIMESTAMP", "VERSION":
+        mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
+
     # ADM any target that wasn't matched to the ZCAT should retain its
     # ADM original (INIT) value of PRIORITY and NUMOBS.
     mtl['NUMOBS_MORE'] = mtl['NUMOBS_INIT']
     mtl['PRIORITY'] = mtl['PRIORITY_INIT']
-    mtl['TARGET_STATE'] = np.array("UNOBS",
-                                   dtype=mtldatamodel["TARGET_STATE"].dtype)
+    mtl['TARGET_STATE'] = "UNOBS"
+    # ADM add the time and version of the desitarget code that was run.
+    utc = datetime.utcnow().isoformat(timespec='seconds')
+    mtl["TIMESTAMP"] = utc
+    mtl["VERSION"] = dt_version
+
     # ADM now populate the new mtl columns with the updated information.
     mtl['OBSCONDITIONS'] = obsconmask
     mtl['PRIORITY'][zmatcher] = priority
     mtl['TARGET_STATE'][zmatcher] = target_state
     mtl['NUMOBS_MORE'][zmatcher] = ztargets['NUMOBS_MORE']
-    # ADM add the time and version of the desitarget code that was run.
-    utc = datetime.utcnow().isoformat(timespec='seconds')
-    mtl["TIMESTAMP"] = np.array(utc, dtype=mtldatamodel["TIMESTAMP"].dtype)
-    mtl["VERSION"] = np.array(dt_version, dtype=mtldatamodel["VERSION"].dtype)
 
     # Filter out any targets marked as done.
     if trim:
@@ -258,42 +271,65 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         return mtl[zmatcher]
     return mtl
 
-def make_ledger_in_hp(hpdirname, nside, pixnum, obscon="DARK"):
+
+def make_ledger_in_hp(targets, outdirname, nside, pixlist,
+                      obscon="DARK", indirname=None, verbose=True):
     """
-    Make an initial MTL ledger file in a single HEALPixel.
+    Make an initial MTL ledger file for targets in a set of HEALPixels.
 
     Parameters
     ----------
-    hpdirname : :class:`str`
-        Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
-        `select_targets` with the `bundle_files` option). Or the
-        name of a single file of targets.
+    targets : :class:`~numpy.array`
+        Targets made by, e.g. `desitarget.cuts.select_targets()`.
+    outdirname : :class:`str`
+        Output directory to which to write the MTLs (the file names are
+        constructed on the fly).
     nside : :class:`int`
-        (NESTED) HEALPixel nside.
-    pixnum : :class:`int`
-        A single HEALPixel number.
+        (NESTED) HEALPixel nside that corresponds to `pixnum`.
+    pixlist : :class:`list` or `int`
+        HEALPixels at `nside` at which to write the MTLs.
     obscon : :class:`str`, optional, defaults to "DARK"
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "GRAY"
         Governs how priorities are set based on "obsconditions". Also
         governs the sub-directory to which the ledger is written.
+    indirname : :class:`str`
+        A directory associated with the targets. Written to the headers
+        of the output MTL files.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log target and file information.
+
+    Returns
+    -------
+    Nothing, but writes the `targets` out to `outdirname` split across
+    each HEALPixel in `pixlist`.
     """
-    # ADM grab the datamodel for the targets.
-    _, dt = io.read_targets_header(hpdirname, dtype=True)
-    # ADM the MTL datamodel must reflect the target flavor (SV, etc.).
-    mtldm = switch_main_cmx_or_sv(mtldatamodel, np.array([], dt))
-    # ADM a slight speed-up by only reading necessary columns.
-    sharedcols = list(set(mtldm.dtype.names).intersection(dt.names))
-    # ADM read in the needed columns from the targets.
-    targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=sharedcols)
-        
+    t0 = time()
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
+
     # ADM execute MTL.
-    mtl = make_mtl(targs, obscon)
+    mtl = make_mtl(targets, obscon)
+
+    # ADM the HEALPixel within which each target in the MTL lies.
+    theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
+    mtlpix = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM write the MTLs.
+    _, _, survey = main_cmx_or_sv(mtl)
+    for pix in pixlist:
+        inpix = mtlpix == pix
+        nt, fn = io.write_mtl(outdirname, mtl[inpix].as_array(), indir=indirname,
+                              survey=survey, nsidefile=nside, hpxlist=pix)
+        if verbose:
+            log.info('{} targets written to {}...t={:.1f}s'.format(
+                nt, fn, time()-t0))
 
     return
-    
-def make_ledger(hpdirname, obscon="DARK", numproc=1):
+
+
+def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     """
     Make initial MTL ledger files for all HEALPixels.
 
@@ -304,6 +340,9 @@ def make_ledger(hpdirname, obscon="DARK", numproc=1):
         have been partitioned by HEALPixel (i.e. as made by
         `select_targets` with the `bundle_files` option). Or the
         name of a single file of targets.
+    outdirname : :class:`str`
+        Output directory to which to write the MTL (the file name is
+        constructed on the fly).
     obscon : :class:`str`, optional, defaults to "DARK"
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "GRAY"
@@ -311,9 +350,14 @@ def make_ledger(hpdirname, obscon="DARK", numproc=1):
         governs the sub-directory to which the ledger is written.
     numproc : :class:`int`, optional, defaults to 1 for serial
         Number of processes to parallelize across.
+
+    Notes
+    -----
+    - Takes about 25 minutes with `numproc=12`. `numproc>12` can run
+      into memory issues.
     """
-    # ADM grab information apropos how the targets were constructed.
-    hdr = io.read_targets_header(hpdirname)
+    # ADM grab information regarding how the targets were constructed.
+    hdr, dt = io.read_targets_header(hpdirname, dtype=True)
     # ADM check the obscon for which the targets were made is
     # ADM consistent with the requested obscon.
     oc = hdr["OBSCON"]
@@ -322,18 +366,35 @@ def make_ledger(hpdirname, obscon="DARK", numproc=1):
         log.critical(msg)
         raise ValueError(msg)
 
+    # ADM the MTL datamodel must reflect the target flavor (SV, etc.).
+    mtldm = switch_main_cmx_or_sv(mtldatamodel, np.array([], dt))
+    # ADM speed-up by only reading the necessary columns.
+    cols = list(set(mtldm.dtype.names).intersection(dt.names))
+
     # ADM optimal nside for reading in the targeting files.
     nside = hdr["FILENSID"]
     npixels = hp.nside2npix(nside)
     pixels = np.arange(npixels)
-    
+
+    # ADM the nside at which to write the MTLs.
+    mtlnside = _get_mtl_nside()
+
+    from desitarget.geomask import nside2nside
     # ADM the common function that is actually parallelized across.
     def _make_ledger_in_hp(pixnum):
         """make initial ledger in a single HEALPixel"""
-        return make_ledger_in_hp(hpdirname, nside, pixnum, obscon=obscon)
+        # ADM read in the needed columns from the targets.
+        targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
+        if len(targs) == 0:
+            return
+        # ADM construct a list of all pixels in pixnum at the MTL nside.
+        pixlist = nside2nside(nside, mtlnside, pixnum)
+        # ADM write MTLs for the targs split over HEALPixels in pixlist.
+        return make_ledger_in_hp(targs, outdirname, mtlnside, pixlist,
+            obscon=obscon, indirname=hpdirname, verbose=False)
 
     # ADM this is just to count pixels in _update_status.
-    npix = np.zeros((), dtype='i8')
+    npix = np.ones((), dtype='i8')
     t0 = time()
 
     def _update_status(result):
@@ -349,10 +410,10 @@ def make_ledger(hpdirname, obscon="DARK", numproc=1):
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            pool.map(_make_legder_in_hp, pixels, reduce=_update_status)
+            pool.map(_make_ledger_in_hp, pixels, reduce=_update_status)
     else:
         for pixel in pixels:
-            _update_status(_make_bright_star_mx(pixel))
+            _update_status(_make_ledger_in_hp(pixel))
 
     log.info("Done writing ledger...t = {:.1f} mins".format((time()-t0)/60.))
 
