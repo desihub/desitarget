@@ -12,6 +12,7 @@ from __future__ import (absolute_import, division)
 import numpy as np
 import fitsio
 from fitsio import FITS
+from astropy.table import Table
 import os
 import re
 from . import __version__ as desitarget_version
@@ -24,7 +25,7 @@ from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
-from desitarget.targets import main_cmx_or_sv
+from desitarget.targets import main_cmx_or_sv, decode_targetid
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -590,6 +591,103 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     return ntargs, filename
 
 
+def write_mtl(mtldir, data, indir=None, survey="main", nsidefile=None,
+              hpxlist=None, extra=None, ecsv=True):
+    """Write target catalogues.
+
+    Parameters
+    ----------
+    mtldir : :class:`str`
+        Path to output target selection directory (the directory
+        structure and file name are built on-the-fly from other inputs).
+    data : :class:`~numpy.ndarray`
+        numpy structured array of targets to save.
+    indir : :class:`str`, optional, defaults to `None`
+        If passed, note as the input directory in the output file header.
+    survey : :class:`str`, optional, defaults to "main"
+        Written to output file header as the keyword `SURVEY`.
+    nsidefile : :class:`int`, optional, defaults to `mtl.get_mtl_dir()`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
+    ecsv : :class:`bool`, defaults to ``True``
+        If ``True`` write a .ecsv file, if ``False`` with a .fits file.
+
+    Returns
+    -------
+    :class:`int`
+        The number of targets that were written to file.
+    :class:`str`
+        The name of the file to which targets were written.
+    """
+    # ADM begin to construct a dictionary of header keys and values.
+    keys, vals = ["INDIR", "SURVEY"], [indir, survey]
+
+    # ADM hpxlist and nsidefile need to be passed together.
+    if hpxlist is not None or nsidefile is not None:
+        check_both_set(hpxlist, nsidefile)
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        # ADM add to the header dictionary.
+        keys += ["FILENSID", "FILENEST", "FILEHPX"]
+        vals += [nsidefile, True, hpxlist]
+
+    # ADM finalize the header diciotnary.
+    hdrdict = {key:val for key, val in zip(keys, vals) if val is not None}
+    if extra is not None:
+        hdrdict = {**hdrdict, **extra}
+
+    # ADM catch cases where hpxlist wasn't passed.
+    hpx = hpxlist
+    if hpxlist is None:
+        hpx = "X"
+
+    # ADM determine the data release from a TARGETID.
+    _, _, release, _, _, _ = decode_targetid(data["TARGETID"])
+    rel = np.unique(release)
+    try:
+        drint = int(rel//1000)
+    except TypeError:
+        msg = "Multiple data releases in MTL. Release={}".format(rel)
+        log.error(msg)
+        raise TypeError(msg)
+
+    # ADM set output format to ecsv if passed, or fits otherwise.
+    form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
+    fn = find_target_files(mtldir, dr=drint, flavor="mtl", survey=survey,
+                           hp=hpx, ender=form)
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
+
+    ntargs = len(data)
+    # ADM die if there are no targets to write.
+    if ntargs == 0:
+        return ntargs, fn
+
+    # ADM if we want to write ecsv, we need to Table-ify and write.
+    if ecsv:
+        data = Table(data)
+        # ADM add all of the header information.
+        data.meta = hdrdict
+        data.meta['EXTNAME'] = 'MTL'
+        data.write(fn+'.tmp', format='ascii.ecsv', overwrite=True)
+    # ADM otherwise we just write the FITS file.
+    else:
+        hdr = fitsio.FITSHDR(hdrdict)
+        fitsio.write(fn+'.tmp', data, extname='MTL', header=hdr, clobber=True)
+
+    os.rename(fn+'.tmp', fn)
+
+    return ntargs, fn
+
+
 def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     """Write a FITS file in chunks to save memory.
 
@@ -764,7 +862,6 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM release before DR1 (release < 1000).
-    from desitarget.targets import decode_targetid
     objid, brickid, release, mock, sky, gaiadr = decode_targetid(data["TARGETID"])
     ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
 
@@ -1796,7 +1893,7 @@ def _get_targ_dir():
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
                       mock=False, nohp=False, seed=None, region=None,
-                      maglim=None, epoch=None):
+                      maglim=None, epoch=None, ender="fits"):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1806,7 +1903,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     dr : :class:`str` or :class:`int`, optional, defaults to "X"
         Name of a Legacy Surveys Data Release (e.g. 8)
     flavor : :class:`str`, optional, defaults to `targets`
-        Options include "skies", "gfas", "targets", "randoms", "masks".
+        Options: "skies", "gfas", "targets", "randoms", "masks", "mtl".
     survey : :class:`str`, optional, defaults to `main`
         Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
         Only relevant if `flavor` is "targets".
@@ -1842,6 +1939,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     epoch : :class:`float`
         Epoch at which the mask was made. Only relevant if `flavor` is
         "masks". Must be passed if `flavor` is "masks".
+    ender : :class:`str`, optional, defaults to "fits"
+        File format (in file name).
 
     Returns
     -------
@@ -1866,11 +1965,11 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         log.critical(msg)
         raise ValueError(msg)
     if mock:
-        allowed_flavor = ["targets", "truth", "sky"]
+        allowed = ["targets", "truth", "sky"]
     else:
-        allowed_flavor = ["targets", "skies", "gfas", "randoms", "masks"]
-    if flavor not in allowed_flavor:
-        msg = "flavor must be {}, not {}".format(' or '.join(allowed_flavor), flavor)
+        allowed = ["targets", "skies", "gfas", "randoms", "masks", "mtl"]
+    if flavor not in allowed:
+        msg = "flavor must be {}, not {}".format(' or '.join(allowed), flavor)
         log.critical(msg)
         raise ValueError(msg)
     res = "noresolve"
@@ -1918,7 +2017,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         maskdir = "maglim-{}-epoch-{}".format(maglim, epoch)
         fn = os.path.join(targdir, maskdir)
 
-    if flavor == "targets":
+    if flavor is "targets":
         if surv in ["cmx", "sv"]:
             prefix = "{}-{}".format(survey, prefix)
         if surv in ["main", "sv"]:
@@ -1928,6 +2027,10 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                 fn = os.path.join(fn, survey, res)
         else:
             fn = os.path.join(fn, surv)
+
+    if flavor is "mtl":
+        prefix = "{}-{}".format(survey, prefix)
+        fn = os.path.join(fn, survey)
 
     if flavor == "randoms":
         fn = os.path.join(fn, res)
@@ -1941,19 +2044,19 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
         hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
-        backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
+        backend = "{}-{}-hp-{}.{}".format(prefix, drstr, hpstr, ender)
         if flavor == "masks":
-            backend = "{}-hp-{}.fits".format(prefix, hpstr)
+            backend = "{}-hp-{}.{}".format(prefix, hpstr, ender)
         fn = os.path.join(fn, backend)
     else:
         if nohp:
-            backend = "{}-{}.fits".format(prefix, drstr)
+            backend = "{}-{}.{}".format(prefix, drstr, ender)
             fn = os.path.join(fn, backend)
 
     if flavor == "randoms" and seed is not None:
         # ADM note that this won't do anything unless a file
-        # ADM names was already constructed.
-        fn = fn.replace(".fits", "-{}.fits".format(seed))
+        # ADM name was already constructed.
+        fn = fn.replace(".{}", "-{}.{}".format(ender, seed, ender))
 
     return fn
 

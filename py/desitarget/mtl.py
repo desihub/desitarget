@@ -5,6 +5,7 @@ desitarget.mtl
 Merged target lists.
 """
 
+import os
 import numpy as np
 import numpy.lib.recfunctions as rfn
 import sys
@@ -35,7 +36,7 @@ mtldatamodel = np.array([], dtype=[
 
 
 def get_mtl_dir():
-    """Convenience function to grab the MTL environment variable.
+    """Convenience function to grab the MTL_DIR environment variable.
 
     Returns
     -------
@@ -234,7 +235,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['TARGET_STATE'][zmatcher] = target_state
     mtl['NUMOBS_MORE'][zmatcher] = ztargets['NUMOBS_MORE']
     # ADM add the time and version of the desitarget code that was run.
-    mtl["TIMESTAMP"] = datetime.utcnow().isoformat(timespec='seconds')
+    utc = datetime.utcnow().isoformat(timespec='seconds')
+    mtl["TIMESTAMP"] = np.array(utc, dtype=mtldatamodel["TIMESTAMP"].dtype)
     mtl["VERSION"] = np.array(dt_version, dtype=mtldatamodel["VERSION"].dtype)
 
     # Filter out any targets marked as done.

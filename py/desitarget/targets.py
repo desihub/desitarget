@@ -76,7 +76,7 @@ def encode_targetid(objid=None, brickid=None, release=None,
                                           )
 
         (array([234,12]), array([234,12]), array([4000,4000]),
-         array([0,0]), array([1,0]))
+         array([0,0]), array([1,0]), array([0, 0]))
 
         - See also `DocDB 2348`_.
     """
