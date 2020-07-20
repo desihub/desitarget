@@ -591,8 +591,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     return ntargs, filename
 
 
-def write_mtl(mtldir, data, indir=None, survey="main", nsidefile=None,
-              hpxlist=None, extra=None, ecsv=True):
+def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
+              nsidefile=None, hpxlist=None, extra=None, ecsv=True):
     """Write target catalogues.
 
     Parameters
@@ -606,6 +606,8 @@ def write_mtl(mtldir, data, indir=None, survey="main", nsidefile=None,
         If passed, note as the input directory in the output file header.
     survey : :class:`str`, optional, defaults to "main"
         Written to output file header as the keyword `SURVEY`.
+    obscon : :class:`str`, optional
+        Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
     nsidefile : :class:`int`, optional, defaults to `mtl.get_mtl_dir()`
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
@@ -628,7 +630,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", nsidefile=None,
         The name of the file to which targets were written.
     """
     # ADM begin to construct a dictionary of header keys and values.
-    keys, vals = ["INDIR", "SURVEY"], [indir, survey]
+    keys, vals = ["INDIR", "SURVEY", "OBSCON"], [indir, survey, obscon]
 
     # ADM hpxlist and nsidefile need to be passed together.
     if hpxlist is not None or nsidefile is not None:
@@ -665,7 +667,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", nsidefile=None,
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     fn = find_target_files(mtldir, dr=drint, flavor="mtl", survey=survey,
-                           hp=hpx, ender=form)
+                           obscon=obscon, hp=hpx, ender=form)
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(fn), exist_ok=True)
 
@@ -2035,8 +2037,12 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
             fn = os.path.join(fn, surv)
 
     if flavor is "mtl":
-        prefix = "{}-{}".format(survey, prefix)
-        fn = os.path.join(fn, survey)
+        if obscon is not None:
+            prefix = "{}-{}-{}".format(survey, obscon, prefix)
+            fn = os.path.join(fn, survey, obscon)
+        else:
+            prefix = "{}-{}".format(survey, prefix)
+            fn = os.path.join(fn, survey)
 
     if flavor == "randoms":
         fn = os.path.join(fn, res)

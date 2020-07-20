@@ -320,8 +320,9 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
     _, _, survey = main_cmx_or_sv(mtl)
     for pix in pixlist:
         inpix = mtlpix == pix
-        nt, fn = io.write_mtl(outdirname, mtl[inpix].as_array(), indir=indirname,
-                              survey=survey, nsidefile=nside, hpxlist=pix)
+        nt, fn = io.write_mtl(
+            outdirname, mtl[inpix].as_array(), indir=indirname,
+            survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix)
         if verbose:
             log.info('{} targets written to {}...t={:.1f}s'.format(
                 nt, fn, time()-t0))
