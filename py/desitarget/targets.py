@@ -390,9 +390,9 @@ def initial_priority_numobs(targets, scnd=False,
     if scnd:
         colnames, masks = colnames[-1:], masks[-1:]
 
-    # ADM set up the output arrays.
-    outpriority = np.zeros(len(targets), dtype='int')
-    # ADM remember that calibs have NUMOBS of -1.
+    # ADM set up the output arrays. Remember calibs have NUMOBS of -1.
+    # ADM Such calibs will be passed over as they don't have UNOBS set.
+    outpriority = np.zeros(len(targets), dtype='int')-1
     outnumobs = np.zeros(len(targets), dtype='int')-1
 
     # ADM convert the passed obscon string to bits.
@@ -479,9 +479,6 @@ def calc_numobs_more(targets, zcat, obscon):
         desi_mask, bgs_mask, mws_mask, scnd_mask = masks
     else:
         cmx_mask = masks[0]
-
-    # ADM Default is 0 , i.e. no more observations.
-    numobs_more = np.zeros(len(targets), dtype='i8')
 
     # ADM main case, just decrement by NUMOBS.
     numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
@@ -604,6 +601,16 @@ def calc_priority(targets, zcat, obscon, state=False):
     # DESI dark time targets.
     if survey != 'cmx':
         if desi_target in targets.dtype.names:
+            # ADM set initialstate of CALIB for potential calibration targets.
+            names = ('SKY', 'BAD_SKY', 'SUPP_SKY',
+                     'STD_FAINT', 'STD_WD', 'STD_BRIGHT')
+            for name in names:
+                # ADM only update states for passed observing conditions.
+                pricon = obsconditions.mask(desi_mask[name].obsconditions)
+                if (obsconditions.mask(obscon) & pricon) != 0:
+                    ii = (targets[desi_target] & desi_mask[name]) != 0
+                    target_state[ii] = "CALIB"
+
             # ADM 'LRG' is the guiding column in SV and the main survey
             # ADM (once, it was 'LRG_1PASS' and 'LRG_2PASS' in the MS).
             # names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
@@ -725,7 +732,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                         priority[ii & sbool] = np.where(
                             priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
-        # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what
+        # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what.
         ii = (targets[desi_target] & desi_mask.IN_BRIGHT_OBJECT) != 0
         priority[ii] = -1
         target_state[ii] = "IN_BRIGHT_OBJECT"
