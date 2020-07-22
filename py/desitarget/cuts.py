@@ -1603,9 +1603,12 @@ def _prepare_optical_wise(objects, mask=True):
     deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
 
     # ADM remove handful of NaN values from DCHISQ values and make them unselectable.
-    w = np.where(deltaChi2 != deltaChi2)
-    # ADM this is to catch the single-object case for unit tests.
-    if len(w[0]) > 0:
+    # SJB support py3.8 + np1.18 for both scalars and vectors
+    if np.isscalar(deltaChi2):
+        if np.isnan(deltaChi2):
+            deltaChi2 = -1e6
+    else:
+        w = np.isnan(deltaChi2)
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
