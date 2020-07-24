@@ -2073,6 +2073,41 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     return fn
 
 
+def read_mtl_ledger(filename, unique=True):
+    """Wrapper to read individual MTL ledger files.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Name of a ledger file containing a Merged Target List. If the
+        filename contains ".ecsv" then it will be read as an ECSV file.
+        If it contains ".fits" then it will be read as a FITS file. Other
+        standard astropy formats will also be tried.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read unique targets on `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        An astropy Table of the MTL.
+    """
+    if ".ecsv" in filename:
+        mtl = Table.read(filename, format="ascii.ecsv")
+    else:
+        mtl = Table.read(filename)
+
+    if unique:
+        # ADM the reverse is because np.unique retains the FIRST unique
+        # ADM entry and we want the LAST unique entry.
+        mtl.reverse()
+        _, ii = np.unique(mtl["TARGETID"], return_index=True)
+        return mtl[ii]
+    else:
+        return mtl
+
+
 def read_target_files(filename, columns=None, rows=None, header=False,
                       downsample=None, verbose=False):
     """Wrapper to cycle through allowed extensions to read target files.
