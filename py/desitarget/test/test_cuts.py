@@ -7,6 +7,7 @@ from pkg_resources import resource_filename
 import os.path
 from uuid import uuid4
 import numbers
+import warnings
 
 from astropy.io import fits
 from astropy.table import Table
@@ -46,6 +47,10 @@ class TestCuts(unittest.TestCase):
         # ADM reset GAIA_DIR environment variable.
         if cls.gaiadir_orig is not None:
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
+
+    def setUp(self):
+        #- treat some specific warnings as errors so we can find and fix
+        warnings.filterwarnings('error', '.*Calling nonzero on 0d arrays.*')
 
     def test_unextinct_fluxes(self):
         """Test function that unextincts fluxes

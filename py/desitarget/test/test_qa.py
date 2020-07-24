@@ -6,6 +6,7 @@ import unittest
 import os
 import shutil
 import tempfile
+import warnings
 import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
@@ -35,6 +36,10 @@ class TestQA(unittest.TestCase):
             shutil.rmtree(cls.testdir)
 
     def setUp(self):
+        #- Treat some specific warnings as errors so that we can find and fix
+        # warnings.filterwarnings('error', '.*Mean of empty slice.*')
+        # warnings.filterwarnings('error', '.*Using or importing the ABCs.*')
+        warnings.filterwarnings('error', '.*invalid value encountered.*')
         pass
 
     def tearDown(self):
