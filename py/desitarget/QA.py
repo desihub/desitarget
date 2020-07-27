@@ -658,7 +658,14 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
 
     # ADM apply the digitization to the target density values
     # ADM note that the first digitized bin is 1 not zero.
-    meds = [np.median(yy[wbin == bin]) for bin in range(1, nbins+1)]
+    ### meds = [np.median(yy[wbin == bin]) for bin in range(1, nbins+1)]
+    meds = list()
+    for bin in range(1, nbins+1):
+        ii = (wbin == bin)
+        if np.any(ii):
+            meds.append(np.median(yy[ii]))
+        else:
+            meds.append(np.NaN)
 
     # ADM make the plot.
     plt.scatter(xx, yy, marker='.', color='b', alpha=0.8, s=0.8)

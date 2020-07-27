@@ -47,6 +47,8 @@ env:
         - NUMPY_VERSION=1.16.5
         # - SCIPY_VERSION=0.16
         - ASTROPY_VERSION=2.0.16
+        #- Old healpy version needed as long as we pin old astropy too
+        - HEALPY_VERSION=1.12.9
         # - SPHINX_VERSION=1.6.6
         - DESIUTIL_VERSION=3.0.0
         - SPECLITE_VERSION=0.8
@@ -190,7 +192,7 @@ install:
     - source ci-helpers/travis/setup_conda.sh
     # egg_info causes the astropy/ci-helpers script to exit before the pip
     # packages are installed, thus desiutil is not installed in that script.
-    - "if [[ $SETUP_CMD == test* ]]; then pip install --no-binary :all: healpy; fi"
+    - "if [[ $SETUP_CMD == test* ]]; then pip install --no-binary :all: healpy==${HEALPY_VERSION}; fi"
     - for p in $DESIHUB_PIP_DEPENDENCIES; do r=$(echo $p | cut -d= -f1); v=$(echo $p | cut -d= -f2); pip install git+https://github.com/desihub/${r}.git@${v}#egg=${r}; done
     - export DESIMODEL=${HOME}/desimodel/${DESIMODEL_VERSION}
     - mkdir -p ${DESIMODEL}
