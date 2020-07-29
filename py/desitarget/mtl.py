@@ -72,6 +72,20 @@ def _get_mtl_nside():
     return nside
 
 
+def get_mtl_ledger_format():
+    """Grab the file format for MTL ledger files.
+
+    Returns
+    -------
+    :class:`str`
+        The file format for MTL ledgers. Should be "ecsv" or "fits".
+    """
+    # ff = "fits"
+    ff = "ecsv"
+
+    return ff
+
+
 def make_mtl(targets, obscon, zcat=None, scnd=None,
              trim=False, trimcols=True, trimtozcat=False):
     """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
@@ -320,8 +334,9 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
     _, _, survey = main_cmx_or_sv(mtl)
     for pix in pixlist:
         inpix = mtlpix == pix
+        ecsv = get_mtl_ledger_format() is "ecsv"
         nt, fn = io.write_mtl(
-            outdirname, mtl[inpix].as_array(), indir=indirname,
+            outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
             survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix)
         if verbose:
             log.info('{} targets written to {}...t={:.1f}s'.format(

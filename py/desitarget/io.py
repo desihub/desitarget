@@ -12,7 +12,7 @@ from __future__ import (absolute_import, division)
 import numpy as np
 import fitsio
 from fitsio import FITS
-from astropy.table import Table
+from astropy.table import Table, vstack
 import os
 import re
 from . import __version__ as desitarget_version
@@ -26,6 +26,7 @@ from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
+from desitarget.mtl import get_mtl_ledger_format
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -641,11 +642,6 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
         keys += ["FILENSID", "FILENEST", "FILEHPX"]
         vals += [nsidefile, True, hpxlist]
 
-    # ADM finalize the header diciotnary.
-    hdrdict = {key:val for key, val in zip(keys, vals) if val is not None}
-    if extra is not None:
-        hdrdict = {**hdrdict, **extra}
-
     # ADM catch cases where hpxlist wasn't passed.
     hpx = hpxlist
     if hpxlist is None:
@@ -663,6 +659,13 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
             msg = "Multiple data releases in MTL ({})".format(dr)
             log.error(msg)
             raise TypeError(msg)
+    keys += ["DR"]
+    vals += [drint]
+
+    # ADM finalize the header dictionary.
+    hdrdict = {key:val for key, val in zip(keys, vals) if val is not None}
+    if extra is not None:
+        hdrdict = {**hdrdict, **extra}
 
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
@@ -2166,6 +2169,122 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     return targs
 
 
+def read_kwarg_from_mtl_header(hpdirname, kwarg):
+    """Read in a header value from a Merget Target List ledger file.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing MTLs that have been
+        partitioned by HEALPixel (i.e. as made by
+        :func:`desitarget.mtl.make_ledger_in_hp`). Or the name of a
+        single MTL ledger.
+    kwarg : :class:`str`
+        A single header keyword argument.
+
+    Returns
+    -------
+    :class:`str`
+        The value of `kwarg` from the header of `hpdirname` if it is a
+        file, or the value from the first file encountered in `hpdirname`
+    """
+    # ADM for FITS files, our standard targets header-read will work.
+    try:
+        hdr = read_targets_header(hpdirname, verbose=False)
+        return hdr[kwarg]
+    except OSError:
+        if os.path.isdir(hpdirname):
+            try:
+                gen = iglob(os.path.join(hpdirname, '*ecsv'))
+                hpdirname = next(gen)
+            except StopIteration:
+                msg = "no FITS or ECSV files in {}...?!".format(hpdirname)
+                log.info(msg)
+
+    # ADM this snippet (rapidly) reads a single kwarg from an ecsv file.
+    with open(hpdirname) as f:
+        for line in f:
+            if kwarg in line and 'name' not in line:
+                break
+        return line.split(": ")[-1].split("}")[0]
+
+
+def read_mtl_in_hp(hpdirname, nside, pixlist):
+    """Read Merged Target List ledgers in a set of HEALPixels.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    nside : :class:`int`
+        The (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int` or `~numpy.ndarray`
+        Return targets in these HEALPixels at the passed `nside`.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        An astropy Table of the MTL.
+
+    Notes
+    -----
+        - In general, this will be quicker if `pixlist` contains closely
+          grouped HEALPixels, as fewer files will need to be read.
+    """
+    # ADM allow an integer instead of a list to be passed.
+    if isinstance(pixlist, int):
+        pixlist = [pixlist]
+
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    if os.path.isdir(hpdirname):
+        # ADM check, and grab information from, the target directory.
+        filenside = int(read_kwarg_from_mtl_header(hpdirname, "FILENSID"))
+        dr = read_kwarg_from_mtl_header(hpdirname, "DR")
+        surv = read_kwarg_from_mtl_header(hpdirname, "SURVEY")
+        oc = read_kwarg_from_mtl_header(hpdirname, "OBSCON")
+        ender = get_mtl_ledger_format()
+
+        # ADM change the passed pixels to the nside of the file schema.
+        filepixlist = nside2nside(nside, filenside, pixlist)
+
+        # ADM read in the files and concatenate the resulting targets.
+        mtls = []
+        for pix in filepixlist:
+            hugefn = find_target_files(hpdirname, flavor="mtl", hp=pix, dr=dr,
+                                       survey=surv, ender=ender, obscon=oc)
+            fn = os.path.join(hpdirname, os.path.basename(hugefn))
+            try:
+                targs = read_mtl_ledger(fn)
+                mtls.append(targs)
+            except FileNotFoundError:
+                pass
+
+        # ADM if no mtls, look up the data model, return an empty table.
+        if len(mtls) == 0:
+            fns = iglob(os.path.join(hpdirname, '*.{}'.format(ender)))
+            fn = next(fns)
+            mtl = read_mtl_ledger(fn)
+            mtl.meta["FILENSID"] = nside
+            mtl.meta["FILEHPX"] = pixlist
+            return Table(np.zeros(0), dtype=mtl.dtype)
+
+        mtl = vstack(mtls, metadata_conflicts='silent')
+        mtl.meta["FILENSID"] = nside
+        mtl.meta["FILEHPX"] = pixlist
+    # ADM ...if a directory wasn't passed, just read in the targets.
+    else:
+        mtl = read_mtl_ledger(hpdirname)
+
+    # ADM restrict the targets to the actual requested HEALPixels...
+    ii = is_in_hp(mtl, nside, pixlist)
+    mtl = mtl[ii]
+
+    return mtl
+
+
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
                        header=False, downsample=None, verbose=False):
     """Read in targets in a set of HEALPixels.
@@ -2244,7 +2363,6 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
 
         # ADM read in the files and concatenate the resulting targets.
         targets = []
-        start = time()
         for infile in infiles:
             targs, hdr = read_target_files(
                 infile, columns=columnscopy, header=True,
@@ -2482,7 +2600,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
     return targets
 
 
-def read_targets_header(hpdirname, dtype=False):
+def read_targets_header(hpdirname, dtype=False, verbose=True):
     """Read in header of a targets file.
 
     Parameters
@@ -2494,6 +2612,8 @@ def read_targets_header(hpdirname, dtype=False):
         name of a single file of targets.
     dtype : :class:`bool`, optional, defaults to ``False``
         if ``True``, also return the data model (dtype) of the targets.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log messages and warnings.
 
     Returns
     -------
@@ -2509,8 +2629,9 @@ def read_targets_header(hpdirname, dtype=False):
             gen = iglob(os.path.join(hpdirname, '*fits'))
             hpdirname = next(gen)
         except StopIteration:
-            msg = "couldn't find any FITS files in {}...".format(hpdirname)
-            log.info(msg)
+            if verbose:
+                msg = "no FITS files in {}?!".format(hpdirname)
+                log.info(msg)
 
     # ADM rows=[0] here, speeds up read_target_files retrieval
     # ADM of the header.
@@ -2519,6 +2640,7 @@ def read_targets_header(hpdirname, dtype=False):
     if dtype:
         return hdr, row.dtype
     return hdr
+
 
 def target_columns_from_header(hpdirname):
     """Grab the _TARGET column names from a TARGETS file or directory.
