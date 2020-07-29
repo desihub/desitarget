@@ -2041,7 +2041,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
     if flavor is "mtl":
         if obscon is not None:
-            prefix = "{}-{}-{}".format(survey, obscon, prefix)
+            prefix = "{}{}-{}".format(survey, flavor, obscon)
             fn = os.path.join(fn, survey, obscon)
         else:
             prefix = "{}-{}".format(survey, prefix)
@@ -2059,13 +2059,13 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
         hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
-        backend = "{}-{}-hp-{}.{}".format(prefix, drstr, hpstr, ender)
+        backend = "{}-hp-{}.{}".format(prefix, hpstr, ender)
         if flavor == "masks":
             backend = "{}-hp-{}.{}".format(prefix, hpstr, ender)
         fn = os.path.join(fn, backend)
     else:
         if nohp:
-            backend = "{}-{}.{}".format(prefix, drstr, ender)
+            backend = "{}.{}".format(prefix, ender)
             fn = os.path.join(fn, backend)
 
     if flavor == "randoms" and seed is not None:
@@ -2087,7 +2087,7 @@ def read_mtl_ledger(filename, unique=True):
         If it contains ".fits" then it will be read as a FITS file. Other
         standard astropy formats will also be tried.
     unique : :class:`bool`, optional, defaults to ``True``
-        If ``True`` then only read unique targets on `TARGETID`, where
+        If ``True`` then only read targets with unique `TARGETID`, where
         the last occurrence of the target in the ledger is the one that
         is retained. If ``False`` then read the entire ledger.
 
@@ -2169,7 +2169,7 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     return targs
 
 
-def read_kwarg_from_mtl_header(hpdirname, kwarg):
+def read_keyword_from_mtl_header(hpdirname, keyword):
     """Read in a header value from a Merget Target List ledger file.
 
     Parameters
@@ -2179,19 +2179,19 @@ def read_kwarg_from_mtl_header(hpdirname, kwarg):
         partitioned by HEALPixel (i.e. as made by
         :func:`desitarget.mtl.make_ledger_in_hp`). Or the name of a
         single MTL ledger.
-    kwarg : :class:`str`
-        A single header keyword argument.
+    keyword : :class:`str`
+        A single header keyword.
 
     Returns
     -------
     :class:`str`
-        The value of `kwarg` from the header of `hpdirname` if it is a
+        The value of `keyword` from the header of `hpdirname` if it is a
         file, or the value from the first file encountered in `hpdirname`
     """
     # ADM for FITS files, our standard targets header-read will work.
     try:
         hdr = read_targets_header(hpdirname, verbose=False)
-        return hdr[kwarg]
+        return hdr[keyword]
     except OSError:
         if os.path.isdir(hpdirname):
             try:
@@ -2201,15 +2201,15 @@ def read_kwarg_from_mtl_header(hpdirname, kwarg):
                 msg = "no FITS or ECSV files in {}...?!".format(hpdirname)
                 log.info(msg)
 
-    # ADM this snippet (rapidly) reads a single kwarg from an ecsv file.
+    # ADM this (rapidly) reads a single keyword from an ecsv file.
     with open(hpdirname) as f:
         for line in f:
-            if kwarg in line and 'name' not in line:
+            if keyword in line and 'name' not in line:
                 break
         return line.split(": ")[-1].split("}")[0]
 
 
-def read_mtl_in_hp(hpdirname, nside, pixlist):
+def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -2223,6 +2223,10 @@ def read_mtl_in_hp(hpdirname, nside, pixlist):
         The (NESTED) HEALPixel nside.
     pixlist : :class:`list` or `int` or `~numpy.ndarray`
         Return targets in these HEALPixels at the passed `nside`.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
 
     Returns
     -------
@@ -2241,10 +2245,10 @@ def read_mtl_in_hp(hpdirname, nside, pixlist):
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     if os.path.isdir(hpdirname):
         # ADM check, and grab information from, the target directory.
-        filenside = int(read_kwarg_from_mtl_header(hpdirname, "FILENSID"))
-        dr = read_kwarg_from_mtl_header(hpdirname, "DR")
-        surv = read_kwarg_from_mtl_header(hpdirname, "SURVEY")
-        oc = read_kwarg_from_mtl_header(hpdirname, "OBSCON")
+        filenside = int(read_keyword_from_mtl_header(hpdirname, "FILENSID"))
+        dr = read_keyword_from_mtl_header(hpdirname, "DR")
+        surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
+        oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
         ender = get_mtl_ledger_format()
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -2257,7 +2261,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist):
                                        survey=surv, ender=ender, obscon=oc)
             fn = os.path.join(hpdirname, os.path.basename(hugefn))
             try:
-                targs = read_mtl_ledger(fn)
+                targs = read_mtl_ledger(fn, unique=unique)
                 mtls.append(targs)
             except FileNotFoundError:
                 pass
@@ -2276,7 +2280,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist):
         mtl.meta["FILEHPX"] = pixlist
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
-        mtl = read_mtl_ledger(hpdirname)
+        mtl = read_mtl_ledger(hpdirname, unique=unique)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)
