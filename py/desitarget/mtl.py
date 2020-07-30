@@ -67,7 +67,9 @@ def _get_mtl_nside():
     :class:`int`
         The HEALPixel nside number for MTL file creation and retrieval.
     """
-    nside = 32
+    from desitarget.geomask import pixarea2nside
+    # ADM the nside appropriate to a 7 sq. deg. field.
+    nside = pixarea2nside(7)
 
     return nside
 

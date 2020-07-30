@@ -26,7 +26,6 @@ from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
-from desitarget.mtl import get_mtl_ledger_format
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -2249,6 +2248,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
         dr = read_keyword_from_mtl_header(hpdirname, "DR")
         surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
         oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
+        from desitarget.mtl import get_mtl_ledger_format
         ender = get_mtl_ledger_format()
 
         # ADM change the passed pixels to the nside of the file schema.
@@ -2290,7 +2290,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
 
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
-                       header=False, downsample=None, verbose=False):
+                       header=False, downsample=None, verbose=False,
+                       mtl=False, unique=True):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -2315,11 +2316,19 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets returned.
     verbose : :class:`bool`, optional, defaults to ``False``
         Passed to :func:`read_target_files()`.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of targets. If ``True`` then the `columns`, `header` and
+        `downsample` kwargs are ignored and a full Table is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
-    :class:`~numpy.ndarray`
-        An array of targets in the passed pixels.
+    :class:`~numpy.ndarray` or :class:`~astropy.table.Table`
+        An array of targets in the passed pixels or, if `mtl` is
+        ``True``, an astropy Table of the MTL in the passed pixels.
 
     Notes
     -----
@@ -2327,7 +2336,12 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
           header is returned).
         - In general, this will be quicker if `pixlist` contains closely
           grouped HEALPixels, as fewer files will need to be read.
+        - If `mtl` is ``True`` then this is just a wrapper on
+          read_mtl_in_hp().
     """
+    if mtl:
+        return read_mtl_in_hp(hpdirname, nside, pixlist, unique=unique)
+
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
         pixlist = [pixlist]
@@ -2398,7 +2412,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     return targets
 
 
-def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
+def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
+                          header=False, mtl=False, unique=True):
     """
     Parameters
     ----------
@@ -2415,11 +2430,19 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of a target file/directory. If ``True`` then the `columns`
+        and `header` kwargs are ignored and a full Table is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
-    :class:`~numpy.ndarray`
-        An array of targets in the passed tiles.
+    :class:`~numpy.ndarray` or :class:`~astropy.table.Table`
+        An array of targets in the passed tiles or, if `mtl` is ``True``,
+        an astropy Table of the MTL.
 
     Notes
     -----
@@ -2441,7 +2464,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
-    if columns is not None:
+    if columns is not None and not mtl:
         # ADM make a copy of columns, as it's a kwarg we'll modify.
         columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
@@ -2450,7 +2473,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
                 addedcols.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if os.path.isdir(hpdirname):
+    if os.path.isdir(hpdirname) or mtl:
         # ADM closest nside to DESI tile area of ~7 deg.
         nside = pixarea2nside(7.)
 
@@ -2459,22 +2482,28 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
         pixlist = tiles2pix(nside, tiles=tiles)
 
         # ADM read in targets in these HEALPixels.
-        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
-                                          columns=columnscopy,
-                                          header=True)
+        targets = read_targets_in_hp(hpdirname, nside, pixlist,
+                                     columns=columnscopy, header=header,
+                                     mtl=mtl, unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
-                                         header=True)
+        targets = read_target_files(hpdirname, columns=columnscopy,
+                                    header=header, mtl=mtl, unique=unique)
+
+    # ADM if we read a header, targets is now a two-entry list.
+    if header:
+        targets, hdr = targets
 
     # ADM restrict only to targets in the requested tiles...
     from desimodel.footprint import is_point_in_desi
     ii = is_point_in_desi(tiles, targets["RA"], targets["DEC"])
+    targets = targets[ii]
 
     # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    if not mtl and len(addedcols) > 0:
+        targets = rfn.drop_fields(targets, addedcols)
 
-    if header:
+    if header and not mtl:
         return targets, hdr
     return targets
 
