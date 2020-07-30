@@ -21,6 +21,7 @@ class TestQA(unittest.TestCase):
     def setUpClass(cls):
         cls.datadir = resource_filename('desitarget.test', 't/')
         cls.targfile = os.path.join(cls.datadir, 'targets.fits')
+        cls.mocktargfile = os.path.join(cls.datadir, 'targets-mocks.fits')
         cls.cmxfile = os.path.join(cls.datadir, 'cmx-targets.fits')
         cls.pixmapfile = os.path.join(cls.datadir, 'pixweight.fits')
         cls.origdir = os.getcwd()
@@ -40,11 +41,14 @@ class TestQA(unittest.TestCase):
         # warnings.filterwarnings('error', '.*Mean of empty slice.*')
         # warnings.filterwarnings('error', '.*Using or importing the ABCs.*')
         warnings.filterwarnings('error', '.*invalid value encountered.*')
-        pass
+
+        #- SJB Always make sure we start in the test directory
+        os.chdir(self.testdir)
 
     def tearDown(self):
-        pass
         # ADM Remove the output files.
+        # SJB only in testdir, just in case something else did a chdir
+        os.chdir(self.testdir)
         for filelist in [glob("*png"), glob("*html"), glob("*dat")]:
             for filename in filelist:
                 if os.path.exists(filename):
@@ -85,6 +89,23 @@ class TestQA(unittest.TestCase):
         dats, alls = len(glob("*dat")), len(glob("./*"))
 
         # ADM there are only .html, .dat and .png files.
+        self.assertEqual(pngs+htmls+dats, alls)
+
+    def test_qa_mocks(self):
+        """Test mock QA plots/pages
+        """
+        make_qa_page(self.mocktargfile, qadir=self.testdir,
+                makeplots=True, numproc=1, mocks=True,
+                max_bin_area=53.7148, systematics=False,
+                )
+
+        pngs, htmls = len(glob("*png")), len(glob("*html"))
+        dats, alls = len(glob("*dat")), len(glob("./*"))
+
+        #- pngs, htmls, and dats exist, and nothing else
+        self.assertGreater(pngs, 0)
+        self.assertGreater(htmls, 0)
+        self.assertGreater(dats, 0)
         self.assertEqual(pngs+htmls+dats, alls)
 
     def test_parse_tc_names(self):
