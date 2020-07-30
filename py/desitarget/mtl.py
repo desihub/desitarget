@@ -67,9 +67,10 @@ def _get_mtl_nside():
     :class:`int`
         The HEALPixel nside number for MTL file creation and retrieval.
     """
-    from desitarget.geomask import pixarea2nside
-    # ADM the nside appropriate to a 7 sq. deg. field.
-    nside = pixarea2nside(7)
+    # from desitarget.geomask import pixarea2nside
+    # ADM the nside (16) appropriate to a 7 sq. deg. field.
+    # nside = pixarea2nside(7)
+    nside = 32
 
     return nside
 
@@ -371,8 +372,10 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
 
     Notes
     -----
-    - Takes about 25 minutes with `numproc=12`. `numproc>12` can run
-      into memory issues.
+    - For _get_mtl_nside()=32, takes about 25 minutes with `numproc=12`.
+      `numproc>12` can run into memory issues.
+    - For _get_mtl_nside()=16, takes about 50 minutes with `numproc=8`.
+      `numproc>8` can run into memory issues.
     """
     # ADM grab information regarding how the targets were constructed.
     hdr, dt = io.read_targets_header(hpdirname, dtype=True)

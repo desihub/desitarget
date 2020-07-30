@@ -10,9 +10,10 @@ Functions for reading, writing and manipulating files related to targeting.
 from __future__ import (absolute_import, division)
 #
 import numpy as np
+import pandas as pd
 import fitsio
 from fitsio import FITS
-from astropy.table import Table, vstack
+from astropy.table import Table
 import os
 import re
 from . import __version__ as desitarget_version
@@ -2083,8 +2084,7 @@ def read_mtl_ledger(filename, unique=True):
     filename : :class:`str`
         Name of a ledger file containing a Merged Target List. If the
         filename contains ".ecsv" then it will be read as an ECSV file.
-        If it contains ".fits" then it will be read as a FITS file. Other
-        standard astropy formats will also be tried.
+        If it contains ".fits" then it will be read as a FITS file.
     unique : :class:`bool`, optional, defaults to ``True``
         If ``True`` then only read targets with unique `TARGETID`, where
         the last occurrence of the target in the ledger is the one that
@@ -2092,18 +2092,43 @@ def read_mtl_ledger(filename, unique=True):
 
     Returns
     -------
-    :class:`~astropy.table.Table`
-        An astropy Table of the MTL.
+    :class:`~numpy.ndarray`
+        A structured numpy array of the MTL.
     """
     if ".ecsv" in filename:
-        mtl = Table.read(filename, format="ascii.ecsv")
+        # ADM this snippet is ~6x quicker than a pure Table read.
+        # ADM infer the column names and types (for the dtype).
+        from desitarget.mtl import mtldatamodel as mtldm
+        names, forms = [], []
+        with open(filename) as f:
+            for line in f:
+                if "name" in line:
+                    l = line.split()
+                    name, form = l[3][:-1], l[5][:-1]
+                    names.append(name)
+                    if 'string' in form:
+                        forms.append(mtldm[name].dtype.str)
+                    else:
+                        forms.append(form)
+                elif '#' not in line:
+                    break
+        dt = list(zip(names, forms))
+        # ADM pandas seems the quickest way to read .csv-like files.
+        prelim = pd.read_csv(filename, dtype=dt, comment="#", delimiter=" ")
+        mtl = np.zeros(len(prelim), dtype=dt)
+        for col in prelim.columns:
+            mtl[col] = prelim[col]
+    elif ".fits" in filename:
+        mtl = fitsio.read(filename, extension="MTL")
     else:
-        mtl = Table.read(filename)
+        msg = "File not parsed ({}). Should be .fits or .ecsv".format(filename)
+        log.error(msg)
+        raise IOError(msg)
 
     if unique:
         # ADM the reverse is because np.unique retains the FIRST unique
         # ADM entry and we want the LAST unique entry.
-        mtl.reverse()
+        mtl = np.flip(mtl)
         _, ii = np.unique(mtl["TARGETID"], return_index=True)
         return mtl[ii]
     else:
@@ -2229,8 +2254,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
 
     Returns
     -------
-    :class:`~astropy.table.Table`
-        An astropy Table of the MTL.
+    :class:`~numpy.ndarray`
+        A numpy structured array of the MTL(s).
 
     Notes
     -----
@@ -2266,18 +2291,14 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
             except FileNotFoundError:
                 pass
 
-        # ADM if no mtls, look up the data model, return an empty table.
+        # ADM if no mtls, look up the data model, return an empty array.
         if len(mtls) == 0:
             fns = iglob(os.path.join(hpdirname, '*.{}'.format(ender)))
             fn = next(fns)
             mtl = read_mtl_ledger(fn)
-            mtl.meta["FILENSID"] = nside
-            mtl.meta["FILEHPX"] = pixlist
-            return Table(np.zeros(0), dtype=mtl.dtype)
+            return np.zeros(0, dtype=mtl.dtype)
 
-        mtl = vstack(mtls, metadata_conflicts='silent')
-        mtl.meta["FILENSID"] = nside
-        mtl.meta["FILEHPX"] = pixlist
+        mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
         mtl = read_mtl_ledger(hpdirname, unique=unique)
@@ -2319,16 +2340,15 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     mtl : :class:`bool`, optional, defaults to ``False``
         If ``True`` then read an MTL ledger file/directory instead
         of targets. If ``True`` then the `columns`, `header` and
-        `downsample` kwargs are ignored and a full Table is returned.
+        `downsample` kwargs are ignored and the full ledger is returned.
     unique : :class:`bool`, optional, defaults to ``True``
         If ``True`` then only read targets with unique `TARGETID` from
         MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
-    :class:`~numpy.ndarray` or :class:`~astropy.table.Table`
-        An array of targets in the passed pixels or, if `mtl` is
-        ``True``, an astropy Table of the MTL in the passed pixels.
+    :class:`~numpy.ndarray`
+        An array of targets in the passed pixels.
 
     Notes
     -----
@@ -2419,7 +2439,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
     ----------
     hpdirname : :class:`str`
         Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
+        have been partitioned by HEALPixel (e.g. as made by
         `select_targets` with the `bundle_files` option). Or the
         name of a single file of targets.
     tiles : :class:`~numpy.ndarray`, optional
@@ -2433,16 +2453,15 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
     mtl : :class:`bool`, optional, defaults to ``False``
         If ``True`` then read an MTL ledger file/directory instead
         of a target file/directory. If ``True`` then the `columns`
-        and `header` kwargs are ignored and a full Table is returned.
+        and `header` kwargs are ignored and the full ledger is returned.
     unique : :class:`bool`, optional, defaults to ``True``
         If ``True`` then only read targets with unique `TARGETID` from
         MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
-    :class:`~numpy.ndarray` or :class:`~astropy.table.Table`
-        An array of targets in the passed tiles or, if `mtl` is ``True``,
-        an astropy Table of the MTL.
+    :class:`~numpy.ndarray`
+        An array of targets in the passed tiles.
 
     Notes
     -----
@@ -2488,10 +2507,10 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
-                                    header=header, mtl=mtl, unique=unique)
+                                    header=header)
 
     # ADM if we read a header, targets is now a two-entry list.
-    if header:
+    if header and not mtl:
         targets, hdr = targets
 
     # ADM restrict only to targets in the requested tiles...
@@ -2509,7 +2528,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
 
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
-                        columns=None, header=False, downsample=None):
+                        columns=None, header=False, downsample=None,
+                        mtl=False, unique=True):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -2531,6 +2551,13 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
         targets returned.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of a target file/directory. If ``True`` then the `columns`
+        and `header` kwargs are ignored and the full ledger is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -2545,7 +2572,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
-    if columns is not None:
+    if columns is not None and not mtl:
         # ADM make a copy of columns, as it's a kwarg we'll modify.
         columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
@@ -2554,26 +2581,33 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                 addedcols.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if os.path.isdir(hpdirname):
+    if os.path.isdir(hpdirname) or mtl:
         # ADM approximate nside for area of passed box.
         nside = pixarea2nside(box_area(radecbox))
         # ADM HEALPixels that touch the box for that nside.
         pixlist = hp_in_box(nside, radecbox)
         # ADM read in targets in these HEALPixels.
-        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
-                                          columns=columnscopy, header=True,
-                                          downsample=downsample)
+        targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
+                                     columns=columnscopy, header=True,
+                                     downsample=downsample, unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
-                                         header=True, downsample=downsample)
+        targets = read_target_files(hpdirname, columns=columnscopy,
+                                    header=True, downsample=downsample)
+
+    # ADM if we read a header, targets is now a two-entry list.
+    if header and not mtl:
+        targets, hdr = targets
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
-    # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    targets = targets[ii]
 
-    if header:
+    # ADM ...and remove RA/Dec columns if we added them.
+    if not mtl and len(addedcols) > 0:
+        targets = rfn.drop_fields(targets, addedcols)
+
+    if header and not mtl:
         return targets, hdr
     return targets
 
