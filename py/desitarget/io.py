@@ -2588,12 +2588,12 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         pixlist = hp_in_box(nside, radecbox)
         # ADM read in targets in these HEALPixels.
         targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
-                                     columns=columnscopy, header=True,
+                                     columns=columnscopy, header=header,
                                      downsample=downsample, unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
-                                    header=True, downsample=downsample)
+                                    header=header, downsample=downsample)
 
     # ADM if we read a header, targets is now a two-entry list.
     if header and not mtl:
@@ -2612,7 +2612,8 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     return targets
 
 
-def read_targets_in_cap(hpdirname, radecrad, columns=None):
+def read_targets_in_cap(hpdirname, radecrad, columns=None,
+                        mtl=False, unique=True):
     """Read in targets in an RA, Dec, radius cap.
 
     Parameters
@@ -2627,16 +2628,23 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
         "circle" on the sky. ra, dec and radius are all in degrees.
     columns : :class:`list`, optional
         Only read in these target columns.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of a target file/directory. If ``True`` then the `columns`
+        kwarg is ignored and the full ledger is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        An array of targets in the passed RA/Dec box.
+        An array of targets in the passed cap.
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
-    if columns is not None:
+    if columns is not None and not mtl:
         # ADM make a copy of columns, as it's a kwarg we'll modify.
         columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
@@ -2645,7 +2653,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
                 addedcols.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if os.path.isdir(hpdirname):
+    if os.path.isdir(hpdirname) or mtl:
         # ADM approximate nside for area of passed cap.
         nside = pixarea2nside(cap_area(np.array(radecrad[2])))
 
@@ -2653,16 +2661,19 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
         pixlist = hp_in_cap(nside, radecrad)
 
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist,
-                                     columns=columnscopy)
+        targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
+                                     columns=columnscopy, unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy)
 
-    # ADM restrict only to targets in the requested cap...
+    # ADM restrict only to targets in the requested cap.
     ii = is_in_cap(targets, radecrad)
-    # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    targets = targets[ii]
+
+    # ADM Remove the RA/Dec columns if we added them.
+    if not mtl and len(addedcols) > 0:
+        targets = rfn.drop_fields(targets, addedcols)
 
     return targets
 
