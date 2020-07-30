@@ -60,7 +60,7 @@ def _get_cmxdir(cmxdir=None):
     if cmxdir is None:
         cmxdir = os.environ.get('CMX_DIR')
     # ADM fail if the cmx directory is not set or passed.
-    if not os.path.exists(cmxdir):
+    if (cmxdir is None) or (not os.path.exists(cmxdir)):
         log.info('pass cmxdir or correctly set the $CMX_DIR environment variable...')
         msg = 'Commissioning files not found in {}'.format(cmxdir)
         log.critical(msg)
