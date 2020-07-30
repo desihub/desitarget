@@ -1,4 +1,5 @@
-#- SJB Trimming a reference run mock file into small test data
+#- SJB This code was used to trim a set of reference run mock targets+truth
+#- into a small dataset for testing.
 
 #- make sure an import can't accidentally trigger this
 if __name__ == "__main__":
