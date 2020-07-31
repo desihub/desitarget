@@ -439,3 +439,99 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     log.info("Done writing ledger...t = {:.1f} mins".format((time()-t0)/60.))
 
     return
+
+
+def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False):
+    """Add a fuller set of target columns to an MTL.
+
+    Parameters
+    ----------
+    mtl : :class:`~numpy.array` or `~astropy.table.Table`
+        A Merged Target List in array or Table form. Must contain the
+        columns "RA", "DEC" and "TARGETID"
+    hpdirname : :class:`str`
+        Full path to a directory containing targets that have been
+        partitioned by HEALPixel (i.e. as made by `select_targets`
+        with the `bundle_files` option).
+    columns : :class:`list` or :class:`str`, optional
+        Only return these target columns. If ``None`` or not passed
+        then return all of the target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then also return the header of the last file read
+        from the `hpdirname` directory.
+    strictcols : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then strictly return only the columns in `columns`,
+        otherwise, inflate the ledger with the new columns.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        The original MTL with the fuller set of columns.
+
+    Notes
+    -----
+        - Will run more quickly if the targets in `mtl` are clustered.
+        - TARGETID is always returned, even if it isn't in `columns`.
+    """
+    # ADM if a table was passed convert it to a numpy array.
+    if isinstance(mtl, Table):
+        mtl = mtl.as_array()
+
+    # ADM if a string was passed for the columns, convert it to a list.
+    if isinstance(columns, str):
+        columns = [columns]
+
+    # ADM we have to have TARGETID, even if it wasn't a passed column.
+    if columns is not None:
+        origcols = columns.copy()
+        if "TARGETID" not in columns:
+            columns.append("TARGETID")
+
+    # ADM look up the optimal nside for reading targets.
+    nside, _ = io.check_hp_target_dir(hpdirname)
+
+    # ADM which pixels do we need to read.
+    theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
+    pixnums = hp.ang2pix(nside, theta, phi, nest=True)
+    pixlist = list(set(pixnums))
+
+    # ADM read in targets in the required pixels.
+    targs = io.read_targets_in_hp(hpdirname, nside, pixlist, columns=columns,
+                                  header=header)
+    if header:
+        targs, hdr = targs
+
+    # ADM match the mtl back to the targets on TARGETID.
+    etargids, smtlids = enumerate(targs["TARGETID"]), set(mtl["TARGETID"])
+    ii = [i for i, tid in etargids if tid in smtlids]
+
+    # ADM reorder targets to match MTL on TARGETID.
+    targs = targs[ii]
+    targsort = np.argsort(targs["TARGETID"])
+    mtlsort = np.argsort(mtl["TARGETID"])
+    targs = targs[targsort][mtlsort]
+
+    # ADM create an array to contain the fuller set of target columns.
+    # ADM start with the data model for the target columns.
+    dt = targs.dtype.descr
+    # ADM add the unique columns from the mtl.
+    xtracols = [nam for nam in mtl.dtype.names if nam not in targs.dtype.names]
+    for col in xtracols:
+        dt.append((col, mtl[col].dtype.str))
+    # ADM remove columns from the data model that weren't requested.
+    if columns is not None and strictcols:
+        dt = [(name, form) for name, form in dt if name in origcols]
+    # ADM create the output array.
+    done = np.empty(len(mtl), dtype=dt)
+    # ADM populate the output array with the fuller target columns.
+    for col in targs.dtype.names:
+        if col in done.dtype.names:
+            done[col] = targs[col]
+    # ADM populate the output array with the unique MTL columns.
+    for col in xtracols:
+        if col in done.dtype.names:
+            done[col] = mtl[col]
+
+    if header:
+        return done, hdr
+    return done

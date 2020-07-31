@@ -2327,7 +2327,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     pixlist : :class:`list` or `int` or `~numpy.ndarray`
         Return targets in these HEALPixels at the passed `nside`.
     columns : :class:`list`, optional
-        Only read in these target columns.
+        Only return these target columns.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
