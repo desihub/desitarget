@@ -410,7 +410,11 @@ def read_data(targfile, mocks=False, downsample=None, header=False):
 
         objtruths = dict()
         for objtype in set(truths['TEMPLATETYPE']):
-            oo = objtype.decode('utf-8').strip().upper()
+            try:
+                oo = objtype.decode('utf-8').strip().upper()
+            except:
+                oo = objtype
+
             extname = 'TRUTH_{}'.format(oo)
             if extname in truthinfo:
                 objtruths[oo] = truthinfo[extname].read()
@@ -890,7 +894,8 @@ def qamag(cat, objtype, qadir='.', fileprefix="nmag", area=1.0):
         # ADM restrict the magnitude limits.
         plt.xlim(brightmag, faintmag+0.5)
         # ADM give a little space for labels on the y-axis.
-        plt.ylim((0, ypeak * 1.2))
+        if ypeak != 0.0:
+            plt.ylim((0, ypeak * 1.2))
         plt.xlabel(filtername)
         plt.ylabel('dn / dm (targets deg$^{{-2}}$)'.format(filtername))
 
@@ -1160,9 +1165,15 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
 
     # Get the unique combination of template types, subtypes, and true spectral
     # types.  Lya QSOs and galaxies contaminating ELGs are a special case.
-    templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
-    templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
-    truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
+    if isinstance(cat['TEMPLATETYPE'][0], bytes):
+        templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
+        templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
+        truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
+    else:
+        #- Already a string; just strip whitespace
+        templatetypes = np.char.strip(cat['TEMPLATETYPE'])
+        templatesubtypes = np.char.strip(cat['TEMPLATESUBTYPE'])
+        truespectypes = np.char.strip(cat['TRUESPECTYPE'])
 
     islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
     if len(islya) > 0:
@@ -1467,11 +1478,17 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
             raise ValueError
 
         if mocks:
-            # Get the unique combination of template types, subtypes, and true spectral
-            # types.  Lya QSOs are a special case.
-            templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
-            templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
-            truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
+            # Get the unique combination of template types, subtypes, and true
+            # spectral types.  Lya QSOs are a special case.
+            if isinstance(cat['TEMPLATETYPE'][0], bytes):
+                templatetypes = np.char.strip(np.char.decode(cat['TEMPLATETYPE']))
+                templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
+                truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
+            else:
+                #- Already a string, just strip whitespace
+                templatetypes = np.char.strip(cat['TEMPLATETYPE'])
+                templatesubtypes = np.char.strip(cat['TEMPLATESUBTYPE'])
+                truespectypes = np.char.strip(cat['TRUESPECTYPE'])
 
             islya = np.where(['LYA' in tt for tt in templatesubtypes])[0]
             if len(islya) > 0:
