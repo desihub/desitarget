@@ -2,9 +2,11 @@
 desitarget Change Log
 =====================
 
-0.40.1 (unreleased)
+0.41.0 (unreleased)
 -------------------
 
+* Support for python/3.8 and numpy/1.18, including new tests
+  [`PR #631`, `PR #634`]
 * Minor data model fixes, error checks and streamlining [`PR #627`_].
     * The most important change is that MWS science targets are no
       longer observed in GRAY or DARK, except for MWS_WDs.
@@ -40,6 +42,8 @@ desitarget Change Log
 .. _`PR #625`: https://github.com/desihub/desitarget/pull/625
 .. _`PR #626`: https://github.com/desihub/desitarget/pull/626
 .. _`PR #627`: https://github.com/desihub/desitarget/pull/627
+.. _`PR #631`: https://github.com/desihub/desitarget/pull/631
+.. _`PR #634`: https://github.com/desihub/desitarget/pull/634
 
 0.40.0 (2020-05-26)
 -------------------
