@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.41.0 (unreleased)
+0.41.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.41.0 (2020-08-04)
 -------------------
 
 * Support for python/3.8 and numpy/1.18, including new tests
