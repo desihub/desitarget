@@ -336,7 +336,8 @@ def set_obsconditions(targets, scnd=False):
         colnames, masks = colnames[-1:], masks[-1:]
 
     n = len(targets)
-    obscon = np.zeros(n, dtype='i4')
+    from desitarget.mtl import mtldatamodel as mtldm
+    obscon = np.zeros(n, dtype=mtldm["OBSCONDITIONS"].dtype)
     for mask, xxx_target in zip(masks, colnames):
         for name in mask.names():
             # ADM which targets have this bit for this mask set?

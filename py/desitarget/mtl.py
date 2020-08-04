@@ -29,12 +29,13 @@ log = get_logger()
 
 # ADM the data model for MTL. Note that the _TARGET columns will have
 # ADM to be changed on the fly for SV1_, SV2_, etc. files.
+# ADM OBSCONDITIONS is formatted as just 'i4' for backward compatibility.
 mtldatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('PARALLAX', '>f4'),
     ('PMRA', '>f4'), ('PMDEC', '>f4'), ('REF_EPOCH', '>f4'),
     ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'), ('MWS_TARGET', '>i8'),
     ('SCND_TARGET', '>i8'), ('TARGETID', '>i8'),
-    ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i8'),
+    ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
     ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S15')
@@ -91,7 +92,7 @@ def get_mtl_ledger_format():
 
 def make_mtl(targets, obscon, zcat=None, scnd=None,
              trim=False, trimcols=True, trimtozcat=False):
-    """Adds NUMOBS, PRIORITY, and OBSCONDITIONS columns to a targets table.
+    """Adds fiberassign and zcat columns to a targets table.
 
     Parameters
     ----------
@@ -150,9 +151,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             targets = rfn.drop_fields(targets, cullcols)
 
     # ADM determine whether the input targets are main survey, cmx or SV.
-    colnames, masks, survey = main_cmx_or_sv(targets)
+    colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
     # ADM set the first column to be the "desitarget" column
     desi_target, desi_mask = colnames[0], masks[0]
+    scnd_target = colnames[-1]
 
     # ADM if secondaries were passed, concatenate them with the targets.
     if scnd is not None:
@@ -249,8 +251,14 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl = Table(targets)
     mtl.meta['EXTNAME'] = 'MTL'
 
-    # ADM best to initialize string columns to avoid zero-length errors.
-    for col in "TARGET_STATE", "TIMESTAMP", "VERSION":
+    # ADM add a placeholder for the secondary bit-mask, if it isn't there.
+    if not scnd_target in mtl.dtype.names:
+        mtl[scnd_target] = np.zeros(len(mtl),
+                                    dtype=mtldatamodel["SCND_TARGET"].dtype)
+
+    # ADM initialize columns to avoid zero-length/missing/format errors.
+    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN"]
+    for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
         mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
 
     # ADM any target that wasn't matched to the ZCAT should retain its
@@ -267,7 +275,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['OBSCONDITIONS'] = obsconmask
     mtl['PRIORITY'][zmatcher] = priority
     mtl['TARGET_STATE'][zmatcher] = target_state
-    mtl['NUMOBS_MORE'][zmatcher] = ztargets['NUMOBS_MORE']
+    for col in zcols:
+        mtl[col][zmatcher] = ztargets[col]
 
     # Filter out any targets marked as done.
     if trim:
@@ -281,6 +290,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # See https://github.com/astropy/astropy/issues/4707
     # and https://github.com/astropy/astropy/issues/4708
     mtl['NUMOBS_MORE'].fill_value = -1
+
+    # ADM assert the data model is complete.
+    assert set(mtl.dtype.descr) == set(mtldm.dtype.descr)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
