@@ -490,17 +490,32 @@ def update_ledger(hpdirname, targets, zcat):
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
 
-    # ADM loop through the pixels and update the ledger.
+    # ADM loop through the pixels and update the ledger, depending
+    # ADM on whether we're working with .fits or .ecsv files.
+    ender = get_mtl_ledger_format()
     for pix in set(pixnum):
-        # ADM the correct file for this pixel number.
-        f = open(fileform.format(pix), "a")
         # ADM grab the targets in the pixel.
         ii = pixnum == pix
         mtlpix = mtl[ii]
+
         # ADM sorting on TARGETID is important for
         # ADM io.read_mtl_ledger(unique=True)
         mtlpix = mtlpix[np.argsort(mtlpix["TARGETID"])]
-        ascii.write(mtlpix, f, format='no_header')
+
+        # ADM the correct filename for this pixel number.
+        fn = fileform.format(pix)
+
+        # ADM if we're working with .ecsv, simply append to the ledger.
+        if ender = 'ecsv':
+            f = open(fn, "a")
+            ascii.write(mtlpix, f, format='no_header')
+            f.close()
+        # ADM otherwise, for FITS, we'll have to read in the whole file.
+        else:
+            ledger, hd = fitsio.read(fn, extname="MTL", header=True)
+            done = np.concatenate([ledger, mtlpix.as_array()])
+            fitsio.write(fn+'.tmp', done, extname='MTL', header=hd, clobber=True)
+            os.rename(fn+'.tmp', fn)
 
     return
 
