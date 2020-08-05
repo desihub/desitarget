@@ -594,15 +594,15 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
               nsidefile=None, hpxlist=None, extra=None, ecsv=True):
-    """Write target catalogues.
+    """Write Merged Target List ledgers or files.
 
     Parameters
     ----------
     mtldir : :class:`str`
-        Path to output target selection directory (the directory
-        structure and file name are built on-the-fly from other inputs).
+        Path to output MTL directory (the directory structure and file
+        name are built on-the-fly from other inputs).
     data : :class:`~numpy.ndarray`
-        numpy structured array of targets to save.
+        numpy structured array of merged targets to write.
     indir : :class:`str`, optional, defaults to `None`
         If passed, note as the input directory in the output file header.
     survey : :class:`str`, optional, defaults to "main"
@@ -2233,7 +2233,51 @@ def read_keyword_from_mtl_header(hpdirname, keyword):
         return line.split(": ")[-1].split("}")[0]
 
 
-def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
+def find_mtl_file_format_from_header(hpdirname, returnoc=False):
+    """Construct an MTL filename just from the header in the file
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    returnoc : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then also return the OBSCON header keyword
+        for files in this directory.
+
+    Returns
+    -------
+    :class:`str`
+        The file form such that output.format(pixel) returns the
+        full HEALPixel-dependent filename for a give pixel.
+    :class:`str`
+        The OBSCON header keyword. Only returned if `returnoc` is
+        ``True``.
+
+    Notes
+    -----
+        - Should work for both .ecsv and .fits files.
+    """
+    # ADM grab information from the target directory.
+    dr = read_keyword_from_mtl_header(hpdirname, "DR")
+    surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
+    oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
+    from desitarget.mtl import get_mtl_ledger_format
+    ender = get_mtl_ledger_format()
+
+    # ADM construct the full directory path.
+    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}", dr=dr,
+                               survey=surv, ender=ender, obscon=oc)
+    # ADM return the filename.
+    fileform = os.path.join(hpdirname, os.path.basename(hugefn))
+    if returnoc:
+        return fileform, oc
+    return fileform
+
+
+def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, returnfn=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -2251,11 +2295,17 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
         If ``True`` then only read targets with unique `TARGETID`, where
         the last occurrence of the target in the ledger is the one that
         is retained. If ``False`` then read the entire ledger.
+    returnfn : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then also return a dictionary of the filename
+        that had to be read in each pixel to retrieve the MTL(s).
 
     Returns
     -------
     :class:`~numpy.ndarray`
         A numpy structured array of the MTL(s).
+    :class:`dict`
+        A dictionary where the keys are pixels and values are filenames
+        that were read (only returned if `returnfn` is ``True``).
 
     Notes
     -----
@@ -2267,27 +2317,22 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
         pixlist = [pixlist]
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
+    outfns = {}
+    fileform = find_mtl_file_format_from_header(hpdirname)
+    filenside = int(read_keyword_from_mtl_header(hpdirname, "FILENSID"))
     if os.path.isdir(hpdirname):
-        # ADM check, and grab information from, the target directory.
-        filenside = int(read_keyword_from_mtl_header(hpdirname, "FILENSID"))
-        dr = read_keyword_from_mtl_header(hpdirname, "DR")
-        surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
-        oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
-        from desitarget.mtl import get_mtl_ledger_format
-        ender = get_mtl_ledger_format()
-
         # ADM change the passed pixels to the nside of the file schema.
         filepixlist = nside2nside(nside, filenside, pixlist)
 
         # ADM read in the files and concatenate the resulting targets.
         mtls = []
+        outfns = {}
         for pix in filepixlist:
-            hugefn = find_target_files(hpdirname, flavor="mtl", hp=pix, dr=dr,
-                                       survey=surv, ender=ender, obscon=oc)
-            fn = os.path.join(hpdirname, os.path.basename(hugefn))
+            fn = fileform.format(pix)
             try:
                 targs = read_mtl_ledger(fn, unique=unique)
                 mtls.append(targs)
+                outfns[pix] = fn
             except FileNotFoundError:
                 pass
 
@@ -2296,7 +2341,10 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
             fns = iglob(os.path.join(hpdirname, '*.{}'.format(ender)))
             fn = next(fns)
             mtl = read_mtl_ledger(fn)
-            return np.zeros(0, dtype=mtl.dtype)
+            outly = np.zeros(0, dtype=mtl.dtype)
+            if returnfn:
+                return outly, outfns
+            return outly
 
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
@@ -2307,6 +2355,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True):
     ii = is_in_hp(mtl, nside, pixlist)
     mtl = mtl[ii]
 
+    if returnfn:
+        return mtl, outfns
     return mtl
 
 

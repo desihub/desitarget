@@ -11,6 +11,7 @@ import healpy as hp
 import numpy.lib.recfunctions as rfn
 import sys
 from astropy.table import Table
+from astropy.io import ascii
 import fitsio
 from time import time
 from datetime import datetime
@@ -181,19 +182,6 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             zcat = zcat[ok]
 
     n = len(targets)
-    # ADM if the input target columns were incorrectly called NUMOBS
-    # ADM or PRIORITY rename them to NUMOBS_INIT or PRIORITY_INIT.
-    # ADM Note that the syntax is slightly different for a Table.
-    for name in ['NUMOBS', 'PRIORITY']:
-        if isinstance(targets, Table):
-            try:
-                targets.rename_column(name, name+'_INIT')
-            except KeyError:
-                pass
-        else:
-            targets.dtype.names = [name+'_INIT' if col == name else col
-                                   for col in targets.dtype.names]
-
     # ADM if a redshift catalog was passed, order it to match the input targets
     # ADM catalog on 'TARGETID'.
     if zcat is not None:
@@ -292,7 +280,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['NUMOBS_MORE'].fill_value = -1
 
     # ADM assert the data model is complete.
-    assert set(mtl.dtype.descr) == set(mtldm.dtype.descr)
+    mtltypes = [mtl[i].dtype.type for i in mtl.dtype.names]
+    mtldmtypes = [mtldm[i].dtype.type for i in mtl.dtype.names]
+    assert set(mtl.dtype.names) == set(mtldm.dtype.names)
+    assert mtltypes == mtldmtypes
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
@@ -382,6 +373,10 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     numproc : :class:`int`, optional, defaults to 1 for serial
         Number of processes to parallelize across.
 
+    Returns
+    -------
+    Nothing, but writes the full HEALPixel-split ledger to `outdirname`.
+
     Notes
     -----
     - For _get_mtl_nside()=32, takes about 25 minutes with `numproc=12`.
@@ -449,6 +444,63 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
             _update_status(_make_ledger_in_hp(pixel))
 
     log.info("Done writing ledger...t = {:.1f} mins".format((time()-t0)/60.))
+
+    return
+
+
+def update_ledger(hpdirname, targets, zcat):
+    """
+    Update relevant HEALPixel-split ledger files for some targets.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to a directory containing an MTL ledger that has been
+        partitioned by HEALPixel (i.e. as made by `make_ledger`).
+    targets : :class:`~numpy.array` or `~astropy.table.Table`
+        A numpy rec array or astropy Table with at least the columns
+        ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
+        and ``PRIORITY_INIT``.
+    zcat : :class:`~astropy.table.Table`, optional
+        Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
+        ``Z``, ``ZWARN``.
+
+    Returns
+    -------
+    Nothing, but relevant ledger files are updated.
+    """
+# ADM in theory, here, fiberassign wouldn't need to carry much around at
+# ADM all. We could, instead, simply read the relevant MTL pixel-ledgers
+# ADM and match on TARGETID to recover everything we'd need. Better yet,
+# ADM if the zcat included RA/Dec, we wouldn't even need `targets`..e.g.:
+    # ADM read the relevant pixel-ledger (and record the files we read).
+#    mtltargs, fndict = io.read_mtl_in_hp(hpdirname, nside, pixnum,
+#                                         unique=True, returnfn=True)
+    # ADM then match between mtltargs and targets on TARGETID, etc.
+
+    # ADM find the general format for the ledger files in `hpdirname`.
+    # ADM also returning the obsconditions.
+    fileform, obscon = find_mtl_file_format_from_header(hpdirname, returnoc=True)
+
+    # ADM run MTL, only returning the targets that are updated.
+    mtl = make_mtl(targets, obscon, zcat=zcat, trimtozcat=True)
+
+    # ADM look up which HEALPixels are represented in the updated MTL.
+    nside = _get_mtl_nside()
+    theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
+    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM loop through the pixels and update the ledger.
+    for pix in set(pixnum):
+        # ADM the correct file for this pixel number.
+        f = open(fileform.format(pix), "a")
+        # ADM grab the targets in the pixel.
+        ii = pixnum == pix
+        mtlpix = mtl[ii]
+        # ADM sorting on TARGETID is important for
+        # ADM io.read_mtl_ledger(unique=True)
+        mtlpix = mtlpix[np.argsort(mtlpix["TARGETID"])]
+        ascii.write(mtlpix, f, format='no_header')
 
     return
 
