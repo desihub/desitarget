@@ -42,6 +42,10 @@ mtldatamodel = np.array([], dtype=[
     ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S15')
     ])
 
+# ADM when using basic or csv ascii writes, specifying the formats of
+# ADM float32 columns can make things easier on the eye.
+mtlformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
+
 
 def get_mtl_dir():
     """Convenience function to grab the MTL_DIR environment variable.
@@ -240,7 +244,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl.meta['EXTNAME'] = 'MTL'
 
     # ADM add a placeholder for the secondary bit-mask, if it isn't there.
-    if not scnd_target in mtl.dtype.names:
+    if scnd_target not in mtl.dtype.names:
         mtl[scnd_target] = np.zeros(len(mtl),
                                     dtype=mtldatamodel["SCND_TARGET"].dtype)
 
@@ -408,6 +412,7 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     mtlnside = _get_mtl_nside()
 
     from desitarget.geomask import nside2nside
+
     # ADM the common function that is actually parallelized across.
     def _make_ledger_in_hp(pixnum):
         """make initial ledger in a single HEALPixel"""
@@ -418,7 +423,8 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
         # ADM construct a list of all pixels in pixnum at the MTL nside.
         pixlist = nside2nside(nside, mtlnside, pixnum)
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
-        return make_ledger_in_hp(targs, outdirname, mtlnside, pixlist,
+        return make_ledger_in_hp(
+            targs, outdirname, mtlnside, pixlist,
             obscon=obscon, indirname=hpdirname, verbose=False)
 
     # ADM this is just to count pixels in _update_status.
@@ -448,7 +454,7 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     return
 
 
-def update_ledger(hpdirname, targets, zcat):
+def update_ledger(hpdirname, targets, zcat, obscon="DARK"):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -464,6 +470,11 @@ def update_ledger(hpdirname, targets, zcat):
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
         ``Z``, ``ZWARN``.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "GRAY"
+        Governs how priorities are set using "obsconditions". Basically a
+        check on whether the files in `hpdirname` are as expected.
 
     Returns
     -------
@@ -480,10 +491,16 @@ def update_ledger(hpdirname, targets, zcat):
 
     # ADM find the general format for the ledger files in `hpdirname`.
     # ADM also returning the obsconditions.
-    fileform, obscon = find_mtl_file_format_from_header(hpdirname, returnoc=True)
+    fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
+
+    # ADM check the obscondition is as expected.
+    if obscon != oc:
+        msg = "File is type {} but requested behavior is {}".format(oc, obscon)
+        log.critical(msg)
+        raise ValueError(msg)
 
     # ADM run MTL, only returning the targets that are updated.
-    mtl = make_mtl(targets, obscon, zcat=zcat, trimtozcat=True)
+    mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True)
 
     # ADM look up which HEALPixels are represented in the updated MTL.
     nside = _get_mtl_nside()
@@ -506,9 +523,9 @@ def update_ledger(hpdirname, targets, zcat):
         fn = fileform.format(pix)
 
         # ADM if we're working with .ecsv, simply append to the ledger.
-        if ender = 'ecsv':
+        if ender == 'ecsv':
             f = open(fn, "a")
-            ascii.write(mtlpix, f, format='no_header')
+            ascii.write(mtlpix, f, format='no_header', formats=mtlformatdict)
             f.close()
         # ADM otherwise, for FITS, we'll have to read in the whole file.
         else:

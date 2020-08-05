@@ -663,7 +663,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
     vals += [drint]
 
     # ADM finalize the header dictionary.
-    hdrdict = {key:val for key, val in zip(keys, vals) if val is not None}
+    hdrdict = {key: val for key, val in zip(keys, vals) if val is not None}
     if extra is not None:
         hdrdict = {**hdrdict, **extra}
 
@@ -2159,7 +2159,7 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     """
     start = time()
     # ADM start with some checking that this is a target file.
-    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS"
+    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS", "MTL"
     # ADM read in the FITS extention info.
     f = fitsio.FITS(filename)
     if len(f) != 2:
@@ -2214,8 +2214,10 @@ def read_keyword_from_mtl_header(hpdirname, keyword):
     """
     # ADM for FITS files, our standard targets header-read will work.
     try:
-        hdr = read_targets_header(hpdirname, verbose=False)
-        return hdr[keyword]
+        kw = read_targets_header(hpdirname, verbose=False)[keyword]
+        if isinstance(kw, str):
+            kw = kw.rstrip()
+        return kw
     except OSError:
         if os.path.isdir(hpdirname):
             try:

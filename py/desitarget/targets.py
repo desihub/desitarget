@@ -218,7 +218,7 @@ def switch_main_cmx_or_sv(revamp, archetype):
     newcols, _, _ = main_cmx_or_sv(archetype, scnd=scnd)
 
     # ADM update the column names and return the input targets.
-    renamer = {oldcol:newcol for oldcol, newcol in zip(oldcols, newcols)}
+    renamer = {oldcol: newcol for oldcol, newcol in zip(oldcols, newcols)}
 
     return rfn.rename_fields(revamp, renamer)
 
