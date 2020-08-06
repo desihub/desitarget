@@ -1602,9 +1602,12 @@ def _prepare_optical_wise(objects, mask=True):
     deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
 
     # ADM remove handful of NaN values from DCHISQ values and make them unselectable.
-    w = np.where(deltaChi2 != deltaChi2)
-    # ADM this is to catch the single-object case for unit tests.
-    if len(w[0]) > 0:
+    # SJB support py3.8 + np1.18 for both scalars and vectors
+    if np.isscalar(deltaChi2):
+        if np.isnan(deltaChi2):
+            deltaChi2 = -1e6
+    else:
+        w = np.isnan(deltaChi2)
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
@@ -1948,13 +1951,20 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM 10% of the BGS_FAINT sources need the BGS_FAINT_HIP bit set.
     # ADM form a seed using RA/Dec in case we parallelized by HEALPixel.
     # SJB seeds must be within 0 - 2**32-1
+    # SJB np1.18 scalar vs. vector support, but note that HIP won't be
+    #     set identically for vector vs. calling scalar N times.
     uniqseed = int(np.mean(zflux)*1e5) % (2**32 - 1)
     np.random.seed(uniqseed)
-    w = np.where(bgs_faint)[0]
-    nbgsf = len(w)
     hip = None
-    if nbgsf > 0:
-        hip = np.random.choice(w, nbgsf//10, replace=False)
+    if np.isscalar(bgs_faint):
+        if bgs_faint:
+            nbgsf = 1
+            hip = np.random.uniform(0, 1) < 0.1
+    else:
+        w = np.where(bgs_faint)[0]
+        nbgsf = len(w)
+        if nbgsf > 0:
+            hip = np.random.choice(w, nbgsf//10, replace=False)
 
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -2059,7 +2069,10 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # bgs_target |= bgs_wise * bgs_mask.BGS_WISE
     # ADM set 10% of the BGS_FAINT targets to BGS_FAINT_HIP.
     if hip is not None:
-        bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
+        if hip is True:
+            bgs_target |= bgs_mask.BGS_FAINT_HIP
+        else:
+            bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws_broad * mws_mask.MWS_BROAD

@@ -60,7 +60,7 @@ def _get_cmxdir(cmxdir=None):
     if cmxdir is None:
         cmxdir = os.environ.get('CMX_DIR')
     # ADM fail if the cmx directory is not set or passed.
-    if not os.path.exists(cmxdir):
+    if (cmxdir is None) or (not os.path.exists(cmxdir)):
         log.info('pass cmxdir or correctly set the $CMX_DIR environment variable...')
         msg = 'Commissioning files not found in {}'.format(cmxdir)
         log.critical(msg)
@@ -437,18 +437,26 @@ def isSV0_MWS(rflux=None, obs_rflux=None, objtype=None, paramssolved=None,
     else:
         nans = (np.isnan(gaiagmag) | np.isnan(gaiabmag) | np.isnan(gaiarmag) |
                 np.isnan(parallax))
-    w = np.where(nans)[0]
-    if len(w) > 0:
-        parallax, gaiagmag = parallax.copy(), gaiagmag.copy()
-        gaiabmag, gaiarmag = gaiabmag.copy(), gaiarmag.copy()
-        if photbprpexcessfactor is not None:
-            photbprpexcessfactor = photbprpexcessfactor.copy()
-        # ADM safe to make these zero regardless of cuts as...
-            photbprpexcessfactor[w] = 0.
-        parallax[w] = 0.
-        gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
-        # ADM ...we'll turn off all bits here.
-        iswd &= ~nans
+
+    if np.isscalar(nans):
+        if nans:
+            parallax = gaiagmag = gaiabmag = gaiarmag = 0.0
+            if photbprpexcessfactor is not None:
+                photbprpexcessfactor = 0.0
+    else:
+        w = np.where(nans)[0]
+        if len(w) > 0:
+            parallax, gaiagmag = parallax.copy(), gaiagmag.copy()
+            gaiabmag, gaiarmag = gaiabmag.copy(), gaiarmag.copy()
+            if photbprpexcessfactor is not None:
+                photbprpexcessfactor = photbprpexcessfactor.copy()
+            # ADM safe to make these zero regardless of cuts as...
+                photbprpexcessfactor[w] = 0.
+            parallax[w] = 0.
+            gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
+
+    # ADM ...we'll turn off all bits here.
+    iswd &= ~nans
 
     # ADM apply the selection for MWS-WD targets.
     # ADM must be a Legacy Surveys object that matches a Gaia source.
