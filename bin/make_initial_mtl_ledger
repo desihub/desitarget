@@ -1,0 +1,39 @@
+#!/usr/bin/env python
+
+from desitarget.mtl import make_ledger, get_mtl_dir
+#import warnings
+#warnings.simplefilter('error')
+
+# ADM this is the upper-limit for memory for mtl._get_mtl_nside()=32.
+nproc = 12
+# ADM this is the upper-limit for memory for mtl._get_mtl_nside()=16.
+# nproc = 8
+# ADM retrieve the $MTL_DIR environment variable.
+mtldir = get_mtl_dir()
+# ADM default obsconditions.
+obscon = "DARK"
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Make an initial HEALPixel-split ledger for a Merged Target List based on a directory of targets')
+ap.add_argument("targdir",
+                help="Full path to a directory containing files of targets that \
+                have been partitioned by HEALPixel (i.e. as made by             \
+                `select_targets` with the `bundle_files` option).")
+ap.add_argument("--dest",
+                help="Full path to the output directory to host the ledger. The \
+                filename and full directory structure is built on-the-fly from  \
+                file headers in targdirname. [defaults to {})".format(mtldir),
+                default=mtldir)
+ap.add_argument("--obscon",
+                help="String matching ONE obscondition in the bitmask yaml file \
+                (e.g. 'GRAY'). Controls priorities when merging targets and     \
+                where the ledger is written. [defaults to {})".format(obscon),
+                default=obscon)
+ap.add_argument("--numproc", type=int,
+                help='number of concurrent processes to use [defaults to {}]'.
+                format(nproc),
+                default=nproc)
+
+ns = ap.parse_args()
+
+make_ledger(ns.targdir, ns.dest, obscon=ns.obscon, numproc=ns.numproc)
