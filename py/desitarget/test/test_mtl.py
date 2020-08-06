@@ -8,10 +8,10 @@ import numpy as np
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
-from desitarget.targetmask import bgs_mask
-from desitarget.targetmask import obsconditions
-from desitarget.mtl import make_mtl
+from desitarget.targetmask import bgs_mask, obsconditions
+from desitarget.mtl import make_mtl, mtldatamodel
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
+from desitarget.targets import switch_main_cmx_or_sv
 
 
 class TestMTL(unittest.TestCase):
@@ -24,9 +24,13 @@ class TestMTL(unittest.TestCase):
         self.post_prio[0] = 2  # ELG
         self.post_prio[1] = 2  # LRG...all one-pass
         self.post_prio[2] = 2  # lowz QSO
+        nt = len(self.types)
+        # ADM add some "extra" columns that are needed for observations.
+        for col in ["RA", "DEC", "PARALLAX", "PMRA", "PMDEC", "REF_EPOCH"]:
+            self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
-        self.targets['BGS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
-        self.targets['MWS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
+        for col in ['BGS_TARGET', 'MWS_TARGET', 'SUBPRIORITY']:
+            self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         n = len(self.targets)
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
@@ -49,7 +53,7 @@ class TestMTL(unittest.TestCase):
         t = self.targets.copy()
         main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
 
-        if prefix == 'CMX':
+        if prefix == 'CMX_':
             # ADM restructure the table to look like a commissioning table.
             t.rename_column('DESI_TARGET', 'CMX_TARGET')
             t.remove_column('BGS_TARGET')
@@ -67,9 +71,10 @@ class TestMTL(unittest.TestCase):
         for prefix in ["", "CMX_", "SV1_"]:
             t = self.reset_targets(prefix)
             mtl = make_mtl(t, "BRIGHT|GRAY|DARK")
-            goodkeys = sorted(set(t.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
-            mtlkeys = sorted(mtl.dtype.names)
-            self.assertEqual(mtlkeys, goodkeys)
+            mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
+            refnames = sorted(mtldm.dtype.names)
+            mtlnames = sorted(mtl.dtype.names)
+            self.assertEqual(refnames, mtlnames)
 
     def test_numobs(self):
         """Test priorities, numobs and obsconditions are set correctly with no zcat.

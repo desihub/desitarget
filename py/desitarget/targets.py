@@ -217,10 +217,15 @@ def switch_main_cmx_or_sv(revamp, archetype):
     # ADM what are the column names to change to?
     newcols, _, _ = main_cmx_or_sv(archetype, scnd=scnd)
 
-    # ADM update the column names and return the input targets.
+    # ADM update the column names.
     renamer = {oldcol: newcol for oldcol, newcol in zip(oldcols, newcols)}
+    renamed = rfn.rename_fields(revamp, renamer)
 
-    return rfn.rename_fields(revamp, renamer)
+    # ADM guard against commissioning files.
+    if "CMX_TARGET" in newcols:
+        renamed = rfn.drop_fields(renamed, oldcols)
+
+    return renamed
 
 
 def main_cmx_or_sv(targets, rename=False, scnd=False):

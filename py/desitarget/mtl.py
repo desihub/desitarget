@@ -315,8 +315,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
     obscon : :class:`str`, optional, defaults to "DARK"
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "GRAY"
-        Governs how priorities are set based on "obsconditions". Also
-        governs the sub-directory to which the ledger is written.
+        Governs how priorities are set when merging targets. Also governs
+        the sub-directory to which the ledger is written.
     indirname : :class:`str`
         A directory associated with the targets. Written to the headers
         of the output MTL files.
