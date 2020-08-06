@@ -5,6 +5,25 @@ desitarget Change Log
 0.40.1 (unreleased)
 -------------------
 
+
+* Major refactor to MTL to implement ledgers [`PR #635`_]. Includes:
+    * Code to make initial HEALPix-split ledger files from target files.
+        * Ledgers can be produced for each observing layer.
+        * Also includes an easy-to-use binary executable script.
+        * New data model with timestamp, code version and target states.
+    * Code to rapidly update MTL information by appending to a ledger.
+        * Uses targets and a zcat with the current standard columns.
+    * Functionality that works with either FITS or ECSV files.
+    * Automatic trimming of target columns in :func:`mtl.make_mtl()`.
+        * Saves memory, which may help with processing of mocks.
+    * :func:`mtl.inflate_ledger()` to re-obtain trimmed target columns.
+    * Code to write MTL files in a standard format.
+    * Utility functions to read (FITS or ECSV) MTL ledgers:
+        * In a set of HEALPixels (:func:`io.read_mtl_in_hp`)
+        * In a set of tiles (:func:`read_targets_in_tiles` with mtl=True)
+        * In a box (:func:`read_targets_in_box` with mtl=True)
+        * In a cap (:func:`read_targets_in_cap` with mtl=True)
+    * Can read entire ledger, or most recent entry for each ``TARGETID``.
 * Minor data model fixes, error checks and streamlining [`PR #627`_].
     * The most important change is that MWS science targets are no
       longer observed in GRAY or DARK, except for MWS_WDs.
@@ -40,6 +59,7 @@ desitarget Change Log
 .. _`PR #625`: https://github.com/desihub/desitarget/pull/625
 .. _`PR #626`: https://github.com/desihub/desitarget/pull/626
 .. _`PR #627`: https://github.com/desihub/desitarget/pull/627
+.. _`PR #635`: https://github.com/desihub/desitarget/pull/635
 
 0.40.0 (2020-05-26)
 -------------------
