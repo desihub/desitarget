@@ -96,7 +96,7 @@ def get_mtl_ledger_format():
 
 
 def make_mtl(targets, obscon, zcat=None, scnd=None,
-             trim=False, trimcols=True, trimtozcat=False):
+             trim=False, trimcols=False, trimtozcat=False):
     """Adds fiberassign and zcat columns to a targets table.
 
     Parameters
@@ -122,7 +122,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     trim : :class:`bool`, optional
         If ``True`` (default), don't include targets that don't need
         any more observations.  If ``False``, include every input target.
-    trimcols : :class:`bool`, optional, defaults to ``True``
+    trimcols : :class:`bool`, optional, defaults to ``False``
         Only pass through columns in `targets` that are actually needed
         for fiberassign (see `desitarget.mtl.mtldatamodel`).
     trimtozcat : :class:`bool`, optional, defaults to ``False``
@@ -284,10 +284,11 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['NUMOBS_MORE'].fill_value = -1
 
     # ADM assert the data model is complete.
-    mtltypes = [mtl[i].dtype.type for i in mtl.dtype.names]
-    mtldmtypes = [mtldm[i].dtype.type for i in mtl.dtype.names]
-    assert set(mtl.dtype.names) == set(mtldm.dtype.names)
-    assert mtltypes == mtldmtypes
+    # ADM turning this off for now, useful for testing.
+#    mtltypes = [mtl[i].dtype.type for i in mtl.dtype.names]
+#    mtldmtypes = [mtldm[i].dtype.type for i in mtl.dtype.names]
+#    assert set(mtl.dtype.names) == set(mtldm.dtype.names)
+#    assert mtltypes == mtldmtypes
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
@@ -334,7 +335,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
     pixlist = np.atleast_1d(pixlist)
 
     # ADM execute MTL.
-    mtl = make_mtl(targets, obscon)
+    mtl = make_mtl(targets, obscon, trimcols=True)
 
     # ADM the HEALPixel within which each target in the MTL lies.
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
@@ -500,7 +501,7 @@ def update_ledger(hpdirname, targets, zcat, obscon="DARK"):
         raise ValueError(msg)
 
     # ADM run MTL, only returning the targets that are updated.
-    mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True)
+    mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True)
 
     # ADM look up which HEALPixels are represented in the updated MTL.
     nside = _get_mtl_nside()
