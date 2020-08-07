@@ -10,7 +10,7 @@ Functions for reading, writing and manipulating files related to targeting.
 from __future__ import (absolute_import, division)
 #
 import numpy as np
-import pandas as pd
+#import pandas as pd
 import fitsio
 from fitsio import FITS
 from astropy.table import Table
@@ -2096,8 +2096,8 @@ def read_mtl_ledger(filename, unique=True):
         A structured numpy array of the MTL.
     """
     if ".ecsv" in filename:
-        # ADM this snippet is ~6x quicker than a pure Table read.
         # ADM infer the column names and types (for the dtype).
+        # ADM (this snippet is much quicker than a Table read).
         from desitarget.mtl import mtldatamodel as mtldm
         names, forms = [], []
         with open(filename) as f:
@@ -2114,7 +2114,13 @@ def read_mtl_ledger(filename, unique=True):
                     break
         dt = list(zip(names, forms))
         # ADM pandas seems the quickest way to read .csv-like files.
-        prelim = pd.read_csv(filename, dtype=dt, comment="#", delimiter=" ")
+        # ADM it's ~1.5x faster than the basic Table read, but isn't
+        # ADM generally supported in the desihub codebase.
+#        prelim = pd.read_csv(filename, dtype=dt, comment="#", delimiter=" ")
+        # ADM faster for astropy 4; although pandas is still faster.
+#        prelim = Table.read(filename, comment="#", delimiter=" ", format='pandas.csv', dtype=dt)
+        prelim = Table.read(filename, comment='#', format='ascii.basic',
+                            guess=False)
         mtl = np.zeros(len(prelim), dtype=dt)
         for col in prelim.columns:
             mtl[col] = prelim[col]
