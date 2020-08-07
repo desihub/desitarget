@@ -1843,7 +1843,7 @@ def check_hp_target_dir(hpdirname):
     for fn in fns:
         hdr = read_targets_header(fn)
         nside.append(hdr["FILENSID"])
-        pixels = hdr["FILEHPX"]
+        pixels = int(hdr["FILEHPX"])
         # ADM if this is a one-pixel file, convert to a list.
         if isinstance(pixels, int):
             pixels = [pixels]
@@ -2028,7 +2028,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         maskdir = "maglim-{}-epoch-{}".format(maglim, epoch)
         fn = os.path.join(targdir, maskdir)
 
-    if flavor is "targets":
+    if flavor == "targets":
         if surv in ["cmx", "sv"]:
             prefix = "{}-{}".format(survey, prefix)
         if surv in ["main", "sv"]:
@@ -2039,7 +2039,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         else:
             fn = os.path.join(fn, surv)
 
-    if flavor is "mtl":
+    if flavor == "mtl":
         if obscon is not None:
             prefix = "{}{}-{}".format(survey, flavor, obscon)
             fn = os.path.join(fn, survey, obscon)
