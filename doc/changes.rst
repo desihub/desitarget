@@ -30,7 +30,7 @@ desitarget Change Log
 -------------------
 
 * Support for python/3.8 and numpy/1.18, including new tests
-  [`PR #631`, `PR #634`]
+  [`PR #631`_, `PR #634`_]
 * Minor data model fixes, error checks and streamlining [`PR #627`_].
     * The most important change is that MWS science targets are no
       longer observed in GRAY or DARK, except for MWS_WDs.
