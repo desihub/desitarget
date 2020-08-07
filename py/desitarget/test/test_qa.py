@@ -37,12 +37,12 @@ class TestQA(unittest.TestCase):
             shutil.rmtree(cls.testdir)
 
     def setUp(self):
-        #- Treat some specific warnings as errors so that we can find and fix
+        # Treat some specific warnings as errors so that we can find and fix
         # warnings.filterwarnings('error', '.*Mean of empty slice.*')
         # warnings.filterwarnings('error', '.*Using or importing the ABCs.*')
         warnings.filterwarnings('error', '.*invalid value encountered.*')
 
-        #- SJB Always make sure we start in the test directory
+        # SJB Always make sure we start in the test directory
         os.chdir(self.testdir)
 
     def tearDown(self):
@@ -95,14 +95,13 @@ class TestQA(unittest.TestCase):
         """Test mock QA plots/pages
         """
         make_qa_page(self.mocktargfile, qadir=self.testdir,
-                makeplots=True, numproc=1, mocks=True,
-                max_bin_area=53.7148, systematics=False,
-                )
+                     makeplots=True, numproc=1, mocks=True,
+                     max_bin_area=53.7148, systematics=False)
 
         pngs, htmls = len(glob("*png")), len(glob("*html"))
         dats, alls = len(glob("*dat")), len(glob("./*"))
 
-        #- pngs, htmls, and dats exist, and nothing else
+        # pngs, htmls, and dats exist, and nothing else
         self.assertGreater(pngs, 0)
         self.assertGreater(htmls, 0)
         self.assertGreater(dats, 0)

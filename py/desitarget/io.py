@@ -10,7 +10,7 @@ Functions for reading, writing and manipulating files related to targeting.
 from __future__ import (absolute_import, division)
 #
 import numpy as np
-#import pandas as pd
+# import pandas as pd
 import fitsio
 from fitsio import FITS
 from astropy.table import Table

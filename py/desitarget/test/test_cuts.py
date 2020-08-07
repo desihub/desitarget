@@ -49,8 +49,8 @@ class TestCuts(unittest.TestCase):
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
 
     def setUp(self):
-        #- treat some specific warnings as errors so we can find and fix
-        #- (could turn off if this becomes problematic)
+        # treat some specific warnings as errors so we can find and fix
+        # (could turn off if this becomes problematic)
         warnings.filterwarnings('error', '.*Calling nonzero on 0d arrays.*')
 
     def test_unextinct_fluxes(self):
