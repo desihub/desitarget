@@ -70,7 +70,7 @@ class TestMTL(unittest.TestCase):
         """
         # ADM loop through once each for the main survey, commissioning and SV.
         # t = self.reset_targets(prefix)
-        mtl = make_mtl(self.targets, "GRAY|DARK")
+        mtl = make_mtl(self.targets, "GRAY|DARK", trimcols=True)
         mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
         refnames = sorted(mtldm.dtype.names)
         mtlnames = sorted(mtl.dtype.names)
