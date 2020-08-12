@@ -345,7 +345,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
     _, _, survey = main_cmx_or_sv(mtl)
     for pix in pixlist:
         inpix = mtlpix == pix
-        ecsv = get_mtl_ledger_format() is "ecsv"
+        ecsv = get_mtl_ledger_format() == "ecsv"
         nt, fn = io.write_mtl(
             outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
             survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix)
