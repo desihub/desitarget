@@ -10,8 +10,10 @@ Functions for reading, writing and manipulating files related to targeting.
 from __future__ import (absolute_import, division)
 #
 import numpy as np
+# import pandas as pd
 import fitsio
 from fitsio import FITS
+from astropy.table import Table
 import os
 import re
 from . import __version__ as desitarget_version
@@ -24,7 +26,7 @@ from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
-from desitarget.targets import main_cmx_or_sv
+from desitarget.targets import main_cmx_or_sv, decode_targetid
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -590,6 +592,113 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     return ntargs, filename
 
 
+def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
+              nsidefile=None, hpxlist=None, extra=None, ecsv=True):
+    """Write Merged Target List ledgers or files.
+
+    Parameters
+    ----------
+    mtldir : :class:`str`
+        Path to output MTL directory (the directory structure and file
+        name are built on-the-fly from other inputs).
+    data : :class:`~numpy.ndarray`
+        numpy structured array of merged targets to write.
+    indir : :class:`str`, optional, defaults to `None`
+        If passed, note as the input directory in the output file header.
+    survey : :class:`str`, optional, defaults to "main"
+        Written to output file header as the keyword `SURVEY`.
+    obscon : :class:`str`, optional
+        Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
+    nsidefile : :class:`int`, optional, defaults to `mtl.get_mtl_dir()`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
+    ecsv : :class:`bool`, defaults to ``True``
+        If ``True`` write a .ecsv file, if ``False`` with a .fits file.
+
+    Returns
+    -------
+    :class:`int`
+        The number of targets that were written to file.
+    :class:`str`
+        The name of the file to which targets were written.
+    """
+    # ADM begin to construct a dictionary of header keys and values.
+    keys, vals = ["INDIR", "SURVEY", "OBSCON"], [indir, survey, obscon]
+
+    # ADM hpxlist and nsidefile need to be passed together.
+    if hpxlist is not None or nsidefile is not None:
+        check_both_set(hpxlist, nsidefile)
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        # ADM add to the header dictionary.
+        keys += ["FILENSID", "FILENEST", "FILEHPX"]
+        vals += [nsidefile, True, hpxlist]
+
+    # ADM catch cases where hpxlist wasn't passed.
+    hpx = hpxlist
+    if hpxlist is None:
+        hpx = "X"
+
+    # ADM determine the data release from a TARGETID.
+    _, _, release, _, _, _ = decode_targetid(data["TARGETID"])
+    dr = np.unique(release//1000)
+    if len(dr) == 0:
+        drint = 'X'
+    else:
+        try:
+            drint = int(dr)
+        except TypeError:
+            msg = "Multiple data releases in MTL ({})".format(dr)
+            log.error(msg)
+            raise TypeError(msg)
+    keys += ["DR"]
+    vals += [drint]
+
+    # ADM finalize the header dictionary.
+    hdrdict = {key: val for key, val in zip(keys, vals) if val is not None}
+    if extra is not None:
+        hdrdict = {**hdrdict, **extra}
+
+    # ADM set output format to ecsv if passed, or fits otherwise.
+    form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
+    fn = find_target_files(mtldir, dr=drint, flavor="mtl", survey=survey,
+                           obscon=obscon, hp=hpx, ender=form)
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
+
+    ntargs = len(data)
+    # ADM die if there are no targets to write.
+    if ntargs == 0:
+        return ntargs, fn
+
+    # ADM sort the output file on TARGETID.
+    data = data[np.argsort(data["TARGETID"])]
+
+    # ADM if we want to write ecsv, we need to Table-ify and write.
+    if ecsv:
+        data = Table(data)
+        # ADM add all of the header information.
+        data.meta = hdrdict
+        data.meta['EXTNAME'] = 'MTL'
+        data.write(fn+'.tmp', format='ascii.ecsv', overwrite=True)
+    # ADM otherwise we just write the FITS file.
+    else:
+        hdr = fitsio.FITSHDR(hdrdict)
+        fitsio.write(fn+'.tmp', data, extname='MTL', header=hdr, clobber=True)
+
+    os.rename(fn+'.tmp', fn)
+
+    return ntargs, fn
+
+
 def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     """Write a FITS file in chunks to save memory.
 
@@ -764,7 +873,6 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM release before DR1 (release < 1000).
-    from desitarget.targets import decode_targetid
     objid, brickid, release, mock, sky, gaiadr = decode_targetid(data["TARGETID"])
     ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
 
@@ -1735,7 +1843,7 @@ def check_hp_target_dir(hpdirname):
     for fn in fns:
         hdr = read_targets_header(fn)
         nside.append(hdr["FILENSID"])
-        pixels = hdr["FILEHPX"]
+        pixels = int(hdr["FILEHPX"])
         # ADM if this is a one-pixel file, convert to a list.
         if isinstance(pixels, int):
             pixels = [pixels]
@@ -1796,7 +1904,7 @@ def _get_targ_dir():
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
                       mock=False, nohp=False, seed=None, region=None,
-                      maglim=None, epoch=None):
+                      maglim=None, epoch=None, ender="fits"):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1806,7 +1914,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     dr : :class:`str` or :class:`int`, optional, defaults to "X"
         Name of a Legacy Surveys Data Release (e.g. 8)
     flavor : :class:`str`, optional, defaults to `targets`
-        Options include "skies", "gfas", "targets", "randoms", "masks".
+        Options: "skies", "gfas", "targets", "randoms", "masks", "mtl".
     survey : :class:`str`, optional, defaults to `main`
         Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
         Only relevant if `flavor` is "targets".
@@ -1842,6 +1950,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     epoch : :class:`float`
         Epoch at which the mask was made. Only relevant if `flavor` is
         "masks". Must be passed if `flavor` is "masks".
+    ender : :class:`str`, optional, defaults to "fits"
+        File format (in file name).
 
     Returns
     -------
@@ -1854,7 +1964,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           is ``None``, the directory name where all of the `hp` files
           are stored is returned. The directory name is the expected
           input for the `desitarget.io.read*` convenience functions
-          (:func:`desimodel.io.read_targets_in_hp()`, etc.).
+          (:func:`desitarget.io.read_targets_in_hp()`, etc.).
         - On the other hand, if `hp` is ``None`` and `nohp` is ``True``
           then a filename is returned that just omits the `-hpX-` part.
     """
@@ -1866,11 +1976,11 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         log.critical(msg)
         raise ValueError(msg)
     if mock:
-        allowed_flavor = ["targets", "truth", "sky"]
+        allowed = ["targets", "truth", "sky"]
     else:
-        allowed_flavor = ["targets", "skies", "gfas", "randoms", "masks"]
-    if flavor not in allowed_flavor:
-        msg = "flavor must be {}, not {}".format(' or '.join(allowed_flavor), flavor)
+        allowed = ["targets", "skies", "gfas", "randoms", "masks", "mtl"]
+    if flavor not in allowed:
+        msg = "flavor must be {}, not {}".format(' or '.join(allowed), flavor)
         log.critical(msg)
         raise ValueError(msg)
     res = "noresolve"
@@ -1929,6 +2039,14 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         else:
             fn = os.path.join(fn, surv)
 
+    if flavor == "mtl":
+        if obscon is not None:
+            prefix = "{}{}-{}".format(survey, flavor, obscon)
+            fn = os.path.join(fn, survey, obscon)
+        else:
+            prefix = "{}-{}".format(survey, prefix)
+            fn = os.path.join(fn, survey)
+
     if flavor == "randoms":
         fn = os.path.join(fn, res)
         if region is not None:
@@ -1941,21 +2059,86 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
         hpstr = ",".join([str(pix) for pix in np.atleast_1d(hp)])
-        backend = "{}-{}-hp-{}.fits".format(prefix, drstr, hpstr)
+        backend = "{}-hp-{}.{}".format(prefix, hpstr, ender)
         if flavor == "masks":
-            backend = "{}-hp-{}.fits".format(prefix, hpstr)
+            backend = "{}-hp-{}.{}".format(prefix, hpstr, ender)
         fn = os.path.join(fn, backend)
     else:
         if nohp:
-            backend = "{}-{}.fits".format(prefix, drstr)
+            backend = "{}.{}".format(prefix, ender)
             fn = os.path.join(fn, backend)
 
     if flavor == "randoms" and seed is not None:
         # ADM note that this won't do anything unless a file
-        # ADM names was already constructed.
-        fn = fn.replace(".fits", "-{}.fits".format(seed))
+        # ADM name was already constructed.
+        fn = fn.replace(".{}", "-{}.{}".format(ender, seed, ender))
 
     return fn
+
+
+def read_mtl_ledger(filename, unique=True):
+    """Wrapper to read individual MTL ledger files.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Name of a ledger file containing a Merged Target List. If the
+        filename contains ".ecsv" then it will be read as an ECSV file.
+        If it contains ".fits" then it will be read as a FITS file.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured numpy array of the MTL.
+    """
+    if ".ecsv" in filename:
+        # ADM infer the column names and types (for the dtype).
+        # ADM (this snippet is much quicker than a Table read).
+        from desitarget.mtl import mtldatamodel as mtldm
+        names, forms = [], []
+        with open(filename) as f:
+            for line in f:
+                if "name" in line:
+                    l = line.split()
+                    name, form = l[3][:-1], l[5][:-1]
+                    names.append(name)
+                    if 'string' in form:
+                        forms.append(mtldm[name].dtype.str)
+                    else:
+                        forms.append(form)
+                elif '#' not in line:
+                    break
+        dt = list(zip(names, forms))
+        # ADM pandas seems the quickest way to read .csv-like files.
+        # ADM it's ~1.5x faster than the basic Table read, but isn't
+        # ADM generally supported in the desihub codebase.
+#        prelim = pd.read_csv(filename, dtype=dt, comment="#", delimiter=" ")
+        # ADM faster for astropy 4; although pandas is still faster.
+#        prelim = Table.read(filename, comment="#", delimiter=" ", format='pandas.csv', dtype=dt)
+        prelim = Table.read(filename, comment='#', format='ascii.basic',
+                            guess=False)
+        mtl = np.zeros(len(prelim), dtype=dt)
+        for col in prelim.columns:
+            mtl[col] = prelim[col]
+    elif ".fits" in filename:
+        mtl = fitsio.read(filename, extension="MTL")
+    else:
+        msg = "File not parsed ({}). Should be .fits or .ecsv".format(filename)
+        log.error(msg)
+        raise IOError(msg)
+
+    if unique:
+        # ADM the reverse is because np.unique retains the FIRST unique
+        # ADM entry and we want the LAST unique entry.
+        mtl = np.flip(mtl)
+        _, ii = np.unique(mtl["TARGETID"], return_index=True)
+        return mtl[ii]
+    else:
+        return mtl
 
 
 def read_target_files(filename, columns=None, rows=None, header=False,
@@ -1982,7 +2165,7 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     """
     start = time()
     # ADM start with some checking that this is a target file.
-    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS"
+    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS", "MTL"
     # ADM read in the FITS extention info.
     f = fitsio.FITS(filename)
     if len(f) != 2:
@@ -2016,8 +2199,178 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     return targs
 
 
+def read_keyword_from_mtl_header(hpdirname, keyword):
+    """Read in a header value from a Merget Target List ledger file.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing MTLs that have been
+        partitioned by HEALPixel (i.e. as made by
+        :func:`desitarget.mtl.make_ledger_in_hp`). Or the name of a
+        single MTL ledger.
+    keyword : :class:`str`
+        A single header keyword.
+
+    Returns
+    -------
+    :class:`str`
+        The value of `keyword` from the header of `hpdirname` if it is a
+        file, or the value from the first file encountered in `hpdirname`
+    """
+    # ADM for FITS files, our standard targets header-read will work.
+    try:
+        kw = read_targets_header(hpdirname, verbose=False)[keyword]
+        if isinstance(kw, str):
+            kw = kw.rstrip()
+        return kw
+    except OSError:
+        if os.path.isdir(hpdirname):
+            try:
+                gen = iglob(os.path.join(hpdirname, '*ecsv'))
+                hpdirname = next(gen)
+            except StopIteration:
+                msg = "no FITS or ECSV files in {}...?!".format(hpdirname)
+                log.info(msg)
+
+    # ADM this (rapidly) reads a single keyword from an ecsv file.
+    with open(hpdirname) as f:
+        for line in f:
+            if keyword in line and 'name' not in line:
+                break
+        return line.split(": ")[-1].split("}")[0]
+
+
+def find_mtl_file_format_from_header(hpdirname, returnoc=False):
+    """Construct an MTL filename just from the header in the file
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    returnoc : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then also return the OBSCON header keyword
+        for files in this directory.
+
+    Returns
+    -------
+    :class:`str`
+        The file form such that output.format(pixel) returns the
+        full HEALPixel-dependent filename for a give pixel.
+    :class:`str`
+        The OBSCON header keyword. Only returned if `returnoc` is
+        ``True``.
+
+    Notes
+    -----
+        - Should work for both .ecsv and .fits files.
+    """
+    # ADM grab information from the target directory.
+    dr = read_keyword_from_mtl_header(hpdirname, "DR")
+    surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
+    oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
+    from desitarget.mtl import get_mtl_ledger_format
+    ender = get_mtl_ledger_format()
+
+    # ADM construct the full directory path.
+    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}", dr=dr,
+                               survey=surv, ender=ender, obscon=oc)
+    # ADM return the filename.
+    fileform = os.path.join(hpdirname, os.path.basename(hugefn))
+    if returnoc:
+        return fileform, oc
+    return fileform
+
+
+def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, returnfn=False):
+    """Read Merged Target List ledgers in a set of HEALPixels.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (i.e. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    nside : :class:`int`
+        The (NESTED) HEALPixel nside.
+    pixlist : :class:`list` or `int` or `~numpy.ndarray`
+        Return targets in these HEALPixels at the passed `nside`.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
+    returnfn : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then also return a dictionary of the filename
+        that had to be read in each pixel to retrieve the MTL(s).
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A numpy structured array of the MTL(s).
+    :class:`dict`
+        A dictionary where the keys are pixels and values are filenames
+        that were read (only returned if `returnfn` is ``True``).
+
+    Notes
+    -----
+        - In general, this will be quicker if `pixlist` contains closely
+          grouped HEALPixels, as fewer files will need to be read.
+    """
+    # ADM allow an integer instead of a list to be passed.
+    if isinstance(pixlist, int):
+        pixlist = [pixlist]
+
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    outfns = {}
+    fileform = find_mtl_file_format_from_header(hpdirname)
+    filenside = int(read_keyword_from_mtl_header(hpdirname, "FILENSID"))
+    if os.path.isdir(hpdirname):
+        # ADM change the passed pixels to the nside of the file schema.
+        filepixlist = nside2nside(nside, filenside, pixlist)
+
+        # ADM read in the files and concatenate the resulting targets.
+        mtls = []
+        outfns = {}
+        for pix in filepixlist:
+            fn = fileform.format(pix)
+            try:
+                targs = read_mtl_ledger(fn, unique=unique)
+                mtls.append(targs)
+                outfns[pix] = fn
+            except FileNotFoundError:
+                pass
+
+        # ADM if no mtls, look up the data model, return an empty array.
+        if len(mtls) == 0:
+            fns = iglob(os.path.join(hpdirname, '*.{}'.format(ender)))
+            fn = next(fns)
+            mtl = read_mtl_ledger(fn)
+            outly = np.zeros(0, dtype=mtl.dtype)
+            if returnfn:
+                return outly, outfns
+            return outly
+
+        mtl = np.concatenate(mtls)
+    # ADM ...if a directory wasn't passed, just read in the targets.
+    else:
+        mtl = read_mtl_ledger(hpdirname, unique=unique)
+
+    # ADM restrict the targets to the actual requested HEALPixels...
+    ii = is_in_hp(mtl, nside, pixlist)
+    mtl = mtl[ii]
+
+    if returnfn:
+        return mtl, outfns
+    return mtl
+
+
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
-                       header=False, downsample=None, verbose=False):
+                       header=False, downsample=None, verbose=False,
+                       mtl=False, unique=True):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -2032,7 +2385,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     pixlist : :class:`list` or `int` or `~numpy.ndarray`
         Return targets in these HEALPixels at the passed `nside`.
     columns : :class:`list`, optional
-        Only read in these target columns.
+        Only return these target columns.
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
@@ -2042,6 +2395,13 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         targets returned.
     verbose : :class:`bool`, optional, defaults to ``False``
         Passed to :func:`read_target_files()`.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of targets. If ``True`` then the `columns`, `header` and
+        `downsample` kwargs are ignored and the full ledger is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -2052,7 +2412,14 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     -----
         - If `header` is ``True``, then a second output (the file
           header is returned).
+        - In general, this will be quicker if `pixlist` contains closely
+          grouped HEALPixels, as fewer files will need to be read.
+        - If `mtl` is ``True`` then this is just a wrapper on
+          read_mtl_in_hp().
     """
+    if mtl:
+        return read_mtl_in_hp(hpdirname, nside, pixlist, unique=unique)
+
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
         pixlist = [pixlist]
@@ -2092,7 +2459,6 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
 
         # ADM read in the files and concatenate the resulting targets.
         targets = []
-        start = time()
         for infile in infiles:
             targs, hdr = read_target_files(
                 infile, columns=columnscopy, header=True,
@@ -2113,22 +2479,25 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(targets, nside, pixlist)
+    targets = targets[ii]
+
     # ADM ...and remove RA/Dec columns if we added them.
     if len(addedcols) > 0:
-        targets = rfn.drop_fields(targets[ii], addedcols)
+        targets = rfn.drop_fields(targets, addedcols)
 
     if header:
         return targets, hdr
     return targets
 
 
-def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
+def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
+                          header=False, mtl=False, unique=True):
     """
     Parameters
     ----------
     hpdirname : :class:`str`
         Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
+        have been partitioned by HEALPixel (e.g. as made by
         `select_targets` with the `bundle_files` option). Or the
         name of a single file of targets.
     tiles : :class:`~numpy.ndarray`, optional
@@ -2139,6 +2508,13 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of a target file/directory. If ``True`` then the `columns`
+        and `header` kwargs are ignored and the full ledger is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -2165,7 +2541,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
-    if columns is not None:
+    if columns is not None and not mtl:
         # ADM make a copy of columns, as it's a kwarg we'll modify.
         columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
@@ -2174,7 +2550,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
                 addedcols.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if os.path.isdir(hpdirname):
+    if os.path.isdir(hpdirname) or mtl:
         # ADM closest nside to DESI tile area of ~7 deg.
         nside = pixarea2nside(7.)
 
@@ -2183,28 +2559,35 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False):
         pixlist = tiles2pix(nside, tiles=tiles)
 
         # ADM read in targets in these HEALPixels.
-        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
-                                          columns=columnscopy,
-                                          header=True)
+        targets = read_targets_in_hp(hpdirname, nside, pixlist,
+                                     columns=columnscopy, header=header,
+                                     mtl=mtl, unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
-                                         header=True)
+        targets = read_target_files(hpdirname, columns=columnscopy,
+                                    header=header)
+
+    # ADM if we read a header, targets is now a two-entry list.
+    if header and not mtl:
+        targets, hdr = targets
 
     # ADM restrict only to targets in the requested tiles...
     from desimodel.footprint import is_point_in_desi
     ii = is_point_in_desi(tiles, targets["RA"], targets["DEC"])
+    targets = targets[ii]
 
     # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    if not mtl and len(addedcols) > 0:
+        targets = rfn.drop_fields(targets, addedcols)
 
-    if header:
+    if header and not mtl:
         return targets, hdr
     return targets
 
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
-                        columns=None, header=False, downsample=None):
+                        columns=None, header=False, downsample=None,
+                        mtl=False, unique=True):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -2226,6 +2609,13 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
         targets returned.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of a target file/directory. If ``True`` then the `columns`
+        and `header` kwargs are ignored and the full ledger is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -2240,7 +2630,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
-    if columns is not None:
+    if columns is not None and not mtl:
         # ADM make a copy of columns, as it's a kwarg we'll modify.
         columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
@@ -2249,31 +2639,39 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                 addedcols.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if os.path.isdir(hpdirname):
+    if os.path.isdir(hpdirname) or mtl:
         # ADM approximate nside for area of passed box.
         nside = pixarea2nside(box_area(radecbox))
         # ADM HEALPixels that touch the box for that nside.
         pixlist = hp_in_box(nside, radecbox)
         # ADM read in targets in these HEALPixels.
-        targets, hdr = read_targets_in_hp(hpdirname, nside, pixlist,
-                                          columns=columnscopy, header=True,
-                                          downsample=downsample)
+        targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
+                                     columns=columnscopy, header=header,
+                                     downsample=downsample, unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
-        targets, hdr = read_target_files(hpdirname, columns=columnscopy,
-                                         header=True, downsample=downsample)
+        targets = read_target_files(hpdirname, columns=columnscopy,
+                                    header=header, downsample=downsample)
+
+    # ADM if we read a header, targets is now a two-entry list.
+    if header and not mtl:
+        targets, hdr = targets
 
     # ADM restrict only to targets in the requested RA/Dec box...
     ii = is_in_box(targets, radecbox)
-    # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    targets = targets[ii]
 
-    if header:
+    # ADM ...and remove RA/Dec columns if we added them.
+    if not mtl and len(addedcols) > 0:
+        targets = rfn.drop_fields(targets, addedcols)
+
+    if header and not mtl:
         return targets, hdr
     return targets
 
 
-def read_targets_in_cap(hpdirname, radecrad, columns=None):
+def read_targets_in_cap(hpdirname, radecrad, columns=None,
+                        mtl=False, unique=True):
     """Read in targets in an RA, Dec, radius cap.
 
     Parameters
@@ -2288,16 +2686,23 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
         "circle" on the sky. ra, dec and radius are all in degrees.
     columns : :class:`list`, optional
         Only read in these target columns.
+    mtl : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then read an MTL ledger file/directory instead
+        of a target file/directory. If ``True`` then the `columns`
+        kwarg is ignored and the full ledger is returned.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID` from
+        MTL ledgers. Only used if `mtl` is ``True``.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        An array of targets in the passed RA/Dec box.
+        An array of targets in the passed cap.
     """
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
-    if columns is not None:
+    if columns is not None and not mtl:
         # ADM make a copy of columns, as it's a kwarg we'll modify.
         columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
@@ -2306,7 +2711,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
                 addedcols.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if os.path.isdir(hpdirname):
+    if os.path.isdir(hpdirname) or mtl:
         # ADM approximate nside for area of passed cap.
         nside = pixarea2nside(cap_area(np.array(radecrad[2])))
 
@@ -2314,21 +2719,24 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None):
         pixlist = hp_in_cap(nside, radecrad)
 
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist,
-                                     columns=columnscopy)
+        targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
+                                     columns=columnscopy, unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy)
 
-    # ADM restrict only to targets in the requested cap...
+    # ADM restrict only to targets in the requested cap.
     ii = is_in_cap(targets, radecrad)
-    # ADM ...and remove RA/Dec columns if we added them.
-    targets = rfn.drop_fields(targets[ii], addedcols)
+    targets = targets[ii]
+
+    # ADM Remove the RA/Dec columns if we added them.
+    if not mtl and len(addedcols) > 0:
+        targets = rfn.drop_fields(targets, addedcols)
 
     return targets
 
 
-def read_targets_header(hpdirname):
+def read_targets_header(hpdirname, dtype=False, verbose=True):
     """Read in header of a targets file.
 
     Parameters
@@ -2338,25 +2746,35 @@ def read_targets_header(hpdirname):
         have been partitioned by HEALPixel (i.e. as made by
         `select_targets` with the `bundle_files` option). Or the
         name of a single file of targets.
+    dtype : :class:`bool`, optional, defaults to ``False``
+        if ``True``, also return the data model (dtype) of the targets.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log messages and warnings.
 
     Returns
     -------
     :class:`FITSHDR`
         The header of `hpdirname` if it is a file, or the header
         of the first file encountered in `hpdirname`
+    :class:`FITSHDR`
+        The dtype of the file that corresponds to the header. Only
+        returned if `dtype` is ``True``.
     """
     if os.path.isdir(hpdirname):
         try:
             gen = iglob(os.path.join(hpdirname, '*fits'))
             hpdirname = next(gen)
         except StopIteration:
-            msg = "couldn't find any FITS files in {}...".format(hpdirname)
-            log.info(msg)
+            if verbose:
+                msg = "no FITS files in {}?!".format(hpdirname)
+                log.info(msg)
 
     # ADM rows=[0] here, speeds up read_target_files retrieval
     # ADM of the header.
-    _, hdr = read_target_files(hpdirname, rows=[0], header=True, verbose=False)
+    row, hdr = read_target_files(hpdirname, rows=[0], header=True, verbose=False)
 
+    if dtype:
+        return hdr, row.dtype
     return hdr
 
 

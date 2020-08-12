@@ -49,8 +49,8 @@ class TestCMX(unittest.TestCase):
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
 
     def setUp(self):
-        #- Treat a specific warning as an error (could turn off if this
-        #- becomes problematic)
+        # Treat a specific warning as an error (could turn off if this
+        # becomes problematic)
         warnings.filterwarnings('error', '.*Calling nonzero on 0d arrays.*')
 
     def test_cuts_basic(self):

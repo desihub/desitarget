@@ -538,7 +538,6 @@ def sphere_circle_ra_off(theta, centdec, declocs):
           in theta from -90o->90o, which corresponds to offsets in the POSITIVE RA direction. The user must determine
           which offsets are to the negative side of the circle, or call this function twice.
     """
-
     # ADM convert the input angles from degrees to radians
     # ADM cast theta as float 64 to help deal with the cosine of very small angles
     thetar = np.radians(theta).astype('<f8')
@@ -1248,7 +1247,7 @@ def is_in_hp(objs, nside, pixlist, radec=False):
         Array of objects. Must include at columns "RA" and "DEC".
     nside : :class:`int`
         The HEALPixel nside number (NESTED scheme).
-    pixlist : :class:`list` or `~numpy.ndarray`
+    pixlist : :class:`list` or `int` or `~numpy.ndarray`
         The list of HEALPixels in which to find objects.
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` `objs` is an [RA, Dec] list instead of a rec array.
@@ -1258,6 +1257,9 @@ def is_in_hp(objs, nside, pixlist, radec=False):
     :class:`~numpy.ndarray`
         ``True`` for objects in pixlist, ``False`` for other objects.
     """
+    # ADM if an integer is passed, convert it to an array.
+    pixlist = np.atleast_1d(pixlist)
+
     if radec:
         ra, dec = objs
     else:

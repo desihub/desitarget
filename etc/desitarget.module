@@ -77,6 +77,7 @@ setenv [string toupper $product] $PRODUCT_DIR
 # Add any non-standard Module code below this point.
 #
 setenv TARG_DIR /global/cfs/cdirs/desi/target/catalogs
+setenv MTL_DIR /global/cfs/cdirs/desi/target/mtl
 setenv DUST_DIR /global/cfs/cdirs/cosmo/data/dust/v0_1
 setenv CMX_DIR /global/cfs/cdirs/desi/target/cmx_files
 setenv SCND_DIR /global/cfs/cdirs/desi/target/secondary

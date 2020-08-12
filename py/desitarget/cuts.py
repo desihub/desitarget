@@ -37,7 +37,6 @@ from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_h
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
-
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 log = get_logger()
@@ -2519,7 +2518,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if nbrick % 50 == 0 and nbrick > 0:
+        if nbrick % 20 == 0 and nbrick > 0:
             elapsed = time() - t0
             rate = elapsed / nbrick
             log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
