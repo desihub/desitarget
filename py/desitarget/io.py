@@ -1969,7 +1969,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           input for the `desitarget.io.read*` convenience functions
           (:func:`desitarget.io.read_targets_in_hp()`, etc.).
         - On the other hand, if `hp` is ``None`` and `nohp` is ``True``
-          then a filename is returned that just omits the `-hpX-` part.
+          then a filename is returned that just omits the `-hp-X-` part.
     """
     # ADM some preliminaries for correct formatting.
     if version is None:
@@ -2034,24 +2034,22 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
         obscon = "no-obscon"
     if supp:
         obscon = "supp"
-    prefix = "{}-{}".format(flavor, drstr)
-
-    # ADM masks are a special case beneath $MASK_DIR.
-    if flavor == "masks":
-        maskdir = "maglim-{}-epoch-{}".format(maglim, epoch)
-        fn = os.path.join(targdir, maskdir)
+    prefix = flavor
 
     # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
     fn = os.path.join(targdir, drstr, version, flavor)
 
-    # ADM now a case-by-case basis.
-    if flavor in ["targets", "mtl", "randoms"]:
-        prefix = "{}-{}".format(flavor, obscon)
-        if not resolve:
-            prefix = "{}-{}".format(prefix, res)
+    # ADM masks are a special case beneath $MASK_DIR.
+    if flavor == "masks":
+        maskdir = "maglim-{}-epoch-{}".format(maglim, epoch)
+        fn = os.path.join(targdir, version, maskdir)
 
+    # ADM now a case-by-case basis.
     if flavor in ["targets", "mtl"]:
         fn = os.path.join(fn, survey, resdir, obscon)
+        prefix = "{}-{}".format(flavor, obscon)
+        if not resolve and flavor != "mtl":
+            prefix = "{}-{}".format(prefix, res)
         if survey != "main":
             prefix = "{}{}".format(survey, prefix)
 
@@ -2062,6 +2060,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
 
     if flavor == "skies" and supp:
         fn = "{}-supp".format(fn)
+        prefix = "{}-supp".format(prefix)
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
@@ -2078,7 +2077,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     if flavor == "randoms" and seed is not None:
         # ADM note that this won't do anything unless a file
         # ADM name was already constructed.
-        fn = fn.replace(".{}", "-{}.{}".format(ender, seed, ender))
+        fn = fn.replace(".{}".format(ender), "-{}.{}".format(seed, ender))
 
     return fn
 
