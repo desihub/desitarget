@@ -869,7 +869,7 @@ def resolve(targets):
 
 def finalize(targets, desi_target, bgs_target, mws_target,
              sky=False, randoms=False, survey='main', darkbright=False,
-             gaiadr=None, targetid=None):
+             gaiadr=None, gdr=False, targetid=None, forcerelease=False):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -899,6 +899,11 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         If passed and not ``None``, then build the `TARGETID` from the
         "GAIA_OBJID" and "GAIA_BRICKID" columns in the passed `targets`,
         and set the `gaiadr` part of `TARGETID` to whatever is passed.
+        "RELEASE" is set to zero.
+    gdr : :class:`int`, defaults to ``None``
+        An alternate version of `gaiadr` where the "OBJID", "BRICKID" and
+        "RELEASE" columns are used as normal, but `gdr` is sent to
+        :func:`desitarget.targets.encode_targetid` at the gaiadr bit.
     targetid : :class:`int64`, optional, defaults to ``None``
         In the mocks we compute `TARGETID` outside this function.
 
@@ -924,7 +929,13 @@ def finalize(targets, desi_target, bgs_target, mws_target,
           because it's easier to populate it in a reproducible fashion
           when collecting targets rather than on a per-brick basis
           when this function is called. It's set to all zeros.
+        - Only one of `gaiadr` and `gdr` can be input.
     """
+    if gaiadr is not None and gdr is not None:
+        msg = "only one of gaiadr and gdr can be input (and not None)"
+        log.critical(msg)
+        raise IOError(msg)
+
     ntargets = len(targets)
     assert ntargets == len(desi_target)
     assert ntargets == len(bgs_target)
@@ -949,7 +960,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
                                        brickid=targets['BRICKID'],
                                        release=targets['RELEASE'],
                                        mock=int(randoms),
-                                       sky=int(sky))
+                                       sky=int(sky),
+                                       gaiadr=gdr)
     assert ntargets == len(targetid)
 
     nodata = np.zeros(ntargets, dtype='int')-1
