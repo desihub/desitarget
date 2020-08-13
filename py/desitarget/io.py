@@ -1904,8 +1904,8 @@ def _get_targ_dir():
 
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
-                      mock=False, nohp=False, seed=None, region=None,
-                      maglim=None, epoch=None, ender="fits"):
+                      mock=False, nohp=False, seed=None, region=None, epoch=None,
+                      maglim=None, version=None, ender="fits"):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1945,12 +1945,14 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     region : :class:`int`, optional
         If `region` is not ``None``, then it is added to the directory
         name after `resolve`. Only relevant if `flavor` is "randoms".
-    maglim : :class:`float`, optional
-        Magnitude limit to which the mask was made. Only relevant if
-        `flavor` is "masks". Must be passed if `flavor` is "masks".
     epoch : :class:`float`
         Epoch at which the mask was made. Only relevant if `flavor` is
         "masks". Must be passed if `flavor` is "masks".
+    maglim : :class:`float`, optional
+        Magnitude limit to which the mask was made. Only relevant if
+        `flavor` is "masks". Must be passed if `flavor` is "masks".
+    version : :class:`str`, optional, defaults to X.Y.Z
+        Release number (tag) of the desitarget code version on GitHub.
     ender : :class:`str`, optional, defaults to "fits"
         File format (in file name).
 
@@ -1970,6 +1972,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           then a filename is returned that just omits the `-hpX-` part.
     """
     # ADM some preliminaries for correct formatting.
+    if version is None:
+        version = "X.Y.Z"
     if obscon is not None:
         obscon = obscon.lower()
     if survey not in ["main", "cmx"] and survey[:2] != "sv":
@@ -1987,6 +1991,9 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     res = "noresolve"
     if resolve:
         res = "resolve"
+    resdir = ""
+    if flavor in ["targets", "randoms"]:
+        resdir = res
     if dr is None:
         drstr = "drX"
     else:
@@ -2023,39 +2030,38 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     surv = survey
     if survey[0:2] == "sv":
         surv = survey[0:2]
-    prefix = flavor
-    fn = os.path.join(targdir, flavor)
+    if obscon is None:
+        obscon = "no-obscon"
+    if supp:
+        obscon = "supp"
+    prefix = "{}-{}".format(flavor, drstr)
+
+    # ADM masks are a special case beneath $MASK_DIR.
     if flavor == "masks":
         maskdir = "maglim-{}-epoch-{}".format(maglim, epoch)
         fn = os.path.join(targdir, maskdir)
 
-    if flavor == "targets":
-        if surv in ["cmx", "sv"]:
-            prefix = "{}-{}".format(survey, prefix)
-        if surv in ["main", "sv"]:
-            if not supp and obscon is not None:
-                fn = os.path.join(fn, survey, res, obscon)
-            elif obscon is None:
-                fn = os.path.join(fn, survey, res)
-        else:
-            fn = os.path.join(fn, surv)
+    # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
+    fn = os.path.join(targdir, drstr, version, flavor)
 
-    if flavor == "mtl":
-        if obscon is not None:
-            prefix = "{}{}-{}".format(survey, flavor, obscon)
-            fn = os.path.join(fn, survey, obscon)
-        else:
-            prefix = "{}-{}".format(survey, prefix)
-            fn = os.path.join(fn, survey)
+    # ADM now a case-by-case basis.
+    if flavor in ["targets", "mtl", "randoms"]:
+        prefix = "{}-{}".format(flavor, obscon)
+        if not resolve:
+            prefix = "{}-{}".format(prefix, res)
+
+    if flavor in ["targets", "mtl"]:
+        fn = os.path.join(fn, survey, resdir, obscon)
+        if survey != "main":
+            prefix = "{}{}".format(survey, prefix)
 
     if flavor == "randoms":
-        fn = os.path.join(fn, res)
+        fn = os.path.join(fn, resdir)
         if region is not None:
             fn = os.path.join(fn, region)
 
-    if flavor in ["skies", "targets"]:
-        if supp:
-            fn = os.path.join(fn, "{}-supp".format(flavor))
+    if flavor == "skies" and supp:
+        fn = "{}-supp".format(fn)
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
