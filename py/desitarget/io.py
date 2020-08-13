@@ -525,7 +525,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
     # ADM indicate whether this is a supplemental file.
-    hdr['SUPP'] = supp
+    hdr["SUPP"] = supp
+    # ADM add the Data Release to the header.
+    if not supp:
+        hdr["DR"] = drint
 
     # ADM add the extra dictionary to the header.
     if extra is not None:
@@ -965,6 +968,8 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
             hdr[apname] = apsize
 
     hdr['SUPP'] = supp
+    if not supp:
+        hdr["DR"] = drint
 
     if nskiespersqdeg is not None:
         hdr['NPERSDEG'] = nskiespersqdeg
@@ -1074,6 +1079,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
+    hdr["DR"] = drint
 
     if indir is not None:
         depend.setdep(hdr, 'input-data-release', indir)
@@ -1211,7 +1217,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         # ADM set the hp part of the output file name to "X".
         hpxlist = "X"
 
-    # ADM add the extra dictionary to the header.
+    # ADM add the extra keywords to the header.
+    hdr["DR"] = drint
     if extra is not None:
         for key in extra:
             hdr[key] = extra[key]
