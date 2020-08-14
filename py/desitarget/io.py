@@ -460,11 +460,16 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM integer and string for the input targets.
     drint = None
     if supp:
-        drstring = "supp"
+        _, _, _, _, _, gaiadr = decode_targetid(data["TARGETID"])
+        if len(set(gaiadr)) != 1:
+            msg = "Targets are based on multiple Gaia DRs:".format(set(gaiadr))
+            log.critical(msg)
+            raise ValueError(msg)
+        drstring = "gaiadr{}".format(gaiadr)
     else:
         try:
             drint = int(indir.split("dr")[1][0])
-            drstring = 'dr'+str(drint)
+            drstring = "dr{}".format(drint)
         except (ValueError, IndexError, AttributeError):
             drstring = "X"
 
@@ -480,7 +485,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         truthfile = find_target_files(targdir, flavor="truth", obscon=obscon,
                                       hp=hpx, nside=nside, mock=True)
     else:
-        filename = find_target_files(targdir, dr=drint, flavor="targets",
+        filename = find_target_files(targdir, dr=drstring, flavor="targets",
                                      survey=survey, obscon=obscon, hp=hpx,
                                      resolve=resolve, supp=supp)
 
@@ -527,7 +532,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM indicate whether this is a supplemental file.
     hdr["SUPP"] = supp
     # ADM add the Data Release to the header.
-    if not supp:
+    if supp:
+        hdr["GAIADR"] = gaiadr
+    else:
         hdr["DR"] = drint
 
     # ADM add the extra dictionary to the header.
@@ -938,13 +945,18 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     """
     nskies = len(data)
 
-    # ADM use RELEASE to find the release string for the input skies.
-    if not supp:
+    # ADM find the data release string for the input skies.
+    drint = None
+    if supp:
+        _, _, _, _, _, gaiadr = decode_targetid(data["TARGETID"])
+        if len(set(gaiadr)) != 1:
+            msg = "Skies are based on multiple Gaia DRs:".format(set(gaiadr))
+            log.critical(msg)
+            raise ValueError(msg)
+        drstring = "gaiadr{}".format(gaiadr)
+    else:
         drint = np.max(data['RELEASE']//1000)
         drstring = 'dr'+str(drint)
-    else:
-        drint = None
-        drstring = "supp"
 
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
@@ -968,7 +980,9 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
             hdr[apname] = apsize
 
     hdr['SUPP'] = supp
-    if not supp:
+    if supp:
+        hdr["GAIADR"] = gaiadr
+    else:
         hdr["DR"] = drint
 
     if nskiespersqdeg is not None:
@@ -1014,7 +1028,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         filename = find_target_files(targdir, flavor='sky', hp=hpxlist,
                                      mock=mock, nside=nside)
     else:
-        filename = find_target_files(targdir, dr=drint, flavor="skies",
+        filename = find_target_files(targdir, dr=drstring, flavor="skies",
                                      hp=hpxlist, supp=supp, mock=mock,
                                      nside=nside)
 
@@ -1909,7 +1923,7 @@ def _get_targ_dir():
     return targdir
 
 
-def find_target_files(targdir, dr=None, flavor="targets", survey="main",
+def find_target_files(targdir, dr='X', flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
                       mock=False, nohp=False, seed=None, region=None, epoch=None,
                       maglim=None, ender="fits"):
@@ -1920,7 +1934,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     targdir : :class:`str`
         Name of a based directory for output target catalogs.
     dr : :class:`str` or :class:`int`, optional, defaults to "X"
-        Name of a Legacy Surveys Data Release (e.g. 8)
+        Name of a Legacy Surveys Data Release (e.g. 8). If this is an
+        integer or a 1-character string it is prepended by "dr".
     flavor : :class:`str`, optional, defaults to `targets`
         Options: "skies", "gfas", "targets", "randoms", "masks", "mtl".
     survey : :class:`str`, optional, defaults to `main`
@@ -1998,12 +2013,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     resdir = ""
     if flavor in ["targets", "randoms"]:
         resdir = res
-    if dr is None:
-        drstr = "drX"
-    else:
+    if isinstance(dr, int) or len(a) == 1:
         drstr = "dr{}".format(dr)
-    if supp:
-        drstr = "supp"
 
     # If seeking a mock target (or sky) catalog, construct the filepath and then
     # bail.
