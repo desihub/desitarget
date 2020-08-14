@@ -465,6 +465,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
             msg = "Targets are based on multiple Gaia DRs:".format(set(gaiadr))
             log.critical(msg)
             raise ValueError(msg)
+        gaiadr = gaiadr[0]
         drstring = "gaiadr{}".format(gaiadr)
     else:
         try:
@@ -953,6 +954,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
             msg = "Skies are based on multiple Gaia DRs:".format(set(gaiadr))
             log.critical(msg)
             raise ValueError(msg)
+        gaiadr = gaiadr[0]
         drstring = "gaiadr{}".format(gaiadr)
     else:
         drint = np.max(data['RELEASE']//1000)
@@ -962,14 +964,10 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
+    depend.setdep(hdr, 'photcat', drstring)
 
     if indir is not None:
         depend.setdep(hdr, 'input-data-release', indir)
-        # ADM note that if 'dr' is not in the indir DR
-        # ADM directory structure, garbage will
-        # ADM be rewritten gracefully in the header.
-        drstring = 'dr'+indir.split('dr')[-1][0]
-        depend.setdep(hdr, 'photcat', drstring)
     if indir2 is not None:
         depend.setdep(hdr, 'input-data-release-2', indir2)
 
@@ -2013,8 +2011,10 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     resdir = ""
     if flavor in ["targets", "randoms"]:
         resdir = res
-    if isinstance(dr, int) or len(a) == 1:
+    if isinstance(dr, int) or len(dr) == 1:
         drstr = "dr{}".format(dr)
+    else:
+        drstr = str(dr)
 
     # If seeking a mock target (or sky) catalog, construct the filepath and then
     # bail.

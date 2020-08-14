@@ -869,7 +869,7 @@ def resolve(targets):
 
 def finalize(targets, desi_target, bgs_target, mws_target,
              sky=False, randoms=False, survey='main', darkbright=False,
-             gaiadr=None, gdr=False, targetid=None, forcerelease=False):
+             gaiadr=None, gdr=None, targetid=None, forcerelease=False):
     """Return new targets array with added/renamed columns
 
     Parameters
@@ -903,7 +903,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     gdr : :class:`int`, defaults to ``None``
         An alternate version of `gaiadr` where the "OBJID", "BRICKID" and
         "RELEASE" columns are used as normal, but `gdr` is sent to
-        :func:`desitarget.targets.encode_targetid` at the gaiadr bit.
+        :func:`desitarget.targets.encode_targetid` as the gaiadr bit.
     targetid : :class:`int64`, optional, defaults to ``None``
         In the mocks we compute `TARGETID` outside this function.
 
