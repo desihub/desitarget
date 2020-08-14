@@ -1912,7 +1912,7 @@ def _get_targ_dir():
 def find_target_files(targdir, dr=None, flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
                       mock=False, nohp=False, seed=None, region=None, epoch=None,
-                      maglim=None, version=None, ender="fits"):
+                      maglim=None, ender="fits"):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1958,8 +1958,6 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     maglim : :class:`float`, optional
         Magnitude limit to which the mask was made. Only relevant if
         `flavor` is "masks". Must be passed if `flavor` is "masks".
-    version : :class:`str`, optional, defaults to X.Y.Z
-        Release number (tag) of the desitarget code version on GitHub.
     ender : :class:`str`, optional, defaults to "fits"
         File format (in file name).
 
@@ -1979,8 +1977,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           then a filename is returned that just omits the `-hp-X-` part.
     """
     # ADM some preliminaries for correct formatting.
-    if version is None:
-        version = "X.Y.Z"
+    version = desitarget_version
     if obscon is not None:
         obscon = obscon.lower()
     if survey not in ["main", "cmx"] and survey[:2] != "sv":
