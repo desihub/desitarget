@@ -26,7 +26,7 @@ log = get_logger()
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Generate supplemental sky locations using Gaia-G-band avoidance (for regions beyond the Legacy Surveys) while also NOT generating supplemental skies near an existing sky location')
 ap.add_argument("skydir",
-                help="Full path to the directory of skies to supplement. Skies in this directory must have the same HEALPixel nside, and number of sky locations per sq. deg. in their header (note that those quantities have to passed anyway, as supplemental skies in some pixels are outside of the Legacy surveys footprint, so won't have a corresponding skies file)")
+                help="Full path to the directory of skies to supplement. Skies in this directory must have the same HEALPixel nside, and number of sky locations per sq. deg. in their header (note that those quantities have to be passed anyway, as supplemental skies in some pixels are outside of the Legacy surveys footprint, so won't have a corresponding skies file)")
 ap.add_argument("dest",
                 help="Output supplemental sky targets directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--nskiespersqdeg", type=float,
