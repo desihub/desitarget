@@ -459,7 +459,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM if passed, use the indir to determine the Data Release
     # ADM integer and string for the input targets.
     drint = None
-    if supp:
+    if supp and len(data) > 0:
         _, _, _, _, _, gaiadr = decode_targetid(data["TARGETID"])
         if len(set(gaiadr)) != 1:
             msg = "Targets are based on multiple Gaia DRs:".format(set(gaiadr))
@@ -948,7 +948,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
 
     # ADM find the data release string for the input skies.
     drint = None
-    if supp:
+    if supp and len(data) > 0:
         _, _, _, _, _, gaiadr = decode_targetid(data["TARGETID"])
         if len(set(gaiadr)) != 1:
             msg = "Skies are based on multiple Gaia DRs:".format(set(gaiadr))
