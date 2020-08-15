@@ -957,8 +957,11 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         gaiadr = gaiadr[0]
         drstring = "gaiadr{}".format(gaiadr)
     else:
-        drint = np.max(data['RELEASE']//1000)
-        drstring = 'dr'+str(drint)
+        try:
+            drint = np.max(data['RELEASE']//1000)
+            drstring = 'dr'+str(drint)
+        except (ValueError, IndexError, AttributeError):
+            drstring = "X"
 
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
