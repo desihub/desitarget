@@ -152,6 +152,10 @@ if ns.bundlefiles is None:
         supp_skies = mask_targets(supp_skies, maskdir,
                                   nside=ns.nside, pixlist=pixlist)
 
+    # ADM a compact version of the maskdir name.
+    md = maskdir.split("/")
+    mdcomp = "/".join(md[md.index("masks"):])
+
     # ADM remove supplemental skies that share HEALPixels with skies.
     nside_resol = pixarea2nside(1./18000)//2
     ii, _ = shares_hp(nside_resol, supp_skies, skies)
@@ -159,8 +163,9 @@ if ns.bundlefiles is None:
     log.info("Removed {} supp skies that matched skies".format(np.sum(ii)))
 
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["radius", "mindec", "mingalb", "masked"],
-                                  [ns.radius, ns.mindec, ns.mingalb, do_mask])}
+    extra = {k: v for k, v in zip(
+        ["radius", "mindec", "mingalb", "masked", "maskdir"],
+        [ns.radius, ns.mindec, ns.mingalb, do_mask, mdcomp])}
 
     nskies, outfile = io.write_skies(ns.dest, supp_skies, supp=True, indir=gaiadir,
                                      nside=nside, nskiespersqdeg=nskiespersqdeg,

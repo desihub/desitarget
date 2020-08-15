@@ -163,9 +163,13 @@ else:
         maskdir = get_recent_mask_dir(ns.maskdir)
         skies = mask_targets(skies, maskdir, nside=ns.nside, pixlist=pixlist)
 
+    # ADM a compact version of the maskdir name.
+    md = maskdir.split("/")
+    mdcomp = "/".join(md[md.index("masks"):])
+
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["masked"],
-                                  [do_mask])}
+    extra = {k: v for k, v in zip(["masked", "maskdir"],
+                                  [do_mask, mdcomp])}
 
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
