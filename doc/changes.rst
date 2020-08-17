@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.41.1 (unreleased)
+0.42.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.42.0 (2020-08-17)
 -------------------
 
 * Update the data model to address `issue #633`_ [`PR #637`_].
