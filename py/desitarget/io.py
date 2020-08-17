@@ -38,7 +38,8 @@ log = get_logger()
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
                8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
-               9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N'}
+               9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N',
+               9010: 'S', 9011: 'N', 9012: 'S', 9013: 'N'}
 
 # ADM This is an empty array of most of the TS data model columns and
 # ADM dtypes. Note that other columns are added in read_tractor and
@@ -458,12 +459,18 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM if passed, use the indir to determine the Data Release
     # ADM integer and string for the input targets.
     drint = None
-    if supp:
-        drstring = "supp"
+    if supp and len(data) > 0:
+        _, _, _, _, _, gaiadr = decode_targetid(data["TARGETID"])
+        if len(set(gaiadr)) != 1:
+            msg = "Targets are based on multiple Gaia DRs:".format(set(gaiadr))
+            log.critical(msg)
+            raise ValueError(msg)
+        gaiadr = gaiadr[0]
+        drstring = "gaiadr{}".format(gaiadr)
     else:
         try:
             drint = int(indir.split("dr")[1][0])
-            drstring = 'dr'+str(drint)
+            drstring = "dr{}".format(drint)
         except (ValueError, IndexError, AttributeError):
             drstring = "X"
 
@@ -479,7 +486,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         truthfile = find_target_files(targdir, flavor="truth", obscon=obscon,
                                       hp=hpx, nside=nside, mock=True)
     else:
-        filename = find_target_files(targdir, dr=drint, flavor="targets",
+        filename = find_target_files(targdir, dr=drstring, flavor="targets",
                                      survey=survey, obscon=obscon, hp=hpx,
                                      resolve=resolve, supp=supp)
 
@@ -524,7 +531,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
     # ADM indicate whether this is a supplemental file.
-    hdr['SUPP'] = supp
+    hdr["SUPP"] = supp
+    # ADM add the Data Release to the header.
+    if supp:
+        hdr["GAIADR"] = gaiadr
+    else:
+        hdr["DR"] = drint
 
     # ADM add the extra dictionary to the header.
     if extra is not None:
@@ -934,26 +946,31 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     """
     nskies = len(data)
 
-    # ADM use RELEASE to find the release string for the input skies.
-    if not supp:
-        drint = np.max(data['RELEASE']//1000)
-        drstring = 'dr'+str(drint)
+    # ADM find the data release string for the input skies.
+    drint = None
+    if supp and len(data) > 0:
+        _, _, _, _, _, gaiadr = decode_targetid(data["TARGETID"])
+        if len(set(gaiadr)) != 1:
+            msg = "Skies are based on multiple Gaia DRs:".format(set(gaiadr))
+            log.critical(msg)
+            raise ValueError(msg)
+        gaiadr = gaiadr[0]
+        drstring = "gaiadr{}".format(gaiadr)
     else:
-        drint = None
-        drstring = "supp"
+        try:
+            drint = np.max(data['RELEASE']//1000)
+            drstring = 'dr'+str(drint)
+        except (ValueError, IndexError, AttributeError):
+            drstring = "X"
 
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
+    depend.setdep(hdr, 'photcat', drstring)
 
     if indir is not None:
         depend.setdep(hdr, 'input-data-release', indir)
-        # ADM note that if 'dr' is not in the indir DR
-        # ADM directory structure, garbage will
-        # ADM be rewritten gracefully in the header.
-        drstring = 'dr'+indir.split('dr')[-1][0]
-        depend.setdep(hdr, 'photcat', drstring)
     if indir2 is not None:
         depend.setdep(hdr, 'input-data-release-2', indir2)
 
@@ -964,6 +981,10 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
             hdr[apname] = apsize
 
     hdr['SUPP'] = supp
+    if supp:
+        hdr["GAIADR"] = gaiadr
+    else:
+        hdr["DR"] = drint
 
     if nskiespersqdeg is not None:
         hdr['NPERSDEG'] = nskiespersqdeg
@@ -1008,7 +1029,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         filename = find_target_files(targdir, flavor='sky', hp=hpxlist,
                                      mock=mock, nside=nside)
     else:
-        filename = find_target_files(targdir, dr=drint, flavor="skies",
+        filename = find_target_files(targdir, dr=drstring, flavor="skies",
                                      hp=hpxlist, supp=supp, mock=mock,
                                      nside=nside)
 
@@ -1073,6 +1094,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     hdr = fitsio.FITSHDR()
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
+    hdr["DR"] = drint
 
     if indir is not None:
         depend.setdep(hdr, 'input-data-release', indir)
@@ -1210,7 +1232,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         # ADM set the hp part of the output file name to "X".
         hpxlist = "X"
 
-    # ADM add the extra dictionary to the header.
+    # ADM add the extra keywords to the header.
+    hdr["DR"] = drint
     if extra is not None:
         for key in extra:
             hdr[key] = extra[key]
@@ -1901,10 +1924,10 @@ def _get_targ_dir():
     return targdir
 
 
-def find_target_files(targdir, dr=None, flavor="targets", survey="main",
+def find_target_files(targdir, dr='X', flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
-                      mock=False, nohp=False, seed=None, region=None,
-                      maglim=None, epoch=None, ender="fits"):
+                      mock=False, nohp=False, seed=None, region=None, epoch=None,
+                      maglim=None, ender="fits"):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -1912,7 +1935,8 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     targdir : :class:`str`
         Name of a based directory for output target catalogs.
     dr : :class:`str` or :class:`int`, optional, defaults to "X"
-        Name of a Legacy Surveys Data Release (e.g. 8)
+        Name of a Legacy Surveys Data Release (e.g. 8). If this is an
+        integer or a 1-character string it is prepended by "dr".
     flavor : :class:`str`, optional, defaults to `targets`
         Options: "skies", "gfas", "targets", "randoms", "masks", "mtl".
     survey : :class:`str`, optional, defaults to `main`
@@ -1944,12 +1968,12 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     region : :class:`int`, optional
         If `region` is not ``None``, then it is added to the directory
         name after `resolve`. Only relevant if `flavor` is "randoms".
-    maglim : :class:`float`, optional
-        Magnitude limit to which the mask was made. Only relevant if
-        `flavor` is "masks". Must be passed if `flavor` is "masks".
     epoch : :class:`float`
         Epoch at which the mask was made. Only relevant if `flavor` is
         "masks". Must be passed if `flavor` is "masks".
+    maglim : :class:`float`, optional
+        Magnitude limit to which the mask was made. Only relevant if
+        `flavor` is "masks". Must be passed if `flavor` is "masks".
     ender : :class:`str`, optional, defaults to "fits"
         File format (in file name).
 
@@ -1966,9 +1990,10 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
           input for the `desitarget.io.read*` convenience functions
           (:func:`desitarget.io.read_targets_in_hp()`, etc.).
         - On the other hand, if `hp` is ``None`` and `nohp` is ``True``
-          then a filename is returned that just omits the `-hpX-` part.
+          then a filename is returned that just omits the `-hp-X-` part.
     """
     # ADM some preliminaries for correct formatting.
+    version = desitarget_version
     if obscon is not None:
         obscon = obscon.lower()
     if survey not in ["main", "cmx"] and survey[:2] != "sv":
@@ -1986,12 +2011,13 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     res = "noresolve"
     if resolve:
         res = "resolve"
-    if dr is None:
-        drstr = "drX"
-    else:
+    resdir = ""
+    if flavor in ["targets", "randoms"]:
+        resdir = res
+    if isinstance(dr, int) or len(dr) == 1:
         drstr = "dr{}".format(dr)
-    if supp:
-        drstr = "supp"
+    else:
+        drstr = str(dr)
 
     # If seeking a mock target (or sky) catalog, construct the filepath and then
     # bail.
@@ -2022,39 +2048,37 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     surv = survey
     if survey[0:2] == "sv":
         surv = survey[0:2]
+    if obscon is None:
+        obscon = "no-obscon"
+    if supp:
+        obscon = "supp"
     prefix = flavor
-    fn = os.path.join(targdir, flavor)
+
+    # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
+    fn = os.path.join(targdir, drstr, version, flavor)
+
+    # ADM masks are a special case beneath $MASK_DIR.
     if flavor == "masks":
         maskdir = "maglim-{}-epoch-{}".format(maglim, epoch)
-        fn = os.path.join(targdir, maskdir)
+        fn = os.path.join(targdir, version, maskdir)
 
-    if flavor == "targets":
-        if surv in ["cmx", "sv"]:
-            prefix = "{}-{}".format(survey, prefix)
-        if surv in ["main", "sv"]:
-            if not supp and obscon is not None:
-                fn = os.path.join(fn, survey, res, obscon)
-            elif obscon is None:
-                fn = os.path.join(fn, survey, res)
-        else:
-            fn = os.path.join(fn, surv)
-
-    if flavor == "mtl":
-        if obscon is not None:
-            prefix = "{}{}-{}".format(survey, flavor, obscon)
-            fn = os.path.join(fn, survey, obscon)
-        else:
-            prefix = "{}-{}".format(survey, prefix)
-            fn = os.path.join(fn, survey)
+    # ADM now a case-by-case basis.
+    if flavor in ["targets", "mtl"]:
+        fn = os.path.join(fn, survey, resdir, obscon)
+        prefix = "{}-{}".format(flavor, obscon)
+        if not resolve and flavor != "mtl":
+            prefix = "{}-{}".format(prefix, res)
+        if survey != "main":
+            prefix = "{}{}".format(survey, prefix)
 
     if flavor == "randoms":
-        fn = os.path.join(fn, res)
+        fn = os.path.join(fn, resdir)
         if region is not None:
             fn = os.path.join(fn, region)
 
-    if flavor in ["skies", "targets"]:
-        if supp:
-            fn = os.path.join(fn, "{}-supp".format(flavor))
+    if flavor == "skies" and supp:
+        fn = "{}-supp".format(fn)
+        prefix = "{}-supp".format(prefix)
 
     # ADM if a HEALPixel number was passed, we want the filename.
     if hp is not None:
@@ -2071,7 +2095,7 @@ def find_target_files(targdir, dr=None, flavor="targets", survey="main",
     if flavor == "randoms" and seed is not None:
         # ADM note that this won't do anything unless a file
         # ADM name was already constructed.
-        fn = fn.replace(".{}", "-{}.{}".format(ender, seed, ender))
+        fn = fn.replace(".{}".format(ender), "-{}.{}".format(seed, ender))
 
     return fn
 

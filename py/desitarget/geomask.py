@@ -11,6 +11,7 @@ Utility functions for geometry on the sky, masking, etc.
 from __future__ import (absolute_import, division)
 #
 import numpy as np
+import os
 import fitsio
 from time import time
 
@@ -651,10 +652,10 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
     """
     # ADM interpret the passed directories.
-    surveydir = surveydirs[0]
+    surveydir = os.path.normpath(surveydirs[0])
     surveydir2 = None
     if len(surveydirs) == 2:
-        surveydir2 = surveydirs[1]
+        surveydir2 = os.path.normpath(surveydirs[1])
 
     # ADM the number of pixels (numpix) in each pixel (pix).
     pix, numpix = np.unique(pixnum, return_counts=True)

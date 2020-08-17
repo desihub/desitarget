@@ -5,6 +5,7 @@ desitarget Change Log
 0.41.1 (unreleased)
 -------------------
 
+* Update the data model to address `issue #633`_ [`PR #637`_].
 * Major refactor to MTL to implement ledgers [`PR #635`_]. Includes:
     * Code to make initial HEALPix-split ledger files from target files.
         * Ledgers can be produced for each observing layer.
@@ -24,7 +25,9 @@ desitarget Change Log
         * In a cap (:func:`read_targets_in_cap` with mtl=True)
     * Can read entire ledger, or most recent entry for each ``TARGETID``.
 
+.. _`issue #633`: https://github.com/desihub/desitarget/issues/633
 .. _`PR #635`: https://github.com/desihub/desitarget/pull/635
+.. _`PR #637`: https://github.com/desihub/desitarget/pull/637
 
 0.41.0 (2020-08-04)
 -------------------

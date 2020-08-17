@@ -28,7 +28,7 @@ from matplotlib.collections import PatchCollection
 from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, targetid_mask
-from desitarget.targets import encode_targetid
+from desitarget.targets import encode_targetid, decode_targetid
 from desitarget.gaiamatch import find_gaia_files
 from desitarget.geomask import circles, cap_area, circle_boundaries
 from desitarget.geomask import ellipses, ellipse_boundary, is_in_ellipse
@@ -828,9 +828,17 @@ def get_safe_targets(targs, sourcemask):
     safes["BRICK_OBJID"][sortid] = brickids
 
     # ADM finally, update the TARGETID.
+    # ADM first, check the GAIA DR number for these skies.
+    _, _, _, _, _, gdr = decode_targetid(targs["TARGETID"])
+    if len(set(gdr)) != 1:
+        msg = "Skies are based on multiple Gaia Data Releases:".format(set(gdr))
+        log.critical(msg)
+        raise ValueError(msg)
+
     safes["TARGETID"] = encode_targetid(objid=safes['BRICK_OBJID'],
                                         brickid=safes['BRICKID'],
-                                        sky=1)
+                                        sky=1,
+                                        gaiadr=gdr[0])
 
     # ADM return the input targs with the SAFE targets appended.
     return safes
