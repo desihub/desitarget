@@ -1866,10 +1866,14 @@ def check_hp_target_dir(hpdirname):
     for fn in fns:
         hdr = read_targets_header(fn)
         nside.append(hdr["FILENSID"])
-        pixels = int(hdr["FILEHPX"])
-        # ADM if this is a one-pixel file, convert to a list.
-        if isinstance(pixels, int):
-            pixels = [pixels]
+        pixels = hdr["FILEHPX"]
+        # ADM hdr["FILEHPX"] could be a str, depending on fitsio version.
+        if isinstance(pixels, str):
+            pixels = list(map(int, pixels.split(',')))
+        # ADM if this is a one-pixel file, or interpreted as a tuple,
+        # ADM convert to a list.
+        else:
+            pixels = list(np.atleast_1d(pixels))
         # ADM check we haven't stored a pixel string that is too long.
         _check_hpx_length(pixels)
         # ADM create a look-up dictionary of file-for-each-pixel.
