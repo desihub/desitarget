@@ -393,7 +393,7 @@ def write_with_units(filename, data, extname=None, header=None):
     data : :class:`~numpy.ndarray`
         The numpy structured array of data to write.
     extname, header optional
-        Passed through to fitsio.write().
+        Passed through to `fitsio.write()`.
 
     Returns
     -------
@@ -610,8 +610,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
-        fitsio.write(filename+'.tmp', data, extname='TARGETS', header=hdr, clobber=True)
-        os.rename(filename+'.tmp', filename)
+        write_with_units(filename, data, extname='TARGETS', header=hdr)
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
 
@@ -621,6 +620,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
 
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
+        # ADM TODO: the mock fitsio.writes could use write_with_units()?
         fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
 
         if len(trueflux) > 0 and trueflux.shape[1] > 0:
@@ -924,8 +924,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
             # ADM to reorder to match the original input order.
             order = np.argsort(scnd_order[ii])
             # ADM write to file.
-            fitsio.write(scxfile, smalldata[ii][order],
-                         extname='TARGETS', header=hdr, clobber=True)
+            write_with_units(scxfile, smalldata[ii][order], extname='TARGETS',
+                             header=hdr)
             log.info('Info for {} secondaries written to {}'
                      .format(np.sum(ii), scxfile))
 
@@ -938,8 +938,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
 
     # ADM ...write them out.
-    fitsio.write(filename, data[ii],
-                 extname='SCND_TARGETS', header=hdr, clobber=True)
+    write_with_units(filename, data[ii], extname='SCND_TARGETS', header=hdr)
 
     return np.sum(ii), filename
 
@@ -1085,8 +1084,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    fitsio.write(filename+'.tmp', data, extname='SKY_TARGETS', header=hdr, clobber=True)
-    os.rename(filename+'.tmp', filename)
+    write_with_units(filename, data, extname='SKY_TARGETS', header=hdr)
 
     return len(data), filename
 
@@ -1187,7 +1185,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
+    write_with_units(filename, data, extname='GFA_TARGETS', header=hdr)
 
     return len(data), filename
 
@@ -1321,7 +1319,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
+    write_with_units(filename, data, extname='RANDOMS', header=hdr)
 
     return nrands, filename
 
@@ -1393,16 +1391,14 @@ def write_masks(maskdir, data,
             os.makedirs(os.path.dirname(fn), exist_ok=True)
             # ADM write the output file.
             if len(outdata) > 0:
-                fitsio.write(
-                    fn, outdata, extname='MASKS', header=outhdr, clobber=True)
+                write_with_units(fn, outdata, extname='MASKS', header=outhdr)
                 log.info('wrote {} masks to {}'.format(len(outdata), fn))
     else:
         fn = find_target_files(maskdir, flavor="masks", hp="X",
                                maglim=maglim, epoch=maskepoch)
         os.makedirs(os.path.dirname(fn), exist_ok=True)
         if len(data) > 0:
-            fitsio.write(
-                fn, data, extname='MASKS', header=hdr, clobber=True)
+            write_with_units(fn, data, extname='MASKS', header=hdr)
             log.info('wrote {} masks to {}'.format(len(data), fn))
 
     return nmasks, os.path.dirname(fn)
