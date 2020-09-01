@@ -1,7 +1,7 @@
 # ADM This yaml file stores units for each quantity in the desitarget
 # ADM data model. There are two ways to express a quantity with no unit:
-    - Leave the quantity out of this yaml file completely.
-    - Include the quantity but with no unit after the colon.
+# ADM    - Leave the quantity out of this yaml file completely.
+# ADM    - Include the quantity but with no unit after the colon.
 
 # ADM mostly Legacy Surveys sweeps/tractor files units:
 RA: deg

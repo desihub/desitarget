@@ -12,7 +12,6 @@ from __future__ import (absolute_import, division)
 import numpy as np
 # import pandas as pd
 import fitsio
-from fitsio import FITS
 from astropy.table import Table
 import os
 import re
@@ -21,6 +20,8 @@ import numpy.lib.recfunctions as rfn
 import healpy as hp
 from glob import glob, iglob
 from time import time
+from pkg_resources import resource_filename
+import yaml
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -382,6 +383,54 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         return filename, hdr, data
 
 
+def write_with_units(filename, data, extname=None, header=None):
+    """Write a FITS file with units from the desitarget data model.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The output file.
+    data : :class:`~numpy.ndarray`
+        The numpy structured array of data to write.
+    extname, header optional
+        Passed through to fitsio.write().
+
+    Returns
+    -------
+    Nothing, but writes the `data` to the `filename` in chunks with units
+    added from the desitarget units yaml file (see `/data/units.yaml`).
+
+    Notes
+    -----
+        - Always OVERWRITES existing files!
+        - Write atomically. Any files that die mid-write will be
+          appended by ".tmp".
+    """
+    # ADM read the desitarget units yaml file.
+    fn = resource_filename('desitarget', os.path.join('data', 'units.yaml'))
+    with open(fn) as f:
+        unitdict = yaml.safe_load(f)
+
+    # ADM loop through the data and create a list of units.
+    units = []
+    for col in data.dtype.names:
+        try:
+            if unitdict[col] is None:
+                units.append("")
+            else:
+                units.append(unitdict[col])
+        except KeyError:
+            units.append("")
+            pass
+
+    # ADM write the file with units.
+    fitsio.write(filename+'.tmp', data, units=units, extname=extname,
+                 header=header, clobber=True)
+    os.rename(filename+'.tmp', filename)
+
+    return
+
+
 def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
@@ -738,7 +787,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
         os.remove(filename)
     start = time()
     # ADM open a file for writing.
-    outy = FITS(filename, 'rw')
+    outy = fitsio.FITS(filename, 'rw')
     # ADM write the chunks one-by-one.
     chunk = len(data)//nchunks
     for i in range(nchunks):
