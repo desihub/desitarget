@@ -383,7 +383,7 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         return filename, hdr, data
 
 
-def write_with_units(filename, data, extname=None, header=None):
+def write_with_units(filename, data, extname=None, header=None, ecsv=False):
     """Write a FITS file with units from the desitarget data model.
 
     Parameters
@@ -393,7 +393,10 @@ def write_with_units(filename, data, extname=None, header=None):
     data : :class:`~numpy.ndarray`
         The numpy structured array of data to write.
     extname, header optional
-        Passed through to `fitsio.write()`.
+        Passed through to `fitsio.write()`. `header` can be either
+        a FITShdr object or a dictionary.
+    ecsv : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then write as a .ecsv file instead of FITS.
 
     Returns
     -------
@@ -403,14 +406,18 @@ def write_with_units(filename, data, extname=None, header=None):
     Notes
     -----
         - Always OVERWRITES existing files!
-        - Write atomically. Any files that die mid-write will be
+        - Writes atomically. Any files that died mid-write will be
           appended by ".tmp".
+        - If `ecsv` is ``True`` then a (potentially slow) Table
+          conversion is applied to `data`.
     """
     # ADM read the desitarget units yaml file.
     fn = resource_filename('desitarget', os.path.join('data', 'units.yaml'))
     with open(fn) as f:
         unitdict = yaml.safe_load(f)
 
+    if ecsv:
+        data = Table(data)
     # ADM loop through the data and create a list of units.
     units = []
     for col in data.dtype.names:
@@ -419,13 +426,20 @@ def write_with_units(filename, data, extname=None, header=None):
                 units.append("")
             else:
                 units.append(unitdict[col])
+            if ecsv:
+                data[col].unit = unitdict[col]
         except KeyError:
             units.append("")
             pass
 
-    # ADM write the file with units.
-    fitsio.write(filename+'.tmp', data, units=units, extname=extname,
-                 header=header, clobber=True)
+    # ADM write the file for either ecsv or fits..
+    if ecsv:
+        data.meta = dict(header)
+        data.meta['EXTNAME'] = extname
+        data.write(filename+'.tmp', format='ascii.ecsv', overwrite=True)
+    else:
+        fitsio.write(filename+'.tmp', data, units=units, extname=extname,
+                     header=header, clobber=True)
     os.rename(filename+'.tmp', filename)
 
     return
@@ -743,19 +757,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
     # ADM sort the output file on TARGETID.
     data = data[np.argsort(data["TARGETID"])]
 
-    # ADM if we want to write ecsv, we need to Table-ify and write.
-    if ecsv:
-        data = Table(data)
-        # ADM add all of the header information.
-        data.meta = hdrdict
-        data.meta['EXTNAME'] = 'MTL'
-        data.write(fn+'.tmp', format='ascii.ecsv', overwrite=True)
-    # ADM otherwise we just write the FITS file.
-    else:
-        hdr = fitsio.FITSHDR(hdrdict)
-        fitsio.write(fn+'.tmp', data, extname='MTL', header=hdr, clobber=True)
-
-    os.rename(fn+'.tmp', fn)
+    write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
 
     return ntargs, fn
 
