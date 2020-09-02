@@ -783,6 +783,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     Notes
     -----
         - Always OVERWRITES existing files!
+        - Mostly deprecated, so was never updated to write units.
     """
     # ADM ensure that files are always overwritten.
     if os.path.isfile(filename):

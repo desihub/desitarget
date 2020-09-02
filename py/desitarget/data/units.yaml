@@ -2,12 +2,168 @@
 # ADM data model. There are two ways to express a quantity with no unit:
 # ADM    - Leave the quantity out of this yaml file completely.
 # ADM    - Include the quantity but with no unit after the colon.
+# ADM try to order quantities alphabetically within each sub-section.
 
-# ADM mostly Legacy Surveys sweeps/tractor files units:
-RA: deg
+# ADM Legacy Surveys sweeps/tractor files units:
+ALLMASK_G:
+ALLMASK_R:
+ALLMASK_Z:
+BRICKID:
+BRICKNAME:
+DCHISQ:
 DEC: deg
-
-# ADM mostly Gaia units:
-GAIA_PHOT_G_MEAN_MAG: mag
-GAIA_ASTROMETRIC_EXCESS_NOISE:
+DEC_IVAR: 1/deg^2
+EBV: mag
+FIBERFLUX_G: nanomaggy
+FIBERFLUX_R: nanomaggy
+FIBERFLUX_Z: nanomaggy
+FIBERTOTFLUX_G: nanomaggy
+FIBERTOTFLUX_R: nanomaggy
+FIBERTOTFLUX_Z: nanomaggy
+FLUX_G: nanomaggy
+FLUX_IVAR_G: 1/nanomaggy^2
+FLUX_IVAR_R: 1/nanomaggy^2
+FLUX_IVAR_W1: 1/nanomaggy^2
+FLUX_IVAR_W2: 1/nanomaggy^2
+FLUX_IVAR_W3: 1/nanomaggy^2
+FLUX_IVAR_W4: 1/nanomaggy^2
+FLUX_IVAR_Z: 1/nanomaggy^2
+FLUX_R: nanomaggy
+FLUX_W1: nanomaggy
+FLUX_W2: nanomaggy
+FLUX_W3: nanomaggy
+FLUX_W4: nanomaggy
+FLUX_Z: nanomaggy
+FRACDEV:
+FRACDEV_IVAR:
+FRACFLUX_G:
+FRACFLUX_R:
+FRACFLUX_Z:
+FRACIN_G:
+FRACIN_R:
+FRACIN_Z:
+FRACMASKED_G:
+FRACMASKED_R:
+FRACMASKED_Z:
+GALDEPTH_G: 1/nanomaggy^2
+GALDEPTH_R: 1/nanomaggy^2
+GALDEPTH_Z: 1/nanomaggy^2
+LC_FLUX_IVAR_W1: 1/nanomaggy^2
+LC_FLUX_IVAR_W2: 1/nanomaggy^2
+LC_FLUX_W1: nanomaggy
+LC_FLUX_W2: nanomaggy
+LC_MJD_W1:
+LC_MJD_W2:
+LC_NOBS_W1:
+LC_NOBS_W2:
+MASKBITS:
+MW_TRANSMISSION_G:
+MW_TRANSMISSION_R:
+MW_TRANSMISSION_W1:
+MW_TRANSMISSION_W2:
+MW_TRANSMISSION_W3:
+MW_TRANSMISSION_W4:
+MW_TRANSMISSION_Z:
+NOBS_G:
+NOBS_R:
+NOBS_Z:
+OBJID:
+PSFDEPTH_G: 1/nanomaggy^2
+PSFDEPTH_R: 1/nanomaggy^2
+PSFDEPTH_Z: 1/nanomaggy^2
+RA: deg
+RA_IVAR: 1/deg^2
 REF_EPOCH: yr
+RELEASE:
+SERSIC:
+SERSIC_IVAR:
+SHAPEDEV_E1:
+SHAPEDEV_E1_IVAR:
+SHAPEDEV_E2:
+SHAPEDEV_E2_IVAR:
+SHAPEDEV_R: arcsec
+SHAPEDEV_R_IVAR: 1/arcsec^2
+SHAPEEXP_E1:
+SHAPEEXP_E1_IVAR:
+SHAPEEXP_E2:
+SHAPEEXP_E2_IVAR:
+SHAPEEXP_R: arcsec
+SHAPEEXP_R_IVAR: 1/arcsec^2
+SHAPE_E1:
+SHAPE_E1_IVAR:
+SHAPE_E2:
+SHAPE_E2_IVAR:
+SHAPE_R:
+SHAPE_R_IVAR:
+TYPE:
+WISEMASK_W1:
+WISEMASK_W2:
+
+# ADM (desitarget versions of) Gaia-related units:
+REF_ID:
+REF_CAT:
+GAIA_RA: deg
+GAIA_DEC: deg
+GAIA_PHOT_G_MEAN_MAG: mag
+GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR:
+GAIA_PHOT_BP_MEAN_MAG: mag
+GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR:
+GAIA_PHOT_RP_MEAN_MAG: mag
+GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR:
+GAIA_PHOT_BP_RP_EXCESS_FACTOR:
+GAIA_ASTROMETRIC_EXCESS_NOISE:
+GAIA_DUPLICATED_SOURCE:
+GAIA_ASTROMETRIC_SIGMA5D_MAX:
+GAIA_ASTROMETRIC_PARAMS_SOLVED:
+PARALLAX: mas
+PARALLAX_IVAR: 1/mas^2
+PMRA: mas / yr
+PMRA_IVAR: 1/(mas/yr)^2
+PMDEC: mas / yr
+PMDEC_IVAR: 1/(mas/yr)^2
+
+# ADM columns specifically added by target selection.
+BGS_TARGET:
+BRICK_OBJID:
+DESI_TARGET:
+HPXPIXEL:
+MORPHTYPE:
+MWS_TARGET:
+NUMOBS_INIT:
+OBSCONDITIONS:
+PHOTSYS:
+PRIORITY_INIT:
+SUBPRIORITY:
+TARGETID:
+
+# ADM sky-related units:
+BLOBDIST: pix
+FIBERFLUX_IVAR_G: 1/nanomaggy^2
+FIBERFLUX_IVAR_R: 1/nanomaggy^2
+FIBERFLUX_IVAR_Z: 1/nanomaggy^2
+
+# ADM GFA-related units:
+URAT_ID:
+URAT_SEP: arcsec
+
+# ADM randoms-related units:
+APFLUX_G: nanomaggy
+APFLUX_IVAR_G: 1/nanomaggy^2
+APFLUX_IVAR_R: 1/nanomaggy^2
+APFLUX_IVAR_Z: 1/nanomaggy^2
+APFLUX_R: nanomaggy
+APFLUX_Z: nanomaggy
+NUMOBS_MORE:
+PRIORITY:
+PSFDEPTH_W1: 1/nanomaggy^2
+PSFDEPTH_W2: 1/nanomaggy^2
+PSFSIZE_G: arcsec
+PSFSIZE_R: arcsec
+PSFSIZE_Z: arcsec
+
+# ADM mask-related units:
+E1:
+E2:
+IN_RADIUS: arcsec
+NEAR_RADIUS: arcsec
+REF_MAG: mag

@@ -374,7 +374,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
         - the brickid
         - the brickname
         - the x and y pixel positions of the fiber location from the blobs file
-        - the distance from the nearest blob of this fiber location
+        - the distance to the nearest blob at this fiber location
         - the RA and Dec positions of the fiber location
         - the aperture flux and ivar at the passed `apertures_arcsec`
 
