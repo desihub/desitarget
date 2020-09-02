@@ -893,7 +893,8 @@ def get_supp_skies(ras, decs, radius=2.):
     # ADM add the brickid and name.
     supsky["BRICKID"] = bricks.brickid(ras[good], decs[good])
     supsky["BRICKNAME"] = bricks.brickname(ras[good], decs[good])
-    supsky["BLOBDIST"] = 2.
+    # ADM BLOBDIST is in ~Legacy Surveys pixels, with scale 0.262 "/pix.
+    supsky["BLOBDIST"] = radius/0.262
     # ADM set all fluxes and IVARs to -1, so they're ill-defined.
     for name in skydatamodel.dtype.names:
         if "FLUX" in name:
