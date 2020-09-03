@@ -430,7 +430,6 @@ def write_with_units(filename, data, extname=None, header=None, ecsv=False):
                 data[col].unit = unitdict[col]
         except KeyError:
             units.append("")
-            pass
 
     # ADM write the file for either ecsv or fits..
     if ecsv:

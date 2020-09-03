@@ -1,7 +1,8 @@
 # ADM This yaml file stores units for each quantity in the desitarget
 # ADM data model. There are two ways to express a quantity with no unit:
-# ADM    - Leave the quantity out of this yaml file completely.
 # ADM    - Include the quantity but with no unit after the colon.
+# ADM    - Leave the quantity out of this yaml file completely.
+# ADM      (note that a unit test *prevents* leaving quantities out!).
 # ADM try to order quantities alphabetically within each sub-section.
 
 # ADM Legacy Surveys sweeps/tractor files units:
@@ -118,9 +119,9 @@ GAIA_ASTROMETRIC_PARAMS_SOLVED:
 PARALLAX: mas
 PARALLAX_IVAR: 1/mas^2
 PMRA: mas / yr
-PMRA_IVAR: 1/(mas/yr)^2
+PMRA_IVAR: yr^2 / mas^2
 PMDEC: mas / yr
-PMDEC_IVAR: 1/(mas/yr)^2
+PMDEC_IVAR: yr^2 / mas^2
 
 # ADM columns specifically added by target selection.
 BGS_TARGET:
@@ -133,6 +134,7 @@ NUMOBS_INIT:
 OBSCONDITIONS:
 PHOTSYS:
 PRIORITY_INIT:
+SCND_TARGET:
 SUBPRIORITY:
 TARGETID:
 
@@ -167,3 +169,11 @@ E2:
 IN_RADIUS: arcsec
 NEAR_RADIUS: arcsec
 REF_MAG: mag
+
+# ADM MTL-related units:
+NUMOBS:
+TARGET_STATE:
+TIMESTAMP: s
+VERSION:
+Z:
+ZWARN:
