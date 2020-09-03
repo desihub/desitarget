@@ -259,8 +259,9 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     naps = len(apertures_arcsec)
     apcolindices = np.where(['FIBERFLUX' in colname for colname in dt.names])[0]
     desc = dt.descr
-    for i in apcolindices:
-        desc[i] += (naps,)
+    if naps > 1:
+        for i in apcolindices:
+            desc[i] += (naps,)
 
     # ADM set up a rec array to hold all of the output information.
     skies = np.zeros(nskies, dtype=desc)
