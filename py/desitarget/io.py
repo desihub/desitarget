@@ -1497,7 +1497,7 @@ def list_sweepfiles(root):
 def iter_sweepfiles(root):
     """Iterator over all sweep files found under root directory.
     """
-    ignore = ['metric', 'coadd', 'log', 'pz']
+    ignore = ['metric', 'coadd', 'log', 'pz', 'external', 'tractor']
     return iter_files(root, prefix='sweep', ext='fits', ignore=ignore)
 
 
@@ -1549,7 +1549,8 @@ def iter_tractorfiles(root):
     >>> for brickname, filename in iter_tractor('./'):
     >>>     print(brickname, filename)
     """
-    return iter_files(root, prefix='tractor', ext='fits')
+    ignore = ['metric', 'coadd', 'log', 'pz', 'external', 'sweep']
+    return iter_files(root, prefix='tractor', ext='fits', ignore=ignore)
 
 
 def brickname_from_filename(filename):
