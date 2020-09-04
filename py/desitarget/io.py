@@ -1458,15 +1458,24 @@ def is_sky_dir_official(skydirname):
     return set(pixinfile) == set(hdrpix)
 
 
-def iter_files(root, prefix, ext='fits'):
+def iter_files(root, prefix, ext='fits', ignore=None):
     """Iterator over files under in `root` directory with given `prefix` and
-    extension.
+    extension. `ignore` is a list of strings that will be skipped in the
+    directory or file names (for both a speed-up and trimming of files).
     """
+    ignorable = False
     if os.path.isdir(root):
         for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
+            if ignore is not None:
+                for ig in ignore:
+                    if ig in dirpath:
+                        del dirnames[:]
             for filename in filenames:
+                if ignore is not None:
+                    ignorable = np.any([ig in filename for ig in ignore])
                 if filename.startswith(prefix) and filename.endswith('.'+ext):
-                    yield os.path.join(dirpath, filename)
+                    if not ignorable:
+                        yield os.path.join(dirpath, filename)
     else:
         filename = os.path.basename(root)
         if filename.startswith(prefix) and filename.endswith('.'+ext):
@@ -1488,7 +1497,8 @@ def list_sweepfiles(root):
 def iter_sweepfiles(root):
     """Iterator over all sweep files found under root directory.
     """
-    return iter_files(root, prefix='sweep', ext='fits')
+    ignore = ['metric', 'coadd', 'log', 'pz']
+    return iter_files(root, prefix='sweep', ext='fits', ignore=ignore)
 
 
 def list_targetfiles(root):
