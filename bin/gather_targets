@@ -38,16 +38,22 @@ fns = [ fn for fn in ns.infiles.split(';') ]
 fx = fitsio.FITS(fns[0])
 hdr = fx[1].read_header()
 
+# ADM retain a list of the units.
+tunits = ["TUNIT{}".format(i) for i in range(1, hdr["TFIELDS"]+1)]
+units = [hdr[tunit] if tunit in hdr.keys() else "" for tunit in tunits]
+
+[hdr[key] if "UNIT" in key else "" for key in hdr.keys()]
+
 log.info('Begin writing {} to {}...t = {:.1f}s'
          .format(ns.targtype, ns.outfile, time()-start))
 
 # ADM open the file for writing.
-fits = FITS(ns.outfile, 'rw')
+fits = FITS(ns.outfile, 'rw', clobber=True)
 
 # ADM write the first file with the header.
 data = fitsio.read(fns[0])
 log.info('Working on file {}...t = {:.1f}s'.format(fns[0], time()-start))
-fits.write(data, extname=tt.upper(), header=hdr, clobber=True)
+fits.write(data, extname=tt.upper(), header=hdr, units=units)
 
 # ADM add the other files.
 for fn in fns[1:]:
