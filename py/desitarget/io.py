@@ -2137,6 +2137,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         fn = os.path.join(fn, resdir)
         if region is not None:
             fn = os.path.join(fn, region)
+        if not resolve:
+            prefix = "{}-{}".format(prefix, res)
 
     if flavor == "skies" and supp:
         fn = "{}-supp".format(fn)

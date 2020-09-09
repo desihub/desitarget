@@ -606,35 +606,37 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=True, surveydirs=None, extra=None, seed=None):
+                  gather=False, surveydirs=None, extra=None, seed=None):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
     ----------
     pixnum : :class:`np.array`
-        List of integers, e.g., HEALPixel numbers occupied by a set of bricks
-        (e.g. array([16, 16, 16...12 , 13, 19]) ).
+        List of integers, e.g., HEALPixel numbers occupied by a set of
+        bricks (e.g. array([16, 16, 16...12 , 13, 19]) ).
     maxpernode : :class:`int`
-        The maximum number of pixels to bundle together (e.g., if you were
-        trying to pass maxpernode bricks, delineated by the HEALPixels they
+        The maximum number of pixels to bundle (e.g., if you were trying
+        to pass `maxpernode` bricks, delineated by the HEALPixels they
         occupy, parallelized across a set of nodes).
     nside : :class:`int`
-        The HEALPixel nside number that was used to generate `pixnum` (NESTED scheme).
+        The HEALPixel nside number thaat was used to generate `pixnum`
+        (NESTED scheme).
     brickspersec : :class:`float`, optional, defaults to 1.
-        The rough number of bricks processed per second by the code (parallelized across
-        a chosen number of nodes)
+        The rough number of bricks processed per second by the code
+        (parallelized across a chosen number of nodes)
     prefix : :class:`str`, optional, defaults to 'targets'
         Corresponds to the executable "X" that is run as select_X for a
         target type. This could be 'randoms', 'skies', 'targets', 'gfas'.
         Also, 'supp-skies' can be passed to cover supplemental skies.
-    gather : :class:`bool`, optional, defaults to ``True``
-        If ``True`` then provide a final command for combining all of the HEALPix-split
-        files into one large file. If ``False``, do not provide that command.
+    gather : :class:`bool`, optional, defaults to ``False``
+        If ``True`` add a command to combine all the HEALPix-split files
+        into one large file. If ``False``, do not provide that command.
+        ONLY creates correct file names to gather RANDOMS files!
     surveydirs : :class:`list`
-        Root directories for a Legacy Surveys Data Release. The first element of the
-        list is interpreted as the main directory. IF the list is of length two
-        then the second directory is supplied as "-s2" in the output script.
-        (e.g. ["/global/project/projectdirs/cosmo/data/legacysurvey/dr6"]).
+        Root directories for a Legacy Surveys Data Release. Item 1 is
+        used as the main directory. IF the list is length-2 then the
+        second directory is added as "-s2" in the output script (e.g.
+        ["/global/project/projectdirs/cosmo/data/legacysurvey/dr6"]).
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script.
@@ -643,9 +645,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     Returns
     -------
-    Nothing, but prints commands to screen that would facilitate running a
-    set of bricks by HEALPixel integer with the total number of bricks not
-    to exceed maxpernode. Also prints how many bricks would be on each node.
+    Nothing, but prints commands that would facilitate running a set of
+    bricks by HEALPixel integer with the total number of bricks not to
+    exceed `maxpernode`. Also prints total bricks on each node.
 
     Notes
     -----
@@ -778,8 +780,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         cmd = "supplement"
         prefix2 = "skies"
 
-    outfiles = []
-    from desitarget.io import _check_hpx_length
+    from desitarget.io import _check_hpx_length, find_target_files
+
+    pixtracker = []
     for bin in bins:
         num = np.array(bin)[:, 0]
         pix = np.array(bin)[:, 1]
@@ -790,13 +793,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM check that we won't overwhelm the pixel scheme.
             _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            # ADM the replace is to handle inputs that look like "svX_targets".
-            outfile = "$CSCRATCH/{}/{}{}-hp-{}.fits".format(
-                prefix2, prefix.replace("_", "-"), drstr, strgoodpix)
-            # ADM random catalogs have an additional seed in their file name.
-            if prefix == 'randoms':
-                outfile = outfile.replace(".fits", "-{}.fits".format(seed))
-            outfiles.append(outfile)
+            pixtracker.append(strgoodpix)
             if extra is not None:
                 strgoodpix += extra
             print("srun -N 1 {}_{} {} $CSCRATCH {} --nside {} --healpixels {} &"
@@ -804,19 +801,20 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print("wait")
     print("")
     if gather:
-        if prefix == 'randoms':
-            for region in "resolve/", "noresolve/north/", "noresolve/south/":
-                routfiles = [outfile.replace("randoms/", "randoms/{}".format(
-                    region)) for outfile in outfiles]
-                print("")
-                print(
-                    "gather_targets '{}' $CSCRATCH/{}/{}{}{}.fits {}".format(
-                        ";".join(routfiles), prefix, region, prefix, drstr,
-                        prefix2.split("_")[-1]))
-        else:
-            print("gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
-                # ADM prefix2 handles inputs that look like "svX_targets".
-                ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
+        ddrr = drstr.replace("-","")
+        for resolve, region in zip([True, False, False], [None, "north", "south"]):
+            outfiles = []
+            for pix in pixtracker:
+                outfn = find_target_files(
+                    "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, hp=pix,
+                    resolve=resolve, region=region)
+                outfiles.append(outfn)
+            outfn = find_target_files(
+                "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
+                resolve=resolve, region=region)
+            print("")
+            print("gather_targets '{}' {} {}".format(";".join(outfiles), outfn,
+                                                     prefix2.split("_")[-1]))
         print("")
 
     return
