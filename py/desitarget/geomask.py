@@ -801,7 +801,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print("wait")
     print("")
     if gather:
-        ddrr = drstr.replace("-","")
+        ddrr = drstr.replace("-", "")
         for resolve, region in zip([True, False, False], [None, "north", "south"]):
             outfiles = []
             for pix in pixtracker:
