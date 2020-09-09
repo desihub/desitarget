@@ -6,7 +6,7 @@ desitarget Change Log
 -------------------
 
 * Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
-    * Units for all output quantities are stored in `data/units.yaml`_.
+    * Units for all output quantities are stored in `data/units.yaml`.
     * Unit tests check that output quantities have associated units.
     * Unit tests also check that all units are valid astropy units.
     * Also some more minor cleanup and speedups.
