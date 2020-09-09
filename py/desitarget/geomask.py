@@ -802,7 +802,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print("")
     if gather:
         ddrr = drstr.replace("-", "")
-        for resolve, region in zip([True, False, False], [None, "north", "south"]):
+        for resolve, region, skip in zip([True, False, False],
+                                         [None, "north", "south"],
+                                         ["", "--skip", "--skip"]):
             outfiles = []
             for pix in pixtracker:
                 outfn = find_target_files(
@@ -813,8 +815,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
                 resolve=resolve, region=region)
             print("")
-            print("gather_targets '{}' {} {}".format(";".join(outfiles), outfn,
-                                                     prefix2.split("_")[-1]))
+            print("gather_targets '{}' {} {} {}".format(
+                ";".join(outfiles), outfn, prefix2.split("_")[-1], skip))
         print("")
 
     return

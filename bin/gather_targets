@@ -32,6 +32,8 @@ ap.add_argument("--norandomize", action='store_true',
 ap.add_argument("--numchunks", type=int,
                 help='number of chunks in which to write to save memory [defaults to {}]'.format(nchunks),
                 default=nchunks)
+ap.add_argument("--skip", action='store_true',
+                help="Skip input files that don't exist without flagging an error")
 
 ns = ap.parse_args()
 
@@ -42,7 +44,11 @@ if ns.targtype == 'gfas':
 extname = tt.upper()
 
 # ADM convert passed csv strings to lists.
-fns = [ fn for fn in ns.infiles.split(';') ]
+if ns.skip:
+    fns = [ fn for fn in ns.infiles.split(';') if
+            os.path.isfile(os.path.expandvars(fn))]
+else:
+    fns = [ fn for fn in ns.infiles.split(';') ]
 
 # ADM read the header from the first file.
 fx = fitsio.FITS(fns[0])
