@@ -5,6 +5,7 @@
 import os
 import unittest
 import yaml
+import astropy.version as astropyversion
 import astropy.units as u
 import numpy as np
 from astropy.table import Table
@@ -37,17 +38,20 @@ class TestUNITS(unittest.TestCase):
     def test_fits_units(self):
         """Test the units meet the FITS standard (via astropy).
         """
-        # ADM unique units from the yaml file parsed through astropy.
+        # ADM unique units from the yaml file with NoneType removed.
         uniq = set(self.units.values())
-        parsed = [u.Unit(unit) for unit in uniq if unit is not None]
-
-        # ADM the list of units with None removed
-        uniq = list(uniq)
         uniq.remove(None)
+
+        # ADM nmgy isn't an allowed unit in earlier versions of astropy.
+        if astropyversion.major < 4:
+            uniq = set([i for i in list(uniq) if 'nanomaggy' not in i])
+
+        # ADM parse the units to check they're allowed astropy units.
+        parsed = [u.Unit(unit) for unit in uniq]
 
         # ADM these should be equivalent, even though, formally, parsed
         # ADM contains items of type astropy.units.core.Unit.
-        self.assertEqual(uniq, parsed)
+        self.assertEqual(list(uniq), parsed)
 
     def test_quantities(self):
         """Test all data model quantities in are in the units yaml file.
