@@ -436,8 +436,8 @@ def add_urat_pms(objs, numproc=4):
         refids = urats[0][1]
         urats = urats[0][0]
     else:
-        refids = np.concatenate(np.array(urats)[:, 1])
-        urats = np.concatenate(np.array(urats)[:, 0])
+        refids = np.concatenate(np.array(urats, dtype=object)[:, 1])
+        urats = np.concatenate(np.array(urats, dtype=object)[:, 0])
 
     # ADM sort the output to match the input, on REF_ID.
     ii = np.zeros_like(refids)

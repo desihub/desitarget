@@ -5,7 +5,14 @@ desitarget Change Log
 0.42.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
+    * Units for all output quantities are stored in `data/units.yaml`.
+    * Unit tests check that output quantities have associated units.
+    * Unit tests also check that all units are valid astropy units.
+    * Also some more minor cleanup and speedups.
+
+.. _`issue #356`: https://github.com/desihub/desitarget/issues/356
+.. _`PR #638`: https://github.com/desihub/desitarget/pull/638
 
 0.42.0 (2020-08-17)
 -------------------

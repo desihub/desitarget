@@ -142,7 +142,7 @@ else:
         )
 
     # ADM redact empty output (where there were no bricks in a survey).
-    skies = np.array(skies) 
+    skies = np.array(skies, dtype=object)
     ii = [sk is not None for sk in skies]
     skies = np.concatenate(skies[ii])
 

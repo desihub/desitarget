@@ -259,8 +259,9 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     naps = len(apertures_arcsec)
     apcolindices = np.where(['FIBERFLUX' in colname for colname in dt.names])[0]
     desc = dt.descr
-    for i in apcolindices:
-        desc[i] += (naps,)
+    if naps > 1:
+        for i in apcolindices:
+            desc[i] += (naps,)
 
     # ADM set up a rec array to hold all of the output information.
     skies = np.zeros(nskies, dtype=desc)
@@ -374,7 +375,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
         - the brickid
         - the brickname
         - the x and y pixel positions of the fiber location from the blobs file
-        - the distance from the nearest blob of this fiber location
+        - the distance to the nearest blob at this fiber location
         - the RA and Dec positions of the fiber location
         - the aperture flux and ivar at the passed `apertures_arcsec`
 
@@ -893,7 +894,8 @@ def get_supp_skies(ras, decs, radius=2.):
     # ADM add the brickid and name.
     supsky["BRICKID"] = bricks.brickid(ras[good], decs[good])
     supsky["BRICKNAME"] = bricks.brickname(ras[good], decs[good])
-    supsky["BLOBDIST"] = 2.
+    # ADM BLOBDIST is in ~Legacy Surveys pixels, with scale 0.262 "/pix.
+    supsky["BLOBDIST"] = radius/0.262
     # ADM set all fluxes and IVARs to -1, so they're ill-defined.
     for name in skydatamodel.dtype.names:
         if "FLUX" in name:

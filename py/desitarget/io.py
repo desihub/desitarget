@@ -12,7 +12,6 @@ from __future__ import (absolute_import, division)
 import numpy as np
 # import pandas as pd
 import fitsio
-from fitsio import FITS
 from astropy.table import Table
 import os
 import re
@@ -21,6 +20,8 @@ import numpy.lib.recfunctions as rfn
 import healpy as hp
 from glob import glob, iglob
 from time import time
+from pkg_resources import resource_filename
+import yaml
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -382,6 +383,67 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         return filename, hdr, data
 
 
+def write_with_units(filename, data, extname=None, header=None, ecsv=False):
+    """Write a FITS file with units from the desitarget data model.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The output file.
+    data : :class:`~numpy.ndarray`
+        The numpy structured array of data to write.
+    extname, header optional
+        Passed through to `fitsio.write()`. `header` can be either
+        a FITShdr object or a dictionary.
+    ecsv : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then write as a .ecsv file instead of FITS.
+
+    Returns
+    -------
+    Nothing, but writes the `data` to the `filename` in chunks with units
+    added from the desitarget units yaml file (see `/data/units.yaml`).
+
+    Notes
+    -----
+        - Always OVERWRITES existing files!
+        - Writes atomically. Any files that died mid-write will be
+          appended by ".tmp".
+        - If `ecsv` is ``True`` then a (potentially slow) Table
+          conversion is applied to `data`.
+    """
+    # ADM read the desitarget units yaml file.
+    fn = resource_filename('desitarget', os.path.join('data', 'units.yaml'))
+    with open(fn) as f:
+        unitdict = yaml.safe_load(f)
+
+    if ecsv:
+        data = Table(data)
+    # ADM loop through the data and create a list of units.
+    units = []
+    for col in data.dtype.names:
+        try:
+            if unitdict[col] is None:
+                units.append("")
+            else:
+                units.append(unitdict[col])
+            if ecsv:
+                data[col].unit = unitdict[col]
+        except KeyError:
+            units.append("")
+
+    # ADM write the file for either ecsv or fits..
+    if ecsv:
+        data.meta = dict(header)
+        data.meta['EXTNAME'] = extname
+        data.write(filename+'.tmp', format='ascii.ecsv', overwrite=True)
+    else:
+        fitsio.write(filename+'.tmp', data, units=units, extname=extname,
+                     header=header, clobber=True)
+    os.rename(filename+'.tmp', filename)
+
+    return
+
+
 def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
@@ -561,8 +623,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # ADM write in a series of chunks to save memory.
     if nchunks is None:
-        fitsio.write(filename+'.tmp', data, extname='TARGETS', header=hdr, clobber=True)
-        os.rename(filename+'.tmp', filename)
+        write_with_units(filename, data, extname='TARGETS', header=hdr)
     else:
         write_in_chunks(filename, data, nchunks, extname='TARGETS', header=hdr)
 
@@ -572,6 +633,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         truthdata, trueflux, objtruth = mockdata['truth'], mockdata['trueflux'], mockdata['objtruth']
 
         hdr['SEED'] = (mockdata['seed'], 'initial random seed')
+        # ADM TODO: the mock fitsio.writes could use write_with_units()?
         fitsio.write(truthfile+'.tmp', truthdata.as_array(), extname='TRUTH', header=hdr, clobber=True)
 
         if len(trueflux) > 0 and trueflux.shape[1] > 0:
@@ -694,19 +756,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
     # ADM sort the output file on TARGETID.
     data = data[np.argsort(data["TARGETID"])]
 
-    # ADM if we want to write ecsv, we need to Table-ify and write.
-    if ecsv:
-        data = Table(data)
-        # ADM add all of the header information.
-        data.meta = hdrdict
-        data.meta['EXTNAME'] = 'MTL'
-        data.write(fn+'.tmp', format='ascii.ecsv', overwrite=True)
-    # ADM otherwise we just write the FITS file.
-    else:
-        hdr = fitsio.FITSHDR(hdrdict)
-        fitsio.write(fn+'.tmp', data, extname='MTL', header=hdr, clobber=True)
-
-    os.rename(fn+'.tmp', fn)
+    write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
 
     return ntargs, fn
 
@@ -732,13 +782,14 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     Notes
     -----
         - Always OVERWRITES existing files!
+        - Mostly deprecated, so was never updated to write units.
     """
     # ADM ensure that files are always overwritten.
     if os.path.isfile(filename):
         os.remove(filename)
     start = time()
     # ADM open a file for writing.
-    outy = FITS(filename, 'rw')
+    outy = fitsio.FITS(filename, 'rw')
     # ADM write the chunks one-by-one.
     chunk = len(data)//nchunks
     for i in range(nchunks):
@@ -875,8 +926,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
             # ADM to reorder to match the original input order.
             order = np.argsort(scnd_order[ii])
             # ADM write to file.
-            fitsio.write(scxfile, smalldata[ii][order],
-                         extname='TARGETS', header=hdr, clobber=True)
+            write_with_units(scxfile, smalldata[ii][order], extname='TARGETS',
+                             header=hdr)
             log.info('Info for {} secondaries written to {}'
                      .format(np.sum(ii), scxfile))
 
@@ -889,8 +940,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
 
     # ADM ...write them out.
-    fitsio.write(filename, data[ii],
-                 extname='SCND_TARGETS', header=hdr, clobber=True)
+    write_with_units(filename, data[ii], extname='SCND_TARGETS', header=hdr)
 
     return np.sum(ii), filename
 
@@ -1036,8 +1086,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    fitsio.write(filename+'.tmp', data, extname='SKY_TARGETS', header=hdr, clobber=True)
-    os.rename(filename+'.tmp', filename)
+    write_with_units(filename, data, extname='SKY_TARGETS', header=hdr)
 
     return len(data), filename
 
@@ -1138,7 +1187,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    fitsio.write(filename, data, extname='GFA_TARGETS', header=hdr, clobber=True)
+    write_with_units(filename, data, extname='GFA_TARGETS', header=hdr)
 
     return len(data), filename
 
@@ -1272,7 +1321,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    fitsio.write(filename, data, extname='RANDOMS', header=hdr, clobber=True)
+    write_with_units(filename, data, extname='RANDOMS', header=hdr)
 
     return nrands, filename
 
@@ -1344,16 +1393,14 @@ def write_masks(maskdir, data,
             os.makedirs(os.path.dirname(fn), exist_ok=True)
             # ADM write the output file.
             if len(outdata) > 0:
-                fitsio.write(
-                    fn, outdata, extname='MASKS', header=outhdr, clobber=True)
+                write_with_units(fn, outdata, extname='MASKS', header=outhdr)
                 log.info('wrote {} masks to {}'.format(len(outdata), fn))
     else:
         fn = find_target_files(maskdir, flavor="masks", hp="X",
                                maglim=maglim, epoch=maskepoch)
         os.makedirs(os.path.dirname(fn), exist_ok=True)
         if len(data) > 0:
-            fitsio.write(
-                fn, data, extname='MASKS', header=hdr, clobber=True)
+            write_with_units(fn, data, extname='MASKS', header=hdr)
             log.info('wrote {} masks to {}'.format(len(data), fn))
 
     return nmasks, os.path.dirname(fn)
@@ -1411,15 +1458,24 @@ def is_sky_dir_official(skydirname):
     return set(pixinfile) == set(hdrpix)
 
 
-def iter_files(root, prefix, ext='fits'):
+def iter_files(root, prefix, ext='fits', ignore=None):
     """Iterator over files under in `root` directory with given `prefix` and
-    extension.
+    extension. `ignore` is a list of strings that will be skipped in the
+    directory or file names (for both a speed-up and trimming of files).
     """
+    ignorable = False
     if os.path.isdir(root):
         for dirpath, dirnames, filenames in os.walk(root, followlinks=True):
+            if ignore is not None:
+                for ig in ignore:
+                    if ig in dirpath:
+                        del dirnames[:]
             for filename in filenames:
+                if ignore is not None:
+                    ignorable = np.any([ig in filename for ig in ignore])
                 if filename.startswith(prefix) and filename.endswith('.'+ext):
-                    yield os.path.join(dirpath, filename)
+                    if not ignorable:
+                        yield os.path.join(dirpath, filename)
     else:
         filename = os.path.basename(root)
         if filename.startswith(prefix) and filename.endswith('.'+ext):
@@ -1441,7 +1497,8 @@ def list_sweepfiles(root):
 def iter_sweepfiles(root):
     """Iterator over all sweep files found under root directory.
     """
-    return iter_files(root, prefix='sweep', ext='fits')
+    ignore = ['metric', 'coadd', 'log', 'pz', 'external', 'tractor']
+    return iter_files(root, prefix='sweep', ext='fits', ignore=ignore)
 
 
 def list_targetfiles(root):
@@ -1492,7 +1549,8 @@ def iter_tractorfiles(root):
     >>> for brickname, filename in iter_tractor('./'):
     >>>     print(brickname, filename)
     """
-    return iter_files(root, prefix='tractor', ext='fits')
+    ignore = ['metric', 'coadd', 'log', 'pz', 'external', 'sweep']
+    return iter_files(root, prefix='tractor', ext='fits', ignore=ignore)
 
 
 def brickname_from_filename(filename):
@@ -1866,10 +1924,14 @@ def check_hp_target_dir(hpdirname):
     for fn in fns:
         hdr = read_targets_header(fn)
         nside.append(hdr["FILENSID"])
-        pixels = int(hdr["FILEHPX"])
-        # ADM if this is a one-pixel file, convert to a list.
-        if isinstance(pixels, int):
-            pixels = [pixels]
+        pixels = hdr["FILEHPX"]
+        # ADM hdr["FILEHPX"] could be a str, depending on fitsio version.
+        if isinstance(pixels, str):
+            pixels = list(map(int, pixels.split(',')))
+        # ADM if this is a one-pixel file, or interpreted as a tuple,
+        # ADM convert to a list.
+        else:
+            pixels = list(np.atleast_1d(pixels))
         # ADM check we haven't stored a pixel string that is too long.
         _check_hpx_length(pixels)
         # ADM create a look-up dictionary of file-for-each-pixel.
@@ -2075,6 +2137,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         fn = os.path.join(fn, resdir)
         if region is not None:
             fn = os.path.join(fn, region)
+        if not resolve:
+            prefix = "{}-{}".format(prefix, res)
 
     if flavor == "skies" and supp:
         fn = "{}-supp".format(fn)
