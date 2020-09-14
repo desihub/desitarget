@@ -1251,21 +1251,34 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return qso
 
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
-                       gnobs=None, rnobs=None, znobs=None,
-                       deltaChi2=None, maskbits=None, primary=None, south=True):
-    """Definition of QSO target classes from a Random Forest. Returns a boolean array.
+                       gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
+                       primary=None, south=True, return_probs=False):
+    """Define QSO targets from a Random Forest. Returns a boolean array.
 
     Parameters
     ----------
     south : :class:`boolean`, defaults to ``True``
-        If ``False``, shift photometry to the Northern (BASS/MzLS) imaging system.
+        If ``False``, shift photometry to the Northern (BASS/MzLS)
+        imaging system.
+    return_probs : :class:`boolean`, defaults to ``False``
+        If ``True``, return the QSO/high-z QSO probabilities in addition
+        to the QSO target booleans. Only coded up for DR8 or later of the
+        Legacy Surveys. Will return arrays of zeros for earlier DRs.
 
     Returns
     -------
     :class:`array_like`
         ``True`` for objects that are Random Forest quasar targets.
+    :class:`array_like`
+        ``True`` for objects that are high-z RF quasar targets.
+    :class:`array_like`
+        The (float) probability that a target is a quasar. Only returned
+        if `return_probs` is ``True``.
+    :class:`array_like`
+        The (float) probability that a target is a high-z quasar. Only
+        returned if `return_probs` is ``True``.
 
     Notes
     -----
@@ -1315,6 +1328,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
     qso = np.copy(preSelection)
     # ADM to specifically store the selection from the "HighZ" RF.
     qsohiz = np.copy(preSelection)
+
+    # ADM these store the probabilities, should they need returned.
+    pqso = np.zeros_like(qso, dtype='>f4')
+    pqsohiz = np.zeros_like(qso, dtype='>f4')
 
     if np.any(preSelection):
 
@@ -1407,13 +1424,22 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # ADM populate a mask specific to the "HighZ" selection.
             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM store the probabilities in case they need returned.
+            pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
+            # ADM populate a mask specific to the "HighZ" selection.
+            pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
 
-    # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "~numpy.ndarray"
+    # In case of call for a single object passed to the function with
+    # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
     if nbEntries == 1:
         qso = qso[0]
         qsohiz = qsohiz[0]
+        pqso = pqso[0]
+        pqsohiz = pqsohiz[0]
 
+    # ADM if requested, return the probabilities as well.
+    if return_probs:
+        return qso, qsohiz, pqso, pqsohiz
     return qso, qsohiz
 
 
