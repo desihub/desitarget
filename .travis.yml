@@ -43,20 +43,15 @@ env:
         # The following versions are the 'default' for tests, unless
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        # ADM I'm leaving the previous (working) version commented out as
-        # ADM it makes it easy to revert (not that we should ever have to).
-        # - NUMPY_VERSION=1.16.5
-        - NUMPY_VERSION=1.19.1
+        # - NUMPY_VERSION='<1.17'
+        - NUMPY_VERSION=1.16.5
         # - SCIPY_VERSION=0.16
-        # - ASTROPY_VERSION=2.0.16
-        - ASTROPY_VERSION=4.0.1
-        #- Old healpy version needed as long as we pin old astropy (2.0.16) too
-        #- HEALPY_VERSION=1.12.9
-        - HEALPY_VERSION=1.14.0
+        - ASTROPY_VERSION=2.0.16
+        #- Old healpy version needed as long as we pin old astropy too
+        - HEALPY_VERSION=1.12.9
         # - SPHINX_VERSION=1.6.6
         - DESIUTIL_VERSION=3.0.0
-        # - SPECLITE_VERSION=0.8
-         - SPECLITE_VERSION=0.9
+        - SPECLITE_VERSION=0.8
         # - SPECTER_VERSION=0.8.3
         - DESIMODEL_VERSION=0.10.2
         - DESIMODEL_DATA=branches/test-0.10
@@ -95,8 +90,8 @@ env:
     matrix:
         #  - PYTHON_VERSION=3.5 NUMPY_VERSION=1.15.4 SETUP_CMD='egg_info'
         #  - PYTHON_VERSION=3.5 NUMPY_VERSION=1.15.4 SETUP_CMD='bdist_egg'
-        - PYTHON_VERSION=3.8 SETUP_CMD='egg_info'
-        - PYTHON_VERSION=3.8 SETUP_CMD='bdist_egg'
+        - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
+        - PYTHON_VERSION=3.6 SETUP_CMD='bdist_egg'
 
 matrix:
     # Don't wait for allowed failures.
@@ -106,13 +101,13 @@ matrix:
     allow_failures:
         - os: osx
         - os: linux
-          env: PYTHON_VERSION=3.8 SETUP_CMD='test'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
                ASTROPY_VERSION=stable NUMPY_VERSION=stable
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
                DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
         - os: linux
-          env: PYTHON_VERSION=3.8 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
+          env: PYTHON_VERSION=3.6 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
     include:
 
@@ -120,7 +115,7 @@ matrix:
         # Note: this test is not a perfectly realistic test of ReadTheDocs
         # builds, which operate in a much more bare-bones environment
         - os: linux
-          env: PYTHON_VERSION=3.8 SETUP_CMD='build_sphinx --warning-is-error'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='build_sphinx --warning-is-error'
 
         # Try multiple python versions with the latest numpy
         # - os: linux
@@ -131,13 +126,13 @@ matrix:
         #        DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.8 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='test --coverage'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
                DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.8 SETUP_CMD='test'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
                ASTROPY_VERSION=stable NUMPY_VERSION=stable
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
@@ -190,7 +185,7 @@ matrix:
 
         # PEP 8 compliance.
         - os: linux
-          env: PYTHON_VERSION=3.8 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
+          env: PYTHON_VERSION=3.6 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
