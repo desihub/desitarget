@@ -412,7 +412,7 @@ def read_data(targfile, mocks=False, downsample=None, header=False):
         for objtype in set(truths['TEMPLATETYPE']):
             try:
                 oo = objtype.decode('utf-8').strip().upper()
-            except:
+            except AttributeError:
                 oo = objtype
 
             extname = 'TRUTH_{}'.format(oo)
