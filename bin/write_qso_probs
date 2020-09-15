@@ -5,7 +5,7 @@ import numpy as np
 import numpy.lib.recfunctions as rfn
 import fitsio
 
-# ADM the columns that are written to the "QSO prob" files.
+# ADM the columns that are to be written to the "QSO prob" files.
 datamodel = np.array([], dtype=[
     ('RELEASE', '>i2'), ('BRICKID', '>i4'),
     ('BRICKNAME', 'S8'), ('BRICK_OBJID', '>i4'),
