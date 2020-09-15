@@ -27,9 +27,9 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Take a set of target or sweep files and write ')
-ap.add_argument("src", 
+ap.add_argument("src",
                 help="Sweeps or target file or root directory with sweeps or target files")
-ap.add_argument("dest", 
+ap.add_argument("dest",
                 help="Output directory")
 
 ns = ap.parse_args()
@@ -71,7 +71,7 @@ for fn in infiles:
             data[col] = targs[col]
 
     # ADM run targets split by north/south, which have different RFs.
-    norths = _isonnorthphotsys(targs["PHOTSYS"]) 
+    norths = _isonnorthphotsys(targs["PHOTSYS"])
 
     for ii, south in zip([norths, ~norths], [False, True]):
         log.info("south is {}; running on {} targets...t={:.1f}s".format(
@@ -85,7 +85,7 @@ for fn in infiles:
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,   \
             gsnr, rsnr, zsnr, w1snr, w2snr,                            \
             dchisq, deltaChi2, maskbits, refcat =                      \
-            _prepare_optical_wise(targs[ii], mask=True) 
+            _prepare_optical_wise(targs[ii], mask=True)
 
         # ADM run the RFs.
         _, _, pqso, pqsohiz = isQSO_randomforest(
@@ -94,7 +94,7 @@ for fn in infiles:
             maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
             objtype=objtype, release=release, south=south,
             return_probs=True)
-        
+
         # ADM add the RFs to the output data.
         data["PQSO"][ii] = pqso
         data["PQSO_HIZ"][ii] = pqsohiz
@@ -103,7 +103,7 @@ for fn in infiles:
     depend.setdep(hdr, 'desitarget-pqso-git', io.gitversion())
     outfn = os.path.join(ns.dest,
                          os.path.basename(fn).replace(".fits", '-pqso.fits'))
-    
+
     log.info("Writing to {}...t={:.1f}s".format(outfn, time()-start))
     io.write_with_units(outfn, data, extname="PQSO", header=hdr)
 
