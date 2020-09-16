@@ -846,7 +846,7 @@ def repartition_skies(skydirname, numproc=1):
         with pool:
             skies = pool.map(_write_hp_skies, hpsplit)
     else:
-            _write_hp_skies(hpsplit[0])
+        _write_hp_skies(hpsplit[0])
 
     return
 
