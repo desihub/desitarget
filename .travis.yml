@@ -63,7 +63,8 @@ env:
         # - DESITARGET_VERSION=master
         # - SIMQSO_VERSION=v1.2.3
         # - DESI_LOGLEVEL=DEBUG
-        - PIP_VERSION=19.3.1
+        # - PIP_VERSION=19.3.1
+        - PIP_VERSION=20.2.2
         - MAIN_CMD='python setup.py'
         # Additional conda channels to use.
         - CONDA_CHANNELS="astropy"
