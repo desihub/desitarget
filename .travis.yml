@@ -89,8 +89,8 @@ env:
     matrix:
         #  - PYTHON_VERSION=3.5 NUMPY_VERSION=1.15.4 SETUP_CMD='egg_info'
         #  - PYTHON_VERSION=3.5 NUMPY_VERSION=1.15.4 SETUP_CMD='bdist_egg'
-        - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
-        - PYTHON_VERSION=3.6 SETUP_CMD='bdist_egg'
+        - PYTHON_VERSION=3.8 SETUP_CMD='egg_info'
+        - PYTHON_VERSION=3.8 SETUP_CMD='bdist_egg'
 
 matrix:
     # Don't wait for allowed failures.

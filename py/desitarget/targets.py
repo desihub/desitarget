@@ -109,14 +109,14 @@ def encode_targetid(objid=None, brickid=None, release=None,
     # ADM check passed parameters don't exceed their bit-allowance
     # ADM and aren't negative numbers.
     for param, bitname in zip(inputs, bitnames):
-            msg = 'Invalid range when making targetid: {} '.format(bitname)
-            if not np.all(param < 2**targetid_mask[bitname].nbits):
-                msg += 'cannot exceed {}'.format(2**targetid_mask[bitname].nbits - 1)
-            if not np.all(param >= 0):
-                msg += 'cannot be negative'
-            if 'cannot' in msg:
-                log.critical(msg)
-                raise IOError(msg)
+        msg = 'Invalid range when making targetid: {} '.format(bitname)
+        if not np.all(param < 2**targetid_mask[bitname].nbits):
+            msg += 'cannot exceed {}'.format(2**targetid_mask[bitname].nbits - 1)
+        if not np.all(param >= 0):
+            msg += 'cannot be negative'
+        if 'cannot' in msg:
+            log.critical(msg)
+            raise IOError(msg)
 
     # ADM set up targetid as an array of 64-bit integers.
     targetid = np.zeros(nobjs, ('int64'))
