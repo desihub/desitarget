@@ -100,7 +100,7 @@ matrix:
     allow_failures:
         - os: osx
         - os: linux
-          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
+          env: PYTHON_VERSION=3.8 SETUP_CMD='test'
                ASTROPY_VERSION=stable NUMPY_VERSION=stable
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
@@ -114,7 +114,7 @@ matrix:
         # Note: this test is not a perfectly realistic test of ReadTheDocs
         # builds, which operate in a much more bare-bones environment
         - os: linux
-          env: PYTHON_VERSION=3.8 SETUP_CMD='build_sphinx --warning-is-error'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='build_sphinx --warning-is-error'
 
         # Try multiple python versions with the latest numpy
         # - os: linux
@@ -131,7 +131,7 @@ matrix:
                DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
+          env: PYTHON_VERSION=3.8 SETUP_CMD='test'
                ASTROPY_VERSION=stable NUMPY_VERSION=stable
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
