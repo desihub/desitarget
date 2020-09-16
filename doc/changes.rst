@@ -5,6 +5,8 @@ desitarget Change Log
 0.42.1 (unreleased)
 -------------------
 
+* Update Travis for Py3.8/Astropy 4.x (fixes `issue #639`_) [`PR #640`_].
+    * Also adds a useful script for recovering the QSO RF probabilities.
 * Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
     * Units for all output quantities are stored in `data/units.yaml`.
     * Unit tests check that output quantities have associated units.
@@ -12,7 +14,9 @@ desitarget Change Log
     * Also some more minor cleanup and speedups.
 
 .. _`issue #356`: https://github.com/desihub/desitarget/issues/356
+.. _`issue #639`: https://github.com/desihub/desitarget/issues/639
 .. _`PR #638`: https://github.com/desihub/desitarget/pull/638
+.. _`PR #640`: https://github.com/desihub/desitarget/pull/640
 
 0.42.0 (2020-08-17)
 -------------------
