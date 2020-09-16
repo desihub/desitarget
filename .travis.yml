@@ -100,7 +100,7 @@ matrix:
     allow_failures:
         - os: osx
         - os: linux
-          env: PYTHON_VERSION=3.8 SETUP_CMD='test'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
                ASTROPY_VERSION=stable NUMPY_VERSION=stable
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
@@ -125,13 +125,13 @@ matrix:
         #        DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.6 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=3.8 SETUP_CMD='test --coverage'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
                DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.8 SETUP_CMD='test'
+          env: PYTHON_VERSION=3.6 SETUP_CMD='test'
                ASTROPY_VERSION=stable NUMPY_VERSION=stable
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
