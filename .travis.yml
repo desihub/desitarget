@@ -106,7 +106,7 @@ matrix:
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
                DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
         - os: linux
-          env: PYTHON_VERSION=3.6 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
+          env: PYTHON_VERSION=3.8 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
     include:
 
@@ -114,7 +114,7 @@ matrix:
         # Note: this test is not a perfectly realistic test of ReadTheDocs
         # builds, which operate in a much more bare-bones environment
         - os: linux
-          env: PYTHON_VERSION=3.6 SETUP_CMD='build_sphinx --warning-is-error'
+          env: PYTHON_VERSION=3.8 SETUP_CMD='build_sphinx --warning-is-error'
 
         # Try multiple python versions with the latest numpy
         # - os: linux
@@ -184,7 +184,7 @@ matrix:
 
         # PEP 8 compliance.
         - os: linux
-          env: PYTHON_VERSION=3.6 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
+          env: PYTHON_VERSION=3.8 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
