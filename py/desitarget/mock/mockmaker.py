@@ -2129,7 +2129,7 @@ class ReadLyaCoLoRe(SelectTargets):
         from astropy import cosmology
         try:
             from simqso.sqbase import ContinuumKCorr
-            if sqmodel is 'default':
+            if sqmodel == 'default':
                 from simqso.sqmodels import BOSS_DR9_PLEpivot as model_PLEpivot
             else:
                 from desisim.scripts.lya_simqso_model import model_PLEpivot

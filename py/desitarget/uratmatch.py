@@ -24,6 +24,7 @@ import healpy as hp
 from desitarget.internal import sharedmem
 from desimodel.footprint import radec2pix
 from desitarget.geomask import add_hp_neighbors, radec_match_to
+from desitarget import io
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -42,7 +43,7 @@ uratdatamodel = np.array([], dtype=[
 ])
 
 
-def _get_urat_dir():
+def get_urat_dir():
     """Convenience function to grab the URAT environment variable.
 
     Returns
@@ -95,7 +96,7 @@ def scrape_urat(url="http://cdsarc.u-strasbg.fr/ftp/I/329/URAT1/v12/",
         - Runs in about 50 minutes for 575 URAT files.
     """
     # ADM check that the URAT_DIR is set and retrieve it.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM construct the directory to which to write files.
     bindir = os.path.join(uratdir, 'binary')
@@ -160,7 +161,7 @@ def urat_binary_to_csv():
         - Runs in about 40 minutes for 575 files.
     """
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM a quick check that the csv directory is empty before writing.
     csvdir = os.path.join(uratdir, 'csv')
@@ -220,7 +221,7 @@ def urat_csv_to_fits(numproc=5):
     nside = _get_urat_nside()
 
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
     log.info("running on {} processors".format(numproc))
 
     # ADM construct the directories for reading/writing files.
@@ -348,7 +349,7 @@ def urat_fits_to_healpix(numproc=5):
     nside = _get_urat_nside()
 
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM construct the directories for reading/writing files.
     fitsdir = os.path.join(uratdir, 'fits')
@@ -393,7 +394,7 @@ def urat_fits_to_healpix(numproc=5):
                 else:
                     done = np.hstack([done, objs[pix == pixnum]])
             # ADM construct the name of the output file.
-            outfilename = 'healpix-{:05d}.fits'.format(pixnum)
+            outfilename = io.hpx_filename(pixnum)
             outfile = os.path.join(hpxdir, outfilename)
             # ADM write out the file.
             hdr = fitsio.FITSHDR()
@@ -469,7 +470,7 @@ def make_urat_files(numproc=5, download=False):
     log.info('Begin making URAT files...t={:.1f}s'.format(time()-t0))
 
     # ADM check that the URAT_DIR is set.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
 
     # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
@@ -529,33 +530,12 @@ def find_urat_files(objs, neighbors=True, radec=False):
     nside = _get_urat_nside()
 
     # ADM check that the URAT_DIR is set and retrieve it.
-    uratdir = _get_urat_dir()
+    uratdir = get_urat_dir()
     hpxdir = os.path.join(uratdir, 'healpix')
 
-    # ADM which flavor of RA/Dec was passed.
-    if radec:
-        ra, dec = objs
-    else:
-        ra, dec = objs["RA"], objs["DEC"]
-
-    # ADM convert RA/Dec to co-latitude and longitude in radians.
-    theta, phi = np.radians(90-dec), np.radians(ra)
-
-    # ADM retrieve the pixels in which the locations lie.
-    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
-    # ADM if neighbors was sent, then retrieve all pixels that touch each
-    # ADM pixel covered by the provided locations, to prevent edge effects...
-    if neighbors:
-        pixnum = add_hp_neighbors(nside, pixnum)
-
-    # ADM reformat file names in the URAT healpix format.
-    uratfiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn))
-                 for pn in pixnum]
-
-    # ADM restrict to only files/HEALPixels actually covered by URAT.
-    uratfiles = [fn for fn in uratfiles if os.path.exists(fn)]
-
-    return uratfiles
+    # ADM remember to pass "strict", as URAT doesn't cover the whole sky.
+    return io.find_star_files(objs, hpxdir, nside, strict=True,
+                              neighbors=neighbors, radec=radec)
 
 
 def match_to_urat(objs, matchrad=1., radec=False):
@@ -576,7 +556,7 @@ def match_to_urat(objs, matchrad=1., radec=False):
     :class:`~numpy.ndarray`
         The matching URAT information for each object. The returned
         format is as for desitarget.uratmatch.uratdatamodel with
-        and extra column "URAT_SEP" which is the matching distance
+        an extra column "URAT_SEP" which is the matching distance
         in ARCSECONDS.
 
     Notes

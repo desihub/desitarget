@@ -26,8 +26,8 @@ from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import finalize
-from desitarget.io import brickname_from_filename
-from desitarget.gaiamatch import find_gaia_files
+from desitarget import io
+from desitarget.gaiamatch import find_gaia_files, gaia_dr_from_ref_cat
 from desitarget.geomask import is_in_gal_box, is_in_circle, is_in_hp
 
 # ADM the parallelization script.
@@ -113,7 +113,8 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
         else:
             # ADM hack for test bricks where we don't generate the bricks file.
             fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
-            bricknames.append([brickname_from_filename(fn) for fn in fns])
+            bricknames.append([io.brickname_from_filename(fn)
+                               for fn in fns])
 
     # ADM don't count bricks twice, but record number of duplicate bricks.
     bricknames, cnts = np.unique(np.concatenate(bricknames), return_counts=True)
@@ -258,8 +259,9 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     naps = len(apertures_arcsec)
     apcolindices = np.where(['FIBERFLUX' in colname for colname in dt.names])[0]
     desc = dt.descr
-    for i in apcolindices:
-        desc[i] += (naps,)
+    if naps > 1:
+        for i in apcolindices:
+            desc[i] += (naps,)
 
     # ADM set up a rec array to hold all of the output information.
     skies = np.zeros(nskies, dtype=desc)
@@ -373,7 +375,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
         - the brickid
         - the brickname
         - the x and y pixel positions of the fiber location from the blobs file
-        - the distance from the nearest blob of this fiber location
+        - the distance to the nearest blob at this fiber location
         - the RA and Dec positions of the fiber location
         - the aperture flux and ivar at the passed `apertures_arcsec`
 
@@ -739,6 +741,116 @@ def plot_good_bad_skies(survey, brickname, skies,
     plt.savefig(outplotname)
 
 
+def repartition_skies(skydirname, numproc=1):
+    """Rewrite a skies directory so each file actually only contains sky
+    locations in the HEALPixels that are listed in the file header.
+
+    Parameters
+    ----------
+    skydirname : :class:`str`
+        Full path to a directory containing files of skies that have been
+        partitioned by HEALPixel (i.e. as made by `select_skies` with the
+        `bundle_files` option).
+    numproc : :class:`int`, optional, defaults to 1
+        The number of processes over which to parallelize writing files.
+
+    Returns
+    -------
+    Nothing, but rewrites the input directory such that each file only
+    contains the HEALPixels listed in the file header.
+
+    Notes
+    -----
+        - Necessary as although the targets and GFAs are parallelized
+          to run in exact HEALPixel boundaries, skies are parallelized
+          across bricks that have CENTERS in a given HEALPixel.
+        - The original files, before the rewrite, are retained in the
+          original directory, appended by "-unpartitioned".
+        - Takes about 25 (6.5, 5, 3.5) minutes for numproc=1 (8, 16, 32).
+    """
+    log.info("running on {} processors".format(numproc))
+
+    # ADM grab the typical file header in the passed directory.
+    hdr = io.read_targets_header(skydirname)
+    # ADM remove the "standard" FITS header keys.
+    protected = ["TFORM", "TTYPE", "EXTNAME", "XTENSION", "BITPIX", "NAXIS",
+                 "PCOUNT", "GCOUNT", "TFIELDS"]
+    hdrdict = {key: hdr[key] for key in hdr.keys()
+               if not np.any([prot in key for prot in protected])}
+
+    # ADM grab the typical nside for files in the passed directory.
+    nside = hdr["FILENSID"]
+    hps = np.arange(hp.nside2npix(nside))
+
+    # ADM grab the Data Release number for files in the passed directory.
+    depdict = {k: v for k, v in zip(
+        [hdr[key].rstrip() for key in hdr if 'DEPNAM' in key],
+        [hdr[key].rstrip() for key in hdr if 'DEPVER' in key])}
+    drint = depdict['photcat'].lstrip("dr")
+
+    # ADM each element of this array will be a HEALPixel, each HEALPixel
+    # ADM will contain a dictionary with file names as keys and arrays of
+    # ADM which rows of the file are in the HEALPixel as values.
+    pixorderdict = [{} for pix in hps]
+
+    # ADM loop over the files in the sky directory and build the info.
+    skyfiles = glob(os.path.join(skydirname, '*fits'))
+    for skyfile in skyfiles:
+        # ADM rename the sky file so as not to overwrite.
+        sfnewname = skyfile+"-unpartitioned"
+        os.rename(skyfile, sfnewname)
+        data, hdr = io.read_target_files(sfnewname, columns=["RA", "DEC"],
+                                         header=True, verbose=False)
+        theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
+        pixinfile = hp.ang2pix(nside, theta, phi, nest=hdr["FILENEST"])
+        spixinfile = set(pixinfile)
+        for pix in spixinfile:
+            pixorderdict[pix][sfnewname] = np.where(pixinfile == pix)[0]
+        log.info("Read from (file NOW called) {}...t={:.1f}s".format(
+            sfnewname, time()-start))
+
+    def _write_hp_skies(healpixels):
+        """Use pixorderdict to write files partitioned by HEALPixel.
+        """
+        for pix in healpixels:
+            # ADM copy the header to avoid race conditions.
+            newhdr = hdrdict.copy()
+            skies = []
+            if len(pixorderdict[pix]) > 0:
+                for fn in pixorderdict[pix]:
+                    skies.append(fitsio.read(fn, rows=pixorderdict[pix][fn]))
+                skies = np.concatenate(skies)
+                # ADM the header entry corresponding to the pixel number
+                # ADM needs to be updated.
+                newhdr['FILEHPX'] = pix
+
+                # ADM get the appropriate file name and write out.
+                outfile = io.find_target_files(skydirname, drint, flavor="skies",
+                                               hp=pix, nside=nside)
+                # ADM the file name has likely been passed through
+                # ADM find_target_files() already (which adds "/skies").
+                outfile = outfile.replace("skies/skies", "skies")
+                fitsio.write(outfile+'.tmp', skies, extname='SKY_TARGETS',
+                             header=newhdr, clobber=True)
+                os.rename(outfile+'.tmp', outfile)
+                log.info('{} skies written to {}...t={:.1f}s'.format(
+                    len(skies), outfile, time()-start))
+        return
+
+    # ADM split the pixels up into blocks of arrays to parallelize.
+    hpsplit = np.array_split(hps, numproc)
+
+    # ADM Parallel process writing of HEALPixel-partitioned files.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            skies = pool.map(_write_hp_skies, hpsplit)
+    else:
+        _write_hp_skies(hpsplit[0])
+
+    return
+
+
 def get_supp_skies(ras, decs, radius=2.):
     """Random locations, avoid Gaia, format, return supplemental skies.
 
@@ -782,7 +894,8 @@ def get_supp_skies(ras, decs, radius=2.):
     # ADM add the brickid and name.
     supsky["BRICKID"] = bricks.brickid(ras[good], decs[good])
     supsky["BRICKNAME"] = bricks.brickname(ras[good], decs[good])
-    supsky["BLOBDIST"] = 2.
+    # ADM BLOBDIST is in ~Legacy Surveys pixels, with scale 0.262 "/pix.
+    supsky["BLOBDIST"] = radius/0.262
     # ADM set all fluxes and IVARs to -1, so they're ill-defined.
     for name in skydatamodel.dtype.names:
         if "FLUX" in name:
@@ -847,19 +960,23 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
     nsidegaia = hdr["HPXNSIDE"]
 
+    # ADM determine the Gaia Data Release.
+    ref_cat = fitsio.read(anyfiles[0], rows=0, columns="REF_CAT")
+    gdr = gaia_dr_from_ref_cat(ref_cat)[0]
+
     # ADM create a set of random locations accounting for mindec.
     log.info("Generating supplemental sky locations at Dec > {}o...t={:.1f}s"
              .format(mindec, time()-start))
     from desitarget.randoms import randoms_in_a_brick_from_edges
     ras, decs = randoms_in_a_brick_from_edges(
-        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False, seed=538)
+        0., 360., mindec, 90., density=nskiespersqdeg, wrap=False, seed=414)
 
-    # ADM limit randoms by HEALPixel, if requested.
+    # ADM limit random locations by HEALPixel, if requested.
     if pixlist is not None:
         inhp = is_in_hp([ras, decs], nside, pixlist, radec=True)
         ras, decs = ras[inhp], decs[inhp]
 
-    # ADM limit randoms by mingalb.
+    # ADM limit random locations by mingalb.
     log.info("Generated {} sky locations. Limiting to |b| > {}o...t={:.1f}s"
              .format(len(ras), mingalb, time()-start))
     bnorth = is_in_gal_box([ras, decs], [0, 360, mingalb, 90], radec=True)
@@ -942,7 +1059,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
-    supp = finalize(supp, desi_target, dum, dum, sky=True)
+    supp = finalize(supp, desi_target, dum, dum, sky=True, gdr=gdr)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 

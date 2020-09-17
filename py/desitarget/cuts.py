@@ -23,6 +23,7 @@ import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
 import numpy.lib.recfunctions as rfn
+from importlib import import_module
 
 from astropy.table import Table, Row
 
@@ -35,7 +36,6 @@ from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
-
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -1251,21 +1251,34 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return qso
 
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
-                       gnobs=None, rnobs=None, znobs=None,
-                       deltaChi2=None, maskbits=None, primary=None, south=True):
-    """Definition of QSO target classes from a Random Forest. Returns a boolean array.
+                       gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
+                       primary=None, south=True, return_probs=False):
+    """Define QSO targets from a Random Forest. Returns a boolean array.
 
     Parameters
     ----------
     south : :class:`boolean`, defaults to ``True``
-        If ``False``, shift photometry to the Northern (BASS/MzLS) imaging system.
+        If ``False``, shift photometry to the Northern (BASS/MzLS)
+        imaging system.
+    return_probs : :class:`boolean`, defaults to ``False``
+        If ``True``, return the QSO/high-z QSO probabilities in addition
+        to the QSO target booleans. Only coded up for DR8 or later of the
+        Legacy Surveys. Will return arrays of zeros for earlier DRs.
 
     Returns
     -------
     :class:`array_like`
         ``True`` for objects that are Random Forest quasar targets.
+    :class:`array_like`
+        ``True`` for objects that are high-z RF quasar targets.
+    :class:`array_like`
+        The (float) probability that a target is a quasar. Only returned
+        if `return_probs` is ``True``.
+    :class:`array_like`
+        The (float) probability that a target is a high-z quasar. Only
+        returned if `return_probs` is ``True``.
 
     Notes
     -----
@@ -1313,6 +1326,12 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
 
     # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
+    # ADM to specifically store the selection from the "HighZ" RF.
+    qsohiz = np.copy(preSelection)
+
+    # ADM these store the probabilities, should they need returned.
+    pqso = np.zeros_like(qso, dtype='>f4')
+    pqsohiz = np.zeros_like(qso, dtype='>f4')
 
     if np.any(preSelection):
 
@@ -1349,8 +1368,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
                             0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
+            # ADM no high-z selection for DR3.
+            qsohiz &= False
 
-        tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced<8000)
+        tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced < 8000)
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
@@ -1375,6 +1396,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
+            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_HighZ_proba >= pcut_HighZ)
 
         tmpReleaseOK = releaseReduced >= 8000
         if np.any(tmpReleaseOK):
@@ -1397,13 +1421,26 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
+            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM store the probabilities in case they need returned.
+            pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
+            # ADM populate a mask specific to the "HighZ" selection.
+            pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
 
-    # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "~numpy.ndarray"
+    # In case of call for a single object passed to the function with
+    # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
     if nbEntries == 1:
         qso = qso[0]
+        qsohiz = qsohiz[0]
+        pqso = pqso[0]
+        pqsohiz = pqsohiz[0]
 
-    return qso
+    # ADM if requested, return the probabilities as well.
+    if return_probs:
+        return qso, qsohiz, pqso, pqsohiz
+    return qso, qsohiz
 
 
 def _psflike(psftype):
@@ -1591,9 +1628,12 @@ def _prepare_optical_wise(objects, mask=True):
     deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
 
     # ADM remove handful of NaN values from DCHISQ values and make them unselectable.
-    w = np.where(deltaChi2 != deltaChi2)
-    # ADM this is to catch the single-object case for unit tests.
-    if len(w[0]) > 0:
+    # SJB support py3.8 + np1.18 for both scalars and vectors
+    if np.isscalar(deltaChi2):
+        if np.isnan(deltaChi2):
+            deltaChi2 = -1e6
+    else:
+        w = np.isnan(deltaChi2)
         deltaChi2[w] = -1e6
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
@@ -1833,9 +1873,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         # ADM only northern it will be [False], else it wil be both.
         south_cuts = list(set(np.atleast_1d(photsys_south)))
 
+    # ADM default for target classes we WON'T process is all False.
+    tcfalse = primary & False
+
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [~primary, ~primary]
+    lrg_classes = [tcfalse, tcfalse]
     if "LRG" in tcnames:
         for south in south_cuts:
             lrg_classes[int(south)] = isLRG(
@@ -1847,12 +1890,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             )
     lrg_north, lrg_south = lrg_classes
 
-    # ADM combine LRG target bits for an LRG target based on any imaging
+    # ADM combine LRG target bits for an LRG target based on any imaging.
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    elg_classes = [~primary, ~primary]
+    elg_classes = [tcfalse, tcfalse]
     if "ELG" in tcnames:
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
@@ -1868,12 +1911,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    qso_classes = [~primary, ~primary]
+    qso_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
     if "QSO" in tcnames:
         for south in south_cuts:
             if qso_selection == 'colorcuts':
                 # ADM determine quasar targets in the north and the south separately
-                qso_classes[int(south)] = isQSO_cuts(
+                # ADM the [0] here is critical as isQSO_cuts only returns one bit
+                # ADM and the other bit (which is the "high-z" bit from the Random
+                # ADM Forest needs to be set to all "False".
+                qso_classes[int(south)][0] = isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
                     deltaChi2=deltaChi2, maskbits=maskbits,
@@ -1892,14 +1938,16 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             else:
                 raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
                     qso_selection, qso_selection_options))
-    qso_north, qso_south = qso_classes
+    qso_north, qso_hiz_north = qso_classes[0]
+    qso_south, qso_hiz_south = qso_classes[1]
 
-    # ADM combine quasar target bits for a quasar target based on any imaging
+    # ADM combine QSO targeting bits for a QSO selected in any imaging.
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
+    qsohiz = (qso_hiz_north & photsys_north) | (qso_hiz_south & photsys_south)
 
     # ADM initially set everything to arrays of False for the BGS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    bgs_classes = [[~primary, ~primary, ~primary], [~primary, ~primary, ~primary]]
+    bgs_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
     # ADM set the BGS bits
     if "BGS" in tcnames:
         for south in south_cuts:
@@ -1921,7 +1969,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_bright_north, bgs_faint_north, bgs_wise_north = bgs_classes[0]
     bgs_bright_south, bgs_faint_south, bgs_wise_south = bgs_classes[1]
 
-    # ADM combine BGS targeting bits for a BGS selected in any imaging
+    # ADM combine BGS targeting bits for a BGS selected in any imaging.
     bgs_bright = (bgs_bright_north & photsys_north) | (bgs_bright_south & photsys_south)
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
     bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
@@ -1929,18 +1977,25 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM 10% of the BGS_FAINT sources need the BGS_FAINT_HIP bit set.
     # ADM form a seed using RA/Dec in case we parallelized by HEALPixel.
     # SJB seeds must be within 0 - 2**32-1
+    # SJB np1.18 scalar vs. vector support, but note that HIP won't be
+    #     set identically for vector vs. calling scalar N times.
     uniqseed = int(np.mean(zflux)*1e5) % (2**32 - 1)
     np.random.seed(uniqseed)
-    w = np.where(bgs_faint)[0]
-    nbgsf = len(w)
     hip = None
-    if nbgsf > 0:
-        hip = np.random.choice(w, nbgsf//10, replace=False)
+    if np.isscalar(bgs_faint):
+        if bgs_faint:
+            nbgsf = 1
+            hip = np.random.uniform(0, 1) < 0.1
+    else:
+        w = np.where(bgs_faint)[0]
+        nbgsf = len(w)
+        if nbgsf > 0:
+            hip = np.random.choice(w, nbgsf//10, replace=False)
 
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    mws_classes = [[~primary, ~primary, ~primary], [~primary, ~primary, ~primary]]
-    mws_nearby = ~primary
+    mws_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
+    mws_nearby = tcfalse
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
@@ -1961,7 +2016,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM treat the MWS WD selection specially, as we have to run the
     # ADM white dwarfs for standards and MWS science targets.
-    mws_wd = ~primary
+    mws_wd = tcfalse
     if "MWS" in tcnames or "STD" in tcnames:
         mws_wd = isMWS_WD(
             gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
@@ -1972,7 +2027,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         )
 
     # ADM initially set everything to False for the standards.
-    std_faint, std_bright, std_wd = ~primary, ~primary, ~primary
+    std_faint, std_bright, std_wd = tcfalse, tcfalse, tcfalse
     if "STD" in tcnames:
         # ADM run the MWS_MAIN target types for both faint and bright.
         # ADM Make sure to pass all of the needed columns! At one point we stopped
@@ -2014,6 +2069,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= qso * desi_mask.QSO
+    desi_target |= qsohiz * desi_mask.QSO_HIZ
 
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
@@ -2023,20 +2079,26 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # BGS targets, south.
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
-    bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
+    # ADM turn off BGS_WISE until we're sure we'll use it.
+    # bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
     # BGS targets, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
-    bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
+    # ADM turn off BGS_WISE until we're sure we'll use it.
+    # bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
 
     # BGS targets, combined.
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
-    bgs_target |= bgs_wise * bgs_mask.BGS_WISE
+    # ADM turn off BGS_WISE until we're sure we'll use it.
+    # bgs_target |= bgs_wise * bgs_mask.BGS_WISE
     # ADM set 10% of the BGS_FAINT targets to BGS_FAINT_HIP.
     if hip is not None:
-        bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
+        if hip is True:
+            bgs_target |= bgs_mask.BGS_FAINT_HIP
+        else:
+            bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws_broad * mws_mask.MWS_BROAD
@@ -2098,19 +2160,27 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
         - Only run on Gaia-only target selections.
         - The environment variable $GAIA_DIR must be set.
 
-    See desitarget.sv1.sv1_targetmask.desi_mask
-    and desitarget.targetmask.desi_mask for bit definitions.
+    See desitarget.svX.svX_targetmask.desi_mask or
+    desitarget.targetmask.desi_mask for bit definitions.
     """
     # ADM set different bits based on whether we're using the main survey
     # code or an iteration of SV.
     if survey == 'main':
         import desitarget.cuts as targcuts
         from desitarget.targetmask import desi_mask, mws_mask
-    elif survey == 'sv1':
-        import desitarget.sv1.sv1_cuts as targcuts
-        from desitarget.sv1.sv1_targetmask import desi_mask, mws_mask
+    elif survey[:2] == 'sv':
+        try:
+            targcuts = import_module("desitarget.{}.{}_cuts".format(survey, survey))
+            targmask = import_module("desitarget.{}.{}_targetmask".format(
+                survey, survey))
+        except ModuleNotFoundError:
+            msg = 'Bitmask yaml or cuts do not exist for survey type {}'.format(
+                survey)
+            log.critical(msg)
+            raise ModuleNotFoundError(msg)
+        desi_mask, mws_mask = targmask.desi_mask, targmask.mws_mask
     else:
-        msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
+        msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
@@ -2260,10 +2330,10 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # code or an iteration of SV.
     if survey == 'main':
         import desitarget.cuts as targcuts
-    elif survey == 'sv1':
-        import desitarget.sv1.sv1_cuts as targcuts
+    elif survey[:2] == 'sv':
+        targcuts = import_module("desitarget.{}.{}_cuts".format(survey, survey))
     else:
-        msg = "survey must be either 'main'or 'sv1', not {}!!!".format(survey)
+        msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
@@ -2474,11 +2544,11 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if nbrick % 50 == 0 and nbrick > 0:
+        if nbrick % 20 == 0 and nbrick > 0:
             elapsed = time() - t0
             rate = elapsed / nbrick
-            log.info('{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
-                     .format(nbrick, rate, elapsed/60.))
+            log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
+                     .format(nbrick, len(infiles), rate, elapsed/60.))
 
         nbrick[...] += 1    # this is an in-place modification
         return result

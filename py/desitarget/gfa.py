@@ -430,9 +430,14 @@ def add_urat_pms(objs, numproc=4):
         for splitobj in splitobjs:
             urats.append(_update_status(_get_urat_matches(splitobj)))
 
-    # ADM remember to grab the REFIDs as well as the URAT matches.
-    refids = np.concatenate(np.array(urats)[:, 1])
-    urats = np.concatenate(np.array(urats)[:, 0])
+    # ADM remember to grab the REFIDs as well as the URAT matches...and
+    # ADM to catch the corner case where objects occupy only one pixel.
+    if len(urats) == 1:
+        refids = urats[0][1]
+        urats = urats[0][0]
+    else:
+        refids = np.concatenate(np.array(urats, dtype=object)[:, 1])
+        urats = np.concatenate(np.array(urats, dtype=object)[:, 0])
 
     # ADM sort the output to match the input, on REF_ID.
     ii = np.zeros_like(refids)

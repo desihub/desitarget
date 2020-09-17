@@ -5,12 +5,13 @@
 desitarget.geomask
 ==================
 
-Utility functions for restricting targets to regions on the sky
+Utility functions for geometry on the sky, masking, etc.
 
 """
 from __future__ import (absolute_import, division)
 #
 import numpy as np
+import os
 import fitsio
 from time import time
 
@@ -538,7 +539,6 @@ def sphere_circle_ra_off(theta, centdec, declocs):
           in theta from -90o->90o, which corresponds to offsets in the POSITIVE RA direction. The user must determine
           which offsets are to the negative side of the circle, or call this function twice.
     """
-
     # ADM convert the input angles from degrees to radians
     # ADM cast theta as float 64 to help deal with the cosine of very small angles
     thetar = np.radians(theta).astype('<f8')
@@ -580,60 +580,63 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
         The Declinations of nloc equally space locations on the periphery
             of the mask
     """
-
-    # ADM the radius of each mask in degrees with a 0.1% kick to get things beyond the mask edges
+    # ADM radius in degrees with a 0.1% kick to push beyond the edge.
     radius = 1.001*r/3600.
 
-    # ADM determine nloc Dec offsets equally spaced around the perimeter for each mask
-    offdec = [rad*np.sin(np.arange(ns)*2*np.pi/ns) for ns, rad in zip(nloc, radius)]
+    # ADM nloc Dec offsets equally spaced around the circle perimeter.
+    offdec = np.array([rad*np.sin(np.arange(ns)*2*np.pi/ns)
+                       for ns, rad in zip(nloc, radius)]).transpose()
 
-    # ADM use offsets to determine DEC positions
+    # ADM use offsets to determine DEC positions.
     decs = DECcens + offdec
 
-    # ADM determine the offsets in RA at these Decs given the mask center Dec
-    offrapos = [sphere_circle_ra_off(th, cen, declocs) for th, cen, declocs in zip(radius, DECcens, decs)]
+    # ADM offsets in RA at these Decs given the mask center Dec.
+    offrapos = [sphere_circle_ra_off(th, cen, declocs)
+                for th, cen, declocs in zip(radius, DECcens, decs.transpose())]
 
-    # ADM determine which of the RA offsets are in the positive direction
+    # ADM determine which RA offsets are in the positive direction.
     sign = [np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in nloc]
 
-    # ADM determine the RA offsets with the appropriate sign and add them to the RA of each mask
-    offra = [o*s for o, s in zip(offrapos, sign)]
+    # ADM add RA offsets with the right sign to the the circle center.
+    offra = np.array([o*s for o, s in zip(offrapos, sign)]).transpose()
     ras = RAcens + offra
 
-    # ADM have to turn the generated locations into 1-D arrays before returning them
+    # ADM return the results as 1-D arrays.
     return np.hstack(ras), np.hstack(decs)
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=True, surveydirs=None, extra=None, seed=None):
+                  gather=False, surveydirs=None, extra=None, seed=None):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
     ----------
     pixnum : :class:`np.array`
-        List of integers, e.g., HEALPixel numbers occupied by a set of bricks
-        (e.g. array([16, 16, 16...12 , 13, 19]) ).
+        List of integers, e.g., HEALPixel numbers occupied by a set of
+        bricks (e.g. array([16, 16, 16...12 , 13, 19]) ).
     maxpernode : :class:`int`
-        The maximum number of pixels to bundle together (e.g., if you were
-        trying to pass maxpernode bricks, delineated by the HEALPixels they
+        The maximum number of pixels to bundle (e.g., if you were trying
+        to pass `maxpernode` bricks, delineated by the HEALPixels they
         occupy, parallelized across a set of nodes).
     nside : :class:`int`
-        The HEALPixel nside number that was used to generate `pixnum` (NESTED scheme).
+        The HEALPixel nside number thaat was used to generate `pixnum`
+        (NESTED scheme).
     brickspersec : :class:`float`, optional, defaults to 1.
-        The rough number of bricks processed per second by the code (parallelized across
-        a chosen number of nodes)
+        The rough number of bricks processed per second by the code
+        (parallelized across a chosen number of nodes)
     prefix : :class:`str`, optional, defaults to 'targets'
         Corresponds to the executable "X" that is run as select_X for a
         target type. This could be 'randoms', 'skies', 'targets', 'gfas'.
         Also, 'supp-skies' can be passed to cover supplemental skies.
-    gather : :class:`bool`, optional, defaults to ``True``
-        If ``True`` then provide a final command for combining all of the HEALPix-split
-        files into one large file. If ``False``, do not provide that command.
+    gather : :class:`bool`, optional, defaults to ``False``
+        If ``True`` add a command to combine all the HEALPix-split files
+        into one large file. If ``False``, do not provide that command.
+        ONLY creates correct file names to gather RANDOMS files!
     surveydirs : :class:`list`
-        Root directories for a Legacy Surveys Data Release. The first element of the
-        list is interpreted as the main directory. IF the list is of length two
-        then the second directory is supplied as "-s2" in the output script.
-        (e.g. ["/global/project/projectdirs/cosmo/data/legacysurvey/dr6"]).
+        Root directories for a Legacy Surveys Data Release. Item 1 is
+        used as the main directory. IF the list is length-2 then the
+        second directory is added as "-s2" in the output script (e.g.
+        ["/global/project/projectdirs/cosmo/data/legacysurvey/dr6"]).
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script.
@@ -642,19 +645,19 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     Returns
     -------
-    Nothing, but prints commands to screen that would facilitate running a
-    set of bricks by HEALPixel integer with the total number of bricks not
-    to exceed maxpernode. Also prints how many bricks would be on each node.
+    Nothing, but prints commands that would facilitate running a set of
+    bricks by HEALPixel integer with the total number of bricks not to
+    exceed `maxpernode`. Also prints total bricks on each node.
 
     Notes
     -----
     h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
     """
     # ADM interpret the passed directories.
-    surveydir = surveydirs[0]
+    surveydir = os.path.normpath(surveydirs[0])
     surveydir2 = None
     if len(surveydirs) == 2:
-        surveydir2 = surveydirs[1]
+        surveydir2 = os.path.normpath(surveydirs[1])
 
     # ADM the number of pixels (numpix) in each pixel (pix).
     pix, numpix = np.unique(pixnum, return_counts=True)
@@ -763,7 +766,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     except ValueError:
         drstr = ""
 
-    # ADM to handle inputs that look like "sv1_targets".
+    # ADM to handle inputs that look like "svX_targets".
     prefix2 = prefix
     if prefix[0:2] == "sv":
         prefix2 = "sv_targets"
@@ -777,8 +780,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         cmd = "supplement"
         prefix2 = "skies"
 
-    outfiles = []
-    from desitarget.io import _check_hpx_length
+    from desitarget.io import _check_hpx_length, find_target_files
+
+    pixtracker = []
     for bin in bins:
         num = np.array(bin)[:, 0]
         pix = np.array(bin)[:, 1]
@@ -789,13 +793,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             # ADM check that we won't overwhelm the pixel scheme.
             _check_hpx_length(goodpix)
             strgoodpix = ",".join([str(pix) for pix in goodpix])
-            # ADM the replace is to handle inputs that look like "sv1_targets".
-            outfile = "$CSCRATCH/{}/{}{}-hp-{}.fits".format(
-                prefix2, prefix.replace("_", "-"), drstr, strgoodpix)
-            # ADM random catalogs have an additional seed in their file name.
-            if prefix == 'randoms':
-                outfile = outfile.replace(".fits", "-{}.fits".format(seed))
-            outfiles.append(outfile)
+            pixtracker.append(strgoodpix)
             if extra is not None:
                 strgoodpix += extra
             print("srun -N 1 {}_{} {} $CSCRATCH {} --nside {} --healpixels {} &"
@@ -803,19 +801,22 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print("wait")
     print("")
     if gather:
-        if prefix == 'randoms':
-            for region in "resolve/", "noresolve/north/", "noresolve/south/":
-                routfiles = [outfile.replace("randoms/", "randoms/{}".format(
-                    region)) for outfile in outfiles]
-                print("")
-                print(
-                    "gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
-                        ";".join(routfiles), prefix, drstr,
-                        prefix2.split("_")[-1]))
-        else:
-            print("gather_targets '{}' $CSCRATCH/{}{}.fits {}".format(
-                # ADM prefix2 handles inputs that look like "sv1_targets".
-                ";".join(outfiles), prefix, drstr, prefix2.split("_")[-1]))
+        ddrr = drstr.replace("-", "")
+        for resolve, region, skip in zip([True, False, False],
+                                         [None, "north", "south"],
+                                         ["", "--skip", "--skip"]):
+            outfiles = []
+            for pix in pixtracker:
+                outfn = find_target_files(
+                    "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, hp=pix,
+                    resolve=resolve, region=region)
+                outfiles.append(outfn)
+            outfn = find_target_files(
+                "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
+                resolve=resolve, region=region)
+            print("")
+            print("gather_targets '{}' {} {} {}".format(
+                ";".join(outfiles), outfn, prefix2.split("_")[-1], skip))
         print("")
 
     return
@@ -835,6 +836,8 @@ def add_hp_neighbors(nside, pixnum):
     -------
     :class:`list`
         The passed list of pixels with all neighbors added to the list.
+        Only unique pixels are returned, so any duplicate integers in
+        the passed `pixnum` are removed.
 
     Notes
     -----
@@ -863,7 +866,7 @@ def add_hp_neighbors(nside, pixnum):
     return pixnum
 
 
-def brick_names_touch_hp(nside, numproc=1):
+def brick_names_touch_hp(nside, numproc=1, fact=2**20):
     """Determine which of a set of brick names touch a set of HEALPixels.
 
     Parameters
@@ -872,6 +875,8 @@ def brick_names_touch_hp(nside, numproc=1):
         (NESTED) HEALPixel nside.
     numproc : :class:`int`, optional, defaults to 1
         The number of parallel processes to use.
+    fact : :class:`int`, optional defaults to 2**20
+        see documentation for `healpy.query_polygon()`.
 
     Returns
     -------
@@ -883,8 +888,10 @@ def brick_names_touch_hp(nside, numproc=1):
 
     Notes
     -----
-        - Runs in about 65 (10) seconds for numproc=1 (32) at nside=2.
-        - Runs in about 325 (20) seconds for numproc=1 (32) at nside=64.
+        - Runs in ~65 (10) secs for numproc=1 (32) at nside=2 (fact=4).
+        - Runs in ~325 (20) secs for numproc=1 (32) at nside=64 (fact=4).
+        - Takes ~2x as long at the default fact=2**20 compared to fact=4,
+          but fact=2**20 returns far fewer bricks for small `nside`.
     """
     t0 = time()
     # ADM grab the standard table of bricks.
@@ -895,7 +902,7 @@ def brick_names_touch_hp(nside, numproc=1):
         a look-up dictionary of which pixels touch each brick"""
 
         lookupdict = {bt["BRICKNAME"]: hp_in_box(
-            nside, [bt["RA1"], bt["RA2"], bt["DEC1"], bt["DEC2"]]
+            nside, [bt["RA1"], bt["RA2"], bt["DEC1"], bt["DEC2"]], fact=fact
         ) for bt in bricktable[indexes]}
 
         return lookupdict
@@ -1010,14 +1017,14 @@ def hp_in_box(nside, radecbox, inclusive=True, fact=4):
           defines the range as that with the smallest area (i.e the box
           can wrap-around in RA). To avoid any ambiguity, this function
           will only limit by the passed Decs in such cases.
-        - Only strictly correct for Decs from -90+1e-5(o) to 90-1e5(o).
+        - Only strictly correct for Decs from -90+1e-3(o) to 90-1e3(o).
     """
     ramin, ramax, decmin, decmax = radecbox
 
     # ADM area enclosed isn't well-defined if RA covers more than 180o.
     if np.abs(ramax-ramin) <= 180.:
-        # ADM retrieve RA range. The 1e-5 prevents edge effects near poles.
-        npole, spole = 90-1e-5, -90+1e-5
+        # ADM retrieve RA range. The 1e-3 prevents edge effects near poles.
+        npole, spole = 90-1e-3, -90+1e-3
         # ADM convert RA/Dec to co-latitude and longitude in radians.
         rapairs = np.array([ramin, ramin, ramax, ramax])
         decpairs = np.array([spole, npole, npole, spole])
@@ -1241,7 +1248,7 @@ def is_in_hp(objs, nside, pixlist, radec=False):
         Array of objects. Must include at columns "RA" and "DEC".
     nside : :class:`int`
         The HEALPixel nside number (NESTED scheme).
-    pixlist : :class:`list` or `~numpy.ndarray`
+    pixlist : :class:`list` or `int` or `~numpy.ndarray`
         The list of HEALPixels in which to find objects.
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` `objs` is an [RA, Dec] list instead of a rec array.
@@ -1251,6 +1258,9 @@ def is_in_hp(objs, nside, pixlist, radec=False):
     :class:`~numpy.ndarray`
         ``True`` for objects in pixlist, ``False`` for other objects.
     """
+    # ADM if an integer is passed, convert it to an array.
+    pixlist = np.atleast_1d(pixlist)
+
     if radec:
         ra, dec = objs
     else:
@@ -1487,3 +1497,112 @@ def radec_match_to(matchto, objs, sep=1., radec=False, return_sep=False):
         return idmatchto[ii], idobjs[ii], d2d[ii].arcsec
 
     return idmatchto[ii], idobjs[ii]
+
+
+def rewind_coords(ranow, decnow, pmra, pmdec,
+                  epochnow=2015.5, epochnowdec=None,
+                  epochpast=1991.5, epochpastdec=None):
+    """Shift coordinates into the past based on proper motions.
+
+    Parameters
+    ----------
+    ranow : :class:`flt` or `~numpy.ndarray`
+        Right Ascension (degrees) at "current" epoch.
+    decnow : :class:`flt` or `~numpy.ndarray`
+        Declination (degrees) at "current" epoch.
+    pmra : :class:`flt` or `~numpy.ndarray`
+        Proper motion in RA (mas/yr).
+    pmdec : :class:`flt` or `~numpy.ndarray`
+        Proper motion in Dec (mas/yr).
+    epochnow : :class:`flt` or `~numpy.ndarray`, optional
+        The "current" epoch (years). Defaults to Gaia DR2 (2015.5).
+    epochnowdec : :class:`flt` or `~numpy.ndarray`, optional
+        If passed and not ``None`` then epochnow is interpreted as the
+        epoch of the RA and this is interpreted as the epoch of the Dec.
+    epochpast : :class:`flt` or `~numpy.ndarray`, optional
+        Epoch in the past (years). Defaults to Tycho DR2 mean (1991.5).
+    epochpastdec : :class:`flt` or `~numpy.ndarray`, optional
+        If passed and not ``None`` then epochpast is interpreted as the
+        epoch of the RA and this is interpreted as the epoch of the Dec.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Right Ascension in the past (degrees).
+    :class:`~numpy.ndarray`
+        Declination in the past (degrees).
+
+    Notes
+    -----
+        - All output RAs will be in the range 0 < RA < 360o.
+        - Only called "rewind_coords" to correspond to the default
+          `epochnow` > `epochpast`. "fast forwarding" works fine, too,
+          i.e., you can pass `epochpast` > `epochnow` to move coordinates
+          to a future epoch.
+        - Inaccurate to ~0.1" for motions as high as ~10"/yr (Barnard's
+          Star) after ~200 years because of the simplified cosdec term.
+    """
+    # ADM allow for different RA/Dec coordinates.
+    if epochnowdec is None:
+        epochnowdec = epochnow
+    if epochpastdec is None:
+        epochpastdec = epochpast
+
+    # ADM enforce "double-type" precision for RA/Dec floats.
+    if isinstance(ranow, float):
+        ranow = np.array([ranow], dtype='f8')
+    if isinstance(decnow, float):
+        decnow = np.array([decnow], dtype='f8')
+
+    # ADM "rewind" coordinates.
+    cosdec = np.cos(np.deg2rad(decnow))
+    ra = ranow - ((epochnow-epochpast) * pmra / 3600. / 1000. / cosdec)
+    dec = decnow - ((epochnowdec-epochpastdec) * pmdec / 3600. / 1000.)
+
+    # ADM % 360. is to deal with wraparound bugs.
+    return ra % 360., dec
+
+
+def shares_hp(nside, objs1, objs2, radec=False):
+    """Check if arrays of objects occupy the same HEALPixels.
+
+    Parameters
+    ----------
+    nside : :class:`int`
+        HEALPixel nside integer (NESTED scheme).
+    objs1 : :class:`~numpy.ndarray` or `list`
+        First set of objects. Must include columns "RA" and "DEC".
+    objs : :class:`~numpy.ndarray` or `list`
+        Second set of objects. Must include "RA" and "DEC".
+    radec : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then `objs1` and `objs2` are [RA, Dec] lists
+        instead of rec arrays.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray` (of booleans)
+        ``True`` for objects in `objs1` that share a HEALPixel with
+         objects in ``objs2`` at `nside`. Same length as `objs1`
+    :class:`~numpy.ndarray` (of booleans)
+        ``True`` for objects in `objs2` that share a HEALPixel with
+         objects in ``objs1`` at `nside`. Same length as `objs2`
+    """
+    if radec:
+        ra1, dec1 = objs1
+        ra2, dec2 = objs2
+    else:
+        ra1, dec1 = objs1["RA"], objs1["DEC"]
+        ra2, dec2 = objs2["RA"], objs2["DEC"]
+
+    theta1, phi1 = np.radians(90-dec1), np.radians(ra1)
+    pix1 = hp.ang2pix(nside, theta1, phi1, nest=True)
+    spix1 = set(pix1)
+
+    theta2, phi2 = np.radians(90-dec2), np.radians(ra2)
+    pix2 = hp.ang2pix(nside, theta2, phi2, nest=True)
+    spix2 = set(pix2)
+
+    one = np.array([pix in spix2 for pix in pix1])
+    two = np.array([pix in spix1 for pix in pix2])
+
+    return one, two

@@ -10,19 +10,12 @@ from astropy.table import Table
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask
 from desitarget.targets import calc_priority, main_cmx_or_sv
 from desitarget.targets import initial_priority_numobs
-from desitarget.mtl import make_mtl
+from desitarget.mtl import make_mtl, mtldatamodel
 
 
 class TestPriorities(unittest.TestCase):
 
     def setUp(self):
-        targdtype = [
-            ('DESI_TARGET', np.int64),
-            ('BGS_TARGET', np.int64),
-            ('MWS_TARGET', np.int64),
-            ('PRIORITY_INIT', np.int64),
-            ('NUMOBS_INIT', np.int64)
-        ]
         zdtype = [
             ('Z', np.float32),
             ('ZWARN', np.float32),
@@ -32,7 +25,7 @@ class TestPriorities(unittest.TestCase):
 
         n = 3
 
-        self.targets = Table(np.zeros(n, dtype=targdtype))
+        self.targets = Table(np.zeros(n, dtype=mtldatamodel.dtype))
         self.targets['TARGETID'] = list(range(n))
 
         self.zcat = Table(np.zeros(n, dtype=zdtype))
@@ -142,15 +135,26 @@ class TestPriorities(unittest.TestCase):
             mws_names = [name for name in mws_mask.names() if 'NORTH' not in name
                          and 'SOUTH' not in name and 'BACKUP' not in name]
 
-            lowest_bgs_priority_zgood = min([bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_names])
+            lowest_mws_priority_unobs = [mws_mask[n].priorities['UNOBS']
+                                         for n in mws_names]
 
-            lowest_mws_priority_unobs = min([mws_mask[n].priorities['UNOBS'] for n in mws_names])
-            lowest_mws_priority_zwarn = min([mws_mask[n].priorities['MORE_ZWARN'] for n in mws_names])
-            lowest_mws_priority_zgood = min([mws_mask[n].priorities['MORE_ZGOOD'] for n in mws_names])
+            lowest_bgs_priority_zgood = np.min(
+                [bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_names])
 
-            lowest_mws_priority = min(lowest_mws_priority_unobs,
-                                      lowest_mws_priority_zwarn,
-                                      lowest_mws_priority_zgood)
+            # ADM MORE_ZGOOD and MORE_ZWARN are only meaningful if a
+            # ADM target class requests more than 1 observation (except
+            # ADM for BGS, which has a numobs=infinity exception)
+            lowest_mws_priority_zwarn = [mws_mask[n].priorities['MORE_ZWARN']
+                                         for n in mws_names
+                                         if mws_mask[n].numobs > 1]
+            lowest_mws_priority_zgood = [mws_mask[n].priorities['MORE_ZGOOD']
+                                         for n in mws_names
+                                         if mws_mask[n].numobs > 1]
+
+            lowest_mws_priority = np.min(np.concatenate([
+                lowest_mws_priority_unobs,
+                lowest_mws_priority_zwarn,
+                lowest_mws_priority_zgood]))
 
             self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
 

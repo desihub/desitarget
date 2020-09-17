@@ -17,7 +17,7 @@ import fitsio
 import photutils
 from glob import glob, iglob
 
-from desitarget.gaiamatch import _get_gaia_dir
+from desitarget.gaiamatch import get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
 from desitarget.targets import resolve, main_cmx_or_sv, finalize
 from desitarget.skyfibers import get_brick_info
@@ -126,6 +126,12 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=100000,
     # ADM note this is only unique for bricksize=0.25 for bricks
     # ADM that are more than 0.25 degrees from the poles.
     uniqseed = seed*int(1e7)+int(4*ramin)*1000+int(4*(decmin+90))
+    # ADM np.random only allows seeds < 2**32...
+    maxseed = (2**32-int(4*ramin)*1000-int(4*(decmin+90)))/1e7
+    if seed > maxseed:
+        msg = 'seed must be < {} but you passed {}!!!'.format(maxseed, seed)
+        log.critical(msg)
+        raise ValueError(msg)
     np.random.seed(uniqseed)
 
     # ADM generate random points within the brick at the requested density
@@ -858,7 +864,7 @@ def stellar_density(nside=256):
         - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpdir = os.path.join(gaiadir, 'healpix')
 
     # ADM the number of pixels and the pixel area at nside.
@@ -1030,7 +1036,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
               :func:`desitarget.QA._load_targdens()`. Each column
               contains the target density in the pixel.
     :class:`str`
-        Survey to which `targets` corresponds, e.g., 'main', 'sv1', etc.
+        Survey to which `targets` corresponds, e.g., 'main', 'svX', etc.
 
     Notes
     -----
@@ -1377,7 +1383,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
         # ADM pixnum only contains unique bricks, need to add duplicates.
         allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix for
                                     cnt, pix in zip(cnts.astype(int), pixnum)])
-        bundle_bricks(allpixnum, bundlebricks, nside,
+        bundle_bricks(allpixnum, bundlebricks, nside, gather=True,
                       brickspersec=brickspersec, prefix='randoms',
                       surveydirs=[drdir], extra=extra, seed=seed)
         # ADM because the broader function returns three outputs.

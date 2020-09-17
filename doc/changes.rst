@@ -2,14 +2,138 @@
 desitarget Change Log
 =====================
 
-0.39.1 (unreleased)
+0.42.1 (unreleased)
 -------------------
 
-* Add a new notebook tutorial about the Merged Target List [`PR #614`_].
-* Update masks for QSO Random Forest selection for DR8 [`PR #615`]
+* Update Travis for Py3.8/Astropy 4.x (fixes `issue #639`_) [`PR #640`_].
+    * Also adds a useful script for recovering the QSO RF probabilities.
+* Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
+    * Units for all output quantities are stored in `data/units.yaml`.
+    * Unit tests check that output quantities have associated units.
+    * Unit tests also check that all units are valid astropy units.
+    * Also some more minor cleanup and speedups.
 
+.. _`issue #356`: https://github.com/desihub/desitarget/issues/356
+.. _`issue #639`: https://github.com/desihub/desitarget/issues/639
+.. _`PR #638`: https://github.com/desihub/desitarget/pull/638
+.. _`PR #640`: https://github.com/desihub/desitarget/pull/640
+
+0.42.0 (2020-08-17)
+-------------------
+
+* Update the data model to address `issue #633`_ [`PR #637`_].
+* Major refactor to MTL to implement ledgers [`PR #635`_]. Includes:
+    * Code to make initial HEALPix-split ledger files from target files.
+        * Ledgers can be produced for each observing layer.
+        * Also includes an easy-to-use binary executable script.
+        * New data model with timestamp, code version and target states.
+    * Code to rapidly update MTL information by appending to a ledger.
+        * Uses targets and a zcat with the current standard columns.
+    * Functionality that works with either FITS or ECSV files.
+    * Automatic trimming of target columns in :func:`mtl.make_mtl()`.
+        * Saves memory, which may help with processing of mocks.
+    * :func:`mtl.inflate_ledger()` to re-obtain trimmed target columns.
+    * Code to write MTL files in a standard format.
+    * Utility functions to read (FITS or ECSV) MTL ledgers:
+        * In a set of HEALPixels (:func:`io.read_mtl_in_hp`)
+        * In a set of tiles (:func:`read_targets_in_tiles` with mtl=True)
+        * In a box (:func:`read_targets_in_box` with mtl=True)
+        * In a cap (:func:`read_targets_in_cap` with mtl=True)
+    * Can read entire ledger, or most recent entry for each ``TARGETID``.
+
+.. _`issue #633`: https://github.com/desihub/desitarget/issues/633
+.. _`PR #635`: https://github.com/desihub/desitarget/pull/635
+.. _`PR #637`: https://github.com/desihub/desitarget/pull/637
+
+0.41.0 (2020-08-04)
+-------------------
+
+* Support for python/3.8 and numpy/1.18, including new tests
+  [`PR #631`_, `PR #634`_]
+* Minor data model fixes, error checks and streamlining [`PR #627`_].
+    * The most important change is that MWS science targets are no
+      longer observed in GRAY or DARK, except for MWS_WDs.
+* Cleanup: Avoid absolute path in resource_filename [`PR #626`_].
+* Update masking to be "all-sky" using Gaia/Tycho/URAT [`PR #625`_]:
+    * General desitarget functionality to work with Tycho files.
+    * Deprecate using the sweeps to mask bright objects as this is now
+      being done using MASKBITS from the imaging catalogs.
+    * Functionality to allow masks to be built at different epochs, via
+      careful treatment of Tycho/Gaia/URAT proper motions.
+    * Bright star masks are now explicitly written to a $MASK_DIR.
+    * The radius-magnitude relationship is now a single function.
+    * Refactoring of unit tests to be simpler and have more coverage.
+    * Skies and supplemental skies are now always masked by default.
+    * A lack of backward compatibility, which should be OK as the masking
+      formalism wasn't being extensively used.
+* Functionality for iterations of SV beyond sv1 [`PR #624`_]. Includes:
+    * A script to create the necessary files for new iterations of SV.
+    * Generalized mask/cuts handling for survey=svX, X being any integer.
+    * :func:`targets.main_cmx_or_sv` also updated to handle survey=svX.
+    * Alter the automated creation of output SV target directory names:
+        * write svX targets to /targets/svX/ instead of just targets/sv/.
+    * Make TARGETID for secondary targets unique for iterations of SVX:
+        * Schema is RELEASE=(X-1)*100 + SCND_BIT for SVX-like surveys...
+	* ...and RELEASE=5*100 + SCND_BIT for the Main Survey.
+* Adjust MWS SV1 target classes for new SV schedule [`PR #623`_]:
+    * More generic names for clusters, stream, dwarf targets.
+    * Remove ORPHAN, add CV.
+    * Lower priority for SEGUE targets.
+
+.. _`PR #623`: https://github.com/desihub/desitarget/pull/623
+.. _`PR #624`: https://github.com/desihub/desitarget/pull/624
+.. _`PR #625`: https://github.com/desihub/desitarget/pull/625
+.. _`PR #626`: https://github.com/desihub/desitarget/pull/626
+.. _`PR #627`: https://github.com/desihub/desitarget/pull/627
+.. _`PR #631`: https://github.com/desihub/desitarget/pull/631
+.. _`PR #634`: https://github.com/desihub/desitarget/pull/634
+
+0.40.0 (2020-05-26)
+-------------------
+
+* Add RELEASE for dr9i, dr9j (etc.) of the Legacy Surveys [`PR #622`_].
+* Repartition sky files so skies lie in HEALPix boundaries [`PR #621`_]:
+    * Previously, unlike other target classes, skies were written such
+      that the *brick centers* in which they were processed, rather
+      than the sky locations themselves, lay within given HEALPixels.
+    * :func:`is_sky_dir_official` now checks skies are partitioned right.
+    * `bin/repartition_skies` now reassigns skies to correct HEALPixels.
+    * In addition, also includes:
+        * Significant (5-10x) speed-ups in :func:`read_targets_in_hp`.
+        * Remove supplemental skies that are near existing sky locations.
+          (which addresses `issue #534`_).
+        * A handful of more minor fixes and speed-ups.
+* Various updates to targeting bits and MTL [`PR #619`_]. Includes:
+    * Don't select any BGS_WISE targets in the Main Survey.
+    * Always set BGS targets with a ZWARN > 0 to a priority of DONE.
+    * Add an informational bit for QSOs selected with the high-z RF
+      (addresses `issue #349`_).
+    * MWS targets should drop to a priority of DONE after one observation
+      (but will always be higher priority than BGS for that observation).
+    * Update the default priorities for reobserving Lyman-alpha QSOs
+      (as described in `issue #486`_, which this addresses).
+* `NUMOBS_MORE` for tracer QSOs that are also other targets [`PR #617`_]:
+    * Separate the calculation of `NUMOBS_MORE` into its own function.
+    * Consistently use `zcut` = 2.1 to define Lyman-Alpha QSOs.
+    * Check tracer QSOs that are other targets drop to `NUMOBS_MORE` = 0.
+    * New unit test to enforce that check on such tracer QSOs.
+    * New unit test to check BGS always gets `NUMOBS_MORE` = 1 in BRIGHT.
+    * Enforce maximum seed in :func:`randoms_in_a_brick_from_edges()`.
+* Update masks for QSO Random Forest selection for DR8 [`PR #615`_]
+* Add a new notebook tutorial about the Merged Target List [`PR #614`_].
+* Recognize (and skip) existing (completed) healpixels when running
+  `select_mock_targets` [`PR #591`_].
+
+.. _`issue #349`: https://github.com/desihub/desitarget/issues/349
+.. _`issue #486`: https://github.com/desihub/desitarget/issues/486
+.. _`issue #534`: https://github.com/desihub/desitarget/issues/534
+.. _`PR #591`: https://github.com/desihub/desitarget/pull/591
 .. _`PR #614`: https://github.com/desihub/desitarget/pull/614
 .. _`PR #615`: https://github.com/desihub/desitarget/pull/615
+.. _`PR #617`: https://github.com/desihub/desitarget/pull/617
+.. _`PR #619`: https://github.com/desihub/desitarget/pull/619
+.. _`PR #621`: https://github.com/desihub/desitarget/pull/621
+.. _`PR #622`: https://github.com/desihub/desitarget/pull/622
 
 0.39.0 (2020-05-01)
 -------------------
@@ -29,13 +153,6 @@ desitarget Change Log
 -------------------
 
 * Minor updates for latest DR9 imaging versions (dr9f/dr9g) [`PR #607`_].
-* Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
-* Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
-* Separate calc_priority() for CMX into a separate function [`PR #601`_].
-* Alter cmx targetmask such that obsconditions can be used to work
-  around MWS/BGS conflicts on MWS CMX tiles [`PR #601`_].
-* Update test_priorities() for new MWS CMX targets scheme [`PR #601`_].
-* Adds SV0_MWS_FAINT bit [`PR #601`_].
 * Extra columns and features in the random catalogs [`PR #606`_]:
     * Better error messages and defaults for `bin/supplement_randoms`.
     * Don't calculate APFLUX quantities if aprad=0 is passed.
@@ -46,9 +163,16 @@ desitarget Change Log
     * Also add a realistic `TARGETID` (and `RELEASE, BRICK_OBJID`).
     * Recognize failure modes more quickly (and fail more quickly).
     * Write out both "resolve" and "noresolve" (North/South) catalogs.
+* Fixes a typo in the priority of MWS_WD_SV targets [`PR #601`_].
+* Fixes calc_priority logic for MWS CMX targets [`PR #601`_].
+* Separate calc_priority() for CMX into a separate function [`PR #601`_].
+* Alter cmx targetmask such that obsconditions can be used to work
+  around MWS/BGS conflicts on MWS CMX tiles [`PR #601`_].
+* Update test_priorities() for new MWS CMX targets scheme [`PR #601`_].
+* Adds SV0_MWS_FAINT bit [`PR #601`_].
 
-.. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 .. _`issue #597`: https://github.com/desihub/desitarget/issues/597
+.. _`PR #601`: https://github.com/desihub/desitarget/pull/601
 .. _`PR #606`: https://github.com/desihub/desitarget/pull/606
 .. _`PR #607`: https://github.com/desihub/desitarget/pull/607
 

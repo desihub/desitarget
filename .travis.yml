@@ -43,10 +43,11 @@ env:
         # The following versions are the 'default' for tests, unless
         # overidden underneath. They are defined here in order to save having
         # to repeat them for all configurations.
-        # - NUMPY_VERSION='<1.17'
-        - NUMPY_VERSION=1.16.5
+        # - NUMPY_VERSION=1.16.5
+        - NUMPY_VERSION=1.19.1
         # - SCIPY_VERSION=0.16
-        - ASTROPY_VERSION=2.0.16
+        - ASTROPY_VERSION=4.0.1
+        - HEALPY_VERSION=1.14.0
         # - SPHINX_VERSION=1.6.6
         - DESIUTIL_VERSION=3.0.0
         - SPECLITE_VERSION=0.8
@@ -62,7 +63,8 @@ env:
         # - DESITARGET_VERSION=master
         # - SIMQSO_VERSION=v1.2.3
         # - DESI_LOGLEVEL=DEBUG
-        - PIP_VERSION=19.3.1
+        # - PIP_VERSION=19.3.1
+        - PIP_VERSION=20.2.2
         - MAIN_CMD='python setup.py'
         # Additional conda channels to use.
         - CONDA_CHANNELS="astropy"
@@ -72,11 +74,12 @@ env:
         # - CONDA_SPHINX_DEPENDENCIES="scipy pyyaml sphinx==1.5"
         # These packages will only be installed if we really need them.
         # - CONDA_ALL_DEPENDENCIES="scipy matplotlib=2.1.2 scikit-learn h5py coverage pyyaml photutils basemap=1.0.7"
-        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml photutils numba"
+        # - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml photutils numba"
+        - CONDA_ALL_DEPENDENCIES="scipy matplotlib scikit-learn h5py coverage pyyaml numba"
         # These packages will always be installed.
         - PIP_DEPENDENCIES=""
         # These packages will only be installed if we really need them.
-        - PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls fitsio"
+        - PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls fitsio photutils"
         #- PIP_ALL_DEPENDENCIES="speclite==${SPECLITE_VERSION} coveralls fitsio basemap==1.0.7 "
         # - PIP_ALL_DEPENDENCIES="coveralls fitsio"
         # These pip packages need to be installed in a certain order, so we
@@ -88,8 +91,8 @@ env:
     matrix:
         #  - PYTHON_VERSION=3.5 NUMPY_VERSION=1.15.4 SETUP_CMD='egg_info'
         #  - PYTHON_VERSION=3.5 NUMPY_VERSION=1.15.4 SETUP_CMD='bdist_egg'
-        - PYTHON_VERSION=3.6 SETUP_CMD='egg_info'
-        - PYTHON_VERSION=3.6 SETUP_CMD='bdist_egg'
+        - PYTHON_VERSION=3.8 SETUP_CMD='egg_info'
+        - PYTHON_VERSION=3.8 SETUP_CMD='bdist_egg'
 
 matrix:
     # Don't wait for allowed failures.
@@ -105,7 +108,7 @@ matrix:
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
                DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
         - os: linux
-          env: PYTHON_VERSION=3.6 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
+          env: PYTHON_VERSION=3.8 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
     include:
 
@@ -124,7 +127,7 @@ matrix:
         #        DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
 
         - os: linux
-          env: PYTHON_VERSION=3.6 SETUP_CMD='test --coverage'
+          env: PYTHON_VERSION=3.8 SETUP_CMD='test --coverage'
                CONDA_DEPENDENCIES=$CONDA_ALL_DEPENDENCIES
                PIP_DEPENDENCIES=$PIP_ALL_DEPENDENCIES
                DESIHUB_PIP_DEPENDENCIES=$DESIHUB_PIP_ALL_DEPENDENCIES
@@ -183,14 +186,14 @@ matrix:
 
         # PEP 8 compliance.
         - os: linux
-          env: PYTHON_VERSION=3.6 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
+          env: PYTHON_VERSION=3.8 MAIN_CMD='pycodestyle' SETUP_CMD='--count py/desitarget'
 
 install:
     - git clone git://github.com/astropy/ci-helpers.git
     - source ci-helpers/travis/setup_conda.sh
     # egg_info causes the astropy/ci-helpers script to exit before the pip
     # packages are installed, thus desiutil is not installed in that script.
-    - "if [[ $SETUP_CMD == test* ]]; then pip install --no-binary :all: healpy; fi"
+    - "if [[ $SETUP_CMD == test* ]]; then pip install --no-binary :all: healpy==${HEALPY_VERSION}; fi"
     - for p in $DESIHUB_PIP_DEPENDENCIES; do r=$(echo $p | cut -d= -f1); v=$(echo $p | cut -d= -f2); pip install git+https://github.com/desihub/${r}.git@${v}#egg=${r}; done
     - export DESIMODEL=${HOME}/desimodel/${DESIMODEL_VERSION}
     - mkdir -p ${DESIMODEL}

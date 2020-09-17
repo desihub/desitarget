@@ -15,7 +15,7 @@ from astropy.table import Table
 from desitarget.mock.build import targets_truth
 from desiutil.log import get_logger, DEBUG
 import desimodel
-import desitarget.mock.io as mockio
+from  desitarget.io import find_target_files
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
@@ -75,9 +75,13 @@ if args.overwrite:
 else:
     keep = list()
     for i, pixnum in enumerate(healpixels):
-        truthfile = mockio.findfile('truth', args.nside, pixnum, basedir=args.output_dir)
-        if not os.path.exists(truthfile):
-            keep.append(i)
+        truth_dark = find_target_files(args.output_dir, flavor="truth", obscon='dark',
+                                        hp=pixnum, nside=args.nside, mock=True)
+        truth_bright = find_target_files(args.output_dir, flavor="truth", obscon='bright',
+                                        hp=pixnum, nside=args.nside, mock=True)
+        if os.path.exists(truth_dark) or os.path.exists(truth_bright):
+            continue
+        keep.append(i)
 
     log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
     healpixels = healpixels[keep]
@@ -91,14 +95,16 @@ if not os.path.exists(args.config):
     log.fatal('No configuration file {} found.'.format(args.config))
     raise Exception()
 
-# Read parameters from yaml file.
-log.info('Reading configuration file {}'.format(args.config))
-with open(args.config, 'r') as pfile:
-    params = yaml.safe_load(pfile)
+if len(healpixels)>0:
+    # Read parameters from yaml file.
+    log.info('Reading configuration file {}'.format(args.config))
+    with open(args.config, 'r') as pfile:
+        params = yaml.safe_load(pfile)
 
-log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
-targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed, 
+    log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
+    targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed,
               output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,
               no_spectra=args.no_spectra, survey=args.survey)
+
 log.info('All done at {}'.format(time.asctime()))
 

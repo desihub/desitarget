@@ -1,49 +1,65 @@
 #!/usr/bin/env python
 
-from __future__ import print_function, division
-
 import os, sys
 import numpy as np
 
 from desitarget import io
-from desitarget.brightmask import make_bright_source_mask
+from desitarget.brightmask import make_bright_star_mask, get_mask_dir
+from desitarget.tychomatch import get_tycho_nside, get_tycho_dir
+from desitarget.uratmatch import get_urat_dir
+from desitarget.gaiamatch import get_gaia_dir
 
 #import warnings
 #warnings.simplefilter('error')
 
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
+nside = get_tycho_nside()
 
 from desiutil.log import get_logger
 log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser()
-ap.add_argument("src", help="root directory with tractor/sweeps files from which to build mask")
-ap.add_argument("dest", help='Output file name to which to write mask')
-ap.add_argument("--bands", 
-                help='Bands to use to build the mask (e.g. GRZ)',
-                default="GRZ")
-ap.add_argument("--maglim",
-                help='Magnitude limits for building the mask (e.g. 10,10,10)',
-                default="10,10,10")
-### ap.add_argument('-b', "--bricklist", help='filename with list of bricknames to include')
+ap.add_argument("--maskdir",
+                help='Output directory to which to write mask [defaults to the $MASK_DIR environment variable]')
+ap.add_argument("--maglim", type=float,
+                help="Magnitude limit for building the mask [defaults to 12]",
+                default=12.)
+ap.add_argument("--matchrad", type=float,
+                help="Tycho stars are discarded if they match a Gaia star at this radius",
+                default=1.)
+ap.add_argument("--nside", type=int,
+                help="Write output files in HEALPixels at this nside [{}]".format(nside))
 ap.add_argument("--numproc", type=int,
-    help='number of concurrent processes to use [{}]'.format(nproc),
-    default=nproc)
+                help="number of concurrent processes to use [{}]".format(nproc),
+                default=nproc)
+ap.add_argument("--maskepoch", type=float,
+                help="Stars are shifted (by just proper motion) to this epoch to make the mask [2023.0]",
+                default=2023.0)
+ap.add_argument("--gaiaepoch", type=float,
+                help="Epoch of Gaia observations [2015.5]",
+                default=2015.5)
 
 ns = ap.parse_args()
-infiles = io.list_sweepfiles(ns.src)
-if len(infiles) == 0:
-    infiles = io.list_tractorfiles(ns.src)
-if len(infiles) == 0:
-    log.critical('no sweep or tractor files found')
-    sys.exit(1)
 
-maglim = [ float(ml) for ml in ns.maglim.split(',') ]
+# ADM if the MASK_DIR directory was passed, set it...
+maskdir = ns.maskdir
+if maskdir is None:
+    # ADM ...otherwise retrieve it from the environment variable.
+    maskdir = get_mask_dir()
 
-sourcemask = make_bright_source_mask(ns.bands,maglim,numproc=ns.numproc,
-                                   rootdirname=ns.src,outfilename=ns.dest)
+mask = make_bright_star_mask(
+    maglim=ns.maglim, matchrad=ns.matchrad, numproc=ns.numproc,
+    maskepoch=ns.maskepoch, gaiaepoch=ns.gaiaepoch)
 
-log.info('wrote a file of {} masks to {}'.format(len(sourcemask), ns.dest))
+# ADM extra header keywords for the output fits file.
+extra = {k: v for k, v in zip(
+    ["matchrad", "gaiaepoc", "gaiadir", "tychodir", "uratdir"],
+    [ns.matchrad, ns.gaiaepoch, get_gaia_dir(), get_tycho_dir(), get_urat_dir()])}
 
+# ADM write the mask file(s).
+nmasks, mxdir = io.write_masks(maskdir, mask, maglim=ns.maglim,
+                              maskepoch=ns.maskepoch, nside=nside, extra=extra)
+
+log.info('wrote {} total masks to files in {}'.format(nmasks, mxdir))

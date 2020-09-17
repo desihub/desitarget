@@ -64,7 +64,7 @@ gaiadatamodel = np.array([], dtype=[
                                    ])
 
 
-def _get_gaia_dir():
+def get_gaia_dir():
     """Convenience function to grab the Gaia environment variable.
 
     Returns
@@ -178,7 +178,7 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nf
         - Runs in about 26 hours for 60,000 Gaia files.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM construct the directory to which to write files.
     csvdir = os.path.join(gaiadir, 'csv')
@@ -252,7 +252,7 @@ def gaia_csv_to_fits(numproc=4):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     log.info("running on {} processors".format(numproc))
 
     # ADM construct the directories for reading/writing files.
@@ -376,7 +376,7 @@ def gaia_fits_to_healpix(numproc=4):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM construct the directories for reading/writing files.
     fitsdir = os.path.join(gaiadir, 'fits')
@@ -421,7 +421,7 @@ def gaia_fits_to_healpix(numproc=4):
                 else:
                     done = np.hstack([done, objs[pix == pixnum]])
             # ADM construct the name of the output file.
-            outfilename = 'healpix-{:05d}.fits'.format(pixnum)
+            outfilename = io.hpx_filename(pixnum)
             outfile = os.path.join(hpxdir, outfilename)
             # ADM write out the file.
             hdr = fitsio.FITSHDR()
@@ -496,7 +496,7 @@ def make_gaia_files(numproc=4, download=False):
     log.info('Begin making Gaia files...t={:.1f}s'.format(time()-t0))
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
@@ -658,29 +658,11 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
-    # ADM which flavor of RA/Dec was passed.
-    if radec:
-        ra, dec = objs
-    else:
-        ra, dec = objs["RA"], objs["DEC"]
-
-    # ADM convert RA/Dec to co-latitude and longitude in radians.
-    theta, phi = np.radians(90-dec), np.radians(ra)
-
-    # ADM retrieve the pixels in which the locations lie.
-    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
-    # ADM if neighbors was sent, then retrieve all pixels that touch each
-    # ADM pixel covered by the provided locations, to prevent edge effects...
-    if neighbors:
-        pixnum = add_hp_neighbors(nside, pixnum)
-
-    # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
-
-    return gaiafiles
+    return io.find_star_files(objs, hpxdir, nside,
+                              neighbors=neighbors, radec=radec)
 
 
 def find_gaia_files_hp(nside, pixlist, neighbors=True):
@@ -711,7 +693,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
     filenside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM work with pixlist as an array.
@@ -726,7 +708,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
         pixnum = add_hp_neighbors(filenside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -762,7 +744,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the box.
@@ -774,7 +756,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -809,7 +791,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels beyond mingalb.
@@ -821,8 +803,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn))
-                 for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -858,7 +839,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the tiles.
@@ -871,7 +852,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
         pixnum = add_hp_neighbors(nside, pixnum)
 
     # ADM reformat in the Gaia healpix format used by desitarget.
-    gaiafiles = [os.path.join(hpxdir, 'healpix-{:05d}.fits'.format(pn)) for pn in pixnum]
+    gaiafiles = [os.path.join(hpxdir, io.hpx_filename(pn)) for pn in pixnum]
 
     return gaiafiles
 
@@ -1068,7 +1049,7 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
         - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = _get_gaia_dir()
+    gaiadir = get_gaia_dir()
 
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):

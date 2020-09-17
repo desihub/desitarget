@@ -15,7 +15,7 @@ Programming Model
 differences:
 
 - MapReduce does not require the work function to be picklable.
-- MapReduce adds a reduction step that is guaranteed to run on the master process's
+- MapReduce adds a reduction step that is guaranteed to run on the coordinator process's
   scope.
 - MapReduce allows the use of critical sections and ordered execution in the work
   function.
@@ -26,7 +26,7 @@ Modifications to shared Memory arrays, allocated via
 - :py:meth:`sharedmem.empty_like`,
 - :py:meth:`sharedmem.copy`,
 
-are visible by all processes, including the master process.
+are visible by all processes, including the coordinator process.
 
 Usage
 -----
@@ -38,7 +38,7 @@ The only external dependency is numpy, since this was designed to
 work with large shared memory chunks through numpy.ndarray.
 
 Environment variable OMP_NUM_THREADS is used to determine the
-default number of slaves.
+default number of workers.
 
 Notes
 -----
@@ -110,7 +110,7 @@ __email__ = "rainwoodman@gmail.com"
 
 __all__ = ['set_debug', 'get_debug',
         'total_memory', 'cpu_count',
-        'SlaveException', 'StopProcessGroup',
+        'WorkerException', 'StopProcessGroup',
         'background',
         'MapReduce', 'MapReduceByThread',
         'empty', 'empty_like',
@@ -150,8 +150,8 @@ __shmdebug__ = False
 def set_debug(flag):
     """ Set the debug mode.
 
-        In debug mode (flag==True), no slaves are spawn.
-        All work are done in serial on the master thread/process.
+        In debug mode (flag==True), no workers are spawn.
+        All work are done in serial on the coordinator thread/process.
         This eases debuggin when the worker throws out an exception.
     """
     global __shmdebug__
@@ -177,7 +177,7 @@ def total_memory():
     raise IOError('MemTotal unknown')
 
 def cpu_count():
-    """ Returns the number of slave processes to be spawned.
+    """ Returns the number of worker processes to be spawned.
 
         The default value is the number of physical cpu cores seen by python.
         :code:`OMP_NUM_THREADS` environment variable overrides it.
@@ -201,8 +201,8 @@ def cpu_count():
 class LostExceptionType(Warning):
     pass
 
-class SlaveException(Exception):
-    """ Represents an exception that has occured during a slave process
+class WorkerException(Exception):
+    """ Represents an exception that has occured during a worker process
 
         Attributes
         ----------
@@ -226,7 +226,7 @@ class SlaveException(Exception):
         Exception.__init__(self, "%s\n%s" % (str(reason), str(traceback)))
 
 class StopProcessGroup(Exception):
-    """ StopProcessGroup will terminate the slave process/thread """
+    """ StopProcessGroup will terminate the worker process/thread """
     def __init__(self):
         Exception.__init__(self, "StopProcessGroup")
 
@@ -239,7 +239,7 @@ class ProcessGroup(object):
         self.args = args
         self.guard = threading.Thread(target=self._guardMain)
         self.errorguard = threading.Thread(target=self._errorGuard)
-        # this has to be from backend because the slaves will check
+        # this has to be from backend because the workers will check
         # this variable.
 
         self.guardDead = backend.EventFactory()
@@ -248,23 +248,23 @@ class ProcessGroup(object):
         self.semaphore = threading.Semaphore(0)
         self.JoinedProcesses = multiprocessing.RawValue('l')
         self.P = [
-            backend.SlaveFactory(target=self._slaveMain,
+            backend.WorkerFactory(target=self._workerMain,
                 args=(rank,)) \
                 for rank in range(np)
             ]
         self.G = [
-            threading.Thread(target=self._slaveGuard,
+            threading.Thread(target=self._workerGuard,
                 args=(rank, self.P[rank])) \
                 for rank in range(np)
             ]
         return
 
-    def _slaveMain(self, rank):
+    def _workerMain(self, rank):
         self._tls.rank = rank
         try:
             self.main(self, *self.args)
-        except SlaveException as e:
-            raise RuntimError("slave exception shall never be caught by a slave")
+        except WorkerException as e:
+            raise RuntimError("worker exception shall never be caught by a worker")
         except StopProcessGroup as e:
             pass
         except BaseException as e:
@@ -286,9 +286,9 @@ class ProcessGroup(object):
         finally:
 #            self.Errors.close()
 #            self.Errors.join_thread()
-            # making all slaves exit one after another
-            # on some Linuxes if many slaves (56+) access
-            # mmap randomly the termination of the slaves
+            # making all workers exit one after another
+            # on some Linuxes if many workers (56+) access
+            # mmap randomly the termination of the workers
             # run into a deadlock.
             while self.JoinedProcesses.value < rank:
                 continue
@@ -316,13 +316,13 @@ class ProcessGroup(object):
             # for python 2.6.x wait returns None XXX
             self.guardDead.wait(timeout=0.5)
 
-    def _slaveGuard(self, rank, process):
+    def _workerGuard(self, rank, process):
         process.join()
         if isinstance(process, threading.Thread):
             pass
         else:
             if process.exitcode < 0 and process.exitcode != -5:
-                e = Exception("slave process %d killed by signal %d" % (rank, -
+                e = Exception("worker process %d killed by signal %d" % (rank, -
                     process.exitcode))
                 try:
                     self.Errors.put((e, ""), timeout=0)
@@ -353,7 +353,7 @@ class ProcessGroup(object):
 
         # p is alive from the moment start returns.
         # thus we can join them immediately after start returns.
-        # guardMain will check if the slave has been
+        # guardMain will check if the worker has been
         # killed by the os, and simulate an error if so.
         for x in self.G:
             x.start()
@@ -362,15 +362,15 @@ class ProcessGroup(object):
 
     def get_exception(self):
         exp = self.Errors.get(timeout=0)
-        return SlaveException(*exp)
+        return WorkerException(*exp)
 
     def get(self, Q):
         """ Protected get. Get an item from Q.
             Will block. but if the process group has errors,
             raise an StopProcessGroup exception.
 
-            A slave process will terminate upon StopProcessGroup.
-            The master process shall read the error
+            A worker process will terminate upon StopProcessGroup.
+            The coordinator process shall read the error
         """
         while self.Errors.empty():
             try:
@@ -407,7 +407,7 @@ class ProcessGroup(object):
         self.errorguard.join()
         self.guard.join()
         if not self.Errors.empty():
-            raise SlaveException(*self.Errors.get())
+            raise WorkerException(*self.Errors.get())
 
 class Ordered(object):
     def __init__(self, backend):
@@ -443,10 +443,10 @@ class ThreadBackend:
       LockFactory = staticmethod(threading.Lock)
       StorageFactory = staticmethod(threading.local)
       @staticmethod
-      def SlaveFactory(*args, **kwargs):
-        slave = threading.Thread(*args, **kwargs)
-        slave.daemon = True
-        return slave
+      def WorkerFactory(*args, **kwargs):
+        worker = threading.Thread(*args, **kwargs)
+        worker.daemon = True
+        return worker
 
 class ProcessBackend:
       QueueFactory = staticmethod(multiprocessing.Queue)
@@ -454,10 +454,10 @@ class ProcessBackend:
       LockFactory = staticmethod(multiprocessing.Lock)
 
       @staticmethod
-      def SlaveFactory(*args, **kwargs):
-        slave = multiprocessing.Process(*args, **kwargs)
-        slave.daemon = True
-        return slave
+      def WorkerFactory(*args, **kwargs):
+        worker = multiprocessing.Process(*args, **kwargs)
+        worker.daemon = True
+        return worker
       @staticmethod
       def StorageFactory():
           return lambda:None
@@ -486,9 +486,9 @@ class background(object):
         backend = kwargs.pop('backend', ProcessBackend)
 
         self.result = backend.QueueFactory(1)
-        self.slave = backend.SlaveFactory(target=self._closure,
+        self.worker = backend.WorkerFactory(target=self._closure,
                 args=(function, args, kwargs, self.result))
-        self.slave.start()
+        self.worker.start()
 
     def _closure(self, function, args, kwargs, result):
         try:
@@ -504,11 +504,11 @@ class background(object):
             If any exception occurred it is wrapped and raised.
         """
         e, r = self.result.get()
-        self.slave.join()
-        self.slave = None
+        self.worker.join()
+        self.worker = None
         self.result = None
         if isinstance(e, Exception):
-            raise SlaveException(e, r)
+            raise WorkerException(e, r)
         return r
 
 def MapReduceByThread(np=None):
@@ -520,7 +520,7 @@ def MapReduceByThread(np=None):
 
 class MapReduce(object):
     """
-        A pool of slave processes for a Map-Reduce operation
+        A pool of worker processes for a Map-Reduce operation
 
         Parameters
         ----------
@@ -531,7 +531,7 @@ class MapReduce(object):
         np   : int or None
             Number of processes to use. Default (None) is from OMP_NUM_THREADS or
             the number of available cores on the computer. If np is 0, all operations
-            are performed on the master process -- no child processes are created.
+            are performed on the coordinator process -- no child processes are created.
 
         Notes
         -----
@@ -546,10 +546,10 @@ class MapReduce(object):
             self.np = np
 
     def _main(self, pg, Q, R, sequence, realfunc):
-        # get and put will raise SlaveException
+        # get and put will raise WorkerException
         # and terminate the process.
         # the exception is muted in ProcessGroup,
-        # as it will only be dispatched from master.
+        # as it will only be dispatched from coordinator.
         while True:
             capsule = pg.get(Q)
             if capsule is None:
@@ -589,7 +589,7 @@ class MapReduce(object):
 
                     func is not supposed to use exceptions for flow control.
                     In non-debug mode all exceptions will be wrapped into
-                    a :py:class:`SlaveException`.
+                    a :py:class:`WorkerException`.
 
             sequence : list or array_like
                 The sequence of arguments to be applied to func.
@@ -611,9 +611,9 @@ class MapReduce(object):
 
             Raises
             ------
-            SlaveException
-                If any of the slave process encounters
-                an exception. Inspect :py:attr:`SlaveException.reason` for the underlying exception.
+            WorkerException
+                If any of the worker process encounters
+                an exception. Inspect :py:attr:`WorkerException.reason` for the underlying exception.
 
         """
         def realreduce(r):

@@ -7,6 +7,7 @@ from pkg_resources import resource_filename
 import os.path
 from uuid import uuid4
 import numbers
+import warnings
 
 from astropy.io import fits
 from astropy.table import Table
@@ -46,6 +47,11 @@ class TestCMX(unittest.TestCase):
         # ADM reset GAIA_DIR environment variable.
         if cls.gaiadir_orig is not None:
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
+
+    def setUp(self):
+        # Treat a specific warning as an error (could turn off if this
+        # becomes problematic)
+        warnings.filterwarnings('error', '.*Calling nonzero on 0d arrays.*')
 
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames

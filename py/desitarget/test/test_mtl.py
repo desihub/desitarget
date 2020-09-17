@@ -8,10 +8,10 @@ import numpy as np
 from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
-from desitarget.sv1.sv1_targetmask import desi_mask as MxSV
-from desitarget.targetmask import obsconditions
-from desitarget.mtl import make_mtl
+from desitarget.targetmask import bgs_mask, obsconditions
+from desitarget.mtl import make_mtl, mtldatamodel
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
+from desitarget.targets import switch_main_cmx_or_sv
 
 
 class TestMTL(unittest.TestCase):
@@ -24,14 +24,18 @@ class TestMTL(unittest.TestCase):
         self.post_prio[0] = 2  # ELG
         self.post_prio[1] = 2  # LRG...all one-pass
         self.post_prio[2] = 2  # lowz QSO
+        nt = len(self.types)
+        # ADM add some "extra" columns that are needed for observations.
+        for col in ["RA", "DEC", "PARALLAX", "PMRA", "PMDEC", "REF_EPOCH"]:
+            self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
-        self.targets['BGS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
-        self.targets['MWS_TARGET'] = np.zeros(len(self.types), dtype=np.int64)
+        for col in ['BGS_TARGET', 'MWS_TARGET', 'SUBPRIORITY']:
+            self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         n = len(self.targets)
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
         # ADM determine the initial PRIORITY and NUMOBS.
-        pinit, ninit = initial_priority_numobs(self.targets)
+        pinit, ninit = initial_priority_numobs(self.targets, obscon="DARK|GRAY")
         self.targets["PRIORITY_INIT"] = pinit
         self.targets["NUMOBS_INIT"] = ninit
 
@@ -49,7 +53,7 @@ class TestMTL(unittest.TestCase):
         t = self.targets.copy()
         main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
 
-        if prefix == 'CMX':
+        if prefix == 'CMX_':
             # ADM restructure the table to look like a commissioning table.
             t.rename_column('DESI_TARGET', 'CMX_TARGET')
             t.remove_column('BGS_TARGET')
@@ -57,12 +61,6 @@ class TestMTL(unittest.TestCase):
         else:
             for name in main_names:
                 t.rename_column(name, prefix+name)
-
-#        if prefix == "SV1_":
-            # ADM change any occurences of LRG_2PASS to just LRG.
-            # ADM technically not needed as 2PASS no longer exists.
-#            ii = t["SV1_DESI_TARGET"] == Mx.LRG_2PASS
-#            t["SV1_DESI_TARGET"][ii] = MxSV.LRG
 
         return t
 
@@ -72,10 +70,11 @@ class TestMTL(unittest.TestCase):
         # ADM loop through once each for the main survey, commissioning and SV.
         for prefix in ["", "CMX_", "SV1_"]:
             t = self.reset_targets(prefix)
-            mtl = make_mtl(t, "BRIGHT|GRAY|DARK")
-            goodkeys = sorted(set(t.dtype.names) | set(['NUMOBS_MORE', 'PRIORITY', 'OBSCONDITIONS']))
-            mtlkeys = sorted(mtl.dtype.names)
-            self.assertEqual(mtlkeys, goodkeys)
+            mtl = make_mtl(t, "BRIGHT|GRAY|DARK", trimcols=True)
+            mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
+            refnames = sorted(mtldm.dtype.names)
+            mtlnames = sorted(mtl.dtype.names)
+            self.assertEqual(refnames, mtlnames)
 
     def test_numobs(self):
         """Test priorities, numobs and obsconditions are set correctly with no zcat.
@@ -126,6 +125,54 @@ class TestMTL(unittest.TestCase):
             os.remove(testfile)
             if x.masked:
                 self.assertTrue(np.all(mtl['NUMOBS_MORE'].mask == x['NUMOBS_MORE'].mask))
+
+    def test_merged_qso(self):
+        """Test QSO tracers that are also other target types get 1 observation.
+        """
+        # ADM there are other tests of this kind in test_multiple_mtl.py.
+
+        # ADM create a set of targets that are QSOs and
+        # ADM (perhaps) also another target class.
+        qtargets = self.targets.copy()
+        qtargets["DESI_TARGET"] |= Mx["QSO"]
+
+        # ADM give them all a "tracer" redshift (below a LyA QSO).
+        qzcat = self.zcat.copy()
+        qzcat["Z"] = 0.5
+
+        # ADM set their initial conditions to be that of a QSO.
+        pinit, ninit = initial_priority_numobs(qtargets, obscon="DARK|GRAY")
+        qtargets["PRIORITY_INIT"] = pinit
+        qtargets["NUMOBS_INIT"] = ninit
+
+        # ADM run through MTL.
+        mtl = make_mtl(qtargets, obscon="DARK|GRAY", zcat=qzcat)
+
+        # ADM all confirmed tracer quasars should have NUMOBS_MORE=0.
+        self.assertTrue(np.all(qzcat["NUMOBS_MORE"] == 0))
+
+    def test_endless_bgs(self):
+        """Test BGS targets always get another observation in bright time.
+        """
+        # ADM create a set of BGS FAINT/BGS_BRIGHT targets
+        # ADM (perhaps) also another target class.
+        bgstargets = self.targets.copy()
+        bgstargets["DESI_TARGET"] = Mx["BGS_ANY"]
+        bgstargets["BGS_TARGET"] = bgs_mask["BGS_FAINT"] | bgs_mask["BGS_BRIGHT"]
+
+        # ADM set their initial conditions for the bright-time survey.
+        pinit, ninit = initial_priority_numobs(bgstargets, obscon="BRIGHT")
+        bgstargets["PRIORITY_INIT"] = pinit
+        bgstargets["NUMOBS_INIT"] = ninit
+
+        # ADM create a copy of the zcat.
+        bgszcat = self.zcat.copy()
+
+        # ADM run through MTL.
+        mtl = make_mtl(bgstargets, obscon="BRIGHT", zcat=bgszcat)
+
+        # ADM all BGS targets should always have NUMOBS_MORE=1.
+        self.assertTrue(np.all(bgszcat["NUMOBS_MORE"] == 1))
 
 
 if __name__ == '__main__':

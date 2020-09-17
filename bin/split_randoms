@@ -33,7 +33,10 @@ nrands = len(rands)
 log.info("Read in {:.1e} randoms. Shuffling indexes...t = {:.1f}s"
          .format(nrands, time()-start))
 indexes = np.arange(nrands)
-np.random.seed(626)
+# ADM the seed for the "extra" shuffles.
+reseed = 626
+hdr["RESEED"] = reseed
+np.random.seed(reseed)
 np.random.shuffle(indexes)
 
 #ADM write in chunks to save memory.
@@ -50,5 +53,3 @@ for i in range(ns.nchunks):
     fitsio.write(outfile, rands[indexes[i*chunk:(i+1)*chunk]], extname='RANDOMS', header=hdr, clobber=True)
 
 print("Done...t = {:.1f}s".format(time()-start))
-
-
