@@ -1772,6 +1772,55 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
     return outdata
 
 
+def get_checksums(infiles, verbose=False):
+    """Get the sha256 checksums for a list of files.
+
+    Parameters
+    ----------
+    infiles : :class:`list`
+        A list of the full paths to a file or files.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log progress and times.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An output array with two columns "FILENAME" and "SHA256".
+    """
+    from subprocess import Popen, PIPE, STDOUT
+    t0 = time()
+
+    # ADM we'll first populate a dictionary with the checksums.
+    shadict = {}
+    nf = len(infiles)
+    for ifn, infile in enumerate(infiles):
+        p = Popen(['sha256sum', infile], stdout=PIPE, stderr=STDOUT)
+        shastr = p.communicate()[0]
+        shafn = shastr.split()
+        # ADM guard against bytes-type versus string type.
+        for i, stringthing in enumerate(shafn):
+            try:
+                shafn[i] = stringthing.decode()
+            except AttributeError:
+                pass
+        # ADM add the filename, sha combination to the dict.
+        shadict[shafn[1]] = shafn[0]
+        if verbose:
+            log.info("Done {}/{}...t={}s".format(ifn+1, nf, time()-t0))
+
+    # ADM the string data types for the output array should have a
+    # ADM length that corresponds to the longest filename/shasum.
+    fntype = "U{}".format(np.max([len(k) for k in shadict.keys()]))
+    shatype = "U{}".format(np.max([len(k) for k in shadict.values()]))
+
+    # ADM construct the output array.
+    shatab = np.zeros(nf, dtype=[('FILENAME', fntype), ('SHA256', shatype)])
+    shatab['FILENAME'] = list(shadict.keys())
+    shatab['SHA256'] = list(shadict.values())
+
+    return shatab
+
+
 def gitversion():
     """Returns `git describe --tags --dirty --always`,
     or 'unknown' if not a git repo"""
