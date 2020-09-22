@@ -447,7 +447,8 @@ def write_with_units(filename, data, extname=None, header=None, ecsv=False):
 def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
-                  obscon=None, mockdata=None, supp=False, extra=None):
+                  obscon=None, mockdata=None, supp=False, extra=None,
+                  infiles=None):
     """Write target catalogues.
 
     Parameters
@@ -497,6 +498,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    infiles : :class:`list`, optional
+        If passed (and not None), write a second extension "INFILES" that
+        contains the files in `infiles` and their SHA-256 checksums.
 
     Returns
     -------
@@ -662,6 +666,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
                 fitsio.write(truthfile+'.tmp', out.as_array(), append=True, extname='TRUTH_{}'.format(obj))
         os.rename(truthfile+'.tmp', truthfile)
+
+    # ADM If input files were passed, write them to a second extension.
+    if infiles is not None:
+        shatab = get_checksums(infiles, verbose=True)
+        fitsio.write(filename, shatab, extname="INFILES")
 
     return ntargs, filename
 
@@ -1785,7 +1794,7 @@ def get_checksums(infiles, verbose=False):
     Returns
     -------
     :class:`~numpy.ndarray`
-        An output array with two columns "FILENAME" and "SHA256".
+        A recarray with two columns "FILENAME" and "SHA256".
     """
     from subprocess import Popen, PIPE, STDOUT
     t0 = time()
@@ -1793,6 +1802,8 @@ def get_checksums(infiles, verbose=False):
     # ADM we'll first populate a dictionary with the checksums.
     shadict = {}
     nf = len(infiles)
+    # ADM if verbose is True, write out info for 20 blocks of files.
+    block = nf // 20 if nf // 20 else 1
     for ifn, infile in enumerate(infiles):
         p = Popen(['sha256sum', infile], stdout=PIPE, stderr=STDOUT)
         shastr = p.communicate()[0]
@@ -1805,8 +1816,9 @@ def get_checksums(infiles, verbose=False):
                 pass
         # ADM add the filename, sha combination to the dict.
         shadict[shafn[1]] = shafn[0]
-        if verbose:
-            log.info("Done {}/{}...t={}s".format(ifn+1, nf, time()-t0))
+        if verbose and ifn % block == 0:
+            log.info("Calculated checksum for {}/{} files...t={}s".format(
+                ifn+1, nf, time()-t0))
 
     # ADM the string data types for the output array should have a
     # ADM length that corresponds to the longest filename/shasum.
