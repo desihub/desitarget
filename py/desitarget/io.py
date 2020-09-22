@@ -1786,8 +1786,8 @@ def get_checksums(infiles, verbose=False):
 
     Parameters
     ----------
-    infiles : :class:`list`
-        A list of the full paths to a file or files.
+    infiles : :class:`list` or `str`
+        The full paths to a file or files.
     verbose : :class:`bool`, optional, defaults to ``False``
         If ``True`` then log progress and times.
 
@@ -1798,6 +1798,8 @@ def get_checksums(infiles, verbose=False):
     """
     from subprocess import Popen, PIPE, STDOUT
     t0 = time()
+    # ADM in case a single string was passed.
+    infiles = np.atleast_1d(infiles)
 
     # ADM we'll first populate a dictionary with the checksums.
     shadict = {}
