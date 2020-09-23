@@ -141,17 +141,17 @@ for i, inlist in enumerate(inlists):
 # ADM limit to specific bit names, if passed, otherwise run all targets.
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
-targets, infiles = select_targets(
+targets, infn = select_targets(
     infiles, numproc=ns.numproc, qso_selection=ns.qsoselection,
     gaiamatch=ns.gaiamatch, nside=ns.nside, pixlist=pixlist, extra=extra,
     bundlefiles=ns.bundlefiles, radecbox=inlists[0], radecrad=inlists[1],
     tcnames=tcnames, survey='main', backup=not(ns.nobackup),
     resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits), return_infiles=True
 )
-# ADM now we're done using the infiles, set them to none if we DON'T want
-# ADM to write them (together with their checksums) to the output file.
+# ADM Set the list of infiles actually processed by select_targets() to
+# ADM None if we DON'T want to write their checksums to the output file.
 if ns.nochecksum:
-    infiles = None
+    infn = None
 
 if ns.bundlefiles is None:
     # ADM only run secondary functions if --nosecondary was not passed.
@@ -208,6 +208,6 @@ if ns.bundlefiles is None:
             maskbits=not(ns.nomaskbits), indir=ns.sweepdir, indir2=ns.sweepdir2,
             obscon=obscon, scndout=scndout, survey="main", nsidefile=ns.nside,
             hpxlist=pixlist, supp=supp, qso_selection=ns.qsoselection,
-            extra=extra, infiles=infiles
+            extra=extra, infiles=infn
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))
