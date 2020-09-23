@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.io import desitarget_version, check_both_set
+from desitarget.io import desitarget_version, check_both_set, get_checksums
 from desitarget.cuts import select_targets
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
@@ -150,7 +150,9 @@ targets, infn = select_targets(
 # ADM Set the list of infiles actually processed by select_targets() to
 # ADM None if we DON'T want to write their checksums to the output file.
 if ns.nochecksum:
-    infn = None
+    shatab = None
+else:
+    shatab = get_checksums(infn, verbose=True)
 
 if ns.bundlefiles is None:
     # ADM only run secondary functions if --nosecondary was not passed.
@@ -207,6 +209,6 @@ if ns.bundlefiles is None:
             survey=survey, nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
             qso_selection=survey, nside=nside, obscon=obscon, scndout=scndout,
             resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
-            extra=extra, infiles=infn
+            extra=extra, infiles=shatab
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

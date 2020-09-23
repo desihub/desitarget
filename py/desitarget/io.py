@@ -498,9 +498,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
-    infiles : :class:`list`, optional
+    infiles : :class:`list` or `~numpy.ndarray`, optional
         If passed (and not None), write a second extension "INFILES" that
-        contains the files in `infiles` and their SHA-256 checksums.
+        contains the files in `infiles` and their SHA-256 checksums. If
+        `infiles` is a list, func:`~desitarget.io.get_checksums()` is
+        called to look-up the checksums, if `infiles` is a numpy array
+        it's assumed to be in the format returned by `get_checksums()`.
 
     Returns
     -------
@@ -582,8 +585,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr.add_record(dict(name='HPXNSIDE', value=nside, comment="HEALPix nside"))
-        hdr.add_record(dict(name='HPXNEST', value=True, comment="HEALPix nested (not ring) ordering"))
+        hdr.add_record(dict(name='HPXNSIDE', value=nside,
+                            comment="HEALPix nside"))
+        hdr.add_record(dict(name='HPXNEST', value=True,
+                            comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None:
@@ -669,7 +674,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # ADM If input files were passed, write them to a second extension.
     if infiles is not None:
-        shatab = get_checksums(infiles, verbose=True)
+        if isinstance(infiles, list):
+            shatab = get_checksums(infiles, verbose=True)
+        elif isinstance(infiles, np.ndarray):
+            shatab = infiles
         fitsio.write(filename, shatab, extname="INFILES")
 
     return ntargs, filename
