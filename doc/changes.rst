@@ -5,6 +5,8 @@ desitarget Change Log
 0.42.1 (unreleased)
 -------------------
 
+* Add input sweep files and their checksums to target files [`PR #641`_].
+    * Addresses `issue #20`_.
 * Update Travis for Py3.8/Astropy 4.x (fixes `issue #639`_) [`PR #640`_].
     * Also adds a useful script for recovering the QSO RF probabilities.
 * Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
@@ -13,10 +15,12 @@ desitarget Change Log
     * Unit tests also check that all units are valid astropy units.
     * Also some more minor cleanup and speedups.
 
+.. _`issue #20`: https://github.com/desihub/desitarget/issues/20
 .. _`issue #356`: https://github.com/desihub/desitarget/issues/356
 .. _`issue #639`: https://github.com/desihub/desitarget/issues/639
 .. _`PR #638`: https://github.com/desihub/desitarget/pull/638
 .. _`PR #640`: https://github.com/desihub/desitarget/pull/640
+.. _`PR #641`: https://github.com/desihub/desitarget/pull/641
 
 0.42.0 (2020-08-17)
 -------------------

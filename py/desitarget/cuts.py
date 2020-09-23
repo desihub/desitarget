@@ -2418,7 +2418,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         If ``True``, also run the Gaia-only BACKUP_BRIGHT/FAINT targets.
     return_infiles : :class:`boolean`, optional, defaults to ``False``
         If ``True``, also return the actual files from `infile` processed.
-        Useful when running with `pixlist`, `radecbox` or `radecrad` to 
+        Useful when running with `pixlist`, `radecbox` or `radecrad` to
         see which files were actually required.
 
     Returns
