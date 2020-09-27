@@ -84,6 +84,7 @@ def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
     Notes
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+    - Update for DR9 https://desi.lbl.gov/trac/attachment/wiki/TargetSelectionWG/TargetSelection/North_vs_South_dr9.png
     """
     gshift = gflux * 10**(-0.4*0.004) * (gflux/rflux)**(-0.059)
     rshift = rflux * 10**(0.4*0.003) * (rflux/zflux)**(-0.024)
@@ -107,6 +108,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     Notes
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+    - Update for DR9 https://desi.lbl.gov/trac/attachment/wiki/TargetSelectionWG/TargetSelection/North_vs_South_dr9.png
     """
     # ADM if floats were sent, treat them like arrays.
     flt = False
