@@ -1837,7 +1837,7 @@ def get_checksums(infiles, verbose=False):
         # ADM add the filename, sha combination to the dict.
         shadict[shafn[1]] = shafn[0]
         if verbose and ifn % block == 0:
-            log.info("Calculated checksum for {}/{} files...t={}s".format(
+            log.info("Calculated checksum for {}/{} files...t={:.1f}s".format(
                 ifn+1, nf, time()-t0))
 
     # ADM the string data types for the output array should have a
@@ -1859,6 +1859,8 @@ def get_checksums(infiles, verbose=False):
         if len(shalist) == 1:
             shafn = shalist[0]
             checkdict = {}
+            if verbose:
+                log.info("Comparing checksums to {}".format(shafn))
             # ADM read the checksum file and construct a dictionary of
             # ADM file paths and checksums.
             with open(shafn) as f:
@@ -1867,10 +1869,12 @@ def get_checksums(infiles, verbose=False):
                     fullpath = os.path.join(ldir[0], filename)
                     checkdict[fullpath] = sha256
             for st in shatab:
+                # ADM check the existing checksum file against the
+                # ADM calculated checksums.
                 try:
                     if checkdict[st["FILENAME"]] != st["SHA256"]:
                         msg = "Checksum issue: {} differs in checksum file {}"  \
-                        .format(st, shafn)
+                              .format(st, shafn)
                         log.critical(msg)
                         raise IOError(msg)
                 except KeyError:
