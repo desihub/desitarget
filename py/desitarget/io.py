@@ -1803,6 +1803,13 @@ def get_checksums(infiles, verbose=False):
     -------
     :class:`~numpy.ndarray`
         A recarray with two columns "FILENAME" and "SHA256".
+
+    Notes
+    -----
+        - If each of the infiles is in the same directory and a (single)
+          .sha256sum file exists in that directory, then the generated
+          checksums for each file are compared to the corresponding entry
+          in the .sha256sum file. The code fails if there is a mismatch.
     """
     from subprocess import Popen, PIPE, STDOUT
     t0 = time()
@@ -1815,8 +1822,11 @@ def get_checksums(infiles, verbose=False):
     # ADM if verbose is True, write out info for 20 blocks of files.
     block = nf // 20 if nf // 20 else 1
     for ifn, infile in enumerate(infiles):
-        p = Popen(['sha256sum', infile], stdout=PIPE, stderr=STDOUT)
-        shastr = p.communicate()[0]
+        p = Popen(['sha256sum', infile], stdout=PIPE, stderr=PIPE)
+        shastr, err = p.communicate()
+        if len(err) > 0:
+            log.critical(err)
+            raise IOError(err)
         shafn = shastr.split()
         # ADM guard against bytes-type versus string type.
         for i, stringthing in enumerate(shafn):
@@ -1839,6 +1849,35 @@ def get_checksums(infiles, verbose=False):
     shatab = np.zeros(nf, dtype=[('FILENAME', fntype), ('SHA256', shatype)])
     shatab['FILENAME'] = list(shadict.keys())
     shatab['SHA256'] = list(shadict.values())
+
+    # ADM check the files are from a single directory.
+    filedic = {os.path.basename(fn): os.path.dirname(fn) for fn in infiles}
+    ldir = list(set(filedic.values()))
+    if len(ldir) == 1:
+        # ADM look for a shasum file.
+        shalist = glob(os.path.join(ldir[0], "*.sha256sum"))
+        if len(shalist) == 1:
+            shafn = shalist[0]
+            checkdict = {}
+            # ADM read the checksum file and construct a dictionary of
+            # ADM file paths and checksums.
+            with open(shafn) as f:
+                for line in f:
+                    sha256, filename = line.split()
+                    fullpath = os.path.join(ldir[0], filename)
+                    checkdict[fullpath] = sha256
+            for st in shatab:
+                try:
+                    if checkdict[st["FILENAME"]] != st["SHA256"]:
+                        msg = "Checksum issue: {} differs in checksum file {}"  \
+                        .format(st, shafn)
+                        log.critical(msg)
+                        raise IOError(msg)
+                except KeyError:
+                    msg = "Filename {} isn't in checksum file {}".format(
+                        st["FILENAME"], shafn)
+                    log.critical(msg)
+                    raise IOError(msg)
 
     return shatab
 
