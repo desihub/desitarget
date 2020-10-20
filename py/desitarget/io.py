@@ -1850,38 +1850,42 @@ def get_checksums(infiles, verbose=False):
     shatab['FILENAME'] = list(shadict.keys())
     shatab['SHA256'] = list(shadict.values())
 
-    # ADM check the files are from a single directory.
+    # ADM grab the unique directories that host files.
     filedic = {os.path.basename(fn): os.path.dirname(fn) for fn in infiles}
     ldir = list(set(filedic.values()))
-    if len(ldir) == 1:
+    # ADM loop through each directory and build a dictionary of the
+    # ADM expected files and their associated SHA checksums.
+    checkdict = {}
+    for ld in ldir:
         # ADM look for a shasum file.
-        shalist = glob(os.path.join(ldir[0], "*.sha256sum"))
-        if len(shalist) == 1:
+        shalist = glob(os.path.join(ld, "*.sha256sum"))
+        if len(shalist) > 0:
             shafn = shalist[0]
-            checkdict = {}
             if verbose:
                 log.info("Comparing checksums to {}".format(shafn))
-            # ADM read the checksum file and construct a dictionary of
-            # ADM file paths and checksums.
+            # ADM read the checksum file and construct a dictionary
+            # ADM of file paths and checksums.
             with open(shafn) as f:
                 for line in f:
                     sha256, filename = line.split()
-                    fullpath = os.path.join(ldir[0], filename)
+                    fullpath = os.path.join(ld, filename)
                     checkdict[fullpath] = sha256
-            for st in shatab:
-                # ADM check the existing checksum file against the
-                # ADM calculated checksums.
-                try:
-                    if checkdict[st["FILENAME"]] != st["SHA256"]:
-                        msg = "Checksum issue: {} differs in checksum file {}"  \
-                              .format(st, shafn)
-                        log.critical(msg)
-                        raise IOError(msg)
-                except KeyError:
-                    msg = "Filename {} isn't in checksum file {}".format(
-                        st["FILENAME"], shafn)
+
+    # ADM check the existing checksum file against the
+    # ADM calculated checksums, if any SHA checksum files existed
+    if len(checkdict) > 0:
+        for st in shatab:
+            try:
+                if checkdict[st["FILENAME"]] != st["SHA256"]:
+                    msg = "Checksum issue: {} differs in checksum file {}"  \
+                          .format(st, shafn)
                     log.critical(msg)
                     raise IOError(msg)
+            except KeyError:
+                msg = "Filename {} isn't in checksum file {}".format(
+                    st["FILENAME"], shafn)
+                log.critical(msg)
+                raise IOError(msg)
 
     return shatab
 
