@@ -1789,7 +1789,7 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
     return outdata
 
 
-def get_checksums(infiles, verbose=False):
+def get_checksums(infiles, verbose=False, check_existing=True):
     """Get the sha256 checksums for a list of files.
 
     Parameters
@@ -1798,18 +1798,17 @@ def get_checksums(infiles, verbose=False):
         The full paths to a file or files.
     verbose : :class:`bool`, optional, defaults to ``False``
         If ``True`` then log progress and times.
+    check_existing : :class:`bool`, optional, defaults to ``True``
+        If ``True`` check if any of the `infiles` is in a directory in
+        which a .sha256sum file exists, and, if so, check generated
+        checksums for each file against the corresponding entry in the
+        relevant .sha256sum file (or *files* for `infiles` that span
+        multiple directories). An exception is raised for a mismatch.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         A recarray with two columns "FILENAME" and "SHA256".
-
-    Notes
-    -----
-        - If each of the infiles is in the same directory and a (single)
-          .sha256sum file exists in that directory, then the generated
-          checksums for each file are compared to the corresponding entry
-          in the .sha256sum file. The code fails if there is a mismatch.
     """
     from subprocess import Popen, PIPE, STDOUT
     t0 = time()
@@ -1859,7 +1858,7 @@ def get_checksums(infiles, verbose=False):
     for ld in ldir:
         # ADM look for a shasum file.
         shalist = glob(os.path.join(ld, "*.sha256sum"))
-        if len(shalist) > 0:
+        if len(shalist) > 0 and check_existing:
             shafn = shalist[0]
             if verbose:
                 log.info("Comparing checksums to {}".format(shafn))
@@ -1872,8 +1871,8 @@ def get_checksums(infiles, verbose=False):
                     checkdict[fullpath] = sha256
 
     # ADM check the existing checksum file against the
-    # ADM calculated checksums, if any SHA checksum files existed
-    if len(checkdict) > 0:
+    # ADM calculated checksums, if any SHA checksum files existed.
+    if len(checkdict) > 0 and check_existing:
         for st in shatab:
             try:
                 if checkdict[st["FILENAME"]] != st["SHA256"]:
