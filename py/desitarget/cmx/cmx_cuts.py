@@ -14,6 +14,7 @@ flux passes a given selection criterion (*e.g.* STD_TEST).
 from time import time
 import numpy as np
 import numpy.lib.recfunctions as rfn
+import healpy as hp
 import os
 import fitsio
 import warnings
@@ -33,6 +34,7 @@ from desitarget.targets import finalize, resolve
 from desitarget.cmx.cmx_targetmask import cmx_mask
 from desitarget.geomask import sweep_files_touch_hp, is_in_hp, bundle_bricks
 from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
+from desitarget.gaiamatch import find_gaia_files_hp
 
 # ADM Main Survey functions, used for mini-SV.
 from desitarget.cuts import isLRG as isLRG_MS
@@ -1603,6 +1605,96 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     return isdither, prio
 
 
+def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
+                      paramssolved=None, dupsource=None, pmra=None, pmdec=None,
+                      nside=2, primary=None):
+    """Gaia stars for dithering tests outside of the Legacy Surveys area.
+
+    Parameters
+    ----------
+    ra, dec : :class:`array_like` or :class:`None`
+        Right Ascension and Declination in degrees.
+    gmag, rmag : :class:`array_like` or :class:`None`
+        GAIA_PHOT_G_MEAN_MAG, GAIA_PHOT_R_MEAN_MAG.
+    aen : :class:`array_like` or :class:`None`
+        Gaia Astrometric Excess Noise.
+    paramssolved : :class:`array_like` or :class:`None`
+        How many parameters were solved for in Gaia.
+    dupsource : :class:`array_like` or :class:`None`
+        Whether the source is a duplicate in Gaia.
+    pmra, pmdec : :class:`array_like` or :class:`None`
+        Gaia-based proper motion in RA and Dec.
+    nside : :class:`int`, optional, defaults to 2
+        (NESTED) HEALPix nside, if targets are being parallelized.
+        The default of 2 should be benign for serial processing.
+    primary : :class:`array_like` or :class:`None`
+        ``True`` for objects that should be passed through the selection.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if the object is a Gaia "STD_DITHER_GAIA" target.
+    :class:`array_like`
+        A priority shift of 10*(25-rmag) based on `rmag`.
+
+    Notes
+    -----
+    - This version (10/21/20) is version 67 on `the cmx wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(gmag, dtype='?')
+
+    issdg = primary.copy()
+
+    # ADM not too bright in Gaia G, R.
+    issdg &= gmag > 11.5
+    issdg &= rmag > 11.5
+
+    # ADM No obvious issues with the astrometry.
+    issdg &= (aen < 1) & (paramssolved == 31)
+
+    # ADM Finite proper motions.
+    issdg &= np.isfinite(pmra) & np.isfinite(pmdec)
+
+    # ADM Unique Gaia source (not a duplicated source).
+    issdg &= ~dupsource
+
+    # ADM CUT TO G < 19 where |b| < 20.
+    
+    # ADM remove any sources that have neighbors within 7"...
+    # ADM for speed, run only sources for which issdg is still True.
+    ii_true = np.where(issdg)[0]
+    if len(ii_true) > 0:
+        # ADM determine the pixels of interest.
+        theta, phi = np.radians(90-dec), np.radians(ra)
+        pixlist = list(set(hp.ang2pix(nside, theta, phi, nest=True)))
+        # ADM read in the necessary Gaia files.
+        fns = find_gaia_files_hp(nside, pixlist, neighbors=True)
+        gaiaobjs = []
+        gaiacols = ["RA", "DEC", "PHOT_G_MEAN_MAG", "PHOT_RP_MEAN_MAG"]
+        for i, fn in enumerate(fns):
+            if i%10==0:
+                print("{}/{}".format(i, len(fns)), time()-start)
+            gaiaobjs.append(fitsio.read(fn, columns=gaiacols))
+        gaiaobjs = np.concatenate(gaiaobjs)
+        # ADM match the dither sources to the broader Gaia sources at 7".
+        csdg = SkyCoord(ra[ii_true]*u.degree, dec[ii_true]*u.degree)
+        cgaia = SkyCoord(gaiaobjs["RA"]*u.degree, gaiaobjs["DEC"]*u.degree)
+        idsdg, idgaia, d2d, _ = cgaia.search_around_sky(csdg, 7*u.arcsec)
+        # ADM remove source matches with d2d=0 (i.e. the source itself!).
+        idgaia, idsdg = idgaia[d2d > 0], idsdg[d2d > 0]
+        # ADM remove matches within 5 mags of a Gaia source.
+        badmag = (
+            (gmag[ii_true][idsdg] + 5 > gaiaobjs["PHOT_G_MEAN_MAG"][idgaia]) |
+            (rmag[ii_true][idsdg] + 5 > gaiaobjs["PHOT_RP_MEAN_MAG"][idgaia]))
+        issdg[ii_true[idsdg][badmag]] = False
+
+    # ADM prioritize based on magnitude.
+    prio = np.array((10*(25-rmag)).astype(int))
+
+    return issdg, prio
+
+
 def isSTD_dither_spec(gaiagmag=None, gaiarmag=None, obs_rflux=None,
                       isgood=None, primary=None):
     """Gaia stars for dithering-only tests during commissioning.
@@ -1942,10 +2034,10 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     See desitarget.cmx.cmx_targetmask.cmx_mask for bit definitions.
     """
     from desitarget.gfa import all_gaia_in_tiles
-    # ADM No Gaia-only CMX target classes are fainter than G=19.
-    gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
+    # ADM No Gaia-only CMX target classes are fainter than G=20.
+    gaiaobjs = all_gaia_in_tiles(maglim=20, numproc=numproc, allsky=True,
                                  mindec=-90, mingalb=0, addobjid=True,
-                                 nside=nside, pixlist=pixlist)
+                                 nside=nside, pixlist=pixlist, addparams=True)
     # ADM the convenience function we use adds an empty TARGETID
     # ADM field which we need to remove before finalizing.
     gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
@@ -1953,9 +2045,13 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     primary = np.ones_like(gaiaobjs, dtype=bool)
 
     # ADM the relevant input quantities.
-    ra = gaiaobjs["RA"]
-    dec = gaiaobjs["DEC"]
+    ra, dec = gaiaobjs["RA"], gaiaobjs["DEC"]
+    pmra, pmdec = gaiaobjs["PMRA"], gaiaobjs["PMDEC"]
     gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
+    gaiarmag = gaiaobjs["GAIA_PHOT_RP_MEAN_MAG"]
+    aen = gaiaobjs["GAIA_ASTROMETRIC_EXCESS_NOISE"]
+    dupsource = gaiaobjs["GAIA_DUPLICATED_SOURCE"]
+    paramssolved = gaiaobjs["GAIA_ASTROMETRIC_PARAMS_SOLVED"]
 
     # ADM determine if an object matched a CALSPEC standard.
     std_calspec = isSTD_calspec(
@@ -1970,6 +2066,12 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     # ADM grab the information on the FIRST LIGHT targets.
     fl_target, flobjs = isFIRSTLIGHT(gaiaobjs.dtype, cmxdir=cmxdir,
                                      nside=nside, pixlist=pixlist)
+
+    sdg = isSTD_dither_gaia(
+        ra=ra, dec=dec, gmag=gaiagmag, rmag=gaiarmag, aen=aen,
+        paramssolved=paramssolved, dupsource=dupsource, pmra=pmra, pmdec=pmdec,
+        nside=nside, primary=primary
+    )
 
     # ADM Construct the target flag bits.
     cmx_target = std_calspec * cmx_mask.STD_CALSPEC
