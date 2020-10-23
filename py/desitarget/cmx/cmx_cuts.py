@@ -1640,7 +1640,7 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
 
     Notes
     -----
-    - This version (10/21/20) is version 67 on `the cmx wiki`_.
+    - This version (10/21/20) is version 68 on `the cmx wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gmag, dtype='?')
@@ -2027,6 +2027,9 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     :class:`~numpy.ndarray`
         numpy structured array of Gaia sources that were read in from
         file for the passed pixel constraints (or no pixel constraints).
+    :class:`array_like`
+        a priority shift of 10*(25-rmag) based on GAIA_PHOT_RP_MEAN_MAG.
+        (for STD_DITHER_GAIA sources).
 
     Notes
     -----
@@ -2046,6 +2049,7 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
 
     primary = np.ones_like(gaiaobjs, dtype=bool)
+    priority_shift = np.zeros_like(gaiaobjs, dtype=int)
 
     # ADM the relevant input quantities.
     ra, dec = gaiaobjs["RA"], gaiaobjs["DEC"]
@@ -2070,22 +2074,27 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     fl_target, flobjs = isFIRSTLIGHT(gaiaobjs.dtype, cmxdir=cmxdir,
                                      nside=nside, pixlist=pixlist)
 
-    sdg = isSTD_dither_gaia(
+    sdg, prio = isSTD_dither_gaia(
         ra=ra, dec=dec, gmag=gaiagmag, rmag=gaiarmag, aen=aen,
         paramssolved=paramssolved, dupsource=dupsource, pmra=pmra, pmdec=pmdec,
         nside=nside, primary=primary
     )
 
+    # ADM the priority shift for Gaia-only cmx sources.
+    priority_shift[sdg] = prio[sdg]
+
     # ADM Construct the target flag bits.
     cmx_target = std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= backup_bright * cmx_mask.BACKUP_BRIGHT
     cmx_target |= backup_faint * cmx_mask.BACKUP_FAINT
+    cmx_target |= backup_faint * cmx_mask.BACKUP_FAINT
+    cmx_target |= sdg * cmx_mask.STD_DITHER_GAIA
 
     # ADM add in the first light program targets.
     cmx_target = np.concatenate([cmx_target, fl_target])
     gaiaobjs = np.concatenate([gaiaobjs, flobjs])
 
-    return cmx_target, gaiaobjs
+    return cmx_target, gaiaobjs, priority_shift
 
 
 def apply_cuts(objects, cmxdir=None, noqso=False):
@@ -2527,7 +2536,8 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         objects = io.read_tractor(filename)
         cmx_target, priority_shift = apply_cuts(objects,
                                                 cmxdir=cmxdir, noqso=noqso)
-        return _finalize_targets(objects, cmx_target, priority_shift)
+        return _finalize_targets(objects, cmx_target,
+                                 priority_shift=priority_shift)
 
     # Counter for number of bricks processed;
     # a numpy scalar allows updating nbrick in python 2
@@ -2571,14 +2581,16 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
             numproc4 = 4
 
         # ADM set the target bits that are based only on Gaia.
-        cmx_target, gaiaobjs = apply_cuts_gaia(numproc=numproc4, cmxdir=cmxdir,
-                                               nside=nside, pixlist=pixlist)
+        cmx_target, gaiaobjs, priority_shift = apply_cuts_gaia(
+            numproc=numproc4, cmxdir=cmxdir, nside=nside, pixlist=pixlist)
 
         # ADM determine the Gaia Data Release.
         gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])
 
         # ADM add the relevant bits and IDs to the Gaia targets.
-        gaiatargs = _finalize_targets(gaiaobjs, cmx_target, gaiadr=gaiadr)
+        gaiatargs = _finalize_targets(gaiaobjs, cmx_target,
+                                      priority_shift=priority_shift,
+                                      gaiadr=gaiadr)
 
         # ADM make the Gaia-only data structure resemble the main targets.
         gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype)
