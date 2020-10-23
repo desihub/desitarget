@@ -32,7 +32,8 @@ from desitarget.cuts import shift_photo_north
 from desitarget.internal import sharedmem
 from desitarget.targets import finalize, resolve
 from desitarget.cmx.cmx_targetmask import cmx_mask
-from desitarget.geomask import sweep_files_touch_hp, is_in_hp, bundle_bricks
+from desitarget.geomask import sweep_files_touch_hp, bundle_bricks
+from desitarget.geomask import is_in_hp, is_in_gal_box
 from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 from desitarget.gaiamatch import find_gaia_files_hp
 
@@ -1660,7 +1661,9 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
     issdg &= ~dupsource
 
     # ADM CUT TO G < 19 where |b| < 20.
-    
+    blt20 = is_in_gal_box([ra, dec], [0, 360, -20, 20], radec=True)
+    issdg &= (gmag < 19 | ~blt20)
+
     # ADM remove any sources that have neighbors within 7"...
     # ADM for speed, run only sources for which issdg is still True.
     ii_true = np.where(issdg)[0]
