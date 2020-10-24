@@ -1608,7 +1608,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
 def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
                       paramssolved=None, dupsource=None, pmra=None, pmdec=None,
-                      nside=2, primary=None):
+                      nside=2, primary=None, test=False):
     """Gaia stars for dithering tests outside of the Legacy Surveys area.
 
     Parameters
@@ -1630,6 +1630,9 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
         The default of 2 should be benign for serial processing.
     primary : :class:`array_like` or :class:`None`
         ``True`` for objects that should be passed through the selection.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find and read every possible Gaia file.
 
     Returns
     -------
@@ -1676,9 +1679,20 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
         gaiaobjs = []
         gaiacols = ["RA", "DEC", "PHOT_G_MEAN_MAG", "PHOT_RP_MEAN_MAG"]
         for i, fn in enumerate(fns):
-            if i%10==0:
-                print("{}/{}".format(i, len(fns)), time()-start)
-            gaiaobjs.append(fitsio.read(fn, columns=gaiacols))
+            if i % 10 == 0:
+                log.info("Read {}/{} files for STD_DITHER_GAIA...t={:.1f}s"
+                         .format(i, len(fns), time()-start))
+            try:
+                gaiaobjs.append(fitsio.read(fn, columns=gaiacols))
+            except OSError:
+                if test:
+                    pass
+                else:
+                    msg = "failed to find or open the following file: (ffopen) "
+                    msg += fn
+                    log.critical(msg)
+                    raise OSError
+
         gaiaobjs = np.concatenate(gaiaobjs)
         # ADM match the dither sources to the broader Gaia sources at 7".
         csdg = SkyCoord(ra[ii_true]*u.degree, dec[ii_true]*u.degree)
@@ -2002,7 +2016,8 @@ def isFIRSTLIGHT(gaiadtype, cmxdir=None, nside=None, pixlist=None):
     return cmx_target, flout
 
 
-def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
+def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None,
+                    test=False):
     """Gaia-only-based CMX target selection, return target mask arrays.
 
     Parameters
@@ -2019,6 +2034,9 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
         Only return targets in a set of (NESTED) HEALpixels at `nside`.
         Useful for parallelizing, as input files will only be processed
         if they touch a pixel in the passed list.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find and read every possible Gaia file.
 
     Returns
     -------
@@ -2077,7 +2095,7 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None):
     sdg, prio = isSTD_dither_gaia(
         ra=ra, dec=dec, gmag=gaiagmag, rmag=gaiarmag, aen=aen,
         paramssolved=paramssolved, dupsource=dupsource, pmra=pmra, pmdec=pmdec,
-        nside=nside, primary=primary
+        nside=nside, primary=primary, test=test
     )
 
     # ADM the priority shift for Gaia-only cmx sources.
@@ -2413,7 +2431,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
 def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
                    nside=None, pixlist=None, bundlefiles=None, extra=None,
-                   resolvetargs=True, backup=True):
+                   resolvetargs=True, backup=True, test=False):
     """Process input files in parallel to select commissioning (cmx) targets
 
     Parameters
@@ -2447,6 +2465,9 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         targets into a set of unique sources based on location.
     backup : :class:`boolean`, optional, defaults to ``True``
         If ``True``, also run the Gaia-only BACKUP_BRIGHT/FAINT targets.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find and read every possible Gaia file.
 
     Returns
     -------
@@ -2582,7 +2603,8 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
 
         # ADM set the target bits that are based only on Gaia.
         cmx_target, gaiaobjs, priority_shift = apply_cuts_gaia(
-            numproc=numproc4, cmxdir=cmxdir, nside=nside, pixlist=pixlist)
+            numproc=numproc4, cmxdir=cmxdir, nside=nside, pixlist=pixlist,
+            test=test)
 
         # ADM determine the Gaia Data Release.
         gaiadr = gaia_dr_from_ref_cat(gaiaobjs["REF_CAT"])

@@ -117,13 +117,13 @@ class TestCMX(unittest.TestCase):
         for filelist in [self.sweepfiles]:
             # ADM No QSO cuts and limit to pixels for speed.
             # ADM This doesn't affect coverage.
-            targets = cuts.select_targets(filelist, numproc=1,
+            targets = cuts.select_targets(filelist, numproc=1, test=True,
                                           cmxdir=self.cmxdir, noqso=True,
                                           nside=self.nside, pixlist=self.pix)
-            t1 = cuts.select_targets(filelist[0:1], numproc=1,
+            t1 = cuts.select_targets(filelist[0:1], numproc=1, test=True,
                                      cmxdir=self.cmxdir, noqso=True,
                                      nside=self.nside, pixlist=self.pix)
-            t2 = cuts.select_targets(filelist[0], numproc=1,
+            t2 = cuts.select_targets(filelist[0], numproc=1, test=True,
                                      cmxdir=self.cmxdir, noqso=True,
                                      nside=self.nside, pixlist=self.pix)
             for col in t1.dtype.names:
@@ -147,7 +147,7 @@ class TestCMX(unittest.TestCase):
             # ADM parallelization across pixels only works for sweep files.
             for filelist in [self.sweepfiles]:
                 # ADM No QSO cuts for speed. Doesn't affect coverage.
-                targets = cuts.select_targets(filelist, numproc=nproc,
+                targets = cuts.select_targets(filelist, numproc=nproc, test=True,
                                               cmxdir=self.cmxdir, noqso=True,
                                               nside=self.nside, pixlist=self.pix)
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
