@@ -2629,6 +2629,9 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
             # ADM Retain all non-Gaia sources, which have REF_ID of -1 or 0
             # ADM and so are all duplicates on REF_ID.
             ii &= alltargs["REF_ID"] > 0
+            # ADM Always retain the STD_DITHER_GAIA targets, even if they're
+            # ADM duplicated in the Legacy Surveys footprint.
+            ii &= (alltargets["CMX_TARGET"] & cmx_mask.STD_DITHER_GAIA) == 0
             targs = alltargs[ii]
             _, ind = np.unique(targs["REF_ID"], return_index=True)
             targs = targs[ind]
