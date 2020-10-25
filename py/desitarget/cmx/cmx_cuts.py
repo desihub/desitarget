@@ -1679,7 +1679,7 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
         gaiaobjs = []
         gaiacols = ["RA", "DEC", "PHOT_G_MEAN_MAG", "PHOT_RP_MEAN_MAG"]
         for i, fn in enumerate(fns):
-            if i % 10 == 0:
+            if i % 25 == 0:
                 log.info("Read {}/{} files for STD_DITHER_GAIA...t={:.1f}s"
                          .format(i, len(fns), time()-start))
             try:
@@ -2631,7 +2631,7 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
             ii &= alltargs["REF_ID"] > 0
             # ADM Always retain the STD_DITHER_GAIA targets, even if they're
             # ADM duplicated in the Legacy Surveys footprint.
-            ii &= (alltargets["CMX_TARGET"] & cmx_mask.STD_DITHER_GAIA) == 0
+            ii &= (alltargs["CMX_TARGET"] & cmx_mask.STD_DITHER_GAIA) == 0
             targs = alltargs[ii]
             _, ind = np.unique(targs["REF_ID"], return_index=True)
             targs = targs[ind]
