@@ -2111,6 +2111,7 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None,
     # ADM add in the first light program targets.
     cmx_target = np.concatenate([cmx_target, fl_target])
     gaiaobjs = np.concatenate([gaiaobjs, flobjs])
+    priority_shift = np.concatenate([priority_shift, np.zeros_like(fl_target)])
 
     return cmx_target, gaiaobjs, priority_shift
 
