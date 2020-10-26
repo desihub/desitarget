@@ -6,7 +6,7 @@ desitarget Change Log
 -------------------
 
 * Add the ``STD_DITHER_GAIA`` target class for CMX [`PR #644`_].
-    * For commissioning tests outside the Legacy Surveys footprint.
+    * For dither tests outside the Legacy Surveys footprint.
 * Update Travis for Py3.8/Astropy 4.x (fixes `issue #639`_) [`PR #640`_].
     * Also adds a useful script for recovering the QSO RF probabilities.
 * Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
