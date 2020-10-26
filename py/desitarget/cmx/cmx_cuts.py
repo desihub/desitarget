@@ -1665,7 +1665,7 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
 
     # ADM CUT TO G < 18 where |b| < 20.
     blt20 = is_in_gal_box([ra, dec], [0, 360, -20, 20], radec=True)
-    issdg &= (gmag < 18 | ~blt20)
+    issdg &= (gmag < 18) | ~blt20
 
     # ADM remove any sources that have neighbors within 7"...
     # ADM for speed, run only sources for which issdg is still True.
@@ -2104,7 +2104,6 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None,
     # ADM Construct the target flag bits.
     cmx_target = std_calspec * cmx_mask.STD_CALSPEC
     cmx_target |= backup_bright * cmx_mask.BACKUP_BRIGHT
-    cmx_target |= backup_faint * cmx_mask.BACKUP_FAINT
     cmx_target |= backup_faint * cmx_mask.BACKUP_FAINT
     cmx_target |= sdg * cmx_mask.STD_DITHER_GAIA
 
