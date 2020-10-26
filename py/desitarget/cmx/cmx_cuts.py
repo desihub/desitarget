@@ -1643,7 +1643,7 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
 
     Notes
     -----
-    - This version (10/21/20) is version 68 on `the cmx wiki`_.
+    - This version (10/25/20) is version 69 on `the cmx wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gmag, dtype='?')

@@ -534,7 +534,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         else:
             gaiadr = np.max(gaiadr)
         drstring = "gaiadr{}".format(gaiadr)
-        print("HERE", drstring)
     else:
         try:
             drint = int(indir.split("dr")[1][0])
