@@ -1352,6 +1352,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
+        rf_DR9_fileName = pathToRF + '/rf_model_dr9.npz'
+        rf_DR9_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1400,7 +1402,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_HighZ_proba >= pcut_HighZ)
 
-        tmpReleaseOK = releaseReduced >= 8000
+        tmpReleaseOK = (releaseReduced >= 8000) & (releaseReduced < 9000)
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
@@ -1417,6 +1419,37 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             pcut = 0.88 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
             pcut_HighZ = 0.55
+
+            # Add rf proba test result to "qso" mask
+            qso[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
+            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM store the probabilities in case they need returned.
+            pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
+            # ADM populate a mask specific to the "HighZ" selection.
+            pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
+
+        tmpReleaseOK = releaseReduced >= 9000
+        if np.any(tmpReleaseOK):
+            # rf initialization - colors data duplicated within "myRF"
+            rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                      numberOfTrees=500, version=2)
+            rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                            numberOfTrees=500, version=2)
+            # rf loading
+            rf.loadForest(rf_DR9_fileName)
+            rf_HighZ.loadForest(rf_DR9_HighZ_fileName)
+            # Compute rf probabilities
+            tmp_rf_proba = rf.predict_proba()
+            tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
+            # Compute optimized proba cut
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            pcut = 0.82 - 0.04*np.tanh(tmp_r_Reduced - 20.5)
+            pcut_HighZ = 0.50
+
+            print("[WARNING] C EST BIEN MON DESITARGET")
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
