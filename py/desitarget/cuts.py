@@ -1456,8 +1456,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                 is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
                          (rnobs[preSelection][tmpReleaseOK] > 4) &\
                          (znobs[preSelection][tmpReleaseOK] > 4) &\
-                         ((ra[preSelection][tmpReleaseOK] > 320) | (ra[preSelection][tmpReleaseOK] < 100)) &\
-                         (dec[preSelection][tmpReleaseOK] < 10)
+                         ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
+                         (dec[preSelection][tmpReleaseOK] <= 10)
                 print(is_des.sum(), is_des.size)
                 #threshold selection for Des footprint
                 pcut[is_des] = 0.82 - 0.04*np.tanh(tmp_r_Reduced[is_des] - 20.5)
