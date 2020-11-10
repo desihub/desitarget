@@ -1452,7 +1452,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                 pcut_HighZ = 0.7
             else:
                 pcut = np.ones(tmp_rf_proba.size)
-                pcut_Highz = np.ones(tmp_rf_HighZ_proba.size)
+                pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
                 is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
                          (rnobs[preSelection][tmpReleaseOK] > 4) &\
                          (znobs[preSelection][tmpReleaseOK] > 4) &\
