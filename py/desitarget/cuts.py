@@ -1254,7 +1254,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
                        gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
-                       primary=None, south=True, return_probs=False):
+                       primary=None, south=True, ra=None, dec=None, return_probs=False):
     """Define QSO targets from a Random Forest. Returns a boolean array.
 
     Parameters
@@ -1446,8 +1446,25 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            pcut = 0.82 - 0.04*np.tanh(tmp_r_Reduced - 20.5)
-            pcut_HighZ = 0.50
+            if not south:
+                #threshold selection for North footprint
+                pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
+                pcut_HighZ = 0.7
+            else:
+                pcut = np.ones(tmp_rf_proba.size)
+                pcut_Highz = np.ones(tmp_rf_HighZ_proba.size)
+                is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
+                         (rnobs[preSelection][tmpReleaseOK] > 4) &\
+                         (znobs[preSelection][tmpReleaseOK] > 4) &\
+                         (ra[preSelection][tmpReleaseOK] > 320)  &\
+                         (ra[preSelection][tmpReleaseOK] < 100)  &\
+                         (dec[preSelection][tmpReleaseOK] < 10)
+                #threshold selection for Des footprint
+                pcut[is_des] = 0.82 - 0.04*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut_HighZ[is_des] = 0.50
+                #threshold selection for South footprint
+                pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced - 20.5)
+                pcut_HighZ[~is_des] = 0.65
 
             print("[WARNING] C EST BIEN MON DESITARGET")
 
@@ -1808,7 +1825,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
                     tcnames, qso_optical_cuts, qso_selection,
-                    maskbits, Grr, refcat, primary, resolvetargs=True):
+                    maskbits, Grr, refcat, primary, resolvetargs=True, ra=None, dec=None):
     """Perform target selection on parameters, return target mask arrays.
 
     Parameters
@@ -1884,6 +1901,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
         If ``True``, if only northern (southern) sources are passed then
         only apply the northern (southern) cuts to those sources.
+    ra, dec :class:`~numpy.ndarray`
+        The Ra, Dec position of objects
 
     Returns
     -------
@@ -1966,7 +1985,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
                     maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                    objtype=objtype, release=release, south=south
+                    objtype=objtype, release=release, south=south, ra=ra, dec=dec
                 )
             else:
                 raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
@@ -2383,7 +2402,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
         tcnames, qso_optical_cuts, qso_selection,
-        maskbits, Grr, refcat, primary, resolvetargs=resolvetargs
+        maskbits, Grr, refcat, primary, resolvetargs=resolvetargs,
+        ra=objects['RA'], dec=objects['DEC']
     )
 
     return desi_target, bgs_target, mws_target
