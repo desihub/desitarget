@@ -10,19 +10,12 @@ from astropy.table import Table
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask
 from desitarget.targets import calc_priority, main_cmx_or_sv
 from desitarget.targets import initial_priority_numobs
-from desitarget.mtl import make_mtl
+from desitarget.mtl import make_mtl, mtldatamodel
 
 
 class TestPriorities(unittest.TestCase):
 
     def setUp(self):
-        targdtype = [
-            ('DESI_TARGET', np.int64),
-            ('BGS_TARGET', np.int64),
-            ('MWS_TARGET', np.int64),
-            ('PRIORITY_INIT', np.int64),
-            ('NUMOBS_INIT', np.int64)
-        ]
         zdtype = [
             ('Z', np.float32),
             ('ZWARN', np.float32),
@@ -32,7 +25,7 @@ class TestPriorities(unittest.TestCase):
 
         n = 3
 
-        self.targets = Table(np.zeros(n, dtype=targdtype))
+        self.targets = Table(np.zeros(n, dtype=mtldatamodel.dtype))
         self.targets['TARGETID'] = list(range(n))
 
         self.zcat = Table(np.zeros(n, dtype=zdtype))

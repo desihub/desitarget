@@ -57,9 +57,9 @@ if __name__ == "__main__":
             outfile = os.path.join("t4", direc, "healpix", os.path.basename(fn))
             s = set(gaiafiles)
             # ADM ensure a match with objects in the Gaia files.
-            ii = np.array(
-                [len(set(find_gaia_files(i, neighbors=False)).intersection(s))>0
-                 for i in objs])
+            ii = np.array([len(
+                set(find_gaia_files(i, neighbors=False)).intersection(s)) > 0
+                for i in objs])
             fitsio.write(outfile, objs[ii][:25],
                          clobber=True, header=hdr, extname=ext)
             print("writing {}".format(outfile))

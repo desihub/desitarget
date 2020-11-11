@@ -2,6 +2,7 @@
 
 from __future__ import print_function, division
 
+import os
 import fitsio
 from fitsio import FITS
 import numpy as np
@@ -15,6 +16,9 @@ start = time()
 from desiutil.log import get_logger
 log = get_logger()
 
+# ADM the default number of chunks to write in to save memory.
+nchunks = 10
+
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Concatenate multiple FITS files into one large file. Retains the header from the FIRST listed input file')
 ap.add_argument("infiles", 
@@ -23,6 +27,13 @@ ap.add_argument("outfile",
                 help="Output file name")
 ap.add_argument("targtype", choices=['skies', 'randoms', 'targets', 'gfas'],
                 help="Type of target run with parallelization/multiprocessing code to gather")
+ap.add_argument("--norandomize", action='store_true',
+                help="Do NOT randomly shuffle the final file before writing it (using seed 626)")
+ap.add_argument("--numchunks", type=int,
+                help='number of chunks in which to write to save memory [defaults to {}]'.format(nchunks),
+                default=nchunks)
+ap.add_argument("--skip", action='store_true',
+                help="Skip input files that don't exist without flagging an error")
 
 ns = ap.parse_args()
 
@@ -30,31 +41,74 @@ ns = ap.parse_args()
 tt = ns.targtype
 if ns.targtype == 'gfas':
     tt = "GFA_TARGETS"
+extname = tt.upper()
 
 # ADM convert passed csv strings to lists.
-fns = [ fn for fn in ns.infiles.split(';') ]
+if ns.skip:
+    fns = [ fn for fn in ns.infiles.split(';') if
+            os.path.isfile(os.path.expandvars(fn))]
+else:
+    fns = [ fn for fn in ns.infiles.split(';') ]
 
 # ADM read the header from the first file.
 fx = fitsio.FITS(fns[0])
 hdr = fx[1].read_header()
 
+# ADM if you're combining files, you'll need to
+# ADM combine the HEALPixel coverage.
+hpx = []
+for fn in fns:
+    hpx.append(fitsio.read_header(fn, extname)["FILEHPX"])
+hdr["FILEHPX"] = ",".join(hpx)
+
+# ADM retain a list of the units.
+tunits = ["TUNIT{}".format(i) for i in range(1, hdr["TFIELDS"]+1)]
+units = [hdr[tunit] if tunit in hdr.keys() else "" for tunit in tunits]
+
 log.info('Begin writing {} to {}...t = {:.1f}s'
          .format(ns.targtype, ns.outfile, time()-start))
 
-# ADM open the file for writing.
-fits = FITS(ns.outfile, 'rw')
+# ADM read the input files.
+data = []
+for fn in fns:
+    log.info('Reading file {}...t = {:.1f}s'.format(fn, time()-start))
+    fndata = fitsio.read(fn)
+    data.append(fndata)
+data = np.concatenate(data)
+ndata = len(data)
 
-# ADM write the first file with the header.
-data = fitsio.read(fns[0])
-log.info('Working on file {}...t = {:.1f}s'.format(fns[0], time()-start))
-fits.write(data, extname=tt.upper(), header=hdr, clobber=True)
+indexes = np.arange(ndata)
+# ADM shuffle to ensure randomness.
+if not ns.norandomize:
+    log.info("Read in {:.1e} objects. Shuffling indexes...t = {:.1f}s"
+             .format(ndata, time()-start))
+    # ADM the seed for the "final" shuffle."
+    reseed = 626
+    hdr["RESEED"] = reseed
+    np.random.seed(reseed)
+    np.random.shuffle(indexes)
 
-# ADM add the other files.
-for fn in fns[1:]:
-    log.info('Working on file {}...t = {:.1f}s'.format(fn, time()-start))
-    data = fitsio.read(fn)
-    fits[-1].append(data)
+#ADM write in chunks to save memory.
+chunk = ndata//ns.numchunks
+outy = fitsio.FITS(ns.outfile+".tmp", 'rw', clobber=True)
+for i in range(ns.numchunks):
+    log.info("Writing chunk {}/{} from index {} to {}...t = {:.1f}s"
+             .format(i+1, ns.numchunks, i*chunk, (i+1)*chunk-1, time()-start))
+    datachunk = data[indexes[i*chunk:(i+1)*chunk]]
+    # ADM if this is the first chunk, write the data and header...
+    if i == 0:
+        outy.write(datachunk, extname=extname, header=hdr)
+    # ADM ...otherwise just append to the existing file object.
+    else:
+        outy[-1].append(datachunk)
+    # ADM append any remaining data.
+datachunk = data[indexes[ns.numchunks*chunk:]]
+if len(datachunk) > 0:
+    log.info("Writing final partial chunk from index {} to {}...t = {:.1f}s"
+             .format(ns.numchunks*chunk, len(data)-1, time()-start))
+    outy[-1].append(datachunk)
+outy.close()
 
-fits.close()
+os.rename(ns.outfile+'.tmp', ns.outfile)
 
-log.info('Finished writing...t = {:.1f}s'.format(time()-start))
+log.info('Finished writing to {}...t = {:.1f}s'.format(ns.outfile, time()-start))

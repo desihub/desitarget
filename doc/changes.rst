@@ -2,16 +2,64 @@
 desitarget Change Log
 =====================
 
-0.41.1 (unreleased)
+0.43.1 (unreleased)
 -------------------
 
 * No changes yet.
+
+0.43.0 (2020-10-27)
+-------------------
+
+* Add the ``STD_DITHER_GAIA`` target class for CMX [`PR #644`_].
+    * For dither tests outside the Legacy Surveys footprint.
+* Tune shifts between southern and northern imaging for DR9 [`PR #643`_].
+* Update Travis for Py3.8/Astropy 4.x (fixes `issue #639`_) [`PR #640`_].
+    * Also adds a useful script for recovering the QSO RF probabilities.
+* Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
+    * Units for all output quantities are stored in `data/units.yaml`.
+    * Unit tests check that output quantities have associated units.
+    * Unit tests also check that all units are valid astropy units.
+    * Also some more minor cleanup and speedups.
+
+.. _`issue #356`: https://github.com/desihub/desitarget/issues/356
+.. _`issue #639`: https://github.com/desihub/desitarget/issues/639
+.. _`PR #638`: https://github.com/desihub/desitarget/pull/638
+.. _`PR #640`: https://github.com/desihub/desitarget/pull/640
+.. _`PR #643`: https://github.com/desihub/desitarget/pull/643
+.. _`PR #644`: https://github.com/desihub/desitarget/pull/644
+
+0.42.0 (2020-08-17)
+-------------------
+
+* Update the data model to address `issue #633`_ [`PR #637`_].
+* Major refactor to MTL to implement ledgers [`PR #635`_]. Includes:
+    * Code to make initial HEALPix-split ledger files from target files.
+        * Ledgers can be produced for each observing layer.
+        * Also includes an easy-to-use binary executable script.
+        * New data model with timestamp, code version and target states.
+    * Code to rapidly update MTL information by appending to a ledger.
+        * Uses targets and a zcat with the current standard columns.
+    * Functionality that works with either FITS or ECSV files.
+    * Automatic trimming of target columns in :func:`mtl.make_mtl()`.
+        * Saves memory, which may help with processing of mocks.
+    * :func:`mtl.inflate_ledger()` to re-obtain trimmed target columns.
+    * Code to write MTL files in a standard format.
+    * Utility functions to read (FITS or ECSV) MTL ledgers:
+        * In a set of HEALPixels (:func:`io.read_mtl_in_hp`)
+        * In a set of tiles (:func:`read_targets_in_tiles` with mtl=True)
+        * In a box (:func:`read_targets_in_box` with mtl=True)
+        * In a cap (:func:`read_targets_in_cap` with mtl=True)
+    * Can read entire ledger, or most recent entry for each ``TARGETID``.
+
+.. _`issue #633`: https://github.com/desihub/desitarget/issues/633
+.. _`PR #635`: https://github.com/desihub/desitarget/pull/635
+.. _`PR #637`: https://github.com/desihub/desitarget/pull/637
 
 0.41.0 (2020-08-04)
 -------------------
 
 * Support for python/3.8 and numpy/1.18, including new tests
-  [`PR #631`, `PR #634`]
+  [`PR #631`_, `PR #634`_]
 * Minor data model fixes, error checks and streamlining [`PR #627`_].
     * The most important change is that MWS science targets are no
       longer observed in GRAY or DARK, except for MWS_WDs.

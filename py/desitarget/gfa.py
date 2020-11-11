@@ -161,7 +161,7 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
 
 
 def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
-                 nside=None, pixlist=None, addobjid=False):
+                 nside=None, pixlist=None, addobjid=False, addparams=False):
     """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
 
     Parameters
@@ -183,6 +183,10 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
     addobjid : :class:`bool`, optional, defaults to ``False``
         If ``True``, include, in the output, a column "GAIA_OBJID"
         that is the integer number of each row read from file.
+    addparams : :class:`bool`, optional, defaults to ``False``
+        If ``True``, include some additional Gaia columns:
+        "GAIA_ASTROMETRIC_EXCESS_NOISE", "GAIA_DUPLICATED_SOURCE"
+        and "GAIA_ASTROMETRIC_PARAMS_SOLVED'.
 
     Returns
     -------
@@ -209,6 +213,10 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
     dt = gfadatamodel.dtype.descr
     if addobjid:
         for tup in ('GAIA_BRICKID', '>i4'), ('GAIA_OBJID', '>i4'):
+            dt.append(tup)
+    if addparams:
+        for tup in [('GAIA_DUPLICATED_SOURCE', '?'),
+                    ('GAIA_ASTROMETRIC_PARAMS_SOLVED', '>i1')]:
             dt.append(tup)
 
     gfas = np.zeros(len(objs), dtype=dt)
@@ -251,8 +259,8 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
 
 
 def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
-                      tiles=None, mindec=-30, mingalb=10,
-                      nside=None, pixlist=None, addobjid=False):
+                      tiles=None, mindec=-30, mingalb=10, nside=None,
+                      pixlist=None, addobjid=False, addparams=False):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -279,6 +287,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     addobjid : :class:`bool`, optional, defaults to ``False``
         If ``True``, include, in the output, a column "GAIA_OBJID"
         that is the integer number of each row read from each Gaia file.
+    addparams : :class:`bool`, optional, defaults to ``False``
+        If ``True``, include some additional Gaia columns:
+        "GAIA_DUPLICATED_SOURCE" and "GAIA_ASTROMETRIC_PARAMS_SOLVED'.
 
     Returns
     -------
@@ -317,7 +328,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     def _get_gaia_gfas(fn):
         '''wrapper on gaia_in_file() given a file name'''
         return gaia_in_file(fn, maglim=maglim, mindec=mindec, mingalb=mingalb,
-                            nside=nside, pixlist=pixlist, addobjid=addobjid)
+                            nside=nside, pixlist=pixlist,
+                            addobjid=addobjid, addparams=addparams)
 
     # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
@@ -436,8 +448,8 @@ def add_urat_pms(objs, numproc=4):
         refids = urats[0][1]
         urats = urats[0][0]
     else:
-        refids = np.concatenate(np.array(urats)[:, 1])
-        urats = np.concatenate(np.array(urats)[:, 0])
+        refids = np.concatenate(np.array(urats, dtype=object)[:, 1])
+        urats = np.concatenate(np.array(urats, dtype=object)[:, 0])
 
     # ADM sort the output to match the input, on REF_ID.
     ii = np.zeros_like(refids)

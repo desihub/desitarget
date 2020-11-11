@@ -125,6 +125,8 @@ if __name__ == "__main__":
 
     # ADM adding a file to make a mask for bright stars
     # ADM this should go in its own directory /t2 (others are in t1)
+    # ADM post version 0.40.0 of desitarget, masking uses Gaia not
+    # ADM the sweeps, so this has been supplanted by make_testgaia.py.
     # filepath = '{}/sweep-{}.fits'.format(sweepdir, '190m005-200p000')
     # data, hdr = read_tractor(filepath, header=True)
     # ADM the "CONTINUE" comment keyword is not yet implemented

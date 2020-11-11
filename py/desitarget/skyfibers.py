@@ -27,7 +27,7 @@ from desitarget.skyutilities.legacypipe.util import find_unique_pixels
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import finalize
 from desitarget import io
-from desitarget.gaiamatch import find_gaia_files
+from desitarget.gaiamatch import find_gaia_files, gaia_dr_from_ref_cat
 from desitarget.geomask import is_in_gal_box, is_in_circle, is_in_hp
 
 # ADM the parallelization script.
@@ -259,8 +259,9 @@ def make_skies_for_a_brick(survey, brickname, nskiespersqdeg=None, bands=['g', '
     naps = len(apertures_arcsec)
     apcolindices = np.where(['FIBERFLUX' in colname for colname in dt.names])[0]
     desc = dt.descr
-    for i in apcolindices:
-        desc[i] += (naps,)
+    if naps > 1:
+        for i in apcolindices:
+            desc[i] += (naps,)
 
     # ADM set up a rec array to hold all of the output information.
     skies = np.zeros(nskies, dtype=desc)
@@ -374,7 +375,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
         - the brickid
         - the brickname
         - the x and y pixel positions of the fiber location from the blobs file
-        - the distance from the nearest blob of this fiber location
+        - the distance to the nearest blob at this fiber location
         - the RA and Dec positions of the fiber location
         - the aperture flux and ivar at the passed `apertures_arcsec`
 
@@ -845,7 +846,7 @@ def repartition_skies(skydirname, numproc=1):
         with pool:
             skies = pool.map(_write_hp_skies, hpsplit)
     else:
-            _write_hp_skies(hpsplit[0])
+        _write_hp_skies(hpsplit[0])
 
     return
 
@@ -893,7 +894,8 @@ def get_supp_skies(ras, decs, radius=2.):
     # ADM add the brickid and name.
     supsky["BRICKID"] = bricks.brickid(ras[good], decs[good])
     supsky["BRICKNAME"] = bricks.brickname(ras[good], decs[good])
-    supsky["BLOBDIST"] = 2.
+    # ADM BLOBDIST is in ~Legacy Surveys pixels, with scale 0.262 "/pix.
+    supsky["BLOBDIST"] = radius/0.262
     # ADM set all fluxes and IVARs to -1, so they're ill-defined.
     for name in skydatamodel.dtype.names:
         if "FLUX" in name:
@@ -958,6 +960,10 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
     nsidegaia = hdr["HPXNSIDE"]
 
+    # ADM determine the Gaia Data Release.
+    ref_cat = fitsio.read(anyfiles[0], rows=0, columns="REF_CAT")
+    gdr = gaia_dr_from_ref_cat(ref_cat)[0]
+
     # ADM create a set of random locations accounting for mindec.
     log.info("Generating supplemental sky locations at Dec > {}o...t={:.1f}s"
              .format(mindec, time()-start))
@@ -965,12 +971,12 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     ras, decs = randoms_in_a_brick_from_edges(
         0., 360., mindec, 90., density=nskiespersqdeg, wrap=False, seed=414)
 
-    # ADM limit randoms by HEALPixel, if requested.
+    # ADM limit random locations by HEALPixel, if requested.
     if pixlist is not None:
         inhp = is_in_hp([ras, decs], nside, pixlist, radec=True)
         ras, decs = ras[inhp], decs[inhp]
 
-    # ADM limit randoms by mingalb.
+    # ADM limit random locations by mingalb.
     log.info("Generated {} sky locations. Limiting to |b| > {}o...t={:.1f}s"
              .format(len(ras), mingalb, time()-start))
     bnorth = is_in_gal_box([ras, decs], [0, 360, mingalb, 90], radec=True)
@@ -1053,7 +1059,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
-    supp = finalize(supp, desi_target, dum, dum, sky=True)
+    supp = finalize(supp, desi_target, dum, dum, sky=True, gdr=gdr)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 

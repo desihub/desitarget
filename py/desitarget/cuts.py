@@ -37,7 +37,6 @@ from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_h
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
 from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
 
-
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 log = get_logger()
@@ -85,11 +84,11 @@ def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
     Notes
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+    - Update for DR9 https://desi.lbl.gov/trac/attachment/wiki/TargetSelectionWG/TargetSelection/North_vs_South_dr9.png
     """
-
-    gshift = gflux * 10**(-0.4*0.013) * (gflux/rflux)**(-0.059)
-    rshift = rflux * 10**(-0.4*0.007) * (rflux/zflux)**(-0.027)
-    zshift = zflux * 10**(+0.4*0.022) * (rflux/zflux)**(+0.019)
+    gshift = gflux * 10**(-0.4*0.004) * (gflux/rflux)**(-0.059)
+    rshift = rflux * 10**(0.4*0.003) * (rflux/zflux)**(-0.024)
+    zshift = zflux * 10**(0.4*0.013) * (rflux/zflux)**(+0.015)
 
     return gshift, rshift, zshift
 
@@ -109,6 +108,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     Notes
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+    - Update for DR9 https://desi.lbl.gov/trac/attachment/wiki/TargetSelectionWG/TargetSelection/North_vs_South_dr9.png
     """
     # ADM if floats were sent, treat them like arrays.
     flt = False
@@ -119,18 +119,18 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
         zflux = np.atleast_1d(zflux)
 
     # ADM only use the g-band color shift when r and g are non-zero
-    gshift = gflux * 10**(-0.4*0.013)
+    gshift = gflux * 10**(-0.4*0.004)
     w = np.where((gflux != 0) & (rflux != 0))
-    gshift[w] = (gflux[w] * 10**(-0.4*0.013) * (gflux[w]/rflux[w])**complex(-0.059)).real
+    gshift[w] = (gflux[w] * 10**(-0.4*0.004) * (gflux[w]/rflux[w])**complex(-0.059)).real
 
     # ADM only use the r-band color shift when r and z are non-zero
     # ADM and only use the z-band color shift when r and z are non-zero
     w = np.where((rflux != 0) & (zflux != 0))
-    rshift = rflux * 10**(-0.4*0.007)
-    zshift = zflux * 10**(+0.4*0.022)
+    rshift = rflux * 10**(0.4*0.003)
+    zshift = zflux * 10**(0.4*0.013)
 
-    rshift[w] = (rflux[w] * 10**(-0.4*0.007) * (rflux[w]/zflux[w])**complex(-0.027)).real
-    zshift[w] = (zflux[w] * 10**(+0.4*0.022) * (rflux[w]/zflux[w])**complex(+0.019)).real
+    rshift[w] = (rflux[w] * 10**(0.4*0.003) * (rflux[w]/zflux[w])**complex(-0.024)).real
+    zshift[w] = (zflux[w] * 10**(0.4*0.013) * (rflux[w]/zflux[w])**complex(+0.015)).real
 
     if flt:
         return gshift[0], rshift[0], zshift[0]
@@ -1252,21 +1252,34 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     return qso
 
 
-def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
+def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
-                       gnobs=None, rnobs=None, znobs=None,
-                       deltaChi2=None, maskbits=None, primary=None, south=True):
-    """Definition of QSO target classes from a Random Forest. Returns a boolean array.
+                       gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
+                       primary=None, south=True, return_probs=False):
+    """Define QSO targets from a Random Forest. Returns a boolean array.
 
     Parameters
     ----------
     south : :class:`boolean`, defaults to ``True``
-        If ``False``, shift photometry to the Northern (BASS/MzLS) imaging system.
+        If ``False``, shift photometry to the Northern (BASS/MzLS)
+        imaging system.
+    return_probs : :class:`boolean`, defaults to ``False``
+        If ``True``, return the QSO/high-z QSO probabilities in addition
+        to the QSO target booleans. Only coded up for DR8 or later of the
+        Legacy Surveys. Will return arrays of zeros for earlier DRs.
 
     Returns
     -------
     :class:`array_like`
         ``True`` for objects that are Random Forest quasar targets.
+    :class:`array_like`
+        ``True`` for objects that are high-z RF quasar targets.
+    :class:`array_like`
+        The (float) probability that a target is a quasar. Only returned
+        if `return_probs` is ``True``.
+    :class:`array_like`
+        The (float) probability that a target is a high-z quasar. Only
+        returned if `return_probs` is ``True``.
 
     Notes
     -----
@@ -1316,6 +1329,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
     qso = np.copy(preSelection)
     # ADM to specifically store the selection from the "HighZ" RF.
     qsohiz = np.copy(preSelection)
+
+    # ADM these store the probabilities, should they need returned.
+    pqso = np.zeros_like(qso, dtype='>f4')
+    pqsohiz = np.zeros_like(qso, dtype='>f4')
 
     if np.any(preSelection):
 
@@ -1408,13 +1425,22 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None,
             # ADM populate a mask specific to the "HighZ" selection.
             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM store the probabilities in case they need returned.
+            pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
+            # ADM populate a mask specific to the "HighZ" selection.
+            pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
 
-    # In case of call for a single object passed to the function with scalar arguments
-    # Return "numpy.bool_" instead of "~numpy.ndarray"
+    # In case of call for a single object passed to the function with
+    # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
     if nbEntries == 1:
         qso = qso[0]
         qsohiz = qsohiz[0]
+        pqso = pqso[0]
+        pqsohiz = pqsohiz[0]
 
+    # ADM if requested, return the probabilities as well.
+    if return_probs:
+        return qso, qsohiz, pqso, pqsohiz
     return qso, qsohiz
 
 
@@ -2519,7 +2545,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     def _update_status(result):
         ''' wrapper function for the critical reduction operation,
             that occurs on the main parallel process '''
-        if nbrick % 50 == 0 and nbrick > 0:
+        if nbrick % 20 == 0 and nbrick > 0:
             elapsed = time() - t0
             rate = elapsed / nbrick
             log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'

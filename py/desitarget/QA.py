@@ -412,7 +412,7 @@ def read_data(targfile, mocks=False, downsample=None, header=False):
         for objtype in set(truths['TEMPLATETYPE']):
             try:
                 oo = objtype.decode('utf-8').strip().upper()
-            except:
+            except AttributeError:
                 oo = objtype
 
             extname = 'TRUTH_{}'.format(oo)
@@ -662,7 +662,7 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
 
     # ADM apply the digitization to the target density values
     # ADM note that the first digitized bin is 1 not zero.
-    ### meds = [np.median(yy[wbin == bin]) for bin in range(1, nbins+1)]
+    # meds = [np.median(yy[wbin == bin]) for bin in range(1, nbins+1)]
     meds = list()
     for bin in range(1, nbins+1):
         ii = (wbin == bin)
@@ -1170,7 +1170,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
         templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
         truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
     else:
-        #- Already a string; just strip whitespace
+        # Already a string; just strip whitespace.
         templatetypes = np.char.strip(cat['TEMPLATETYPE'])
         templatesubtypes = np.char.strip(cat['TEMPLATESUBTYPE'])
         truespectypes = np.char.strip(cat['TRUESPECTYPE'])
@@ -1485,7 +1485,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
                 templatesubtypes = np.char.strip(np.char.decode(cat['TEMPLATESUBTYPE']))
                 truespectypes = np.char.strip(np.char.decode(cat['TRUESPECTYPE']))
             else:
-                #- Already a string, just strip whitespace
+                # Already a string, just strip whitespace.
                 templatetypes = np.char.strip(cat['TEMPLATETYPE'])
                 templatesubtypes = np.char.strip(cat['TEMPLATESUBTYPE'])
                 truespectypes = np.char.strip(cat['TRUESPECTYPE'])
