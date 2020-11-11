@@ -84,11 +84,11 @@ def shift_photo_north_pure(gflux=None, rflux=None, zflux=None):
     Notes
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+    - Update for DR9 https://desi.lbl.gov/trac/attachment/wiki/TargetSelectionWG/TargetSelection/North_vs_South_dr9.png
     """
-
-    gshift = gflux * 10**(-0.4*0.013) * (gflux/rflux)**(-0.059)
-    rshift = rflux * 10**(-0.4*0.007) * (rflux/zflux)**(-0.027)
-    zshift = zflux * 10**(+0.4*0.022) * (rflux/zflux)**(+0.019)
+    gshift = gflux * 10**(-0.4*0.004) * (gflux/rflux)**(-0.059)
+    rshift = rflux * 10**(0.4*0.003) * (rflux/zflux)**(-0.024)
+    zshift = zflux * 10**(0.4*0.013) * (rflux/zflux)**(+0.015)
 
     return gshift, rshift, zshift
 
@@ -108,6 +108,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     Notes
     -----
     - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
+    - Update for DR9 https://desi.lbl.gov/trac/attachment/wiki/TargetSelectionWG/TargetSelection/North_vs_South_dr9.png
     """
     # ADM if floats were sent, treat them like arrays.
     flt = False
@@ -118,18 +119,18 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
         zflux = np.atleast_1d(zflux)
 
     # ADM only use the g-band color shift when r and g are non-zero
-    gshift = gflux * 10**(-0.4*0.013)
+    gshift = gflux * 10**(-0.4*0.004)
     w = np.where((gflux != 0) & (rflux != 0))
-    gshift[w] = (gflux[w] * 10**(-0.4*0.013) * (gflux[w]/rflux[w])**complex(-0.059)).real
+    gshift[w] = (gflux[w] * 10**(-0.4*0.004) * (gflux[w]/rflux[w])**complex(-0.059)).real
 
     # ADM only use the r-band color shift when r and z are non-zero
     # ADM and only use the z-band color shift when r and z are non-zero
     w = np.where((rflux != 0) & (zflux != 0))
-    rshift = rflux * 10**(-0.4*0.007)
-    zshift = zflux * 10**(+0.4*0.022)
+    rshift = rflux * 10**(0.4*0.003)
+    zshift = zflux * 10**(0.4*0.013)
 
-    rshift[w] = (rflux[w] * 10**(-0.4*0.007) * (rflux[w]/zflux[w])**complex(-0.027)).real
-    zshift[w] = (zflux[w] * 10**(+0.4*0.022) * (rflux[w]/zflux[w])**complex(+0.019)).real
+    rshift[w] = (rflux[w] * 10**(0.4*0.003) * (rflux[w]/zflux[w])**complex(-0.024)).real
+    zshift[w] = (zflux[w] * 10**(0.4*0.013) * (rflux[w]/zflux[w])**complex(+0.015)).real
 
     if flt:
         return gshift[0], rshift[0], zshift[0]

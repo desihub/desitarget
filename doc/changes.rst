@@ -2,9 +2,17 @@
 desitarget Change Log
 =====================
 
-0.42.1 (unreleased)
+0.43.1 (unreleased)
 -------------------
 
+* No changes yet.
+
+0.43.0 (2020-10-27)
+-------------------
+
+* Add the ``STD_DITHER_GAIA`` target class for CMX [`PR #644`_].
+    * For dither tests outside the Legacy Surveys footprint.
+* Tune shifts between southern and northern imaging for DR9 [`PR #643`_].
 * Update Travis for Py3.8/Astropy 4.x (fixes `issue #639`_) [`PR #640`_].
     * Also adds a useful script for recovering the QSO RF probabilities.
 * Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
@@ -17,6 +25,8 @@ desitarget Change Log
 .. _`issue #639`: https://github.com/desihub/desitarget/issues/639
 .. _`PR #638`: https://github.com/desihub/desitarget/pull/638
 .. _`PR #640`: https://github.com/desihub/desitarget/pull/640
+.. _`PR #643`: https://github.com/desihub/desitarget/pull/643
+.. _`PR #644`: https://github.com/desihub/desitarget/pull/644
 
 0.42.0 (2020-08-17)
 -------------------

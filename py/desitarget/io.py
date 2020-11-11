@@ -523,11 +523,16 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     drint = None
     if supp and len(data) > 0:
         _, _, _, _, _, gaiadr = decode_targetid(data["TARGETID"])
-        if len(set(gaiadr)) != 1:
-            msg = "Targets are based on multiple Gaia DRs:".format(set(gaiadr))
-            log.critical(msg)
-            raise ValueError(msg)
-        gaiadr = gaiadr[0]
+        # ADM cmx targets can have the First Light targets, which
+        # ADM have an invented Gaia DR.
+        if survey != "cmx":
+            if len(set(gaiadr)) != 1:
+                msg = "Targets are based on multiple Gaia DRs:".format(set(gaiadr))
+                log.critical(msg)
+                raise ValueError(msg)
+            gaiadr = gaiadr[0]
+        else:
+            gaiadr = np.max(gaiadr)
         drstring = "gaiadr{}".format(gaiadr)
     else:
         try:
