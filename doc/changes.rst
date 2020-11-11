@@ -5,7 +5,7 @@ desitarget Change Log
 0.43.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Add RF files for DR9 and correct threshold for each photometric footprint [`PR #648`].
 
 0.43.0 (2020-10-27)
 -------------------
