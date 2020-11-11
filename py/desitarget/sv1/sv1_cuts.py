@@ -1342,6 +1342,141 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     return mws
 
+def isMWS_BHB(primary=None,
+        gflux=None, rflux=None, zflux=None, 
+        w1flux=None, w1snr=None,
+        gnobs=None, rnobs=None, znobs=None, 
+        gfracflux=None, rfracflux=None, zfracflux=None,
+        gfracmasked=None, rfracmasked=None, zfracmasked=None,
+        parallax=None,parallaxerr=None,
+        gaiaaen=None, gaiadupsource=None, gaiagmag=None):
+    """
+    rflux has been corrected for extinction, obs_flux has not.
+
+    maskbits 5, 6, 7, 12 are not set corresponding to anymask g,r,z or GALAXY
+    * -0.3<(g-r)_0<0 (here _0 is the extinction corrected color)
+    * -0.7<(r-z)_0<-0.05
+    * -0.3 * (gr0**2) < (rz0 - 0.75 * (gr0 + .15) + .27 - 0.025)<
+                  0.06 - .6 * (gr0 + .15)**2) wher gr0, rz0 are (g-r)_0, (r-z)_0
+    * w1grat < 0.3 * gr0 + 0.15 + 3 * w1grat_err + .3
+      where w1grat = flux_w1_0 / flux_g_0 is the extinction corrected flux ratio in W1 vs DECALS g
+      and w1grat_err is the uncertainty on flux ratio
+      w1grat_err = 1/sqrt(flux_w1_0_ivar)/ flux_g_0
+    * 19<g_0<21
+
+    with x as ( 
+     select ref_id as source_id,
+            ref_epoch,
+X           gaia_phot_g_mean_mag,ebv,ra,dec,
+X           flux_g,flux_r,flux_z,pmra,pmdec,parallax,parallax_ivar,  
+X            -2.5*log(flux_g/flux_r)-(3.237-2.176)*ebv as gr,
+X            -2.5*log(flux_r/flux_z) -(2.176-1.217)*ebv as rz,
+X            22.5-2.5*log(flux_g) - 3.237*ebv as g,
+X            22.5-2.5*log(flux_r) - 2.176*ebv as r,
+X            22.5-2.5*log(greatest(flux_w1 -3/sqrt(greatest(flux_ivar_w1,1e-30)),1e-30)) - 0.19*ebv as w1_faint
+       from decals_dr8.main as d where 
+       
+    X   flux_g>0 and flux_r>0 and flux_z>0  
+    X   and type='PSF'                      
+    X   and brick_primary                       
+    X   and gaia_phot_g_mean_mag>10             
+    X   and (parallax)<0.1+3*sqrt(parallax_ivar) 
+    #   and -2.5*log(flux_g/flux_r)-(3.237-2.176)*ebv  between -0.35 and -0.02
+    X   and fracmasked_g<0.5 and fracmasked_r<0.5 and fracmasked_z<0.5
+    X   and not gaia_duplicated_source
+    X   and gaia_astrometric_excess_noise<3
+    X   and 22.5-2.5*log(flux_r) between 15 and 20
+       ) 
+       select * from x  where  
+    X       rz- (1.07163*gr^5-1.42272*gr^4+0.69476*gr^3 -0.12911*gr^2+0.66993*gr-0.11368) between -0.1 and 0.05
+    X   and r-2.3*(gr) - w1_faint < -1.5
+```
+    """
+    if primary is None:
+        primary = np.ones_like(gaia, dtype='?')
+    mws = primary.copy()
+
+    # ADM do not target any objects for which entries are NaN
+    # ADM and turn off the NaNs for those entries
+    nans = np.isnan(gaiagmag) | np.isnan(parallax) | np.isnan(parallaxerr) | np.isnan(gaiaaen)
+    w = np.where(nans)[0]
+    if len(w) > 0:
+        # ADM make copies as we are reassigning values
+        rflux, gflux, zflux = rflux.copy(), gflux.copy(), obs_zflux.copy()
+        parallax, gaiagmag = parallax.copy(), gaiagmag.copy()
+        rflux[w], gflux[w], zflux[w] = 0., 0., 0.
+        parallax[w], gaiagmag[w] = 0., 0.
+        mws &= ~nans
+        log.info('{}/{} NaNs in file...t = {:.1f}s'
+                 .format(len(w), len(mws), time()-start))
+
+    # APC must be a Legacy Surveys object that matches a Gaia source
+    mws &= gaia
+    # APC type must be PSF
+    std &= _psflike(objtype)
+    # APC no sources brighter than Gaia G = 10
+    mws &= gaiagmag > 10.
+    # APC exclude nearby sources by parallax
+    mws &= parallax <= 0.1 + 3*parallaxerr
+
+    mws &= (gfracmasked < 0.5) & (gflux > 0) & (gnobs > 0)
+    mws &= (rfracmasked < 0.5) & (rflux > 0) & (rnobs > 0)
+    mws &= (zfracmasked < 0.5) & (zflux > 0) & (znobs > 0)
+
+    # APC no gaia duplicated sources
+    mws &= ~gaiadupsource
+    # APC gaia astrometric excess noise < 3
+    mws &= gaiaaen < 3.0
+
+    gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
+    rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
+    zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
+    
+    gmr = gmag-rmag
+    rmz = rmag-zmag
+    
+    # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02
+    mws &= (gmr >= -0.35) & (gmr =< -0.02)
+
+    # APC BHB rmz-gmr region (all extinction-corrected colors)
+    # CHECK
+    #
+    # Original BHB secondary targets:
+    #     rz - (1.07163*gr^5-1.42272*gr^4+0.69476*gr^3 -0.12911*gr^2+0.66993*gr-0.11368) between -0.1 and 0.05
+    #
+    # Faint BHB proposal:
+    #     -0.3<(g-r)_0<0 (here _0 is the extinction corrected color)
+    # AND -0.7<(r-z)_0<-0.05
+    # AND -0.3 * (gr0**2) < (rz0 - 0.75 * (gr0 + .15) + .27 - 0.025) < 0.06 - .6 * (gr0 + .15)**2) where gr0, rz0 are (g-r)_0, (r-z)_0
+    
+    # Coefficients from Sergey Koposov
+    bhb_sel = rmz - (1.07163*gmr**5 - 1.42272*gmr**4 + 0.69476*gmr**3 - 0.12911*gmr**2 + 0.66993*gmr - 0.11368)
+    mws &= (bhb_sel >= -0.1) & (bhb_sel <= 0.05)
+
+    # CHECK
+    #
+    # Original BHB secondary targets:
+    #   -2.5*log(flux_g/flux_r)-(3.237-2.176)*ebv as gr,
+    #   22.5-2.5*log(greatest(flux_w1 - 3/sqrt(greatest(flux_ivar_w1,1e-30)),1e-30)) - 0.19*ebv as w1_faint
+    # then select  
+    #   r-2.3*(gr) - w1_faint < -1.5
+    #
+    # Faint BHB proposal:
+    #  w1grat < 0.3 * gr0 + 0.15 + 3 * w1grat_err + .3
+    #  where w1grat = flux_w1_0 / flux_g_0 is the extinction corrected flux ratio in W1 vs DECALS g
+    #  and w1grat_err is the uncertainty on flux ratio
+    #  w1grat_err = 1/sqrt(flux_w1_0_ivar)/ flux_g_0
+
+    # APC back out the WISE error = 1/sqrt(ivar) from the SNR = flux*sqrt(ivar)
+    w1fluxerr = w1flux/w1snr
+    w1mag_faint = 22.5 - 2.5 * np.log10((w1flux-3*w1fluxerr).clip(1e-7))
+
+    # APC WISE cut (Sergey Koposov)
+    mws &= rmag - 2.3*gmr - w1mag_faint < -1.5
+
+    # APC Legacy magnitude limits
+    mws &= (rmag >= 16.) & (rmag <= 20.)
+    return mws
 
 def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
              pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
