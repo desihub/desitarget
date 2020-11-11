@@ -128,6 +128,7 @@ sv1_mws_mask:
     #- 4: MWS_MAIN north/south splits
     - [MWS_MAIN_BROAD_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_BROAD_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BHB,                   6, "Milky Way Survey BHBs",                                  {obsconditions: BRIGHT|GRAY|DARK}]
 
     # Fainter MWS_MAIN extension for SV, selected on magnitude only
     - [MWS_MAIN_FAINT,           14, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
@@ -154,7 +155,7 @@ sv1_scnd_mask:
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_WD_SV'}]
     - [MWS_MAIN_LOWFEH_SV,       12, "Main survey metal poor stars (GC/dwarf/stream members)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_LOWFEH_SV'}]
-    - [MWS_MAIN_TRACER_SV,       13, "Main survey halo tracers (BHB, RRL, DDO Giants)",
+    - [MWS_MAIN_TRACER_SV,       13, "Main survey halo tracers (RRL, DDO Giants)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_TRACER_SV'}]
     - [MWS_NEARBY_OC_FILLER_SV,  14, "Nearby open cluster members (low prioirty)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_NEARBY_OC_FILLER_SV'}]
@@ -168,7 +169,7 @@ sv1_scnd_mask:
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_WD_SV'}]
     - [BACKUP_LOWFEH_SV,         19, "Backup program metal poor stars (GC/dwarf/stream members)",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_LOWFEH_SV'}]
-    - [BACKUP_TRACER_SV,         20, "Backup program halo tracers (BHB, RRL, DDO Giants)",
+    - [BACKUP_TRACER_SV,         20, "Backup program halo tracers (RRL, DDO Giants)",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_TRACER_SV'}]
     - [BACKUP_OC_FILLER_SV,      21, "Very bright nearby open cluster members (low prioirty)",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_OC_FILLER_SV'}]
