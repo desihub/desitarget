@@ -31,6 +31,43 @@ import healpy as hp
 from desiutil.log import get_logger
 log = get_logger()
 
+def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER",
+                                        "ALLMASK_G", "ALLMASK_R", "ALLMASK_Z"]):
+    """Apply the 'geometric' masks from the Legacy Surveys imaging.
+
+    Parameters
+    ----------
+    maskbits : :class:`~numpy.ndarray` or ``None``
+        General array of `Legacy Surveys mask`_ bits.
+    bright : :class:`list`, defaults to ["BRIGHT", "GALAXY", "CLUSTER",
+    "ALLMASK_G", "ALLMASK_R", "ALLMASK_Z"]
+        list of Legacy Surveys mask bits to set to ``False``.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A boolean array that is the same length as `maskbits` that
+        contains ``False`` where any bits in `bitnamelist` are set.
+
+    Notes
+    -----
+        - For the definitions of the mask bits, see, e.g.,
+             https://www.legacysurvey.org/dr8/bitmasks/#maskbits
+    """
+    # ADM a dictionary of how the bit-names correspond to the bit-values.
+    bitdict = {"BRIGHT":1, "ALLMASK_G":5, "ALLMASK_R":6, "ALLMASK_Z":7,
+               "BAILOUT":10, "MEDIUM":11, "GALAXY":12, "CLUSTER":13}
+
+    # ADM look up the bit value for each passed bit name.
+    bits = [bitdict[bitname] for bitname in bitnamelist]
+
+    # ADM Create array of True and set to False where a mask bit is set.
+    mb = np.ones_like(maskbits, dtype='?')
+    for bit in bits:
+        mb &= ((maskbits & 2**bit) == 0)
+
+    return mb
+
 
 def ellipse_matrix(r, e1, e2):
     """Calculate transformation matrix from half-light-radius to ellipse
@@ -165,7 +202,7 @@ def is_in_ellipse(ras, decs, RAcen, DECcen, r, e1, e2):
     Returns
     -------
     :class:`boolean`
-        An array that is the same length as RA/Dec that is True
+        An array that is the same length as RA/Dec that is ``True``
         for points that are in the mask and False for points that
         are not in the mask
 
@@ -217,7 +254,7 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
     Returns
     -------
     :class:`boolean`
-        An array that is the same length as ras/decs that is True
+        An array that is the same length as ras/decs that is ``True``
         for points that are in the mask and False for points that
         are not in the mask
 

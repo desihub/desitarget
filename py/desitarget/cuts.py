@@ -35,7 +35,7 @@ from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
-from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
+from desitarget.geomask import cap_area, hp_in_cap, is_in_cap, imaging_mask
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -269,8 +269,11 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
-    for bit in [1, 5, 6, 7, 11, 12, 13]:
-        lrg &= ((maskbits & 2**bit) == 0)
+    mb = imaging_mask(maskbits, ["BRIGHT", "MEDIUM" "GALAXY", "CLUSTER",
+                                 "ALLMASK_G", "ALLMASK_R", "ALLMASK_Z"])
+    lrg &= mb
+#    for bit in [1, 5, 6, 7, 11, 12, 13]:
+#        lrg &= ((maskbits & 2**bit) == 0)
 
     return lrg
 
