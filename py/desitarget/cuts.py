@@ -1458,15 +1458,12 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                          (znobs[preSelection][tmpReleaseOK] > 4) &\
                          ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
                          (dec[preSelection][tmpReleaseOK] <= 10)
-                print(is_des.sum(), is_des.size)
                 #threshold selection for Des footprint
-                pcut[is_des] = 0.82 - 0.04*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
                 pcut_HighZ[is_des] = 0.50
                 #threshold selection for South footprint
                 pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
                 pcut_HighZ[~is_des] = 0.65
-
-            print("[WARNING] C EST BIEN MON DESITARGET")
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
