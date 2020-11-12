@@ -87,8 +87,8 @@ def dr_extension(drdir):
     return 'fz', 1
 
 
-def _add_default_mtl(randoms):
-    """Add default columns that are added by MTL.
+def finalize_randoms(randoms):
+    """Add the standard "final" columns that are also added in targeting.
 
     Parameters
     ----------
@@ -100,9 +100,40 @@ def _add_default_mtl(randoms):
     Returns
     -------
     :class:`~numpy.array`
-        Right Ascensions of random points in brick (degrees).
+        The random catalog after the "final" targeting columns (such as
+        "DESI_TARGET", etc.) have been added.
+
+    Notes
+    -----
+        - Typically used in conjunction with :func:`add_default_mtl()`
+    """
+    # ADM make every random the highest-priority target.
+    dt = np.zeros_like(randoms["RA"]) + bitperprio[np.max(list(bitperprio))]
+
+    return finalize(randoms, dt, dt*0, dt*0, randoms=True)
+
+
+def add_default_mtl(randoms, seed):
+    """Add default columns that are added by MTL.
+
+    Parameters
+    ----------
+    randoms : :class:`~numpy.ndarray`
+        A random catalog as made by, e.g., :func:`select_randoms()`
+        with `nomtl=True` or `select_randoms_bricks()` with
+        `nomtl=False`. This function adds the default MTL information.
+    seed : :class:`int`
+        A seed for the random generator that sets the `SUBPRIORITY`.
+
+    Returns
+    -------
     :class:`~numpy.array`
-        Declinations of random points in brick (degrees).
+        The random catalog after being passed through MTL.
+
+    Notes
+    -----
+        - Typically you will need to run :func:`finalize_randoms()`
+          first, to populate the columns for the target bits.
     """
     from desitarget.mtl import make_mtl
     randoms = np.array(make_mtl(randoms, obscon="DARK"))
@@ -1247,14 +1278,7 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
 
         if zeros or nomtl:
             return randoms
-        return _finalize_randoms(randoms)
-
-    # ADM add the standard "final" columns that are also added in targeting.
-    def _finalize_randoms(randoms):
-        # ADM make every random the highest-priority target.
-        dt = np.zeros_like(randoms["RA"]) + bitperprio[np.max(list(bitperprio))]
-
-        return finalize(randoms, dt, dt*0, dt*0, randoms=True)
+        return finalize_randoms(randoms)
 
     # ADM this is just to count bricks in _update_status.
     nbrick = np.zeros((), dtype='i8')
@@ -1448,7 +1472,7 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
 
     # ADM add columns that are added by MTL.
     if nomtl is False:
-        randoms = _add_default_mtl(randoms)
+        randoms = add_default_mtl(randoms, seed)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(615+seed)

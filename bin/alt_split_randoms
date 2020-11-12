@@ -7,6 +7,8 @@ from time import time
 start = time()
 import fitsio
 
+from desitarget.randoms import finalize_randoms, add_default_mtl
+
 from desiutil.log import get_logger
 log = get_logger()
 
@@ -17,6 +19,8 @@ ap.add_argument("randomcat",
 ap.add_argument("-n", "--nchunks", type=int,
                 help='Number of smaller catalog to split the random catalog into. Defaults to [10].',
                 default="10")
+ap.add_argument("--addmtl", action='store_true',
+                help="If passed, then add the columns needed for MTL to the random catalogs after they are split.")
 
 ns = ap.parse_args()
 
@@ -30,6 +34,9 @@ log.info("Read in randoms from {} and split into {} catalogs...t = {:.1f}s"
 hdr = fitsio.read_header(ns.randomcat, "RANDOMS")
 nrands = hdr["NAXIS2"]
 
+# ADM read in the seed used to make the catalog.
+seed = hdr["SEED"]
+
 # ADM shuffle to ensure randomness.
 log.info("Read in {:.1e} randoms. Shuffling indexes...t = {:.1f}s"
          .format(nrands, time()-start))
@@ -39,6 +46,10 @@ np.random.seed(spltseed)
 hdr["SPLTSEED"] = spltseed
 np.random.shuffle(indexes)
 
+# ADM note whether we requested the MTL columns to be added.
+if ns.addmtl:
+    hdr["MTLSPLIT"] = True
+
 # ADM write in chunks to save memory.
 chunk = nrands//ns.nchunks
 # ADM remember that the density has effectively gone down.
@@ -46,8 +57,11 @@ hdr["DENSITY"] //= ns.nchunks
 
 # ADM write out smaller files one-by-one.
 for i in range(ns.nchunks):
-    # ADM read in the relevant indexes.
+    # ADM read in randoms at the relevant indexes.
     rands = fitsio.read(ns.randomcat, rows=indexes[i*chunk:(i+1)*chunk])
+    # ADM if requested, add the MTL-relevant columns.
+    if ns.addmtl:
+        rands = add_default_mtl(finalize_randoms(rands), seed=seed)
     # ADM re-randomize, as fitsio reads in order.
     write_indexes = np.arange(chunk)
     np.random.shuffle(write_indexes)
