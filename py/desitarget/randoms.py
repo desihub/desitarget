@@ -87,6 +87,69 @@ def dr_extension(drdir):
     return 'fz', 1
 
 
+def finalize_randoms(randoms):
+    """Add the standard "final" columns that are also added in targeting.
+
+    Parameters
+    ----------
+    randoms : :class:`~numpy.ndarray`
+        A random catalog as made by, e.g., :func:`select_randoms()`
+        with `nomtl=True` or `select_randoms_bricks()` with
+        `nomtl=False`. This function adds the default MTL information.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        The random catalog after the "final" targeting columns (such as
+        "DESI_TARGET", etc.) have been added.
+
+    Notes
+    -----
+        - Typically used in conjunction with :func:`add_default_mtl()`
+    """
+    # ADM make every random the highest-priority target.
+    dt = np.zeros_like(randoms["RA"]) + bitperprio[np.max(list(bitperprio))]
+
+    return finalize(randoms, dt, dt*0, dt*0, randoms=True)
+
+
+def add_default_mtl(randoms, seed):
+    """Add default columns that are added by MTL.
+
+    Parameters
+    ----------
+    randoms : :class:`~numpy.ndarray`
+        A random catalog as made by, e.g., :func:`select_randoms()`
+        with `nomtl=True` or `select_randoms_bricks()` with
+        `nomtl=False`. This function adds the default MTL information.
+    seed : :class:`int`
+        A seed for the random generator that sets the `SUBPRIORITY`.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        The random catalog after being passed through MTL.
+
+    Notes
+    -----
+        - Typically you will need to run :func:`finalize_randoms()`
+          first, to populate the columns for the target bits.
+    """
+    from desitarget.mtl import make_mtl
+    randoms = np.array(make_mtl(randoms, obscon="DARK"))
+
+    # ADM add OBCONDITIONS that will work for any obscon.
+    from desitarget.targetmask import obsconditions as obscon
+    randoms["OBSCONDITIONS"] = obscon.mask("|".join(obscon.names()))
+
+    # ADM add a random SUBPRIORITY.
+    np.random.seed(616+seed)
+    nrands = len(randoms)
+    randoms["SUBPRIORITY"] = np.random.random(nrands)
+
+    return randoms
+
+
 def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=100000,
                                   poisson=True, wrap=True, seed=1):
     """For brick edges, return random (RA/Dec) positions in the brick.
@@ -1157,7 +1220,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
 
 
 def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
-                          zeros=False, cnts=True, density=None,
+                          zeros=False, nomtl=True, cnts=True, density=None,
                           dustdir=None, aprad=None, seed=1):
 
     """Parallel-process a random catalog for a set of brick names.
@@ -1173,6 +1236,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
         See :func:`~desitarget.randoms.get_quantities_in_a_brick`.
     zeros : :class:`bool`, optional, defaults to ``False``
         See :func:`~desitarget.randoms.get_quantities_in_a_brick`.
+    nomtl : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then do NOT add MTL quantities to the output array.
     cnts : :class:`bool`, optional, defaults to ``True``
         See :func:`~desitarget.skyfibers.get_brick_info`.
     seed : :class:`int`, optional, defaults to 1
@@ -1183,8 +1248,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
     :class:`~numpy.ndarray`
         a numpy structured array with the same columns as returned by
         :func:`~desitarget.randoms.get_quantities_in_a_brick`. If
-        `zeros` is ``False`` additional columns are returned, as added
-        by :func:`~desitarget.targets.finalize`.
+        `zeros` and `nomtl` are both ``False`` additional columns are
+        returned, as added by :func:`~desitarget.targets.finalize`.
 
     Notes
     -----
@@ -1211,16 +1276,9 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
             density=density, dustdir=dustdir, aprad=aprad, zeros=zeros,
             seed=seed)
 
-        if zeros:
+        if zeros or nomtl:
             return randoms
-        return _finalize_randoms(randoms)
-
-    # ADM add the standard "final" columns that are also added in targeting.
-    def _finalize_randoms(randoms):
-        # ADM make every random the highest-priority target.
-        dt = np.zeros_like(randoms["RA"]) + bitperprio[np.max(list(bitperprio))]
-
-        return finalize(randoms, dt, dt*0, dt*0, randoms=True)
+        return finalize_randoms(randoms)
 
     # ADM this is just to count bricks in _update_status.
     nbrick = np.zeros((), dtype='i8')
@@ -1308,7 +1366,7 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None,
 
 
 def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
-                   bundlebricks=None, brickspersec=2.5, extra=None,
+                   bundlebricks=None, brickspersec=2.5, extra=None, nomtl=True,
                    dustdir=None, aprad=0.75, seed=1):
     """NOBS, DEPTHs (per-band), MASKs for random points in a Legacy Surveys DR.
 
@@ -1340,6 +1398,8 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script. Used in conjunction with `bundlefiles`.
+    nomtl : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then do NOT add MTL quantities to the output array.
     dustdir : :class:`str`, optional, defaults to $DUST_DIR+'maps'
         The root directory pointing to SFD dust maps. If None the code
         will try to use $DUST_DIR+'maps') before failing.
@@ -1407,21 +1467,12 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
 
     # ADM recover the pixel-level quantities in the DR bricks.
     randoms = select_randoms_bricks(brickdict, bricknames, numproc=numproc,
-                                    drdir=drdir, density=density,
+                                    drdir=drdir, density=density, nomtl=nomtl,
                                     dustdir=dustdir, aprad=aprad, seed=seed)
 
     # ADM add columns that are added by MTL.
-    from desitarget.mtl import make_mtl
-    randoms = np.array(make_mtl(randoms, obscon="DARK"))
-
-    # ADM add OBCONDITIONS that will work for any obscon.
-    from desitarget.targetmask import obsconditions as obscon
-    randoms["OBSCONDITIONS"] = obscon.mask("|".join(obscon.names()))
-
-    # ADM add a random SUBPRIORITY.
-    np.random.seed(616+seed)
-    nrands = len(randoms)
-    randoms["SUBPRIORITY"] = np.random.random(nrands)
+    if nomtl is False:
+        randoms = add_default_mtl(randoms, seed)
 
     # ADM one last shuffle to randomize across brick boundaries.
     np.random.seed(615+seed)

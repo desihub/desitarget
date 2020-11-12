@@ -15,7 +15,7 @@ log = get_logger()
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Split a random catalog into N smaller catalogs. Shuffle the random catalog first to ensure randomness.')
 ap.add_argument("randomcat",
-                help='A random catalog (e.g /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits). For an input catalog /X/X.fits N smaller catalogs will be written to /X/X-[1:N].fits')
+                help='A random catalog (e.g /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits). For an input catalog /X/X.fits N smaller catalogs will be written to /X/X-[0:N-1].fits')
 ap.add_argument("-n", "--nchunks", type=int,
                 help='Number of smaller catalog to split the random catalog into. Defaults to [10].',
                 default="10")
@@ -30,8 +30,9 @@ if not os.path.exists(ns.randomcat):
 
 log.info("Read in randoms from {} and split into {} catalogs...t = {:.1f}s"
          .format(ns.randomcat, ns.nchunks, time()-start))
-rands, hdr = fitsio.read(ns.randomcat, header=True)
-nrands = len(rands)
+
+hdr = fitsio.read_header(ns.randomcat, "RANDOMS")
+nrands = hdr["NAXIS2"]
 
 # ADM read in the seed used to make the catalog.
 seed = hdr["SEED"]
@@ -40,31 +41,35 @@ seed = hdr["SEED"]
 log.info("Read in {:.1e} randoms. Shuffling indexes...t = {:.1f}s"
          .format(nrands, time()-start))
 indexes = np.arange(nrands)
-# ADM the seed for the "extra" shuffles.
-reseed = 626
-hdr["RESEED"] = reseed
-np.random.seed(reseed)
+spltseed = 636
+np.random.seed(spltseed)
+hdr["SPLTSEED"] = spltseed
 np.random.shuffle(indexes)
 
 # ADM note whether we requested the MTL columns to be added.
 if ns.addmtl:
     hdr["MTLSPLIT"] = True
 
-#ADM write in chunks to save memory.
+# ADM write in chunks to save memory.
 chunk = nrands//ns.nchunks
 # ADM remember that the density has effectively gone down.
 hdr["DENSITY"] //= ns.nchunks
 
-#ADM write out smaller files one-by-one.
+# ADM write out smaller files one-by-one.
 for i in range(ns.nchunks):
-    #ADM open the file for writing.
-    outfile = "{}-{}.fits".format(os.path.splitext(ns.randomcat)[0], i+1)
-    log.info("Writing chunk {} from index {} to {}...t = {:.1f}s"
-             .format(i+1, i*chunk, (i+1)*chunk, time()-start))
-    writerands = rands[indexes[i*chunk:(i+1)*chunk]]
+    # ADM read in randoms at the relevant indexes.
+    rands = fitsio.read(ns.randomcat, rows=indexes[i*chunk:(i+1)*chunk])
     # ADM if requested, add the MTL-relevant columns.
     if ns.addmtl:
-        writerands = add_default_mtl(finalize_randoms(writerands), seed=seed)
-    fitsio.write(outfile, writerands, extname='RANDOMS', header=hdr, clobber=True)
+        rands = add_default_mtl(finalize_randoms(rands), seed=seed)
+    # ADM re-randomize, as fitsio reads in order.
+    write_indexes = np.arange(chunk)
+    np.random.shuffle(write_indexes)
+    # ADM open the file for writing.
+    outfile = "{}-{}.fits".format(os.path.splitext(ns.randomcat)[0], i)
+    log.info("Writing chunk {} from index {} to {}...t = {:.1f}s"
+             .format(i, i*chunk, (i+1)*chunk, time()-start))
+    fitsio.write(outfile, rands[write_indexes], extname='RANDOMS', header=hdr,
+                 clobber=True)
 
 print("Done...t = {:.1f}s".format(time()-start))
