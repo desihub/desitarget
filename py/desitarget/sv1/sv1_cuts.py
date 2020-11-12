@@ -21,6 +21,7 @@ from pkg_resources import resource_filename
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
 from desitarget.gaiamatch import is_in_Galaxy
+from desitarget.geomask import imaging_mask
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger

@@ -58,18 +58,23 @@ ap.add_argument("--aprad", type=float,
 ap.add_argument("--seed", type=int,
                 help="Random seed passed to desitarget.randoms.select_randoms()",
                 default=1)
+ap.add_argument("--addmtl", action='store_true',
+                help="If passed, then add the columns needed for MTL to the random catalogs.")
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlebricks potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "aprad", "density", "seed":
+for nskey in "aprad", "density", "seed", "addmtl":
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)
     else:
         extra += " --{} {}".format(nskey, nsdict[nskey])
+
+# ADM whether or not to add the mtl columns.
+nomtl = not ns.addmtl
 
 # ADM parse the list of HEALPixels in which to run.
 pixlist = ns.healpixels
@@ -115,12 +120,12 @@ if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
 randres, randnorth, randsouth = select_randoms(
     ns.surveydir, density=ns.density, numproc=ns.numproc, nside=ns.nside,
     pixlist=pixlist, aprad=ns.aprad, extra=extra, bundlebricks=ns.bundlebricks,
-    seed=ns.seed, brickspersec=ns.brickspersec, dustdir=ns.dustdir)
+    seed=ns.seed, brickspersec=ns.brickspersec, dustdir=ns.dustdir, nomtl=nomtl)
 
 if ns.bundlebricks is None:
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["density", "aprad", "seed"],
-                                  [ns.density, ns.aprad, ns.seed])}
+    extra = {k: v for k, v in zip(["density", "aprad", "seed", "addmtl"],
+                                  [ns.density, ns.aprad, ns.seed, ns.addmtl])}
 
     randoms = [randres, randnorth, randsouth]
     ress = [True, False, False]
