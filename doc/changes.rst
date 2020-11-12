@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.43.1 (unreleased)
+0.44.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.44.0 (2020-11-12)
 -------------------
 
 * Clean-up targets and randoms for the internal DR9 release [`PR #649`_]:
