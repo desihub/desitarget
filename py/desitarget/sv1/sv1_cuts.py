@@ -1342,16 +1342,16 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     return mws
 
+
 def isMWS_bhb(primary=None, objtype=None,
-        gaia=None, gaiaaen=None, gaiadupsource=None, gaiagmag=None,
-        gflux=None, rflux=None, zflux=None,
-        w1flux=None, w1snr=None,
-        gnobs=None, rnobs=None, znobs=None,
-        gfracflux=None, rfracflux=None, zfracflux=None,
-        gfracmasked=None, rfracmasked=None, zfracmasked=None,
-        parallax=None,parallaxerr=None):
+              gaia=None, gaiaaen=None, gaiadupsource=None, gaiagmag=None,
+              gflux=None, rflux=None, zflux=None,
+              w1flux=None, w1snr=None,
+              gnobs=None, rnobs=None, znobs=None,
+              gfracmasked=None, rfracmasked=None, zfracmasked=None,
+              parallax=None, parallaxerr=None):
     """Set bits for BHB Milky Way Survey targets (SV selection)
-   
+
     Parameters
     ----------
     see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for other parameters.
@@ -1413,7 +1413,7 @@ def isMWS_bhb(primary=None, objtype=None,
     mws &= gaiaaen < 3.0
 
     # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02
-    mws &= (gmr >= -0.35) & (gmr =< -0.02)
+    mws &= (gmr >= -0.35) & (gmr <= -0.02)
 
     # APC BHB rmz-gmr region (all extinction-corrected colors)
     # CHECK
@@ -1435,7 +1435,7 @@ def isMWS_bhb(primary=None, objtype=None,
     # Original BHB secondary targets:
     #   -2.5*log(flux_g/flux_r)-(3.237-2.176)*ebv as gr,
     #   22.5-2.5*log(greatest(flux_w1 - 3/sqrt(greatest(flux_ivar_w1,1e-30)),1e-30)) - 0.19*ebv as w1_faint
-    # then select  
+    # then select
     #   r-2.3*(gr) - w1_faint < -1.5
     #
     # Faint BHB proposal:
@@ -1765,14 +1765,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         )
 
         mws_bhb = isMWS_bhb(
-                    primary=primary
+                    primary=primary,
                     objtype=objtype,
                     gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
                     gflux=gflux, rflux=rflux, zflux=zflux,
                     w1flux=w1flux, w1snr=w1snr,
                     gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                    parallax=parallax parallaxerr=parallaxerr
+                    parallax=parallax, parallaxerr=parallaxerr
              )
 
         # ADM run the MWS_MAIN target types for both north and south
