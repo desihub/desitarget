@@ -5,7 +5,16 @@ desitarget Change Log
 0.43.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Clean-up targets and randoms for unofficial DR9 release [`PR #649`_]:
+    * Add function :func:`geomask.imaging_mask()`:
+        * Allows easier parsing of maskbits by string ("BRIGHT", etc.)
+        * Establishes a default set of cuts on maskbits.
+    * New executable ``alt_split_randoms`` (slower but saves memory).
+    * Flexibility when adding MTL columns to randoms, to save memory:
+        * MTL columns can still be added when running the randoms.
+	* Or, can now be added when splitting a larger random catalog.
+
+.. _`PR #649`: https://github.com/desihub/desitarget/pull/649
 
 0.43.0 (2020-10-27)
 -------------------

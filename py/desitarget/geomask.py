@@ -31,16 +31,15 @@ import healpy as hp
 from desiutil.log import get_logger
 log = get_logger()
 
-def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER",
-                                        "ALLMASK_G", "ALLMASK_R", "ALLMASK_Z"]):
+
+def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"]):
     """Apply the 'geometric' masks from the Legacy Surveys imaging.
 
     Parameters
     ----------
     maskbits : :class:`~numpy.ndarray` or ``None``
         General array of `Legacy Surveys mask`_ bits.
-    bright : :class:`list`, defaults to ["BRIGHT", "GALAXY", "CLUSTER",
-    "ALLMASK_G", "ALLMASK_R", "ALLMASK_Z"]
+    bright : :class:`list`, defaults to ["BRIGHT", "GALAXY", "CLUSTER"]
         list of Legacy Surveys mask bits to set to ``False``.
 
     Returns
@@ -55,8 +54,8 @@ def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER",
              https://www.legacysurvey.org/dr8/bitmasks/#maskbits
     """
     # ADM a dictionary of how the bit-names correspond to the bit-values.
-    bitdict = {"BRIGHT":1, "ALLMASK_G":5, "ALLMASK_R":6, "ALLMASK_Z":7,
-               "BAILOUT":10, "MEDIUM":11, "GALAXY":12, "CLUSTER":13}
+    bitdict = {"BRIGHT": 1, "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
+               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}
 
     # ADM look up the bit value for each passed bit name.
     bits = [bitdict[bitname] for bitname in bitnamelist]

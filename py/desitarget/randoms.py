@@ -1248,7 +1248,7 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
     :class:`~numpy.ndarray`
         a numpy structured array with the same columns as returned by
         :func:`~desitarget.randoms.get_quantities_in_a_brick`. If
-        `zeros` and `nomtl` are both ``False`` additional columns are 
+        `zeros` and `nomtl` are both ``False`` additional columns are
         returned, as added by :func:`~desitarget.targets.finalize`.
 
     Notes
