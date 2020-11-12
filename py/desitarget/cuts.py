@@ -1035,7 +1035,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
-    # ADM geometric cuts from the Legacy Surveys.
+    # ADM geometric masking cuts from the Legacy Surveys.
     bgs &= imaging_mask(maskbits, ["BRIGHT", "CLUSTER"])
 
     if targtype == 'bright':
@@ -1127,8 +1127,8 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
             LX = np.array(LX, dtype=bool)
 
     bgs |= LX
-    bgs &= ((maskbits & 2**1) == 0)
-    bgs &= ((maskbits & 2**13) == 0)
+    # ADM geometric masking cuts from the Legacy Surveys.
+    bgs &= imaging_mask(maskbits, ["BRIGHT", "CLUSTER"])
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)

@@ -169,9 +169,8 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
-    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
-    for bit in [1, 5, 6, 7, 11, 12, 13]:
-        lrg &= ((maskbits & 2**bit) == 0)
+    # ADM default mask bits from the Legacy Surveys not set.
+    lrg &= imaging_mask(maskbits)
 
     return lrg
 
@@ -457,11 +456,9 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
         primary = np.ones_like(rflux, dtype='?')
     qso = primary.copy()
 
-    # ADM Reject objects in masks.
-    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    # ADM default mask bits from the Legacy Surveys not set.
     if maskbits is not None:
-        for bit in [1, 10, 12, 13]:
-            qso &= ((maskbits & 2**bit) == 0)
+            qso &= imaging_mask(maskbits)
 
     # ADM observed in every band.
     qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -637,11 +634,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         morph2 = dcs < 0.015
     preSelection &= _psflike(objtype) | morph2
 
-    # ADM Reject objects in masks.
-    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    # ADM default mask bits from the Legacy Surveys not set.
     if maskbits is not None:
-        for bit in [1, 10, 12, 13]:
-            preSelection &= ((maskbits & 2**bit) == 0)
+        preSelection &= imaging_mask(maskbits)
 
     # "qso" mask initialized to "preSelection" mask
     qso = np.copy(preSelection)
@@ -756,11 +751,9 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
     # Standard morphology cut.
     preSelection &= _psflike(objtype)
 
-    # ADM Reject objects in masks.
-    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    # ADM default mask bits from the Legacy Surveys not set.
     if maskbits is not None:
-        for bit in [1, 10, 12, 13]:
-            preSelection &= ((maskbits & 2**bit) == 0)
+        preSelection &= imaging_mask(maskbits)
 
     # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
@@ -839,12 +832,9 @@ def isQSOz5_cuts(gflux=None, rflux=None, zflux=None,
         primary = np.ones_like(rflux, dtype='?')
     qso = primary.copy()
 
-    # ADM Reject objects in masks.
-    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    # ADM default mask bits from the Legacy Surveys not set.
     if maskbits is not None:
-        # for bit in [10, 12, 13]:
-        for bit in [1, 10, 12, 13]:
-            qso &= ((maskbits & 2**bit) == 0)
+        qso &= imaging_mask(maskbits)
 
     # ADM observed in every band.
     qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -1038,8 +1028,8 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
         bgs |= (Grr < 0.6) & (~_psflike(objtype)) & (gaiagmag != 0)
         bgs &= bgs_qcs
 
-    bgs &= (maskbits & 2**1) == 0
-    bgs &= (maskbits & 2**13) == 0
+    # ADM geometric masking cuts from the Legacy Surveys.
+    bgs &= imaging_mask(maskbits, ["BRIGHT", "CLUSTER"])
 
     return bgs
 
@@ -1129,9 +1119,8 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
     # ADM observed in every band.
     elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
-    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
-    for bit in [1, 5, 6, 7, 11, 12, 13]:
-        elg &= ((maskbits & 2**bit) == 0)
+    # ADM default mask bits from the Legacy Surveys not set.
+    elg &= imaging_mask(maskbits)
 
     return elg
 
