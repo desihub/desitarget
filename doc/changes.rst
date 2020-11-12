@@ -5,7 +5,7 @@ desitarget Change Log
 0.43.1 (unreleased)
 -------------------
 
-* Clean-up targets and randoms for unofficial DR9 release [`PR #649`_]:
+* Clean-up targets and randoms for the internal DR9 release [`PR #649`_]:
     * Add function :func:`geomask.imaging_mask()`:
         * Allows easier parsing of maskbits by string ("BRIGHT", etc.)
         * Establishes a default set of cuts on maskbits.
