@@ -1255,7 +1255,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
                        gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
-                       primary=None, south=True, ra=None, dec=None, return_probs=False):
+                       primary=None, ra=None, dec=None, south=True, return_probs=False):
     """Define QSO targets from a Random Forest. Returns a boolean array.
 
     Parameters
@@ -1633,6 +1633,9 @@ def _prepare_optical_wise(objects, mask=True):
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
+    ra = objects['RA']
+    dec = objects['DEC']
+
     gfluxivar = objects['FLUX_IVAR_G']
     rfluxivar = objects['FLUX_IVAR_R']
     zfluxivar = objects['FLUX_IVAR_Z']
@@ -1686,7 +1689,7 @@ def _prepare_optical_wise(objects, mask=True):
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
             w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,
-            objtype, release, gfluxivar, rfluxivar, zfluxivar,
+            objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1814,7 +1817,7 @@ def unextinct_fluxes(objects):
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
                     gfiberflux, rfiberflux, zfiberflux,
-                    objtype, release, gfluxivar, rfluxivar, zfluxivar,
+                    objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
                     gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1823,7 +1826,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
                     gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
                     tcnames, qso_optical_cuts, qso_selection,
-                    maskbits, Grr, refcat, primary, resolvetargs=True, ra=None, dec=None):
+                    maskbits, Grr, refcat, primary, resolvetargs=True):
     """Perform target selection on parameters, return target mask arrays.
 
     Parameters
@@ -1899,7 +1902,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
         If ``True``, if only northern (southern) sources are passed then
         only apply the northern (southern) cuts to those sources.
-    ra, dec :class:`~numpy.ndarray`
+    ra, dec : :class:`~numpy.ndarray`
         The Ra, Dec position of objects
 
     Returns
@@ -1983,7 +1986,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
                     maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                    objtype=objtype, release=release, south=south, ra=ra, dec=dec
+                    objtype=objtype, release=release, ra=ra, dec=dec, south=south
                 )
             else:
                 raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
@@ -2357,11 +2360,11 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
         w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
-        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,                   \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =                 \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =         \
         _prepare_optical_wise(objects, mask=mask)
 
     # Process the Gaia inputs for target selection.
@@ -2391,7 +2394,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         photsys_north, photsys_south, obs_rflux,
         gflux, rflux, zflux, w1flux, w2flux,
         gfiberflux, rfiberflux, zfiberflux,
-        objtype, release, gfluxivar, rfluxivar, zfluxivar,
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -2401,8 +2404,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
         tcnames, qso_optical_cuts, qso_selection,
         maskbits, Grr, refcat, primary, resolvetargs=resolvetargs,
-        ra=objects['RA'], dec=objects['DEC']
-    )
+        )
 
     return desi_target, bgs_target, mws_target
 
