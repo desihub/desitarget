@@ -871,6 +871,8 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 print("srun -N 1 gather_targets '{}' {} {} {} &".format(
                     ";".join(ofs), ofn, prefix2.split("_")[-1], skip))
         print("")
+        print("wait")
+        print("")
 
     return
 
