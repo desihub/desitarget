@@ -851,8 +851,25 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
                 resolve=resolve, region=region)
             print("")
-            print("gather_targets '{}' {} {} {}".format(
-                ";".join(outfiles), outfn, prefix2.split("_")[-1], skip))
+            n = 10
+            # ADM split each pixel-file into 10 smaller catalogs.
+            for fn in outfiles:
+                adder = ""
+                # ADM we'll need to add the MTL columns if they aren't
+                # ADM added when the randoms are initially constructed.
+                if not "addmtl" in extra:
+                    adder = "--addmtl"
+                    print("srun -N 1 split_randoms {} -n {} {} {} &".format(
+                        fn, n, adder, skip))
+            print("")
+            print("wait")
+            print("")
+            for nchunk in range(n):
+                ofs = [fn.replace(".fits", "-{}.fits".format(nchunk))
+                       for fn in outfiles]
+                ofn = outfn.replace(".fits", "-{}.fits".format(nchunk))
+                print("srun -N 1 gather_targets '{}' {} {} {} &".format(
+                    ";".join(ofs), ofn, prefix2.split("_")[-1], skip))
         print("")
 
     return
