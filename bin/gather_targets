@@ -95,7 +95,7 @@ log.info('Begin writing {} to {}...t = {:.1f}s'
 data = []
 for fn in fns:
     log.info('Reading file {}...t = {:.1f}s'.format(fn, time()-start))
-    fndata = fitsio.read(fn, columns=columns, rows=[0,1])
+    fndata = fitsio.read(fn, columns=columns)
     data.append(fndata)
 data = np.concatenate(data)
 ndata = len(data)
