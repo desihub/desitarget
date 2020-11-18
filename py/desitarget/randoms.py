@@ -1055,7 +1055,9 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     ----------
     randoms : :class:`~numpy.ndarray` or `str`
         Catalog or file of randoms as made by :func:`select_randoms()` or
-        :func:`quantities_at_positions_in_a_brick()`.
+        :func:`quantities_at_positions_in_a_brick()`. Must contain the
+        columns 'RA', 'DEC', 'EBV', 'PSFDEPTH_W1/W2/G/R/Z', 'NOBS_G/R/Z'
+        'GALDEPTH_G/R/Z', 'PSFSIZE_G/R/Z', 'MASKBITS'.
     targets : :class:`~numpy.ndarray` or `str`
         Corresponding (i.e. same Data Release) catalog or file of targets
         as made by, e.g., :func:`desitarget.cuts.select_targets()`, or
