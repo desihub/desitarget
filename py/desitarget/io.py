@@ -1502,7 +1502,9 @@ def list_sweepfiles(root):
 def iter_sweepfiles(root):
     """Iterator over all sweep files found under root directory.
     """
-    ignore = ['metric', 'coadd', 'log', 'pz', 'external', 'tractor']
+    ignoredirs = ['metric', 'coadd', 'log', 'pz', 'external', 'tractor']
+    ignorefiles = ['ex.fits', 'lc.fits']
+    ignore = ignoredirs + ignorefiles
     return iter_files(root, prefix='sweep', ext='fits', ignore=ignore)
 
 
