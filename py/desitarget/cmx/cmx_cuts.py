@@ -2158,15 +2158,12 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
         w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
-        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,                   \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =                 \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =         \
         _prepare_optical_wise(objects)
-
-    # ADM in addition, cmx needs ra and dec.
-    ra, dec = objects["RA"], objects["DEC"]
 
     # ADM Currently only coded for objects with Gaia matches
     # ADM (e.g. DR6 or above). Fail for earlier Data Releases.
