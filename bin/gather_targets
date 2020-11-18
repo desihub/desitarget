@@ -68,12 +68,21 @@ else:
 fx = fitsio.FITS(fns[0])
 hdr = fx[1].read_header()
 
-# ADM if you're combining files, you'll need to
-# ADM combine the HEALPixel coverage.
-hpx = []
-for fn in fns:
-    hpx.append(fitsio.read_header(fn, extname)["FILEHPX"])
+# ADM if combining files, combine the HEALPixel coverage. If the
+# ADM HEALPixel coverage is the same in each file, increase the density.
+hpx0 = fitsio.read_header(fns[0], extname)["FILEHPX"]
+hpx = [hpx0]
+if ns.targtype == 'randoms':
+    dens = fitsio.read_header(fns[0], extname)["DENSITY"]
+for fn in fns[1:]:
+    hpxfn = fitsio.read_header(fn, extname)["FILEHPX"]
+    if hpxfn != hpx0:
+        hpx.append(hpxfn)
+    elif ns.targtype == 'randoms':
+        dens += fitsio.read_header(fn, extname)["DENSITY"]
 hdr["FILEHPX"] = ",".join(hpx)
+if ns.targtype == 'randoms':
+    hdr["DENSITY"] = dens
 
 # ADM retain a list of the units.
 tunits = ["TUNIT{}".format(i) for i in range(1, hdr["TFIELDS"]+1)]
@@ -86,7 +95,7 @@ log.info('Begin writing {} to {}...t = {:.1f}s'
 data = []
 for fn in fns:
     log.info('Reading file {}...t = {:.1f}s'.format(fn, time()-start))
-    fndata = fitsio.read(fn, columns=columns)
+    fndata = fitsio.read(fn, columns=columns, rows=[0,1])
     data.append(fndata)
 data = np.concatenate(data)
 ndata = len(data)
