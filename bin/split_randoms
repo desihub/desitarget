@@ -17,7 +17,7 @@ ap = ArgumentParser(description='Split a random catalog into N smaller catalogs.
 ap.add_argument("randomcat",
                 help='A random catalog (e.g /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits). For an input catalog /X/X.fits N smaller catalogs will be written to /X/X-[1:N].fits')
 ap.add_argument("-n", "--nchunks", type=int,
-                help='Number of smaller catalog to split the random catalog into. Defaults to [10].',
+                help='Number of smaller catalogs to split the random catalog into. Defaults to [10].',
                 default="10")
 ap.add_argument("--addmtl", action='store_true',
                 help="If passed, then add the columns needed for MTL to the random catalogs after they are split.")

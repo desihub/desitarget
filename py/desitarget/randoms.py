@@ -1366,8 +1366,8 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None,
 
 
 def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
-                   bundlebricks=None, brickspersec=2.5, extra=None, nomtl=True,
-                   dustdir=None, aprad=0.75, seed=1):
+                   bundlebricks=None, nchunks=10, brickspersec=2.5, extra=None,
+                   nomtl=True, dustdir=None, aprad=0.75, seed=1):
     """NOBS, DEPTHs (per-band), MASKs for random points in a Legacy Surveys DR.
 
     Parameters
@@ -1391,6 +1391,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
     bundlebricks : :class:`int`, defaults to ``None``
         If not ``None``, then instead of selecting randoms, print a slurm
         script to balance the bricks at `bundlebricks` bricks per node.
+    nchunks : :class:`int`, optional, defaults to 10
+        Number of smaller catalogs to split the random catalog into
+        inside the `bundlebricks` slurm script.
     brickspersec : :class:`float`, optional, defaults to 2.5
         The rough number of bricks processed per second (parallelized
         across a chosen number of nodes). Used with `bundlebricks` to
@@ -1443,9 +1446,9 @@ def select_randoms(drdir, density=100000, numproc=32, nside=None, pixlist=None,
         # ADM pixnum only contains unique bricks, need to add duplicates.
         allpixnum = np.concatenate([np.zeros(cnt, dtype=int)+pix for
                                     cnt, pix in zip(cnts.astype(int), pixnum)])
-        bundle_bricks(allpixnum, bundlebricks, nside, gather=True,
+        bundle_bricks(allpixnum, bundlebricks, nside, gather=True, seed=seed,
                       brickspersec=brickspersec, prefix='randoms',
-                      surveydirs=[drdir], extra=extra, seed=seed)
+                      surveydirs=[drdir], extra=extra, nchunks=nchunks)
         # ADM because the broader function returns three outputs.
         return None, None, None
 

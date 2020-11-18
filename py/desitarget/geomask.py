@@ -7,6 +7,7 @@ desitarget.geomask
 
 Utility functions for geometry on the sky, masking, etc.
 
+.. _`this post on Stack Overflow`: https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
 """
 from __future__ import (absolute_import, division)
 #
@@ -30,7 +31,6 @@ import healpy as hp
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
 log = get_logger()
-
 
 def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"]):
     """Apply the 'geometric' masks from the Legacy Surveys imaging.
@@ -642,7 +642,8 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=False, surveydirs=None, extra=None, seed=None):
+                  gather=False, surveydirs=None, extra=None, seed=None,
+                  nchunks=10):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
@@ -678,6 +679,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         the output slurm script.
     seed : :class:`int`, optional, defaults to 1
         Random seed for file name. Only relevant for `prefix='randoms'`.
+    nchunks : :class:`int`, optional, defaults to 10
+        Number of smaller catalogs to split the random catalog into. Only
+        relevant for `prefix='randoms'`.
 
     Returns
     -------
@@ -687,7 +691,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     Notes
     -----
-    h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
+        - For the packing algorithm see `this post on Stack Overflow`_.
     """
     # ADM interpret the passed directories.
     surveydir = os.path.normpath(surveydirs[0])
@@ -851,7 +855,6 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
                 resolve=resolve, region=region)
             print("")
-            n = 10
             # ADM split each pixel-file into 10 smaller catalogs.
             for fn in outfiles:
                 adder = ""
@@ -860,11 +863,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 if not "addmtl" in extra:
                     adder = "--addmtl"
                     print("srun -N 1 split_randoms {} -n {} {} {} &".format(
-                        fn, n, adder, skip))
+                        fn, nchunks, adder, skip))
             print("")
             print("wait")
             print("")
-            for nchunk in range(n):
+            for nchunk in range(nchunks):
                 ofs = [fn.replace(".fits", "-{}.fits".format(nchunk))
                        for fn in outfiles]
                 ofn = outfn.replace(".fits", "-{}.fits".format(nchunk))
