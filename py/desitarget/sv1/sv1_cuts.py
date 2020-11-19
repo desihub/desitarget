@@ -581,6 +581,7 @@ def isQSO_color_high_z(gflux=None, rflux=None, zflux=None,
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
                        w2flux=None, objtype=None, release=None, dchisq=None,
                        maskbits=None, gnobs=None, rnobs=None, znobs=None,
+                       ra=None, dec=None,
                        primary=None, south=True):
     """Definition of QSO target class using random forest. Returns a boolean array.
 
@@ -654,9 +655,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
 
         # Path to random forest files
         pathToRF = resource_filename('desitarget', 'data')
-        # ADM Use RF trained over DR7
-        rf_fileName = pathToRF + '/rf_model_dr7.npz'
-        rf_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
+        # Use RF trained over DR9
+        rf_fileName = pathToRF + '/rf_model_dr9.npz'
+        rf_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
 
         # rf initialization - colors data duplicated within "myRF"
         rf = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
@@ -668,18 +669,25 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         tmp_rf_proba = rf.predict_proba()
         tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
         # Compute optimized proba cut (all different for SV)
-        # ADM the probabilities are different for the north and the south.
-        if south:
-            pcut = np.where(r_Reduced > 20.0,
-                            0.60 - (r_Reduced - 20.0) * 0.10, 0.60)
-            pcut[r_Reduced > 22.0] = 0.40 - 0.25 * (r_Reduced[r_Reduced > 22.0] - 22.0)
-            pcut_HighZ = 0.40
+        if not south:
+                #threshold selection for North footprint
+                pcut = 0.84 - 0.035*np.tanh(r_Reduced - 20.5)
+                pcut_HighZ = 0.65
         else:
-            pcut = np.where(r_Reduced > 20.0,
-                            0.75 - (r_Reduced - 20.0) * 0.05, 0.75)
-            pcut[r_Reduced > 22.0] = 0.65 - 0.34 * (r_Reduced[r_Reduced > 22.0] - 22.0)
-            pcut_HighZ = np.where(r_Reduced > 20.5,
-                                  0.5 - (r_Reduced - 20.5) * 0.025, 0.5)
+            pcut_HighZ = 0.50
+            pcut = np.ones(tmp_rf_proba.size)
+            pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
+            is_des = (gnobs[preSelection] > 4) &\
+                (rnobs[preSelection] > 4) &\
+                (znobs[preSelection] > 4) &\
+                ((ra[preSelection] >= 320) | (ra[preSelection] <= 100)) &\
+                (dec[preSelection] <= 10)
+            #threshold selection for Des footprint
+            pcut[is_des] = 0.70 - 0.06*np.tanh(r_Reduced[is_des] - 20.5)
+            pcut_HighZ[is_des] = 0.40
+            #threshold selection for South footprint
+            pcut[~is_des] = 0.80 - 0.05*np.tanh(r_Reduced[~is_des] - 20.5)
+            pcut_HighZ[~is_des] = 0.55
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = \
@@ -696,6 +704,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
 def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
                       w2flux=None, objtype=None, release=None, dchisq=None,
                       gnobs=None, rnobs=None, znobs=None,
+                      ra=None, dec=None,
                       maskbits=None, primary=None, south=True):
     """Definition of QSO target for highz (z>2.0) faint QSOs. Returns a boolean array.
 
@@ -742,13 +751,15 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
     # Color Selection of QSO with z>2.0.
     wflux = 0.75*w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
-    # ADM "color_cut" isn't used. If it WAS to be used, we'd need to guard against raising
-    # ADM negative fluxes to fractional powers, e.g. (-0.11)**0.3 is a complex number!
-    # color_cut = ((wflux < gflux*10**(2.7/2.5)) |
-    #              (rflux*(gflux**0.3) > gflux*(wflux**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
-    # color_cut &= (wflux * (rflux**1.5) < (zflux**1.5) * grzflux * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
-    # preSelection &= color_cut
 
+    flux_defined = (wflux>0) & (grzflux>0) & (gflux>0) & (rflux>0) & (zflux>0)
+    color_cut = flux_defined
+    
+    color_cut[flux_defined] = ((wflux[flux_defined] < gflux[flux_defined]*10**(2.7/2.5)) |
+                  (rflux[flux_defined]*(gflux[flux_defined]**0.3) > gflux[flux_defined]*(wflux[flux_defined]**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
+    color_cut[flux_defined] &= (wflux[flux_defined] * (rflux[flux_defined]**1.5) < (zflux[flux_defined]**1.5) * grzflux[flux_defined] * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
+    preSelection &= color_cut
+        
     # Standard morphology cut.
     preSelection &= _psflike(objtype)
 
@@ -765,15 +776,15 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
 
         # Data reduction to preselected objects.
         colorsReduced = colors[preSelection]
-        colorsReduced[:, 10] = 22.8
+        colorsReduced[:, 10] = 22.95
         r_Reduced = r[preSelection]
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
 
         # Path to random forest files.
         pathToRF = resource_filename('desitarget', 'data')
-        # Use RF trained over DR7.
-        rf_fileName = pathToRF + '/rf_model_dr7.npz'
+        # Use RF trained over DR9.
+        rf_fileName = pathToRF + '/rf_model_dr9.npz'
 
         # rf initialization - colors data duplicated within "myRF".
         rf = myRF(colorsReduced, pathToRF, numberOfTrees=500, version=2)
@@ -785,11 +796,21 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
         tmp_rf_proba = rf.predict_proba()
 
         # Compute optimized proba cut (all different for SV).
-        # The probabilities may be different for the north and the south.
-        if south:
-            pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
+        # The probabilities may be different for the north and the south.       
+        if not south:
+            #threshold selection for North footprint
+            pcut = 0.94
         else:
-            pcut = np.where(r_Reduced < 23.2,  0.50 + (r_Reduced-22.8)*.75, .80 + (r_Reduced-23.2)*.5)
+            pcut = np.ones(tmp_rf_proba.size)
+            is_des = (gnobs[preSelection] > 4) &\
+                        (rnobs[preSelection] > 4) &\
+                        (znobs[preSelection] > 4) &\
+                        ((ra[preSelection] >= 320) | (ra[preSelection] <= 100)) &\
+                        (dec[preSelection] <= 10)
+            #threshold selection for Des footprint
+            pcut[is_des] = 0.85
+            #threshold selection for South footprint
+            pcut[~is_des] = 0.90
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
@@ -1544,6 +1565,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                         w1flux=w1flux, w2flux=w2flux,
                         gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         dchisq=dchisq, maskbits=maskbits,
+                        ra=ra, dec=dec,
                         objtype=objtype, south=south
                     )
                 )
@@ -1553,6 +1575,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                         w1flux=w1flux, w2flux=w2flux,
                         gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         dchisq=dchisq, maskbits=maskbits,
+                        ra=ra, dec=dec,
                         objtype=objtype, south=south
                     )
                 )
