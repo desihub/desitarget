@@ -5,7 +5,10 @@ desitarget Change Log
 0.44.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Tune the RF selection for QSOs in SV using DR9 imaging [`PR #652`_].
+
+.. _`PR #652`: https://github.com/desihub/desitarget/pull/652
+
 
 0.44.0 (2020-11-12)
 -------------------
