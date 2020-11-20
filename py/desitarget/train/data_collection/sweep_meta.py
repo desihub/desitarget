@@ -30,10 +30,9 @@ def sweep_meta(release, outfits):
     p1 = subprocess.Popen( tmpstr, stdout = subprocess.PIPE, shell = True )
     sweeplist = np.array( p1.communicate()[0].decode('ascii').split( '\n' ) )[:-1]
     nsweep = len( sweeplist )
-
-    for quant in ['ramin','ramax','decmin','decmax']:
-        exec( quant +'= np.zeros(nsweep)' )
-
+    
+    ramin, ramax, decmin, decmax = np.zeros(nsweep), np.zeros(nsweep), np.zeros(nsweep), np.zeros(nsweep)
+        
     for i in range( nsweep ):
         sweeplist[i] = sweeplist[i][-26:]
         sweep = sweeplist[i]

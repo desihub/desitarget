@@ -8,8 +8,8 @@ import fitsio
 from data_collection.RA_DEC_MatchingClassModule import RA_DEC_MatchingClass
 
 # settings
-fpn_QSO_cat = "/global/homes/e/edmondc/Software/target_selection_CAClaveau/Catalogs/DR16Q_red.fits"
-fpn_var_cat = "/global/homes/e/edmondc/Software/target_selection_CAClaveau/Catalogs/Str82_variability_wise_bdt_qso_star_DR7_BOSS_-50+60.fits"
+fpn_QSO_cat = "/global/cfs/cdirs/desi/target/analysis/RF/Catalogs/DR16Q_red.fits"
+fpn_var_cat = "/global/cfs/cdirs/desi/target/analysis/RF/Catalogs/Str82_variability_wise_bdt_qso_star_DR7_BOSS_-50+60.fits"
 radius4matching = 1.4 / 3600. # [deg]
 NNVar_th = 0.5
 
@@ -28,13 +28,10 @@ parser.add_argument( '-s', '--selcrit', type=str, default=None, metavar='SELCRIT
 parser.add_argument( '-l', '--logfile', type=str, default='none', metavar='LOGFILE',
                      help='log file' )
 
-# attributing variables
-argnamelist = ['infits','outfits','release','radec','selcrit','logfile']
 arg = parser.parse_args()
-for argname in argnamelist:
-	exec( argname.upper()+' = arg.'+argname )
-	#exec( "print( argname.upper()+' = '+str(arg."+argname+") )" )
-
+INFITS, OUTFITS, RELEASE, RADEC, SELCRIT, LOGFILE = arg.infits, arg.outfis, arg.release, arg.radec, arg.selcrit, arg.logfile
+    
+    
 # RADEC
 RAMIN, RAMAX, DECMIN, DECMAX = np.array(RADEC.split(',')).astype('float')
 
