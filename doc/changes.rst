@@ -17,8 +17,10 @@ desitarget Change Log
         * ...then combine across pixels to make N random catalogs.
         * Never requires memory to write a very large random catalog.
 * Tune the RF selection for QSOs in SV using DR9 imaging [`PR #652`_].
+* Add RF files and threshold for each DR9 sub-footprint [`PR #648`_].
 
 .. _`issue #647`: https://github.com/desihub/desitarget/issues/647
+.. _`PR #648`: https://github.com/desihub/desitarget/pull/648
 .. _`PR #652`: https://github.com/desihub/desitarget/pull/652
 .. _`PR #653`: https://github.com/desihub/desitarget/pull/653
 

@@ -1133,7 +1133,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     mbcomb = []
     mbstore = []
     for mb in [[10, 12, 13],
-               [1, 10, 12, 13],
+               [1, 5, 6, 7, 10, 12, 13],
                [1, 5, 6, 7, 11, 12, 13]]:
         bitint = np.sum(2**np.array(mb))
         mbcomb.append(bitint)
