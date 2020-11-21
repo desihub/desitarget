@@ -5,10 +5,22 @@ desitarget Change Log
 0.44.1 (unreleased)
 -------------------
 
+* Clean-up for DR9-based commissioning [`PR #653`_]. Includes:
+    * Use HEALPixels instead of ``BRICKIDs`` for supp_skies.
+        * This avoids duplicated ``TARGETIDs`` where bricks span pixels.
+        * Addresses `issue #647`_.
+    * G < 19 for ``STD_DITHER_GAIA`` cmx targets near the Galaxy.
+    * Allow ``gather_targets`` to restrict to a subset of columns.
+    * Ignore new "light-curve" and "extra" flavors when finding sweeps.
+    * Smarter processing of randoms when writing "bundled" slurm file.
+        * Split pixelized files into N smaller files first...
+        * ...then combine across pixels to make N random catalogs.
+        * Never requires memory to write a very large random catalog.
 * Tune the RF selection for QSOs in SV using DR9 imaging [`PR #652`_].
 
+.. _`issue #647`: https://github.com/desihub/desitarget/issues/647
 .. _`PR #652`: https://github.com/desihub/desitarget/pull/652
-
+.. _`PR #653`: https://github.com/desihub/desitarget/pull/653
 
 0.44.0 (2020-11-12)
 -------------------
