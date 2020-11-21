@@ -963,10 +963,10 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None, bricks_are_hpx=False):
         pixlist = np.atleast_1d(pixlist)
     log.info("Masking using masks in {} at nside={} in HEALPixels={}".format(
         inmaskdir, nside, pixlist))
-    pixlist = add_hp_neighbors(nside, pixlist)
+    pixlistwneigh = add_hp_neighbors(nside, pixlist)
 
     # ADM read in the (potentially HEALPixel-split) mask.
-    sourcemask = io.read_targets_in_hp(inmaskdir, nside, pixlist)
+    sourcemask = io.read_targets_in_hp(inmaskdir, nside, pixlistwneigh)
 
     ntargs = len(targs)
     log.info('Total number of masks {}'.format(len(sourcemask)))
