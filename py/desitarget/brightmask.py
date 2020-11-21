@@ -30,7 +30,7 @@ from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, decode_targetid
 from desitarget.gaiamatch import find_gaia_files, get_gaia_nside_brick
-from desitarget.geomask import circles, cap_area, circle_boundaries
+from desitarget.geomask import circles, cap_area, circle_boundaries, is_in_hp
 from desitarget.geomask import ellipses, ellipse_boundary, is_in_ellipse
 from desitarget.geomask import radec_match_to, rewind_coords, add_hp_neighbors
 from desitarget.cuts import _psflike
@@ -985,6 +985,11 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None, bricks_are_hpx=False):
     # ADM update the bits for the safe locations depending on whether
     # ADM they're in a mask.
     safes["DESI_TARGET"] = set_target_bits(safes, sourcemask)
+    # ADM it's possible that a safe location was generated outside of
+    # ADM the requested HEALPixels.
+    inhp = is_in_hp(safes, nside, pixlist)
+    safes = safes[inhp]
+
     # ADM combine the targets and safe locations.
     done = np.concatenate([targs, safes])
 
