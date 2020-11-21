@@ -820,11 +820,12 @@ def get_safe_targets(targs, sourcemask):
     safes["BRICKNAME"] = b.brickname(safes["RA"], safes["DEC"])
 
     # ADM now add OBJIDs, counting backwards from the maximum possible
-    # ADM OBJID to ensure no duplicateion of TARGETIDs for real targets.
+    # ADM OBJID to ensure no duplicateion of TARGETIDs for supplemental
+    # ADM skies, which build their OBJIDs by counting forwards from 0.
     maxobjid = 2**targetid_mask.OBJID.nbits - 1
     sortid = np.argsort(safes["BRICKID"])
     _, cnts = np.unique(safes["BRICKID"], return_counts=True)
-    brickids = np.concatenate([np.arange(i) for i in cnts])
+    brickids = np.concatenate([maxobjid-np.arange(i) for i in cnts])
     safes["BRICK_OBJID"][sortid] = brickids
 
     # ADM finally, update the TARGETID.
@@ -967,11 +968,23 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
 
     # ADM generate SAFE locations for masks that contain a target.
     safes = get_safe_targets(targs, sourcemask[inmasks])
+
     # ADM update the bits for the safe locations depending on whether
     # ADM they're in a mask.
     safes["DESI_TARGET"] = set_target_bits(safes, sourcemask)
     # ADM combine the targets and safe locations.
     done = np.concatenate([targs, safes])
+
+    # ADM assert uniqueness of TARGETIDs.
+    stargs, ssafes = set(targs["TARGETID"]), set(safes["TARGETID"])
+    msg = "TARGETIDs for targets not unique"
+    assert len(stargs) == len(targs), msg
+    msg = "TARGETIDs for safes not unique"
+    assert len(ssafes) == len(safes), msg
+    msg = "TARGETIDs for safes duplicated in targets. Generating TARGETIDs"
+    msg += " backwards from maxobjid in get_safe_targets() has likely failed"
+    msg += " due to somehow generating a large number of safe locations."
+    assert len(stargs.intersection(ssafes)) == 0, msg
 
     log.info('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(
         len(done)-ntargs, time()-t0))
