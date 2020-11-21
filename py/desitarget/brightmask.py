@@ -29,7 +29,7 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, decode_targetid
-from desitarget.gaiamatch import find_gaia_files
+from desitarget.gaiamatch import find_gaia_files, get_gaia_nside_brick
 from desitarget.geomask import circles, cap_area, circle_boundaries
 from desitarget.geomask import ellipses, ellipse_boundary, is_in_ellipse
 from desitarget.geomask import radec_match_to, rewind_coords, add_hp_neighbors
@@ -770,7 +770,7 @@ def generate_safe_locations(sourcemask, Nperradius=1):
     return ras, decs
 
 
-def get_safe_targets(targs, sourcemask):
+def get_safe_targets(targs, sourcemask, bricks_are_hpx=False):
     """Get SAFE (BADSKY) locations for targs, set TARGETID/DESI_TARGET.
 
     Parameters
@@ -780,6 +780,9 @@ def get_safe_targets(targs, sourcemask):
     sourcemask : :class:`~numpy.ndarray`
         A bright source mask as made by, e.g.
         :func:`desitarget.brightmask.make_bright_star_mask()`.
+    bricks_are_hpx : :class:`bool`, optional, defaults to ``False``
+        Instead of using bricks to calculate BRICKIDs, use HEALPixels at
+        the "standard" size from :func:`gaiamatch.get_gaia_nside_brick()`.
 
     Returns
     -------
@@ -815,9 +818,15 @@ def get_safe_targets(targs, sourcemask):
     safes["DESI_TARGET"] |= desi_mask.BAD_SKY
 
     # ADM add the brick information for the SAFE/BADSKY targets.
-    b = brick.Bricks(bricksize=0.25)
-    safes["BRICKID"] = b.brickid(safes["RA"], safes["DEC"])
-    safes["BRICKNAME"] = b.brickname(safes["RA"], safes["DEC"])
+    if bricks_are_hpx:
+        nside = get_gaia_nside_brick()
+        theta, phi = np.radians(90-safes["DEC"]), np.radians(safes["RA"])
+        safes["BRICKID"] = hp.ang2pix(nside, theta, phi, nest=True)
+        safes["BRICKNAME"] = 'hpxat{}'.format(nside)
+    else:
+        b = brick.Bricks(bricksize=0.25)
+        safes["BRICKID"] = b.brickid(safes["RA"], safes["DEC"])
+        safes["BRICKNAME"] = b.brickname(safes["RA"], safes["DEC"])
 
     # ADM now add OBJIDs, counting backwards from the maximum possible
     # ADM OBJID to ensure no duplicateion of TARGETIDs for supplemental
@@ -898,7 +907,7 @@ def set_target_bits(targs, sourcemask, return_masks=False):
     return desi_target
 
 
-def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
+def mask_targets(targs, inmaskdir, nside=2, pixlist=None, bricks_are_hpx=False):
     """Add bits for if objects occupy masks, and SAFE (BADSKY) locations.
 
     Parameters
@@ -922,6 +931,9 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
         (together with neighboring pixels to account for edge effects).
         If ``None``, then the pixels touched by `targs` is derived from
         from `targs` itself.
+    bricks_are_hpx : :class:`bool`, optional, defaults to ``False``
+        Instead of using bricks to calculate BRICKIDs, use HEALPixels at
+        the "standard" size from :func:`gaiamatch.get_gaia_nside_brick()`.
 
     Returns
     -------
@@ -967,7 +979,8 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
     inmasks, nearmasks = mx
 
     # ADM generate SAFE locations for masks that contain a target.
-    safes = get_safe_targets(targs, sourcemask[inmasks])
+    safes = get_safe_targets(targs, sourcemask[inmasks],
+                             bricks_are_hpx=bricks_are_hpx)
 
     # ADM update the bits for the safe locations depending on whether
     # ADM they're in a mask.

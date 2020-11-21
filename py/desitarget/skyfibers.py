@@ -28,6 +28,7 @@ from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import finalize
 from desitarget import io
 from desitarget.gaiamatch import find_gaia_files, gaia_dr_from_ref_cat
+from desitarget.gaiamatch import get_gaia_nside_brick
 from desitarget.geomask import is_in_gal_box, is_in_circle, is_in_hp
 
 # ADM the parallelization script.
@@ -891,9 +892,14 @@ def get_supp_skies(ras, decs, radius=2.):
     supsky = np.zeros(nskies, dtype=skydatamodel.dtype)
     # ADM populate output array with the RA/Dec of the sky locations.
     supsky["RA"], supsky["DEC"] = ras[good], decs[good]
-    # ADM add the brickid and name.
-    supsky["BRICKID"] = bricks.brickid(ras[good], decs[good])
-    supsky["BRICKNAME"] = bricks.brickname(ras[good], decs[good])
+    # ADM add the brickid and name. Use Gaia at NSIDE=256, which roughly
+    # ADM corresponds to the area of a brick. Using Gaia pixel numbers
+    # ADM instead of bricks is necessary to avoid duplicate TARGETIDs as
+    # ADM we parallelize supp_skies across pixels, not bricks.
+    nside = get_gaia_nside_brick()
+    theta, phi = np.radians(90-decs[good]), np.radians(ras[good])
+    supsky["BRICKID"] = hp.ang2pix(nside, theta, phi, nest=True)
+    supsky["BRICKNAME"] = 'hpxat{}'.format(nside)
     # ADM BLOBDIST is in ~Legacy Surveys pixels, with scale 0.262 "/pix.
     supsky["BLOBDIST"] = radius/0.262
     # ADM set all fluxes and IVARs to -1, so they're ill-defined.
@@ -1044,21 +1050,13 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     supp["OBJID"] = np.array(objid)
     log.info("Assigned OBJIDs to bricks...t={:.1f}s".format(time()-start))
 
-    # ADM if splitting by HEALPixels, use the input list to
-    # ADM set RELEASE so we don't have duplicate TARGETIDs.
-    if pixlist is not None and pixlist[0] < 1000:
-        supp["RELEASE"] = pixlist[0]
-    else:
-        msg = "First entry in pixlist ({}) > 1000. This sets ".format(pixlist[0])
-        msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
-        log.critical(msg)
-        raise IOError
-
     # ADM add the TARGETID, DESITARGET bits etc.
     nskies = len(supp)
     desi_target = np.zeros(nskies, dtype='>i8')
     desi_target |= desi_mask.SUPP_SKY
     dum = np.zeros_like(desi_target)
+    # ADM Use the Gaia Data Release for RELEASE, too.
+    supp["RELEASE"] = gdr
     supp = finalize(supp, desi_target, dum, dum, sky=True, gdr=gdr)
 
     log.info('Done...t={:.1f}s'.format(time()-start))
