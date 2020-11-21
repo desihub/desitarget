@@ -32,6 +32,7 @@ import healpy as hp
 from desiutil.log import get_logger
 log = get_logger()
 
+
 def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"]):
     """Apply the 'geometric' masks from the Legacy Surveys imaging.
 
@@ -860,7 +861,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 adder = ""
                 # ADM we'll need to add the MTL columns if they aren't
                 # ADM added when the randoms are initially constructed.
-                if not "addmtl" in extra:
+                if "addmtl" not in extra:
                     adder = "--addmtl"
                     print("srun -N 1 split_randoms {} -n {} {} {} &".format(
                         fn, nchunks, adder, skip))
