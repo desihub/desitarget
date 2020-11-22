@@ -304,6 +304,7 @@ priorities:
         # MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         # Note NEARBY > OC (otherwise nearby targets swamped by fainter OC members)
         MWS_NEARBY:                   {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+        MWS_BHB:                      {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
 
         # Main survey targets 
         MWS_MAIN_BROAD:                  {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
@@ -440,6 +441,7 @@ numobs:
         MWS_MAIN_BROAD:               1
         MWS_MAIN_FAINT:               1
         MWS_NEARBY:                 100
+        MWS_BHB:                    100
         # ADM don't observe a N/S target if it doesn't have other bits set
         MWS_MAIN_BROAD_NORTH:            0
         MWS_MAIN_BROAD_SOUTH:            0
