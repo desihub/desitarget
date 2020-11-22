@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.44.1 (unreleased)
+0.45.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.45.0 (2020-11-22)
 -------------------
 
 * Clean-up for DR9-based commissioning [`PR #653`_]. Includes:
