@@ -437,6 +437,6 @@ numobs:
         MWS_CALIB:                  100
         MWS_WD_SV:                  100
         MWS_MAIN_CLUSTER_SV:        1
-        MWS_MAIN_RRLYR_SV:          100 
+        MWS_MAIN_RRLYR:             100 
         MWS_NEARBY_OC_FILLER_SV:    1
         BACKUP_CALIB:               SAME_AS_MWS_CALIB
