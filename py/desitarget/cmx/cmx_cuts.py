@@ -2358,7 +2358,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
                 primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
                 maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                objtype=objtype, release=release, south=south
+                objtype=objtype, release=release, ra=ra, dec=dec, south=south
             )
     qso_north, qso_hiz_north = qso_classes[0]
     qso_south, qso_hiz_south = qso_classes[1]
