@@ -29,8 +29,8 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.targetmask import desi_mask, targetid_mask
 from desitarget.targets import encode_targetid, decode_targetid
-from desitarget.gaiamatch import find_gaia_files
-from desitarget.geomask import circles, cap_area, circle_boundaries
+from desitarget.gaiamatch import find_gaia_files, get_gaia_nside_brick
+from desitarget.geomask import circles, cap_area, circle_boundaries, is_in_hp
 from desitarget.geomask import ellipses, ellipse_boundary, is_in_ellipse
 from desitarget.geomask import radec_match_to, rewind_coords, add_hp_neighbors
 from desitarget.cuts import _psflike
@@ -770,7 +770,7 @@ def generate_safe_locations(sourcemask, Nperradius=1):
     return ras, decs
 
 
-def get_safe_targets(targs, sourcemask):
+def get_safe_targets(targs, sourcemask, bricks_are_hpx=False):
     """Get SAFE (BADSKY) locations for targs, set TARGETID/DESI_TARGET.
 
     Parameters
@@ -780,6 +780,9 @@ def get_safe_targets(targs, sourcemask):
     sourcemask : :class:`~numpy.ndarray`
         A bright source mask as made by, e.g.
         :func:`desitarget.brightmask.make_bright_star_mask()`.
+    bricks_are_hpx : :class:`bool`, optional, defaults to ``False``
+        Instead of using bricks to calculate BRICKIDs, use HEALPixels at
+        the "standard" size from :func:`gaiamatch.get_gaia_nside_brick()`.
 
     Returns
     -------
@@ -815,16 +818,23 @@ def get_safe_targets(targs, sourcemask):
     safes["DESI_TARGET"] |= desi_mask.BAD_SKY
 
     # ADM add the brick information for the SAFE/BADSKY targets.
-    b = brick.Bricks(bricksize=0.25)
-    safes["BRICKID"] = b.brickid(safes["RA"], safes["DEC"])
-    safes["BRICKNAME"] = b.brickname(safes["RA"], safes["DEC"])
+    if bricks_are_hpx:
+        nside = get_gaia_nside_brick()
+        theta, phi = np.radians(90-safes["DEC"]), np.radians(safes["RA"])
+        safes["BRICKID"] = hp.ang2pix(nside, theta, phi, nest=True)
+        safes["BRICKNAME"] = 'hpxat{}'.format(nside)
+    else:
+        b = brick.Bricks(bricksize=0.25)
+        safes["BRICKID"] = b.brickid(safes["RA"], safes["DEC"])
+        safes["BRICKNAME"] = b.brickname(safes["RA"], safes["DEC"])
 
     # ADM now add OBJIDs, counting backwards from the maximum possible
-    # ADM OBJID to ensure no duplicateion of TARGETIDs for real targets.
+    # ADM OBJID to ensure no duplicateion of TARGETIDs for supplemental
+    # ADM skies, which build their OBJIDs by counting forwards from 0.
     maxobjid = 2**targetid_mask.OBJID.nbits - 1
     sortid = np.argsort(safes["BRICKID"])
     _, cnts = np.unique(safes["BRICKID"], return_counts=True)
-    brickids = np.concatenate([np.arange(i) for i in cnts])
+    brickids = np.concatenate([maxobjid-np.arange(i) for i in cnts])
     safes["BRICK_OBJID"][sortid] = brickids
 
     # ADM finally, update the TARGETID.
@@ -897,7 +907,7 @@ def set_target_bits(targs, sourcemask, return_masks=False):
     return desi_target
 
 
-def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
+def mask_targets(targs, inmaskdir, nside=2, pixlist=None, bricks_are_hpx=False):
     """Add bits for if objects occupy masks, and SAFE (BADSKY) locations.
 
     Parameters
@@ -921,6 +931,9 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
         (together with neighboring pixels to account for edge effects).
         If ``None``, then the pixels touched by `targs` is derived from
         from `targs` itself.
+    bricks_are_hpx : :class:`bool`, optional, defaults to ``False``
+        Instead of using bricks to calculate BRICKIDs, use HEALPixels at
+        the "standard" size from :func:`gaiamatch.get_gaia_nside_brick()`.
 
     Returns
     -------
@@ -950,10 +963,10 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
         pixlist = np.atleast_1d(pixlist)
     log.info("Masking using masks in {} at nside={} in HEALPixels={}".format(
         inmaskdir, nside, pixlist))
-    pixlist = add_hp_neighbors(nside, pixlist)
+    pixlistwneigh = add_hp_neighbors(nside, pixlist)
 
     # ADM read in the (potentially HEALPixel-split) mask.
-    sourcemask = io.read_targets_in_hp(inmaskdir, nside, pixlist)
+    sourcemask = io.read_targets_in_hp(inmaskdir, nside, pixlistwneigh)
 
     ntargs = len(targs)
     log.info('Total number of masks {}'.format(len(sourcemask)))
@@ -966,12 +979,30 @@ def mask_targets(targs, inmaskdir, nside=2, pixlist=None):
     inmasks, nearmasks = mx
 
     # ADM generate SAFE locations for masks that contain a target.
-    safes = get_safe_targets(targs, sourcemask[inmasks])
+    safes = get_safe_targets(targs, sourcemask[inmasks],
+                             bricks_are_hpx=bricks_are_hpx)
+
     # ADM update the bits for the safe locations depending on whether
     # ADM they're in a mask.
     safes["DESI_TARGET"] = set_target_bits(safes, sourcemask)
+    # ADM it's possible that a safe location was generated outside of
+    # ADM the requested HEALPixels.
+    inhp = is_in_hp(safes, nside, pixlist)
+    safes = safes[inhp]
+
     # ADM combine the targets and safe locations.
     done = np.concatenate([targs, safes])
+
+    # ADM assert uniqueness of TARGETIDs.
+    stargs, ssafes = set(targs["TARGETID"]), set(safes["TARGETID"])
+    msg = "TARGETIDs for targets not unique"
+    assert len(stargs) == len(targs), msg
+    msg = "TARGETIDs for safes not unique"
+    assert len(ssafes) == len(safes), msg
+    msg = "TARGETIDs for safes duplicated in targets. Generating TARGETIDs"
+    msg += " backwards from maxobjid in get_safe_targets() has likely failed"
+    msg += " due to somehow generating a large number of safe locations."
+    assert len(stargs.intersection(ssafes)) == 0, msg
 
     log.info('Generated {} SAFE (BADSKY) locations...t={:.1f}s'.format(
         len(done)-ntargs, time()-t0))

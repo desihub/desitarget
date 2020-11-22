@@ -21,7 +21,7 @@ from os.path import basename
 from desitarget import io
 from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
-from desitarget.geomask import hp_in_box, add_hp_neighbors
+from desitarget.geomask import hp_in_box, add_hp_neighbors, pixarea2nside
 from desitarget.geomask import hp_beyond_gal_b, nside2nside
 from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
@@ -93,6 +93,23 @@ def _get_gaia_nside():
     nside = 32
 
     return nside
+
+
+def get_gaia_nside_brick(bricksize=0.25):
+    """Grab the HEALPixel nside that corresponds to a brick.
+
+    Parameters
+    ----------
+    bricksize : :class:`float`, optional, defaults to 0.25
+        Size of the brick, default is the Legacy Surveys standard.
+
+    Returns
+    -------
+    :class:`int`
+        The HEALPixel nside number that corresponds to a brick.
+    """
+
+    return pixarea2nside(bricksize*bricksize)
 
 
 def is_in_Galaxy(objs, radec=False):

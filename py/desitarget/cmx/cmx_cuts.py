@@ -1643,7 +1643,7 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
 
     Notes
     -----
-    - This version (10/25/20) is version 69 on `the cmx wiki`_.
+    - This version (11/17/20) is version 70 on `the cmx wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gmag, dtype='?')
@@ -1663,9 +1663,9 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
     # ADM Unique Gaia source (not a duplicated source).
     issdg &= ~dupsource
 
-    # ADM CUT TO G < 18 where |b| < 20.
+    # ADM CUT TO G < 19 where |b| < 20.
     blt20 = is_in_gal_box([ra, dec], [0, 360, -20, 20], radec=True)
-    issdg &= (gmag < 18) | ~blt20
+    issdg &= (gmag < 19) | ~blt20
 
     # ADM remove any sources that have neighbors within 7"...
     # ADM for speed, run only sources for which issdg is still True.
