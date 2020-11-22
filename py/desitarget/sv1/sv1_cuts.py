@@ -1392,7 +1392,7 @@ def isMWS_bhb(primary=None, objtype=None,
     zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
 
     gmr = gmag-rmag
-    rmz = rmag-zma
+    rmz = rmag-zmag
 
     # APC must be a Legacy Surveys object that matches a Gaia source
     mws &= gaia
