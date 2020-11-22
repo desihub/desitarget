@@ -1397,7 +1397,7 @@ def isMWS_bhb(primary=None, objtype=None,
     # APC must be a Legacy Surveys object that matches a Gaia source
     mws &= gaia
     # APC type must be PSF
-    std &= _psflike(objtype)
+    mws &= _psflike(objtype)
     # APC no sources brighter than Gaia G = 10
     mws &= gaiagmag > 10.
     # APC exclude nearby sources by parallax
