@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.45.1 (unreleased)
+0.45.2 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.45.1 (2020-11-22)
 -------------------
 
 * Add RA/Dec to the Main Survey calls for the QSO RF in cmx [`PR #654`_].
