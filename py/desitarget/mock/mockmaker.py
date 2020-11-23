@@ -1485,7 +1485,8 @@ class ReadBuzzard(SelectTargets):
         super(ReadBuzzard, self).__init__(**kwargs)
         
     def readmock(self, mockfile=None, healpixels=[], nside=[], nside_buzzard=8,
-                 target_name='', magcut=None, only_coords=False, seed=None):
+                 target_name='', magcut=None, only_coords=False, seed=None,mock_density=None):
+                 
         """Read the catalog.
 
         Parameters
@@ -1641,12 +1642,12 @@ class ReadBuzzard(SelectTargets):
 
         ## Get photometry and morphologies by sampling from the Gaussian
         ## mixture models.
-        #log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
-        #gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
-        #                         seed=seed, prior_redshift=zz)
-        #gmmout = None
+        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
+        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+                                seed=seed, prior_redshift=zz)
+        # gmmout = None
 
-        #gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
+        gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
         rmag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
         zmag = data['TMAG'][:, 4].astype('f4') # DES z-band, no MW extinction 
 
@@ -1661,8 +1662,8 @@ class ReadBuzzard(SelectTargets):
             'ZMAG': zmag, 'MAGFILTER-Z': np.repeat('decam2014-z', nobj),
             'SOUTH': isouth}
             
-        #if gmmout is not None:
-        #    out.update(gmmout)
+        if gmmout is not None:
+           out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
@@ -3624,6 +3625,8 @@ class LRGMaker(SelectTargets):
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'lrg_0_inpt.fits')
             MockReader = ReadGaussianField()
+        elif self.mockformat=='buzzard':
+            MockReader = ReadBuzzard()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -3953,7 +3956,7 @@ class ELGMaker(SelectTargets):
         Parameters
         ----------
         targets : :class:`astropy.table.Table`
-            Input target catalog.
+            Input target catatlog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
         targetname : :class:`str`
