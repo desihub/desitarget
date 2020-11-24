@@ -3956,7 +3956,7 @@ class ELGMaker(SelectTargets):
         Parameters
         ----------
         targets : :class:`astropy.table.Table`
-            Input target catatlog.
+            Input target catalog.
         truth : :class:`astropy.table.Table`
             Corresponding truth table.
         targetname : :class:`str`
