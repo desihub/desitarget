@@ -617,7 +617,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
     r = np.atleast_1d(r)
 
     # ADM Preselection to speed up the process
-    rMax = 23.0  # r < 23.0 (different for SV)
+    rMax = 23.2  # r < 23.2 (different for SV)
     rMin = 17.5  # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
@@ -650,6 +650,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         # Data reduction to preselected objects
         colorsReduced = colors[preSelection]
         r_Reduced = r[preSelection]
+        colorsReduced[:, 10][r_Reduced>23.0] = 22.95
+        
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
 
