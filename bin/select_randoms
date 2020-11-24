@@ -46,6 +46,9 @@ ap.add_argument('--healpixels',
 ap.add_argument("--bundlebricks", type=int,
                 help="(overrides all options but surveydir) Print a slurm script to parallelize, with about this many bricks per HEALPixel (e.g. 10000)",
                 default=None)
+ap.add_argument("-n", "--nchunks", type=int,
+                help='Number of smaller catalogs to split the random catalog into inside the `bundlebricks` slurm script. Defaults to [10].',
+                default="10")
 ap.add_argument("--brickspersec", type=float,
                 help="estimate of bricks completed per second by the (parallelized) code. Used with `bundlebricks` to guess run times (defaults to 2.5)",
                 default=2.5)
@@ -119,8 +122,9 @@ if not 'dr5' in ns.surveydir and not 'dr6' in ns.surveydir:
 
 randres, randnorth, randsouth = select_randoms(
     ns.surveydir, density=ns.density, numproc=ns.numproc, nside=ns.nside,
-    pixlist=pixlist, aprad=ns.aprad, extra=extra, bundlebricks=ns.bundlebricks,
-    seed=ns.seed, brickspersec=ns.brickspersec, dustdir=ns.dustdir, nomtl=nomtl)
+    pixlist=pixlist, aprad=ns.aprad, extra=extra, nchunks=ns.nchunks,
+    bundlebricks=ns.bundlebricks, seed=ns.seed,
+    brickspersec=ns.brickspersec, dustdir=ns.dustdir, nomtl=nomtl)
 
 if ns.bundlebricks is None:
     # ADM extra header keywords for the output fits file.
