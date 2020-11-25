@@ -286,7 +286,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
     while makemore:
         chunkflux, _, chunktargets, chunktruth, chunkobjtruth = MakeMock.make_spectra(
             data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
-
+       
         MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
         
         keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
@@ -905,7 +905,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         for ii, target_name in enumerate(sorted(params['targets'].keys())):
             targets, truth, skytargets, skytruth = [], [], [], []
 
-            # Read the data and ithere are no targets, keep going.
+            # Read the data and if there are no targets, keep going.
             log.info('Working on target class {} on healpixel {}'.format(target_name, healpix))
             data, MakeMock = read_mock(params['targets'][target_name], log, target_name,
                                        seed=healseed, healpixels=healpix,
