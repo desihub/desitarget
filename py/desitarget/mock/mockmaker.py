@@ -442,6 +442,14 @@ class SelectTargets(object):
                         targets[fluxkey][these] = truth[fluxkey][these] + rand.normal(scale=sigma)
 
                         targets[ivarkey][these] = 1 / sigma**2
+        else:
+          # For Buzzard
+          for band in ('G', 'R', 'Z'):
+                fluxkey = 'FLUX_{}'.format(band)
+                ivarkey = 'FLUX_IVAR_{}'.format(band)
+
+                sigma = 1/np.sqrt(data[ivarkey][indx])
+                targets[fluxkey]=truth[fluxkey] + rand.normal(scale=sigma)
 
         # WISE sources are all point sources
         for band in ('W1', 'W2'):
@@ -596,6 +604,8 @@ class SelectTargets(object):
 
         # Next, sample from the GMM for each morphological type.  For
         # simplicity we ignore the north-south split here.
+
+
         gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
         for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
                     'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR',
@@ -855,10 +865,13 @@ class SelectTargets(object):
                 zmag = normmag = data['MAG'][indx]
                 magfilter = data['MAGFILTER'][indx]
             gmag, rmag = _g_and_r(zmag, gr, rz)
+
         else:
             rmag = normmag = data['MAG'][indx]
             magfilter = data['MAGFILTER'][indx]
             gmag, zmag = _g_and_z(rmag, gr, rz)
+
+            
 
         W1mag = zmag - data['ZW1'][indx]
         W2mag = W1mag - data['W1W2'][indx]
@@ -873,6 +886,7 @@ class SelectTargets(object):
         meta['FLUX_Z'][:] = 1e9 * 10**(-0.4 * zmag)
         meta['FLUX_W1'][:] = 1e9 * 10**(-0.4 * W1mag)
         meta['FLUX_W2'][:] = 1e9 * 10**(-0.4 * W2mag)
+
         
     def get_fiberfraction(self, targets, south=True, ref_seeing=1.0, ref_lambda=5500.0):
         """Estimate the fraction of the integrated flux that enters the fiber.
@@ -1609,12 +1623,13 @@ class ReadBuzzard(SelectTargets):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
-        cols = ['Z', 'TMAG', 'TMAG_WISE']
+        cols = ['Z', 'TMAG', 'TMAG_WISE', 'IVAR']
         #cols = ['Z', 'COEFFS', 'TMAG']
         data = fitsio.read(buzzardfile, columns=cols, upper=True, ext=1, rows=cut)
         zz = data['Z'].astype('f4')
         tmag = data['TMAG'].astype('f4')
         tmag_wise = data['TMAG_WISE'].astype('f4')
+        ivar =data['IVAR'].astype('f4')
 
         if magcut:
             cut = tmag[:, 2] < magcut # r-band
@@ -1653,6 +1668,10 @@ class ReadBuzzard(SelectTargets):
         zmag = data['TMAG'][:, 4].astype('f4') # DES z-band, no MW extinction 
         w1mag = data['TMAG_WISE'][:,0].astype('f4') # WISE W1 band
         w2mag = data['TMAG_WISE'][:,1].astype('f4') # WISE W2 band
+        ivar_g = data['IVAR'][:,0].astype('f4')
+        ivar_r = data['IVAR'][:,1].astype('f4')
+        ivar_i = data['IVAR'][:,2].astype('f4')
+        ivar_z = data['IVAR'][:,3].astype('f4')
         # w3mag = data['TMAG_WISE'][:,2].astype('f4')
         # w4mag = data['TMAG_WISE'][:,3].astype('f4')
 
@@ -1666,13 +1685,17 @@ class ReadBuzzard(SelectTargets):
             'MAG': rmag, 'MAGFILTER': np.repeat('decam2014-r', nobj),
             'GMAG': gmag, 'MAGFILTER-G': np.repeat('decam2014-g', nobj),
             'ZMAG': zmag, 'MAGFILTER-Z': np.repeat('decam2014-z', nobj),
-            'W1MAG':w1mag,
-            'W1MAG':w2mag,
+            'W1MAG':w1mag, 'MAGFILTER-W1':np.repeat('wise2010-w1',nobj),
+            'W2MAG':w2mag, 'MAGFILTER-W2':np.repeat('wise2010-w2',nobj),
             'GR': gmag - rmag,
             'RZ': rmag - zmag,
             'ZW1': zmag - w1mag,
             'W1W2': w1mag - w2mag,
-            'SOUTH': isouth}
+            'SOUTH': isouth,
+            'FLUX_IVAR_G':ivar_g,
+            'FLUX_IVAR_R':ivar_r,
+            'FLUX_IVAR_Z':ivar_z,
+            }
             
         # if gmmout is not None:
           #  out.update(gmmout)
@@ -3708,7 +3731,7 @@ class LRGMaker(SelectTargets):
             south = np.where( data['SOUTH'][indx] == True )[0]
             north = np.where( data['SOUTH'][indx] == False )[0]
 
-            if self.mockformat == 'gaussianfield':
+            if self.mockformat == 'gaussianfield' or self.mockformat == 'buzzard':
                 for these, issouth in zip( (north, south), (False, True) ):
                     if len(these) > 0:
                         input_meta['MAG'][these] = data['MAG'][indx][these]
