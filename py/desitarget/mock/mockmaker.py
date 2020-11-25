@@ -1609,11 +1609,12 @@ class ReadBuzzard(SelectTargets):
         dec = radec['DEC'][cut].astype('f8')
         del radec
 
-        cols = ['Z', 'TMAG']
+        cols = ['Z', 'TMAG', 'TMAG_WISE']
         #cols = ['Z', 'COEFFS', 'TMAG']
         data = fitsio.read(buzzardfile, columns=cols, upper=True, ext=1, rows=cut)
         zz = data['Z'].astype('f4')
         tmag = data['TMAG'].astype('f4')
+        tmag_wise = data['TMAG_WISE'].astype('f4')
 
         if magcut:
             cut = tmag[:, 2] < magcut # r-band
@@ -1640,16 +1641,21 @@ class ReadBuzzard(SelectTargets):
 
         isouth = self.is_south(dec)
 
-        ## Get photometry and morphologies by sampling from the Gaussian
-        ## mixture models.
-        log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
-        gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
-                                seed=seed, prior_redshift=zz)
+        # Get photometry and morphologies by sampling from the Gaussian
+        # mixture models.
+        # log.info('Sampling from {} Gaussian mixture model.'.format(target_name))
+        # gmmout = self.sample_GMM(nobj, target=target_name, isouth=isouth,
+        #                         seed=seed, prior_redshift=zz)
         # gmmout = None
 
         gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
         rmag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
         zmag = data['TMAG'][:, 4].astype('f4') # DES z-band, no MW extinction 
+        w1mag = data['TMAG_WISE'][:,0].astype('f4') # WISE W1 band
+        w2mag = data['TMAG_WISE'][:,1].astype('f4') # WISE W2 band
+        # w3mag = data['TMAG_WISE'][:,2].astype('f4')
+        # w4mag = data['TMAG_WISE'][:,3].astype('f4')
+
 
         # Pack into a basic dictionary.
         out = {'TARGET_NAME': target_name, 'MOCKFORMAT': 'buzzard',
@@ -1660,10 +1666,16 @@ class ReadBuzzard(SelectTargets):
             'MAG': rmag, 'MAGFILTER': np.repeat('decam2014-r', nobj),
             'GMAG': gmag, 'MAGFILTER-G': np.repeat('decam2014-g', nobj),
             'ZMAG': zmag, 'MAGFILTER-Z': np.repeat('decam2014-z', nobj),
+            'W1MAG':w1mag,
+            'W1MAG':w2mag,
+            'GR': gmag - rmag,
+            'RZ': rmag - zmag,
+            'ZW1': zmag - w1mag,
+            'W1W2': w1mag - w2mag,
             'SOUTH': isouth}
             
-        if gmmout is not None:
-           out.update(gmmout)
+        # if gmmout is not None:
+          #  out.update(gmmout)
 
         # Add MW transmission and the imaging depth.
         self.mw_transmission(out)
