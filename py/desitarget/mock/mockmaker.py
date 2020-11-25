@@ -1658,7 +1658,7 @@ class ReadBuzzard(SelectTargets):
             'BRICKID': self.Bricks.brickid(ra, dec),
             'RA': ra, 'DEC': dec, 'Z': zz,
             'MAG': rmag, 'MAGFILTER': np.repeat('decam2014-r', nobj),
-            #'GMAG': gmag, 'MAGFILTER-G': np.repeat('decam2014-g', nobj),
+            'GMAG': gmag, 'MAGFILTER-G': np.repeat('decam2014-g', nobj),
             'ZMAG': zmag, 'MAGFILTER-Z': np.repeat('decam2014-z', nobj),
             'SOUTH': isouth}
             
@@ -1670,8 +1670,8 @@ class ReadBuzzard(SelectTargets):
         self.imaging_depth(out)
 
         ## Optionally compute the mean mock density.
-        #if mock_density:
-        #    out['MOCK_DENSITY'] = self.mock_density(mockfile=mockfile)
+        if mock_density:
+           out['MOCK_DENSITY'] = self.mock_density(mockfile=buzzardfile)
 
         return out
 
@@ -3850,6 +3850,8 @@ class ELGMaker(SelectTargets):
             self.default_mockfile = os.path.join(
                 os.getenv('DESI_ROOT'), 'mocks', 'DarkSky', 'v1.0.1', 'elg_0_inpt.fits')
             MockReader = ReadGaussianField()
+        elif self.mockformat == 'buzzard':
+            MockReader = ReadBuzzard()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
@@ -4063,6 +4065,8 @@ class BGSMaker(SelectTargets):
             MockReader = ReadGaussianField()
         elif self.mockformat == 'bgs-gama':
             MockReader = ReadGAMA()
+        elif self.mockformat == 'buzzard':
+            MockReader = ReadBuzzard()
         else:
             log.warning('Unrecognized mockformat {}!'.format(mockformat))
             raise ValueError
