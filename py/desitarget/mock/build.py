@@ -401,6 +401,9 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
 
     # Assign targets to healpix chunks.
     #ntarget = len(data['RA'])
+    # Get the healpix index for objects in nside_chunk pixelization
+    # Get the healpix index for objects in nside_chunk pixelization
+    # Get the healpix index for objects in nside_chunk pixelization
     healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
 
     #if 'CONTAM_FACTOR' in data.keys():
@@ -415,12 +418,13 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     for pixchunk in set(healpix_chunk):
 
         # Subsample the targets on this mini healpixel.
-        allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+        allindxthispix = np.nonzero( np.in1d(healpix_chunk, pixchunk)*1 )[0]
 
         if 'CONTAM_NUMBER' in data.keys():
             ntargthispix = np.round( data['CONTAM_NUMBER'] / nchunk ).astype(int)
             indxthispix = rand.choice(allindxthispix, size=5 * ntargthispix, replace=False) # fudge factor!
         else:
+          # Downsize the number of target in this chunk healpix by the density factor
             ntargthispix = np.round( len(allindxthispix) * density_factor ).astype('int')
             indxthispix = allindxthispix
         #indxthispix = rand.choice(allindxthispix, size=ntargthispix, replace=False)
@@ -495,6 +499,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     
     # Parallelize by chunking the sample into smaller healpixels and
     # determine the number of targets per chunk.
+    # area here is area per nside pixel
     indxperchunk, ntargperchunk, area = density_fluctuations(
         data, log, nside=nside, nside_chunk=nside_chunk, seed=seed)
 
