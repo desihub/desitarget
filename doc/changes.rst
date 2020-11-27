@@ -2,10 +2,53 @@
 desitarget Change Log
 =====================
 
-0.43.1 (unreleased)
+0.45.2 (unreleased)
 -------------------
 
-* Add RF files for DR9 and correct threshold for each photometric footprint [`PR #648`].
+* No changes yet.
+
+0.45.1 (2020-11-22)
+-------------------
+
+* Add RA/Dec to the Main Survey calls for the QSO RF in cmx [`PR #654`_].
+
+.. _`PR #654`: https://github.com/desihub/desitarget/pull/654
+
+0.45.0 (2020-11-22)
+-------------------
+
+* Clean-up for DR9-based commissioning [`PR #653`_]. Includes:
+    * Use HEALPixels instead of ``BRICKIDs`` for supp_skies.
+        * This avoids duplicated ``TARGETIDs`` where bricks span pixels.
+        * Addresses `issue #647`_.
+    * G < 19 for ``STD_DITHER_GAIA`` cmx targets near the Galaxy.
+    * Allow ``gather_targets`` to restrict to a subset of columns.
+    * Ignore new "light-curve" and "extra" flavors when finding sweeps.
+    * Smarter processing of randoms when writing "bundled" slurm file.
+        * Split pixelized files into N smaller files first...
+        * ...then combine across pixels to make N random catalogs.
+        * Never requires memory to write a very large random catalog.
+* Tune the RF selection for QSOs in SV using DR9 imaging [`PR #652`_].
+* Add RF files and threshold for each DR9 sub-footprint [`PR #648`_].
+
+.. _`issue #647`: https://github.com/desihub/desitarget/issues/647
+.. _`PR #648`: https://github.com/desihub/desitarget/pull/648
+.. _`PR #652`: https://github.com/desihub/desitarget/pull/652
+.. _`PR #653`: https://github.com/desihub/desitarget/pull/653
+
+0.44.0 (2020-11-12)
+-------------------
+
+* Clean-up targets and randoms for the internal DR9 release [`PR #649`_]:
+    * Add function :func:`geomask.imaging_mask()`:
+        * Allows easier parsing of maskbits by string ("BRIGHT", etc.)
+        * Establishes a default set of cuts on maskbits.
+    * New executable ``alt_split_randoms`` (slower but saves memory).
+    * Flexibility when adding MTL columns to randoms, to save memory:
+        * MTL columns can still be added when running the randoms.
+	* Or, can now be added when splitting a larger random catalog.
+
+.. _`PR #649`: https://github.com/desihub/desitarget/pull/649
 
 0.43.0 (2020-10-27)
 -------------------

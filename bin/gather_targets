@@ -28,12 +28,16 @@ ap.add_argument("outfile",
 ap.add_argument("targtype", choices=['skies', 'randoms', 'targets', 'gfas'],
                 help="Type of target run with parallelization/multiprocessing code to gather")
 ap.add_argument("--norandomize", action='store_true',
-                help="Do NOT randomly shuffle the final file before writing it (using seed 626)")
+                help="Do NOT randomly shuffle the output file before writing it (using seed 626)")
 ap.add_argument("--numchunks", type=int,
                 help='number of chunks in which to write to save memory [defaults to {}]'.format(nchunks),
                 default=nchunks)
 ap.add_argument("--skip", action='store_true',
                 help="Skip input files that don't exist without flagging an error")
+ap.add_argument("--columns",
+                help='Limit the output file to just this set of columns (comma-separated without spaces, e.g., "RA,DEC"). \
+                Pass the string "pixweight" to limit to just columns needed for making the pixweight files',
+                default=None)
 
 ns = ap.parse_args()
 
@@ -42,6 +46,16 @@ tt = ns.targtype
 if ns.targtype == 'gfas':
     tt = "GFA_TARGETS"
 extname = tt.upper()
+
+# ADM the columns to limit to, if requested.
+if ns.columns is None:
+    columns = None
+elif ns.columns=="pixweight":
+    obsval = ['PSFDEPTH', 'NOBS', 'GALDEPTH', 'PSFSIZE']
+    columns = ['RA', 'DEC', 'EBV', 'MASKBITS', 'PSFDEPTH_W1', 'PSFDEPTH_W2'] + \
+    ['{}_{}'.format(val, b) for val in obsval for b in 'GRZ']
+else:
+    columns = [ col for col in ns.columns.split(',') ]
 
 # ADM convert passed csv strings to lists.
 if ns.skip:
@@ -54,12 +68,21 @@ else:
 fx = fitsio.FITS(fns[0])
 hdr = fx[1].read_header()
 
-# ADM if you're combining files, you'll need to
-# ADM combine the HEALPixel coverage.
-hpx = []
-for fn in fns:
-    hpx.append(fitsio.read_header(fn, extname)["FILEHPX"])
+# ADM if combining files, combine the HEALPixel coverage. If the
+# ADM HEALPixel coverage is the same in each file, increase the density.
+hpx0 = fitsio.read_header(fns[0], extname)["FILEHPX"]
+hpx = [hpx0]
+if ns.targtype == 'randoms':
+    dens = fitsio.read_header(fns[0], extname)["DENSITY"]
+for fn in fns[1:]:
+    hpxfn = fitsio.read_header(fn, extname)["FILEHPX"]
+    if hpxfn != hpx0:
+        hpx.append(hpxfn)
+    elif ns.targtype == 'randoms':
+        dens += fitsio.read_header(fn, extname)["DENSITY"]
 hdr["FILEHPX"] = ",".join(hpx)
+if ns.targtype == 'randoms':
+    hdr["DENSITY"] = dens
 
 # ADM retain a list of the units.
 tunits = ["TUNIT{}".format(i) for i in range(1, hdr["TFIELDS"]+1)]
@@ -72,7 +95,7 @@ log.info('Begin writing {} to {}...t = {:.1f}s'
 data = []
 for fn in fns:
     log.info('Reading file {}...t = {:.1f}s'.format(fn, time()-start))
-    fndata = fitsio.read(fn)
+    fndata = fitsio.read(fn, columns=columns)
     data.append(fndata)
 data = np.concatenate(data)
 ndata = len(data)
