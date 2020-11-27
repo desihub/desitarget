@@ -5,7 +5,7 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
-* No changes yet.
+Extension of mag limit to 22.3 for RF selection
 
 0.45.1 (2020-11-22)
 -------------------
