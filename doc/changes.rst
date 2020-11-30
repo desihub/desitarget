@@ -2,11 +2,66 @@
 desitarget Change Log
 =====================
 
-0.42.1 (unreleased)
+0.45.2 (unreleased)
 -------------------
 
+* Extension of mag limit to 22.3 for RF selection [`PR #655`_].
 * Add input sweep files and their checksums to target files [`PR #641`_].
     * Addresses `issue #20`_.
+    
+.. _`issue #20`: https://github.com/desihub/desitarget/issues/20
+.. _`PR #641`: https://github.com/desihub/desitarget/pull/641
+.. _`PR #655`: https://github.com/desihub/desitarget/pull/655
+
+0.45.1 (2020-11-22)
+-------------------
+
+* Add RA/Dec to the Main Survey calls for the QSO RF in cmx [`PR #654`_].
+
+.. _`PR #654`: https://github.com/desihub/desitarget/pull/654
+
+0.45.0 (2020-11-22)
+-------------------
+
+* Clean-up for DR9-based commissioning [`PR #653`_]. Includes:
+    * Use HEALPixels instead of ``BRICKIDs`` for supp_skies.
+        * This avoids duplicated ``TARGETIDs`` where bricks span pixels.
+        * Addresses `issue #647`_.
+    * G < 19 for ``STD_DITHER_GAIA`` cmx targets near the Galaxy.
+    * Allow ``gather_targets`` to restrict to a subset of columns.
+    * Ignore new "light-curve" and "extra" flavors when finding sweeps.
+    * Smarter processing of randoms when writing "bundled" slurm file.
+        * Split pixelized files into N smaller files first...
+        * ...then combine across pixels to make N random catalogs.
+        * Never requires memory to write a very large random catalog.
+* Tune the RF selection for QSOs in SV using DR9 imaging [`PR #652`_].
+* Add RF files and threshold for each DR9 sub-footprint [`PR #648`_].
+
+.. _`issue #647`: https://github.com/desihub/desitarget/issues/647
+.. _`PR #648`: https://github.com/desihub/desitarget/pull/648
+.. _`PR #652`: https://github.com/desihub/desitarget/pull/652
+.. _`PR #653`: https://github.com/desihub/desitarget/pull/653
+
+0.44.0 (2020-11-12)
+-------------------
+
+* Clean-up targets and randoms for the internal DR9 release [`PR #649`_]:
+    * Add function :func:`geomask.imaging_mask()`:
+        * Allows easier parsing of maskbits by string ("BRIGHT", etc.)
+        * Establishes a default set of cuts on maskbits.
+    * New executable ``alt_split_randoms`` (slower but saves memory).
+    * Flexibility when adding MTL columns to randoms, to save memory:
+        * MTL columns can still be added when running the randoms.
+	* Or, can now be added when splitting a larger random catalog.
+
+.. _`PR #649`: https://github.com/desihub/desitarget/pull/649
+
+0.43.0 (2020-10-27)
+-------------------
+
+* Add the ``STD_DITHER_GAIA`` target class for CMX [`PR #644`_].
+    * For dither tests outside the Legacy Surveys footprint.
+* Tune shifts between southern and northern imaging for DR9 [`PR #643`_].
 * Update Travis for Py3.8/Astropy 4.x (fixes `issue #639`_) [`PR #640`_].
     * Also adds a useful script for recovering the QSO RF probabilities.
 * Add units to all output files (addresses `issue #356`_) [`PR #638`_]:
@@ -15,12 +70,12 @@ desitarget Change Log
     * Unit tests also check that all units are valid astropy units.
     * Also some more minor cleanup and speedups.
 
-.. _`issue #20`: https://github.com/desihub/desitarget/issues/20
 .. _`issue #356`: https://github.com/desihub/desitarget/issues/356
 .. _`issue #639`: https://github.com/desihub/desitarget/issues/639
 .. _`PR #638`: https://github.com/desihub/desitarget/pull/638
 .. _`PR #640`: https://github.com/desihub/desitarget/pull/640
-.. _`PR #641`: https://github.com/desihub/desitarget/pull/641
+.. _`PR #643`: https://github.com/desihub/desitarget/pull/643
+.. _`PR #644`: https://github.com/desihub/desitarget/pull/644
 
 0.42.0 (2020-08-17)
 -------------------

@@ -59,7 +59,8 @@ cmx_mask:
     - [MINI_SV_QSO,        55, "QSOs (RF) for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT}]
     - [MINI_SV_BGS_BRIGHT, 56, "BGS (bright) for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT}]
 
-    - [SV0_MWS_FAINT, 57, "Faint stars for Mini SV tests", {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [SV0_MWS_FAINT,      57, "Faint stars for Mini SV tests", {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [STD_DITHER_GAIA,    58, "Gaia stars for dithering tests outside of the Legacy Surveys footprint", {obsconditions: DARK|GRAY|BRIGHT}]
 
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
@@ -146,6 +147,7 @@ priorities:
         MINI_SV_QSO: {UNOBS: 3420, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MINI_SV_BGS_BRIGHT: {UNOBS: 2101, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         SV0_MWS_FAINT: {UNOBS: 5, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        STD_DITHER_GAIA: {UNOBS: 2400, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -204,6 +206,7 @@ numobs:
         MINI_SV_QSO: 4
         MINI_SV_BGS_BRIGHT: 1
         SV0_MWS_FAINT: 1
+        STD_DITHER_GAIA: 1
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT: -1

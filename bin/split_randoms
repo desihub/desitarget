@@ -7,6 +7,8 @@ from time import time
 start = time()
 import fitsio
 
+from desitarget.randoms import finalize_randoms, add_default_mtl
+
 from desiutil.log import get_logger
 log = get_logger()
 
@@ -15,19 +17,30 @@ ap = ArgumentParser(description='Split a random catalog into N smaller catalogs.
 ap.add_argument("randomcat",
                 help='A random catalog (e.g /project/projectdirs/desi/target/catalogs/randoms-dr4-0.20.0.fits). For an input catalog /X/X.fits N smaller catalogs will be written to /X/X-[1:N].fits')
 ap.add_argument("-n", "--nchunks", type=int,
-                help='Number of smaller catalog to split the random catalog into. Defaults to [10].',
+                help='Number of smaller catalogs to split the random catalog into. Defaults to [10].',
                 default="10")
+ap.add_argument("--addmtl", action='store_true',
+                help="If passed, then add the columns needed for MTL to the random catalogs after they are split.")
+ap.add_argument("--skip", action='store_true',
+                help="Check if the input random catalog exists. If it doesn't, do absolutely nothing (useful for scripting across all possible HEALPixels).")
 
 ns = ap.parse_args()
 
 if not os.path.exists(ns.randomcat):
-    log.critical('Input directory does not exist: {}'.format(ns.randomcat))
-    sys.exit(1)
+    if ns.skip:
+        log.info('Input catalog does not exist: {}'.format(ns.randomcat))
+        sys.exit(0)
+    else:
+        log.critical('Input directory does not exist: {}'.format(ns.randomcat))
+        sys.exit(1)
 
 log.info("Read in randoms from {} and split into {} catalogs...t = {:.1f}s"
          .format(ns.randomcat, ns.nchunks, time()-start))
 rands, hdr = fitsio.read(ns.randomcat, header=True)
 nrands = len(rands)
+
+# ADM read in the seed used to make the catalog.
+seed = hdr["SEED"]
 
 # ADM shuffle to ensure randomness.
 log.info("Read in {:.1e} randoms. Shuffling indexes...t = {:.1f}s"
@@ -39,6 +52,10 @@ hdr["RESEED"] = reseed
 np.random.seed(reseed)
 np.random.shuffle(indexes)
 
+# ADM note whether we requested the MTL columns to be added.
+if ns.addmtl:
+    hdr["MTLSPLIT"] = True
+
 #ADM write in chunks to save memory.
 chunk = nrands//ns.nchunks
 # ADM remember that the density has effectively gone down.
@@ -47,9 +64,13 @@ hdr["DENSITY"] //= ns.nchunks
 #ADM write out smaller files one-by-one.
 for i in range(ns.nchunks):
     #ADM open the file for writing.
-    outfile = "{}-{}.fits".format(os.path.splitext(ns.randomcat)[0], i+1)
+    outfile = "{}-{}.fits".format(os.path.splitext(ns.randomcat)[0], i)
     log.info("Writing chunk {} from index {} to {}...t = {:.1f}s"
-             .format(i+1, i*chunk, (i+1)*chunk, time()-start))
-    fitsio.write(outfile, rands[indexes[i*chunk:(i+1)*chunk]], extname='RANDOMS', header=hdr, clobber=True)
+             .format(i, i*chunk, (i+1)*chunk, time()-start))
+    writerands = rands[indexes[i*chunk:(i+1)*chunk]]
+    # ADM if requested, add the MTL-relevant columns.
+    if ns.addmtl:
+        writerands = add_default_mtl(finalize_randoms(writerands), seed=seed)
+    fitsio.write(outfile, writerands, extname='RANDOMS', header=hdr, clobber=True)
 
 print("Done...t = {:.1f}s".format(time()-start))
