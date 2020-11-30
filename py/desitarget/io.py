@@ -1807,11 +1807,11 @@ def get_sha256sum(infile):
     -----
         - h/t https://stackoverflow.com/questions/61229719
     """
-    h  = hashlib.sha256()
-    b  = bytearray(128*1024)
+    h = hashlib.sha256()
+    b = bytearray(128*1024)
     mv = memoryview(b)
     with open(infile, 'rb', buffering=0) as f:
-        for n in iter(lambda : f.readinto(mv), 0):
+        for n in iter(lambda: f.readinto(mv), 0):
             h.update(mv[:n])
     return h.hexdigest()
 
@@ -1837,7 +1837,6 @@ def get_checksums(infiles, verbose=False, check_existing=True):
     :class:`~numpy.ndarray`
         A recarray with two columns "FILENAME" and "SHA256".
     """
-    from subprocess import Popen, PIPE, STDOUT
     t0 = time()
     # ADM in case a single string was passed.
     infiles = np.atleast_1d(infiles)
@@ -1848,18 +1847,7 @@ def get_checksums(infiles, verbose=False, check_existing=True):
     # ADM if verbose is True, write out info for 20 blocks of files.
     block = nf // 20 if nf // 20 else 1
     for ifn, infile in enumerate(infiles):
-        p = Popen(['sha256sum', infile], stdout=PIPE, stderr=PIPE)
-        shastr, err = p.communicate()
-        if len(err) > 0:
-            log.critical(err)
-            raise IOError(err)
-        shafn = shastr.split()
-        # ADM guard against bytes-type versus string type.
-        for i, stringthing in enumerate(shafn):
-            try:
-                shafn[i] = stringthing.decode()
-            except AttributeError:
-                pass
+        shafn = [get_sha256sum(infile), infile]
         # ADM add the filename, sha combination to the dict.
         shadict[shafn[1]] = shafn[0]
         if verbose and ifn % block == 0:
