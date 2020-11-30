@@ -1438,7 +1438,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             if not south:
-                #threshold selection for North footprint
+                # threshold selection for North footprint.
                 pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
                 pcut_HighZ = 0.7
             else:
@@ -1449,10 +1449,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                          (znobs[preSelection][tmpReleaseOK] > 4) &\
                          ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
                          (dec[preSelection][tmpReleaseOK] <= 10)
-                #threshold selection for Des footprint
+                # threshold selection for DES footprint.
                 pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
                 pcut_HighZ[is_des] = 0.50
-                #threshold selection for South footprint
+                # threshold selection for South footprint.
                 pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
                 pcut_HighZ[~is_des] = 0.65
 

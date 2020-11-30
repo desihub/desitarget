@@ -650,8 +650,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         # Data reduction to preselected objects
         colorsReduced = colors[preSelection]
         r_Reduced = r[preSelection]
-        colorsReduced[:, 10][r_Reduced>23.0] = 22.95
-        
+        colorsReduced[:, 10][r_Reduced > 23.0] = 22.95
+
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
 
@@ -672,7 +672,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
         # Compute optimized proba cut (all different for SV)
         if not south:
-                #threshold selection for North footprint
+                # threshold selection for North footprint.
                 pcut = 0.84 - 0.035*np.tanh(r_Reduced - 20.5)
                 pcut_HighZ = 0.65
         else:
@@ -684,10 +684,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
                 (znobs[preSelection] > 4) &\
                 ((ra[preSelection] >= 320) | (ra[preSelection] <= 100)) &\
                 (dec[preSelection] <= 10)
-            #threshold selection for Des footprint
+            # threshold selection for Des footprint.
             pcut[is_des] = 0.70 - 0.06*np.tanh(r_Reduced[is_des] - 20.5)
             pcut_HighZ[is_des] = 0.40
-            #threshold selection for South footprint
+            # threshold selection for South footprint.
             pcut[~is_des] = 0.80 - 0.05*np.tanh(r_Reduced[~is_des] - 20.5)
             pcut_HighZ[~is_des] = 0.55
 
@@ -754,14 +754,17 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
     wflux = 0.75*w1flux + 0.25*w2flux
     grzflux = (gflux + 0.8*rflux + 0.5*zflux) / 2.3
 
-    flux_defined = (wflux>0) & (grzflux>0) & (gflux>0) & (rflux>0) & (zflux>0)
+    flux_defined = (wflux > 0) & (grzflux > 0) &  \
+                   (gflux > 0) & (rflux > 0) & (zflux > 0)
     color_cut = flux_defined
-    
+
     color_cut[flux_defined] = ((wflux[flux_defined] < gflux[flux_defined]*10**(2.7/2.5)) |
-                  (rflux[flux_defined]*(gflux[flux_defined]**0.3) > gflux[flux_defined]*(wflux[flux_defined]**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
-    color_cut[flux_defined] &= (wflux[flux_defined] * (rflux[flux_defined]**1.5) < (zflux[flux_defined]**1.5) * grzflux[flux_defined] * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
+                               (rflux[flux_defined]*(gflux[flux_defined]**0.3) >
+                                gflux[flux_defined]*(wflux[flux_defined]**0.3)*10**(0.3/2.5)))  # (g-w<2.7 or g-r>O.3*(g-w)+0.3)
+    color_cut[flux_defined] &= (wflux[flux_defined] * (rflux[flux_defined]**1.5)
+                                < (zflux[flux_defined]**1.5) * grzflux[flux_defined] * 10**(+1.6/2.5))  # (grz-W) < (r-z)*1.5+1.6
     preSelection &= color_cut
-        
+
     # Standard morphology cut.
     preSelection &= _psflike(objtype)
 
@@ -798,20 +801,20 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
         tmp_rf_proba = rf.predict_proba()
 
         # Compute optimized proba cut (all different for SV).
-        # The probabilities may be different for the north and the south.       
+        # The probabilities may be different for the north and the south.
         if not south:
-            #threshold selection for North footprint
+            # threshold selection for North footprint.
             pcut = 0.94
         else:
             pcut = np.ones(tmp_rf_proba.size)
-            is_des = (gnobs[preSelection] > 4) &\
-                        (rnobs[preSelection] > 4) &\
-                        (znobs[preSelection] > 4) &\
-                        ((ra[preSelection] >= 320) | (ra[preSelection] <= 100)) &\
-                        (dec[preSelection] <= 10)
-            #threshold selection for Des footprint
+            is_des = (gnobs[preSelection] > 4) &  \
+                     (rnobs[preSelection] > 4) &  \
+                     (znobs[preSelection] > 4) &  \
+                     ((ra[preSelection] >= 320) | (ra[preSelection] <= 100)) &  \
+                     (dec[preSelection] <= 10)
+            # threshold selection for Des footprint.
             pcut[is_des] = 0.85
-            #threshold selection for South footprint
+            # threshold selection for South footprint.
             pcut[~is_des] = 0.90
 
         # Add rf proba test result to "qso" mask
