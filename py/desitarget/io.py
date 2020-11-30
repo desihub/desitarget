@@ -22,6 +22,7 @@ from glob import glob, iglob
 from time import time
 from pkg_resources import resource_filename
 import yaml
+import hashlib
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -1787,6 +1788,32 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
         outdata["HPXPIXEL"] = np.arange(nrows)
 
     return outdata
+
+
+def get_sha256sum(infile):
+    """Get the sha256 checksum for a single file
+
+    Parameters
+    ----------
+    infile : :class:`str`
+        The full path name to a file.
+
+    Returns
+    -------
+    :class:`str`
+        The sha256 checksum for the passed `infile`.
+
+    Notes
+    -----
+        - h/t https://stackoverflow.com/questions/61229719
+    """
+    h  = hashlib.sha256()
+    b  = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(infile, 'rb', buffering=0) as f:
+        for n in iter(lambda : f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
 
 
 def get_checksums(infiles, verbose=False, check_existing=True):
