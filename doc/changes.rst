@@ -5,7 +5,13 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
-Extension of mag limit to 22.3 for RF selection
+* Extension of mag limit to 22.3 for RF selection [`PR #655`_].
+* Add input sweep files and their checksums to target files [`PR #641`_].
+    * Addresses `issue #20`_.
+    
+.. _`issue #20`: https://github.com/desihub/desitarget/issues/20
+.. _`PR #641`: https://github.com/desihub/desitarget/pull/641
+.. _`PR #655`: https://github.com/desihub/desitarget/pull/655
 
 0.45.1 (2020-11-22)
 -------------------
