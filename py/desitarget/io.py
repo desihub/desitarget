@@ -28,6 +28,7 @@ from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
+from desimodel.footprint import is_point_in_desi, tiles2pix
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -2585,9 +2586,10 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     return targets
 
 
-def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
-                          header=False, mtl=False, unique=True):
-    """
+def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
+                                header=False):
+    """Read targets in DESI tiles, assuming a "standard" data model.
+
     Parameters
     ----------
     hpdirname : :class:`str`
@@ -2603,6 +2605,107 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of targets in the passed tiles.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
+        - The environment variable $DESIMODEL must be set.
+        - Assumes that the data model has these characteristics:
+            - one HEALPixel per file.
+            - no extraneous FITS files in the directory.
+            - every file is formatted to finish "hp-{}.fits".
+            - every file has the same, correct FILENSID in its header.
+            - the data, and related header, are in FITS extension (1).
+        - If you aren't sure if the data model you have will work, or if
+          running this code triggers an exception, instead try running
+          :func:`desitarget.io.read_targets_in_tiles()` with
+          quick=``False`` as a check. The output TARGETIDs from this
+          function and that approach should be identical, although
+          the output objects might be ordered differently.
+        - Based on a suggestion from Anand Raichoor.
+    """
+    # ADM check that the DESIMODEL environment variable is set.
+    if os.environ.get('DESIMODEL') is None:
+        msg = "DESIMODEL environment variable must be set!!!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM if no tiles were sent, default to the entire footprint.
+    if tiles is None:
+        import desimodel.io as dmio
+        tiles = dmio.load_tiles()
+
+    # ADM if a directory was passed, do fancy HEALPixel parsing...
+    if os.path.isdir(hpdirname):
+        # ADM generator for the FITS files in the passed directory.
+        fns = iglob(os.path.join(hpdirname, "*fits"))
+        fn = next(fns)
+        # ADM grab the FILENSID from one of the files.
+        filenside = fitsio.read_header(fn, 1)["FILENSID"]
+        # ADM "standard" format formatter for a file:
+        formatter = fn.split("hp-")[0]+"hp-{}.fits"
+
+        # ADM closest nside to DESI tile area of ~7 deg.
+        nside = pixarea2nside(7.)
+        # ADM determine the pixels that touch the tiles.
+        tilepixlist = tiles2pix(nside, tiles=tiles)
+
+        # ADM determine the relevant files.
+        pixlist = nside2nside(nside, filenside, tilepixlist)
+
+        targets = []
+        for pix in pixlist:
+            infile = formatter.format(pix)
+            try:
+                radec = fitsio.read(infile, columns=["RA", "DEC"])
+                ii = is_point_in_desi(tiles, radec["RA"], radec["DEC"])
+                if np.sum(ii) > 0:
+                    targs, hdr = read_target_files(infile, rows=np.where(ii)[0],
+                                                   columns=columns, header=True)
+                    targets.append(targs)
+            except OSError:
+                log.warning("tile is beyond the imaging footprint")
+        targets = np.concatenate(targets)
+    # ADM ...otherwise just read in the targets.
+    else:
+        targets, hdr = read_target_files(hpdirname, columns=columns,
+                                         header=True)
+
+    if header:
+        return targets, hdr
+    return targets
+
+
+def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
+                          quick=False, mtl=False, unique=True):
+    """Read targets in DESI tiles, assuming the "standard" data model.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to either a directory containing targets that
+        have been partitioned by HEALPixel (e.g. as made by
+        `select_targets` with the `bundle_files` option). Or the
+        name of a single file of targets.
+    tiles : :class:`~numpy.ndarray`, optional
+        Array of tiles in the desimodel format, or ``None`` to use all
+        DESI tiles from :func:`desimodel.io.load_tiles`.
+    columns : :class:`list`, optional
+        Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
+    quick : :class:`bool`, optional, defaults to ``False``
+        Instead call :func:`desitarget.io.read_targets_in_tiles_quick()`
+        (if ``True``). That version of the code is less general, and
+        assumes that `hpdirname` adheres to a strict data model.
+        Overrides the `mtl` and `unique` inputs.
     mtl : :class:`bool`, optional, defaults to ``False``
         If ``True`` then read an MTL ledger file/directory instead
         of a target file/directory. If ``True`` then the `columns`
@@ -2622,6 +2725,11 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
           header is returned).
         - The environment variable $DESIMODEL must be set.
     """
+    # ADM if quick is True, use the quick-code.
+    if quick:
+        return read_targets_in_tiles_quick(hpdirname, tiles=tiles,
+                                           columns=columns, header=header)
+
     # ADM check that the DESIMODEL environment variable is set.
     if os.environ.get('DESIMODEL') is None:
         msg = "DESIMODEL environment variable must be set!!!"
@@ -2650,7 +2758,6 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
         nside = pixarea2nside(7.)
 
         # ADM determine the pixels that touch the tiles.
-        from desimodel.footprint import tiles2pix
         pixlist = tiles2pix(nside, tiles=tiles)
 
         # ADM read in targets in these HEALPixels.
@@ -2667,7 +2774,6 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
         targets, hdr = targets
 
     # ADM restrict only to targets in the requested tiles...
-    from desimodel.footprint import is_point_in_desi
     ii = is_point_in_desi(tiles, targets["RA"], targets["DEC"])
     targets = targets[ii]
 
