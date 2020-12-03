@@ -413,7 +413,7 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     mtlnside = _get_mtl_nside()
 
     # ADM check that the nside for writing MTLs is not at a lower
-    # ADM resolution that the nside at which the files are stored.
+    # ADM resolution than the nside at which the files are stored.
     msg = "Ledger nside ({}) must be higher than file nside ({})!!!".format(
         mtlnside, nside)
     assert mtlnside >= nside, msg

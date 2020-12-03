@@ -5,7 +5,7 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
-* General clean-ups and speed-ups for DR9 work [`PR #656`_]. Includes:
+* General clean-ups and speed-ups for DR9 work [`PR #658`_]. Includes:
     * Corrected data model when repartitioning skies into HEALPixels.
     * Faster versions of all of the `read_targets_in_X` functions:
         * e.g., `in_box`, `in_cap`, `in_tiles`, `in_hp`.
@@ -20,7 +20,7 @@ desitarget Change Log
 .. _`issue #20`: https://github.com/desihub/desitarget/issues/20
 .. _`PR #641`: https://github.com/desihub/desitarget/pull/641
 .. _`PR #655`: https://github.com/desihub/desitarget/pull/655
-.. _`PR #656`: https://github.com/desihub/desitarget/pull/656
+.. _`PR #658`: https://github.com/desihub/desitarget/pull/658
 
 0.45.1 (2020-11-22)
 -------------------
