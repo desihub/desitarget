@@ -5,7 +5,18 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
-Extension of mag limit to 22.3 for RF selection
+* General clean-ups and speed-ups for DR9 work [`PR #656`_]. Includes:
+    * Corrected data model when repartitioning skies into HEALPixels.
+    * Faster versions of all of the read_targets_in_X functions:
+        * e.g., in_box, in_cap, in_tiles, in_hp.
+        * less general, but run faster by assuming the data model.
+        * Speed-up is 10x or more for files pixelized at higher nsides.
+    * Read "standard" MASKBITS cuts automatically for pixweight files.
+    * Catch if MTL ledgers are at a lower resolution that target files.
+* Extension of mag limit to 22.3 for RF selection [`PR #655`_].
+
+.. _`PR #655`: https://github.com/desihub/desitarget/pull/655
+.. _`PR #656`: https://github.com/desihub/desitarget/pull/656
 
 0.45.1 (2020-11-22)
 -------------------
