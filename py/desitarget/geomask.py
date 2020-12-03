@@ -33,16 +33,19 @@ from desiutil.log import get_logger
 log = get_logger()
 
 
-def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"]):
+def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"],
+                 bgsmask=False):
     """Apply the 'geometric' masks from the Legacy Surveys imaging.
 
     Parameters
     ----------
     maskbits : :class:`~numpy.ndarray` or ``None``
         General array of `Legacy Surveys mask`_ bits.
-    bright : :class:`list`, defaults to ["BRIGHT", "GALAXY", "CLUSTER"]
-        list of Legacy Surveys mask bits to set to ``False``.
-
+    bitnamelist : :class:`list`, defaults to ["BRIGHT", "GALAXY", "CLUSTER"]
+        List of Legacy Surveys mask bits to set to ``False``.
+    bgsmask : :class:`bool`, default to ``False``.
+        Load the "default" scheme for Bright Galaxy Survey targets.
+        Overrides `bitnamelist`.
     Returns
     -------
     :class:`~numpy.ndarray`
@@ -54,6 +57,10 @@ def imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"]):
         - For the definitions of the mask bits, see, e.g.,
              https://www.legacysurvey.org/dr8/bitmasks/#maskbits
     """
+    # ADM default for the BGS.
+    if bgsmask:
+        bitnamelist = ["BRIGHT", "CLUSTER"]
+
     # ADM a dictionary of how the bit-names correspond to the bit-values.
     bitdict = {"BRIGHT": 1, "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
                "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}

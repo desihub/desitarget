@@ -1056,7 +1056,7 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
         bgs &= bgs_qcs
 
     # ADM geometric masking cuts from the Legacy Surveys.
-    bgs &= imaging_mask(maskbits, ["BRIGHT", "CLUSTER"])
+    bgs &= imaging_mask(maskbits, bgsmask=True)
 
     return bgs
 
