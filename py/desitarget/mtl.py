@@ -412,6 +412,12 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     # ADM the nside at which to write the MTLs.
     mtlnside = _get_mtl_nside()
 
+    # ADM check that the nside for writing MTLs is not at a lower
+    # ADM resolution that the nside at which the files are stored.
+    msg = "Ledger nside ({}) must be higher than file nside ({})!!!".format(
+        mtlnside, nside)
+    assert mtlnside >= nside, msg
+
     from desitarget.geomask import nside2nside
 
     # ADM the common function that is actually parallelized across.
