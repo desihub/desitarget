@@ -2406,7 +2406,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-                   survey='main', resolvetargs=True, backup=True):
+                   survey='main', resolvetargs=True, backup=True,
+                   return_infiles=False):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2458,6 +2459,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         and southern targets in southern regions.
     backup : :class:`boolean`, optional, defaults to ``True``
         If ``True``, also run the Gaia-only BACKUP_BRIGHT/FAINT targets.
+    return_infiles : :class:`boolean`, optional, defaults to ``False``
+        If ``True``, also return the actual files from `infile` processed.
+        Useful when running with `pixlist`, `radecbox` or `radecrad` to
+        see which files were actually required.
 
     Returns
     -------
@@ -2465,6 +2470,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         The subset of input targets which pass the cuts, including extra
         columns for ``DESI_TARGET``, ``BGS_TARGET``, and ``MWS_TARGET`` target
         selection bitmasks.
+    :class:`list`, only returned if `return_infiles` is ``True``
+        A list of the input files that actually needed to be processed.
 
     Notes
     -----
@@ -2662,6 +2669,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     # ADM contain no targets, in which case exit (somewhat) gracefully.
     if len(targets) == 0:
         log.warning('ZERO targets for passed file list or region!!!')
+        if return_infiles:
+            return targets, infiles
         return targets
 
     # ADM restrict to only targets in a set of HEALPixels, if requested.
@@ -2679,4 +2688,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         ii = is_in_cap(targets, radecrad)
         targets = targets[ii]
 
+    if return_infiles:
+        return targets, infiles
     return targets

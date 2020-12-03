@@ -7,7 +7,7 @@ import numpy as np
 import fitsio
 
 from desitarget import io
-from desitarget.io import desitarget_version, check_both_set
+from desitarget.io import desitarget_version, check_both_set, get_checksums
 from desitarget.cuts import select_targets, qso_selection_options
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
@@ -68,13 +68,15 @@ ap.add_argument("--nomaskbits", action='store_true',
                 help="Do NOT apply information in MASKBITS column to target classes")
 ap.add_argument("--writeall", action='store_true',
                 help="Default behavior is to split targets by bright/dark-time surveys. Send this to ALSO write a file of ALL targets")
-ap.add_argument("--nosecondary", action='store_true',
+ap.add_argument("-nos", "--nosecondary", action='store_true',
                 help="Do NOT create TARGETID look-up files for secondary targets in $SCNDIR/outdata/priminfo-drversion-desitargetversion/$dest.fits (where $dest is the basename of dest)")
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
                 "Defaults to SCND_DIR environment variable. Not needed if --nosecondary is sent.")
-ap.add_argument("--nobackup", action='store_true',
+ap.add_argument("-nob", "--nobackup", action='store_true',
                 help="Do NOT run the Gaia-only backup targets (which require the GAIA_DIR environment variable to be set).")
+ap.add_argument("-noc", "--nochecksum", action='store_true',
+                help='Do NOT add the list of input files and their checksums to the output target file as the second ("INFILES") extension')
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
@@ -139,14 +141,20 @@ for i, inlist in enumerate(inlists):
 # ADM limit to specific bit names, if passed, otherwise run all targets.
 tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
-targets = select_targets(infiles, numproc=ns.numproc,
-                         qso_selection=ns.qsoselection, gaiamatch=ns.gaiamatch,
-                         nside=ns.nside, pixlist=pixlist,
-                         extra=extra, bundlefiles=ns.bundlefiles,
-                         radecbox=inlists[0], radecrad=inlists[1],
-                         tcnames=tcnames, survey='main', backup=not(ns.nobackup),
-                         resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits)
+targets, infn = select_targets(
+    infiles, numproc=ns.numproc, qso_selection=ns.qsoselection,
+    gaiamatch=ns.gaiamatch, nside=ns.nside, pixlist=pixlist, extra=extra,
+    bundlefiles=ns.bundlefiles, radecbox=inlists[0], radecrad=inlists[1],
+    tcnames=tcnames, survey='main', backup=not(ns.nobackup),
+    resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits), return_infiles=True
 )
+# ADM Set the list of infiles actually processed by select_targets() to
+# ADM None if we DON'T want to write their checksums to the output file.
+if ns.nochecksum:
+    shatab = None
+else:
+    shatab = get_checksums(infn, verbose=True)
+
 if ns.bundlefiles is None:
     # ADM only run secondary functions if --nosecondary was not passed.
     scndout = None
@@ -202,6 +210,6 @@ if ns.bundlefiles is None:
             maskbits=not(ns.nomaskbits), indir=ns.sweepdir, indir2=ns.sweepdir2,
             obscon=obscon, scndout=scndout, survey="main", nsidefile=ns.nside,
             hpxlist=pixlist, supp=supp, qso_selection=ns.qsoselection,
-            extra=extra
+            extra=extra, infiles=shatab
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

@@ -22,6 +22,7 @@ from glob import glob, iglob
 from time import time
 from pkg_resources import resource_filename
 import yaml
+import hashlib
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
@@ -448,7 +449,8 @@ def write_with_units(filename, data, extname=None, header=None, ecsv=False):
 def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
-                  obscon=None, mockdata=None, supp=False, extra=None):
+                  obscon=None, mockdata=None, supp=False, extra=None,
+                  infiles=None):
     """Write target catalogues.
 
     Parameters
@@ -498,6 +500,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    infiles : :class:`list` or `~numpy.ndarray`, optional
+        If passed (and not None), write a second extension "INFILES" that
+        contains the files in `infiles` and their SHA-256 checksums. If
+        `infiles` is a list, func:`~desitarget.io.get_checksums()` is
+        called to look-up the checksums, if `infiles` is a numpy array
+        it's assumed to be in the format returned by `get_checksums()`.
 
     Returns
     -------
@@ -584,8 +592,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr.add_record(dict(name='HPXNSIDE', value=nside, comment="HEALPix nside"))
-        hdr.add_record(dict(name='HPXNEST', value=True, comment="HEALPix nested (not ring) ordering"))
+        hdr.add_record(dict(name='HPXNSIDE', value=nside,
+                            comment="HEALPix nside"))
+        hdr.add_record(dict(name='HPXNEST', value=True,
+                            comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None:
@@ -668,6 +678,14 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
                 fitsio.write(truthfile+'.tmp', out.as_array(), append=True, extname='TRUTH_{}'.format(obj))
         os.rename(truthfile+'.tmp', truthfile)
+
+    # ADM If input files were passed, write them to a second extension.
+    if infiles is not None:
+        if isinstance(infiles, list):
+            shatab = get_checksums(infiles, verbose=True)
+        elif isinstance(infiles, np.ndarray):
+            shatab = infiles
+        fitsio.write(filename, shatab, extname="INFILES")
 
     return ntargs, filename
 
@@ -1778,6 +1796,120 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
         outdata["HPXPIXEL"] = np.arange(nrows)
 
     return outdata
+
+
+def get_sha256sum(infile):
+    """Get the sha256 checksum for a single file
+
+    Parameters
+    ----------
+    infile : :class:`str`
+        The full path name to a file.
+
+    Returns
+    -------
+    :class:`str`
+        The sha256 checksum for the passed `infile`.
+
+    Notes
+    -----
+        - h/t https://stackoverflow.com/questions/61229719
+    """
+    h = hashlib.sha256()
+    b = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(infile, 'rb', buffering=0) as f:
+        for n in iter(lambda: f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
+
+
+def get_checksums(infiles, verbose=False, check_existing=True):
+    """Get the sha256 checksums for a list of files.
+
+    Parameters
+    ----------
+    infiles : :class:`list` or `str`
+        The full paths to a file or files.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log progress and times.
+    check_existing : :class:`bool`, optional, defaults to ``True``
+        If ``True`` check if any of the `infiles` is in a directory in
+        which a .sha256sum file exists, and, if so, check generated
+        checksums for each file against the corresponding entry in the
+        relevant .sha256sum file (or *files* for `infiles` that span
+        multiple directories). An exception is raised for a mismatch.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A recarray with two columns "FILENAME" and "SHA256".
+    """
+    t0 = time()
+    # ADM in case a single string was passed.
+    infiles = np.atleast_1d(infiles)
+
+    # ADM we'll first populate a dictionary with the checksums.
+    shadict = {}
+    nf = len(infiles)
+    # ADM if verbose is True, write out info for 20 blocks of files.
+    block = nf // 20 if nf // 20 else 1
+    for ifn, infile in enumerate(infiles):
+        shafn = [get_sha256sum(infile), infile]
+        # ADM add the filename, sha combination to the dict.
+        shadict[shafn[1]] = shafn[0]
+        if verbose and ifn % block == 0:
+            log.info("Calculated checksum for {}/{} files...t={:.1f}s".format(
+                ifn+1, nf, time()-t0))
+
+    # ADM the string data types for the output array should have a
+    # ADM length that corresponds to the longest filename/shasum.
+    fntype = "U{}".format(np.max([len(k) for k in shadict.keys()]))
+    shatype = "U{}".format(np.max([len(k) for k in shadict.values()]))
+
+    # ADM construct the output array.
+    shatab = np.zeros(nf, dtype=[('FILENAME', fntype), ('SHA256', shatype)])
+    shatab['FILENAME'] = list(shadict.keys())
+    shatab['SHA256'] = list(shadict.values())
+
+    # ADM grab the unique directories that host files.
+    filedic = {os.path.basename(fn): os.path.dirname(fn) for fn in infiles}
+    ldir = list(set(filedic.values()))
+    # ADM loop through each directory and build a dictionary of the
+    # ADM expected files and their associated SHA checksums.
+    checkdict = {}
+    for ld in ldir:
+        # ADM look for a shasum file.
+        shalist = glob(os.path.join(ld, "*.sha256sum"))
+        if len(shalist) > 0 and check_existing:
+            shafn = shalist[0]
+            if verbose:
+                log.info("Comparing checksums to {}".format(shafn))
+            # ADM read the checksum file and construct a dictionary
+            # ADM of file paths and checksums.
+            with open(shafn) as f:
+                for line in f:
+                    sha256, filename = line.split()
+                    fullpath = os.path.join(ld, filename)
+                    checkdict[fullpath] = sha256
+
+    # ADM check the existing checksum file against the
+    # ADM calculated checksums, if any SHA checksum files existed.
+    if len(checkdict) > 0 and check_existing:
+        for st in shatab:
+            try:
+                if checkdict[st["FILENAME"]] != st["SHA256"]:
+                    msg = "Checksum issue: {} differs in checksum file {}"  \
+                          .format(st, shafn)
+                    log.critical(msg)
+                    raise IOError(msg)
+            except KeyError:
+                msg = "Filename {} isn't in checksum file {}".format(
+                    st["FILENAME"], shafn)
+                log.critical(msg)
+                raise IOError(msg)
+
+    return shatab
 
 
 def gitversion():
