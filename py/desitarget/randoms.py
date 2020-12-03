@@ -1096,7 +1096,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                                values in the passed random catalog.
             - FRACAREA_X: Fraction of pixel with at least one observation
                           in any band with MASKBITS==X (bitwise OR, so,
-                          e.g. if X=7.
+                          e.g. if X=7 then fraction for 2^0 | 2^1 | 2^2).
             - One column for every bit that is returned by
               :func:`desitarget.QA._load_targdens()`. Each column
               contains the target density in the pixel.
