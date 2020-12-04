@@ -1128,7 +1128,7 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
 
     bgs |= LX
     # ADM geometric masking cuts from the Legacy Surveys.
-    bgs &= imaging_mask(maskbits)
+    bgs &= imaging_mask(maskbits, ["BRIGHT", "CLUSTER"])
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
