@@ -5,6 +5,10 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
+* Two main changes for BGS SV selection for DR9 [`PR #659`_]:
+    * We've removed the FRACS* cuts. but the LOWQ superset does include rejections by the FRACS*.
+    * The FIBMAG superset has been shrunk to the limit of 20.5 instead 21.0 in the r-band magnitude.
+
 * Extension of mag limit to 22.3 for RF selection [`PR #655`_].
 * Add input sweep files and their checksums to target files [`PR #641`_].
     * Addresses `issue #20`_.
@@ -12,6 +16,7 @@ desitarget Change Log
 .. _`issue #20`: https://github.com/desihub/desitarget/issues/20
 .. _`PR #641`: https://github.com/desihub/desitarget/pull/641
 .. _`PR #655`: https://github.com/desihub/desitarget/pull/655
+.. _`PR #659`: https://github.com/desihub/desitarget/pull/
 
 0.45.1 (2020-11-22)
 -------------------
