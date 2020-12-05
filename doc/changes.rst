@@ -5,6 +5,9 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
+* Two main changes for BGS SV selection for DR9 [`PR #659`_]:
+    * Remove FRACS* cuts, except for LOWQ superset.
+    * Limit FIBMAG superset to r < 20.5 instead of r < 21.0.
 * General clean-ups and speed-ups for DR9 work [`PR #658`_]. Includes:
     * Corrected data model when repartitioning skies into HEALPixels.
     * Faster versions of all of the `read_targets_in_X` functions:
@@ -21,6 +24,7 @@ desitarget Change Log
 .. _`PR #641`: https://github.com/desihub/desitarget/pull/641
 .. _`PR #655`: https://github.com/desihub/desitarget/pull/655
 .. _`PR #658`: https://github.com/desihub/desitarget/pull/658
+.. _`PR #659`: https://github.com/desihub/desitarget/pull/659
 
 0.45.1 (2020-11-22)
 -------------------

@@ -1029,14 +1029,17 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
     if primary is None:
         primary = np.ones_like(gnobs, dtype='?')
     bgs_qcs = primary.copy()
+    bgs_fracs = primary.copy()
     bgs = primary.copy()
 
     # quality cuts definitions
     bgs_qcs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
-    bgs_qcs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
-    bgs_qcs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
-    bgs_qcs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
-    bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
+    # ORM Turn off the FRACMASKED, FRACFLUX & FRACIN cuts for now
+    
+    bgs_fracs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
+    bgs_fracs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
+    bgs_fracs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
+    #bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
     # color box
     bgs_qcs &= rflux > gflux * 10**(-1.0/2.5)
@@ -1048,7 +1051,7 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
         bgs &= Grr > 0.6
         bgs |= gaiagmag == 0
         bgs |= (Grr < 0.6) & (~_psflike(objtype)) & (gaiagmag != 0)
-        bgs &= ~bgs_qcs
+        bgs &= ~((bgs_qcs) & (bgs_fracs))
     else:
         bgs &= Grr > 0.6
         bgs |= gaiagmag == 0
@@ -1086,6 +1089,7 @@ def isBGS_colors(rflux=None, rfiberflux=None, south=True, targtype=None, primary
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
         bgs &= ~np.logical_and(rflux <= 10**((22.5-20.1)/2.5), rfiberflux > 10**((22.5-21.0511)/2.5))
     elif targtype == 'fibmag':
+        bgs &= rflux > 10**((22.5-20.5)/2.5)
         bgs &= rflux <= 10**((22.5-20.1)/2.5)
         bgs &= rfiberflux > 10**((22.5-21.0511)/2.5)
     else:
