@@ -198,7 +198,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          zfiberflux=None, rfluxivar=None, zfluxivar=None, w1fluxivar=None,
           gnobs=None, rnobs=None, znobs=None, maskbits=None, primary=None,
           south=True):
     """
@@ -216,7 +216,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (02/18/20) is version 215 on `the wiki`_.
+    - Current version (12/07/2020) is version 232 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -228,7 +228,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
+        rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
         maskbits=maskbits
     )
 
@@ -243,7 +243,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
                   zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
-                  rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+                  rfluxivar=None, zfluxivar=None, w1fluxivar=None,
                   maskbits=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
@@ -261,15 +261,15 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         log.warning('Setting zfiberflux to zflux!!!')
         zfiberflux = zflux.copy()
 
-    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
-    lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
-    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+    lrg &= (rfluxivar > 0) & (rflux > 0)   # ADM quality in r.
+    lrg &= (zfluxivar > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
+    lrg &= (w1fluxivar > 0) & (w1flux > 0)  # ADM quality in W1.
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM default mask bits from the Legacy Surveys not set.
-    lrg &= imaging_mask(maskbits)
+    lrg &= imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"])
 
     return lrg
 
@@ -308,15 +308,14 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg &= rmag - zmag > (zmag - 16.83) * 0.45       # double sliding cut 1.
         lrg &= rmag - zmag > (zmag - 13.80) * 0.19       # double sliding cut 2.
     else:
-        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.65   # non-stellar cut.
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6   # non-stellar cut.
         lrg &= (
             ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45))
             | (rmag - w1mag > 1.85)                      # low-z cut.
         )
-        lrg &= rmag - zmag > (zmag - 16.69) * 0.45       # double sliding cut 1.
-        lrg &= rmag - zmag > (zmag - 13.68) * 0.19       # double sliding cut 2.
+        lrg &= rmag - zmag > (zmag - 16.79) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.76) * 0.19       # double sliding cut 2.
 
-    lrg &= rmag - zmag > 0.7   # remove outliers.
     lrg &= zfibermag < 21.5    # faint limit.
 
     return lrg
@@ -1629,6 +1628,7 @@ def _prepare_optical_wise(objects, mask=True):
     gfluxivar = objects['FLUX_IVAR_G']
     rfluxivar = objects['FLUX_IVAR_R']
     zfluxivar = objects['FLUX_IVAR_Z']
+    w1fluxivar = objects['FLUX_IVAR_W1']
 
     gnobs = objects['NOBS_G']
     rnobs = objects['NOBS_R']
@@ -1679,7 +1679,7 @@ def _prepare_optical_wise(objects, mask=True):
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
             w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,
-            objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,
+            objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1806,8 +1806,8 @@ def unextinct_fluxes(objects):
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    gfiberflux, rfiberflux, zfiberflux,
-                    objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,
+                    gfiberflux, rfiberflux, zfiberflux, objtype, release,
+                    ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
                     gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1834,8 +1834,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         Corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
-    gfluxivar, rfluxivar, zfluxivar: :class:`~numpy.ndarray`
-        The flux inverse variances in g, r, and z bands.
+    gfluxivar, rfluxivar, zfluxivar, w1fluxivar: :class:`~numpy.ndarray`
+        The flux inverse variances in g, r, z and W1 bands.
     gnobs, rnobs, znobs: :class:`~numpy.ndarray`
         The number of observations (in the central pixel) in g, r and z.
     gfracflux, rfracflux, zfracflux: :class:`~numpy.ndarray`
@@ -1928,7 +1928,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 primary=primary,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+                rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
                 maskbits=maskbits, south=south
             )
     lrg_north, lrg_south = lrg_classes
@@ -2350,7 +2350,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
         w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
-        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,                   \
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,       \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
@@ -2383,8 +2383,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
         gflux, rflux, zflux, w1flux, w2flux,
-        gfiberflux, rfiberflux, zfiberflux,
-        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,
+        gfiberflux, rfiberflux, zfiberflux, objtype, release,
+        ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
