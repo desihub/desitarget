@@ -269,7 +269,7 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
     # ADM default mask bits from the Legacy Surveys not set.
-    lrg &= imaging_mask(maskbits, bitnamelist=["BRIGHT", "GALAXY", "CLUSTER"])
+    lrg &= imaging_mask(maskbits)
 
     return lrg
 
