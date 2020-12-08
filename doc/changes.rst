@@ -5,6 +5,12 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
+* Re-tune LRG cuts for DR9 and updating the LRG SV target bits [`PR #660`_].
+  Other changes include:
+    * Only use the default BRIGHT, GALAXY and CLUSTER masks (ignoring ALLMASK
+      and MEDIUM)
+    * Increase the SV faint limits from z < 20.5 to z < 21.0 and from
+      zfiber < 21.9 to zfiber < 22.0
 * Two main changes for BGS SV selection for DR9 [`PR #659`_]:
     * Remove FRACS* cuts, except for LOWQ superset.
     * Limit FIBMAG superset to r < 20.5 instead of r < 21.0.
