@@ -858,7 +858,7 @@ class SelectTargets(object):
         #    rmag, zmag = _r_and_z(gmag, gr, rz)
             
         if target_name == 'LRG':
-            if contaminants:
+            if self.mockformat=='buzzard':
                 zmag = normmag = data['ZMAG'][indx]
                 magfilter = data['MAGFILTER-Z'][indx]
             else:
@@ -1663,9 +1663,9 @@ class ReadBuzzard(SelectTargets):
         #                         seed=seed, prior_redshift=zz)
         # gmmout = None
 
-        gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
-        rmag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
-        zmag = data['TMAG'][:, 4].astype('f4') # DES z-band, no MW extinction 
+        gmag = data['TMAG'][:, 0].astype('f4') # DES g-band, no MW extinction 
+        rmag = data['TMAG'][:, 1].astype('f4') # DES r-band, no MW extinction 
+        zmag = data['TMAG'][:, 3].astype('f4') # DES z-band, no MW extinction 
         w1mag = data['TMAG_WISE'][:,0].astype('f4') # WISE W1 band
         w2mag = data['TMAG_WISE'][:,1].astype('f4') # WISE W2 band
         ivar_g = data['IVAR'][:,0].astype('f4')
