@@ -112,6 +112,7 @@ class TestCuts(unittest.TestCase):
         gfluxivar = targets['FLUX_IVAR_G']
         rfluxivar = targets['FLUX_IVAR_R']
         zfluxivar = targets['FLUX_IVAR_Z']
+        w1fluxivar = targets['FLUX_IVAR_W1']
 
         gsnr = targets['FLUX_G'] * np.sqrt(targets['FLUX_IVAR_G'])
         rsnr = targets['FLUX_R'] * np.sqrt(targets['FLUX_IVAR_R'])
@@ -150,13 +151,14 @@ class TestCuts(unittest.TestCase):
             lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
                               zflux=zflux, w1flux=w1flux, zfiberflux=ff,
                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits,
-                              rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+                              maskbits=maskbits, rfluxivar=rfluxivar,
+                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar)
             lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux,
                               w1flux=w1flux, zfiberflux=ff,
                               gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits,
-                              rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr)
+                              maskbits=maskbits, rfluxivar=rfluxivar,
+                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar)
+
             self.assertTrue(np.all(lrg1 == lrg2))
 
             # ADM also check that the color selections alone work. This tripped us up once
