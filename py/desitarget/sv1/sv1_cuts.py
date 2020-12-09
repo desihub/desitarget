@@ -1110,7 +1110,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (10/14/19) is version 107 on `the SV wiki`_.
+    - Current version (12/09/20) is version 142 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -1165,13 +1165,15 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM some cuts specific to north or south
     if south:
+        gtotfaint_fdr = 23.4
+        gfibfaint_fdr = 24.0
+        lowzcut_zp = -0.15
+        gr_blue = 0.3
+    else:
         gtotfaint_fdr = 23.5
         gfibfaint_fdr = 24.1
-        lowzcut_zp = -0.15
-    else:
-        gtotfaint_fdr = 23.6
-        gfibfaint_fdr = 24.2
-        lowzcut_zp = -0.35
+        lowzcut_zp = -0.20
+        gr_blue = 0.4
 
     # ADM work in magnitudes not fluxes. THIS IS ONLY OK AS the snr cuts
     # ADM in notinELG_mask ENSURE positive fluxes in all of g, r and z.
@@ -1195,9 +1197,8 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     sv, fdr = elg.copy(), elg.copy()
 
     # ADM create the SV classes.
-    sv &= rz > -1.           # blue cut.
-    sv &= gr < -1.2*rz+2.5   # OII cut.
-    sv &= (gr < 0.2) | (gr < 1.15*rz + lowzcut_zp)   # star/lowz cut.
+    sv &= gr < -1.2*rz+2.0   # OII cut.
+    sv &= (gr < gr_blue) | (gr < 1.15*rz + lowzcut_zp + 0.1)   # star/lowz cut.
 
     # ADM gfib/g split for SV-like classes.
     svgtot, svgfib = sv.copy(), sv.copy()
