@@ -5,6 +5,7 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
+* Update ELG cuts for DR9 imaging for SV and Main Survey [`PR #662`_]:
 * Retune LRG cuts for DR9 and update the LRG SV target bits [`PR #661`_]:
     * Only use the default `BRIGHT`, `GALAXY` and `CLUSTER` masks.
         * i.e. ignore `ALLMASK` and `MEDIUM`.
@@ -33,6 +34,7 @@ desitarget Change Log
 .. _`PR #659`: https://github.com/desihub/desitarget/pull/659
 .. _`PR #660`: https://github.com/desihub/desitarget/pull/660
 .. _`PR #661`: https://github.com/desihub/desitarget/pull/661
+.. _`PR #662`: https://github.com/desihub/desitarget/pull/662
 
 0.45.1 (2020-11-22)
 -------------------
