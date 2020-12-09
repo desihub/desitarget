@@ -6,10 +6,10 @@ desitarget Change Log
 -------------------
 
 * Retune LRG cuts for DR9 and update the LRG SV target bits [`PR #661`_]:
-    * Only use the default `BRIGHT`, `GALAXY` and `CLUSTER` masks (ignore
-     `ALLMASK` and `MEDIUM`).
-    * Increase the SV faint limits from z < 20.5 to z < 21.0 and from
-      zfiber < 21.9 to zfiber < 22.0.
+    * Only use the default `BRIGHT`, `GALAXY` and `CLUSTER` masks.
+        * i.e. ignore `ALLMASK` and `MEDIUM`.
+    * Increase the SV faint limits from z < 20.5 to z < 21.0.
+    * Increase the SV faint limits from zfiber < 21.9 to zfiber < 22.0.
 * `PR #660`_: Work completed in `PR #661`_.
 * Two main changes for BGS SV selection for DR9 [`PR #659`_]:
     * Remove FRACS* cuts, except for LOWQ superset.
