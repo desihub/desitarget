@@ -1028,11 +1028,11 @@ def notinBGS_mask(gflux=None, rflux=None, zflux=None, gnobs=None, rnobs=None, zn
     # quality cuts definitions
     bgs_qcs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
     # ORM Turn off the FRACMASKED, FRACFLUX & FRACIN cuts for now
-    
+
     bgs_fracs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
     bgs_fracs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
     bgs_fracs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
-    #bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
+    # bgs_qcs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
     # color box
     bgs_qcs &= rflux > gflux * 10**(-1.0/2.5)
