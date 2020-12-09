@@ -1491,8 +1491,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [[tcfalse, tcfalse, tcfalse, tcfalse, tcfalse],
-                   [tcfalse, tcfalse, tcfalse, tcfalse, tcfalse]]
+    lrg_classes = [[tcfalse, tcfalse, tcfalse, tcfalse],
+                   [tcfalse, tcfalse, tcfalse, tcfalse]]
     if "LRG" in tcnames:
         # ADM run the LRG target types (potentially) for both north and south.
         for south in south_cuts:
@@ -1731,7 +1731,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM add the per-bit information in the south for LRGs...
     desi_target |= lrg_opt_s * desi_mask.LRG_OPT_SOUTH
     desi_target |= lrg_ir_s * desi_mask.LRG_IR_SOUTH
-    desi_target |= lrg_sv_opt_s * desi_mask.LRG_OSV_PT_SOUTH
+    desi_target |= lrg_sv_opt_s * desi_mask.LRG_SV_OPT_SOUTH
     desi_target |= lrg_sv_ir_s * desi_mask.LRG_SV_IR_SOUTH
     # ADM ...and ELGs...
     desi_target |= elgsvgtot_s * desi_mask.ELG_SV_GTOT_SOUTH
@@ -1749,7 +1749,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM add the per-bit information in the north for LRGs...
     desi_target |= lrg_opt_n * desi_mask.LRG_OPT_NORTH
     desi_target |= lrg_ir_n * desi_mask.LRG_IR_NORTH
-    desi_target |= lrg_sv_opt_n * desi_mask.LRG_OSV_PT_NORTH
+    desi_target |= lrg_sv_opt_n * desi_mask.LRG_SV_OPT_NORTH
     desi_target |= lrg_sv_ir_n * desi_mask.LRG_SV_IR_NORTH
     # ADM ...and ELGs...
     desi_target |= elgsvgtot_n * desi_mask.ELG_SV_GTOT_NORTH
@@ -1767,7 +1767,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM combined per-bit information for the LRGs...
     desi_target |= lrg_opt * desi_mask.LRG_OPT
     desi_target |= lrg_ir * desi_mask.LRG_IR
-    desi_target |= lrg_sv_opt * desi_mask.LRG_OSV_PT
+    desi_target |= lrg_sv_opt * desi_mask.LRG_SV_OPT
     desi_target |= lrg_sv_ir * desi_mask.LRG_SV_IR
     # ADM ...and ELGs...
     desi_target |= elgsvgtot * desi_mask.ELG_SV_GTOT

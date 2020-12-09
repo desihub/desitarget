@@ -31,6 +31,7 @@ desitarget Change Log
 .. _`PR #655`: https://github.com/desihub/desitarget/pull/655
 .. _`PR #658`: https://github.com/desihub/desitarget/pull/658
 .. _`PR #659`: https://github.com/desihub/desitarget/pull/659
+.. _`PR #660`: https://github.com/desihub/desitarget/pull/660
 
 0.45.1 (2020-11-22)
 -------------------
