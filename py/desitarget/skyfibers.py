@@ -765,8 +765,9 @@ def repartition_skies(skydirname, numproc=1):
         - Necessary as although the targets and GFAs are parallelized
           to run in exact HEALPixel boundaries, skies are parallelized
           across bricks that have CENTERS in a given HEALPixel.
-        - The original files, before the rewrite, are retained in the
-          original directory, appended by "-unpartitioned".
+        - The original files, before the rewrite, are retained in a
+          directory called "unpartitioned" in the original directory. The
+          file names are appended by "-unpartitioned".
         - Takes about 25 (6.5, 5, 3.5) minutes for numproc=1 (8, 16, 32).
     """
     log.info("running on {} processors".format(numproc))
@@ -794,11 +795,14 @@ def repartition_skies(skydirname, numproc=1):
     # ADM which rows of the file are in the HEALPixel as values.
     pixorderdict = [{} for pix in hps]
 
+    # ADM make the "unpartioned" directory if it doesn't exist.
+    os.makedirs(os.path.join(skydirname, "unpartitioned"), exist_ok=True)
     # ADM loop over the files in the sky directory and build the info.
     skyfiles = glob(os.path.join(skydirname, '*fits'))
     for skyfile in skyfiles:
         # ADM rename the sky file so as not to overwrite.
-        sfnewname = skyfile+"-unpartitioned"
+        sfnewname = os.path.join(os.path.dirname(skyfile), "unpartitioned",
+                                 os.path.basename(skyfile) + "-unpartitioned")
         os.rename(skyfile, sfnewname)
         data, hdr = io.read_target_files(sfnewname, columns=["RA", "DEC"],
                                          header=True, verbose=False)
@@ -825,12 +829,11 @@ def repartition_skies(skydirname, numproc=1):
                 # ADM needs to be updated.
                 newhdr['FILEHPX'] = pix
 
-                # ADM get the appropriate file name and write out.
+                # ADM get the appropriate full file name.
                 outfile = io.find_target_files(skydirname, drint, flavor="skies",
                                                hp=pix, nside=nside)
-                # ADM the file name has likely been passed through
-                # ADM find_target_files() already (which adds "/skies").
-                outfile = outfile.replace("skies/skies", "skies")
+                # ADM only need the file (we know the right directory).
+                outfile = os.path.join(skydirname, os.path.basename(outfile))
                 fitsio.write(outfile+'.tmp', skies, extname='SKY_TARGETS',
                              header=newhdr, clobber=True)
                 os.rename(outfile+'.tmp', outfile)

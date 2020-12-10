@@ -22,12 +22,14 @@ from glob import glob, iglob
 from time import time
 from pkg_resources import resource_filename
 import yaml
+import hashlib
 
 from desiutil import depend
 from desitarget.geomask import hp_in_box, box_area, is_in_box
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
+from desimodel.footprint import is_point_in_desi, tiles2pix
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -447,7 +449,8 @@ def write_with_units(filename, data, extname=None, header=None, ecsv=False):
 def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
-                  obscon=None, mockdata=None, supp=False, extra=None):
+                  obscon=None, mockdata=None, supp=False, extra=None,
+                  infiles=None):
     """Write target catalogues.
 
     Parameters
@@ -497,6 +500,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    infiles : :class:`list` or `~numpy.ndarray`, optional
+        If passed (and not None), write a second extension "INFILES" that
+        contains the files in `infiles` and their SHA-256 checksums. If
+        `infiles` is a list, func:`~desitarget.io.get_checksums()` is
+        called to look-up the checksums, if `infiles` is a numpy array
+        it's assumed to be in the format returned by `get_checksums()`.
 
     Returns
     -------
@@ -583,8 +592,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
         data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
-        hdr.add_record(dict(name='HPXNSIDE', value=nside, comment="HEALPix nside"))
-        hdr.add_record(dict(name='HPXNEST', value=True, comment="HEALPix nested (not ring) ordering"))
+        hdr.add_record(dict(name='HPXNSIDE', value=nside,
+                            comment="HEALPix nside"))
+        hdr.add_record(dict(name='HPXNEST', value=True,
+                            comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None:
@@ -667,6 +678,14 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
                 fitsio.write(truthfile+'.tmp', out.as_array(), append=True, extname='TRUTH_{}'.format(obj))
         os.rename(truthfile+'.tmp', truthfile)
+
+    # ADM If input files were passed, write them to a second extension.
+    if infiles is not None:
+        if isinstance(infiles, list):
+            shatab = get_checksums(infiles, verbose=True)
+        elif isinstance(infiles, np.ndarray):
+            shatab = infiles
+        fitsio.write(filename, shatab, extname="INFILES")
 
     return ntargs, filename
 
@@ -1779,6 +1798,120 @@ def load_pixweight_recarray(inmapfile, nside, pixmap=None):
     return outdata
 
 
+def get_sha256sum(infile):
+    """Get the sha256 checksum for a single file
+
+    Parameters
+    ----------
+    infile : :class:`str`
+        The full path name to a file.
+
+    Returns
+    -------
+    :class:`str`
+        The sha256 checksum for the passed `infile`.
+
+    Notes
+    -----
+        - h/t https://stackoverflow.com/questions/61229719
+    """
+    h = hashlib.sha256()
+    b = bytearray(128*1024)
+    mv = memoryview(b)
+    with open(infile, 'rb', buffering=0) as f:
+        for n in iter(lambda: f.readinto(mv), 0):
+            h.update(mv[:n])
+    return h.hexdigest()
+
+
+def get_checksums(infiles, verbose=False, check_existing=True):
+    """Get the sha256 checksums for a list of files.
+
+    Parameters
+    ----------
+    infiles : :class:`list` or `str`
+        The full paths to a file or files.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log progress and times.
+    check_existing : :class:`bool`, optional, defaults to ``True``
+        If ``True`` check if any of the `infiles` is in a directory in
+        which a .sha256sum file exists, and, if so, check generated
+        checksums for each file against the corresponding entry in the
+        relevant .sha256sum file (or *files* for `infiles` that span
+        multiple directories). An exception is raised for a mismatch.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A recarray with two columns "FILENAME" and "SHA256".
+    """
+    t0 = time()
+    # ADM in case a single string was passed.
+    infiles = np.atleast_1d(infiles)
+
+    # ADM we'll first populate a dictionary with the checksums.
+    shadict = {}
+    nf = len(infiles)
+    # ADM if verbose is True, write out info for 20 blocks of files.
+    block = nf // 20 if nf // 20 else 1
+    for ifn, infile in enumerate(infiles):
+        shafn = [get_sha256sum(infile), infile]
+        # ADM add the filename, sha combination to the dict.
+        shadict[shafn[1]] = shafn[0]
+        if verbose and ifn % block == 0:
+            log.info("Calculated checksum for {}/{} files...t={:.1f}s".format(
+                ifn+1, nf, time()-t0))
+
+    # ADM the string data types for the output array should have a
+    # ADM length that corresponds to the longest filename/shasum.
+    fntype = "U{}".format(np.max([len(k) for k in shadict.keys()]))
+    shatype = "U{}".format(np.max([len(k) for k in shadict.values()]))
+
+    # ADM construct the output array.
+    shatab = np.zeros(nf, dtype=[('FILENAME', fntype), ('SHA256', shatype)])
+    shatab['FILENAME'] = list(shadict.keys())
+    shatab['SHA256'] = list(shadict.values())
+
+    # ADM grab the unique directories that host files.
+    filedic = {os.path.basename(fn): os.path.dirname(fn) for fn in infiles}
+    ldir = list(set(filedic.values()))
+    # ADM loop through each directory and build a dictionary of the
+    # ADM expected files and their associated SHA checksums.
+    checkdict = {}
+    for ld in ldir:
+        # ADM look for a shasum file.
+        shalist = glob(os.path.join(ld, "*.sha256sum"))
+        if len(shalist) > 0 and check_existing:
+            shafn = shalist[0]
+            if verbose:
+                log.info("Comparing checksums to {}".format(shafn))
+            # ADM read the checksum file and construct a dictionary
+            # ADM of file paths and checksums.
+            with open(shafn) as f:
+                for line in f:
+                    sha256, filename = line.split()
+                    fullpath = os.path.join(ld, filename)
+                    checkdict[fullpath] = sha256
+
+    # ADM check the existing checksum file against the
+    # ADM calculated checksums, if any SHA checksum files existed.
+    if len(checkdict) > 0 and check_existing:
+        for st in shatab:
+            try:
+                if checkdict[st["FILENAME"]] != st["SHA256"]:
+                    msg = "Checksum issue: {} differs in checksum file {}"  \
+                          .format(st, shafn)
+                    log.critical(msg)
+                    raise IOError(msg)
+            except KeyError:
+                msg = "Filename {} isn't in checksum file {}".format(
+                    st["FILENAME"], shafn)
+                log.critical(msg)
+                raise IOError(msg)
+
+    return shatab
+
+
 def gitversion():
     """Returns `git describe --tags --dirty --always`,
     or 'unknown' if not a git repo"""
@@ -2463,8 +2596,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, returnfn=False):
     return mtl
 
 
-def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
-                       header=False, downsample=None, verbose=False,
+def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
+                       quick=False, downsample=None, verbose=False,
                        mtl=False, unique=True):
     """Read in targets in a set of HEALPixels.
 
@@ -2484,6 +2617,11 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+    quick : :class:`bool`, optional, defaults to ``False``
+        If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
+        That version of the code assumes that `hpdirname` is a directory,
+        which contains files that follow a strict data model. ``True``
+        overrides the `mtl`, `unique`, `downsample` and `verbose` inputs.
     downsample : :class:`int`, optional, defaults to `None`
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
@@ -2512,6 +2650,12 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         - If `mtl` is ``True`` then this is just a wrapper on
           read_mtl_in_hp().
     """
+    # ADM if quick is True, use the quick-code.
+    if quick:
+        return read_targets_in_quick(
+            hpdirname, shape='hp', nside=nside,
+            pixlist=pixlist, columns=columns, header=header)
+
     if mtl:
         return read_mtl_in_hp(hpdirname, nside, pixlist, unique=unique)
 
@@ -2535,7 +2679,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
         # ADM check, and grab information from, the target directory.
         filenside, filedict = check_hp_target_dir(hpdirname)
         # ADM read in the first file to grab the data model for
-        # ADM cases where we find no targets in the box.
+        # ADM cases where we find no targets in the passed pixlist.
         fn0 = list(filedict.values())[0]
         notargs, nohdr = read_target_files(
             fn0, columns=columnscopy, rows=0, header=True,
@@ -2585,9 +2729,152 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None,
     return targets
 
 
-def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
-                          header=False, mtl=False, unique=True):
+def read_targets_in_quick(hpdirname, shape=None,
+                          tiles=None,
+                          nside=None, pixlist=None,
+                          radecbox=[0., 360., -90., 90.],
+                          radecrad=None,
+                          columns=None, header=False):
+    """Read targets in various shapes, assuming a "standard" data model.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to a directory containing targets that
+        have been partitioned by HEALPixel (e.g. as made by
+        `select_targets` with the `bundle_files` option).
+    shape : :class:`str`
+        Type of geometric constraint being passed, options are "tiles",
+        "box", "cap", "hp".
+    tiles : :class:`~numpy.ndarray`, optional
+        Array of tiles in the desimodel format, or ``None`` for all tiles
+        from :func:`desimodel.io.load_tiles`. Only used if `shape=tiles`.
+    nside : :class:`int`
+        The (NESTED) HEALPixel nside. Only used if `shape=hp`.
+    pixlist : :class:`list` or `int` or `~numpy.ndarray`
+        HEALPixels at the passed `nside`. Only used if `shape=hp`.
+    radecbox : :class:`list`, defaults to the entire sky
+        4-entry list of coordinates [ramin, ramax, decmin, decmax]
+        forming box edges in RA/Dec (degrees). Only used if `shape=box`.
+    radecrad : :class:`list`
+        3-entry list of coordinates [ra, dec, radius] forming a cap or
+        on the sky. ra, dec, radius in degrees. Only used if `shape=cap`.
+    columns : :class:`list`, optional
+        Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of targets in the passed geometric constraint.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
+        - $DESIMODEL must be set if `shape="tiles"` and `tiles=None`.
+        - Assumes that the data model has these characteristics:
+            - one HEALPixel per file.
+            - no extraneous FITS files in the directory.
+            - every file is formatted to finish "hp-{}.fits".
+            - every file has the same, correct FILENSID in its header.
+            - the data, and related header, are in FITS extension 1.
+        - If you aren't sure if the data model you have will work, or if
+          running this code triggers an exception, instead try running the
+          relevant "slow" function with quick=``False`` as a check, e.g.
+          :func:`desitarget.io.read_targets_in_tiles()`. The output
+          TARGETIDs from this function and that approach should be
+          identical, although the output may be ordered differently.
+        - Based on a suggestion from Anand Raichoor.
     """
+    allowed_shapes = ["tiles", "box", "cap", "hp"]
+    if shape not in allowed_shapes:
+        msg = "shape must be one of {}!!!".format(allowed_shapes)
+        log.critical(msg)
+        raise IOError(msg)
+
+    if shape == "tiles":
+        if tiles is None:
+            # ADM check that the DESIMODEL environment variable is set.
+            if os.environ.get('DESIMODEL') is None:
+                msg = "DESIMODEL environment variable must be set!!!"
+                log.critical(msg)
+                raise ValueError(msg)
+            # ADM if no tiles were sent, default to the entire footprint.
+            import desimodel.io as dmio
+            tiles = dmio.load_tiles()
+
+    # ADM generator for the FITS files in the passed directory.
+    fns = iglob(os.path.join(hpdirname, "*fits"))
+    fn = next(fns)
+    # ADM grab the FILENSID from one of the files.
+    filenside = fitsio.read_header(fn, 1)["FILENSID"]
+    # ADM "standard" format formatter for a file:
+    formatter = fn.split("hp-")[0]+"hp-{}.fits"
+    # ADM grab the data model for cases where we find no targets.
+    notargs, nohdr = fitsio.read(fn, columns=columns, rows=0, header=True)
+    notargs = np.zeros(0, dtype=notargs.dtype)
+
+    if shape == 'tiles':
+        # ADM closest nside to DESI tile area of ~7 deg.
+        nside = pixarea2nside(7.)
+        # ADM determine the pixels that touch the tiles.
+        pixlist = tiles2pix(nside, tiles=tiles)
+    if shape == 'box':
+        # ADM approximate nside for area of passed box.
+        nside = pixarea2nside(box_area(radecbox))
+        # ADM HEALPixels that touch the box for that nside.
+        pixlist = hp_in_box(nside, radecbox)
+    if shape == 'cap':
+        # ADM approximate nside for area of passed cap.
+        nside = pixarea2nside(cap_area(np.array(radecrad[2])))
+        # ADM HEALPixels that touch the cap for that nside.
+        pixlist = hp_in_cap(nside, radecrad)
+
+    # ADM determine the relevant HEALPixels for the file NSIDE.
+    filepixlist = nside2nside(nside, filenside, pixlist)
+
+    targets = []
+    for pix in filepixlist:
+        infile = formatter.format(pix)
+        try:
+            radec = fitsio.read(infile, columns=["RA", "DEC"])
+            if shape == 'hp':
+                # ADM restrict to only targets in the passed pixels.
+                ii = is_in_hp(radec, nside, pixlist)
+            if shape == 'tiles':
+                # ADM restrict to only targets in the passed tiles.
+                ii = is_point_in_desi(tiles, radec["RA"], radec["DEC"])
+            elif shape == 'box':
+                # ADM restrict to only targets in the passed box.
+                ii = is_in_box(radec, radecbox)
+            elif shape == 'cap':
+                # ADM restrict to only targets in the passed cap.
+                ii = is_in_cap(radec, radecrad)
+            if np.sum(ii) > 0:
+                targs, hdr = fitsio.read(infile, rows=np.where(ii)[0],
+                                         columns=columns, header=True)
+                targets.append(targs)
+        except OSError:
+            msg = "passed shape lies partially beyond the footprint of targets"
+            log.warning(msg)
+    # ADM if targets is empty, return no targets.
+    if len(targets) == 0:
+        targets, hdr = notargs, nohdr
+    else:
+        targets = np.concatenate(targets)
+
+    if header:
+        return targets, hdr
+    return targets
+
+
+def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
+                          quick=False, mtl=False, unique=True):
+    """Read targets in DESI tiles, assuming the "standard" data model.
+
     Parameters
     ----------
     hpdirname : :class:`str`
@@ -2603,6 +2890,11 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+    quick : :class:`bool`, optional, defaults to ``False``
+        If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
+        That version of the code assumes that `hpdirname` is a directory,
+        which contains files that follow a strict data model. Passing
+        quick=``True`` overrides the `mtl` and `unique` inputs.
     mtl : :class:`bool`, optional, defaults to ``False``
         If ``True`` then read an MTL ledger file/directory instead
         of a target file/directory. If ``True`` then the `columns`
@@ -2622,6 +2914,11 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
           header is returned).
         - The environment variable $DESIMODEL must be set.
     """
+    # ADM if quick is True, use the quick-code.
+    if quick:
+        return read_targets_in_quick(hpdirname, shape='tiles', tiles=tiles,
+                                     columns=columns, header=header)
+
     # ADM check that the DESIMODEL environment variable is set.
     if os.environ.get('DESIMODEL') is None:
         msg = "DESIMODEL environment variable must be set!!!"
@@ -2650,7 +2947,6 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
         nside = pixarea2nside(7.)
 
         # ADM determine the pixels that touch the tiles.
-        from desimodel.footprint import tiles2pix
         pixlist = tiles2pix(nside, tiles=tiles)
 
         # ADM read in targets in these HEALPixels.
@@ -2667,7 +2963,6 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
         targets, hdr = targets
 
     # ADM restrict only to targets in the requested tiles...
-    from desimodel.footprint import is_point_in_desi
     ii = is_point_in_desi(tiles, targets["RA"], targets["DEC"])
     targets = targets[ii]
 
@@ -2681,7 +2976,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None,
 
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
-                        columns=None, header=False, downsample=None,
+                        columns=None, header=False, quick=False, downsample=None,
                         mtl=False, unique=True):
     """Read in targets in an RA/Dec box.
 
@@ -2700,6 +2995,11 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the last file read from the `hpdirname` directory.
+    quick : :class:`bool`, optional, defaults to ``False``
+        If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
+        That version of the code assumes that `hpdirname` is a directory,
+        which contains files that follow a strict data model. ``True``
+        overrides the `mtl` and `unique` inputs.
     downsample : :class:`int`, optional, defaults to `None`
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
@@ -2722,6 +3022,11 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         - If `header` is ``True``, then a second output (the file
           header is returned).
     """
+    # ADM if quick is True, use the quick-code.
+    if quick:
+        return read_targets_in_quick(hpdirname, shape='box', radecbox=radecbox,
+                                     columns=columns, header=header)
+
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
@@ -2765,8 +3070,8 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     return targets
 
 
-def read_targets_in_cap(hpdirname, radecrad, columns=None,
-                        mtl=False, unique=True):
+def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
+                        quick=False, mtl=False, unique=True):
     """Read in targets in an RA, Dec, radius cap.
 
     Parameters
@@ -2781,6 +3086,14 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None,
         "circle" on the sky. ra, dec and radius are all in degrees.
     columns : :class:`list`, optional
         Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the last file read from the `hpdirname` directory.
+    quick : :class:`bool`, optional, defaults to ``False``
+        If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
+        That version of the code assumes that `hpdirname` is a directory,
+        which contains files that follow a strict data model. ``True``
+        overrides the `mtl` and `unique` inputs.
     mtl : :class:`bool`, optional, defaults to ``False``
         If ``True`` then read an MTL ledger file/directory instead
         of a target file/directory. If ``True`` then the `columns`
@@ -2794,6 +3107,11 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None,
     :class:`~numpy.ndarray`
         An array of targets in the passed cap.
     """
+    # ADM if quick is True, use the quick-code.
+    if quick:
+        return read_targets_in_quick(hpdirname, shape='cap', radecrad=radecrad,
+                                     columns=columns, header=header)
+
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
@@ -2815,10 +3133,16 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None,
 
         # ADM read in targets in these HEALPixels.
         targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
-                                     columns=columnscopy, unique=unique)
+                                     columns=columnscopy, header=header,
+                                     unique=unique)
     # ADM ...otherwise just read in the targets.
     else:
-        targets = read_target_files(hpdirname, columns=columnscopy)
+        targets = read_target_files(hpdirname, columns=columnscopy,
+                                    header=header)
+
+    # ADM if we read a header, targets is now a two-entry list.
+    if header and not mtl:
+        targets, hdr = targets
 
     # ADM restrict only to targets in the requested cap.
     ii = is_in_cap(targets, radecrad)
@@ -2828,6 +3152,8 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None,
     if not mtl and len(addedcols) > 0:
         targets = rfn.drop_fields(targets, addedcols)
 
+    if header and not mtl:
+        return targets, hdr
     return targets
 
 

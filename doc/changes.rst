@@ -5,7 +5,36 @@ desitarget Change Log
 0.45.2 (unreleased)
 -------------------
 
-* No changes yet.
+* Update ELG cuts for DR9 imaging for SV and Main Survey [`PR #662`_]:
+* Retune LRG cuts for DR9 and update the LRG SV target bits [`PR #661`_]:
+    * Only use the default `BRIGHT`, `GALAXY` and `CLUSTER` masks.
+        * i.e. ignore `ALLMASK` and `MEDIUM`.
+    * Increase the SV faint limits from z < 20.5 to z < 21.0.
+    * Increase the SV faint limits from zfiber < 21.9 to zfiber < 22.0.
+* `PR #660`_: Work completed in `PR #661`_.
+* Two main changes for BGS SV selection for DR9 [`PR #659`_]:
+    * Remove FRACS* cuts, except for LOWQ superset.
+    * Limit FIBMAG superset to r < 20.5 instead of r < 21.0.
+* General clean-ups and speed-ups for DR9 work [`PR #658`_]. Includes:
+    * Corrected data model when repartitioning skies into HEALPixels.
+    * Faster versions of all of the `read_targets_in_X` functions:
+        * e.g., `in_box`, `in_cap`, `in_tiles`, `in_hp`.
+        * less general, but run faster by assuming the data model.
+        * Speed-up is 10x or more for files pixelized at higher nsides.
+    * Read "standard" `MASKBITS` cuts automatically for pixweight files.
+    * Catch if MTL ledgers are at a lower resolution that target files.
+* Extension of mag limit to 22.3 for RF selection [`PR #655`_].
+* Add input sweep files and their checksums to target files [`PR #641`_].
+    * Addresses `issue #20`_.
+    
+.. _`issue #20`: https://github.com/desihub/desitarget/issues/20
+.. _`PR #641`: https://github.com/desihub/desitarget/pull/641
+.. _`PR #655`: https://github.com/desihub/desitarget/pull/655
+.. _`PR #658`: https://github.com/desihub/desitarget/pull/658
+.. _`PR #659`: https://github.com/desihub/desitarget/pull/659
+.. _`PR #660`: https://github.com/desihub/desitarget/pull/660
+.. _`PR #661`: https://github.com/desihub/desitarget/pull/661
+.. _`PR #662`: https://github.com/desihub/desitarget/pull/662
 
 0.45.1 (2020-11-22)
 -------------------

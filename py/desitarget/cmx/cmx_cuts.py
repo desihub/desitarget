@@ -2158,7 +2158,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
         w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
-        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar,                   \
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,       \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
@@ -2325,7 +2325,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
             primary=primary,
             gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
             zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+            rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
             maskbits=maskbits, south=south
         )
     lrg_north, lrg_south = lrg_classes

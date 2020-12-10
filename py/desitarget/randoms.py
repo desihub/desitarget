@@ -19,6 +19,7 @@ from glob import glob, iglob
 
 from desitarget.gaiamatch import get_gaia_dir
 from desitarget.geomask import bundle_bricks, box_area
+from desitarget.geomask import get_imaging_maskbits, get_default_maskbits
 from desitarget.targets import resolve, main_cmx_or_sv, finalize
 from desitarget.skyfibers import get_brick_info
 from desitarget.io import read_targets_in_box, target_columns_from_header
@@ -1096,7 +1097,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
                                values in the passed random catalog.
             - FRACAREA_X: Fraction of pixel with at least one observation
                           in any band with MASKBITS==X (bitwise OR, so,
-                          e.g. if X=7.
+                          e.g. if X=7 then fraction for 2^0 | 2^1 | 2^2).
             - One column for every bit that is returned by
               :func:`desitarget.QA._load_targdens()`. Each column
               contains the target density in the pixel.
@@ -1132,9 +1133,8 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM areal coverage for some combinations of MASKBITS.
     mbcomb = []
     mbstore = []
-    for mb in [[10, 12, 13],
-               [1, 5, 6, 7, 10, 12, 13],
-               [1, 5, 6, 7, 11, 12, 13]]:
+    for mb in [get_imaging_maskbits(get_default_maskbits()),
+               get_imaging_maskbits(get_default_maskbits(bgs=True))]:
         bitint = np.sum(2**np.array(mb))
         mbcomb.append(bitint)
         log.info('Determining footprint for maskbits not in {}...t = {:.1f}s'
