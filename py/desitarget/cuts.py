@@ -1311,6 +1311,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
+    # Now only 1, 12, 13
     if maskbits is not None:
         # ADM default mask bits from the Legacy Surveys not set.
         preSelection &= imaging_mask(maskbits)
