@@ -1110,7 +1110,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (12/09/20) is version 143 on `the SV wiki`_.
+    - Current version (12/09/20) is version 144 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
