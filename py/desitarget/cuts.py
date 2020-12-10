@@ -328,7 +328,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (10/16/19) is version 202 on `the wiki`_.
+    - Current version (12/09/20) is version 233 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -387,12 +387,12 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     # ADM cuts that are unique to the north or south.
     if south:
-        elg &= g < 23.5  # faint cut.
+        elg &= g < 23.4  # faint cut.
         # ADM south has the FDR cut to remove stars and low-z galaxies.
         elg &= g - r < 1.15*(r - z) - 0.15
     else:
-        elg &= g < 23.6  # faint cut.
-        elg &= g - r < 1.15*(r - z) - 0.35  # remove stars and low-z galaxies.
+        elg &= g < 23.5  # faint cut.
+        elg &= g - r < 1.15*(r - z) - 0.20  # remove stars and low-z galaxies.
 
     return elg
 
