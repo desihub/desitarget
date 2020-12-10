@@ -1110,7 +1110,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (12/09/20) is version 142 on `the SV wiki`_.
+    - Current version (12/09/20) is version 143 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -1166,7 +1166,7 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM some cuts specific to north or south
     if south:
         gtotfaint_fdr = 23.4
-        gfibfaint_fdr = 24.0
+        gfibfaint_fdr = 24.1
         lowzcut_zp = -0.15
         gr_blue = 0.3
     else:
