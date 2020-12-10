@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.45.2 (unreleased)
+0.46.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.46.0 (2020-12-10)
 -------------------
 
 * Update ELG cuts for DR9 imaging for SV and Main Survey [`PR #662`_]:
