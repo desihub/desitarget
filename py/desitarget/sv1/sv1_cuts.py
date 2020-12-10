@@ -1110,7 +1110,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (12/09/20) is version 143 on `the SV wiki`_.
+    - Current version (12/09/20) is version 145 on `the SV wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -1168,12 +1168,12 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gtotfaint_fdr = 23.4
         gfibfaint_fdr = 24.1
         lowzcut_zp = -0.15
-        gr_blue = 0.3
+        gr_blue = 0.2
     else:
         gtotfaint_fdr = 23.5
         gfibfaint_fdr = 24.1
         lowzcut_zp = -0.20
-        gr_blue = 0.4
+        gr_blue = 0.2
 
     # ADM work in magnitudes not fluxes. THIS IS ONLY OK AS the snr cuts
     # ADM in notinELG_mask ENSURE positive fluxes in all of g, r and z.
