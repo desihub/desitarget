@@ -2,7 +2,19 @@
 desitarget Change Log
 =====================
 
-0.45.2 (unreleased)
+0.47.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.47.0 (2020-12-10)
+-------------------
+
+* Update the gr_blue ELG cut for DR9 imaging for SV [`PR #663`_]:
+
+.. _`PR #663`: https://github.com/desihub/desitarget/pull/663
+
+0.46.0 (2020-12-10)
 -------------------
 
 * Update ELG cuts for DR9 imaging for SV and Main Survey [`PR #662`_]:
