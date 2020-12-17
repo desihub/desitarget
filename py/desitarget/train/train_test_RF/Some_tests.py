@@ -197,20 +197,19 @@ def plot_completness(N_bins_r=10, N_bins_z=10, show=True, save=True, savename='R
     else :
         plt.close()
 
+#------------------------------------------------------------------------------#
+
+def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file):
 
                     ###############################
                     ####       Load Data       ####
                     ###############################
 
-inputFile = f'/Users/ec263193/Documents/CEA/Software/target_selection_CAClaveau/data_preparation/Res/TestSample_DR9s.fits'
 test_sample = read_file(inputFile)
 
                     ###############################
                     ####       RF Output       ####
                     ###############################
-
-RF_file = f'./WorkingDir/DR9s/RFmodel/{new_release_up}s_LOW/model_DR9s_LOW_z[0.0, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz'
-RF_Highz_file = f'./WorkingDir/DR9s/RFmodel/DR9s_HighZ/model_DR9s_HighZ_z[3.2, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz'
 
 proba_rf, feature_imp, proba_Highz_rf, feature_imp_Highz = compute_proba(test_sample, RF_file, RF_Highz_file)
 
