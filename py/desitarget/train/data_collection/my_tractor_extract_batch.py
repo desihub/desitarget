@@ -9,13 +9,11 @@ import numpy as np
 import astropy.io.fits as fits
 from astropy.io import ascii
 
-
-
 def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train, DIR):
     LISTFILE=None
     # RADEC
     RAMIN,RAMAX,DECMIN,DECMAX = np.array(RADEC.split(',')).astype('float')
-    
+
     # settings
     STILTSCMD = 'java -jar -Xmx4096M /global/homes/e/edmondc/Software/topcat/topcat-full.jar -stilts'
     tmpdir    = DIR + 'tmpdir/'

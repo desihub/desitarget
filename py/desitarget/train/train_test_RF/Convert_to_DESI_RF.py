@@ -62,23 +62,10 @@ def convert_and_save_to_desi(rf_input, filename_output):
     desi_forest = build_desi_forest(rf_input)
     np.savez_compressed(filename_output, desi_forest)
     print("Desi format is saved at : ", filename_output, "\n")
-#------------------------------------------------------------------------------#
-
-print("\n***************************************")
-print("Convert Scikit-learn RandomForestClassifier to Desi RandomForestClassifier")
-print("***************************************\n")
-
-RF_filename_input = "WorkingDir/DR9s/RFmodel/DR9s_LOW/model_DR9s_LOW_z[0.0, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz"
-RF_filename_output = "Res/rf_model_dr9.npz"
-
-convert_and_save_to_desi(RF_filename_input, RF_filename_output)
-
-RF_HighZ_filename_input = "WorkingDir/DR9s/RFmodel/DR9s_HighZ/model_DR9s_HighZ_z[3.2, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz"
-RF_HighZ_filename_output = "Res/rf_model_dr9_HighZ.npz"
-
-convert_and_save_to_desi(RF_HighZ_filename_input, RF_HighZ_filename_output)
 
 #------------------------------------------------------------------------------#
+# number of variables
+nfeatures = 11
 
 def read_file(inputFile):
 
@@ -142,7 +129,11 @@ def compute_proba_sk_learn(sample, RF_file):
 
     return proba_rf
 
-def compare_sklearn_desi(RF_filename_sklearn, RF_filename_desi):
+def compare_sklearn_desi(RF_filename_sklearn, RF_filename_desi, test_sample):
+    zred = test_sample['zred'][:]
+    r = test_sample['r'][:]
+    sel_qso = zred>0
+
     proba_rf_desi = compute_proba_desi(test_sample, RF_filename_desi)
     proba_rf_sk_learn = compute_proba_sk_learn(test_sample, RF_filename_sklearn)
     diff = proba_rf_desi - proba_rf_sk_learn
@@ -168,27 +159,10 @@ def compare_sklearn_desi(RF_filename_sklearn, RF_filename_desi):
     print('efficacite desi = ', effi_desi)
     print('efficacite sk_learn= ', effi_sk_learn)
     print('############################################\n')
-#------------------------------------------------------------------------------#
 
-print("\n***************************************")
-print("Test of the convertion :")
-print("***************************************\n")
-
-# number of variables
-nfeatures = 11
-
-inputFile = '/Users/ec263193/Documents/CEA/Software/target_selection_CAClaveau/data_preparation/Res/TestSample_DR9s.fits'
-test_sample = read_file(inputFile)
-
-zred = test_sample['zred'][:]
-r = test_sample['r'][:]
-
-sel_qso = zred>0
-
-print("****** Random forest : \n")
-
-compare_sklearn_desi(RF_filename_input, RF_filename_output)
-
-print("****** Random forest for HighZ : \n")
-
-compare_sklearn_desi(RF_HighZ_filename_input, RF_HighZ_filename_output)
+def test_convertion(test_file, RF_filename_input, RF_filename_output):
+    print("\n***************************************")
+    print("Test of the convertion :")
+    print("***************************************\n")
+    test_sample = read_file(testfile)
+    compare_sklearn_desi(RF_filename_sklearn, RF_filename_desi, test_sample)
