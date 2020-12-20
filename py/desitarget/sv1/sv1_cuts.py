@@ -1415,34 +1415,9 @@ def isMWS_bhb(primary=None, objtype=None,
     # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02
     mws &= (gmr >= -0.35) & (gmr <= -0.02)
 
-    # APC BHB rmz-gmr region (all extinction-corrected colors)
-    # CHECK
-    #
-    # Original BHB secondary targets:
-    #     rz - (1.07163*gr^5-1.42272*gr^4+0.69476*gr^3 -0.12911*gr^2+0.66993*gr-0.11368) between -0.1 and 0.05
-    #
-    # Faint BHB proposal:
-    #     -0.3<(g-r)_0<0 (here _0 is the extinction corrected color)
-    # AND -0.7<(r-z)_0<-0.05
-    # AND -0.3 * (gr0**2) < (rz0 - 0.75 * (gr0 + .15) + .27 - 0.025) < 0.06 - .6 * (gr0 + .15)**2) where gr0, rz0 are (g-r)_0, (r-z)_0
-
     # Coefficients from Sergey Koposov
     bhb_sel = rmz - (1.07163*gmr**5 - 1.42272*gmr**4 + 0.69476*gmr**3 - 0.12911*gmr**2 + 0.66993*gmr - 0.11368)
-    mws &= (bhb_sel >= -0.1) & (bhb_sel <= 0.05)
-
-    # CHECK
-    #
-    # Original BHB secondary targets:
-    #   -2.5*log(flux_g/flux_r)-(3.237-2.176)*ebv as gr,
-    #   22.5-2.5*log(greatest(flux_w1 - 3/sqrt(greatest(flux_ivar_w1,1e-30)),1e-30)) - 0.19*ebv as w1_faint
-    # then select
-    #   r-2.3*(gr) - w1_faint < -1.5
-    #
-    # Faint BHB proposal:
-    #  w1grat < 0.3 * gr0 + 0.15 + 3 * w1grat_err + .3
-    #  where w1grat = flux_w1_0 / flux_g_0 is the extinction corrected flux ratio in W1 vs DECALS g
-    #  and w1grat_err is the uncertainty on flux ratio
-    #  w1grat_err = 1/sqrt(flux_w1_0_ivar)/ flux_g_0
+    mws &= (bhb_sel >= -0.05) & (bhb_sel <= 0.05)
 
     # APC back out the WISE error = 1/sqrt(ivar) from the SNR = flux*sqrt(ivar)
     w1fluxerr = w1flux/w1snr
