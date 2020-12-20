@@ -123,6 +123,7 @@ sv1_bgs_mask:
 sv1_mws_mask:
     #- Bits 0-3 (7 ids)
     - [MWS_MAIN_BROAD,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_WD,                    1, "Milky Way Survey White Dwarf (algorithmic selection)",   {obsconditions: BRIGHT|GREY|DARK}]
     - [MWS_NEARBY,                2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 4: MWS_MAIN north/south splits
@@ -153,8 +154,6 @@ sv1_scnd_mask:
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB'}]
     - [BACKUP_CALIB,             11, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB'}]
-    - [MWS_WD_SV,                12, "Milky Way Survey White Dwarf (SV cuts)",  
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_WD_SV'}]
     - [MWS_MAIN_CLUSTER_SV,      13, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
     - [MWS_MAIN_RRLYR,           14, "Main survey halo tracers (RR Lyrae)",
@@ -285,7 +284,7 @@ priorities:
     sv1_mws_mask:
         # Special/Sparse targets
         # NB DONE is not very relevant here since we assign "infinite" observations
-        # MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD:                       {UNOBS: 2998, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         # Note NEARBY > OC (otherwise nearby targets swamped by fainter OC members)
         MWS_NEARBY:                   {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
         MWS_BHB:                      {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
@@ -309,7 +308,6 @@ priorities:
         #DR14Q:                      {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CALIB:                  {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BACKUP_CALIB:               SAME_AS_MWS_CALIB
-        MWS_WD_SV:                  {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_CLUSTER_SV:        {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_RRLYR:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
 
@@ -416,6 +414,7 @@ numobs:
         MWS_MAIN_BROAD:               1
         MWS_MAIN_FAINT:               1
         MWS_NEARBY:                 100
+        MWS_WD:                     100
         MWS_BHB:                    100
         # ADM don't observe a N/S target if it doesn't have other bits set
         MWS_MAIN_BROAD_NORTH:            0
@@ -431,7 +430,6 @@ numobs:
         #VETO: 1
         #DR14Q: 1
         MWS_CALIB:                  100
-        MWS_WD_SV:                  100
         MWS_MAIN_CLUSTER_SV:        1
         MWS_MAIN_RRLYR:             100 
         BACKUP_CALIB:               SAME_AS_MWS_CALIB
