@@ -8,6 +8,7 @@ desitarget Change Log
 * Simplify stellar SV bits [`PR #636`_]:
     * Secondary bit requirement for main stellar SV program to 4 bits
     * Primary bright science WDs use the old algorithmic selection
+
 .. _`PR #636`: https://github.com/desihub/desitarget/pull/636
 
 
