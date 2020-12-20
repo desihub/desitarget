@@ -123,7 +123,7 @@ sv1_bgs_mask:
 sv1_mws_mask:
     #- Bits 0-3 (7 ids)
     - [MWS_MAIN_BROAD,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
-    - [MWS_WD,                    1, "Milky Way Survey White Dwarf (algorithmic selection)",   {obsconditions: BRIGHT|GREY|DARK}]
+    - [MWS_WD,                    1, "Milky Way Survey White Dwarf (algorithmic selection)",   {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_NEARBY,                2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 4: MWS_MAIN north/south splits
