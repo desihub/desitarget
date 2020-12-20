@@ -151,16 +151,14 @@ sv1_scnd_mask:
        #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
     - [MWS_CALIB,                10, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB'}]
-    - [MWS_WD_SV,                11, "Milky Way Survey White Dwarf (SV cuts)",  
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_WD_SV'}]
-    - [MWS_MAIN_CLUSTER_SV,      12, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
-    - [MWS_MAIN_RRLYR,           13, "Main survey halo tracers (RR Lyrae)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_RRLYR'}]
-    - [MWS_NEARBY_OC_FILLER_SV,  14, "Nearby open cluster members (low prioirty, Gaia-selected)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_NEARBY_OC_FILLER_SV'}]
-    - [BACKUP_CALIB,             15, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
+    - [BACKUP_CALIB,             11, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB'}]
+    - [MWS_WD_SV,                12, "Milky Way Survey White Dwarf (SV cuts)",  
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_WD_SV'}]
+    - [MWS_MAIN_CLUSTER_SV,      13, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
+    - [MWS_MAIN_RRLYR,           14, "Main survey halo tracers (RR Lyrae)",
+       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_RRLYR'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -310,12 +308,10 @@ priorities:
         #VETO:                       {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         #DR14Q:                      {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CALIB:                  {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BACKUP_CALIB:               SAME_AS_MWS_CALIB
         MWS_WD_SV:                  {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_CLUSTER_SV:        {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_MAIN_RRLYR:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        # Note OC < NEARBY
-        MWS_NEARBY_OC_FILLER_SV:    {UNOBS: 1599, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        BACKUP_CALIB:               SAME_AS_MWS_CALIB
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -438,5 +434,4 @@ numobs:
         MWS_WD_SV:                  100
         MWS_MAIN_CLUSTER_SV:        1
         MWS_MAIN_RRLYR:             100 
-        MWS_NEARBY_OC_FILLER_SV:    1
         BACKUP_CALIB:               SAME_AS_MWS_CALIB
