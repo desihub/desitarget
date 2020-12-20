@@ -5,7 +5,11 @@ desitarget Change Log
 0.47.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Simplify stellar SV bits [`PR #636`_]:
+    * Secondary bit requirement for main stellar SV program to 4 bits
+    * Primary bright science WDs use the old algorithmic selection
+.. _`PR #636`: https://github.com/desihub/desitarget/pull/636
+
 
 0.47.0 (2020-12-10)
 -------------------
