@@ -5,11 +5,11 @@ sv1_desi_mask:
     - [QSO,         2, "QSO", {obsconditions: DARK}]
 
     #- ADM LRG sub-classes
-    - [LRG_INIT_4PASS,  3, "Bright LRG using initial optical and IR cuts",               {obsconditions: DARK}]
-    - [LRG_SUPER_4PASS, 4, "Bright LRG that is a superset of other cuts",                {obsconditions: DARK}]
-    - [LRG_INIT_8PASS,  5, "Faint LRG using initial optical and IR cuts",                {obsconditions: DARK}]
-    - [LRG_SUPER_8PASS, 6, "Faint LRG that is a superset of other cuts",                 {obsconditions: DARK}]
-    - [LOWZ_FILLER,     7, "LRG-like low-z filler sample (will NOT also have LRG set)",  {obsconditions: DARK}]
+    - [LRG_OPT,     3, "LRG from baseline version of optical cuts",             {obsconditions: DARK}]
+    - [LRG_IR,      4, "LRG from baseline version of IR cuts",                  {obsconditions: DARK}]
+    - [LRG_SV_OPT,  5, "LRG from relaxed version of optical cuts",              {obsconditions: DARK}]
+    - [LRG_SV_IR,   6, "LRG from relaxed version of IR cuts",                   {obsconditions: DARK}]
+    - [LOWZ_FILLER, 7, "LRG-like low-z filler sample (NOT used for SV1)",  {obsconditions: DARK}]
 
     #- ADM ELG sub-classes
     - [ELG_SV_GTOT,        8, "ELG from relaxed version of FDR cuts and g-limit",        {obsconditions: DARK|GRAY}]
@@ -26,17 +26,17 @@ sv1_desi_mask:
     - [QSO_Z5,            17, "z~5 QSO",                                      {obsconditions: DARK}]
 
     #- North vs. South selections for different sub-classes
-    - [LRG_INIT_4PASS_NORTH,   18, "Bright LRG using initial optical and IR cuts tuned for Bok/Mosaic", {obsconditions: DARK}]
-    - [LRG_SUPER_4PASS_NORTH,  19, "Bright LRG that is a superset of other cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
-    - [LRG_INIT_8PASS_NORTH,   20, "Faint LRG using initial optical and IR cuts tuned for Bok/Mosaic",  {obsconditions: DARK}]
-    - [LRG_SUPER_8PASS_NORTH,  21, "Faint LRG that is a superset of other cuts tuned for Bok/Mosaic",   {obsconditions: DARK}]
-    - [LOWZ_FILLER_NORTH,      22, "LRG-like low-z filler sample tuned for Bok/Mosaic",                 {obsconditions: DARK}]
+    - [LRG_OPT_NORTH,     18, "LRG from baseline version of optical cuts tuned for Bok/Mosaic",       {obsconditions: DARK}]
+    - [LRG_IR_NORTH,      19, "LRG from baseline version of IR cuts tuned for Bok/Mosaic",            {obsconditions: DARK}]
+    - [LRG_SV_OPT_NORTH,  20, "LRG from relaxed version of optical cuts tuned for Bok/Mosaic",        {obsconditions: DARK}]
+    - [LRG_SV_IR_NORTH,   21, "LRG from relaxed version of IR cuts tuned for Bok/Mosaic",             {obsconditions: DARK}]
+    - [LOWZ_FILLER_NORTH, 22, "LRG-like low-z filler sample tuned for Bok/Mosaic (NOT used for SV1)", {obsconditions: DARK}]
 
-    - [LRG_INIT_4PASS_SOUTH,   23, "Bright LRG using initial optical and IR cuts tuned for DECam", {obsconditions: DARK}]
-    - [LRG_SUPER_4PASS_SOUTH,  24, "Bright LRG that is a superset of other cuts tuned for DECam",  {obsconditions: DARK}]
-    - [LRG_INIT_8PASS_SOUTH,   25, "Faint LRG using initial optical and IR cuts tuned for DECam",  {obsconditions: DARK}]
-    - [LRG_SUPER_8PASS_SOUTH,  26, "Faint LRG that is a superset of other cuts tuned for DECam",   {obsconditions: DARK}]
-    - [LOWZ_FILLER_SOUTH,      27, "LRG-like low-z filler sample tuned for DECam",                 {obsconditions: DARK}]
+    - [LRG_OPT_SOUTH,     23, "LRG from baseline version of optical cuts tuned for DECam",       {obsconditions: DARK}]
+    - [LRG_IR_SOUTH,      24, "LRG from baseline version of IR cuts tuned for DECam",            {obsconditions: DARK}]
+    - [LRG_SV_OPT_SOUTH,  25, "LRG from relaxed version of optical cuts tuned for DECam",        {obsconditions: DARK}]
+    - [LRG_SV_IR_SOUTH,   26, "LRG from relaxed version of IR cuts tuned for DECam",             {obsconditions: DARK}]
+    - [LOWZ_FILLER_SOUTH, 27, "LRG-like low-z filler sample tuned for DECam (NOT used for SV1)", {obsconditions: DARK}]
 
     - [ELG_SV_GTOT_NORTH,      28, "ELG from relaxed version of FDR cuts and g-limit for Bok/Mosaic",        {obsconditions: DARK|GRAY}]
     - [ELG_SV_GFIB_NORTH,      29, "ELG from relaxed version of FDR cuts and g-fiber-limit for Bok/Mosaic",  {obsconditions: DARK|GRAY}]
@@ -188,10 +188,10 @@ priorities:
         ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        LRG_INIT_4PASS: SAME_AS_LRG
-        LRG_SUPER_4PASS: SAME_AS_LRG
-        LRG_INIT_8PASS: SAME_AS_LRG
-        LRG_SUPER_8PASS: SAME_AS_LRG
+        LRG_OPT: SAME_AS_LRG
+        LRG_IR: SAME_AS_LRG
+        LRG_SV_OPT: SAME_AS_LRG
+        LRG_SV_IR: SAME_AS_LRG
         LOWZ_FILLER: {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         ELG_SV_GTOT: SAME_AS_ELG
         ELG_SV_GFIB: SAME_AS_ELG
@@ -204,36 +204,36 @@ priorities:
         QSO_HZ_F:        SAME_AS_QSO
         QSO_Z5:          SAME_AS_QSO
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        LRG_INIT_4PASS_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        LRG_SUPER_4PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LRG_INIT_8PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LRG_SUPER_8PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LOWZ_FILLER_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LRG_INIT_4PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LRG_SUPER_4PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LRG_INIT_8PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LRG_SUPER_8PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        LOWZ_FILLER_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_SV_GTOT_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_SV_GFIB_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_GTOT_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_GFIB_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_SV_GTOT_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_SV_GFIB_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_GTOT_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        ELG_FDR_GFIB_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_COLOR_4PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_RF_4PASS_NORTH:    SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_COLOR_8PASS_NORTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_RF_8PASS_NORTH:    SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_HZ_F_NORTH:        SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_Z5_NORTH:          SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_COLOR_4PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_RF_4PASS_SOUTH:    SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_COLOR_8PASS_SOUTH: SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_RF_8PASS_SOUTH:    SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_HZ_F_SOUTH:        SAME_AS_LRG_INIT_4PASS_NORTH
-        QSO_Z5_SOUTH:          SAME_AS_LRG_INIT_4PASS_NORTH
+        LRG_OPT_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        LRG_IR_NORTH: SAME_AS_LRG_OPT_NORTH
+        LRG_SV_OPT_NORTH: SAME_AS_LRG_OPT_NORTH
+        LRG_SV_IR_NORTH: SAME_AS_LRG_OPT_NORTH
+        LOWZ_FILLER_NORTH: SAME_AS_LRG_OPT_NORTH
+        LRG_OPT_SOUTH: SAME_AS_LRG_OPT_NORTH
+        LRG_IR_SOUTH: SAME_AS_LRG_OPT_NORTH
+        LRG_SV_OPT_SOUTH: SAME_AS_LRG_OPT_NORTH
+        LRG_SV_IR_SOUTH: SAME_AS_LRG_OPT_NORTH
+        LOWZ_FILLER_SOUTH: SAME_AS_LRG_OPT_NORTH
+        ELG_SV_GTOT_NORTH: SAME_AS_LRG_OPT_NORTH
+        ELG_SV_GFIB_NORTH: SAME_AS_LRG_OPT_NORTH
+        ELG_FDR_GTOT_NORTH: SAME_AS_LRG_OPT_NORTH
+        ELG_FDR_GFIB_NORTH: SAME_AS_LRG_OPT_NORTH
+        ELG_SV_GTOT_SOUTH: SAME_AS_LRG_OPT_NORTH
+        ELG_SV_GFIB_SOUTH: SAME_AS_LRG_OPT_NORTH
+        ELG_FDR_GTOT_SOUTH: SAME_AS_LRG_OPT_NORTH
+        ELG_FDR_GFIB_SOUTH: SAME_AS_LRG_OPT_NORTH
+        QSO_COLOR_4PASS_NORTH: SAME_AS_LRG_OPT_NORTH
+        QSO_RF_4PASS_NORTH:    SAME_AS_LRG_OPT_NORTH
+        QSO_COLOR_8PASS_NORTH: SAME_AS_LRG_OPT_NORTH
+        QSO_RF_8PASS_NORTH:    SAME_AS_LRG_OPT_NORTH
+        QSO_HZ_F_NORTH:        SAME_AS_LRG_OPT_NORTH
+        QSO_Z5_NORTH:          SAME_AS_LRG_OPT_NORTH
+        QSO_COLOR_4PASS_SOUTH: SAME_AS_LRG_OPT_NORTH
+        QSO_RF_4PASS_SOUTH:    SAME_AS_LRG_OPT_NORTH
+        QSO_COLOR_8PASS_SOUTH: SAME_AS_LRG_OPT_NORTH
+        QSO_RF_8PASS_SOUTH:    SAME_AS_LRG_OPT_NORTH
+        QSO_HZ_F_SOUTH:        SAME_AS_LRG_OPT_NORTH
+        QSO_Z5_SOUTH:          SAME_AS_LRG_OPT_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -320,10 +320,10 @@ numobs:
         ELG: 1
         LRG: 2
         QSO: 4
-        LRG_INIT_4PASS: 4
-        LRG_SUPER_4PASS: 4
-        LRG_INIT_8PASS: 8
-        LRG_SUPER_8PASS: 8
+        LRG_OPT: 4
+        LRG_IR: 4
+        LRG_SV_OPT: 4
+        LRG_SV_IR: 4
         LOWZ_FILLER: 1
         ELG_SV_GTOT: SAME_AS_ELG
         ELG_SV_GFIB: SAME_AS_ELG
@@ -336,15 +336,15 @@ numobs:
         QSO_HZ_F:        SAME_AS_QSO
         QSO_Z5:          SAME_AS_QSO
         # ADM don't observe a N/S target if it doesn't have other bits set
-        LRG_INIT_4PASS_NORTH:  0
-        LRG_SUPER_4PASS_NORTH: 0
-        LRG_INIT_8PASS_NORTH:  0
-        LRG_SUPER_8PASS_NORTH: 0
+        LRG_OPT_NORTH:  0
+        LRG_IR_NORTH: 0
+        LRG_SV_OPT_NORTH:  0
+        LRG_SV_IR_NORTH: 0
         LOWZ_FILLER_NORTH: 0
-        LRG_INIT_4PASS_SOUTH:  0
-        LRG_SUPER_4PASS_SOUTH: 0
-        LRG_INIT_8PASS_SOUTH:  0
-        LRG_SUPER_8PASS_SOUTH: 0
+        LRG_OPT_SOUTH:  0
+        LRG_IR_SOUTH: 0
+        LRG_SV_OPT_SOUTH:  0
+        LRG_SV_IR_SOUTH: 0
         LOWZ_FILLER_SOUTH: 0
         ELG_SV_GTOT_NORTH: 0
         ELG_SV_GFIB_NORTH: 0

@@ -1643,7 +1643,7 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
 
     Notes
     -----
-    - This version (10/25/20) is version 69 on `the cmx wiki`_.
+    - This version (11/17/20) is version 70 on `the cmx wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gmag, dtype='?')
@@ -1663,9 +1663,9 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
     # ADM Unique Gaia source (not a duplicated source).
     issdg &= ~dupsource
 
-    # ADM CUT TO G < 18 where |b| < 20.
+    # ADM CUT TO G < 19 where |b| < 20.
     blt20 = is_in_gal_box([ra, dec], [0, 360, -20, 20], radec=True)
-    issdg &= (gmag < 18) | ~blt20
+    issdg &= (gmag < 19) | ~blt20
 
     # ADM remove any sources that have neighbors within 7"...
     # ADM for speed, run only sources for which issdg is still True.
@@ -2158,15 +2158,12 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
 
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
         w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
-        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,       \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =                 \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =         \
         _prepare_optical_wise(objects)
-
-    # ADM in addition, cmx needs ra and dec.
-    ra, dec = objects["RA"], objects["DEC"]
 
     # ADM Currently only coded for objects with Gaia matches
     # ADM (e.g. DR6 or above). Fail for earlier Data Releases.
@@ -2328,7 +2325,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
             primary=primary,
             gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
             zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-            rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+            rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
             maskbits=maskbits, south=south
         )
     lrg_north, lrg_south = lrg_classes
@@ -2361,7 +2358,7 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
                 primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                 w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
                 maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                objtype=objtype, release=release, south=south
+                objtype=objtype, release=release, ra=ra, dec=dec, south=south
             )
     qso_north, qso_hiz_north = qso_classes[0]
     qso_south, qso_hiz_south = qso_classes[1]

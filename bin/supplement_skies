@@ -75,15 +75,6 @@ if not official:
     log.critical(msg)
     raise ValueError
 
-if ns.bundlefiles is not None:
-    # ADM a check that nside isn't too large for RELEASE numbers < 1000.
-    if hp.nside2npix(ns.nside) >= 1000:
-        msg = "At nside ({}), pixels > 1000 exist. Pixel numbers set ".format(
-            ns.nside)
-        msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
-        log.critical(msg)
-        raise IOError
-
 # ADM if the GAIA directory was passed, set it...
 gaiadir = ns.gaiadir
 if gaiadir is None:
@@ -116,13 +107,6 @@ if ns.bundlefiles is None:
     pixlist = ns.healpixels
     if pixlist is not None:
         pixlist = [int(pix) for pix in pixlist.split(',')]
-        # ADM if splitting by HEALPixels they will be used to set
-        # ADM RELEASE. Check this won't produce duplicate TARGETIDs.
-        if pixlist[0] >= 1000:
-            msg = "First entry in pixlist ({}) > 1000. This sets ".format(pixlist[0])
-            msg += "RELEASE for SUPP_SKIES. > 1000 may duplicate TARGETID for SKIES!"
-            log.critical(msg)
-            raise ValueError
 
     # ADM read the locations and the header for skies in this healpixel.
     skies, hdr = io.read_targets_in_hp(ns.skydir, ns.nside, pixlist,
@@ -149,8 +133,8 @@ if ns.bundlefiles is None:
     # ADM mask the supplemental sky locations using a bright star mask.
     if do_mask:
         maskdir = get_recent_mask_dir(ns.maskdir)
-        supp_skies = mask_targets(supp_skies, maskdir,
-                                  nside=ns.nside, pixlist=pixlist)
+        supp_skies = mask_targets(supp_skies, maskdir, nside=ns.nside,
+                                  pixlist=pixlist, bricks_are_hpx=True)
 
     # ADM a compact version of the maskdir name.
     md = maskdir.split("/")

@@ -7,6 +7,7 @@ desitarget.geomask
 
 Utility functions for geometry on the sky, masking, etc.
 
+.. _`this post on Stack Overflow`: https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
 """
 from __future__ import (absolute_import, division)
 #
@@ -30,6 +31,89 @@ import healpy as hp
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
 log = get_logger()
+
+
+def get_imaging_maskbits(bitnamelist=None):
+    """Return MASKBITS names and bits from the Legacy Surveys.
+
+    Parameters
+    ----------
+    bitnamelist : :class:`list`, optional, defaults to ``None``
+        If not ``None``, return the bit values corresponding to the
+        passed names. Otherwise, return the full MASKBITS dictionary.
+
+    Returns
+    -------
+    :class:`list` or `dict`
+        A list of the MASKBITS values if `bitnamelist` is passed,
+        otherwise the full MASKBITS dictionary of names-to-values.
+
+    Notes
+    -----
+        - For the definitions of the mask bits, see, e.g.,
+             https://www.legacysurvey.org/dr8/bitmasks/#maskbits
+    """
+    bitdict = {"BRIGHT": 1, "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
+               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}
+
+    # ADM look up the bit value for each passed bit name.
+    if bitnamelist is not None:
+        return [bitdict[bitname] for bitname in bitnamelist]
+
+    return bitdict
+
+
+def get_default_maskbits(bgs=False):
+    """Return the names of the default MASKBITS for targets.
+
+    Parameters
+    ----------
+    bgs : :class:`bool`, defaults to ``False``.
+        If ``True`` load the "default" scheme for Bright Galaxy Survey
+        targets. Otherwise, load the default for other target classes.
+
+    Returns
+    -------
+    :class:`list`
+        A list of the default MASKBITS names for targets.
+    """
+    if bgs:
+        return ["BRIGHT", "CLUSTER"]
+    return ["BRIGHT", "GALAXY", "CLUSTER"]
+
+
+def imaging_mask(maskbits, bitnamelist=get_default_maskbits(), bgsmask=False):
+    """Apply the 'geometric' masks from the Legacy Surveys imaging.
+
+    Parameters
+    ----------
+    maskbits : :class:`~numpy.ndarray` or ``None``
+        General array of `Legacy Surveys mask`_ bits.
+    bitnamelist : :class:`list`, defaults to func:`get_default_maskbits()`
+        List of Legacy Surveys mask bits to set to ``False``.
+    bgsmask : :class:`bool`, defaults to ``False``.
+        Load the "default" scheme for Bright Galaxy Survey targets.
+        Overrides `bitnamelist`.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A boolean array that is the same length as `maskbits` that
+        contains ``False`` where any bits in `bitnamelist` are set.
+    """
+    # ADM default for the BGS.
+    if bgsmask:
+        bitnamelist = get_default_maskbits(bgs=True)
+
+    # ADM get the bit values for the passed (or default) bit names.
+    bits = get_imaging_maskbits(bitnamelist)
+
+    # ADM Create array of True and set to False where a mask bit is set.
+    mb = np.ones_like(maskbits, dtype='?')
+    for bit in bits:
+        mb &= ((maskbits & 2**bit) == 0)
+
+    return mb
 
 
 def ellipse_matrix(r, e1, e2):
@@ -165,7 +249,7 @@ def is_in_ellipse(ras, decs, RAcen, DECcen, r, e1, e2):
     Returns
     -------
     :class:`boolean`
-        An array that is the same length as RA/Dec that is True
+        An array that is the same length as RA/Dec that is ``True``
         for points that are in the mask and False for points that
         are not in the mask
 
@@ -217,7 +301,7 @@ def is_in_ellipse_matrix(ras, decs, RAcen, DECcen, G):
     Returns
     -------
     :class:`boolean`
-        An array that is the same length as ras/decs that is True
+        An array that is the same length as ras/decs that is ``True``
         for points that are in the mask and False for points that
         are not in the mask
 
@@ -606,7 +690,8 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
-                  gather=False, surveydirs=None, extra=None, seed=None):
+                  gather=False, surveydirs=None, extra=None, seed=None,
+                  nchunks=10):
     """Determine the optimal packing for bricks collected by HEALpixel integer.
 
     Parameters
@@ -642,6 +727,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         the output slurm script.
     seed : :class:`int`, optional, defaults to 1
         Random seed for file name. Only relevant for `prefix='randoms'`.
+    nchunks : :class:`int`, optional, defaults to 10
+        Number of smaller catalogs to split the random catalog into. Only
+        relevant for `prefix='randoms'`.
 
     Returns
     -------
@@ -651,7 +739,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     Notes
     -----
-    h/t https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
+        - For the packing algorithm see `this post on Stack Overflow`_.
     """
     # ADM interpret the passed directories.
     surveydir = os.path.normpath(surveydirs[0])
@@ -815,8 +903,26 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
                 "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
                 resolve=resolve, region=region)
             print("")
-            print("gather_targets '{}' {} {} {}".format(
-                ";".join(outfiles), outfn, prefix2.split("_")[-1], skip))
+            # ADM split each pixel-file into 10 smaller catalogs.
+            for fn in outfiles:
+                adder = ""
+                # ADM we'll need to add the MTL columns if they aren't
+                # ADM added when the randoms are initially constructed.
+                if "addmtl" not in extra:
+                    adder = "--addmtl"
+                    print("srun -N 1 split_randoms {} -n {} {} {} &".format(
+                        fn, nchunks, adder, skip))
+            print("")
+            print("wait")
+            print("")
+            for nchunk in range(nchunks):
+                ofs = [fn.replace(".fits", "-{}.fits".format(nchunk))
+                       for fn in outfiles]
+                ofn = outfn.replace(".fits", "-{}.fits".format(nchunk))
+                print("srun -N 1 gather_targets '{}' {} {} {} &".format(
+                    ";".join(ofs), ofn, prefix2.split("_")[-1], skip))
+        print("")
+        print("wait")
         print("")
 
     return

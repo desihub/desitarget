@@ -35,7 +35,7 @@ from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
-from desitarget.geomask import cap_area, hp_in_cap, is_in_cap
+from desitarget.geomask import cap_area, hp_in_cap, is_in_cap, imaging_mask
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -198,7 +198,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          zfiberflux=None, rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+          zfiberflux=None, rfluxivar=None, zfluxivar=None, w1fluxivar=None,
           gnobs=None, rnobs=None, znobs=None, maskbits=None, primary=None,
           south=True):
     """
@@ -216,7 +216,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (02/18/20) is version 215 on `the wiki`_.
+    - Current version (12/07/2020) is version 232 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -228,7 +228,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-        rflux_snr=rflux_snr, zflux_snr=zflux_snr, w1flux_snr=w1flux_snr,
+        rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
         maskbits=maskbits
     )
 
@@ -243,7 +243,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
                   zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
-                  rflux_snr=None, zflux_snr=None, w1flux_snr=None,
+                  rfluxivar=None, zfluxivar=None, w1fluxivar=None,
                   maskbits=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
@@ -261,16 +261,15 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         log.warning('Setting zfiberflux to zflux!!!')
         zfiberflux = zflux.copy()
 
-    lrg &= (rflux_snr > 0) & (rflux > 0)   # ADM quality in r.
-    lrg &= (zflux_snr > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
-    lrg &= (w1flux_snr > 4) & (w1flux > 0)  # ADM quality in W1.
+    lrg &= (rfluxivar > 0) & (rflux > 0)   # ADM quality in r.
+    lrg &= (zfluxivar > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
+    lrg &= (w1fluxivar > 0) & (w1flux > 0)  # ADM quality in W1.
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
-    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
-    for bit in [1, 5, 6, 7, 11, 12, 13]:
-        lrg &= ((maskbits & 2**bit) == 0)
+    # ADM default mask bits from the Legacy Surveys not set.
+    lrg &= imaging_mask(maskbits)
 
     return lrg
 
@@ -309,15 +308,14 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg &= rmag - zmag > (zmag - 16.83) * 0.45       # double sliding cut 1.
         lrg &= rmag - zmag > (zmag - 13.80) * 0.19       # double sliding cut 2.
     else:
-        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.65   # non-stellar cut.
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6   # non-stellar cut.
         lrg &= (
             ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45))
             | (rmag - w1mag > 1.85)                      # low-z cut.
         )
-        lrg &= rmag - zmag > (zmag - 16.69) * 0.45       # double sliding cut 1.
-        lrg &= rmag - zmag > (zmag - 13.68) * 0.19       # double sliding cut 2.
+        lrg &= rmag - zmag > (zmag - 16.79) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.76) * 0.19       # double sliding cut 2.
 
-    lrg &= rmag - zmag > 0.7   # remove outliers.
     lrg &= zfibermag < 21.5    # faint limit.
 
     return lrg
@@ -330,7 +328,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (10/16/19) is version 202 on `the wiki`_.
+    - Current version (12/09/20) is version 233 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -360,9 +358,8 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
     # ADM observed in every band.
     elg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
-    # ADM ALLMASK (5, 6, 7), BRIGHT OBJECT (1, 11, 12, 13) bits not set.
-    for bit in [1, 5, 6, 7, 11, 12, 13]:
-        elg &= ((maskbits & 2**bit) == 0)
+    # ADM default mask bits from the Legacy Surveys not set.
+    elg &= imaging_mask(maskbits)
 
     return elg
 
@@ -390,12 +387,12 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
     # ADM cuts that are unique to the north or south.
     if south:
-        elg &= g < 23.5  # faint cut.
+        elg &= g < 23.4  # faint cut.
         # ADM south has the FDR cut to remove stars and low-z galaxies.
         elg &= g - r < 1.15*(r - z) - 0.15
     else:
-        elg &= g < 23.6  # faint cut.
-        elg &= g - r < 1.15*(r - z) - 0.35  # remove stars and low-z galaxies.
+        elg &= g < 23.5  # faint cut.
+        elg &= g - r < 1.15*(r - z) - 0.20  # remove stars and low-z galaxies.
 
     return elg
 
@@ -1037,13 +1034,8 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
-    # geometrical cuts (i.e., bright sources)
-    for bit in [1, 12, 13]:
-        bgs &= ((maskbits & 2**bit) == 0)
-
-    # Allmask?
-    # for bit in [5, 6, 7]:
-    #    bgs &= ((maskbits & 2**bit) == 0)
+    # ADM geometric masking cuts from the Legacy Surveys.
+    bgs &= imaging_mask(maskbits)
 
     if targtype == 'bright':
         bgs &= ((Grr > 0.6) | (gaiagmag == 0))
@@ -1134,8 +1126,8 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
             LX = np.array(LX, dtype=bool)
 
     bgs |= LX
-    bgs &= ((maskbits & 2**1) == 0)
-    bgs &= ((maskbits & 2**13) == 0)
+    # ADM geometric masking cuts from the Legacy Surveys.
+    bgs &= imaging_mask(maskbits, bgsmask=True)
 
     if targtype == 'bright':
         bgs &= rflux > 10**((22.5-19.5)/2.5)
@@ -1203,11 +1195,8 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if objtype is not None:
         qso &= _psflike(objtype)
 
-    # ADM Reject objects in masks.
-    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
-    if maskbits is not None:
-        for bit in [1, 5, 6, 7, 10, 12, 13]:
-            qso &= ((maskbits & 2**bit) == 0)
+    # ADM default mask bits from the Legacy Surveys not set.
+    qso &= imaging_mask(maskbits)
 
     return qso
 
@@ -1255,7 +1244,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
                        gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
-                       primary=None, south=True, return_probs=False):
+                       primary=None, ra=None, dec=None, south=True, return_probs=False):
     """Define QSO targets from a Random Forest. Returns a boolean array.
 
     Parameters
@@ -1322,8 +1311,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
     if maskbits is not None:
-        for bit in [1, 5, 6, 7, 10, 12, 13]:
-            preSelection &= ((maskbits & 2**bit) == 0)
+        # ADM default mask bits from the Legacy Surveys not set.
+        preSelection &= imaging_mask(maskbits)
 
     # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
@@ -1353,6 +1342,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
+        rf_DR9_fileName = pathToRF + '/rf_model_dr9.npz'
+        rf_DR9_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1401,7 +1392,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_HighZ_proba >= pcut_HighZ)
 
-        tmpReleaseOK = releaseReduced >= 8000
+        tmpReleaseOK = (releaseReduced >= 8000) & (releaseReduced < 9000)
         if np.any(tmpReleaseOK):
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
@@ -1418,6 +1409,51 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             pcut = 0.88 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
             pcut_HighZ = 0.55
+
+            # Add rf proba test result to "qso" mask
+            qso[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
+            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM store the probabilities in case they need returned.
+            pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
+            # ADM populate a mask specific to the "HighZ" selection.
+            pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
+
+        tmpReleaseOK = releaseReduced >= 9000
+        if np.any(tmpReleaseOK):
+            # rf initialization - colors data duplicated within "myRF"
+            rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                      numberOfTrees=500, version=2)
+            rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                            numberOfTrees=500, version=2)
+            # rf loading
+            rf.loadForest(rf_DR9_fileName)
+            rf_HighZ.loadForest(rf_DR9_HighZ_fileName)
+            # Compute rf probabilities
+            tmp_rf_proba = rf.predict_proba()
+            tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
+            # Compute optimized proba cut
+            tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            if not south:
+                # threshold selection for North footprint.
+                pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
+                pcut_HighZ = 0.7
+            else:
+                pcut = np.ones(tmp_rf_proba.size)
+                pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
+                is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
+                         (rnobs[preSelection][tmpReleaseOK] > 4) &\
+                         (znobs[preSelection][tmpReleaseOK] > 4) &\
+                         ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
+                         (dec[preSelection][tmpReleaseOK] <= 10)
+                # threshold selection for DES footprint.
+                pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut_HighZ[is_des] = 0.50
+                # threshold selection for South footprint.
+                pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
+                pcut_HighZ[~is_des] = 0.65
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
@@ -1586,9 +1622,13 @@ def _prepare_optical_wise(objects, mask=True):
     objtype = objects['TYPE']
     release = objects['RELEASE']
 
+    ra = objects['RA']
+    dec = objects['DEC']
+
     gfluxivar = objects['FLUX_IVAR_G']
     rfluxivar = objects['FLUX_IVAR_R']
     zfluxivar = objects['FLUX_IVAR_Z']
+    w1fluxivar = objects['FLUX_IVAR_W1']
 
     gnobs = objects['NOBS_G']
     rnobs = objects['NOBS_R']
@@ -1639,7 +1679,7 @@ def _prepare_optical_wise(objects, mask=True):
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
             w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,
-            objtype, release, gfluxivar, rfluxivar, zfluxivar,
+            objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1766,8 +1806,8 @@ def unextinct_fluxes(objects):
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    gfiberflux, rfiberflux, zfiberflux,
-                    objtype, release, gfluxivar, rfluxivar, zfluxivar,
+                    gfiberflux, rfiberflux, zfiberflux, objtype, release,
+                    ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
                     gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -1794,8 +1834,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         Corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
-    gfluxivar, rfluxivar, zfluxivar: :class:`~numpy.ndarray`
-        The flux inverse variances in g, r, and z bands.
+    gfluxivar, rfluxivar, zfluxivar, w1fluxivar: :class:`~numpy.ndarray`
+        The flux inverse variances in g, r, z and W1 bands.
     gnobs, rnobs, znobs: :class:`~numpy.ndarray`
         The number of observations (in the central pixel) in g, r and z.
     gfracflux, rfracflux, zfracflux: :class:`~numpy.ndarray`
@@ -1852,6 +1892,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
         If ``True``, if only northern (southern) sources are passed then
         only apply the northern (southern) cuts to those sources.
+    ra, dec : :class:`~numpy.ndarray`
+        The Ra, Dec position of objects
 
     Returns
     -------
@@ -1886,7 +1928,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 primary=primary,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                rflux_snr=rsnr, zflux_snr=zsnr, w1flux_snr=w1snr,
+                rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
                 maskbits=maskbits, south=south
             )
     lrg_north, lrg_south = lrg_classes
@@ -1934,7 +1976,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
                     maskbits=maskbits, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                    objtype=objtype, release=release, south=south
+                    objtype=objtype, release=release, ra=ra, dec=dec, south=south
                 )
             else:
                 raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
@@ -2308,11 +2350,11 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
         w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
-        objtype, release, gfluxivar, rfluxivar, zfluxivar,                            \
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,       \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =                 \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =         \
         _prepare_optical_wise(objects, mask=mask)
 
     # Process the Gaia inputs for target selection.
@@ -2341,8 +2383,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
         gflux, rflux, zflux, w1flux, w2flux,
-        gfiberflux, rfiberflux, zfiberflux,
-        objtype, release, gfluxivar, rfluxivar, zfluxivar,
+        gfiberflux, rfiberflux, zfiberflux, objtype, release,
+        ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
         gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -2351,8 +2393,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
         gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource,
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
         tcnames, qso_optical_cuts, qso_selection,
-        maskbits, Grr, refcat, primary, resolvetargs=resolvetargs
-    )
+        maskbits, Grr, refcat, primary, resolvetargs=resolvetargs,
+        )
 
     return desi_target, bgs_target, mws_target
 
@@ -2364,7 +2406,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiamatch=False, nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
-                   survey='main', resolvetargs=True, backup=True):
+                   survey='main', resolvetargs=True, backup=True,
+                   return_infiles=False):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2416,6 +2459,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         and southern targets in southern regions.
     backup : :class:`boolean`, optional, defaults to ``True``
         If ``True``, also run the Gaia-only BACKUP_BRIGHT/FAINT targets.
+    return_infiles : :class:`boolean`, optional, defaults to ``False``
+        If ``True``, also return the actual files from `infile` processed.
+        Useful when running with `pixlist`, `radecbox` or `radecrad` to
+        see which files were actually required.
 
     Returns
     -------
@@ -2423,6 +2470,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         The subset of input targets which pass the cuts, including extra
         columns for ``DESI_TARGET``, ``BGS_TARGET``, and ``MWS_TARGET`` target
         selection bitmasks.
+    :class:`list`, only returned if `return_infiles` is ``True``
+        A list of the input files that actually needed to be processed.
 
     Notes
     -----
@@ -2620,6 +2669,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     # ADM contain no targets, in which case exit (somewhat) gracefully.
     if len(targets) == 0:
         log.warning('ZERO targets for passed file list or region!!!')
+        if return_infiles:
+            return targets, infiles
         return targets
 
     # ADM restrict to only targets in a set of HEALPixels, if requested.
@@ -2637,4 +2688,6 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         ii = is_in_cap(targets, radecrad)
         targets = targets[ii]
 
+    if return_infiles:
+        return targets, infiles
     return targets

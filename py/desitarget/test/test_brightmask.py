@@ -70,6 +70,9 @@ class TestBRIGHTMASK(unittest.TestCase):
                                       dtypes='>i4')
         cls.targs["BRICK_OBJID"] = cls.targs["OBJID"]
 
+        # ADM mask_targets checks for unique TARGETIDs, so create some.
+        cls.targs["TARGETID"] = np.arange(len(cls.targs))
+
         # ADM invent a mask with various testing properties.
         cls.mask = np.zeros(3, dtype=brightmask.maskdatamodel.dtype)
         cls.mask["DEC"] = [0, 70, 35]
