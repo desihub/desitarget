@@ -146,18 +146,18 @@ sv1_mws_mask:
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
 #- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.fits for VETO targets.
 sv1_scnd_mask:
-    #- [VETO,        0, "Never observe, even if a primary target bit is set",
-    #{obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-       #- [DR14Q,       1, "Known quasars from the SDSS DR14Q catalog",
-       #   {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
+    - [VETO,        0, "Never observe, even if a primary target bit is set",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+    - [DR14Q,       1, "Known quasars from the SDSS DR14Q catalog",
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
     - [MWS_CALIB,                10, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB'}]
+        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB'}]
     - [BACKUP_CALIB,             11, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB'}]
+        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB'}]
     - [MWS_MAIN_CLUSTER_SV,      13, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
+        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
     - [MWS_MAIN_RRLYR,           14, "Main survey halo tracers (RR Lyrae)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_RRLYR'}]
+        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_RRLYR'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -304,8 +304,8 @@ priorities:
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
-        #VETO:                       {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        #DR14Q:                      {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        VETO:                       {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        DR14Q:                      {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CALIB:                  {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BACKUP_CALIB:               SAME_AS_MWS_CALIB
         MWS_MAIN_CLUSTER_SV:        {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
@@ -427,8 +427,8 @@ numobs:
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
-        #VETO: 1
-        #DR14Q: 1
+        VETO: 1
+        DR14Q: 1
         MWS_CALIB:                  100
         MWS_MAIN_CLUSTER_SV:        1
         MWS_MAIN_RRLYR:             100 
