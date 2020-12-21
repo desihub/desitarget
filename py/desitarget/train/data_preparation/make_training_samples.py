@@ -12,14 +12,14 @@ import numpy as np
 import astropy.io.fits as pyfits
 
 from terminaltables import DoubleTable
-from data_preparation.funcs import Flux2MagFunc, ColorsFunc
-from data_preparation.PredCountsFromQLF_ClassModule import PredCountsFromQLF_Class
+from desitarget.train.data_preparation.funcs import Flux2MagFunc, ColorsFunc
+from desitarget.train.data_preparation.PredCountsFromQLF_ClassModule import PredCountsFromQLF_Class
 
 #------------------------------------------------------------------------------
 
 #***QLF DATA FILE PATH NAME***
 
-fpn_QLF_data = 'ROSS4_tabR'
+fpn_QLF_data = '../../py/desitarget/train/data_preparation/ROSS4_tabR.txt'
 
 #------------------------------------------------------------------------------
 #***STARS & QSO INPUT/OUTPUT FILE PATH NAMES***
@@ -111,7 +111,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_g_z_W1_W2_mag_OK &= ( STARS_W1mag > 0 ) & ( STARS_W2mag > 0 )
 
     # STARS_noBSinBLOB_OK = ~STARS_data[ 'BRIGHTSTARINBLOB' ]
-    # "http://legacysurvey.org/dr8/bitmasks/"
+    # "http://legacysurvey.org/dr9/bitmasks/"
     print("[WARNING] REMOVE FROM THE STARS TRAINING maskbits 1, 5, 6, 7, 10, 12, 13")
     STARS_maskbits_OK  = (STARS_data['MASKBITS'] & np.power(2, 1))  == 0 # 'BRIGHT'
     STARS_maskbits_OK  = (STARS_data['MASKBITS'] & np.power(2, 5))  == 0

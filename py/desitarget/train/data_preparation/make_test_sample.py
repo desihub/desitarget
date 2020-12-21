@@ -9,7 +9,7 @@ import argparse
 import numpy as np
 import astropy.io.fits as pyfits
 
-from funcs import shift_photo_north, Flux2MagFunc, ColorsFunc, AreaFunc
+from desitarget.train.data_preparation.funcs import shift_photo_north, Flux2MagFunc, ColorsFunc, AreaFunc
 
 def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
     #***CONFIGURATION***

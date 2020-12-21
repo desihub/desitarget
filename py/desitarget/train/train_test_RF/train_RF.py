@@ -13,19 +13,18 @@ import copy
 
 import numpy as np
 import astropy.io.fits as pyfits
-from sklearn.externals import joblib
+import joblib
 from sklearn.ensemble import RandomForestClassifier
 
-from util.funcs import Time2StrFunc, GetColorsFunc, Flat2TreeHyParamConvFunc
+from desitarget.train.train_test_RF.util.funcs import Time2StrFunc, GetColorsFunc, Flat2TreeHyParamConvFunc
 
-def train_RF(config_fpn, MODEL, mod_dpn):
+def train_RF(fpn_config, MODEL, dpn_RFmodel):
     print( "\n///**********TRAIN RF**********///" )
     infoRootStr = "INFO::TRAIN RF: "
     errRootStr = "ERR::TRAIN RF: "
 
     #***CONFIG DATA LOADING***
     # CONFIG
-    fpn_config = args.config_fpn
     configDict = dict(np.load(fpn_config, allow_pickle=True)['CONFIG'][()])
     RELEASE = str(configDict['RELEASE'])
     fpn_STARS_TrainingSample = str(configDict['fpn_STARS_TrainingSample'])
@@ -36,10 +35,8 @@ def train_RF(config_fpn, MODEL, mod_dpn):
     fpn_model_template = str(configDict['fpn_model_template'])
 
     # MODEL
-    MODEL = args.MODEL
     hyParamDict = dict(configDict['MODEL'][MODEL])
     BANDS = str(hyParamDict['BANDS'][0])
-    dpn_RFmodel = args.mod_dpn
 
     flatHyParamSpaceDict = hyParamDict['ALGO-hyParamSpace']['flatHyParamSpaceDict']
     hyParamSpaceTags = hyParamDict['ALGO-hyParamSpace']['hyParamSpaceTags']

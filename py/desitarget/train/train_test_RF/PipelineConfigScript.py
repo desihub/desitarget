@@ -9,14 +9,14 @@ from collections import OrderedDict
 
 import numpy as np
 
-from util.funcs import RecHyParamDictExplFunc
+from desitarget.train.train_test_RF.util.funcs import RecHyParamDictExplFunc
 
 def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_TestSample, fpn_QLF, fpn_config):
     #***CONFIGURATION***
 
     RELEASE = 'DR9s' # seulement à titre informatif, aucun impact dans le pipeline
     random_state_seed = 666 # pour l'entraînement => reproductibilité
-    n_jobs = 4 # pour l'entraînement et l'application des RF
+    n_jobs = 20 # pour l'entraînement et l'application des RF
 
     # Selection criteria
     OBJ_extraKeys = ['TYPE']
@@ -43,9 +43,9 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     # min_zredVect = [ [ [ 0., 6. ] ], [ [ 3.2, 6. ] ] ] # [float] "[0., 6.]"
     # =============================================================================
 
-    nTreesVect = [ [ 400, 500 ], [ 400, 500 ] ] # [int]
-    maxDepthVect = [ [ 40 ], [ 35 ] ] # "None" ou [int]
-    maxLNodesVect = [ [ 1100 ], [ 900 ] ] # "None" ou [int]
+    nTreesVect = [ [ 500 ], [ 500 ] ] # [int]
+    maxDepthVect = [ [ 25 ], [ 25 ] ] # "None" ou [int]
+    maxLNodesVect = [ [ 850 ], [ 850 ] ] # "None" ou [int]
     min_zredVect = [ [ [ 0., 6. ] ], [ [ 3.2, 6. ] ] ] # [float] "[0., 6.]"
 
     #------------------------------------------------------------------------------
