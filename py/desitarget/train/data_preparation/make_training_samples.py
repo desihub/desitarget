@@ -16,7 +16,6 @@ from desitarget.train.data_preparation.funcs import Flux2MagFunc, ColorsFunc
 from desitarget.train.data_preparation.PredCountsFromQLF_ClassModule import PredCountsFromQLF_Class
 
 #------------------------------------------------------------------------------
-
 #***QLF DATA FILE PATH NAME***
 
 fpn_QLF_data = '../../py/desitarget/train/data_preparation/ROSS4_tabR.txt'
@@ -29,7 +28,6 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     remove_test_region = True
 
     #------------------------------------------------------------------------------
-
     #***CONFIGURATION***
 
     NORM_MODE = "NORMALIZE_PER_RMAG_BINS" # "NORMALIZE_PER_RMAG_BINS" by default
@@ -54,11 +52,10 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_MAX_MAG_ERR_LEVEL = 0.02 # 0.02 by default
 
     #------------------------------------------------------------------------------
-
     #***FUNCTION***
     def MAG_ERR_Func(FLUX, FLUX_IVAR):
-        res = 2.5 / np.log(10.)
-        res /= (np.abs(FLUX) * np.sqrt(FLUX_IVAR))
+        res = 2.5/np.log(10.)
+        res /= (np.abs(FLUX)*np.sqrt(FLUX_IVAR))
         res[np.isinf(res)] = 0.
         res[np.isnan(res)] = 0.
         res[res < 0.] = 0.
@@ -66,20 +63,18 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
     #------------------------------------------------------------------------------
 
-    zred_binVect = np.arange(min_zred, max_zred + zred_binStep / 2., zred_binStep)
+    zred_binVect = np.arange(min_zred, max_zred + zred_binStep/2., zred_binStep)
 
-    rmag_binVect = np.trunc(np.arange(min_rmag, max_rmag + rmag_binStep / 2., rmag_binStep) * 10.) / 10.
+    rmag_binVect = np.trunc(np.arange(min_rmag, max_rmag + rmag_binStep/2., rmag_binStep)*10.)/10.
     rmag_binVect = np.minimum(rmag_binVect, max_rmag)
     n_rmag_bin = rmag_binVect.size - 1
 
     #------------------------------------------------------------------------------
-
     #***CHECK "NORM_MODE" VALIDITY***
     if (NORM_MODE != "NORMALIZE_PER_RMAG_BINS"):
         assert(False), "NORM_MODE {:s} non valid".format(NORM_MODE)
 
     #------------------------------------------------------------------------------
-
     #***COMPUTE QLF4Compl_dNdrmag***
     predCountsObj = PredCountsFromQLF_Class()
     predCountsObj.LoadQLF_Data(fpn_QLF_data)
@@ -95,7 +90,6 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QLF4Compl_dNdrmag = np.sum(QLF4Compl_dNdzdrmag, axis = 1)
 
     #------------------------------------------------------------------------------
-
     #***STARS SELECTION***
 
     STARS_data = pyfits.open(fpn_STARS_input, memmap = True)[1].data
@@ -131,9 +125,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_PSF_OK = STARS_data['TYPE'] == "PSF"
 
     # --> we allready check that
-    noTestRegion_OK = ~ ((STARS_data.RA <= 45.) & (STARS_data.RA >= 30.) &
-                              (np.abs(STARS_data.DEC) <= 5.))
-
+    noTestRegion_OK = ~ ((STARS_data.RA <= 45.) & (STARS_data.RA >= 30.) & (np.abs(STARS_data.DEC) <= 5.))
 
     # STARS_OK =  STARS_rmag_OK & STARS_g_z_W1_W2_mag_OK & STARS_noBSinBLOB_OK
     STARS_OK =  STARS_rmag_OK & STARS_g_z_W1_W2_mag_OK & STARS_maskbits_OK
@@ -146,11 +138,10 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_rmag = STARS_rmag[STARS_OK]
 
     n_STARS = len(STARS_data)
-    print("n_STARS after selection / before normalization :", n_STARS)
+    print("n_STARS after selection/before normalization :", n_STARS)
     print()
 
     #------------------------------------------------------------------------------
-
     #***QSO SELECTION***
 
     QSO_data = pyfits.open(fpn_QSO_input, memmap = True)[1].data
@@ -237,43 +228,40 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_dNdrmag = np.histogram(QSO_rmag, bins = rmag_binVect)[0]
 
     #------------------------------------------------------------------------------
-
     # Given only for informative purpose to assess the completeness of the sample
 
     max_QSO_dNdrmag_ind = np.argmax(QSO_dNdrmag)
-    scale_factor = QLF4Compl_dNdrmag[max_QSO_dNdrmag_ind] / QSO_dNdrmag[max_QSO_dNdrmag_ind]
+    scale_factor = QLF4Compl_dNdrmag[max_QSO_dNdrmag_ind]/QSO_dNdrmag[max_QSO_dNdrmag_ind]
 
-    QSO_W_drmag = QLF4Compl_dNdrmag / (scale_factor * QSO_dNdrmag)
+    QSO_W_drmag = QLF4Compl_dNdrmag/(scale_factor*QSO_dNdrmag)
     QSO_W_drmag[QLF4Compl_dNdrmag == 0. ] = np.nan
     QSO_W_drmag[np.isnan(QSO_W_drmag) ] = np.nan
     QSO_W_drmag[np.isinf(QSO_W_drmag) ] = np.nan
 
     if False:
         ref_QSO_dNdrmag_ind = np.nanargmin(QSO_W_drmag)
-        scale_factor = QLF4Compl_dNdrmag[ref_QSO_dNdrmag_ind] / QSO_dNdrmag[ref_QSO_dNdrmag_ind]
-        QSO_W_drmag = QLF4Compl_dNdrmag / (scale_factor * QSO_dNdrmag)
+        scale_factor = QLF4Compl_dNdrmag[ref_QSO_dNdrmag_ind]/QSO_dNdrmag[ref_QSO_dNdrmag_ind]
+        QSO_W_drmag = QLF4Compl_dNdrmag/(scale_factor*QSO_dNdrmag)
     else:
         nw_QSO_target = n_QSO
-        QSO_W_drmag *= nw_QSO_target / np.sum(QSO_dNdrmag * QSO_W_drmag)
+        QSO_W_drmag *= nw_QSO_target/np.sum(QSO_dNdrmag*QSO_W_drmag)
 
     QSO_W_drmag[QLF4Compl_dNdrmag == 0. ] = 1.
     QSO_W_drmag[np.isnan(QSO_W_drmag) ] = 1.
     QSO_W_drmag[np.isinf(QSO_W_drmag) ] = 1.
 
-    w_QSO_dNdrmag = QSO_dNdrmag * QSO_W_drmag
+    w_QSO_dNdrmag = QSO_dNdrmag*QSO_W_drmag
     nw_QSO = np.sum(w_QSO_dNdrmag)
 
-    #------------------------------------------------------------------------------
-
+    #-----------------------------------------------------------------------------
     #***STARS rmag. DISTRIBUTION NORMALIZATION***
-
     # Random generator seeding for reproducibility
     rs = np.random.RandomState(int(initRndm))
 
     list_STARS_sel_ind = []
     tab2print = []
     tab2print.append(["m_rmag", "M_rmag", "n_STARS_drmag", "n_sel_STARS_drmag", "n_QSO_drmag", "nw_QSO_drmag"])
-    n_STARS_QSO_ratio = n_STARS / n_QSO
+    n_STARS_QSO_ratio = n_STARS/n_QSO
 
     for rmag_biNum in range(n_rmag_bin):
         m_rmag = rmag_binVect[rmag_biNum]
@@ -284,10 +272,10 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
         n_QSO_drmag = int(QSO_dNdrmag[rmag_biNum])
 
         if NORM_MODE == "NORMALIZE_PER_RMAG_BINS":
-            n_STARS_QSO_ratio = n_STARS_drmag / n_QSO_drmag
+            n_STARS_QSO_ratio = n_STARS_drmag/n_QSO_drmag
 
         if (n_STARS_QSO_ratio >= 1.):
-            n_sel_STARS_drmag = int(n_STARS_drmag / n_STARS_QSO_ratio)
+            n_sel_STARS_drmag = int(n_STARS_drmag/n_STARS_QSO_ratio)
             STARS_rnd_sel_ind = rs.choice(n_STARS_drmag, n_sel_STARS_drmag, replace=False)
         else:
             # STARS_rnd_sel_ind = np.array([])
@@ -301,7 +289,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
                             str(n_QSO_drmag),
                             str(int(w_QSO_dNdrmag[rmag_biNum]))])
 
-    tab_title = "STARS / QSO TABLE"
+    tab_title = "STARS/QSO TABLE"
     tab = DoubleTable(tab2print, tab_title)
     tab.inner_row_border = True
     tab.justify_columns = {0:'center', 1:'center', 2:'center', 3:'center',
@@ -317,7 +305,6 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     print()
 
     #------------------------------------------------------------------------------
-
     #***COMPUTE AND ADD COLORS***
 
     color_names = ['g_r', 'r_z', 'g_z', 'g_W1', 'r_W1', 'z_W1', 'g_W2', 'r_W2', 'z_W2', 'W1_W2', 'r']
@@ -352,7 +339,6 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_hdu = pyfits.BinTableHDU.from_columns(list(QSO_hdu.columns) + list_cols)
 
     #------------------------------------------------------------------------------
-
     #***STARS & QSO TRAINING FITS CATALOG STORING***
 
     STARS_hdu.writeto(fpn_STARS_output, overwrite=True)

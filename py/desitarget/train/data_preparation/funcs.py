@@ -68,7 +68,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
 #------------------------------------------------------------------------------
 
 def _Flux2MagFunc(OBJ_Data_flux, OBJ_Data_mw_transmission):
-    OBJ_flux = OBJ_Data_flux / OBJ_Data_mw_transmission
+    OBJ_flux = OBJ_Data_flux/OBJ_Data_mw_transmission
     limitInf = 1.e-04
     OBJ_flux = OBJ_flux.clip(limitInf)
     OBJ_mag = np.where(OBJ_flux > limitInf, 22.5 - 2.5 * np.log10(OBJ_flux), 0.)
@@ -93,22 +93,22 @@ def Flux2MagFunc(dataArray):
     W1flux = W1flux.clip(limitInf)
     W2flux = W2flux.clip(limitInf)
 
-    g=np.where(gflux>limitInf,22.5-2.5*np.log10(gflux), 0.)
-    r=np.where(rflux>limitInf,22.5-2.5*np.log10(rflux), 0.)
-    z=np.where(zflux>limitInf,22.5-2.5*np.log10(zflux), 0.)
-    W1=np.where(W1flux>limitInf, 22.5-2.5*np.log10(W1flux), 0.)
-    W2=np.where(W2flux>limitInf, 22.5-2.5*np.log10(W2flux), 0.)
+    g = np.where(gflux > limitInf,22.5-2.5*np.log10(gflux), 0.)
+    r = np.where(rflux > limitInf,22.5-2.5*np.log10(rflux), 0.)
+    z = np.where(zflux > limitInf,22.5-2.5*np.log10(zflux), 0.)
+    W1 = np.where(W1flux > limitInf, 22.5-2.5*np.log10(W1flux), 0.)
+    W2 = np.where(W2flux > limitInf, 22.5-2.5*np.log10(W2flux), 0.)
 
-    g[np.isnan(g)]=0.
-    g[np.isinf(g)]=0.
-    r[np.isnan(r)]=0.
-    r[np.isinf(r)]=0.
-    z[np.isnan(z)]=0.
-    z[np.isinf(z)]=0.
-    W1[np.isnan(W1)]=0.
-    W1[np.isinf(W1)]=0.
-    W2[np.isnan(W2)]=0.
-    W2[np.isinf(W2)]=0.
+    g[np.isnan(g)] = 0.
+    g[np.isinf(g)] = 0.
+    r[np.isnan(r)] = 0.
+    r[np.isinf(r)] = 0.
+    z[np.isnan(z)] = 0.
+    z[np.isinf(z)] = 0.
+    W1[np.isnan(W1)] = 0.
+    W1[np.isinf(W1)] = 0.
+    W2[np.isnan(W2)] = 0.
+    W2[np.isinf(W2)] = 0.
 
     return g,r,z,W1,W2
 
@@ -117,17 +117,17 @@ def Flux2MagFunc(dataArray):
 def ColorsFunc(nbEntries,nfeatures,g,r,z,W1,W2):
     colors  = np.zeros((nbEntries,nfeatures))
 
-    colors[:,0]=g-r
-    colors[:,1]=r-z
-    colors[:,2]=g-z
-    colors[:,3]=g-W1
-    colors[:,4]=r-W1
-    colors[:,5]=z-W1
-    colors[:,6]=g-W2
-    colors[:,7]=r-W2
-    colors[:,8]=z-W2
-    colors[:,9]=W1-W2
-    colors[:,10]=r
+    colors[:,0] = g-r
+    colors[:,1] = r-z
+    colors[:,2] = g-z
+    colors[:,3] = g-W1
+    colors[:,4] = r-W1
+    colors[:,5] = z-W1
+    colors[:,6] = g-W2
+    colors[:,7] = r-W2
+    colors[:,8] = z-W2
+    colors[:,9] = W1-W2
+    colors[:,10] = r
 
     return colors
 
@@ -142,7 +142,7 @@ def GetColorsFunc(data, color_names):
 #------------------------------------------------------------------------------
 
 def AreaFunc(dec1, dec2, alpha1, alpha2):
-    res = (alpha2 - alpha1) * (np.sin(dec2) - np.sin(dec1)) * (180. / np.pi)**2
+    res = (alpha2 - alpha1) * (np.sin(dec2) - np.sin(dec1)) * (180./np.pi)**2
     return res
 
 #------------------------------------------------------------------------------
@@ -151,10 +151,10 @@ def RA_DEC_AreaFunc(OBJ_RA, OBJ_DEC, binVect_RA, binVect_DEC, N_OBJ_th=2):
     RA_DEC_meshgrid = np.meshgrid(binVect_RA, binVect_DEC)
     OBJ_dNdRAdDEC = np.histogram2d(x=OBJ_DEC, y=OBJ_RA, bins=[binVect_DEC, binVect_RA])[0]
     med_OBJ_dNdRAdDEC = np.median(OBJ_dNdRAdDEC)
-    skyArea_meshgrid = AreaFunc(RA_DEC_meshgrid[1][0:-1, 0:-1] * np.pi / 180.,
-                                 RA_DEC_meshgrid[1][1:, 0:-1] * np.pi / 180.,
-                                 RA_DEC_meshgrid[0][0:-1, 0 :-1] * np.pi / 180.,
-                                 RA_DEC_meshgrid[0][0:-1, 1:] * np.pi / 180.)
+    skyArea_meshgrid = AreaFunc(RA_DEC_meshgrid[1][0:-1, 0:-1] * np.pi/180.,
+                                 RA_DEC_meshgrid[1][1:, 0:-1] * np.pi/180.,
+                                 RA_DEC_meshgrid[0][0:-1, 0 :-1] * np.pi/180.,
+                                 RA_DEC_meshgrid[0][0:-1, 1:] * np.pi/180.)
     area_OK = (OBJ_dNdRAdDEC) >= N_OBJ_th
     res_area = np.sum(skyArea_meshgrid[area_OK])
     return res_area, med_OBJ_dNdRAdDEC

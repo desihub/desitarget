@@ -86,7 +86,7 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
     # Display some infos
     OBJ_ra = OBJ_data['RA']
     OBJ_dec = OBJ_data['DEC']
-    n_QSO = np.sum(OBJ_data['zred']>0.)
+    n_QSO = np.sum(OBJ_data['zred'] > 0.)
 
     min_ra = OBJ_ra.min()
     max_ra = OBJ_ra.max()
@@ -116,13 +116,13 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
     OBJ_Colors = ColorsFunc(n_OBJ, n_colors, OBJ_gmag, OBJ_rmag, OBJ_zmag, OBJ_W1mag, OBJ_W2mag)
 
     for i, col_name in enumerate(color_names):
-        col = pyfits.Column(name = col_name, format = 'D', array = OBJ_Colors[:,i])
+        col = pyfits.Column(name=col_name, format='D', array=OBJ_Colors[:,i])
         list_cols.append(col)
 
     OBJ_hdu = pyfits.BinTableHDU(data = OBJ_data)
     if is_north:
         for i, col_name in enumerate(['FLUX_G', 'FLUX_R', 'FLUX_Z']):
-            col = pyfits.Column(name = col_name+'_s',  format = 'D', array = OBJ_data[col_name].copy())
+            col = pyfits.Column(name=col_name + '_s',  format='D', array=OBJ_data[col_name].copy())
             list_cols.append(col)
             OBJ_data[col_name] = backup_FLUX_GRZ[i][OBJ_selection_OK]
 
@@ -132,5 +132,5 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
 
     #***TEST SAMPLE STORING***
 
-    OBJ_hdu.writeto(fpn_output, overwrite = True)
+    OBJ_hdu.writeto(fpn_output, overwrite=True)
     print("Save :", fpn_output)
