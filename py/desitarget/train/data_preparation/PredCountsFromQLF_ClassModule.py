@@ -87,7 +87,6 @@ class PredCountsFromQLF_Class():
         self.QLF_EFF_OK = False
 
     def LoadEffData(self, EFFdata, EFFzlimit, EFFmaglimit):
-
         self.EFF_dzdmag = np.copy(EFFdata)
         self.EFF_zlimit = np.copy(EFFzlimit)
         self.EFF_maglimit = np.copy(EFFmaglimit)
@@ -96,12 +95,9 @@ class PredCountsFromQLF_Class():
         self.QLF_EFF_OK = False
 
     def PrelOpFunc(self):
-
         if self.QLF_OK & self.EFF_OK & (not self.QLF_EFF_OK):
-
             # QLF_EFF_zlimit
-            self.QLF_EFF_zlimit = np.unique(np.hstack((self.QLF_zlimit,
-                                                          self.EFF_zlimit)))
+            self.QLF_EFF_zlimit = np.unique(np.hstack((self.QLF_zlimit, self.EFF_zlimit)))
 
             maxQLF_EFF_zlimit = min(float(np.max(self.QLF_zlimit)),
                                      float(np.max(self.EFF_zlimit)))

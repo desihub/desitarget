@@ -4,7 +4,7 @@
 # -*- coding: utf-8 -*-
 """
 desitarget.train
-==========
+================
 
 Tools for RF training QSO targets selection.
 
