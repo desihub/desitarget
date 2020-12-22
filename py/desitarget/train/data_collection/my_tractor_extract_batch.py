@@ -18,8 +18,8 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
     STILTSCMD = 'java -jar -Xmx4096M /global/homes/e/edmondc/Software/topcat/topcat-full.jar -stilts'
     tmpdir    = DIR + 'tmpdir/'
     pid       = str(os.getpid())
-    tmplog    = tmpdir+'tmp.log_'+pid
-    tmpasc    = tmpdir+'tmp.asc_'+pid
+    tmplog    = tmpdir + 'tmp.log_' + pid
+    tmpasc    = tmpdir + 'tmp.asc_' + pid
 
     print()
     print('[start: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']')
@@ -52,10 +52,10 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
         hdu = fits.open(SWEEPFILE)
         data= hdu[1].data
 
-        if (RAMIN>RAMAX):
-            keep = ((data['ramax']>RAMIN) | (data['ramin']<RAMAX)) & (data['decmax']>DECMIN) & (data['decmin']<DECMAX)
+        if (RAMIN > RAMAX):
+            keep = ((data['ramax'] > RAMIN) | (data['ramin'] < RAMAX)) & (data['decmax'] > DECMIN) & (data['decmin'] < DECMAX)
         else:
-            keep = (data['ramax']>RAMIN) & (data['ramin']<RAMAX) & (data['decmax']>DECMIN) & (data['decmin']<DECMAX)
+            keep = (data['ramax'] > RAMIN) & (data['ramin'] < RAMAX) & (data['decmax'] > DECMIN) & (data['decmin'] < DECMAX)
         f = open(LISTFILE,'w')
         for name in data['sweepname'][keep]:
             f.write(SWEEPDIR+'/'+name+'\t'+tmpdir+'tmp.'+name+'_'+pid+'\n')
@@ -66,11 +66,11 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
     n    = len(data)
 
     i = 0
-    while (i<=n-1):
+    while (i < =n-1):
         j = 0
         if (os.path.isfile(tmplog)):
             os.remove(tmplog)
-        while ((j<NRUNS) & (i<=n-1)):
+        while ((j < NRUNS) & (i < =n-1)):
             INFITS_i  = data[i][0]
             OUTFITS_i = data[i][1]
             tmpstr    = (f'python {path_train}data_collection/my_tractor_extract.py '+
@@ -99,7 +99,7 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
     print()
 
     # merging catalogues
-    subprocess.Popen("awk '{print $2}' "+LISTFILE+"> "+tmpasc, shell=True)
+    subprocess.Popen("awk '{print $2}' "+LISTFILE+" >  "+tmpasc, shell=True)
     tmpstr = (STILTSCMD+' tcat ifmt=fits in=@'+tmpasc+' out='+OUTFITS+' ofmt=fits')
     print(tmpstr)
     subprocess.call(tmpstr, shell=True)

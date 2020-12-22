@@ -27,7 +27,7 @@ class RA_DEC_MatchingClass():
         # (Dans l'idéal, métrique de 'haversine' car coordonnées sphériques)
         nNeighObj = BallTree(
             np.array([self.RA_CatalogData, self.DEC_CatalogData]).T,
-            leaf_size = 40, metric = 'minkowski', p=2)
+            leaf_size=40, metric='minkowski', p=2)
 
         nNeighResInd = nNeighObj.query_radius(
             np.array([self.RA4MatchingData, self.DEC4MatchingData]).T,

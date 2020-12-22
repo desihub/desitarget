@@ -27,7 +27,7 @@ def sweep_meta(release, outfits):
 
     # listing the sweep files
     tmpstr = "ls " + sweepdir + "/sweep-???[pm]???-???[pm]???.fits | awk -F \"/\" \"{print $NF}\""
-    p1 = subprocess.Popen(tmpstr, stdout = subprocess.PIPE, shell = True)
+    p1 = subprocess.Popen(tmpstr, stdout=subprocess.PIPE, shell=True)
     sweeplist = np.array(p1.communicate()[0].decode('ascii').split('\n'))[:-1]
     nsweep = len(sweeplist)
 
@@ -48,11 +48,11 @@ def sweep_meta(release, outfits):
             decmax[i] = float(sweep[18:21])
 
     collist = []
-    collist.append(fits.Column(name = 'sweepname', format = '26A', array = sweeplist))
-    collist.append(fits.Column(name = 'ramin', format = 'E', array = ramin))
-    collist.append(fits.Column(name = 'ramax', format = 'E', array = ramax))
-    collist.append(fits.Column(name = 'decmin', format = 'E', array = decmin))
-    collist.append(fits.Column(name = 'decmax', format = 'E', array = decmax))
+    collist.append(fits.Column(name='sweepname', format='26A', array=sweeplist))
+    collist.append(fits.Column(name='ramin', format='E', array=ramin))
+    collist.append(fits.Column(name='ramax', format='E', array=ramax))
+    collist.append(fits.Column(name='decmin', format='E', array=decmin))
+    collist.append(fits.Column(name='decmax', format='E', array=decmax))
     cols = fits.ColDefs(collist)
     hdu = fits.BinTableHDU.from_columns(cols)
-    hdu.writeto(outfits, overwrite = True)
+    hdu.writeto(outfits, overwrite=True)
