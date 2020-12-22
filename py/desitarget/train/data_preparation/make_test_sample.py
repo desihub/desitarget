@@ -21,37 +21,37 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
     if RELEASE == 'DR7':
         OBJ_extraKeys = ['BRIGHTSTARINBLOB']
         OBJ_extraSelCMD += "OBJ_selection_OK &= True"
-        OBJ_extraSelCMD += " & ( OBJ_rmag > {:f} )".format(min_rmag)
-        OBJ_extraSelCMD += " & ( OBJ_W1mag > 0. )"
-        OBJ_extraSelCMD += " & ( OBJ_W2mag > 0. )"
-        OBJ_extraSelCMD += " & ( ~OBJ_BRIGHTSTARINBLOB )"
+        OBJ_extraSelCMD += " & (OBJ_rmag > {:f})".format(min_rmag)
+        OBJ_extraSelCMD += " & (OBJ_W1mag > 0.)"
+        OBJ_extraSelCMD += " & (OBJ_W2mag > 0.)"
+        OBJ_extraSelCMD += " & (~OBJ_BRIGHTSTARINBLOB)"
     elif RELEASE == 'DR8':
         OBJ_extraKeys = ['MASKBITS']
         OBJ_extraSelCMD += "OBJ_selection_OK &= True"
-        OBJ_extraSelCMD += " & ( OBJ_rmag > {:f} )".format(min_rmag)
-        OBJ_extraSelCMD += " & ( OBJ_W1mag > 0. )"
-        OBJ_extraSelCMD += " & ( OBJ_W2mag > 0. )"
+        OBJ_extraSelCMD += " & (OBJ_rmag > {:f})".format(min_rmag)
+        OBJ_extraSelCMD += " & (OBJ_W1mag > 0.)"
+        OBJ_extraSelCMD += " & (OBJ_W2mag > 0.)"
         print("MASKBIT USED : 1, 11, 12, 13 ")
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 1 ))   == 0 )" # 'BRIGHT'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 11 ))  == 0 )" # 'MEDIUM'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 12 ))  == 0 )" # 'GALAXY'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 13 ))  == 0 )" # 'CLUSTER'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 1))   == 0)" # 'BRIGHT'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 11))  == 0)" # 'MEDIUM'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 12))  == 0)" # 'GALAXY'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 13))  == 0)" # 'CLUSTER'
     elif RELEASE == 'DR9':
         OBJ_extraKeys = ['MASKBITS']
         OBJ_extraSelCMD += "OBJ_selection_OK &= True"
-        OBJ_extraSelCMD += " & ( OBJ_rmag > {:f} )".format(min_rmag)
-        OBJ_extraSelCMD += " & ( OBJ_W1mag > 0. )"
-        OBJ_extraSelCMD += " & ( OBJ_W2mag > 0. )"
+        OBJ_extraSelCMD += " & (OBJ_rmag > {:f})".format(min_rmag)
+        OBJ_extraSelCMD += " & (OBJ_W1mag > 0.)"
+        OBJ_extraSelCMD += " & (OBJ_W2mag > 0.)"
         print("MASKBIT USED : 1, 5, 6, 7, 10, 12, 13 ")
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 1 ))   == 0 )" # 'BRIGHT'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 5 ))  == 0 )" # 'MEDIUM'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 6 ))  == 0 )" # 'GALAXY'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 7 ))  == 0 )" # 'CLUSTER'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 10 ))  == 0 )" # 'MEDIUM'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 12 ))  == 0 )" # 'GALAXY'
-        OBJ_extraSelCMD += " & ( (OBJ_MASKBITS & np.power( 2, 13 ))  == 0 )" # 'CLUSTER'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 1))   == 0)" # 'BRIGHT'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 5))  == 0)" # 'MEDIUM'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 6))  == 0)" # 'GALAXY'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 7))  == 0)" # 'CLUSTER'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 10))  == 0)" # 'MEDIUM'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 12))  == 0)" # 'GALAXY'
+        OBJ_extraSelCMD += " & ((OBJ_MASKBITS & np.power(2, 13))  == 0)" # 'CLUSTER'
     else:
-        assert( False ), "'RELEASE' unvailable !"
+        assert(False), "'RELEASE' unvailable !"
 
     #***OBJ DATA LOADING & SELECTION***
 
@@ -124,7 +124,7 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
         for i, col_name in enumerate(['FLUX_G', 'FLUX_R', 'FLUX_Z']):
             col = pyfits.Column(name = col_name+'_s',  format = 'D', array = OBJ_data[col_name].copy())
             list_cols.append(col)
-            OBJ_data[ col_name ] = backup_FLUX_GRZ[i][OBJ_selection_OK]
+            OBJ_data[col_name] = backup_FLUX_GRZ[i][OBJ_selection_OK]
 
     OBJ_hdu = pyfits.BinTableHDU.from_columns(list(OBJ_hdu.columns) + list_cols)
 

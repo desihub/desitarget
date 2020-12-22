@@ -15,28 +15,28 @@ NNVar_th = 0.5
 
 # reading arguments
 parser = ArgumentParser()
-parser.add_argument( '-i', '--infits', type=str, default=None, metavar='INFITS',
+parser.add_argument('-i', '--infits', type=str, default=None, metavar='INFITS',
                      help='input fits',)
-parser.add_argument( '-o', '--outfits', type=str, default=None, metavar='OUTFITS',
-                     help = 'output fits' )
-parser.add_argument( '-r', '--release', type=str, default=None, metavar='RELEASE',
-                     help = 'release ("dr7","dr8s", "dr8n")' )
-parser.add_argument( '-rd', '--radec', type=str, default='0,360,-90,90', metavar='RADEC',
-                     help = 'ramin,ramax,decmin,decmax' )
-parser.add_argument( '-s', '--selcrit', type=str, default=None, metavar='SELCRIT',
-                     help = 'selection criterion ("qso", "stars", "test")' )
-parser.add_argument( '-l', '--logfile', type=str, default='none', metavar='LOGFILE',
-                     help='log file' )
+parser.add_argument('-o', '--outfits', type=str, default=None, metavar='OUTFITS',
+                     help = 'output fits')
+parser.add_argument('-r', '--release', type=str, default=None, metavar='RELEASE',
+                     help = 'release ("dr7","dr8s", "dr8n")')
+parser.add_argument('-rd', '--radec', type=str, default='0,360,-90,90', metavar='RADEC',
+                     help = 'ramin,ramax,decmin,decmax')
+parser.add_argument('-s', '--selcrit', type=str, default=None, metavar='SELCRIT',
+                     help = 'selection criterion ("qso", "stars", "test")')
+parser.add_argument('-l', '--logfile', type=str, default='none', metavar='LOGFILE',
+                     help='log file')
 
 arg = parser.parse_args()
 INFITS, OUTFITS, RELEASE, RADEC, SELCRIT, LOGFILE = arg.infits, arg.outfis, arg.release, arg.radec, arg.selcrit, arg.logfile
-    
-    
+
+
 # RADEC
 RAMIN, RAMAX, DECMIN, DECMAX = np.array(RADEC.split(',')).astype('float')
 
 # print()
-print( '[start: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']' )
+print('[start: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']')
 # print()
 
 # reading
@@ -72,7 +72,7 @@ if (SELCRIT=='qso'):
         RA_DEC_MatchingObj = RA_DEC_MatchingClass()
         RA_DEC_MatchingObj.LoadRA_DEC_CatalogData(ra, dec)
         RA_DEC_MatchingObj.LoadRA_DEC4MatchingData(QSO_ra, QSO_dec)
-        RA_DEC_MatchingObj( radius4matching, 1 ) # "1" seul voisin le plus proche
+        RA_DEC_MatchingObj(radius4matching, 1) # "1" seul voisin le plus proche
         res = RA_DEC_MatchingObj.nNeighResInd
         valid_res = res[0] > -1
         if np.any(valid_res): #facultatif

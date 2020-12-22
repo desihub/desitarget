@@ -33,20 +33,20 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     zred_binStep = 0.2
 
     # HYPERPARAMETERS SPACE (TOUJOURS LISTE DE LISTES !!!)
-    # '[ [ MODELE-DR9s_LOW ], [ MODEL-DR9s_HighZ ] ]'
+    # '[[MODELE-DR9s_LOW], [MODEL-DR9s_HighZ]]'
 
     # 1ere étape
     # =============================================================================
-    # nTreesVect = [ [ 500 ], [ 500 ] ] # [int]
-    # maxDepthVect = [ [ None ], [ None ] ] # "None" ou [int]
-    # maxLNodesVect = [ [ None ], [ None ] ] # "None" ou [int]
-    # min_zredVect = [ [ [ 0., 6. ] ], [ [ 3.2, 6. ] ] ] # [float] "[0., 6.]"
+    # nTreesVect = [[500], [500]] # [int]
+    # maxDepthVect = [[None], [None]] # "None" ou [int]
+    # maxLNodesVect = [[None], [None]] # "None" ou [int]
+    # min_zredVect = [[[0., 6.]], [[3.2, 6.]]] # [float] "[0., 6.]"
     # =============================================================================
 
-    nTreesVect = [ [ 500 ], [ 500 ] ] # [int]
-    maxDepthVect = [ [ 25 ], [ 25 ] ] # "None" ou [int]
-    maxLNodesVect = [ [ 850 ], [ 850 ] ] # "None" ou [int]
-    min_zredVect = [ [ [ 0., 6. ] ], [ [ 3.2, 6. ] ] ] # [float] "[0., 6.]"
+    nTreesVect = [[500], [500]] # [int]
+    maxDepthVect = [[25], [25]] # "None" ou [int]
+    maxLNodesVect = [[850], [850]] # "None" ou [int]
+    min_zredVect = [[[0., 6.]], [[3.2, 6.]]] # [float] "[0., 6.]"
 
     #------------------------------------------------------------------------------
 
@@ -70,7 +70,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
 
     #------------------------------------------------------------------------------
 
-    print( "\n///**********TS CONFIG SCRIPT**********///" )
+    print("\n///**********TS CONFIG SCRIPT**********///")
 
     LIST_MODEL_NAME = []
 
@@ -81,115 +81,115 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     from functools import reduce
     from operator import mul
 
-    def HyParamDictFunc( hyParamDict ):
+    def HyParamDictFunc(hyParamDict):
 
-        flatHyParamSpaceDict = RecHyParamDictExplFunc( hyParamDict['ALGO'] )
+        flatHyParamSpaceDict = RecHyParamDictExplFunc(hyParamDict['ALGO'])
 
-        hyParamSpaceTags = list( flatHyParamSpaceDict.keys() )
-        hyParamSpaceItems = list( flatHyParamSpaceDict.values() )
-        hyParamSpaceShape = [ len( el ) for el in hyParamSpaceItems ]
-        hyParamSpaceSize = reduce( mul, hyParamSpaceShape )
+        hyParamSpaceTags = list(flatHyParamSpaceDict.keys())
+        hyParamSpaceItems = list(flatHyParamSpaceDict.values())
+        hyParamSpaceShape = [len(el) for el in hyParamSpaceItems]
+        hyParamSpaceSize = reduce(mul, hyParamSpaceShape)
 
-        hyParamDict[ 'ALGO-hyParamSpace' ] = dict()
-        hyParamDict[ 'ALGO-hyParamSpace' ][ 'flatHyParamSpaceDict' ] = flatHyParamSpaceDict
-        hyParamDict[ 'ALGO-hyParamSpace' ][ 'hyParamSpaceTags' ] = hyParamSpaceTags
-        hyParamDict[ 'ALGO-hyParamSpace' ][ 'hyParamSpaceItems' ] = hyParamSpaceItems
-        hyParamDict[ 'ALGO-hyParamSpace' ][ 'hyParamSpaceShape' ] = hyParamSpaceShape
-        hyParamDict[ 'ALGO-hyParamSpace' ][ 'hyParamSpaceSize' ] = hyParamSpaceSize
+        hyParamDict['ALGO-hyParamSpace'] = dict()
+        hyParamDict['ALGO-hyParamSpace']['flatHyParamSpaceDict'] = flatHyParamSpaceDict
+        hyParamDict['ALGO-hyParamSpace']['hyParamSpaceTags'] = hyParamSpaceTags
+        hyParamDict['ALGO-hyParamSpace']['hyParamSpaceItems'] = hyParamSpaceItems
+        hyParamDict['ALGO-hyParamSpace']['hyParamSpaceShape'] = hyParamSpaceShape
+        hyParamDict['ALGO-hyParamSpace']['hyParamSpaceSize'] = hyParamSpaceSize
 
     #------------------------------------------------------------------------------
 
     #***MODELE DR9s_LOW***
 
-    LIST_MODEL_NAME.append( ['DR9s_LOW'] )
+    LIST_MODEL_NAME.append(['DR9s_LOW'])
 
     hyParamDict_DR9s_LOW = dict()
-    hyParamDict_DR9s_LOW[ 'MODEL' ] = [ 'DR9s_LOW' ]
-    hyParamDict_DR9s_LOW[ 'BANDS' ] = [ 'grzW' ]
-    hyParamDict_DR9s_LOW[ 'RELEASE' ] = [ RELEASE ]
-    hyParamDict_DR9s_LOW[ 'ALGO' ] = dict()
+    hyParamDict_DR9s_LOW['MODEL'] = ['DR9s_LOW']
+    hyParamDict_DR9s_LOW['BANDS'] = ['grzW']
+    hyParamDict_DR9s_LOW['RELEASE'] = [RELEASE]
+    hyParamDict_DR9s_LOW['ALGO'] = dict()
     tmpDict = OrderedDict()
-    tmpDict[ 'maxDepth' ] = maxDepthVect[ 0 ]
-    tmpDict[ 'maxLNodes' ] = maxLNodesVect[ 0 ]
-    tmpDict[ 'min_zred' ] = min_zredVect[ 0 ]
-    tmpDict[ 'nTrees' ] = nTreesVect[ 0 ]
-    hyParamDict_DR9s_LOW[ 'ALGO' ]['RF'] = tmpDict
+    tmpDict['maxDepth'] = maxDepthVect[0]
+    tmpDict['maxLNodes'] = maxLNodesVect[0]
+    tmpDict['min_zred'] = min_zredVect[0]
+    tmpDict['nTrees'] = nTreesVect[0]
+    hyParamDict_DR9s_LOW['ALGO']['RF'] = tmpDict
 
-    HyParamDictFunc( hyParamDict_DR9s_LOW )
+    HyParamDictFunc(hyParamDict_DR9s_LOW)
 
     #------------------------------------------------------------------------------
 
     #***MODELE DR9s_HighZ***
 
-    LIST_MODEL_NAME.append( ['DR9s_HighZ'] )
+    LIST_MODEL_NAME.append(['DR9s_HighZ'])
 
     hyParamDict_DR9s_HighZ = dict()
-    hyParamDict_DR9s_HighZ[ 'MODEL' ] = [ 'DR9s_HighZ' ]
-    hyParamDict_DR9s_HighZ[ 'BANDS' ] = [ 'grzWHighz' ]
-    hyParamDict_DR9s_HighZ[ 'RELEASE' ] = [ RELEASE ]
-    hyParamDict_DR9s_HighZ[ 'ALGO' ] = dict()
+    hyParamDict_DR9s_HighZ['MODEL'] = ['DR9s_HighZ']
+    hyParamDict_DR9s_HighZ['BANDS'] = ['grzWHighz']
+    hyParamDict_DR9s_HighZ['RELEASE'] = [RELEASE]
+    hyParamDict_DR9s_HighZ['ALGO'] = dict()
     tmpDict = OrderedDict()
-    tmpDict[ 'maxDepth' ] = maxDepthVect[ 1 ]
-    tmpDict[ 'maxLNodes' ] = maxLNodesVect[ 1 ]
-    tmpDict[ 'min_zred' ] = min_zredVect[ 1 ]
-    tmpDict[ 'nTrees' ] = nTreesVect[ 1 ]
-    hyParamDict_DR9s_HighZ[ 'ALGO' ]['RF'] = tmpDict
+    tmpDict['maxDepth'] = maxDepthVect[1]
+    tmpDict['maxLNodes'] = maxLNodesVect[1]
+    tmpDict['min_zred'] = min_zredVect[1]
+    tmpDict['nTrees'] = nTreesVect[1]
+    hyParamDict_DR9s_HighZ['ALGO']['RF'] = tmpDict
 
-    HyParamDictFunc( hyParamDict_DR9s_HighZ )
+    HyParamDictFunc(hyParamDict_DR9s_HighZ)
 
     #------------------------------------------------------------------------------
 
     #***MODÈLE À TESTER***
 
     testConfigDict = dict()
-    nTEST = len( LIST_MODEL_NAME )
+    nTEST = len(LIST_MODEL_NAME)
 
-    for numTEST in range( nTEST ):
-        TEST_NAME = 'TEST_' + LIST_MODEL_NAME[ numTEST ][0]
-        testConfigDict[ TEST_NAME ] = {}
-        testConfigDict[ TEST_NAME ][ 'MODEL_NAME' ] = LIST_MODEL_NAME[ numTEST ]
+    for numTEST in range(nTEST):
+        TEST_NAME = 'TEST_' + LIST_MODEL_NAME[numTEST][0]
+        testConfigDict[TEST_NAME] = {}
+        testConfigDict[TEST_NAME]['MODEL_NAME'] = LIST_MODEL_NAME[numTEST]
 
     #------------------------------------------------------------------------------
 
     #***SCENARIO = COMBINAISON DES MODÈLES TESTÉS***
 
     # ATTENTION:
-    # - "proba_thold" toujours entre [ 0., 1. ] ou "None"
+    # - "proba_thold" toujours entre [0., 1.] ou "None"
     # Si différent de "None", "target_density" non considéré.
     # "None" possible que si "rmag_thold" (et par conséquent aussi "slope") = 0.
-    # - "rmag_thold" toujours entre [ min_rmag, max_rmag ]
+    # - "rmag_thold" toujours entre [min_rmag, max_rmag]
     # - "slope" toujours positives ou nulles
-    # - couples ( "rmag_thold", "slope" ) ordonnés par ordre croissant !!!
+    # - couples ("rmag_thold", "slope") ordonnés par ordre croissant !!!
     # "rmag_thold" et "slope" doivent contenir un nombre identique d'éléments
 
     scenarioConfigDict = dict()
 
     # 2nd étape
     # =============================================================================
-    # scenarioConfigDict[ 'SCEN_DR9s_FULL' ] = \
-    #     { 'TEST_NAME': [ 'TEST_DR9s_LOW', 'TEST_DR9s_HighZ' ],
-    #       'target_density': [ 245, 15 ],
-    #       'proba_thold': [ None, None ],
-    #       'rmag_thold': [ [ 20. ], [ 20. ] ],
-    #       'slope': [ [ 0. ], [ 0. ] ] }
+    # scenarioConfigDict['SCEN_DR9s_FULL'] = \
+    #     {'TEST_NAME': ['TEST_DR9s_LOW', 'TEST_DR9s_HighZ'],
+    #       'target_density': [245, 15],
+    #       'proba_thold': [None, None],
+    #       'rmag_thold': [[20.], [20.]],
+    #       'slope': [[0.], [0.]]}
     # =============================================================================
 
     # DR9
-    scenarioConfigDict[ 'SCEN_DR9s_FULL' ] = \
-        { 'TEST_NAME': [ 'TEST_DR9s_LOW', 'TEST_DR9s_HighZ' ],
-          'target_density': [ 245, 15 ],
-          'proba_thold': [ 0.93, 0.55 ], # [ 0.83, 0.55 ]
-          'rmag_thold': [ [ 21.5 ], [ 20.5 ] ],
-          'slope': [ [ 0.025 ], [ 0.025 ] ] }
+    scenarioConfigDict['SCEN_DR9s_FULL'] = \
+        {'TEST_NAME': ['TEST_DR9s_LOW', 'TEST_DR9s_HighZ'],
+          'target_density': [245, 15],
+          'proba_thold': [0.93, 0.55], # [0.83, 0.55]
+          'rmag_thold': [[21.5], [20.5]],
+          'slope': [[0.025], [0.025]]}
 
     # DR7
     # =============================================================================
-    # scenarioConfigDict[ 'SCEN_DR7s_FULL' ] = \
-    #     { 'TEST_NAME': [ 'TEST_DR7s_LOW', 'TEST_DR7s_HighZ' ],
-    #       'target_density': [ 245, 15 ],
-    #       'proba_thold': [ 0.83, 0.55 ], # [ 0.83, 0.55 ]
-    #       'rmag_thold': [ [ 20.8, 21.5, 22.3 ], [ 20.5 ] ],
-    #       'slope': [ [ 0.025, 0.15, 0.70 ], [ 0.025 ] ] }
+    # scenarioConfigDict['SCEN_DR7s_FULL'] = \
+    #     {'TEST_NAME': ['TEST_DR7s_LOW', 'TEST_DR7s_HighZ'],
+    #       'target_density': [245, 15],
+    #       'proba_thold': [0.83, 0.55], # [0.83, 0.55]
+    #       'rmag_thold': [[20.8, 21.5, 22.3], [20.5]],
+    #       'slope': [[0.025, 0.15, 0.70], [0.025]]}
     # =============================================================================
 
     #------------------------------------------------------------------------------
@@ -197,40 +197,40 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     #***CONSTRUCTION DU FICHIER DE CONFIG***
 
     configDict = dict()
-    configDict[ 'RELEASE' ] = RELEASE
-    configDict[ 'fpn_STARS_TrainingSample' ] = fpn_STARS_TrainingSample
-    configDict[ 'fpn_QSO_TrainingSample' ] = fpn_QSO_TrainingSample
-    configDict[ 'fpn_TestSample' ] = fpn_TestSample
-    configDict[ 'fpn_QLF' ] = fpn_QLF
-    configDict[ 'feature_names' ] = feature_names
-    configDict[ 'random_state_seed' ] = random_state_seed
-    configDict[ 'n_jobs' ] = n_jobs
-    configDict[ 'fpn_model_template' ] = fpn_model_template
-    configDict[ 'fpn_test_template' ] = fpn_test_template
-    configDict[ 'OBJ_extraKeys' ] = OBJ_extraKeys
-    configDict[ 'OBJ_extraSelCMD' ] = OBJ_extraSelCMD
+    configDict['RELEASE'] = RELEASE
+    configDict['fpn_STARS_TrainingSample'] = fpn_STARS_TrainingSample
+    configDict['fpn_QSO_TrainingSample'] = fpn_QSO_TrainingSample
+    configDict['fpn_TestSample'] = fpn_TestSample
+    configDict['fpn_QLF'] = fpn_QLF
+    configDict['feature_names'] = feature_names
+    configDict['random_state_seed'] = random_state_seed
+    configDict['n_jobs'] = n_jobs
+    configDict['fpn_model_template'] = fpn_model_template
+    configDict['fpn_test_template'] = fpn_test_template
+    configDict['OBJ_extraKeys'] = OBJ_extraKeys
+    configDict['OBJ_extraSelCMD'] = OBJ_extraSelCMD
 
-    configDict[ 'min_rmag' ] = min_rmag
-    configDict[ 'max_rmag' ] = max_rmag
-    configDict[ 'rmag_binStep' ] = rmag_binStep
+    configDict['min_rmag'] = min_rmag
+    configDict['max_rmag'] = max_rmag
+    configDict['rmag_binStep'] = rmag_binStep
 
-    configDict[ 'min_zred' ] = min_zred
-    configDict[ 'max_zred' ] = max_zred
-    configDict[ 'zred_binStep' ] = zred_binStep
+    configDict['min_zred'] = min_zred
+    configDict['max_zred'] = max_zred
+    configDict['zred_binStep'] = zred_binStep
 
-    configDict[ 'MODEL' ] = dict()
-    configDict[ 'MODEL' ][ hyParamDict_DR9s_LOW[ 'MODEL' ][0] ] = hyParamDict_DR9s_LOW
-    configDict[ 'MODEL' ][ hyParamDict_DR9s_HighZ[ 'MODEL' ][0] ] = hyParamDict_DR9s_HighZ
-    configDict[ 'TEST' ] = testConfigDict
-    configDict[ 'SCENARIO' ] = scenarioConfigDict
+    configDict['MODEL'] = dict()
+    configDict['MODEL'][hyParamDict_DR9s_LOW['MODEL'][0]] = hyParamDict_DR9s_LOW
+    configDict['MODEL'][hyParamDict_DR9s_HighZ['MODEL'][0]] = hyParamDict_DR9s_HighZ
+    configDict['TEST'] = testConfigDict
+    configDict['SCENARIO'] = scenarioConfigDict
 
     #------------------------------------------------------------------------------
 
     #***STORING DU FICHIER DE CONFIG***
 
-    if os.path.isfile( fpn_config ):
-        os.remove( fpn_config )
-    np.savez( fpn_config, **{ 'CONFIG': configDict } )
-    print( "Save :", fpn_config )
+    if os.path.isfile(fpn_config):
+        os.remove(fpn_config)
+    np.savez(fpn_config, **{'CONFIG': configDict})
+    print("Save :", fpn_config)
 
-    # pprint.pprint( configDict, width = 1 )
+    # pprint.pprint(configDict, width = 1)

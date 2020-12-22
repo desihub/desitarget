@@ -22,7 +22,7 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
     tmpasc    = tmpdir+'tmp.asc_'+pid
 
     print()
-    print( '[start: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']' )
+    print('[start: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']')
     print()
 
     # if no LISTFILE is provided, we built it from the ramin,ramax,decmin,decmax infos
@@ -62,7 +62,7 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
         f.close()
 
     # reading LISTFILE
-    data = ascii.read( LISTFILE, delimiter='\t', Reader=ascii.NoHeader )
+    data = ascii.read(LISTFILE, delimiter='\t', Reader=ascii.NoHeader)
     n    = len(data)
 
     i = 0
@@ -80,7 +80,7 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
                         '-rd '+RADEC+' '+
                         '-s '+SELCRIT+' '+
                         '-l '+tmplog+' &')
-            print( 'i='+str(i)+' , j='+str(j)+' , '+tmpstr )
+            print('i='+str(i)+' , j='+str(j)+' , '+tmpstr)
             subprocess.call(tmpstr, shell=True)
             j += 1
             i += 1
@@ -91,11 +91,11 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
                 tmpstr = "wc -l "+tmplog+" | awk '{print $1}'"
                 p1     = subprocess.Popen(tmpstr, stdout=subprocess.PIPE, shell=True)
                 ndone  = int(p1.communicate()[0].decode('ascii').split('\n')[0])
-            print( 'i='+str(i)+'/'+str(n)+' , j='+str(j)+' , ndone='+str(ndone)+' ['+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']' )
+            print('i='+str(i)+'/'+str(n)+' , j='+str(j)+' , ndone='+str(ndone)+' ['+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']')
             time.sleep(10)
 
     print()
-    print( '[jobs done: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']' )
+    print('[jobs done: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']')
     print()
 
     # merging catalogues
@@ -111,5 +111,5 @@ def my_tractor_extract_batch(NRUNS, OUTFITS, RELEASE, RADEC, SELCRIT, path_train
         subprocess.call('rm '+OUTFITS_i, shell=True)
 
     print()
-    print( '[end: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']' )
+    print('[end: '+datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")+']')
     print()
