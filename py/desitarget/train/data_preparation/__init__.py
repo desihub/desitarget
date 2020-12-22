@@ -3,7 +3,7 @@
 #
 # -*- coding: utf-8 -*-
 """
-desitarget
+desitarget.data_preparation
 ==========
 
 Tools for RF training QSO targets selection.
