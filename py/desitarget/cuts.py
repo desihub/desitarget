@@ -2532,7 +2532,9 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
         bundle_bricks([0], bundlefiles, nside, gather=False, extra=extra,
                       prefix=prefix, surveydirs=surveydirs)
-        return
+        if return_infiles:
+            return None, None
+        return None
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
     if pixlist is not None:
