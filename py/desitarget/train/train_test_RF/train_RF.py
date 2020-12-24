@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-#****************************************
+# ****************************************
 # RF TRAINING
-#****************************************
+# ****************************************
 
 import argparse
 import time
@@ -18,12 +18,13 @@ from sklearn.ensemble import RandomForestClassifier
 
 from desitarget.train.train_test_RF.util.funcs import Time2StrFunc, GetColorsFunc, Flat2TreeHyParamConvFunc
 
+
 def train_RF(fpn_config, MODEL, dpn_RFmodel):
     print("\n///**********TRAIN RF**********///")
     infoRootStr = "INFO::TRAIN RF: "
     errRootStr = "ERR::TRAIN RF: "
 
-    #***CONFIG DATA LOADING***
+    # ***CONFIG DATA LOADING***
     # CONFIG
     configDict = dict(np.load(fpn_config, allow_pickle=True)['CONFIG'][()])
     RELEASE = str(configDict['RELEASE'])
@@ -46,8 +47,7 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
 
     hyParamDictTemplate = copy.deepcopy(hyParamDict['ALGO'])
 
-
-    #***INITIALIZATION***
+    # ***INITIALIZATION***
     n_jobs = min(mp.cpu_count(), n_jobs)
 
     # print init infos
@@ -58,7 +58,7 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
     infoStr = "MODEL : ('{:s}')".format(MODEL)
     print(infoRootStr + infoStr)
     print(infoRootStr + "HYPERPARAMETERS SPACE :")
-    pprint.pprint(flatHyParamSpaceDict, width = 1)
+    pprint.pprint(flatHyParamSpaceDict, width=1)
     print(infoRootStr + "hyParamSpaceSize : (", hyParamSpaceSize, ")")
     print(infoRootStr + "hyParamSpaceShape : (", hyParamSpaceShape, ")")
     print()
@@ -70,7 +70,7 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
     print(infoRootStr + infoStr.format(n_jobs))
     print()
 
-    #***TRAINING DATA LOADING***
+    # ***TRAINING DATA LOADING***
     # STARS
     infoStr = "STARS Training Sample : ('{:s}')".format(fpn_STARS_TrainingSample)
     print(infoRootStr + infoStr)
@@ -91,8 +91,7 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
     print(infoRootStr + infoStr)
     print()
 
-
-    #***TRAINING DES RF POUR DIFFÉRENTS JEUX DE PARAMÈTRES***
+    # ***TRAINING DES RF POUR DIFFÉRENTS JEUX DE PARAMÈTRES***
     infoStr = "TRAINING ..."
     print(infoRootStr + infoStr)
     glob_startTime = time.time()
@@ -100,10 +99,10 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
         print("******************************************************************************")
         startTime = time.time()
 
-        # Définition du jeu d'hyparamètre courant
+        # Definition du jeu d'hyparamètre courant
         coords = np.unravel_index(it, hyParamSpaceShape)
         currentHyParams = Flat2TreeHyParamConvFunc(coords, hyParamDictTemplate,
-                              hyParamSpaceTags, hyParamSpaceItems)
+                                                   hyParamSpaceTags, hyParamSpaceItems)
         nTrees = int(currentHyParams['RF']['nTrees'])
         maxDepth = currentHyParams['RF']['maxDepth']
         maxLNodes = currentHyParams['RF']['maxLNodes']
@@ -136,9 +135,9 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
         RF.fit(train_colors, train_labels)
 
         # RF storing
-        fpn_RFmodel = dpn_RFmodel + fpn_model_template.format(MODEL, str(min_zred),
-            str(maxDepth), str(maxLNodes), str(nTrees)) + '.pkl.gz'
-        joblib.dump(RF, fpn_RFmodel, compress = 9)
+        fpn_RFmodel = dpn_RFmodel + fpn_model_template.format(
+            MODEL, str(min_zred), str(maxDepth), str(maxLNodes), str(nTrees)) + '.pkl.gz'
+        joblib.dump(RF, fpn_RFmodel, compress=9)
         infoStr = "Save RF model : ('{:s}')".format(fpn_RFmodel)
         print(infoRootStr + infoStr)
 

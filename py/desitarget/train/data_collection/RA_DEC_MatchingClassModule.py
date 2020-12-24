@@ -4,6 +4,7 @@
 import numpy as np
 from sklearn.neighbors import BallTree
 
+
 class RA_DEC_MatchingClass():
     def __init__(self):
         self.RA_CatalogData = None

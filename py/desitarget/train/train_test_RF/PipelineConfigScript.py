@@ -11,12 +11,14 @@ import numpy as np
 
 from desitarget.train.train_test_RF.util.funcs import RecHyParamDictExplFunc
 
-def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_TestSample, fpn_QLF, fpn_config):
-    #***CONFIGURATION***
 
-    RELEASE = 'DR9s' # seulement à titre informatif, aucun impact dans le pipeline
-    random_state_seed = 666 # pour l'entraînement => reproductibilité
-    n_jobs = 20 # pour l'entraînement et l'application des RF
+def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample,
+                         fpn_TestSample, fpn_QLF, fpn_config):
+    # ***CONFIGURATION***
+
+    RELEASE = 'DR9s'  # seulement à titre informatif, aucun impact dans le pipeline
+    random_state_seed = 666  # pour l'entraînement => reproductibilité
+    n_jobs = 20  # pour l'entraînement et l'application des RF
 
     # Selection criteria
     OBJ_extraKeys = ['TYPE']
@@ -43,40 +45,34 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     # min_zredVect = [[[0., 6.]], [[3.2, 6.]]] # [float] "[0., 6.]"
     # =============================================================================
 
-    nTreesVect = [[500], [500]] # [int]
-    maxDepthVect = [[25], [25]] # "None" ou [int]
-    maxLNodesVect = [[850], [850]] # "None" ou [int]
-    min_zredVect = [[[0., 6.]], [[3.2, 6.]]] # [float] "[0., 6.]"
+    nTreesVect = [[500], [500]]  # [int]
+    maxDepthVect = [[25], [25]]  # "None" ou [int]
+    maxLNodesVect = [[850], [850]]  # "None" ou [int]
+    min_zredVect = [[[0., 6.]], [[3.2, 6.]]]  # [float] "[0., 6.]"
 
-    #------------------------------------------------------------------------------
-
-    #***CONFIGURATION PAR DÉFAUT***
+    # ***CONFIGURATION PAR DÉFAUT***
 
     # NE PAS MODIFIER
     # MODEL file path name template
-    #dirpn_model = "./WorkingDir/" + str(RELEASE) + "/RFmodel/{}/"
-    #rootpn_model = "model_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
+    # dirpn_model = "./WorkingDir/" + str(RELEASE) + "/RFmodel/{}/"
+    # rootpn_model = "model_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
     fpn_model_template = "/model_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
 
     # NE PAS MODIFIER
     # TEST file path name template
-    #dirpn_test = "./WorkingDir/" + str(RELEASE) + "/test/{}/"
-    #rootpn_test = "test_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
+    # dirpn_test = "./WorkingDir/" + str(RELEASE) + "/test/{}/"
+    # rootpn_test = "test_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
     fpn_test_template = "/test_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
 
-    # NE PAS MODIFIER
-    feature_names = ['g_r','r_z','g_z','g_W1','r_W1','z_W1',
-                     'g_W2','r_W2','z_W2','W1_W2','r']
-
-    #------------------------------------------------------------------------------
+    # NE PAS MODIFIER.
+    feature_names = ['g_r', 'r_z', 'g_z', 'g_W1', 'r_W1', 'z_W1', 'g_W2', 'r_W2',
+                     'z_W2', 'W1_W2', 'r']
 
     print("\n///**********TS CONFIG SCRIPT**********///")
 
     LIST_MODEL_NAME = []
 
-    #------------------------------------------------------------------------------
-
-    #***FUNCTION***
+    # ***FUNCTION***
 
     from functools import reduce
     from operator import mul
@@ -97,9 +93,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
         hyParamDict['ALGO-hyParamSpace']['hyParamSpaceShape'] = hyParamSpaceShape
         hyParamDict['ALGO-hyParamSpace']['hyParamSpaceSize'] = hyParamSpaceSize
 
-    #------------------------------------------------------------------------------
-
-    #***MODELE DR9s_LOW***
+    # ***MODELE DR9s_LOW***
 
     LIST_MODEL_NAME.append(['DR9s_LOW'])
 
@@ -117,9 +111,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
 
     HyParamDictFunc(hyParamDict_DR9s_LOW)
 
-    #------------------------------------------------------------------------------
-
-    #***MODELE DR9s_HighZ***
+    # ***MODELE DR9s_HighZ***
 
     LIST_MODEL_NAME.append(['DR9s_HighZ'])
 
@@ -137,9 +129,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
 
     HyParamDictFunc(hyParamDict_DR9s_HighZ)
 
-    #------------------------------------------------------------------------------
-
-    #***MODÈLE À TESTER***
+    # ***MODÈLE À TESTER***
 
     testConfigDict = dict()
     nTEST = len(LIST_MODEL_NAME)
@@ -149,9 +139,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
         testConfigDict[TEST_NAME] = {}
         testConfigDict[TEST_NAME]['MODEL_NAME'] = LIST_MODEL_NAME[numTEST]
 
-    #------------------------------------------------------------------------------
-
-    #***SCENARIO = COMBINAISON DES MODÈLES TESTÉS***
+    # ***SCENARIO = COMBINAISON DES MODÈLES TESTÉS***
 
     # ATTENTION:
     # - "proba_thold" toujours entre [0., 1.] ou "None"
@@ -177,10 +165,10 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     # DR9
     scenarioConfigDict['SCEN_DR9s_FULL'] = \
         {'TEST_NAME': ['TEST_DR9s_LOW', 'TEST_DR9s_HighZ'],
-          'target_density': [245, 15],
-          'proba_thold': [0.93, 0.55], # [0.83, 0.55]
-          'rmag_thold': [[21.5], [20.5]],
-          'slope': [[0.025], [0.025]]}
+         'target_density': [245, 15],
+         'proba_thold': [0.93, 0.55],  # [0.83, 0.55]
+         'rmag_thold': [[21.5], [20.5]],
+         'slope': [[0.025], [0.025]]}
 
     # DR7
     # =============================================================================
@@ -192,9 +180,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     #       'slope': [[0.025, 0.15, 0.70], [0.025]]}
     # =============================================================================
 
-    #------------------------------------------------------------------------------
-
-    #***CONSTRUCTION DU FICHIER DE CONFIG***
+    # ***CONSTRUCTION DU FICHIER DE CONFIG***
 
     configDict = dict()
     configDict['RELEASE'] = RELEASE
@@ -224,9 +210,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_T
     configDict['TEST'] = testConfigDict
     configDict['SCENARIO'] = scenarioConfigDict
 
-    #------------------------------------------------------------------------------
-
-    #***STORING DU FICHIER DE CONFIG***
+    # ***STORING DU FICHIER DE CONFIG***
 
     if os.path.isfile(fpn_config):
         os.remove(fpn_config)

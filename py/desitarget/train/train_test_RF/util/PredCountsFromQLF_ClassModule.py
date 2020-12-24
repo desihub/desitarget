@@ -8,9 +8,10 @@ from scipy.interpolate import interp2d
 
 # '/home/charles-antoine/Bureau/ROSS4_tabR'
 
+
 class PredCountsFromQLF_Class():
 
-    def __init__]self):
+    def __init__(self):
 
         self.QLF_OK = False
         self.EFF_OK = False
@@ -55,17 +56,17 @@ class PredCountsFromQLF_Class():
         self.QLF4Compl_dNdzdmag = None
         self.Compl_dzdmag = None
 
-    def LoadQLF_Data(self, fpn_QLF_Data, mMzred = np.array([0., 6.]),
-                             skyArea = 10000.):
+    def LoadQLF_Data(self, fpn_QLF_Data, mMzred=np.array([0., 6.]),
+                     skyArea=10000.):
 
         # Data loading in "dataStr"
-        dataStr = np.loadtxt(fpn_QLF_Data, dtype = str, delimiter = '\n')
+        dataStr = np.loadtxt(fpn_QLF_Data, dtype=str, delimiter='\n')
         self.QLF_nz = len(re.findall(r'\d+(?:\.\d+)?', dataStr[0])) - 1
         self.QLF_nmag = len(dataStr)
 
         # ZRED
         self.QLF_zlimit = np.linspace(mMzred[0], mMzred[1],
-                                       self.QLF_nz + 1, endpoint = True)
+                                      self.QLF_nz + 1, endpoint=True)
         self.QLF_stepz = self.QLF_zlimit[1] - self.QLF_zlimit[0]
         # self.QLF_tabz = self.QLF_zlimit[0 : -1] + self.QLF_stepz / 2.
 
@@ -75,21 +76,21 @@ class PredCountsFromQLF_Class():
 
         for nL, line in enumerate(dataStr):
             dNdzdmag = re.findall(r'\d+(?:\.\d+)?', line)
-            dNdzdmag  = np.asarray(dNdzdmag ).astype(np.float)
-            self.QLF_tabmag[nL] = dNdzdmag [0]
-            self.QLF_dNdzdmag[nL + 1, 1 :] = dNdzdmag [1:]
+            dNdzdmag = np.asarray(dNdzdmag).astype(np.float)
+            self.QLF_tabmag[nL] = dNdzdmag[0]
+            self.QLF_dNdzdmag[nL + 1, 1:] = dNdzdmag[1:]
 
         self.QLF_stepmag = self.QLF_tabmag[1] - self.QLF_tabmag[0]
 
         # MAG
         self.QLF_maglimit = np.zeros(self.QLF_nmag + 1)
-        self.QLF_maglimit[0 : -1] = self.QLF_tabmag - self.QLF_stepmag / 2.
+        self.QLF_maglimit[0: -1] = self.QLF_tabmag - self.QLF_stepmag / 2.
         self.QLF_maglimit[-1] = self.QLF_maglimit[-2] + self.QLF_stepmag
 
         self.QLF_dNdzdmag /= skyArea
 
         self.QLF_Ndzdmag = np.cumsum(np.cumsum(
-            self.QLF_dNdzdmag, axis = 0), axis = 1)
+            self.QLF_dNdzdmag, axis=0), axis=1)
 
         self.QLF_OK = True
         self.QLF_EFF_OK = False
@@ -109,12 +110,12 @@ class PredCountsFromQLF_Class():
 
             # QLF_EFF_zlimit
             self.QLF_EFF_zlimit = np.unique(np.hstack((self.QLF_zlimit,
-                                                          self.EFF_zlimit)))
+                                                       self.EFF_zlimit)))
 
             maxQLF_EFF_zlimit = min(float(np.max(self.QLF_zlimit)),
-                                     float(np.max(self.EFF_zlimit)))
+                                    float(np.max(self.EFF_zlimit)))
             minQLF_EFF_zlimit = max(float(np.min(self.QLF_zlimit)),
-                                     float(np.min(self.EFF_zlimit)))
+                                    float(np.min(self.EFF_zlimit)))
             test = (self.QLF_EFF_zlimit >= minQLF_EFF_zlimit) & \
                    (self.QLF_EFF_zlimit <= maxQLF_EFF_zlimit)
 
@@ -123,12 +124,12 @@ class PredCountsFromQLF_Class():
             # QLF_EFFmaglimit
             self.QLF_EFF_maglimit = np.unique(
                 np.hstack((self.QLF_maglimit,
-                             self.EFF_maglimit)))
+                           self.EFF_maglimit)))
 
             maxQLF_EFF_maglimit = min(float(np.max(self.QLF_maglimit)),
-                                       float(np.max(self.EFF_maglimit)))
+                                      float(np.max(self.EFF_maglimit)))
             minQLF_EFF_maglimit = max(float(np.min(self.QLF_maglimit)),
-                                       float(np.min(self.EFF_maglimit)))
+                                      float(np.min(self.EFF_maglimit)))
             test = (self.QLF_EFF_maglimit >= minQLF_EFF_maglimit) & \
                    (self.QLF_EFF_maglimit <= maxQLF_EFF_maglimit)
 
@@ -142,37 +143,37 @@ class PredCountsFromQLF_Class():
             y = self.EFF_maglimit.flatten()
             z = self.EFF_dzdmag
 
-#==============================================================================
+# ==============================================================================
 #             f2d_EFF = interp2d(x, y, z, kind = 'linear',
-#                                 copy = True, bounds_error = True)            
+#                                 copy = True, bounds_error = True)
 #             interpEFF_dzdmag = f2d_EFF(xnew, ynew)
-#==============================================================================
+# ==============================================================================
 
-            interpXinds = np.digitize(xnew, x, right = True) - 1
+            interpXinds = np.digitize(xnew, x, right=True) - 1
             interpXinds = np.maximum(interpXinds, 0)
 
-            interpYinds = np.digitize(ynew, y, right = True) - 1
+            interpYinds = np.digitize(ynew, y, right=True) - 1
             interpYinds = np.maximum(interpYinds, 0)
 
             interpXYgridInds = np.meshgrid(interpXinds, interpYinds)
 
             self.interpEFF_dzdmag = z[interpXYgridInds[1],
-                                       interpXYgridInds[0]]
+                                      interpXYgridInds[0]]
 
             # QLF
             x = self.QLF_zlimit.flatten()
             y = self.QLF_maglimit.flatten()
             z = self.QLF_Ndzdmag
 
-            f2d_QLF = interp2d(x, y, z, kind = 'linear',
-                                copy = True, bounds_error = True)
+            f2d_QLF = interp2d(x, y, z, kind='linear',
+                               copy=True, bounds_error=True)
 
             interpQLF_Ndzdmag = f2d_QLF(xnew, ynew)
 
             interpQLF_dNdzdmag = np.copy(interpQLF_Ndzdmag)
-            interpQLF_dNdzdmag[:, 1 :] -= \
+            interpQLF_dNdzdmag[:, 1:] -= \
                 np.copy(interpQLF_dNdzdmag[:, : -1])
-            interpQLF_dNdzdmag[1 :, :] -= \
+            interpQLF_dNdzdmag[1:, :] -= \
                 np.copy(interpQLF_dNdzdmag[: -1, :])
 
             self.interpQLF_dNdzdmag = interpQLF_dNdzdmag
@@ -262,41 +263,41 @@ class PredCountsFromQLF_Class():
             assert(np.max(maglimit) <= np.max(ynew))
 
             interpQLF_EFF_Ndzdmag = np.cumsum(np.cumsum(
-                self.interpQLF_EFF_dNdzdmag, axis = 0), axis = 1)
+                self.interpQLF_EFF_dNdzdmag, axis=0), axis=1)
 
             f2d_QLF_EFF = interp2d(xnew, ynew, interpQLF_EFF_Ndzdmag,
-                                    kind = 'linear', copy = True,
-                                    bounds_error = True)
+                                   kind='linear', copy=True,
+                                   bounds_error=True)
 
             QLF_EFF4Compl_Ndzdmag = f2d_QLF_EFF(zlimit, maglimit)
 
             QLF_EFF4Compl_dNdzdmag = np.copy(QLF_EFF4Compl_Ndzdmag)
-            QLF_EFF4Compl_dNdzdmag[:, 1 :] -= \
-                np.copy(QLF_EFF4Compl_dNdzdmag[:, : -1])
-            QLF_EFF4Compl_dNdzdmag[1 :, :] -= \
-                np.copy(QLF_EFF4Compl_dNdzdmag[: -1, :])
+            QLF_EFF4Compl_dNdzdmag[:, 1:] -= \
+                np.copy(QLF_EFF4Compl_dNdzdmag[:, :-1])
+            QLF_EFF4Compl_dNdzdmag[1:, :] -= \
+                np.copy(QLF_EFF4Compl_dNdzdmag[:-1, :])
 
             self.QLF_EFF4Compl_dNdzdmag = QLF_EFF4Compl_dNdzdmag
 
             # QLF
             interpQLF_Ndzdmag = np.cumsum(np.cumsum(
-                self.interpQLF_dNdzdmag, axis = 0), axis = 1)
+                self.interpQLF_dNdzdmag, axis=0), axis=1)
 
             f2d_QLF = interp2d(xnew, ynew, interpQLF_Ndzdmag,
-                                kind = 'linear', copy = True,
-                                bounds_error = True)
+                               kind='linear', copy=True,
+                               bounds_error=True)
 
             QLF4Compl_Ndzdmag = f2d_QLF(zlimit, maglimit)
 
             QLF4Compl_dNdzdmag = np.copy(QLF4Compl_Ndzdmag)
-            QLF4Compl_dNdzdmag[:, 1 :] -= \
-                np.copy(QLF4Compl_dNdzdmag[:, : -1])
-            QLF4Compl_dNdzdmag[1 :, :] -= \
-                np.copy(QLF4Compl_dNdzdmag[: -1, :])
+            QLF4Compl_dNdzdmag[:, 1:] -= \
+                np.copy(QLF4Compl_dNdzdmag[:, :-1])
+            QLF4Compl_dNdzdmag[1:, :] -= \
+                np.copy(QLF4Compl_dNdzdmag[:-1, :])
 
             self.QLF4Compl_dNdzdmag = QLF4Compl_dNdzdmag
 
-            self.Compl_dzdmag = self.QLF_EFF4Compl_dNdzdmag[1:,1:] / self.QLF4Compl_dNdzdmag[1:,1:]
+            self.Compl_dzdmag = self.QLF_EFF4Compl_dNdzdmag[1:, 1:] / self.QLF4Compl_dNdzdmag[1:, 1:]
             self.Compl_dzdmag[np.isnan(self.Compl_dzdmag)] = 0.
             self.Compl_dzdmag[np.isinf(self.Compl_dzdmag)] = 0.
 
@@ -308,11 +309,11 @@ class PredCountsFromQLF_Class():
 
         self.Eff4Compl_dzdmag = np.copy(self.Compl_dzdmag)
 
-        if True: # loi de poisson
-            self.EffVar4Compl_dzdmag = self.Eff4Compl_dzdmag * (1. -  self.Eff4Compl_dzdmag)        
+        if True:  # loi de poisson
+            self.EffVar4Compl_dzdmag = self.Eff4Compl_dzdmag * (1. - self.Eff4Compl_dzdmag)
             self.EffVar4Compl_dzdmag /= OBJ_QSO_dNdzdmag
             self.EffVar4Compl_dzdmag[OBJ_QSO_dNdzdmag == 0.] = 0.
-        else: # loi binomiale
+        else:  # loi binomiale
             self.Count4Complt_Ndzdmag = self.Eff4Compl_dzdmag * OBJ_QSO_dNdzdmag
             self.EffVar4Compl_dzdmag = OBJ_QSO_dNdzdmag - self.Count4Complt_Ndzdmag + 1.
             self.EffVar4Compl_dzdmag *= self.Count4Complt_Ndzdmag + 1.
@@ -323,10 +324,10 @@ class PredCountsFromQLF_Class():
 
     def ZRED_EffVarEvalFunc(self):
 
-        self.EffVar4Compl_dz = self.EffVar4Compl_dzdmag * (self.QLF4Compl_dNdzdmag[1:,1:])**2
+        self.EffVar4Compl_dz = self.EffVar4Compl_dzdmag * (self.QLF4Compl_dNdzdmag[1:, 1:])**2
 
-        self.EffVar4Compl_dz = np.sum(self.EffVar4Compl_dz, axis = 0)
-        tmp_var = np.sum(self.QLF4Compl_dNdzdmag[1:,1:], axis = 0)**2
+        self.EffVar4Compl_dz = np.sum(self.EffVar4Compl_dz, axis=0)
+        tmp_var = np.sum(self.QLF4Compl_dNdzdmag[1:, 1:], axis=0)**2
         self.EffVar4Compl_dz /= tmp_var
 
         self.EffVar4Compl_dz[tmp_var == 0.] = 0.
@@ -335,10 +336,10 @@ class PredCountsFromQLF_Class():
 
     def R_EffVarEvalFunc(self):
 
-        self.EffVar4Compl_dmag = self.EffVar4Compl_dzdmag * (self.QLF4Compl_dNdzdmag[1:,1:])**2
+        self.EffVar4Compl_dmag = self.EffVar4Compl_dzdmag * (self.QLF4Compl_dNdzdmag[1:, 1:])**2
 
-        self.EffVar4Compl_dmag = np.sum(self.EffVar4Compl_dmag, axis = 1)
-        tmp_var = np.sum(self.QLF4Compl_dNdzdmag[1:,1:], axis = 1)**2
+        self.EffVar4Compl_dmag = np.sum(self.EffVar4Compl_dmag, axis=1)
+        tmp_var = np.sum(self.QLF4Compl_dNdzdmag[1:, 1:], axis=1)**2
         self.EffVar4Compl_dmag /= tmp_var
 
         self.EffVar4Compl_dmag[tmp_var == 0.] = 0.
