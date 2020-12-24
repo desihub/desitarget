@@ -39,7 +39,7 @@ gfadatamodel = np.array([], dtype=[
     ('RELEASE', '>i4'), ('TARGETID', 'i8'),
     ('BRICKID', 'i4'), ('BRICK_OBJID', 'i4'),
     ('RA', 'f8'), ('DEC', 'f8'), ('RA_IVAR', 'f4'), ('DEC_IVAR', 'f4'),
-    ('TYPE', 'S4'),
+    ('TYPE', 'S4'), ('MASKBITS', '>i2'),
     ('FLUX_G', 'f4'), ('FLUX_R', 'f4'), ('FLUX_Z', 'f4'),
     ('FLUX_IVAR_G', 'f4'), ('FLUX_IVAR_R', 'f4'), ('FLUX_IVAR_Z', 'f4'),
     ('REF_ID', 'i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', 'f4'),
@@ -229,8 +229,10 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
             gfas[col] = -1
     # ADM some default special cases. Default to REF_EPOCH of Gaia DR2,
     # ADM make RA/Dec very precise for Gaia measurements.
+    # ADM MASKBITS should default to zero indicating no flags are set.
     gfas["REF_EPOCH"] = 2015.5
     gfas["RA_IVAR"], gfas["DEC_IVAR"] = 1e16, 1e16
+    gfas["MASKBITS"] = 0
 
     # ADM populate the common columns in the Gaia/GFA data models.
     cols = set(gfas.dtype.names).intersection(set(objs.dtype.names))
