@@ -2394,13 +2394,15 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     start = time()
     # ADM start with some checking that this is a target file.
     targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS", "MTL"
-    # ADM read in the FITS extention info.
+    # ADM read in the FITS extension info.
     f = fitsio.FITS(filename)
     if len(f) != 2:
-        log.info(f)
-        msg = "targeting files should only have 2 extensions?!"
-        log.error(msg)
-        raise IOError(msg)
+        # ADM target files have an extra extension.
+        if not f[1].get_extname() == 'TARGETS' and len(f) == 3:
+            log.info(f)
+            msg = "targeting files should only have 2 extensions?!"
+            log.error(msg)
+            raise IOError(msg)
     # ADM check for allowed extensions.
     extname = f[1].get_extname()
     if extname not in targtypes:
