@@ -1298,9 +1298,8 @@ def select_randoms_bricks(brickdict, bricknames, numproc=32, drdir=None,
                      .format(nbrick, nbricks, rate, elapsed/60.))
             # ADM if we're going to exceed 4 hours, warn the user.
             if nbricks/rate > 4*3600.:
-                msg = 'May take > 4 hours to run. Run with bundlebricks instead.'
-                log.critical(msg)
-                raise IOError(msg)
+                msg = 'May take > 4 hours to run. May fail on interactive nodes.'
+                log.warning(msg)
 
         nbrick[...] += 1    # this is an in-place modification.
         return result
