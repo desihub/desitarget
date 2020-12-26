@@ -5,7 +5,16 @@ desitarget Change Log
 0.47.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Updates and bug fixes for DR9 now SV is on-sky [`PR #665`_]. Includes:
+    * Pass `MASKBITS` column forward for GFAs.
+    * Bug fixes necessitated by target files having a second extension.
+        * Notably, not all shasums were checked in North/South overlaps.
+    * Some minor additional functionality for creating randoms.
+    * Clean-up code style and syntax errors introduced in `PR #664`_.
+* Tutorial (and initial code) to train DR9 Random Forests [`PR #664`_].
+
+.. _`PR #664`: https://github.com/desihub/desitarget/pull/664
+.. _`PR #665`: https://github.com/desihub/desitarget/pull/665
 
 0.47.0 (2020-12-10)
 -------------------
@@ -17,7 +26,7 @@ desitarget Change Log
 0.46.0 (2020-12-10)
 -------------------
 
-* Update ELG cuts for DR9 imaging for SV and Main Survey [`PR #662`_]:
+* Update ELG cuts for DR9 imaging for SV and Main Survey [`PR #662`_].
 * Retune LRG cuts for DR9 and update the LRG SV target bits [`PR #661`_]:
     * Only use the default `BRIGHT`, `GALAXY` and `CLUSTER` masks.
         * i.e. ignore `ALLMASK` and `MEDIUM`.
