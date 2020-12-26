@@ -1882,8 +1882,7 @@ def get_checksums(infiles, verbose=False, check_existing=True):
     shatab['SHA256'] = list(shadict.values())
 
     # ADM grab the unique directories that host files.
-    filedic = {os.path.basename(fn): os.path.dirname(fn) for fn in infiles}
-    ldir = list(set(filedic.values()))
+    ldir = set([os.path.dirname(fn) for fn in infiles])
     # ADM loop through each directory and build a dictionary of the
     # ADM expected files and their associated SHA checksums.
     checkdict = {}
