@@ -1310,6 +1310,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
     # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
+    # Now only 1, 12, 13
     if maskbits is not None:
         # ADM default mask bits from the Legacy Surveys not set.
         preSelection &= imaging_mask(maskbits)
@@ -2531,7 +2532,9 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         surveydirs = list(set([os.path.dirname(fn) for fn in infiles]))
         bundle_bricks([0], bundlefiles, nside, gather=False, extra=extra,
                       prefix=prefix, surveydirs=surveydirs)
-        return
+        if return_infiles:
+            return None, None
+        return None
 
     # ADM restrict to only input files in a set of HEALPixels, if requested.
     if pixlist is not None:

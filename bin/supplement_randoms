@@ -27,6 +27,9 @@ ap.add_argument("dest",
 ap.add_argument("--density", type=int,
                 help='Number of points per sq. deg. to generate (defaults to the value of DENSITY in the header of the "randomcat" input file)',
                 default=None)
+ap.add_argument("--seed",
+                help='Force a particular seed to be used instead of reading from the header card "SEED"',
+                default=None)
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [{}]'.format(nproc),
                 default=nproc)
@@ -51,12 +54,16 @@ except OSError:
     sys.exit(1)
 
 # ADM determine the seed used for the existing random catalog.
-try:
-    seed = ranhead["SEED"]
-    log.info('read seed of {} from {}'.format(seed, ns.randomcat))
-except KeyError:
-    seed = 1
-    log.info('defaulting to a SEED of {}'.format(seed))
+if ns.seed is None:
+    try:
+        seed = ranhead["SEED"]
+        log.info('read seed of {} from {}'.format(seed, ns.randomcat))
+    except KeyError:
+        seed = 1
+        log.info('defaulting to a SEED of {}'.format(seed))
+else:
+    seed = ns.seed
+    log.info('using a seed of 615 + {}' format(seed)
 
 # ADM grab the density used for the existing random catalog, if needed.
 if ns.density is None:

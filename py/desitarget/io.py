@@ -691,7 +691,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
-              nsidefile=None, hpxlist=None, extra=None, ecsv=True):
+              nsidefile=None, hpxlist=None, extra=None, ecsv=True, mixed=False):
     """Write Merged Target List ledgers or files.
 
     Parameters
@@ -720,6 +720,11 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
         values to the output header.
     ecsv : :class:`bool`, defaults to ``True``
         If ``True`` write a .ecsv file, if ``False`` with a .fits file.
+    mixed : :class:`bool`, defaults to ``False``
+        If ``True`` allow `data` to be from different Data Releases and
+        write out the largest data release integer to the file headers.
+        Useful when writing targets from, e.g., DR9 of the Legacy Surveys
+        and DR2 of Gaia to the same file.
 
     Returns
     -------
@@ -747,7 +752,11 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
 
     # ADM determine the data release from a TARGETID.
     _, _, release, _, _, _ = decode_targetid(data["TARGETID"])
-    dr = np.unique(release//1000)
+    # ADM if the mixed kwarg was sent, allow multiple data releases.
+    if mixed:
+        dr = np.atleast_1d(np.max(release//1000))
+    else:
+        dr = np.unique(release//1000)
     if len(dr) == 0:
         drint = 'X'
     else:
@@ -1873,8 +1882,7 @@ def get_checksums(infiles, verbose=False, check_existing=True):
     shatab['SHA256'] = list(shadict.values())
 
     # ADM grab the unique directories that host files.
-    filedic = {os.path.basename(fn): os.path.dirname(fn) for fn in infiles}
-    ldir = list(set(filedic.values()))
+    ldir = set([os.path.dirname(fn) for fn in infiles])
     # ADM loop through each directory and build a dictionary of the
     # ADM expected files and their associated SHA checksums.
     checkdict = {}
@@ -2394,13 +2402,15 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     start = time()
     # ADM start with some checking that this is a target file.
     targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS", "MTL"
-    # ADM read in the FITS extention info.
+    # ADM read in the FITS extension info.
     f = fitsio.FITS(filename)
     if len(f) != 2:
-        log.info(f)
-        msg = "targeting files should only have 2 extensions?!"
-        log.error(msg)
-        raise IOError(msg)
+        # ADM target files have an extra extension.
+        if not f[1].get_extname() == 'TARGETS' and len(f) == 3:
+            log.info(f)
+            msg = "targeting files should only have 2 extensions?!"
+            log.error(msg)
+            raise IOError(msg)
     # ADM check for allowed extensions.
     extname = f[1].get_extname()
     if extname not in targtypes:
