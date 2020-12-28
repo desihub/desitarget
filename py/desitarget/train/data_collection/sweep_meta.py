@@ -5,6 +5,7 @@ import subprocess
 import numpy as np
 import astropy.io.fits as fits
 
+
 def sweep_meta(release, outfits):
     if (release == 'dr3'):
         sweepdir = '/global/project/projectdirs/cosmo/data/legacysurvey/dr3/sweep/3.1'
@@ -16,9 +17,9 @@ def sweep_meta(release, outfits):
         sweepdir = '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/sweep/6.0'
     if (release == 'dr7'):
         sweepdir = '/global/project/projectdirs/cosmo/data/legacysurvey/dr7/sweep/7.1'
-    if (release == 'dr8n'): #BASS/MzLS
+    if (release == 'dr8n'):  # BASS/MzLS
         sweepdir = '/global/project/projectdirs/cosmo/data/legacysurvey/dr8/north/sweep/8.0'
-    if (release == 'dr8s'): #DECaLS
+    if (release == 'dr8s'):  # DECaLS
         sweepdir = '/global/project/projectdirs/cosmo/data/legacysurvey/dr8/south/sweep/8.0'
     if (release == 'dr9n'):
         sweepdir = '/global/cscratch1/sd/adamyers/dr9m/north/sweep/'
@@ -38,11 +39,11 @@ def sweep_meta(release, outfits):
         sweep = sweeplist[i]
         ramin[i] = float(sweep[6:9])
         ramax[i] = float(sweep[14:17])
-        if (sweep[ 9] == 'm') :
+        if (sweep[9] == 'm'):
             decmin[i] = -1. * float(sweep[10:13])
         else:
             decmin[i] = float(sweep[10:13])
-        if (sweep[17] == 'm') :
+        if (sweep[17] == 'm'):
             decmax[i] = -1. * float(sweep[18:21])
         else:
             decmax[i] = float(sweep[18:21])

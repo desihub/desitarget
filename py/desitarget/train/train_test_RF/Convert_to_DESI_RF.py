@@ -22,7 +22,6 @@ from pkg_resources import resource_filename
 import joblib
 from sklearn.ensemble import RandomForestClassifier
 
-#------------------------------------------------------------------------------#
 
 def build_desi_tree(tree):
 
@@ -41,6 +40,7 @@ def build_desi_tree(tree):
 
     return desi_tree
 
+
 def build_desi_forest(rf_input):
     print("File load : ", rf_input)
     rf = joblib.load(rf_input)                                    # RandomForestClassifier
@@ -57,49 +57,58 @@ def build_desi_forest(rf_input):
 
     return desi_forest
 
+
 def convert_and_save_to_desi(rf_input, filename_output):
     print("Starting convertion...")
     desi_forest = build_desi_forest(rf_input)
     np.savez_compressed(filename_output, desi_forest)
     print("Desi format is saved at : ", filename_output, "\n")
 
-#------------------------------------------------------------------------------#
+
 # number of variables
 nfeatures = 11
 
+
 def read_file(inputFile):
 
-    sample = fitsio.read(inputFile, columns=['RA','DEC', 'TYPE', 'zred',
-              'g_r', 'r_z', 'g_z', 'g_W1', 'r_W1', 'z_W1', 'g_W2', 'r_W2', 'z_W2', 'W1_W2', 'r'], ext=1)
+    sample = fitsio.read(inputFile, columns=['RA', 'DEC', 'TYPE', 'zred', 'g_r',
+                                             'r_z', 'g_z', 'g_W1', 'r_W1',
+                                             'z_W1', 'g_W2', 'r_W2', 'z_W2',
+                                             'W1_W2', 'r'], ext=1)
 
-    # We keep only Correct Candidate
-    reduce_sample = sample[(((sample['TYPE'][:]=='PSF ')|(sample['TYPE'][:]=='PSF')) & (sample['r'][:]<23.0)&(sample['r'][:]>0.0))]
+    # We keep only Correct Candidates.
+    reduce_sample = sample[(((sample['TYPE'][:] == 'PSF ') |
+                             (sample['TYPE'][:] == 'PSF')) &
+                            (sample['r'][:] < 23.0) &
+                            (sample['r'][:] > 0.0))]
 
     print("\n############################################")
-    print('Input file = ',inputFile)
-    print('Original size : ', len(sample))
-    print('Reduce size   : ',len(reduce_sample))
+    print('Input file = ', inputFile)
+    print('Original size: ', len(sample))
+    print('Reduce size: ', len(reduce_sample))
     print("############################################\n")
 
     return reduce_sample
 
+
 def build_attributes(nbEntries, nfeatures, sample):
 
-    colors = np.zeros((nbEntries,nfeatures))
+    colors = np.zeros((nbEntries, nfeatures))
 
-    colors[:,0] = sample['g_r'][:]
-    colors[:,1] = sample['r_z'][:]
-    colors[:,2] = sample['g_z'][:]
-    colors[:,3] = sample['g_W1'][:]
-    colors[:,4] = sample['r_W1'][:]
-    colors[:,5] = sample['z_W1'][:]
-    colors[:,6] = sample['g_W2'][:]
-    colors[:,7] = sample['r_W2'][:]
-    colors[:,8] = sample['z_W2'][:]
-    colors[:,9] = sample['W1_W2'][:]
-    colors[:,10] = sample['r'][:]
+    colors[:, 0] = sample['g_r'][:]
+    colors[:, 1] = sample['r_z'][:]
+    colors[:, 2] = sample['g_z'][:]
+    colors[:, 3] = sample['g_W1'][:]
+    colors[:, 4] = sample['r_W1'][:]
+    colors[:, 5] = sample['z_W1'][:]
+    colors[:, 6] = sample['g_W2'][:]
+    colors[:, 7] = sample['r_W2'][:]
+    colors[:, 8] = sample['z_W2'][:]
+    colors[:, 9] = sample['W1_W2'][:]
+    colors[:, 10] = sample['r'][:]
 
     return colors
+
 
 def compute_proba_desi(sample, rf_fileName):
 
@@ -108,13 +117,14 @@ def compute_proba_desi(sample, rf_fileName):
     pathToRF = '.'
     print('Load Old Random Forest : ')
     print('    * ' + rf_fileName)
-    print('Random Forest over : ', len(attributes),' objects\n')
+    print('Random Forest over: ', len(attributes), ' objects\n')
 
-    myrf =  myRF(attributes, pathToRF, numberOfTrees=500, version=2)
+    myrf = myRF(attributes, pathToRF, numberOfTrees=500, version=2)
     myrf.loadForest(rf_fileName)
     proba_rf = myrf.predict_proba()
 
     return proba_rf
+
 
 def compute_proba_sk_learn(sample, RF_file):
 
@@ -122,17 +132,18 @@ def compute_proba_sk_learn(sample, RF_file):
 
     print('Load New Random Forest : ')
     print('    * ' + RF_file)
-    print ('Random Forest over : ', len(attributes),' objects\n')
+    print('Random Forest over: ', len(attributes), ' objects\n')
 
     RF = joblib.load(RF_file)
-    proba_rf = RF.predict_proba(attributes)[:,1]
+    proba_rf = RF.predict_proba(attributes)[:, 1]
 
     return proba_rf
+
 
 def compare_sklearn_desi(RF_filename_sklearn, RF_filename_desi, test_sample):
     zred = test_sample['zred'][:]
     r = test_sample['r'][:]
-    sel_qso = zred>0
+    sel_qso = zred > 0
 
     proba_rf_desi = compute_proba_desi(test_sample, RF_filename_desi)
     proba_rf_sk_learn = compute_proba_sk_learn(test_sample, RF_filename_sklearn)
@@ -146,19 +157,19 @@ def compare_sklearn_desi(RF_filename_sklearn, RF_filename_desi, test_sample):
     print('std = ', np.std(diff))
     print('############################################\n')
 
-
     cut_dr8 = 0.88 - 0.03*np.tanh(r - 20.5)
 
     sel_desi = proba_rf_desi > cut_dr8
     sel_sk_learn = proba_rf_sk_learn > cut_dr8
 
-    effi_desi = float(len(r[sel_desi&sel_qso]))/float(len(r[sel_qso]))
-    effi_sk_learn = float(len(r[sel_sk_learn&sel_qso]))/float(len(r[sel_qso]))
+    effi_desi = float(len(r[sel_desi & sel_qso]))/float(len(r[sel_qso]))
+    effi_sk_learn = float(len(r[sel_sk_learn & sel_qso]))/float(len(r[sel_qso]))
 
     print('\n############################################')
     print('efficacite desi = ', effi_desi)
     print('efficacite sk_learn= ', effi_sk_learn)
     print('############################################\n')
+
 
 def test_convertion(test_file, RF_filename_input, RF_filename_output):
     print("\n***************************************")

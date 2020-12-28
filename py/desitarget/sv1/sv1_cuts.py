@@ -452,7 +452,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None,
 
     # ADM default mask bits from the Legacy Surveys not set.
     if maskbits is not None:
-            qso &= imaging_mask(maskbits)
+        qso &= imaging_mask(maskbits)
 
     # ADM observed in every band.
     qso &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -665,9 +665,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
         # Compute optimized proba cut (all different for SV)
         if not south:
-                # threshold selection for North footprint.
-                pcut = 0.84 - 0.035*np.tanh(r_Reduced - 20.5)
-                pcut_HighZ = 0.65
+            # threshold selection for North footprint.
+            pcut = 0.84 - 0.035*np.tanh(r_Reduced - 20.5)
+            pcut_HighZ = 0.65
         else:
             pcut_HighZ = 0.50
             pcut = np.ones(tmp_rf_proba.size)
