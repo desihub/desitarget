@@ -12,7 +12,11 @@ desitarget Change Log
     * Some minor additional functionality for creating randoms.
     * Clean-up code style and syntax errors introduced in `PR #664`_.
 * Tutorial (and initial code) to train DR9 Random Forests [`PR #664`_].
+* Simplify stellar SV bits [`PR #636`_]:
+    * Secondary bit requirement for main stellar SV program to 4 bits.
+    * Primary bright science WDs use the old algorithmic selection.
 
+.. _`PR #636`: https://github.com/desihub/desitarget/pull/636
 .. _`PR #664`: https://github.com/desihub/desitarget/pull/664
 .. _`PR #665`: https://github.com/desihub/desitarget/pull/665
 

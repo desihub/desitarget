@@ -123,11 +123,13 @@ sv1_bgs_mask:
 sv1_mws_mask:
     #- Bits 0-3 (7 ids)
     - [MWS_MAIN_BROAD,            0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_WD,                    1, "Milky Way Survey White Dwarf (algorithmic selection)",   {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_NEARBY,                2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT|GRAY|DARK}]
 
     #- 4: MWS_MAIN north/south splits
     - [MWS_MAIN_BROAD_NORTH,      4, "Milky Way Survey targets from Bok/Mosaic",               {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_BROAD_SOUTH,      5, "Milky Way Survey targets from DECam",                    {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BHB,                   6, "Milky Way Survey BHBs",                                  {obsconditions: BRIGHT|GRAY|DARK}]
 
     # Fainter MWS_MAIN extension for SV, selected on magnitude only
     - [MWS_MAIN_FAINT,           14, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
@@ -145,63 +147,17 @@ sv1_mws_mask:
 #- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.fits for VETO targets.
 sv1_scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
     - [DR14Q,       1, "Known quasars from the SDSS DR14Q catalog",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
-    - [MWS_WD_SV,                10, "Milky Way Survey White Dwarf (SV cuts)",  
-        {obsconditions: BRIGHT|GRAY|DARK, filename: 'MWS_WD_SV'}]
-    - [MWS_SPECIAL_DWARF_SV,     11, "Likely dwarf galaxy members (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DWARF_SV'}]
-    - [MWS_SPECIAL_DDOGIANTS_SV, 12, "DDO-selected giants (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_DDOGIANTS_SV'}]
-    - [MWS_SPECIAL_WDBINARY_SV,  13, "White dwarf binaries (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_WDBINARY_SV'}]
-    - [MWS_SPECIAL_RRLYR_SV,     14, "RR Lyrae, Gaia-selected (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_RRLYR_SV'}]
-    - [MWS_SPECIAL_OC_SV,    15, "Likely open cluster members",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_OC_SV'}]
-    - [MWS_SPECIAL_GC_SV,        16, "Likely globular cluster members (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_GC_SV'}]
-    - [MWS_SPECIAL_BHB_SV,       17, "BHB candidates (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_BHB_SV'}]
-    - [MWS_SPECIAL_OC_FILLER_SV, 18, "Less likely open cluster members",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_OC_FILLER_SV'}]
-    - [MWS_SPECIAL_STREAM_SV,       19, "Likely stream members",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_STREAM_SV'}]
-    - [MWS_SPECIAL_CV_SV,  20, "CV candidates (SV cuts)",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_SPECIAL_CV_SV'}]
-    - [MWS_WD_SV_VERYBRIGHT,                21, "Milky Way Survey White Dwarf (SV cuts, very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_WD_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV, 22, "DDO-selected giants (SV cuts, very bright)",    
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_OC_VERYBRIGHT_SV,    25, "Likely open cluster members (very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_OC_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_GC_VERYBRIGHT_SV,        26, "Likely globular cluster members (very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_GC_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV, 28, "Less likely open cluster members (very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV'}]
-    - [MWS_SPECIAL_STREAM_VERYBRIGHT_SV,       29, "Likely stream members (very bright)",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_SPECIAL_STREAM_VERYBRIGHT_SV'}]
-    - [MWS_CALIB_APOGEE,                    30, "Stars 16 < G < 19 with APOGEE data",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_APOGEE'}]
-    - [MWS_CALIB_APOGEE_VERYBRIGHT,         31, "Stars  9 < G < 16 with APOGEE data",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_APOGEE_VERYBRIGHT'}]
-    - [MWS_CALIB_GAIAESO,                   32, "Stars 16 < G < 19 with GAIAESO data",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_GAIAESO'}]
-    - [MWS_CALIB_GAIAESO_VERYBRIGHT,        33, "Stars  9 < G < 16 with GAIAESO data",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_GAIAESO_VERYBRIGHT'}]
-    - [MWS_CALIB_SEGUE,                     34, "Stars 16 < G < 19 with SEGUE data",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_SEGUE'}]
-    - [MWS_CALIB_SEGUE_VERYBRIGHT,          35, "Stars  9 < G < 16 with SEGUE data",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_SEGUE_VERYBRIGHT'}]
-    - [MWS_CALIB_GALAH,                     36, "Stars 16 < G < 19 with GALAH data",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_GALAH'}]
-    - [MWS_CALIB_GALAH_VERYBRIGHT,          37, "Stars  9 < G < 16 with GALAH data",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_GALAH_VERYBRIGHT'}]
-    - [MWS_CALIB_BOSS,                      38, "Stars 16 < G < 19 with BOSS data",
-       {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB_BOSS'}]
-    - [MWS_CALIB_BOSS_VERYBRIGHT,           39, "Stars  9 < G < 16 with BOSS data",
-       {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'MWS_CALIB_BOSS_VERYBRIGHT'}]
+        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
+    - [MWS_CALIB,                10, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
+        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB'}]
+    - [BACKUP_CALIB,             11, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
+        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB'}]
+    - [MWS_MAIN_CLUSTER_SV,      13, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
+        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
+    - [MWS_MAIN_RRLYR,           14, "Main survey halo tracers (RR Lyrae)",
+        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_RRLYR'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -328,9 +284,10 @@ priorities:
     sv1_mws_mask:
         # Special/Sparse targets
         # NB DONE is not very relevant here since we assign "infinite" observations
-        # MWS_WD_SV:                     {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
+        MWS_WD:                       {UNOBS: 2998, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
         # Note NEARBY > OC (otherwise nearby targets swamped by fainter OC members)
         MWS_NEARBY:                   {UNOBS: 1650, DONE:  500, OBS: 1, DONOTOBSERVE: 0}
+        MWS_BHB:                      {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
 
         # Main survey targets 
         MWS_MAIN_BROAD:                  {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
@@ -347,39 +304,12 @@ priorities:
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
-        VETO:                         {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        DR14Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD_SV:                    {UNOBS: 2996, DONE:  600, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD_SV_VERYBRIGHT:         SAME_AS_MWS_WD_SV
-        MWS_CALIB_APOGEE:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_CALIB_GAIAESO:            SAME_AS_MWS_CALIB_APOGEE
-        # Too many segue targets, tread them the same as MWS_MAIN_BROAD
-        MWS_CALIB_SEGUE:              {UNOBS: 1100, DONE: 200, OBS: 1, DONOTOBSERVE: 0}
-        MWS_CALIB_GALAH:              SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_BOSS:               SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_APOGEE_VERYBRIGHT:  SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_GAIAESO_VERYBRIGHT: SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE_VERYBRIGHT:   SAME_AS_MWS_CALIB_SEGUE
-        MWS_CALIB_GALAH_VERYBRIGHT:   SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_BOSS_VERYBRIGHT:    SAME_AS_MWS_CALIB_APOGEE
-        # Note OC < NEARBY
-        MWS_SPECIAL_OC_SV:         {UNOBS: 1600, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_OC_FILLER_SV:  {UNOBS: 1599, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        # Other SV special targets
-        MWS_SPECIAL_DWARF_SV:                {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_DDOGIANTS_SV:            SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_WDBINARY_SV:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_SPECIAL_CV_SV:                   SAME_AS_MWS_SPECIAL_WDBINARY_SV
-        MWS_SPECIAL_RRLYR_SV:                SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_GC_SV:                   SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_BHB_SV:                  SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_STREAM_SV:                  SAME_AS_MWS_SPECIAL_DWARF_SV
-        # Backup time very bright special targets
-        MWS_SPECIAL_OC_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_OC_SV
-        MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV:    SAME_AS_MWS_SPECIAL_OC_FILLER_SV
-        MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV: SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
-        MWS_SPECIAL_GC_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_GC_SV
-        MWS_SPECIAL_STREAM_VERYBRIGHT_SV:       SAME_AS_MWS_SPECIAL_STREAM_SV
+        VETO:                       {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        DR14Q:                      {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CALIB:                  {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BACKUP_CALIB:               SAME_AS_MWS_CALIB
+        MWS_MAIN_CLUSTER_SV:        {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_RRLYR:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -484,6 +414,8 @@ numobs:
         MWS_MAIN_BROAD:               1
         MWS_MAIN_FAINT:               1
         MWS_NEARBY:                 100
+        MWS_WD:                     100
+        MWS_BHB:                    100
         # ADM don't observe a N/S target if it doesn't have other bits set
         MWS_MAIN_BROAD_NORTH:            0
         MWS_MAIN_BROAD_SOUTH:            0
@@ -497,31 +429,7 @@ numobs:
     sv1_scnd_mask:
         VETO: 1
         DR14Q: 1
-        MWS_WD_SV:                       100
-        MWS_WD_SV_VERYBRIGHT:            SAME_AS_MWS_WD_SV
-        MWS_CALIB_APOGEE:                100
-        MWS_CALIB_GAIAESO:               SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE:                 1
-        MWS_CALIB_GALAH:                 SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_BOSS:                  SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_APOGEE_VERYBRIGHT:     SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_GAIAESO_VERYBRIGHT:    SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_SEGUE_VERYBRIGHT:      SAME_AS_MWS_CALIB_SEGUE
-        MWS_CALIB_GALAH_VERYBRIGHT:      SAME_AS_MWS_CALIB_APOGEE
-        MWS_CALIB_BOSS_VERYBRIGHT:       SAME_AS_MWS_CALIB_APOGEE
-        MWS_SPECIAL_DWARF_SV:            1
-        MWS_SPECIAL_DDOGIANTS_SV:        SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_WDBINARY_SV:         100
-        MWS_SPECIAL_CV_SV:               100
-        MWS_SPECIAL_RRLYR_SV:            SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_OC_SV:           100
-        MWS_SPECIAL_OC_FILLER_SV:    1
-        MWS_SPECIAL_GC_SV:               SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_BHB_SV:              SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_STREAM_SV:              SAME_AS_MWS_SPECIAL_DWARF_SV
-        MWS_SPECIAL_OC_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_OC_SV
-        MWS_SPECIAL_OC_FILLER_VERYBRIGHT_SV:        SAME_AS_MWS_SPECIAL_OC_FILLER_SV
-        MWS_SPECIAL_DDOGIANTS_VERYBRIGHT_SV:     SAME_AS_MWS_SPECIAL_DDOGIANTS_SV
-        MWS_SPECIAL_GC_VERYBRIGHT_SV:            SAME_AS_MWS_SPECIAL_GC_SV
-        MWS_SPECIAL_STREAM_VERYBRIGHT_SV:           SAME_AS_MWS_SPECIAL_STREAM_SV
-
+        MWS_CALIB:                  100
+        MWS_MAIN_CLUSTER_SV:        1
+        MWS_MAIN_RRLYR:             100 
+        BACKUP_CALIB:               SAME_AS_MWS_CALIB
