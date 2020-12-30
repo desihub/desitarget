@@ -91,8 +91,9 @@ outdatamodel = np.array([], dtype=[
 
 # ADM extra columns that are used during processing but are
 # ADM not an official part of the input or output data model.
+# ADM PRIM_MATCH records whether a secondary matches a primary TARGET.
 suppdatamodel = np.array([], dtype=[
-    ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4')
+    ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4'), ('PRIM_MATCH', '?')
 ])
 
 
@@ -316,6 +317,7 @@ def read_files(scxdir, scnd_mask):
         scxout["TARGETID"] = -1
         scxout["OBSCONDITIONS"] =     \
             obsconditions.mask(scnd_mask[name].obsconditions)
+        scxout["PRIM_MATCH"] = False
         scxall.append(scxout)
 
     return np.concatenate(scxall)
@@ -393,6 +395,7 @@ def add_primary_info(scxtargs, priminfodir):
     # ADM now we have the matches, update the secondary targets
     # ADM with the primary TARGETIDs.
     scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
+    scxtargs["PRIM_MATCH"][scxii] = primtargs["PRIM_MATCH"][primii]
 
     # APC Secondary targets that don't match to a primary.
     # APC all still have TARGETID = -1 at this point. They
@@ -557,6 +560,8 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     hipri = np.maximum(targs["PRIORITY_INIT_DARK"],
                        targs["PRIORITY_INIT_BRIGHT"])
     scxtargs["PRIORITY_INIT"][mscx] = hipri[mtargs]
+    # ADM record that we have a match to a primary.
+    scxtargs["PRIM_MATCH"][mscx] = True
 
     # ADM now we're done matching the primary and secondary targets, also
     # ADM match the secondary targets to sweep files, if passes, to find
@@ -723,7 +728,7 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
     # ADM check that the objid array was entirely populated.
     assert np.all(objid != -1)
 
-    # ADM assemble the TARGETID, SCND objects have RELEASE==0.
+    # ADM assemble the TARGETID, SCND objects.
     targetid = encode_targetid(objid=objid, brickid=brxid, release=release)
 
     # ADM a check that the generated TARGETIDs are unique.
@@ -734,7 +739,8 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
 
     # ADM assign the unique TARGETIDs to the secondary objects.
     scxtargs["TARGETID"][nomatch] = targetid[nomatch]
-    log.debug("Assigned {} targetids to unmatched secondaries".format(len(targetid[nomatch])))
+    log.debug("Assigned {} targetids to unmatched secondaries".format(
+        len(targetid[nomatch])))
 
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets

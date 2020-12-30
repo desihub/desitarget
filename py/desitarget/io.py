@@ -924,9 +924,13 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    # ADM remove the SCND_TARGET_INIT and SCND_ORDER columns.
-    scnd_target_init, scnd_order = data["SCND_TARGET_INIT"], data["SCND_ORDER"]
-    data = rfn.drop_fields(data, ["SCND_TARGET_INIT", "SCND_ORDER"])
+    # ADM remove the SCND_TARGET_INIT, SCND_ORDER and PRIM_MATCH columns.
+    scnd_target_init = data["SCND_TARGET_INIT"]
+    scnd_order = data["SCND_ORDER"]
+    prim_match = data["PRIM_MATCH"]
+
+    data = rfn.drop_fields(data,
+                           ["SCND_TARGET_INIT", "SCND_ORDER", "PRIM_MATCH"])
     # ADM we only need a subset of the columns where we match a primary.
     smalldata = rfn.drop_fields(data, ["PRIORITY_INIT", "SUBPRIORITY",
                                        "NUMOBS_INIT", "OBSCONDITIONS"])
@@ -967,11 +971,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     # ADM make necessary directories for the file, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
-    # ADM standalone secondaries have PRIORITY_INIT > -1 and
-    # ADM release before DR1 (release < 1000).
-    objid, brickid, release, mock, sky, gaiadr = decode_targetid(data["TARGETID"])
-    ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
-
+    # ADM standalone secondaries don't have PRIM_MATCH set.
+    ii = ~prim_match
     # ADM ...write them out.
     write_with_units(filename, data[ii], extname='SCND_TARGETS', header=hdr)
 
