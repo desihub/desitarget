@@ -165,7 +165,7 @@ if ns.bundlefiles is None:
         scxdir = _get_scxdir(ns.scnddir)
         # ADM construct a label for the secondary file for TARGETID look-ups.
         # ADM use RELEASE to determine the release string for the targets.
-        drint = np.max(targets['RELEASE']//1000)
+        drint = int(np.max(targets['RELEASE']//1000))
         scndoutdn = "priminfo-dr{}-{}".format(drint, desitarget_version)
         scndoutdn = os.path.join(scxdir, "outdata", scndoutdn)
         if not os.path.exists(scndoutdn):
@@ -182,7 +182,7 @@ if ns.bundlefiles is None:
         scndout = os.path.join(scndoutdn, scndoutfn)
         log.info("writing files of primary matches to...{}".format(scndout))
         targets = match_secondary(targets, scxdir, scndout, sep=1.,
-                                  pix=pixlist, nside=ns.nside)
+                                  pix=pixlist, nside=ns.nside, swfiles=infn)
 
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)

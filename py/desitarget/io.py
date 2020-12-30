@@ -864,7 +864,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         header of the output `filename`.
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
-        full set of secondary target that do not match a primary,
+        full set of secondary targets that do not match a primary,
         rather only write targets appropriate for "DARK|GRAY" or
         "BRIGHT" observing conditions. The relevant `PRIORITY_INIT`
         and `NUMOBS_INIT` columns will be derived from
