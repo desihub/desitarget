@@ -190,7 +190,7 @@ sv1_scnd_mask:
     - [MWS_MAIN_CLUSTER_SV, 38, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
     - [MWS_RRLYR,           39, "Main survey halo tracers (RR Lyrae)",
-        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_RRLYR'}]
+        {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_RRLYR'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -346,8 +346,8 @@ priorities:
         M31_KNOWN:             SAME_AS_LBG_TOMOG
         M31_QSO:               SAME_AS_LBG_TOMOG
         M31_STAR:              SAME_AS_LBG_TOMOG
-        MWS_DDOGIANTS:         {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0
-        MWS_CLUS_GAL_DEEP:     SAME_AS_MWS_DDOGIANTS
+#       MWS_DDOGIANTS:         {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CLUS_GAL_DEEP:     {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_MASS_AGN:          {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FAINT_HPM:             SAME_AS_LOW_MASS_AGN
         GW190412:              {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
@@ -376,7 +376,7 @@ priorities:
         MWS_CALIB:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BACKUP_CALIB:          SAME_AS_MWS_CALIB
         MWS_MAIN_CLUSTER_SV:   {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_MAIN_RRLYR:        {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_RRLYR:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -503,7 +503,7 @@ numobs:
         M31_KNOWN:              100
         M31_QSO:                100
         M31_STAR:               100
-        MWS_DDOGIANTS:          100
+#       MWS_DDOGIANTS:          100
         MWS_CLUS_GAL_DEEP:      100
         LOW_MASS_AGN:           100
         FAINT_HPM:              100
@@ -519,18 +519,18 @@ numobs:
         UNWISE_GREEN:           100
         HETDEX_MAIN:            100
         HETDEX_HP:              100
-        PSF_OUT_BRIGHT:         100
-        PSF_OUT_DARK:           100
+#       PSF_OUT_BRIGHT:         100
+#       PSF_OUT_DARK:           100
         HPM_SOUM:               100
         SN_HOSTS:               100
         GAL_CLUS_BCG:           100
         GAL_CLUS_2ND:           100
         GAL_CLUS_SAT:           100
         HSC_HIZ_SNE:            100
-        ISM_CGM_QGP:            100
+#       ISM_CGM_QGP:            100
         STRONG_LENS:            100
         WISE_VAR_QSO:           100
         MWS_CALIB:              100
         MWS_MAIN_CLUSTER_SV:      1
-        MWS_MAIN_RRLYR:         100
+        MWS_RRLYR:              100
         BACKUP_CALIB:           SAME_AS_MWS_CALIB
