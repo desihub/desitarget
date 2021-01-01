@@ -146,17 +146,50 @@ sv1_mws_mask:
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
 #- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.fits for VETO targets.
 sv1_scnd_mask:
-    - [VETO,        0, "Never observe, even if a primary target bit is set",
+    - [VETO,                 0, "Never observe, even if a primary target bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-    - [DR14Q,       1, "Known quasars from the SDSS DR14Q catalog",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'dr14q'}]
-    - [MWS_CALIB,                10, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
+    - [UDG,                  1, "See $SCND_DIR/UDG.txt",                {obsconditions: DARK,        filename: 'UDG'}]
+    - [FIRST_MALS,           2, "See $SCND_DIR/FIRST_MALS.txt",         {obsconditions: DARK,        filename: 'FIRST_MALS'}]
+    - [WD_BINARIES,          3, "See $SCND_DIR/WD_BINARIES.txt",        {obsconditions: DARK,        filename: 'WD_BINARIES'}]
+    - [LBG_TOMOG,            4, "See $SCND_DIR/LBG_TOMOG.txt",          {obsconditions: DARK,        filename: 'LBG_TOMOG'}]
+    - [QSO_RED,              5, "See $SCND_DIR/QSO_RED.ipynb",          {obsconditions: DARK,        filename: 'QSO_RED'}]
+    - [M31_KNOWN,            6, "See $SCND_DIR/M31_KNOWN.txt",          {obsconditions: DARK,        filename: 'M31_KNOWN'}]
+    - [M31_QSO,              7, "See $SCND_DIR/M31_QSO.txt.",           {obsconditions: DARK,        filename: 'M31_QSO'}]
+    - [M31_STAR,             8, "See $SCND_DIR/M31_STAR.txt",           {obsconditions: DARK,        filename: 'M31_STAR'}]
+#   - [MWS_DDOGIANTS,        9, "See $SCND_DIR",                        {obsconditions: BRIGHT,      filename: 'MWS_DDOGIANTS'}]
+    - [MWS_CLUS_GAL_DEEP,   10, "See $SCND_DIR/MWS_CLUS_GAL_DEEP.txt",  {obsconditions: DARK,        filename: 'MWS_CLUS_GAL_DEEP'}]
+    - [LOW_MASS_AGN,        11, "See $SCND_DIR/LOW_MASS_AGN.txt",       {obsconditions: DARK,        filename: 'LOW_MASS_AGN'}]
+    - [FAINT_HPM,           12, "See $SCND_DIR/FAINT_HPM.txt",          {obsconditions: DARK,        filename: 'FAINT_HPM'}]
+    - [GW190412,            13, "See $SCND_DIR/GW190412.ipynb",         {obsconditions: DARK|BRIGHT, filename: 'GW190412'}]
+    - [IC134191,            14, "See $SCND_DIR/IC134191.ipynb",         {obsconditions: DARK|BRIGHT, filename: 'IC134191'}]
+    - [PV_BRIGHT,           15, "See $SCND_DIR/PV_BRIGHT.ipynb",        {obsconditions: BRIGHT,      filename: 'PV_BRIGHT'}]
+    - [PV_DARK,             16, "See $SCND_DIR/PV_DARK.ipynb",          {obsconditions: DARK,        filename: 'PV_DARK'}]
+    - [LOW_Z,               17, "See $SCND_DIR/LOW_Z.ipynb",            {obsconditions: DARK,        filename: 'LOW_Z'}]
+    - [BHB,                 18, "See $SCND_DIR/BHB.txt",                {obsconditions: DARK,        filename: 'BHB'}]
+    - [SPCV,                19, "See $SCND_DIR/SPCV.txt",               {obsconditions: DARK,        filename: 'SPCV'}]
+    - [DC3R2_GAMA,          20, "See $SCND_DIR/DC3R2_GAMA.ipynb",       {obsconditions: DARK,        filename: 'DC3R2_GAMA'}]
+    - [UNWISE_BLUE,         21, "See $SCND_DIR/UNWISE_BLUE.txt",        {obsconditions: DARK,        filename: 'UNWISE_BLUE'}]
+    - [UNWISE_GREEN,        22, "See $SCND_DIR/UNWISE_GREEN.txt",       {obsconditions: DARK,        filename: 'UNWISE_GREEN'}]
+    - [HETDEX_MAIN,         23, "See $SCND_DIR/HETDEX_MAIN.txt",        {obsconditions: DARK,        filename: 'HETDEX_MAIN'}]
+    - [HETDEX_HP,           24, "See $SCND_DIR/HETDEX_HP.txt",          {obsconditions: DARK,        filename: 'HETDEX_HP'}]
+#   - [PSF_OUT_BRIGHT,      25, "See $SCND_DIR",                        {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT'}]
+#   - [PSF_OUT_DARK,        26, "See $SCND_DIR",                        {obsconditions: DARK,        filename: 'PSF_OUT_DARK'}]
+    - [HPM_SOUM,            27, "See $SCND_DIR/HPM_SOUM.txt",           {obsconditions: DARK,        filename: 'HPM_SOUM'}]
+    - [SN_HOSTS,            28, "See $SCND_DIR/SN_HOSTS.txt",           {obsconditions: DARK,        filename: 'SN_HOSTS'}]
+    - [GAL_CLUS_BCG,        29, "See $SCND_DIR/GAL_CLUS_BCG.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_BCG'}]
+    - [GAL_CLUS_2ND,        30, "See $SCND_DIR/GAL_CLUS_2ND.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_2ND'}]
+    - [GAL_CLUS_SAT,        31, "See $SCND_DIR/GAL_CLUS_SAT.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_SAT'}]
+    - [HSC_HIZ_SNE,         32, "See $SCND_DIR/HSC_HIZ_SNE.txt",        {obsconditions: DARK,        filename: 'HSC_HIZ_SNE'}]
+#   - [ISM_CGM_QGP,         33, "See $SCND_DIR",                        {obsconditions: DARK,        filename: 'ISM_CGM_QGP'}]
+    - [STRONG_LENS,         34, "See $SCND_DIR/STRONG_LENS.txt",        {obsconditions: DARK,        filename: 'STRONG_LENS'}]
+    - [WISE_VAR_QSO,        35, "See $SCND_DIR/WISE_VAR_QSO.txt",       {obsconditions: DARK,        filename: 'WISE_VAR_QSO'}]
+    - [MWS_CALIB,           36, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB'}]
-    - [BACKUP_CALIB,             11, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
+    - [BACKUP_CALIB,        37, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
         {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB'}]
-    - [MWS_MAIN_CLUSTER_SV,      13, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
+    - [MWS_MAIN_CLUSTER_SV, 38, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
-    - [MWS_MAIN_RRLYR,           14, "Main survey halo tracers (RR Lyrae)",
+    - [MWS_RRLYR,           39, "Main survey halo tracers (RR Lyrae)",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_RRLYR'}]
 
 #- Observation State
@@ -304,12 +337,46 @@ priorities:
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
-        VETO:                       {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
-        DR14Q:                      {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_CALIB:                  {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        BACKUP_CALIB:               SAME_AS_MWS_CALIB
-        MWS_MAIN_CLUSTER_SV:        {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
-        MWS_MAIN_RRLYR:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        VETO:                  {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        UDG:                   {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        FIRST_MALS:            {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        WD_BINARIES:           {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        LBG_TOMOG:             {UNOBS: 1800, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        QSO_RED:               {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        M31_KNOWN:             SAME_AS_LBG_TOMOG
+        M31_QSO:               SAME_AS_LBG_TOMOG
+        M31_STAR:              SAME_AS_LBG_TOMOG
+        MWS_DDOGIANTS:         {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0
+        MWS_CLUS_GAL_DEEP:     SAME_AS_MWS_DDOGIANTS
+        LOW_MASS_AGN:          {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        FAINT_HPM:             SAME_AS_LOW_MASS_AGN
+        GW190412:              {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        IC134191:              SAME_AS_GW190412
+        PV_BRIGHT:             {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK:               {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        LOW_Z:                 {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BHB:                   {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        SPCV:                  SAME_AS_LOW_MASS_AGN
+        DC3R2_GAMA:            SAME_AS_LOW_MASS_AGN
+        UNWISE_BLUE:           SAME_AS_LBG_TOMOG
+        UNWISE_GREEN:          SAME_AS_LBG_TOMOG
+        HETDEX_MAIN:           SAME_AS_LBG_TOMOG
+        HETDEX_HP:             SAME_AS_LBG_TOMOG
+#       PSF_OUT_BRIGHT:        {UNOBS: 70, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+#       PSF_OUT_DARK:          SAME_AS_PSF_OUT_BRIGHT
+        HPM_SOUM:              SAME_AS_LOW_MASS_AGN
+        SN_HOSTS:              SAME_AS_BHB
+        GAL_CLUS_BCG:          {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        GAL_CLUS_2ND:          {UNOBS: 1024, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        GAL_CLUS_SAT:          {UNOBS: 200,  DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        HSC_HIZ_SNE:           SAME_AS_LBG_TOMOG
+#       ISM_CGM_QGP:           {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        STRONG_LENS:           SAME_AS_UDG
+        WISE_VAR_QSO:          SAME_AS_QSO_RED
+        MWS_CALIB:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BACKUP_CALIB:          SAME_AS_MWS_CALIB
+        MWS_MAIN_CLUSTER_SV:   {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_RRLYR:        {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -427,9 +494,43 @@ numobs:
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
-        VETO: 1
-        DR14Q: 1
-        MWS_CALIB:                  100
-        MWS_MAIN_CLUSTER_SV:        1
-        MWS_MAIN_RRLYR:             100 
-        BACKUP_CALIB:               SAME_AS_MWS_CALIB
+        VETO:                     1
+        UDG:                    100
+        FIRST_MALS:             100
+        WD_BINARIES:            100
+        LBG_TOMOG:              100
+        QSO_RED:                100
+        M31_KNOWN:              100
+        M31_QSO:                100
+        M31_STAR:               100
+        MWS_DDOGIANTS:          100
+        MWS_CLUS_GAL_DEEP:      100
+        LOW_MASS_AGN:           100
+        FAINT_HPM:              100
+        GW190412:               100
+        IC134191:               100
+        PV_BRIGHT:              100
+        PV_DARK:                100
+        LOW_Z:                  100
+        BHB:                    100
+        SPCV:                   100
+        DC3R2_GAMA:             100
+        UNWISE_BLUE:            100
+        UNWISE_GREEN:           100
+        HETDEX_MAIN:            100
+        HETDEX_HP:              100
+        PSF_OUT_BRIGHT:         100
+        PSF_OUT_DARK:           100
+        HPM_SOUM:               100
+        SN_HOSTS:               100
+        GAL_CLUS_BCG:           100
+        GAL_CLUS_2ND:           100
+        GAL_CLUS_SAT:           100
+        HSC_HIZ_SNE:            100
+        ISM_CGM_QGP:            100
+        STRONG_LENS:            100
+        WISE_VAR_QSO:           100
+        MWS_CALIB:              100
+        MWS_MAIN_CLUSTER_SV:      1
+        MWS_MAIN_RRLYR:         100
+        BACKUP_CALIB:           SAME_AS_MWS_CALIB
