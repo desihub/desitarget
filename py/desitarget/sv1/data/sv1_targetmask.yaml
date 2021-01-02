@@ -144,7 +144,7 @@ sv1_mws_mask:
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
 #- ADM directory that corresponds to the $SECONDARY_DIR/sv1 environment
-#- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.fits for VETO targets.
+#- ADM variable, e.g. $SECONDARY_DIR/sv1/veto.txt for VETO targets.
 sv1_scnd_mask:
     - [VETO,                 0, "Never observe, even if a primary target bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]

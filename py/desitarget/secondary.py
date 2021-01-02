@@ -127,7 +127,7 @@ def duplicates(seq):
     return ((key, np.array(locs)) for key, locs in tally.items() if len(locs) > 1)
 
 
-def _get_scxdir(scxdir=None):
+def _get_scxdir(scxdir=None, survey=""):
     """Retrieve the base secondary directory with error checking.
 
     Parameters
@@ -136,6 +136,9 @@ def _get_scxdir(scxdir=None):
         Directory containing secondary target files to which to match.
         If not specified, the directory is taken to be the value of
         the :envvar:`SCND_DIR` environment variable.
+    survey : :class:`str`, optional, defaults to "" for the Main Survey.
+        Flavor of survey that we're processing, e.g., "sv1". Don't pass
+        anything for "main" (the Main Survey).
 
     Returns
     -------
@@ -155,7 +158,8 @@ def _get_scxdir(scxdir=None):
 
     # ADM also fail if the indata, outdata and docs directories don't
     # ADM exist in the secondary directory.
-    for subdir in "docs", "indata", "outdata":
+    checkdir = [os.path.join(survey, d) for d in ["docs", "indata", "outdata"]]
+    for subdir in checkdir:
         if not os.path.isdir(os.path.join(scxdir, subdir)):
             msg = '{} directory not found in {}'.format(subdir, scxdir)
             log.critical(msg)
@@ -285,8 +289,20 @@ def read_files(scxdir, scnd_mask):
         log.debug('     path:   {}'.format(fn))
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
-            scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
-                               dtype=indatamodel.dtype)
+            try:
+                scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
+                                   dtype=indatamodel.dtype)
+            except (ValueError, IndexError):
+                msg = "First 6 columns don't correspond to {} in {}.txt".format(
+                    indatamodel.dtype, fn)
+                # ADM perhaps people provided .csv files as .txt files.
+                try:
+                    scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
+                                       dtype=indatamodel.dtype, delimiter=",")
+                except (ValueError, IndexError):
+                    log.error(msg)
+                    raise IOError(msg)
+
         # ADM otherwise it's a fits file, read it in.
         else:
             scxin = fitsio.read(fn+'.fits',
@@ -296,7 +312,8 @@ def read_files(scxdir, scnd_mask):
         scxin = np.atleast_1d(scxin)
 
         # ADM assert the data model.
-        msg = "Data model doesn't match {} in {}".format(indatamodel.dtype, fn)
+        msg = "Data model doesn't match {} in {}.fits".format(
+            indatamodel.dtype, fn)
         for col in indatamodel.dtype.names:
             assert scxin[col].dtype == indatamodel[col].dtype, msg
 

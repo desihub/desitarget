@@ -43,7 +43,7 @@ hdr = fitsio.read_header(fns[0], 'SCND_TARG')
 surv = hdr["SURVEY"].rstrip()
 
 # ADM find the SCND_DIR environment variable, if it wasn't passed.
-scxdir = _get_scxdir(ns.scnddir)
+scxdir = _get_scxdir(ns.scnddir, survey=surv)
 # ADM and augment the scxdir if this is an SV set of primary files.
 if surv != 'main':
     scxdir = os.path.join(scxdir, surv)
