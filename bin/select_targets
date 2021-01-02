@@ -82,13 +82,14 @@ ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
-if ns.tcnames is not None:
-    extra += " --tcnames {}".format(ns.tcnames)
 nsdict = vars(ns)
-for nskey in ["noresolve", "nomaskbits", "writeall",
-              "nosecondary", "nobackup", "nochecksum"]:
-    if nsdict[nskey]:
-        extra += " --{}".format(nskey)
+for nskey in ["tcnames", "noresolve", "nomaskbits", "writeall",
+              "nosecondary", "nobackup", "nochecksum", "scnddir"]:
+    if isinstance(nsdict[nskey], bool):
+        if nsdict[nskey]:
+            extra += " --{}".format(nskey)
+    elif nsdict[nskey] is not None:
+        extra += " --{} {}".format(nskey, nsdict[nskey])
 
 infiles = io.list_sweepfiles(ns.sweepdir)
 if ns.sweepdir2 is not None:
