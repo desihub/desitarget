@@ -166,8 +166,10 @@ if ns.bundlefiles is None:
         # ADM read secondary target directory.
         scxdir = _get_scxdir(ns.scnddir)
         # ADM construct a label for the secondary file for TARGETID look-ups.
-        # ADM use RELEASE to determine the release string for the targets.
-        drint = int(np.max(targets['RELEASE']//1000))
+        try:
+            drint = int(ns.sweepdir.split("dr")[1][0])
+        except (ValueError, IndexError, AttributeError):
+            drint = "X"
         scndoutdn = "priminfo-dr{}-{}".format(drint, desitarget_version)
         scndoutdn = os.path.join(scxdir,
                                  "outdata", desitarget_version, scndoutdn)
