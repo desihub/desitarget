@@ -205,8 +205,9 @@ def _check_files(scxdir, scnd_mask):
     # ADM extensions in each of the indata and docs directories.
     setdic = {}
     for subdir in 'indata', 'docs':
-        # ADM retrieve the full file names.
-        fnswext = os.listdir(os.path.join(scxdir, subdir))
+        # ADM retrieve the full file names. Ignore directories.
+        fnswext = [fn for fn in os.listdir(os.path.join(scxdir, subdir)) if
+                   os.path.isfile(os.path.join(scxdir, subdir, fn))]
         # ADM split off the extensions.
         exts = [os.path.splitext(fn)[1] for fn in fnswext]
         # ADM check they're all allowed extensions.
@@ -764,8 +765,8 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
     # ADM or sources that have already been matched to a primary.
     w = np.where(~scxtargs["OVERRIDE"] & nomatch)[0]
     if len(w) > 0:
-        log.info("Matching secondary targets to themselves...t={:.1f}s"
-                 .format(time()-t0))
+        log.info("Matching {} secondary targets to themselves...t={:.1f}s"
+                 .format(len(scxtargs), time()-t0))
         # ADM use astropy for the matching. At NERSC, astropy matches
         # ADM ~20M objects to themselves in about 10 minutes.
         c = SkyCoord(scxtargs["RA"][w]*u.deg, scxtargs["DEC"][w]*u.deg)

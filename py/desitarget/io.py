@@ -945,7 +945,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
                                  survey=survey, obscon=obscon, resolve=None)
 
     # ADM write out the file of matches for every secondary bit.
-    scxoutdir = os.path.join(scxdir, 'outdata')
+    scxoutdir = os.path.join(scxdir, 'outdata', desitarget_version)
     if obscon is not None:
         scxoutdir = os.path.join(scxoutdir, obscon.lower())
     else:
