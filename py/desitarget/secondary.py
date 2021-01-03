@@ -603,28 +603,31 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         swobjs = np.concatenate(swobjs)
         log.info("Total sources read: {}".format(len(swobjs)))
 
-        # ADM limit to just secondary targets in the healpix of interest.
-        inhp = np.ones(len(scxtargs), dtype="?")
-        if nside is not None and pix is not None:
-            inhp = is_in_hp(scxtargs, nside, pix)
+        # ADM continue if there are sources in the pixels of interest.
+        if len(swobjs) > 0:
+            # ADM limit to just secondaries in the healpix of interest.
+            inhp = np.ones(len(scxtargs), dtype="?")
+            if nside is not None and pix is not None:
+                inhp = is_in_hp(scxtargs, nside, pix)
 
-        # ADM now perform the match.
-        log.info('Matching secondary targets to input sweep files...t={:.1f}s'
-                 .format(time()-start))
-        mswobjs, mscx = radec_match_to(swobjs, scxtargs[inhp & notid], sep=sep)
-        # ADM recast the indices to the full set of secondary targets,
-        # ADM instead of just those that were in the relevant HEALPixels.
-        mscx = np.where(inhp & notid)[0][mscx]
-        log.info('Found {} additional matches...t={:.1f}s'.format(
-            len(mscx), time()-start))
+            # ADM now perform the match.
+            log.info('Matching secondary targets to sweep files...t={:.1f}s'
+                     .format(time()-start))
+            mswobjs, mscx = radec_match_to(swobjs,
+                                           scxtargs[inhp & notid], sep=sep)
+            # ADM recast the indices to the full set of secondaries,
+            # ADM instead of just those that were in the relevant pixels.
+            mscx = np.where(inhp & notid)[0][mscx]
+            log.info('Found {} additional matches...t={:.1f}s'.format(
+                len(mscx), time()-start))
 
-        if len(mscx) > 0:
-            # ADM construct the targetid from the sweeps information.
-            targetid = encode_targetid(objid=swobjs['OBJID'],
-                                       brickid=swobjs['BRICKID'],
-                                       release=swobjs['RELEASE'])
-            # ADM and add the targetid to the secondary targets.
-            scxtargs["TARGETID"][mscx] = targetid[mswobjs]
+            if len(mscx) > 0:
+                # ADM construct the targetid from the sweeps information.
+                targetid = encode_targetid(objid=swobjs['OBJID'],
+                                           brickid=swobjs['BRICKID'],
+                                           release=swobjs['RELEASE'])
+                # ADM and add the targetid to the secondary targets.
+                scxtargs["TARGETID"][mscx] = targetid[mswobjs]
 
     # ADM write the secondary targets that have updated TARGETIDs.
     ii = scxtargs["TARGETID"] != -1
