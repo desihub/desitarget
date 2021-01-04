@@ -369,10 +369,14 @@ def add_primary_info(scxtargs, priminfodir):
         log.warning("No secondary target matches a primary target!!!")
         return scxtargs
 
-    primtargs = fitsio.read(primfns[0])
-    for i in range(1, len(primfns)):
-        prim = fitsio.read(primfns[i])
-        primtargs = np.concatenate([primtargs, prim])
+    log.info("Begin reading files from {}...t={:.1f}s".format(
+        priminfodir, time()-start))
+    primtargs = []
+    for primfn in primfns:
+        prim = fitsio.read(primfn)
+        primtargs.append(prim)
+    primtargs = np.concatenate(primtargs)
+    log.info("Done reading files...t={:.1f}s".format(time()-start))
 
     # ADM make a unique look-up for the target sets.
     scxbitnum = np.log2(scxtargs["SCND_TARGET"]).astype('int')
@@ -415,7 +419,7 @@ def add_primary_info(scxtargs, priminfodir):
     scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
     scxtargs["PRIM_MATCH"][scxii] = primtargs["PRIM_MATCH"][primii]
 
-    # APC Secondary targets that don't match to a primary.
+    # APC Secondary targets that don't match to a primary target.
     # APC all still have TARGETID = -1 at this point. They
     # APC get removed in finalize_secondary().
     log.info("Done matching primaries in {} to secondaries...t={:.1f}s"
