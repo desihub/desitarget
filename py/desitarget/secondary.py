@@ -518,7 +518,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
             raise ValueError(msg)
 
     # ADM warn the user if the secondary and primary samples are "large".
-    big = 500000
+    big = 1e6
     if np.sum(inhp) > big and len(primtargs) > big:
         log.warning('Large secondary (N={}) and primary (N={}) samples'
                     .format(np.sum(inhp), len(primtargs)))
