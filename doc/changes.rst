@@ -10,6 +10,7 @@ desitarget Change Log
     * Get `TARGETIDs` from the input sweeps, not just the actual targets.
     * Add the first full bitmask for the SV1 secondary target files.
     * Updates to the data model to better reflect the primary targets.
+* Clean-up minor style and doc issues from `PR #636`_ [`PR #668`_].
 * Updates and bug fixes for DR9 now SV is on-sky [`PR #665`_]. Includes:
     * Pass `MASKBITS` column forward for GFAs.
     * Bug fixes necessitated by target files having a second extension.
@@ -24,6 +25,7 @@ desitarget Change Log
 .. _`PR #636`: https://github.com/desihub/desitarget/pull/636
 .. _`PR #664`: https://github.com/desihub/desitarget/pull/664
 .. _`PR #665`: https://github.com/desihub/desitarget/pull/665
+.. _`PR #668`: https://github.com/desihub/desitarget/pull/668
 .. _`PR #669`: https://github.com/desihub/desitarget/pull/669
 
 0.47.0 (2020-12-10)

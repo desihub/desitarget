@@ -1380,6 +1380,7 @@ def isMWS_bhb(primary=None, objtype=None,
     - Criteria supplied by Sergey Koposov
     - gflux, rflux, zflux, w1flux have been corrected for extinction
       (unlike other MWS selections, which use obs_flux).
+    - Current version (12/21/20) is version 149 on `the SV wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1434,7 +1435,7 @@ def isMWS_bhb(primary=None, objtype=None,
     mws &= (bhb_sel >= -0.05) & (bhb_sel <= 0.05)
 
     # APC back out the WISE error = 1/sqrt(ivar) from the SNR = flux*sqrt(ivar)
-    w1fluxerr = w1flux/w1snr
+    w1fluxerr = w1flux/(w1snr.clip(1e-7))
     w1mag_faint = 22.5 - 2.5 * np.log10((w1flux-3*w1fluxerr).clip(1e-7))
 
     # APC WISE cut (Sergey Koposov)
