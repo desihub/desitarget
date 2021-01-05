@@ -54,7 +54,7 @@ class TestUNITS(unittest.TestCase):
         self.assertEqual(list(uniq), parsed)
 
     def test_quantities(self):
-        """Test all data model quantities in are in the units yaml file.
+        """Test all data model quantities are in the units yaml file.
         """
         missing = [dmn for dmn in self.dmnames if dmn not in self.units]
         msg = 'These quantities are missing in {}'.format(self.fn)
