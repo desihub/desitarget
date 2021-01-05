@@ -162,8 +162,8 @@ sv1_scnd_mask:
     - [FAINT_HPM,           12, "See $SCND_DIR/FAINT_HPM.txt",          {obsconditions: DARK,        filename: 'FAINT_HPM'}]
     - [GW190412,            13, "See $SCND_DIR/GW190412.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'GW190412'}]
     - [IC134191,            14, "See $SCND_DIR/IC134191.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'IC134191'}]
-    - [PV_BRIGHT,           15, "See $SCND_DIR/PV_BRIGHT.ipynb",        {obsconditions: BRIGHT,      filename: 'PV_BRIGHT'}]
-    - [PV_DARK,             16, "See $SCND_DIR/PV_DARK.ipynb",          {obsconditions: DARK,        filename: 'PV_DARK'}]
+#   - [PV_BRIGHT,           15, "See $SCND_DIR/PV_BRIGHT.ipynb",        {obsconditions: BRIGHT,      filename: 'PV_BRIGHT'}]
+#   - [PV_DARK,             16, "See $SCND_DIR/PV_DARK.ipynb",          {obsconditions: DARK,        filename: 'PV_DARK'}]
     - [LOW_Z,               17, "See $SCND_DIR/LOW_Z.ipynb",            {obsconditions: DARK,        filename: 'LOW_Z'}]
     - [BHB,                 18, "See $SCND_DIR/BHB.txt",                {obsconditions: DARK,        filename: 'BHB'}]
     - [SPCV,                19, "See $SCND_DIR/SPCV.txt",               {obsconditions: DARK,        filename: 'SPCV'}]
@@ -352,8 +352,8 @@ priorities:
         FAINT_HPM:             SAME_AS_LOW_MASS_AGN
         GW190412:              {UNOBS: 5000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         IC134191:              SAME_AS_GW190412
-        PV_BRIGHT:             {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_DARK:               {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+#       PV_BRIGHT:             {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+#       PV_DARK:               {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_Z:                 {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BHB:                   {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         SPCV:                  SAME_AS_LOW_MASS_AGN
@@ -509,8 +509,8 @@ numobs:
         FAINT_HPM:              100
         GW190412:               100
         IC134191:               100
-        PV_BRIGHT:              100
-        PV_DARK:                100
+#       PV_BRIGHT:              100
+#       PV_DARK:                100
         LOW_Z:                  100
         BHB:                    100
         SPCV:                   100
