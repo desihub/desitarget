@@ -819,7 +819,7 @@ def resolve(targets):
     ----------
     targets : :class:`~numpy.ndarray`
         Rec array of targets. Must have columns "RA" and "DEC" and
-        either "RELEASE" or "PHOTSYS".
+        either "RELEASE" or "PHOTSYS" or "TARGETID".
 
     Returns
     -------
@@ -833,7 +833,11 @@ def resolve(targets):
     if 'PHOTSYS' in targets.dtype.names:
         photsys = targets["PHOTSYS"]
     else:
-        photsys = release_to_photsys(targets["RELEASE"])
+        if 'RELEASE' in targets.dtype.names:
+            photsys = release_to_photsys(targets["RELEASE"])
+        else:
+            _, _, release, _, _, _ = decode_targetid(targets["TARGETID"])
+            photsys = release_to_photsys(release)
 
     # ADM a flag of which targets are from the 'N' photometry.
     from desitarget.cuts import _isonnorthphotsys

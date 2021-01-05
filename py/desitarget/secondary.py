@@ -56,7 +56,7 @@ from collections import defaultdict
 from desitarget.internal import sharedmem
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
 
-from desitarget.targets import encode_targetid, main_cmx_or_sv
+from desitarget.targets import encode_targetid, main_cmx_or_sv, resolve
 from desitarget.targets import set_obsconditions, initial_priority_numobs
 from desitarget.targetmask import obsconditions
 
@@ -381,16 +381,18 @@ def add_primary_info(scxtargs, priminfodir):
     # ADM make a unique look-up for the target sets.
     scxbitnum = np.log2(scxtargs["SCND_TARGET"]).astype('int')
     primbitnum = np.log2(primtargs["SCND_TARGET"]).astype('int')
+    # ADM SCND_ORDER can potentially run into the tens-of-millions, so
+    # ADM we need to use int64 type to get as high as 1000 x SCND_ORDER.
+    scxids = 1000 * scxtargs["SCND_ORDER"].astype('int64') + scxbitnum
+    primids = 1000 * primtargs["SCND_ORDER"].astype('int64') + primbitnum
 
-    scxids = 1000 * scxtargs["SCND_ORDER"] + scxbitnum
-    primids = 1000 * primtargs["SCND_ORDER"] + primbitnum
-
-    # ADM if a secondary matched TWO (or more) primaries,
-    # ADM only retain the highest-priority primary.
+    # ADM a primary (with the same TARGETID) could match TWO (or more)
+    # ADM secondaries. Resolve these on which matched a primary target
+    # ADM (rather than just a source from the sweeps) and then ALSO on
+    # ADM which has highest priority (via True/False * PRIORITY_INIT).
     alldups = []
-    # for _, dups in duplicates(primids):
     for _, dups in duplicates(primtargs['TARGETID']):
-        am = np.argmax(primtargs[dups]["PRIORITY_INIT"])
+        am = np.argmax(primtargs[dups]["PRIM_MATCH"]*primtargs[dups]["PRIORITY_INIT"])
         dups = np.delete(dups, am)
         alldups.append(dups)
     # ADM catch cases where there are no duplicates.
@@ -398,7 +400,27 @@ def add_primary_info(scxtargs, priminfodir):
         alldups = np.hstack(alldups)
         primtargs = np.delete(primtargs, alldups)
         primids = np.delete(primids, alldups)
-    log.debug("Discarded {} primary duplicates".format(len(alldups)))
+    log.info("Discard {} cases where a primary matched multiple secondaries".
+             format(len(alldups)))
+
+    # ADM matches could also have occurred ACROSS HEALPixels, producing
+    # ADM duplicated secondary targets with different TARGETIDs...
+    alldups = []
+    for _, dups in duplicates(primids):
+        # ADM...resolve these on which matched a primary target (rather
+        # ADM than just a source from a sweeps files) and then ALSO on
+        # ADM which has the highest priority. The combination in the code
+        # ADM is, e.g., True/False (meaning 1/0) * PRIORITY_INIT.
+        am = np.argmax(primtargs[dups]["PRIM_MATCH"]*primtargs[dups]["PRIORITY_INIT"])
+        dups = np.delete(dups, am)
+        alldups.append(dups)
+    # ADM catch cases where there are no duplicates.
+    if len(alldups) != 0:
+        alldups = np.hstack(alldups)
+        primtargs = np.delete(primtargs, alldups)
+        primids = np.delete(primids, alldups)
+    log.info("Remove {} other cases where a secondary matched several primaries".
+             format(len(alldups)))
 
     # ADM we already know that all primaries match a secondary, so,
     # ADM for speed, we can reduce to the matching set.
@@ -605,6 +627,8 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
             log.info("Read {} sources from {}/{} sweep files...t={:.1f}s".format(
                 np.sum(inhp), ifil+1, len(swfiles), time()-start))
         swobjs = np.concatenate(swobjs)
+        # ADM resolve so there are no duplicates across the N/S boundary.
+        swobjs = resolve(swobjs)
         log.info("Total sources read: {}".format(len(swobjs)))
 
         # ADM continue if there are sources in the pixels of interest.

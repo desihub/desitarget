@@ -150,7 +150,7 @@ sv1_scnd_mask:
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
     - [UDG,                  1, "See $SCND_DIR/UDG.txt",                {obsconditions: DARK,        filename: 'UDG'}]
     - [FIRST_MALS,           2, "See $SCND_DIR/FIRST_MALS.txt",         {obsconditions: DARK,        filename: 'FIRST_MALS'}]
-    - [WD_BINARIES,          3, "See $SCND_DIR/WD_BINARIES.txt",        {obsconditions: DARK,        filename: 'WD_BINARIES'}]
+    - [WD_BINARIES,          3, "See $SCND_DIR/WD_BINARIES.txt",        {obsconditions: BRIGHT|DARK, filename: 'WD_BINARIES'}]
     - [LBG_TOMOG,            4, "See $SCND_DIR/LBG_TOMOG.txt",          {obsconditions: DARK,        filename: 'LBG_TOMOG'}]
     - [QSO_RED,              5, "See $SCND_DIR/QSO_RED.ipynb",          {obsconditions: DARK,        filename: 'QSO_RED'}]
     - [M31_KNOWN,            6, "See $SCND_DIR/M31_KNOWN.txt",          {obsconditions: DARK,        filename: 'M31_KNOWN'}]
@@ -160,8 +160,8 @@ sv1_scnd_mask:
     - [MWS_CLUS_GAL_DEEP,   10, "See $SCND_DIR/MWS_CLUS_GAL_DEEP.txt",  {obsconditions: DARK,        filename: 'MWS_CLUS_GAL_DEEP'}]
     - [LOW_MASS_AGN,        11, "See $SCND_DIR/LOW_MASS_AGN.txt",       {obsconditions: DARK,        filename: 'LOW_MASS_AGN'}]
     - [FAINT_HPM,           12, "See $SCND_DIR/FAINT_HPM.txt",          {obsconditions: DARK,        filename: 'FAINT_HPM'}]
-    - [GW190412,            13, "See $SCND_DIR/GW190412.ipynb",         {obsconditions: DARK|BRIGHT, filename: 'GW190412'}]
-    - [IC134191,            14, "See $SCND_DIR/IC134191.ipynb",         {obsconditions: DARK|BRIGHT, filename: 'IC134191'}]
+    - [GW190412,            13, "See $SCND_DIR/GW190412.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'GW190412'}]
+    - [IC134191,            14, "See $SCND_DIR/IC134191.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'IC134191'}]
     - [PV_BRIGHT,           15, "See $SCND_DIR/PV_BRIGHT.ipynb",        {obsconditions: BRIGHT,      filename: 'PV_BRIGHT'}]
     - [PV_DARK,             16, "See $SCND_DIR/PV_DARK.ipynb",          {obsconditions: DARK,        filename: 'PV_DARK'}]
     - [LOW_Z,               17, "See $SCND_DIR/LOW_Z.ipynb",            {obsconditions: DARK,        filename: 'LOW_Z'}]
@@ -180,7 +180,7 @@ sv1_scnd_mask:
     - [GAL_CLUS_2ND,        30, "See $SCND_DIR/GAL_CLUS_2ND.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_2ND'}]
     - [GAL_CLUS_SAT,        31, "See $SCND_DIR/GAL_CLUS_SAT.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_SAT'}]
     - [HSC_HIZ_SNE,         32, "See $SCND_DIR/HSC_HIZ_SNE.txt",        {obsconditions: DARK,        filename: 'HSC_HIZ_SNE'}]
-#   - [ISM_CGM_QGP,         33, "See $SCND_DIR",                        {obsconditions: DARK,        filename: 'ISM_CGM_QGP'}]
+    - [ISM_CGM_QGP,         33, "See $SCND_DIR/ISM_CGM_QGP.txt",        {obsconditions: DARK,        filename: 'ISM_CGM_QGP'}]
     - [STRONG_LENS,         34, "See $SCND_DIR/STRONG_LENS.txt",        {obsconditions: DARK,        filename: 'STRONG_LENS'}]
     - [WISE_VAR_QSO,        35, "See $SCND_DIR/WISE_VAR_QSO.txt",       {obsconditions: DARK,        filename: 'WISE_VAR_QSO'}]
     - [MWS_CALIB,           36, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
@@ -347,10 +347,10 @@ priorities:
         M31_QSO:               SAME_AS_LBG_TOMOG
         M31_STAR:              SAME_AS_LBG_TOMOG
 #       MWS_DDOGIANTS:         {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_CLUS_GAL_DEEP:     {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CLUS_GAL_DEEP:     {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_MASS_AGN:          {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FAINT_HPM:             SAME_AS_LOW_MASS_AGN
-        GW190412:              {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        GW190412:              {UNOBS: 5000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         IC134191:              SAME_AS_GW190412
         PV_BRIGHT:             {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         PV_DARK:               {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
@@ -370,7 +370,7 @@ priorities:
         GAL_CLUS_2ND:          {UNOBS: 1024, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         GAL_CLUS_SAT:          {UNOBS: 200,  DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         HSC_HIZ_SNE:           SAME_AS_LBG_TOMOG
-#       ISM_CGM_QGP:           {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        ISM_CGM_QGP:           {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         STRONG_LENS:           SAME_AS_UDG
         WISE_VAR_QSO:          SAME_AS_QSO_RED
         MWS_CALIB:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
@@ -527,7 +527,7 @@ numobs:
         GAL_CLUS_2ND:           100
         GAL_CLUS_SAT:           100
         HSC_HIZ_SNE:            100
-#       ISM_CGM_QGP:            100
+        ISM_CGM_QGP:            100
         STRONG_LENS:            100
         WISE_VAR_QSO:           100
         MWS_CALIB:              100
