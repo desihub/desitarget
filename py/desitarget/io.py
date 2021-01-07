@@ -2409,7 +2409,8 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     """
     start = time()
     # ADM start with some checking that this is a target file.
-    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS", "MTL"
+    targtypes = ["TARGETS", "GFA_TARGETS", "SKY_TARGETS",
+                 "MASKS", "MTL", "SCND_TARGETS"]
     # ADM read in the FITS extension info.
     f = fitsio.FITS(filename)
     if len(f) != 2:
