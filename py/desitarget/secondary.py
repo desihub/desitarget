@@ -55,6 +55,7 @@ from collections import defaultdict
 
 from desitarget.internal import sharedmem
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
+from desitarget.gaiamatch import gaiadatamodel
 
 from desitarget.targets import encode_targetid, main_cmx_or_sv, resolve
 from desitarget.targets import set_obsconditions, initial_priority_numobs
@@ -81,13 +82,17 @@ indatamodel = np.array([], dtype=[
 #                or svX/data/svX_targetmask.yaml (scnd_mask).
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is < 1000 (before DR1) for secondary-only targets.
+# ADM also add needed columns for fiberassign from the Gaia data model.
+gaiacols = ["PARALLAX", "GAIA_PHOT_G_MEAN_MAG", 'GAIA_ASTROMETRIC_EXCESS_NOISE']
+gaiadt = [(gaiadatamodel[gaiacols].dtype.names[i],
+           gaiadatamodel[gaiacols].dtype[i].str) for i in range(len(gaiacols))]
+
 outdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
-    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'),
+    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?')] + gaiadt + [
     ('TARGETID', '>i8'), ('DESI_TARGET', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
-    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')
-])
+    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')])
 
 # ADM extra columns that are used during processing but are
 # ADM not an official part of the input or output data model.
