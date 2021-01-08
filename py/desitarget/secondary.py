@@ -318,10 +318,18 @@ def read_files(scxdir, scnd_mask):
         scxin = np.atleast_1d(scxin)
 
         # ADM assert the data model.
-        msg = "Data model doesn't match {} in {}.fits".format(
-            indatamodel.dtype, fn)
+        msg = "Data model doesn't match {} in {}".format(indatamodel.dtype, fn)
         for col in indatamodel.dtype.names:
             assert scxin[col].dtype == indatamodel[col].dtype, msg
+
+        # ADM check RA/Dec are reasonable.
+        outofbounds = ((scxin["RA"] >= 360.) | (scxin["RA"] < 0) |
+                       (scxin["DEC"] > 90) | (scxin["DEC"] < -90))
+        if np.any(outofbounds):
+            msg = "RA/Dec outside of range in {}; RA={}, Dec={}".format(
+                fn, scxin["RA"][outofbounds], scxin["DEC"][outofbounds])
+            log.error(msg)
+            raise IOError(msg)
 
         # ADM the default is 2015.5 for the REF_EPOCH.
         ii = scxin["REF_EPOCH"] == 0
