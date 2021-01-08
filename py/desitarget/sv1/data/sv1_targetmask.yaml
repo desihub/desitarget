@@ -136,6 +136,11 @@ sv1_mws_mask:
     - [MWS_MAIN_FAINT_NORTH,     15, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
     - [MWS_MAIN_FAINT_SOUTH,     16, "MWS magnitude limited sample from DECam", {obsconditions: BRIGHT|GRAY|DARK}]
 
+    # ADM Standard stars based only on Gaia.
+    - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK|GRAY}]
+    - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|GRAY|BRIGHT}]
+    - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
+
     # ADM back-up targets for poor conditions.
     - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
@@ -335,6 +340,10 @@ priorities:
         BACKUP_BRIGHT:                {UNOBS: 9, DONE: 9, OBS: 9, DONOTOBSERVE: 0}
         BACKUP_FAINT:                 {UNOBS: 8, DONE: 8, OBS: 8, DONOTOBSERVE: 0}
         BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 7, OBS: 7, DONOTOBSERVE: 0}
+        # ADM Standards are special; priorities don't apply.
+        GAIA_STD_FAINT:  -1
+        GAIA_STD_WD:  -1
+        GAIA_STD_BRIGHT:  -1
 
     # ADM secondary target priorities. Probably all have very low UNOBS
     sv1_scnd_mask:
@@ -493,6 +502,10 @@ numobs:
         BACKUP_BRIGHT:                1
         BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
         BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
+        # ADM Standards are special; numobs doesn't apply.
+        GAIA_STD_FAINT:  -1
+        GAIA_STD_WD:  -1
+        GAIA_STD_BRIGHT:  -1
 
     # ADM initial number of observations for secondary targets
     sv1_scnd_mask:
