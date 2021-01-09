@@ -19,17 +19,20 @@ import os.path
 import numbers
 import sys
 
+import fitsio
 import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
 import numpy.lib.recfunctions as rfn
 from importlib import import_module
 
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from desitarget import io
 from desitarget.internal import sharedmem
-from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.gaiamatch import match_gaia_to_primary, find_gaia_files_hp
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 from desitarget.targets import finalize, resolve
@@ -154,8 +157,6 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         (NESTED) HEALPix nside, if targets are being parallelized.
         The default of 2 should be benign for serial processing.
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -168,6 +169,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     Notes
     -----
     - Current version (01/08/21) is version XXX on `the wiki`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')
@@ -491,7 +493,7 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
 def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  w2flux=None, south=True, primary=None):
     """Color cuts for ELG target selection classes
-    (see, e.g., :func:`desitarget.cuts.set_target_bits` for parameters).
+    (see, e.g., :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -2292,7 +2294,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     return desi_target, bgs_target, mws_target
 
 
-def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
+def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
+                    test=False):
     """Gaia-only-based target selection, return target mask arrays.
 
     Parameters
@@ -2309,6 +2312,10 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
         Only return targets in a set of (NESTED) HEALpixels at `nside`.
         Useful for parallelizing, as input files will only be processed
         if they touch a pixel in the passed list.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to find
+        and read every possible Gaia file when calling
+        :func:`~desitarget.cuts.apply_cuts_gaia`.
 
     Returns
     -------
@@ -2383,7 +2390,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
         gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
-        primary=primary, nside=nside)
+        primary=primary, nside=nside, test=test)
 
     # ADM Construct the target flag bits.
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
@@ -2546,7 +2553,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True, backup=True,
-                   return_infiles=False):
+                   return_infiles=False, test=False):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2602,6 +2609,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         If ``True``, also return the actual files from `infile` processed.
         Useful when running with `pixlist`, `radecbox` or `radecrad` to
         see which files were actually required.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to find
+        and read every possible Gaia file when calling
+        :func:`~desitarget.cuts.apply_cuts_gaia`.
 
     Returns
     -------
@@ -2770,7 +2781,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         # ADM set the target bits that are based only on Gaia.
         gaia_desi_target, gaia_bgs_target, gaia_mws_target, gaiaobjs = \
             apply_cuts_gaia(numproc=numproc4, survey=survey, nside=nside,
-                            pixlist=pixlist)
+                            pixlist=pixlist, test=test)
 
         # ADM it's possible that somebody could pass HEALPixels that
         # ADM contain no additional targets.

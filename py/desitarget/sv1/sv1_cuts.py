@@ -52,8 +52,6 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         (NESTED) HEALPix nside, if targets are being parallelized.
         The default of 2 should be benign for serial processing.
 
-    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
-
     Returns
     -------
     :class:`array_like`
@@ -65,6 +63,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Notes
     -----
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     - Current version (01/08/21) is version XXX on `the SV wiki`_.
     """
     if primary is None:
