@@ -1703,9 +1703,9 @@ def _prepare_gaia(objects, colnames=None):
         gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
+    pmraivar = objects['PMRA_IVAR']
     parallax = objects['PARALLAX']
     parallaxivar = objects['PARALLAX_IVAR']
-    pmraivar = objects['PMRA_IVAR']
     # ADM derive the parallax/parallax_error, but set to 0 where the error is bad
     parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
 
@@ -1714,7 +1714,6 @@ def _prepare_gaia(objects, colnames=None):
     notzero = parallaxivar > 0
     if np.sum(notzero) > 0:
         parallaxerr[notzero] = 1 / np.sqrt(parallaxivar[notzero])
-
     gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
