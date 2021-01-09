@@ -55,8 +55,9 @@ from collections import defaultdict
 
 from desitarget.internal import sharedmem
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
+from desitarget.gaiamatch import gaiadatamodel
 
-from desitarget.targets import encode_targetid, main_cmx_or_sv
+from desitarget.targets import encode_targetid, main_cmx_or_sv, resolve
 from desitarget.targets import set_obsconditions, initial_priority_numobs
 from desitarget.targetmask import obsconditions
 
@@ -81,18 +82,23 @@ indatamodel = np.array([], dtype=[
 #                or svX/data/svX_targetmask.yaml (scnd_mask).
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is < 1000 (before DR1) for secondary-only targets.
+# ADM also add needed columns for fiberassign from the Gaia data model.
+gaiacols = ["PARALLAX", "GAIA_PHOT_G_MEAN_MAG", 'GAIA_ASTROMETRIC_EXCESS_NOISE']
+gaiadt = [(gaiadatamodel[gaiacols].dtype.names[i],
+           gaiadatamodel[gaiacols].dtype[i].str) for i in range(len(gaiacols))]
+
 outdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
-    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'),
+    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?')] + gaiadt + [
     ('TARGETID', '>i8'), ('DESI_TARGET', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
-    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')
-])
+    ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')])
 
 # ADM extra columns that are used during processing but are
 # ADM not an official part of the input or output data model.
+# ADM PRIM_MATCH records whether a secondary matches a primary TARGET.
 suppdatamodel = np.array([], dtype=[
-    ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4')
+    ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4'), ('PRIM_MATCH', '?')
 ])
 
 
@@ -126,7 +132,7 @@ def duplicates(seq):
     return ((key, np.array(locs)) for key, locs in tally.items() if len(locs) > 1)
 
 
-def _get_scxdir(scxdir=None):
+def _get_scxdir(scxdir=None, survey=""):
     """Retrieve the base secondary directory with error checking.
 
     Parameters
@@ -135,6 +141,9 @@ def _get_scxdir(scxdir=None):
         Directory containing secondary target files to which to match.
         If not specified, the directory is taken to be the value of
         the :envvar:`SCND_DIR` environment variable.
+    survey : :class:`str`, optional, defaults to "" for the Main Survey.
+        Flavor of survey that we're processing, e.g., "sv1". Don't pass
+        anything for "main" (the Main Survey).
 
     Returns
     -------
@@ -154,7 +163,8 @@ def _get_scxdir(scxdir=None):
 
     # ADM also fail if the indata, outdata and docs directories don't
     # ADM exist in the secondary directory.
-    for subdir in "docs", "indata", "outdata":
+    checkdir = [os.path.join(survey, d) for d in ["docs", "indata", "outdata"]]
+    for subdir in checkdir:
         if not os.path.isdir(os.path.join(scxdir, subdir)):
             msg = '{} directory not found in {}'.format(subdir, scxdir)
             log.critical(msg)
@@ -200,8 +210,9 @@ def _check_files(scxdir, scnd_mask):
     # ADM extensions in each of the indata and docs directories.
     setdic = {}
     for subdir in 'indata', 'docs':
-        # ADM retrieve the full file names.
-        fnswext = os.listdir(os.path.join(scxdir, subdir))
+        # ADM retrieve the full file names. Ignore directories.
+        fnswext = [fn for fn in os.listdir(os.path.join(scxdir, subdir)) if
+                   os.path.isfile(os.path.join(scxdir, subdir, fn))]
         # ADM split off the extensions.
         exts = [os.path.splitext(fn)[1] for fn in fnswext]
         # ADM check they're all allowed extensions.
@@ -284,8 +295,20 @@ def read_files(scxdir, scnd_mask):
         log.debug('     path:   {}'.format(fn))
         # ADM if the relevant file is a .txt file, read it in.
         if os.path.exists(fn+'.txt'):
-            scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
-                               dtype=indatamodel.dtype)
+            try:
+                scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
+                                   dtype=indatamodel.dtype)
+            except (ValueError, IndexError):
+                msg = "First 6 columns don't correspond to {} in {}.txt".format(
+                    indatamodel.dtype, fn)
+                # ADM perhaps people provided .csv files as .txt files.
+                try:
+                    scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
+                                       dtype=indatamodel.dtype, delimiter=",")
+                except (ValueError, IndexError):
+                    log.error(msg)
+                    raise IOError(msg)
+
         # ADM otherwise it's a fits file, read it in.
         else:
             scxin = fitsio.read(fn+'.fits',
@@ -298,6 +321,15 @@ def read_files(scxdir, scnd_mask):
         msg = "Data model doesn't match {} in {}".format(indatamodel.dtype, fn)
         for col in indatamodel.dtype.names:
             assert scxin[col].dtype == indatamodel[col].dtype, msg
+
+        # ADM check RA/Dec are reasonable.
+        outofbounds = ((scxin["RA"] >= 360.) | (scxin["RA"] < 0) |
+                       (scxin["DEC"] > 90) | (scxin["DEC"] < -90))
+        if np.any(outofbounds):
+            msg = "RA/Dec outside of range in {}; RA={}, Dec={}".format(
+                fn, scxin["RA"][outofbounds], scxin["DEC"][outofbounds])
+            log.error(msg)
+            raise IOError(msg)
 
         # ADM the default is 2015.5 for the REF_EPOCH.
         ii = scxin["REF_EPOCH"] == 0
@@ -316,6 +348,7 @@ def read_files(scxdir, scnd_mask):
         scxout["TARGETID"] = -1
         scxout["OBSCONDITIONS"] =     \
             obsconditions.mask(scnd_mask[name].obsconditions)
+        scxout["PRIM_MATCH"] = False
         scxall.append(scxout)
 
     return np.concatenate(scxall)
@@ -349,33 +382,58 @@ def add_primary_info(scxtargs, priminfodir):
         log.warning("No secondary target matches a primary target!!!")
         return scxtargs
 
-    primtargs = fitsio.read(primfns[0])
-    for i in range(1, len(primfns)):
-        prim = fitsio.read(primfns[i])
-        primtargs = np.concatenate([primtargs, prim])
+    log.info("Begin reading files from {}...t={:.1f}s".format(
+        priminfodir, time()-start))
+    primtargs = []
+    for primfn in primfns:
+        prim = fitsio.read(primfn)
+        primtargs.append(prim)
+    primtargs = np.concatenate(primtargs)
+    log.info("Done reading files...t={:.1f}s".format(time()-start))
 
     # ADM make a unique look-up for the target sets.
     scxbitnum = np.log2(scxtargs["SCND_TARGET"]).astype('int')
     primbitnum = np.log2(primtargs["SCND_TARGET"]).astype('int')
+    # ADM SCND_ORDER can potentially run into the tens-of-millions, so
+    # ADM we need to use int64 type to get as high as 1000 x SCND_ORDER.
+    scxids = 1000 * scxtargs["SCND_ORDER"].astype('int64') + scxbitnum
+    primids = 1000 * primtargs["SCND_ORDER"].astype('int64') + primbitnum
 
-    scxids = 1000 * scxtargs["SCND_ORDER"] + scxbitnum
-    primids = 1000 * primtargs["SCND_ORDER"] + primbitnum
-
-    # ADM if a secondary matched TWO (or more) primaries,
-    # ADM only retain the highest-priority primary.
+    # ADM a primary (with the same TARGETID) could match TWO (or more)
+    # ADM secondaries. Resolve these on which matched a primary target
+    # ADM (rather than just a source from the sweeps) and then ALSO on
+    # ADM which has highest priority (via True/False * PRIORITY_INIT).
     alldups = []
-    # for _, dups in duplicates(primids):
     for _, dups in duplicates(primtargs['TARGETID']):
-        am = np.argmax(primtargs[dups]["PRIORITY_INIT"])
+        am = np.argmax(primtargs[dups]["PRIM_MATCH"]*primtargs[dups]["PRIORITY_INIT"])
         dups = np.delete(dups, am)
         alldups.append(dups)
-    # ADM to catch the case of no duplicates when h-stacking.
-    if len(alldups) == 0:
-        alldups = [alldups]
-    alldups = np.hstack(alldups)
-    log.debug("Discarding {} primary duplicates".format(len(alldups)))
-    primtargs = np.delete(primtargs, alldups)
-    primids = np.delete(primids, alldups)
+    # ADM catch cases where there are no duplicates.
+    if len(alldups) != 0:
+        alldups = np.hstack(alldups)
+        primtargs = np.delete(primtargs, alldups)
+        primids = np.delete(primids, alldups)
+    log.info("Discard {} cases where a primary matched multiple secondaries".
+             format(len(alldups)))
+
+    # ADM matches could also have occurred ACROSS HEALPixels, producing
+    # ADM duplicated secondary targets with different TARGETIDs...
+    alldups = []
+    for _, dups in duplicates(primids):
+        # ADM...resolve these on which matched a primary target (rather
+        # ADM than just a source from a sweeps files) and then ALSO on
+        # ADM which has the highest priority. The combination in the code
+        # ADM is, e.g., True/False (meaning 1/0) * PRIORITY_INIT.
+        am = np.argmax(primtargs[dups]["PRIM_MATCH"]*primtargs[dups]["PRIORITY_INIT"])
+        dups = np.delete(dups, am)
+        alldups.append(dups)
+    # ADM catch cases where there are no duplicates.
+    if len(alldups) != 0:
+        alldups = np.hstack(alldups)
+        primtargs = np.delete(primtargs, alldups)
+        primids = np.delete(primids, alldups)
+    log.info("Remove {} other cases where a secondary matched several primaries".
+             format(len(alldups)))
 
     # ADM we already know that all primaries match a secondary, so,
     # ADM for speed, we can reduce to the matching set.
@@ -394,8 +452,9 @@ def add_primary_info(scxtargs, priminfodir):
     # ADM now we have the matches, update the secondary targets
     # ADM with the primary TARGETIDs.
     scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
+    scxtargs["PRIM_MATCH"][scxii] = primtargs["PRIM_MATCH"][primii]
 
-    # APC Secondary targets that don't match to a primary.
+    # APC Secondary targets that don't match to a primary target.
     # APC all still have TARGETID = -1 at this point. They
     # APC get removed in finalize_secondary().
     log.info("Done matching primaries in {} to secondaries...t={:.1f}s"
@@ -405,7 +464,7 @@ def add_primary_info(scxtargs, priminfodir):
 
 
 def match_secondary(primtargs, scxdir, scndout, sep=1.,
-                    pix=None, nside=None):
+                    pix=None, nside=None, swfiles=None):
     """Match secondary targets to primary targets and update bits.
 
     Parameters
@@ -425,6 +484,11 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         pix at the supplied `nside`, as a speed-up.
     nside : :class:`int`, optional, defaults to `None`
         The (NESTED) HEALPixel nside to be used with `pixlist`.
+    swfiles : :class:`list`, optional, defaults to `None`
+        A list of files (typically sweep files). If passed and not `None`
+        then once all of the primary TARGETS have been matched and the
+        relevant bit information updated, use these files to find
+        additional sources from which to derive a primary TARGETID.
 
     Returns
     -------
@@ -467,7 +531,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
             raise ValueError(msg)
 
     # ADM warn the user if the secondary and primary samples are "large".
-    big = 500000
+    big = 1e6
     if np.sum(inhp) > big and len(primtargs) > big:
         log.warning('Large secondary (N={}) and primary (N={}) samples'
                     .format(np.sum(inhp), len(primtargs)))
@@ -515,10 +579,14 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     if np.any(scnd_update):
         # APC Allow changes to primaries if the DESI_TARGET bitmask has
         # APC only the following bits set, in any combination.
-        log.info('Testing if secondary targets can update {} matched primaries'.format(scnd_update.sum()))
-        update_from_scnd_bits = desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] | desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] | desi_mask['STD_WD']
+        log.info('Test if secondaries can update {} matched primaries'.format(
+            scnd_update.sum()))
+        update_from_scnd_bits = (desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
+                                 desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT']
+                                 | desi_mask['STD_WD'])
         scnd_update &= ((targs[desicols[0]] & ~update_from_scnd_bits) == 0)
-        log.info('Setting new priority, numobs and obsconditions from secondary for {} matched primaries'.format(scnd_update.sum()))
+        log.info('New priority, numobs, obscon for {} matched primaries'.format(
+            scnd_update.sum()))
 
         # APC Primary and secondary obsconditions are or'd
         scnd_obscon = set_obsconditions(targs[scnd_update], scnd=True)
@@ -535,9 +603,12 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         # APC secondaries can increase priority and numobs
         for edr, oc in zip(ender, obscon):
             pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
-            scnd_priority, scnd_numobs = initial_priority_numobs(targs[scnd_update], obscon=oc, scnd=True)
-            targs[nc][scnd_update] = np.maximum(targs[nc][scnd_update], scnd_numobs)
-            targs[pc][scnd_update] = np.maximum(targs[pc][scnd_update], scnd_priority)
+            scnd_priority, scnd_numobs = initial_priority_numobs(
+                targs[scnd_update], obscon=oc, scnd=True)
+            targs[nc][scnd_update] = np.maximum(
+                targs[nc][scnd_update], scnd_numobs)
+            targs[pc][scnd_update] = np.maximum(
+                targs[pc][scnd_update], scnd_priority)
 
     # ADM update the secondary targets with the primary information.
     scxtargs["TARGETID"][mscx] = targs["TARGETID"][mtargs]
@@ -546,6 +617,58 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     hipri = np.maximum(targs["PRIORITY_INIT_DARK"],
                        targs["PRIORITY_INIT_BRIGHT"])
     scxtargs["PRIORITY_INIT"][mscx] = hipri[mtargs]
+    # ADM record that we have a match to a primary.
+    scxtargs["PRIM_MATCH"][mscx] = True
+
+    # ADM now we're done matching the primary and secondary targets, also
+    # ADM match the secondary targets to sweep files, if passes, to find
+    # ADM TARGETIDs.
+    notid = scxtargs["TARGETID"] == -1
+    if swfiles is not None and np.sum(notid) > 0:
+        log.info('Reading input sweep files...t={:.1f}s'.format(time()-start))
+        # ADM first read in all of the sweeps files.
+        swobjs = []
+        for ifil, swfile in enumerate(swfiles):
+            swobj = fitsio.read(swfile, columns=["RELEASE", "BRICKID", "OBJID",
+                                                 "RA", "DEC"])
+            # ADM limit to just sources in the healpix of interest.
+            # ADM remembering to grab adjacent pixels for edge effects.
+            inhp = np.ones(len(swobj), dtype="?")
+            if nside is not None and pix is not None:
+                inhp = is_in_hp(swobj, nside, allpix)
+            swobjs.append(swobj[inhp])
+            log.info("Read {} sources from {}/{} sweep files...t={:.1f}s".format(
+                np.sum(inhp), ifil+1, len(swfiles), time()-start))
+        swobjs = np.concatenate(swobjs)
+        # ADM resolve so there are no duplicates across the N/S boundary.
+        swobjs = resolve(swobjs)
+        log.info("Total sources read: {}".format(len(swobjs)))
+
+        # ADM continue if there are sources in the pixels of interest.
+        if len(swobjs) > 0:
+            # ADM limit to just secondaries in the healpix of interest.
+            inhp = np.ones(len(scxtargs), dtype="?")
+            if nside is not None and pix is not None:
+                inhp = is_in_hp(scxtargs, nside, pix)
+
+            # ADM now perform the match.
+            log.info('Matching secondary targets to sweep files...t={:.1f}s'
+                     .format(time()-start))
+            mswobjs, mscx = radec_match_to(swobjs,
+                                           scxtargs[inhp & notid], sep=sep)
+            # ADM recast the indices to the full set of secondaries,
+            # ADM instead of just those that were in the relevant pixels.
+            mscx = np.where(inhp & notid)[0][mscx]
+            log.info('Found {} additional matches...t={:.1f}s'.format(
+                len(mscx), time()-start))
+
+            if len(mscx) > 0:
+                # ADM construct the targetid from the sweeps information.
+                targetid = encode_targetid(objid=swobjs['OBJID'],
+                                           brickid=swobjs['BRICKID'],
+                                           release=swobjs['RELEASE'])
+                # ADM and add the targetid to the secondary targets.
+                scxtargs["TARGETID"][mscx] = targetid[mswobjs]
 
     # ADM write the secondary targets that have updated TARGETIDs.
     ii = scxtargs["TARGETID"] != -1
@@ -667,7 +790,7 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
     # ADM check that the objid array was entirely populated.
     assert np.all(objid != -1)
 
-    # ADM assemble the TARGETID, SCND objects have RELEASE==0.
+    # ADM assemble the TARGETID, SCND objects.
     targetid = encode_targetid(objid=objid, brickid=brxid, release=release)
 
     # ADM a check that the generated TARGETIDs are unique.
@@ -678,15 +801,16 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
 
     # ADM assign the unique TARGETIDs to the secondary objects.
     scxtargs["TARGETID"][nomatch] = targetid[nomatch]
-    log.debug("Assigned {} targetids to unmatched secondaries".format(len(targetid[nomatch])))
+    log.debug("Assigned {} targetids to unmatched secondaries".format(
+        len(targetid[nomatch])))
 
     # ADM match secondaries to themselves, to ensure duplicates
     # ADM share a TARGETID. Don't match special (OVERRIDE) targets
     # ADM or sources that have already been matched to a primary.
     w = np.where(~scxtargs["OVERRIDE"] & nomatch)[0]
     if len(w) > 0:
-        log.info("Matching secondary targets to themselves...t={:.1f}s"
-                 .format(time()-t0))
+        log.info("Matching {} secondary targets to themselves...t={:.1f}s"
+                 .format(len(scxtargs), time()-t0))
         # ADM use astropy for the matching. At NERSC, astropy matches
         # ADM ~20M objects to themselves in about 10 minutes.
         c = SkyCoord(scxtargs["RA"][w]*u.deg, scxtargs["DEC"][w]*u.deg)
@@ -730,6 +854,9 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
         # on lowest index in list of duplicates
         dups = np.delete(dups, np.argmax(scxtargs['PRIORITY_INIT'][dups]))
         alldups.append(dups)
+    # ADM guard against the case that there are no duplicates.
+    if len(alldups) == 0:
+        alldups = [alldups]
     alldups = np.hstack(alldups)
     log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".format(len(alldups)))
 
@@ -764,7 +891,8 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
         done[pc], done[nc] = initial_priority_numobs(done, obscon=oc, scnd=True)
 
         # APC Flagged duplicates are removed in io.write_secondary
-        done[pc][alldups] = -1
+        if len(alldups) > 0:
+            done[pc][alldups] = -1
 
     # APC add secondary flag in DESI_TARGET
     cols, mx, surv = main_cmx_or_sv(done, scnd=True)

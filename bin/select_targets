@@ -69,7 +69,7 @@ ap.add_argument("--nomaskbits", action='store_true',
 ap.add_argument("--writeall", action='store_true',
                 help="Default behavior is to split targets by bright/dark-time surveys. Send this to ALSO write a file of ALL targets")
 ap.add_argument("-nos", "--nosecondary", action='store_true',
-                help="Do NOT create TARGETID look-up files for secondary targets in $SCNDIR/outdata/priminfo-drversion-desitargetversion/$dest.fits (where $dest is the basename of dest)")
+                help="Do NOT create TARGETID look-up files for secondary targets in $SCNDIR/outdata/desitargetversion/priminfo-drversion-desitargetversion/$dest.fits (where $dest is the basename of dest)")
 ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g. '/project/projectdirs/desi/target/secondary' at NERSC). "+
                 "Defaults to SCND_DIR environment variable. Not needed if --nosecondary is sent.")
@@ -82,13 +82,14 @@ ns = ap.parse_args()
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
-if ns.tcnames is not None:
-    extra += " --tcnames {}".format(ns.tcnames)
 nsdict = vars(ns)
-for nskey in ["noresolve", "nomaskbits", "writeall",
-              "nosecondary", "nobackup", "nochecksum"]:
-    if nsdict[nskey]:
-        extra += " --{}".format(nskey)
+for nskey in ["tcnames", "noresolve", "nomaskbits", "writeall",
+              "nosecondary", "nobackup", "nochecksum", "scnddir"]:
+    if isinstance(nsdict[nskey], bool):
+        if nsdict[nskey]:
+            extra += " --{}".format(nskey)
+    elif nsdict[nskey] is not None:
+        extra += " --{} {}".format(nskey, nsdict[nskey])
 
 infiles = io.list_sweepfiles(ns.sweepdir)
 if ns.sweepdir2 is not None:
@@ -149,14 +150,15 @@ targets, infn = select_targets(
     tcnames=tcnames, survey='main', backup=not(ns.nobackup),
     resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits), return_infiles=True
 )
-# ADM Set the list of infiles actually processed by select_targets() to
-# ADM None if we DON'T want to write their checksums to the output file.
-if ns.nochecksum:
-    shatab = None
-else:
-    shatab = get_checksums(infn, verbose=True)
 
 if ns.bundlefiles is None:
+    # ADM Set the list of infiles actually processed by select_targets() to
+    # ADM None if we DON'T want to write their checksums to the output file.
+    if ns.nochecksum:
+        shatab = None
+    else:
+        shatab = get_checksums(infn, verbose=True)
+
     # ADM only run secondary functions if --nosecondary was not passed.
     scndout = None
     if not ns.nosecondary and len(targets) > 0:
@@ -164,10 +166,13 @@ if ns.bundlefiles is None:
         # ADM read secondary target directory.
         scxdir = _get_scxdir(ns.scnddir)
         # ADM construct a label for the secondary file for TARGETID look-ups.
-        # ADM use RELEASE to determine the release string for the targets.
-        drint = np.max(targets['RELEASE']//1000)
+        try:
+            drint = int(ns.sweepdir.split("dr")[1][0])
+        except (ValueError, IndexError, AttributeError):
+            drint = "X"
         scndoutdn = "priminfo-dr{}-{}".format(drint, desitarget_version)
-        scndoutdn = os.path.join(scxdir, "outdata", scndoutdn)
+        scndoutdn = os.path.join(scxdir,
+                                 "outdata", desitarget_version, scndoutdn)
         if not os.path.exists(scndoutdn):
             log.info("making directory...{}".format(scndoutdn))
             os.makedirs(scndoutdn)
@@ -182,7 +187,7 @@ if ns.bundlefiles is None:
         scndout = os.path.join(scndoutdn, scndoutfn)
         log.info("writing files of primary matches to...{}".format(scndout))
         targets = match_secondary(targets, scxdir, scndout, sep=1.,
-                                  pix=pixlist, nside=ns.nside)
+                                  pix=pixlist, nside=ns.nside, swfiles=infn)
 
     if ns.mask:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)

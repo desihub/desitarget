@@ -132,8 +132,9 @@ class TestPriorities(unittest.TestCase):
             # ADM should never trump the other bits.
             bgs_names = [name for name in bgs_mask.names() if 'NORTH' not in name
                          and 'SOUTH' not in name]
-            mws_names = [name for name in mws_mask.names() if 'NORTH' not in name
-                         and 'SOUTH' not in name and 'BACKUP' not in name]
+            mws_names = [name for name in mws_mask.names() if
+                         'NORTH' not in name and 'SOUTH' not in name and
+                         'BACKUP' not in name and 'STD' not in name]
 
             lowest_mws_priority_unobs = [mws_mask[n].priorities['UNOBS']
                                          for n in mws_names]
@@ -172,7 +173,7 @@ class TestPriorities(unittest.TestCase):
         for mask in [desi_mask, bgs_mask, mws_mask]:
             for name in mask.names():
                 if (
-                        name.startswith('STD') or name.endswith('BRIGHT_OBJECT') or name in
+                        'STD' in name or name.endswith('BRIGHT_OBJECT') or name in
                         ['BGS_ANY', 'MWS_ANY', 'SCND_ANY', 'SKY', 'SUPP_SKY', 'NO_TARGET']
                 ):
                     self.assertEqual(mask[name].priorities, {}, 'mask.{} has priorities?'.format(name))

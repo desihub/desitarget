@@ -362,8 +362,9 @@ class TestCuts(unittest.TestCase):
         # ADM BACKUP targets can only run on the sweep files.
         for filelist in self.sweepfiles:
             # ADM limit to pixels covered in the Gaia unit test files.
-            targets = cuts.select_targets(filelist, numproc=1, tcnames=tc,
-                                          nside=self.nside, pixlist=self.pix)
+            targets = cuts.select_targets(
+                filelist, numproc=1, tcnames=tc, test=True, nside=self.nside,
+                pixlist=self.pix)
             self.assertTrue('DESI_TARGET' in targets.dtype.names)
             self.assertTrue('BGS_TARGET' in targets.dtype.names)
             self.assertTrue('MWS_TARGET' in targets.dtype.names)

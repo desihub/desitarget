@@ -56,7 +56,7 @@ class TestSV(unittest.TestCase):
                 # ADM set backup to False as the Gaia unit test
                 # ADM files only cover a limited pixel range.
                 targets = cuts.select_targets(filelist, survey=survey,
-                                              backup=False)
+                                              backup=False, test=True)
                 for col in desicol, bgscol, mwscol:
                     self.assertTrue(col in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets[desicol]))
@@ -71,7 +71,7 @@ class TestSV(unittest.TestCase):
             for filelist in self.sweepfiles:
                 # ADM also test the backup targets in the pixels covered
                 # ADM by the Gaia unit test files.
-                targets = cuts.select_targets(filelist, survey=survey,
+                targets = cuts.select_targets(filelist, survey=survey, test=True,
                                               nside=self.nside, pixlist=self.pix)
                 for col in desicol, bgscol, mwscol:
                     self.assertTrue(col in targets.dtype.names)

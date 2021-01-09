@@ -864,7 +864,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         header of the output `filename`.
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
-        full set of secondary target that do not match a primary,
+        full set of secondary targets that do not match a primary,
         rather only write targets appropriate for "DARK|GRAY" or
         "BRIGHT" observing conditions. The relevant `PRIORITY_INIT`
         and `NUMOBS_INIT` columns will be derived from
@@ -886,13 +886,13 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     Two sets of files are written:
         - The file of secondary targets that do not match a primary
           target is written to `targdir`. Such secondary targets
-          are determined from having `RELEASE==0` and `SKY==0`
-          in the `TARGETID`. Only targets with `PRIORITY_INIT > -1`
-          are written to this file (this allows duplicates to be
-          resolved in, e.g., :func:`~desitarget.secondary.finalize()`
+          are determined from having "PRIM_MATCH"=``False`` in `data`.
+          Only targets with `PRIORITY_INIT > -1` are written to this file
+          (this allows duplicates to be resolved in, e.g.,
+          :func:`~desitarget.secondary.finalize()`.
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
-          an "outdata/targdir" subdirectory of `scxdir`.
+          the "outdata" subdirectory of `scxdir`.
     """
     # ADM grab the scxdir, it it wasn't passed.
     from desitarget.secondary import _get_scxdir
@@ -924,9 +924,13 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    # ADM remove the SCND_TARGET_INIT and SCND_ORDER columns.
-    scnd_target_init, scnd_order = data["SCND_TARGET_INIT"], data["SCND_ORDER"]
-    data = rfn.drop_fields(data, ["SCND_TARGET_INIT", "SCND_ORDER"])
+    # ADM remove the SCND_TARGET_INIT, SCND_ORDER and PRIM_MATCH columns.
+    scnd_target_init = data["SCND_TARGET_INIT"]
+    scnd_order = data["SCND_ORDER"]
+    prim_match = data["PRIM_MATCH"]
+
+    data = rfn.drop_fields(data,
+                           ["SCND_TARGET_INIT", "SCND_ORDER", "PRIM_MATCH"])
     # ADM we only need a subset of the columns where we match a primary.
     smalldata = rfn.drop_fields(data, ["PRIORITY_INIT", "SUBPRIORITY",
                                        "NUMOBS_INIT", "OBSCONDITIONS"])
@@ -937,14 +941,15 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     scnd_mask = mx[3]
 
     # ADM construct the output full and reduced file name.
-    filename = find_target_files(targdir, dr=drint, flavor="targets",
-                                 survey=survey, obscon=obscon, nohp=True)
-    filenam = os.path.splitext(os.path.basename(filename))[0]
+    filename = find_target_files(targdir, dr=drint, flavor="targets", nohp=True,
+                                 survey=survey, obscon=obscon, resolve=None)
 
     # ADM write out the file of matches for every secondary bit.
-    scxoutdir = os.path.join(scxdir, 'outdata', filenam)
+    scxoutdir = os.path.join(scxdir, 'outdata', desitarget_version)
     if obscon is not None:
         scxoutdir = os.path.join(scxoutdir, obscon.lower())
+    else:
+        scxoutdir = os.path.join(scxoutdir, "no-obscon")
     os.makedirs(scxoutdir, exist_ok=True)
 
     # ADM and write out the information for each bit.
@@ -968,9 +973,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
-    # ADM release before DR1 (release < 1000).
-    objid, brickid, release, mock, sky, gaiadr = decode_targetid(data["TARGETID"])
-    ii = (release < 1000) & (data["PRIORITY_INIT"] > -1)
+    # ADM don't have PRIM_MATCH set.
+    ii = ~prim_match & (data["PRIORITY_INIT"] > -1)
 
     # ADM ...write them out.
     write_with_units(filename, data[ii], extname='SCND_TARGETS', header=hdr)
@@ -2162,6 +2166,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     resolve : :class:`bool`, optional, defaults to ``True``
         If ``True`` then find the `resolve` file. Otherwise find the
         `noresolve` file. Relevant if `flavor` is `targets` or `randoms`.
+        Pass ``None`` to substitute `resolve` with "secondary".
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental targets file. Overrides
         the `obscon` option.
@@ -2219,8 +2224,11 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         log.critical(msg)
         raise ValueError(msg)
     res = "noresolve"
-    if resolve:
-        res = "resolve"
+    if resolve is None:
+        res = "secondary"
+    else:
+        if resolve:
+            res = "resolve"
     resdir = ""
     if flavor in ["targets", "randoms"]:
         resdir = res
@@ -2401,7 +2409,8 @@ def read_target_files(filename, columns=None, rows=None, header=False,
     """
     start = time()
     # ADM start with some checking that this is a target file.
-    targtypes = "TARGETS", "GFA_TARGETS", "SKY_TARGETS", "MASKS", "MTL"
+    targtypes = ["TARGETS", "GFA_TARGETS", "SKY_TARGETS",
+                 "MASKS", "MTL", "SCND_TARGETS"]
     # ADM read in the FITS extension info.
     f = fitsio.FITS(filename)
     if len(f) != 2:

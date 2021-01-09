@@ -19,17 +19,20 @@ import os.path
 import numbers
 import sys
 
+import fitsio
 import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
 import numpy.lib.recfunctions as rfn
 from importlib import import_module
 
+import astropy.units as u
+from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from desitarget import io
 from desitarget.internal import sharedmem
-from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.gaiamatch import match_gaia_to_primary, find_gaia_files_hp
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
 from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 from desitarget.targets import finalize, resolve
@@ -136,6 +139,129 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
         return gshift[0], rshift[0], zshift[0]
 
     return gshift, rshift, zshift
+
+
+def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None,
+               parallax=None, parallaxovererror=None, gaiabprpfactor=None,
+               gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
+               gaiadupsource=None, gaiaparamssolved=None,
+               primary=None, test=False, nside=2):
+    """Standards based solely on Gaia data.
+
+    Parameters
+    ----------
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find and read every possible Gaia file.
+    nside : :class:`int`, optional, defaults to 2
+        (NESTED) HEALPix nside, if targets are being parallelized.
+        The default of 2 should be benign for serial processing.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if the object is a bright "GAIA_STD_FAINT" target.
+    :class:`array_like`
+        ``True`` if the object is a faint "GAIA_STD_BRIGHT" target.
+    :class:`array_like`
+        ``True`` if the object is a white dwarf "GAIA_STD_WD" target.
+
+    Notes
+    -----
+    - Current version (01/08/21) is version XXX on `the wiki`_.
+    - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM restrict all classes to dec >= -30.
+    primary &= dec >= -30.
+    std = primary.copy()
+
+    # ADM the regular "standards" codes need to know whether something has
+    # ADM a Gaia match. Here, everything is a Gaia match.
+    gaia = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM determine the Gaia-based white dwarf standards.
+    std_wd = isMWS_WD(
+        primary=primary, gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
+        pmra=pmra, pmdec=pmdec, parallax=parallax,
+        parallaxovererror=parallaxovererror, photbprpexcessfactor=gaiabprpfactor,
+        astrometricsigma5dmax=gaiasigma5dmax, gaiagmag=gaiagmag,
+        gaiabmag=gaiabmag, gaiarmag=gaiarmag
+        )
+
+    # ADM apply the Gaia quality cuts for standards.
+    std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=gaiaaen,
+                      pmra=pmra, pmdec=pmdec, parallax=parallax,
+                      dupsource=gaiadupsource, paramssolved=gaiaparamssolved,
+                      gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+    # ADM restrict to point sources.
+    ispsf = np.logical_or(
+        (gaiagmag <= 19.) * (gaiaaen < 10.**0.5),
+        (gaiagmag >= 19.) * (gaiaaen < 10.**(0.5 + 0.2*(gaiagmag - 19.)))
+    )
+    std &= ispsf
+
+    # ADM apply the Gaia color cuts for standards.
+    bprp = gaiabmag - gaiarmag
+    gbp = gaiagmag - gaiabmag
+    std &= bprp > 0.2
+    std &= bprp < 0.9
+    std &= gbp > -1.*bprp/2.0
+    std &= gbp < 0.3-bprp/2.0
+
+    # ADM remove any sources that have neighbors in Gaia within 3.5"...
+    # ADM for speed, run only sources for which std is still True.
+    log.info("Isolating Gaia-only standards...t={:.1f}s".format(time()-start))
+    ii_true = np.where(std)[0]
+    if len(ii_true) > 0:
+        # ADM determine the pixels of interest.
+        theta, phi = np.radians(90-dec), np.radians(ra)
+        pixlist = list(set(hp.ang2pix(nside, theta, phi, nest=True)))
+        # ADM read in the necessary Gaia files.
+        fns = find_gaia_files_hp(nside, pixlist, neighbors=True)
+        gaiaobjs = []
+        gaiacols = ["RA", "DEC", "PHOT_G_MEAN_MAG", "PHOT_RP_MEAN_MAG"]
+        for i, fn in enumerate(fns):
+            if i % 25 == 0:
+                log.info("Read {}/{} files for Gaia-only standards...t={:.1f}s"
+                         .format(i, len(fns), time()-start))
+            try:
+                gaiaobjs.append(fitsio.read(fn, columns=gaiacols))
+            except OSError:
+                if test:
+                    pass
+                else:
+                    msg = "failed to find or open the following file: (ffopen) "
+                    msg += fn
+                    log.critical(msg)
+                    raise OSError
+        gaiaobjs = np.concatenate(gaiaobjs)
+        # ADM match the standards to the broader Gaia sources at 3.5".
+        matchrad = 3.5*u.arcsec
+        cstd = SkyCoord(ra[ii_true]*u.degree, dec[ii_true]*u.degree)
+        cgaia = SkyCoord(gaiaobjs["RA"]*u.degree, gaiaobjs["DEC"]*u.degree)
+        idstd, idgaia, d2d, _ = cgaia.search_around_sky(cstd, matchrad)
+        # ADM remove source matches with d2d=0 (i.e. the source itself!).
+        idgaia, idstd = idgaia[d2d > 0], idstd[d2d > 0]
+        # ADM remove matches within 5 mags of a Gaia source.
+        badmag = (
+            (gaiagmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_G_MEAN_MAG"][idgaia]) |
+            (gaiarmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_RP_MEAN_MAG"][idgaia]))
+        std[ii_true[idstd][badmag]] = False
+
+    # ADM add the brightness cuts in Gaia G-band.
+    std_bright = std.copy()
+    std_bright &= gaiagmag >= 15
+    std_bright &= gaiagmag < 18
+
+    std_faint = std.copy()
+    std_faint &= gaiagmag >= 16
+    std_faint &= gaiagmag < 19
+
+    return std_faint, std_bright, std_wd
 
 
 def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
@@ -367,7 +493,7 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
 def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  w2flux=None, south=True, primary=None):
     """Color cuts for ELG target selection classes
-    (see, e.g., :func:`desitarget.cuts.set_target_bits` for parameters).
+    (see, e.g., :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -2168,7 +2294,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     return desi_target, bgs_target, mws_target
 
 
-def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
+def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
+                    test=False):
     """Gaia-only-based target selection, return target mask arrays.
 
     Parameters
@@ -2185,6 +2312,10 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
         Only return targets in a set of (NESTED) HEALpixels at `nside`.
         Useful for parallelizing, as input files will only be processed
         if they touch a pixel in the passed list.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to find
+        and read every possible Gaia file when calling
+        :func:`~desitarget.cuts.apply_cuts_gaia`.
 
     Returns
     -------
@@ -2233,27 +2364,41 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     # ADM or are north of dec=-30.
     gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
                                  mindec=-30, mingalb=0, addobjid=True,
-                                 nside=nside, pixlist=pixlist)
+                                 nside=nside, pixlist=pixlist, addparams=True)
     # ADM the convenience function we use adds an empty TARGETID
     # ADM field which we need to remove before finalizing.
     gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
 
-    primary = np.ones_like(gaiaobjs, dtype=bool)
-
     # ADM the relevant input quantities.
     ra = gaiaobjs["RA"]
     dec = gaiaobjs["DEC"]
-    gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
+    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
+        gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,      \
+        gaiasigma5dmax, galb = _prepare_gaia(gaiaobjs)
 
     # ADM determine if an object is a BACKUP target.
+    primary = np.ones_like(gaiaobjs, dtype=bool)
     backup_bright, backup_faint, backup_very_faint = targcuts.isBACKUP(
         ra=ra, dec=dec, gaiagmag=gaiagmag, primary=primary
     )
+
+    # ADM determine if a target is a Gaia-only standard.
+    primary = np.ones_like(gaiaobjs, dtype=bool)
+    std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
+        ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
+        parallax=parallax, parallaxovererror=parallaxovererror,
+        gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
+        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+        gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
+        primary=primary, nside=nside, test=test)
 
     # ADM Construct the target flag bits.
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
+    mws_target |= std_faint * mws_mask.GAIA_STD_FAINT
+    mws_target |= std_bright * mws_mask.GAIA_STD_BRIGHT
+    mws_target |= std_wd * mws_mask.GAIA_STD_WD
 
     bgs_target = np.zeros_like(mws_target)
 
@@ -2408,7 +2553,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True, backup=True,
-                   return_infiles=False):
+                   return_infiles=False, test=False):
     """Process input files in parallel to select targets.
 
     Parameters
@@ -2464,6 +2609,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         If ``True``, also return the actual files from `infile` processed.
         Useful when running with `pixlist`, `radecbox` or `radecrad` to
         see which files were actually required.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to find
+        and read every possible Gaia file when calling
+        :func:`~desitarget.cuts.apply_cuts_gaia`.
 
     Returns
     -------
@@ -2632,7 +2781,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         # ADM set the target bits that are based only on Gaia.
         gaia_desi_target, gaia_bgs_target, gaia_mws_target, gaiaobjs = \
             apply_cuts_gaia(numproc=numproc4, survey=survey, nside=nside,
-                            pixlist=pixlist)
+                            pixlist=pixlist, test=test)
 
         # ADM it's possible that somebody could pass HEALPixels that
         # ADM contain no additional targets.

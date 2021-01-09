@@ -607,7 +607,7 @@ def calc_priority(targets, zcat, obscon, state=False):
     # DESI dark time targets.
     if survey != 'cmx':
         if desi_target in targets.dtype.names:
-            # ADM set initialstate of CALIB for potential calibration targets.
+            # ADM set initial state of CALIB for potential calibration targets.
             names = ('SKY', 'BAD_SKY', 'SUPP_SKY',
                      'STD_FAINT', 'STD_WD', 'STD_BRIGHT')
             for name in names:
@@ -686,23 +686,29 @@ def calc_priority(targets, zcat, obscon, state=False):
 
         # MWS targets.
         if mws_target in targets.dtype.names:
+            # ADM set initial state of CALIB for potential calibration targets.
+            stdnames = ('GAIA_STD_FAINT', 'GAIA_STD_WD', 'GAIA_STD_BRIGHT')
             for name in mws_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(mws_mask[name].obsconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[mws_target] & mws_mask[name]) != 0
-                    for sbool, sname in zip(
-                            [unobs, done, zgood, zwarn],
-                            ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
-                    ):
-                        # ADM update priorities and target states.
-                        Mxp = mws_mask[name].priorities[sname]
-                        # ADM update states BEFORE changing priorities.
-                        ts = "{}|{}".format("MWS", sname)
-                        target_state[ii & sbool] = np.where(
-                            priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
-                        priority[ii & sbool] = np.where(
-                            priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
+                    # ADM standards have no priority.
+                    if name in stdnames:
+                        target_state[ii] = "CALIB"
+                    else:
+                        for sbool, sname in zip(
+                                [unobs, done, zgood, zwarn],
+                                ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                        ):
+                            # ADM update priorities and target states.
+                            Mxp = mws_mask[name].priorities[sname]
+                            # ADM update states BEFORE changing priorities.
+                            ts = "{}|{}".format("MWS", sname)
+                            target_state[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                            priority[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
         # ADM Secondary targets.
         if scnd_target in targets.dtype.names:
@@ -819,7 +825,7 @@ def resolve(targets):
     ----------
     targets : :class:`~numpy.ndarray`
         Rec array of targets. Must have columns "RA" and "DEC" and
-        either "RELEASE" or "PHOTSYS".
+        either "RELEASE" or "PHOTSYS" or "TARGETID".
 
     Returns
     -------
@@ -833,7 +839,11 @@ def resolve(targets):
     if 'PHOTSYS' in targets.dtype.names:
         photsys = targets["PHOTSYS"]
     else:
-        photsys = release_to_photsys(targets["RELEASE"])
+        if 'RELEASE' in targets.dtype.names:
+            photsys = release_to_photsys(targets["RELEASE"])
+        else:
+            _, _, release, _, _, _ = decode_targetid(targets["TARGETID"])
+            photsys = release_to_photsys(release)
 
     # ADM a flag of which targets are from the 'N' photometry.
     from desitarget.cuts import _isonnorthphotsys
