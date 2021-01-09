@@ -1708,8 +1708,8 @@ def _prepare_gaia(objects, colnames=None, gaiaonly=False):
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
     if gaiaonly:
-        pmraivar = 1./objects['PMRA_ERROR']**2.
-        parallaxivar = 1./objects['PARALLAX_ERROR']**2.
+        pmraivar = 1./objects['PMRA_ERROR'].clip(1e-16)**2.
+        parallaxivar = 1./objects['PARALLAX_ERROR'].clip(1e-16)**2.
     else:
         pmraivar = objects['PMRA_IVAR']
         parallaxivar = objects['PARALLAX_IVAR']
@@ -1722,7 +1722,7 @@ def _prepare_gaia(objects, colnames=None, gaiaonly=False):
     if np.sum(notzero) > 0:
         parallaxerr[notzero] = 1 / np.sqrt(parallaxivar[notzero])
 
-    prefix = "GAIA"
+    prefix = "GAIA_"
     if gaiaonly:
         prefix = ""
     gaiagmag = objects[prefix + "PHOT_G_MEAN_MAG"]
@@ -2256,7 +2256,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     # ADM the relevant input quantities.
     ra = gaiaobjs["RA"]
     dec = gaiaobjs["DEC"]
-    gaiagmag = gaiaobjs["GAIA_PHOT_G_MEAN_MAG"]
+    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
+        gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,      \
+        gaiasigma5dmax, galb = _prepare_gaia(objects, gaiaonly=True)
 
     # ADM determine if an object is a BACKUP target.
     primary = np.ones_like(gaiaobjs, dtype=bool)
@@ -2278,6 +2280,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
+    mws_target |= std_faint * mws_mask.STD_FAINT
+    mws_target |= std_bright * mws_mask.STD_BRIGHT
+    mws_target |= std_wd * mws_mask.STD_WD
 
     bgs_target = np.zeros_like(mws_target)
 
