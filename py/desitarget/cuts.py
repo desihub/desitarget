@@ -1704,8 +1704,8 @@ def _prepare_gaia(objects, colnames=None):
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
-    pmraivar = objects['PMRA_IVAR']
     parallaxivar = objects['PARALLAX_IVAR']
+    pmraivar = objects['PMRA_IVAR']
     # ADM derive the parallax/parallax_error, but set to 0 where the error is bad
     parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
 
@@ -1715,15 +1715,15 @@ def _prepare_gaia(objects, colnames=None):
     if np.sum(notzero) > 0:
         parallaxerr[notzero] = 1 / np.sqrt(parallaxivar[notzero])
 
-    gaiagmag = objects["GAIA_PHOT_G_MEAN_MAG"]
-    gaiabmag = objects["GAIA_PHOT_BP_MEAN_MAG"]
-    gaiarmag = objects["GAIA_PHOT_RP_MEAN_MAG"]
-    gaiaaen = objects["GAIA_ASTROMETRIC_EXCESS_NOISE"]
+    gaiagmag = objects['GAIA_PHOT_G_MEAN_MAG']
+    gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
+    gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
+    gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
     # ADM a mild hack, as GAIA_DUPLICATED_SOURCE was a 0/1 integer at some point.
-    gaiadupsource = objects["GAIA_DUPLICATED_SOURCE"]
+    gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
     if issubclass(gaiadupsource.dtype.type, np.integer):
         if len(set(np.atleast_1d(gaiadupsource)) - set([0, 1])) == 0:
-            gaiadupsource = objects["GAIA_DUPLICATED_SOURCE"].astype(bool)
+            gaiadupsource = objects['GAIA_DUPLICATED_SOURCE'].astype(bool)
 
     # For BGS target selection.
     # ADM first guard against FLUX_R < 0 (I've checked this generates
@@ -2234,7 +2234,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     # ADM or are north of dec=-30.
     gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
                                  mindec=-30, mingalb=0, addobjid=True,
-                                 nside=nside, pixlist=pixlist)
+                                 nside=nside, pixlist=pixlist, addparams=True)
     # ADM the convenience function we use adds an empty TARGETID
     # ADM field which we need to remove before finalizing.
     gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
