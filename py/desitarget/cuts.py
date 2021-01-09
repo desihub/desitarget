@@ -2265,9 +2265,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
-    mws_target |= std_faint * mws_mask.STD_FAINT
-    mws_target |= std_bright * mws_mask.STD_BRIGHT
-    mws_target |= std_wd * mws_mask.STD_WD
+    mws_target |= std_faint * mws_mask.GAIA_STD_FAINT
+    mws_target |= std_bright * mws_mask.GAIA_STD_BRIGHT
+    mws_target |= std_wd * mws_mask.GAIA_STD_WD
 
     bgs_target = np.zeros_like(mws_target)
 

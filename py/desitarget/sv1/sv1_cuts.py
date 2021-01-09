@@ -20,6 +20,9 @@ from pkg_resources import resource_filename
 import healpy as hp
 import fitsio
 
+import astropy.units as u
+from astropy.coordinates import SkyCoord
+
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
 from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp
@@ -102,7 +105,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     gbp = gaiagmag - gaiabmag
     std &= bprp > 0.2
     std &= bprp < 0.9
-    std &= gbp > -1*bprp/2.0
+    std &= gbp > -1.*bprp/2.0
     std &= gbp < 0.3-bprp/2.0
 
     # ADM remove any sources that have neighbors in Gaia within 3.5"...
@@ -119,7 +122,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         gaiacols = ["RA", "DEC", "PHOT_G_MEAN_MAG", "PHOT_RP_MEAN_MAG"]
         for i, fn in enumerate(fns):
             if i % 25 == 0:
-                log.info("Read {}/{} files for STD_DITHER_GAIA...t={:.1f}s"
+                log.info("Read {}/{} files for Gaia-only standards...t={:.1f}s"
                          .format(i, len(fns), time()-start))
             try:
                 gaiaobjs.append(fitsio.read(fn, columns=gaiacols))
@@ -141,8 +144,8 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         idgaia, idstd = idgaia[d2d > 0], idstd[d2d > 0]
         # ADM remove matches within 5 mags of a Gaia source.
         badmag = (
-            (gmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_G_MEAN_MAG"][idgaia]) |
-            (rmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_RP_MEAN_MAG"][idgaia]))
+            (gaiagmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_G_MEAN_MAG"][idgaia]) |
+            (gaiarmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_RP_MEAN_MAG"][idgaia]))
         std[ii_true[idstd][badmag]] = False
 
     # ADM add the brightness cuts in Gaia G-band.

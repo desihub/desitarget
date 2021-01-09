@@ -607,7 +607,7 @@ def calc_priority(targets, zcat, obscon, state=False):
     # DESI dark time targets.
     if survey != 'cmx':
         if desi_target in targets.dtype.names:
-            # ADM set initialstate of CALIB for potential calibration targets.
+            # ADM set initial state of CALIB for potential calibration targets.
             names = ('SKY', 'BAD_SKY', 'SUPP_SKY',
                      'STD_FAINT', 'STD_WD', 'STD_BRIGHT')
             for name in names:
@@ -686,7 +686,7 @@ def calc_priority(targets, zcat, obscon, state=False):
 
         # MWS targets.
         if mws_target in targets.dtype.names:
-            # ADM set initialstate of CALIB for potential calibration targets.
+            # ADM set initial state of CALIB for potential calibration targets.
             stdnames = ('GAIA_STD_FAINT', 'GAIA_STD_WD', 'GAIA_STD_BRIGHT')
             for name in mws_mask.names():
                 # ADM only update priorities for passed observing conditions.
