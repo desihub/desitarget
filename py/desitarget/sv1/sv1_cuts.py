@@ -93,7 +93,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                       dupsource=gaiadupsource, paramssolved=gaiaparamssolved,
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
-    # ADM restrict to point sources
+    # ADM restrict to point sources.
     ispsf = np.logical_or(
         (gaiagmag <= 19.) * (gaiaaen < 10.**0.5),
         (gaiagmag >= 19.) * (gaiaaen < 10.**(0.5 + 0.2*(gaiagmag - 19.)))

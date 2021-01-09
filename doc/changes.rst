@@ -6,6 +6,8 @@ desitarget Change Log
 -------------------
 
 * First run of secondaries with real target files [`PR #669`_]. Includes:
+    * Add Gaia-only standard stars to the MWS masks for SV, Main Survey:
+        * `GAIA_STD_FAINT`, `GAIA_STD_BRIGHT`, `GAIA_STD_WD`.
     * General optimization, updating and debugging of the secondary code.
     * Get `TARGETIDs` from the input sweeps, not just the actual targets.
     * Add the first full bitmask for the SV1 secondary target files.

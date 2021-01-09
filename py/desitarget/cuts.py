@@ -138,6 +138,130 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
     return gshift, rshift, zshift
 
 
+def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None,
+               parallax=None, parallaxovererror=None, gaiabprpfactor=None,
+               gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
+               gaiadupsource=None, gaiaparamssolved=None,
+               primary=None, test=False, nside=2):
+    """Standards based solely on Gaia data.
+
+    Parameters
+    ----------
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find and read every possible Gaia file.
+    nside : :class:`int`, optional, defaults to 2
+        (NESTED) HEALPix nside, if targets are being parallelized.
+        The default of 2 should be benign for serial processing.
+
+    see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if the object is a bright "GAIA_STD_FAINT" target.
+    :class:`array_like`
+        ``True`` if the object is a faint "GAIA_STD_BRIGHT" target.
+    :class:`array_like`
+        ``True`` if the object is a white dwarf "GAIA_STD_WD" target.
+
+    Notes
+    -----
+    - Current version (01/08/21) is version XXX on `the wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM restrict all classes to dec >= -30.
+    primary &= dec >= -30.
+    std = primary.copy()
+
+    # ADM the regular "standards" codes need to know whether something has
+    # ADM a Gaia match. Here, everything is a Gaia match.
+    gaia = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM determine the Gaia-based white dwarf standards.
+    std_wd = isMWS_WD(
+        primary=primary, gaia=gaia, galb=galb, astrometricexcessnoise=gaiaaen,
+        pmra=pmra, pmdec=pmdec, parallax=parallax,
+        parallaxovererror=parallaxovererror, photbprpexcessfactor=gaiabprpfactor,
+        astrometricsigma5dmax=gaiasigma5dmax, gaiagmag=gaiagmag,
+        gaiabmag=gaiabmag, gaiarmag=gaiarmag
+        )
+
+    # ADM apply the Gaia quality cuts for standards.
+    std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=gaiaaen,
+                      pmra=pmra, pmdec=pmdec, parallax=parallax,
+                      dupsource=gaiadupsource, paramssolved=gaiaparamssolved,
+                      gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
+
+    # ADM restrict to point sources.
+    ispsf = np.logical_or(
+        (gaiagmag <= 19.) * (gaiaaen < 10.**0.5),
+        (gaiagmag >= 19.) * (gaiaaen < 10.**(0.5 + 0.2*(gaiagmag - 19.)))
+    )
+    std &= ispsf
+
+    # ADM apply the Gaia color cuts for standards.
+    bprp = gaiabmag - gaiarmag
+    gbp = gaiagmag - gaiabmag
+    std &= bprp > 0.2
+    std &= bprp < 0.9
+    std &= gbp > -1.*bprp/2.0
+    std &= gbp < 0.3-bprp/2.0
+
+    # ADM remove any sources that have neighbors in Gaia within 3.5"...
+    # ADM for speed, run only sources for which std is still True.
+    log.info("Isolating Gaia-only standards...t={:.1f}s".format(time()-start))
+    ii_true = np.where(std)[0]
+    if len(ii_true) > 0:
+        # ADM determine the pixels of interest.
+        theta, phi = np.radians(90-dec), np.radians(ra)
+        pixlist = list(set(hp.ang2pix(nside, theta, phi, nest=True)))
+        # ADM read in the necessary Gaia files.
+        fns = find_gaia_files_hp(nside, pixlist, neighbors=True)
+        gaiaobjs = []
+        gaiacols = ["RA", "DEC", "PHOT_G_MEAN_MAG", "PHOT_RP_MEAN_MAG"]
+        for i, fn in enumerate(fns):
+            if i % 25 == 0:
+                log.info("Read {}/{} files for Gaia-only standards...t={:.1f}s"
+                         .format(i, len(fns), time()-start))
+            try:
+                gaiaobjs.append(fitsio.read(fn, columns=gaiacols))
+            except OSError:
+                if test:
+                    pass
+                else:
+                    msg = "failed to find or open the following file: (ffopen) "
+                    msg += fn
+                    log.critical(msg)
+                    raise OSError
+        gaiaobjs = np.concatenate(gaiaobjs)
+        # ADM match the standards to the broader Gaia sources at 3.5".
+        matchrad = 3.5*u.arcsec
+        cstd = SkyCoord(ra[ii_true]*u.degree, dec[ii_true]*u.degree)
+        cgaia = SkyCoord(gaiaobjs["RA"]*u.degree, gaiaobjs["DEC"]*u.degree)
+        idstd, idgaia, d2d, _ = cgaia.search_around_sky(cstd, matchrad)
+        # ADM remove source matches with d2d=0 (i.e. the source itself!).
+        idgaia, idstd = idgaia[d2d > 0], idstd[d2d > 0]
+        # ADM remove matches within 5 mags of a Gaia source.
+        badmag = (
+            (gaiagmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_G_MEAN_MAG"][idgaia]) |
+            (gaiarmag[ii_true][idstd] + 5 > gaiaobjs["PHOT_RP_MEAN_MAG"][idgaia]))
+        std[ii_true[idstd][badmag]] = False
+
+    # ADM add the brightness cuts in Gaia G-band.
+    std_bright = std.copy()
+    std_bright &= gaiagmag >= 15
+    std_bright &= gaiagmag < 18
+
+    std_faint = std.copy()
+    std_faint &= gaiagmag >= 16
+    std_faint &= gaiagmag < 19
+
+    return std_faint, std_bright, std_wd
+
+
 def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     """BACKUP targets based on Gaia magnitudes.
 
