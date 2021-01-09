@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.47.1 (unreleased)
+0.48.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.48.0 (2020-01-09)
 -------------------
 
 * First run of secondaries with real target files [`PR #669`_]. Includes:
@@ -111,7 +116,9 @@ desitarget Change Log
     * Flexibility when adding MTL columns to randoms, to save memory:
         * MTL columns can still be added when running the randoms.
 	* Or, can now be added when splitting a larger random catalog.
+* Add notebook demonstrating ledgers [`PR #642`_].
 
+.. _`PR #642`: https://github.com/desihub/desitarget/pull/642
 .. _`PR #649`: https://github.com/desihub/desitarget/pull/649
 
 0.43.0 (2020-10-27)
