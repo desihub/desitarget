@@ -1688,7 +1688,7 @@ def _prepare_optical_wise(objects, mask=True):
             dchisq, deltaChi2, maskbits, refcat)
 
 
-def _prepare_gaia(objects, colnames=None, gaiaonly=False):
+def _prepare_gaia(objects, colnames=None):
     """Process the various Gaia inputs for target selection."""
 
     if colnames is None:
@@ -1698,21 +1698,14 @@ def _prepare_gaia(objects, colnames=None, gaiaonly=False):
     # ADM if we don't have REF_CAT in the sweeps use the
     # ADM minimum value of REF_ID to identify Gaia sources. This will
     # ADM introduce a small number (< 0.001%) of Tycho-only sources.
-    if gaiaonly:
-        gaia = np.ones_like(objects, dtype=bool)
-    else:
-        gaia = objects['REF_ID'] > 0
-        if "REF_CAT" in colnames:
-            gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
+    gaia = objects['REF_ID'] > 0
+    if "REF_CAT" in colnames:
+        gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     parallax = objects['PARALLAX']
-    if gaiaonly:
-        pmraivar = 1./objects['PMRA_ERROR'].clip(1e-16)**2.
-        parallaxivar = 1./objects['PARALLAX_ERROR'].clip(1e-16)**2.
-    else:
-        pmraivar = objects['PMRA_IVAR']
-        parallaxivar = objects['PARALLAX_IVAR']
+    pmraivar = objects['PMRA_IVAR']
+    parallaxivar = objects['PARALLAX_IVAR']
     # ADM derive the parallax/parallax_error, but set to 0 where the error is bad
     parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
 
@@ -1722,34 +1715,27 @@ def _prepare_gaia(objects, colnames=None, gaiaonly=False):
     if np.sum(notzero) > 0:
         parallaxerr[notzero] = 1 / np.sqrt(parallaxivar[notzero])
 
-    prefix = "GAIA_"
-    if gaiaonly:
-        prefix = ""
-    gaiagmag = objects[prefix + "PHOT_G_MEAN_MAG"]
-    gaiabmag = objects[prefix + "PHOT_BP_MEAN_MAG"]
-    gaiarmag = objects[prefix + "PHOT_RP_MEAN_MAG"]
-    gaiaaen = objects[prefix + "ASTROMETRIC_EXCESS_NOISE"]
+    gaiagmag = objects["GAIA_PHOT_G_MEAN_MAG"]
+    gaiabmag = objects["GAIA_PHOT_BP_MEAN_MAG"]
+    gaiarmag = objects["GAIA_PHOT_RP_MEAN_MAG"]
+    gaiaaen = objects["GAIA_ASTROMETRIC_EXCESS_NOISE"]
     # ADM a mild hack, as GAIA_DUPLICATED_SOURCE was a 0/1 integer at some point.
-    gaiadupsource = objects[prefix + "DUPLICATED_SOURCE"]
+    gaiadupsource = objects["GAIA_DUPLICATED_SOURCE"]
     if issubclass(gaiadupsource.dtype.type, np.integer):
         if len(set(np.atleast_1d(gaiadupsource)) - set([0, 1])) == 0:
-            gaiadupsource = objects[prefix + "DUPLICATED_SOURCE"].astype(bool)
+            gaiadupsource = objects["GAIA_DUPLICATED_SOURCE"].astype(bool)
 
     # For BGS target selection.
     # ADM first guard against FLUX_R < 0 (I've checked this generates
     # ADM the same set of targets as Grr = NaN).
-    if gaiaonly:
-        Grr = np.zeros_like(objects[prefix + "PHOT_G_MEAN_MAG"])
-        Grr = np.nan
+    Grr = gaiagmag - 22.5 + 2.5*np.log10(1e-16)
+    ii = objects['FLUX_R'] > 0
+    # ADM catch the case where Grr is a scalar.
+    if isinstance(Grr, np.float):
+        if ii:
+            Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
     else:
-        Grr = gaiagmag - 22.5 + 2.5*np.log10(1e-16)
-        ii = objects['FLUX_R'] > 0
-        # ADM catch the case where Grr is a scalar.
-        if isinstance(Grr, np.float):
-            if ii:
-                Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
-        else:
-            Grr[ii] = gaiagmag[ii] - 22.5 + 2.5*np.log10(objects['FLUX_R'][ii])
+        Grr[ii] = gaiagmag[ii] - 22.5 + 2.5*np.log10(objects['FLUX_R'][ii])
 
     # ADM If proper motion is not NaN, 31 parameters were solved for
     # ADM in Gaia astrometry. Or, gaiaparamssolved should be 3 for NaNs).
@@ -2258,7 +2244,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
     dec = gaiaobjs["DEC"]
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
         gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,      \
-        gaiasigma5dmax, galb = _prepare_gaia(objects, gaiaonly=True)
+        gaiasigma5dmax, galb = _prepare_gaia(gaiaobjs)
 
     # ADM determine if an object is a BACKUP target.
     primary = np.ones_like(gaiaobjs, dtype=bool)
