@@ -2259,7 +2259,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None):
         gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
-        primary=primary)
+        primary=primary, nside=nside)
 
     # ADM Construct the target flag bits.
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT

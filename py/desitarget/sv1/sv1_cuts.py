@@ -17,10 +17,12 @@ import warnings
 
 from time import time
 from pkg_resources import resource_filename
+import healpy as hp
+import fitsio
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
-from desitarget.gaiamatch import is_in_Galaxy
+from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp
 from desitarget.geomask import imaging_mask
 
 # ADM set up the DESI default logger
@@ -35,7 +37,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                parallax=None, parallaxovererror=None, gaiabprpfactor=None,
                gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiadupsource=None, gaiaparamssolved=None,
-               primary=None, test=False):
+               primary=None, test=False, nside=2):
     """Standards based solely on Gaia data.
 
     Parameters
@@ -43,6 +45,9 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     test : :class:`bool`, optional, defaults to ``False``
         If ``True``, then we're running unit tests and don't have to
         find and read every possible Gaia file.
+    nside : :class:`int`, optional, defaults to 2
+        (NESTED) HEALPix nside, if targets are being parallelized.
+        The default of 2 should be benign for serial processing.
 
     see :func:`~desitarget.sv1.sv1_cuts.set_target_bits` for parameters.
 

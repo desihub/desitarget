@@ -686,23 +686,29 @@ def calc_priority(targets, zcat, obscon, state=False):
 
         # MWS targets.
         if mws_target in targets.dtype.names:
+            # ADM set initialstate of CALIB for potential calibration targets.
+            stdnames = ('GAIA_STD_FAINT', 'GAIA_STD_WD', 'GAIA_STD_BRIGHT')
             for name in mws_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(mws_mask[name].obsconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[mws_target] & mws_mask[name]) != 0
-                    for sbool, sname in zip(
-                            [unobs, done, zgood, zwarn],
-                            ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
-                    ):
-                        # ADM update priorities and target states.
-                        Mxp = mws_mask[name].priorities[sname]
-                        # ADM update states BEFORE changing priorities.
-                        ts = "{}|{}".format("MWS", sname)
-                        target_state[ii & sbool] = np.where(
-                            priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
-                        priority[ii & sbool] = np.where(
-                            priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
+                    # ADM standards have no priority.
+                    if name in stdnames:
+                        target_state[ii] = "CALIB"
+                    else:
+                        for sbool, sname in zip(
+                                [unobs, done, zgood, zwarn],
+                                ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                        ):
+                            # ADM update priorities and target states.
+                            Mxp = mws_mask[name].priorities[sname]
+                            # ADM update states BEFORE changing priorities.
+                            ts = "{}|{}".format("MWS", sname)
+                            target_state[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                            priority[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
         # ADM Secondary targets.
         if scnd_target in targets.dtype.names:
