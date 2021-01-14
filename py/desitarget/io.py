@@ -1306,6 +1306,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         hdr["REGION"] = region
 
     # ADM record whether this file has been limited to only certain HEALPixels.
+    nohp = False
     if hpxlist is not None or nsidefile is not None:
         # ADM hpxlist and nsidefile need to be passed together.
         check_both_set(hpxlist, nsidefile)
@@ -1317,6 +1318,10 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     else:
         # ADM set the hp part of the output file name to "X".
         hpxlist = "X"
+        # ADM if these are supplemental radons, ignore HEALPIxels.
+        if supp:
+            hpxlist = None
+            nohp = True
 
     # ADM add the extra keywords to the header.
     hdr["DR"] = drint
@@ -1324,12 +1329,19 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
         for key in extra:
             hdr[key] = extra[key]
 
-    # ADM retrieve the seed, if it is known.
+    # ADM retrieve the seed or seeds, if known.
     seed = None
     if extra is not None:
         for seedy in "seed", "SEED":
             if seedy in extra:
                 seed = extra[seedy]
+        # ADM we may have two seeds if the file is supplemental: The
+        # ADM original seed that was used to run the randoms and a second
+        # ADM seed that was used to supplement those randoms.
+        if supp:
+            for seedy in "origseed", "ORIGSEED":
+                if seedy in extra:
+                    seed = "{}-{}".format(extra[seedy], seed)
 
     # ADM construct the output file name.
     filename = find_target_files(targdir, dr=drint, flavor="randoms",
@@ -2176,7 +2188,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     nohp : :class:`bool`, optional, defaults to ``False``
         If ``True``, override the normal behavior for `hp`=``None`` and
         instead construct a filename that omits the `-hpX-` part.
-    seed : :class:`int`, optional
+    seed : :class:`int` or `str`, optional
         If `seed` is not ``None``, then it is added to the file name just
         before the ".fits" extension (i.e. "-8.fits" for `seed` of 8).
         Only relevant if `flavor` is "randoms".
@@ -2312,10 +2324,13 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
             backend = "{}.{}".format(prefix, ender)
             fn = os.path.join(fn, backend)
 
-    if flavor == "randoms" and seed is not None:
-        # ADM note that this won't do anything unless a file
-        # ADM name was already constructed.
-        fn = fn.replace(".{}".format(ender), "-{}.{}".format(seed, ender))
+    if flavor == "randoms":
+        # ADM note that these clauses won't do anything
+        # ADM unless a file name was already constructed.
+        if seed is not None:
+            fn = fn.replace(".{}".format(ender), "-{}.{}".format(seed, ender))
+        if supp:
+            fn = fn.replace("randoms", "randoms-outside")
 
     return fn
 

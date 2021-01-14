@@ -1333,9 +1333,9 @@ def supplement_randoms(donebns, density=10000, numproc=32, dustdir=None,
         Number of random points per sq. deg. A typical brick is ~0.25 x
         0.25 sq. deg. so ~(0.0625*density) points will be returned.
     seed : :class:`int`, optional, defaults to 1
-        Random seed to use when shuffling across brick boundaries.
-        The actual np.random.seed defaults to 615+`seed`. Also see use
-        in :func:`~desitarget.randoms.randoms_in_a_brick_from_edges`.
+        See :func:`~desitarget.randoms.randoms_in_a_brick_from_edges`.
+        A seed of 615 + `seed` is also used to shuffle randoms across
+        brick boundaries.
 
     Returns
     -------
