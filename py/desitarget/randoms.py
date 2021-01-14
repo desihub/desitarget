@@ -562,9 +562,11 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
         fnlist.append(tracfile)
         return fnlist
 
-    gen = iglob(os.path.join(drdir, "tractor", "*", "tractor*fits"))
+    # ADM populate the release number using a header from an nexp file.
+    fn = fileform.format(brickname, "nexp", '*', extn)
+    gen = iglob(fn)
     try:
-        release = fitsio.read(next(gen), columns="release", rows=0)[0]
+        release = fitsio.read_header(next(gen), extn_nb)["DRVERSIO"]
     # ADM if this isn't a standard DR structure, default to release=0.
     except StopIteration:
         release = 0
