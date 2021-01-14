@@ -16,7 +16,7 @@ ap = ArgumentParser(
     description='Combine N random and "-outside-" catalogs into "-allsky-" catalogs. Make the data model ' +
     'resemble the random catalogs with zeros where the "-outside-" catalogs have no data. This can be easily '+  
     'batched in a slurm file, for example, one line in such a file might be: '+
-    'srun -N 1 ./make_comb_randoms /global/cfs/cdirs/desi/target/catalogs/dr9/0.48.0/randoms/resolve/ -s 1-13 &')
+    'srun -N 1 ./combine_randoms /global/cfs/cdirs/desi/target/catalogs/dr9/0.47.0/randoms/resolve/ -s 1-13 &')
 ap.add_argument("randir",
                 help='Full path to the DIRECTORY containing random files (e.g /global/cfs/cdirs/desi/target/catalogs/dr9/0.47.0/randoms/resolve).')
 ap.add_argument("-s", "--seedstring",
