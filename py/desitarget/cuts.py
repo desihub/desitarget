@@ -254,7 +254,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     # ADM add the brightness cuts in Gaia G-band.
     std_bright = std.copy()
-    std_bright &= gaiagmag >= 15
+    std_bright &= gaiagmag >= 16
     std_bright &= gaiagmag < 18
 
     std_faint = std.copy()
@@ -737,7 +737,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     # ADM brightness cuts in Gaia G-band
     if bright:
-        gbright = 15.
+        gbright = 16.
         gfaint = 18.
     else:
         gbright = 16.
