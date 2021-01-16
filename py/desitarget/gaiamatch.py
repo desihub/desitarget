@@ -112,6 +112,34 @@ def get_gaia_nside_brick(bricksize=0.25):
     return pixarea2nside(bricksize*bricksize)
 
 
+def gaia_psflike(aen, g):
+    """Whether an objects is PSF-like based on Gaia quantities.
+
+    Parameters
+    ----------
+    aen : :class:`array_like` or :class`float`
+        Gaia Astrometric Excess Noise.
+    g : :class:`array_like` or :class`float`
+        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+
+    Returns
+    -------
+    :class:`array_like` or :class`float`
+        A boolean that is ``True`` for objects that are psf-like
+        based on Gaia quantities.
+
+    Notes
+    -----
+        - Input quantities are the same as in `the Gaia data model`_.
+    """
+    psflike = np.logical_or(
+        (g <= 19.) * (aen < 10.**0.5),
+        (g >= 19.) * (aen < 10.**(0.5 + 0.2*(g - 19.)))
+    )
+
+    return psflike
+
+
 def is_in_Galaxy(objs, radec=False):
     """An (l, b) cut developed by Boris Gaensicke to avoid the Galaxy.
 

@@ -20,7 +20,7 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
-from desitarget.gaiamatch import find_gaia_files_hp, _get_gaia_nside
+from desitarget.gaiamatch import find_gaia_files_hp, _get_gaia_nside, gaia_psflike
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
@@ -71,10 +71,7 @@ def gaia_morph(gaia):
     # ADM determine which objects are Gaia point sources.
     g = gaia['GAIA_PHOT_G_MEAN_MAG']
     aen = gaia['GAIA_ASTROMETRIC_EXCESS_NOISE']
-    psf = np.logical_or(
-        (g <= 19.) * (aen < 10.**0.5),
-        (g >= 19.) * (aen < 10.**(0.5 + 0.2*(g - 19.)))
-    )
+    psf = gaia_psflike(aen, g)
 
     # ADM populate morphological information.
     morph = np.zeros(len(gaia), dtype=gfadatamodel["TYPE"].dtype)
