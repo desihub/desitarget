@@ -5,7 +5,16 @@ desitarget Change Log
 0.48.1 (unreleased)
 -------------------
 
-* No changes yet.
+* General clean-up for final DR9 imaging [`PR #670`_]. Includes:
+    * Shift Gaia-based morphological cuts to single function.
+    * Add or update wiki versions referenced in doc strings.
+    * Change cuts for bright, Main Survey standards to G > 16.
+    * Debug and streamline "outside-of-the-footprint" randoms.
+    * Read the actual RELEASE number for randoms from file headers.
+        * Previously, one RELEASE was adopted for each of North/South.
+    * Add new WD_BINARIES secondary program that is split by DARK/BRIGHT.
+
+.. _`PR #670`: https://github.com/desihub/desitarget/pull/670
 
 0.48.0 (2020-01-09)
 -------------------
