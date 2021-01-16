@@ -57,7 +57,7 @@ hdr['SEP'] = float(ns.separation)
 
 # ADM try to determine the Data Release from the priminfo file.
 try:
-    drint =ns. priminfodir.split('dr')[1].split('-')[0]
+    drint = ns.priminfodir.split('dr')[1].split('-')[0]
 except (ValueError, IndexError, AttributeError):
     drint = "X"
 

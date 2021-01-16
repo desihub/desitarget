@@ -371,6 +371,11 @@ def add_primary_info(scxtargs, priminfodir):
     :class:`~numpy.ndarray`
         The array of secondary targets, with the `TARGETID` column
         populated for matches to secondary targets
+
+    Notes
+    -----
+        - The input `scxtargs` is modified, so be careful to make
+          a copy if you want that variable to remain unchanged!
     """
     log.info("Begin matching primaries in {} to secondaries...t={:.1f}s"
              .format(priminfodir, time()-start))
@@ -621,7 +626,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     scxtargs["PRIM_MATCH"][mscx] = True
 
     # ADM now we're done matching the primary and secondary targets, also
-    # ADM match the secondary targets to sweep files, if passes, to find
+    # ADM match the secondary targets to sweep files, if passed, to find
     # ADM TARGETIDs.
     notid = scxtargs["TARGETID"] == -1
     if swfiles is not None and np.sum(notid) > 0:
@@ -737,6 +742,11 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
         input `survey`. `RELEASE` is set to ((X-1)*100)+np.log2(scnd_bit)
         with X from the `survey` string survey=svX and scnd_bit from
         `SCND_TARGET`. For the main survey (survey="main") X-1 is 5.
+
+    Notes
+    -----
+        - The input `scxtargs` is modified, so be careful to make
+          a copy if you want that variable to remain unchanged!
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
