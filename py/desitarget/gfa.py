@@ -309,7 +309,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         # ADM Gaia "00000" pixel file might not exist.
         dummyfile = find_gaia_files_hp(nside, pixlist[0],
                                        neighbors=False)[0]
-    dummygfas = np.array([], gaia_in_file(dummyfile).dtype)
+    dummygfas = np.array([], gaia_in_file(dummyfile, addparams=addparams).dtype)
 
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
