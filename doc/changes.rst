@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.48.1 (unreleased)
+0.49.1 (unreleased)
+-------------------
+
+No changes yet.
+
+0.49.0 (2020-01-18)
 -------------------
 
 * General clean-up for final DR9 imaging [`PR #670`_]. Includes:
@@ -1482,4 +1487,3 @@ to importing target mask bits and how mock spectra are generated.
 
 .. _`PR #29`: https://github.com/desihub/desitarget/pull/29
 .. _`PR #27`: https://github.com/desihub/desitarget/pull/27
-                                                          
