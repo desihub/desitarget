@@ -34,7 +34,7 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary, find_gaia_files_hp
 from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
-from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
+from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy, gaia_psflike
 from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
 from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
@@ -168,7 +168,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Notes
     -----
-    - Current version (01/08/21) is version XXX on `the wiki`_.
+    - Current version (01/15/21) is version 236 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -198,10 +198,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
     # ADM restrict to point sources.
-    ispsf = np.logical_or(
-        (gaiagmag <= 19.) * (gaiaaen < 10.**0.5),
-        (gaiagmag >= 19.) * (gaiaaen < 10.**(0.5 + 0.2*(gaiagmag - 19.)))
-    )
+    ispsf = gaia_psflike(gaiaaen, gaiagmag)
     std &= ispsf
 
     # ADM apply the Gaia color cuts for standards.
@@ -254,7 +251,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     # ADM add the brightness cuts in Gaia G-band.
     std_bright = std.copy()
-    std_bright &= gaiagmag >= 15
+    std_bright &= gaiagmag >= 16
     std_bright &= gaiagmag < 18
 
     std_faint = std.copy()
@@ -702,7 +699,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     Notes:
         - Gaia-based quantities are as in `the Gaia data model`_.
-        - Current version (08/01/18) is version 127 on `the wiki`_.
+        - Current version (01/15/21) is version 236 on `the wiki`_.
 
     """
     if primary is None:
@@ -737,7 +734,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     # ADM brightness cuts in Gaia G-band
     if bright:
-        gbright = 15.
+        gbright = 16.
         gfaint = 18.
     else:
         gbright = 16.

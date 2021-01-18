@@ -5,7 +5,20 @@ desitarget Change Log
 0.48.1 (unreleased)
 -------------------
 
-* No changes yet.
+* General clean-up for final DR9 imaging [`PR #670`_]. Includes:
+    * Debug primary-secondary cross-matching:
+        * remove duplicate secondaries that match two primaries...
+        * ...NOT duplicate primaries that match two secondaries.
+    * Catch if no Gaia sources are found when making Gaia-only standards.
+    * Shift Gaia-based morphological cuts to a single function.
+    * Add or update wiki versions referenced in doc strings.
+    * Change cuts for bright, Main Survey standards to G > 16.
+    * Debug and streamline "outside-of-the-footprint" randoms.
+    * Read the actual RELEASE number for randoms from file headers.
+        * Rather than assuming a single, canonical North/South RELEASE.
+    * Add new WD_BINARIES secondary program that is split by DARK/BRIGHT.
+
+.. _`PR #670`: https://github.com/desihub/desitarget/pull/670
 
 0.48.0 (2020-01-09)
 -------------------

@@ -25,7 +25,7 @@ from astropy.coordinates import SkyCoord
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
-from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp
+from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp, gaia_psflike
 from desitarget.geomask import imaging_mask
 
 # ADM set up the DESI default logger
@@ -64,7 +64,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     Notes
     -----
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
-    - Current version (01/08/21) is version XXX on `the SV wiki`_.
+    - Current version (01/15/21) is version 151 on `the SV wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')
@@ -93,10 +93,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
     # ADM restrict to point sources.
-    ispsf = np.logical_or(
-        (gaiagmag <= 19.) * (gaiaaen < 10.**0.5),
-        (gaiagmag >= 19.) * (gaiaaen < 10.**(0.5 + 0.2*(gaiagmag - 19.)))
-    )
+    ispsf = gaia_psflike(gaiaaen, gaiagmag)
     std &= ispsf
 
     # ADM apply the Gaia color cuts for standards.

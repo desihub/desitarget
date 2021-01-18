@@ -153,41 +153,42 @@ sv1_mws_mask:
 sv1_scnd_mask:
     - [VETO,                 0, "Never observe, even if a primary target bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
-    - [UDG,                  1, "See $SCND_DIR/UDG.txt",                {obsconditions: DARK,        filename: 'UDG'}]
-    - [FIRST_MALS,           2, "See $SCND_DIR/FIRST_MALS.txt",         {obsconditions: DARK,        filename: 'FIRST_MALS'}]
-    - [WD_BINARIES,          3, "See $SCND_DIR/WD_BINARIES.txt",        {obsconditions: BRIGHT|DARK, filename: 'WD_BINARIES'}]
-    - [LBG_TOMOG,            4, "See $SCND_DIR/LBG_TOMOG.txt",          {obsconditions: DARK,        filename: 'LBG_TOMOG'}]
-    - [QSO_RED,              5, "See $SCND_DIR/QSO_RED.ipynb",          {obsconditions: DARK,        filename: 'QSO_RED'}]
-    - [M31_KNOWN,            6, "See $SCND_DIR/M31_KNOWN.txt",          {obsconditions: DARK,        filename: 'M31_KNOWN'}]
-    - [M31_QSO,              7, "See $SCND_DIR/M31_QSO.txt.",           {obsconditions: DARK,        filename: 'M31_QSO'}]
-    - [M31_STAR,             8, "See $SCND_DIR/M31_STAR.txt",           {obsconditions: DARK,        filename: 'M31_STAR'}]
+    - [UDG,                  1, "See $SCND_DIR/sv1/docs/UDG.txt",                {obsconditions: DARK,        filename: 'UDG'}]
+    - [FIRST_MALS,           2, "See $SCND_DIR/sv1/docs/FIRST_MALS.txt",         {obsconditions: DARK,        filename: 'FIRST_MALS'}]
+# ADM the WD_BINARIES class was part of 0.48.0 but was then deprecated in favor of WD_BINARIES_DARK and WD_BINARIES_BRIGHT.
+#   - [WD_BINARIES,          3, "See $SCND_DIR/sv1/docs/WD_BINARIES.txt",        {obsconditions: BRIGHT|DARK, filename: 'WD_BINARIES'}]
+    - [LBG_TOMOG,            4, "See $SCND_DIR/sv1/docs/LBG_TOMOG.txt",          {obsconditions: DARK,        filename: 'LBG_TOMOG'}]
+    - [QSO_RED,              5, "See $SCND_DIR/sv1/docs/QSO_RED.ipynb",          {obsconditions: DARK,        filename: 'QSO_RED'}]
+    - [M31_KNOWN,            6, "See $SCND_DIR/sv1/docs/M31_KNOWN.txt",          {obsconditions: DARK,        filename: 'M31_KNOWN'}]
+    - [M31_QSO,              7, "See $SCND_DIR/sv1/docs/M31_QSO.txt.",           {obsconditions: DARK,        filename: 'M31_QSO'}]
+    - [M31_STAR,             8, "See $SCND_DIR/sv1/docs/M31_STAR.txt",           {obsconditions: DARK,        filename: 'M31_STAR'}]
 #   - [MWS_DDOGIANTS,        9, "See $SCND_DIR",                        {obsconditions: BRIGHT,      filename: 'MWS_DDOGIANTS'}]
-    - [MWS_CLUS_GAL_DEEP,   10, "See $SCND_DIR/MWS_CLUS_GAL_DEEP.txt",  {obsconditions: DARK,        filename: 'MWS_CLUS_GAL_DEEP'}]
-    - [LOW_MASS_AGN,        11, "See $SCND_DIR/LOW_MASS_AGN.txt",       {obsconditions: DARK,        filename: 'LOW_MASS_AGN'}]
-    - [FAINT_HPM,           12, "See $SCND_DIR/FAINT_HPM.txt",          {obsconditions: DARK,        filename: 'FAINT_HPM'}]
-    - [GW190412,            13, "See $SCND_DIR/GW190412.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'GW190412'}]
-    - [IC134191,            14, "See $SCND_DIR/IC134191.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'IC134191'}]
-    - [PV_BRIGHT,           15, "See $SCND_DIR/PV_BRIGHT.ipynb",        {obsconditions: BRIGHT,      filename: 'PV_BRIGHT'}]
-    - [PV_DARK,             16, "See $SCND_DIR/PV_DARK.ipynb",          {obsconditions: DARK,        filename: 'PV_DARK'}]
-    - [LOW_Z,               17, "See $SCND_DIR/LOW_Z.ipynb",            {obsconditions: DARK,        filename: 'LOW_Z'}]
-    - [BHB,                 18, "See $SCND_DIR/BHB.txt",                {obsconditions: DARK,        filename: 'BHB'}]
-    - [SPCV,                19, "See $SCND_DIR/SPCV.txt",               {obsconditions: DARK,        filename: 'SPCV'}]
-    - [DC3R2_GAMA,          20, "See $SCND_DIR/DC3R2_GAMA.ipynb",       {obsconditions: DARK,        filename: 'DC3R2_GAMA'}]
-    - [UNWISE_BLUE,         21, "See $SCND_DIR/UNWISE_BLUE.txt",        {obsconditions: DARK,        filename: 'UNWISE_BLUE'}]
-    - [UNWISE_GREEN,        22, "See $SCND_DIR/UNWISE_GREEN.txt",       {obsconditions: DARK,        filename: 'UNWISE_GREEN'}]
-    - [HETDEX_MAIN,         23, "See $SCND_DIR/HETDEX_MAIN.txt",        {obsconditions: DARK,        filename: 'HETDEX_MAIN'}]
-    - [HETDEX_HP,           24, "See $SCND_DIR/HETDEX_HP.txt",          {obsconditions: DARK,        filename: 'HETDEX_HP'}]
+    - [MWS_CLUS_GAL_DEEP,   10, "See $SCND_DIR/sv1/docs/MWS_CLUS_GAL_DEEP.txt",  {obsconditions: DARK,        filename: 'MWS_CLUS_GAL_DEEP'}]
+    - [LOW_MASS_AGN,        11, "See $SCND_DIR/sv1/docs/LOW_MASS_AGN.txt",       {obsconditions: DARK,        filename: 'LOW_MASS_AGN'}]
+    - [FAINT_HPM,           12, "See $SCND_DIR/sv1/docs/FAINT_HPM.txt",          {obsconditions: DARK,        filename: 'FAINT_HPM'}]
+    - [GW190412,            13, "See $SCND_DIR/sv1/docs/GW190412.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'GW190412'}]
+    - [IC134191,            14, "See $SCND_DIR/sv1/docs/IC134191.ipynb",         {obsconditions: BRIGHT|DARK, filename: 'IC134191'}]
+    - [PV_BRIGHT,           15, "See $SCND_DIR/sv1/docs/PV_BRIGHT.ipynb",        {obsconditions: BRIGHT,      filename: 'PV_BRIGHT'}]
+    - [PV_DARK,             16, "See $SCND_DIR/sv1/docs/PV_DARK.ipynb",          {obsconditions: DARK,        filename: 'PV_DARK'}]
+    - [LOW_Z,               17, "See $SCND_DIR/sv1/docs/LOW_Z.ipynb",            {obsconditions: DARK,        filename: 'LOW_Z'}]
+    - [BHB,                 18, "See $SCND_DIR/sv1/docs/BHB.txt",                {obsconditions: DARK,        filename: 'BHB'}]
+    - [SPCV,                19, "See $SCND_DIR/sv1/docs/SPCV.txt",               {obsconditions: DARK,        filename: 'SPCV'}]
+    - [DC3R2_GAMA,          20, "See $SCND_DIR/sv1/docs/DC3R2_GAMA.ipynb",       {obsconditions: DARK,        filename: 'DC3R2_GAMA'}]
+    - [UNWISE_BLUE,         21, "See $SCND_DIR/sv1/docs/UNWISE_BLUE.txt",        {obsconditions: DARK,        filename: 'UNWISE_BLUE'}]
+    - [UNWISE_GREEN,        22, "See $SCND_DIR/sv1/docs/UNWISE_GREEN.txt",       {obsconditions: DARK,        filename: 'UNWISE_GREEN'}]
+    - [HETDEX_MAIN,         23, "See $SCND_DIR/sv1/docs/HETDEX_MAIN.txt",        {obsconditions: DARK,        filename: 'HETDEX_MAIN'}]
+    - [HETDEX_HP,           24, "See $SCND_DIR/sv1/docs/HETDEX_HP.txt",          {obsconditions: DARK,        filename: 'HETDEX_HP'}]
 #   - [PSF_OUT_BRIGHT,      25, "See $SCND_DIR",                        {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT'}]
 #   - [PSF_OUT_DARK,        26, "See $SCND_DIR",                        {obsconditions: DARK,        filename: 'PSF_OUT_DARK'}]
-    - [HPM_SOUM,            27, "See $SCND_DIR/HPM_SOUM.txt",           {obsconditions: DARK,        filename: 'HPM_SOUM'}]
-    - [SN_HOSTS,            28, "See $SCND_DIR/SN_HOSTS.txt",           {obsconditions: DARK,        filename: 'SN_HOSTS'}]
-    - [GAL_CLUS_BCG,        29, "See $SCND_DIR/GAL_CLUS_BCG.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_BCG'}]
-    - [GAL_CLUS_2ND,        30, "See $SCND_DIR/GAL_CLUS_2ND.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_2ND'}]
-    - [GAL_CLUS_SAT,        31, "See $SCND_DIR/GAL_CLUS_SAT.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_SAT'}]
-    - [HSC_HIZ_SNE,         32, "See $SCND_DIR/HSC_HIZ_SNE.txt",        {obsconditions: DARK,        filename: 'HSC_HIZ_SNE'}]
-    - [ISM_CGM_QGP,         33, "See $SCND_DIR/ISM_CGM_QGP.txt",        {obsconditions: DARK,        filename: 'ISM_CGM_QGP'}]
-    - [STRONG_LENS,         34, "See $SCND_DIR/STRONG_LENS.txt",        {obsconditions: DARK,        filename: 'STRONG_LENS'}]
-    - [WISE_VAR_QSO,        35, "See $SCND_DIR/WISE_VAR_QSO.txt",       {obsconditions: DARK,        filename: 'WISE_VAR_QSO'}]
+    - [HPM_SOUM,            27, "See $SCND_DIR/sv1/docs/HPM_SOUM.txt",           {obsconditions: DARK,        filename: 'HPM_SOUM'}]
+    - [SN_HOSTS,            28, "See $SCND_DIR/sv1/docs/SN_HOSTS.txt",           {obsconditions: DARK,        filename: 'SN_HOSTS'}]
+    - [GAL_CLUS_BCG,        29, "See $SCND_DIR/sv1/docs/GAL_CLUS_BCG.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_BCG'}]
+    - [GAL_CLUS_2ND,        30, "See $SCND_DIR/sv1/docs/GAL_CLUS_2ND.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_2ND'}]
+    - [GAL_CLUS_SAT,        31, "See $SCND_DIR/sv1/docs/GAL_CLUS_SAT.txt",       {obsconditions: DARK,        filename: 'GAL_CLUS_SAT'}]
+    - [HSC_HIZ_SNE,         32, "See $SCND_DIR/sv1/docs/HSC_HIZ_SNE.txt",        {obsconditions: DARK,        filename: 'HSC_HIZ_SNE'}]
+    - [ISM_CGM_QGP,         33, "See $SCND_DIR/sv1/docs/ISM_CGM_QGP.txt",        {obsconditions: DARK,        filename: 'ISM_CGM_QGP'}]
+    - [STRONG_LENS,         34, "See $SCND_DIR/sv1/docs/STRONG_LENS.txt",        {obsconditions: DARK,        filename: 'STRONG_LENS'}]
+    - [WISE_VAR_QSO,        35, "See $SCND_DIR/sv1/docs/WISE_VAR_QSO.txt",       {obsconditions: DARK,        filename: 'WISE_VAR_QSO'}]
     - [MWS_CALIB,           36, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB'}]
     - [BACKUP_CALIB,        37, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
@@ -196,7 +197,9 @@ sv1_scnd_mask:
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV'}]
     - [MWS_RRLYR,           39, "Main survey halo tracers (RR Lyrae)",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_RRLYR'}]
-    - [BRIGHT_HPM,          40, "See $SCND_DIR/BRIGHT_HPM.txt",         {obsconditions: BRIGHT,      filename: 'BRIGHT_HPM'}]
+    - [BRIGHT_HPM,          40, "See $SCND_DIR/sv1/docs/BRIGHT_HPM.txt",         {obsconditions: BRIGHT,      filename: 'BRIGHT_HPM'}]
+    - [WD_BINARIES_BRIGHT,  41, "See $SCND_DIR/sv1/docs/WD_BINARIES_BRIGHT.txt", {obsconditions: BRIGHT,      filename: 'WD_BINARIES_BRIGHT'}]
+    - [WD_BINARIES_DARK,    42, "See $SCND_DIR/sv1/docs/WD_BINARIES_DARK.txt",   {obsconditions: DARK,        filename: 'WD_BINARIES_DARK'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -350,7 +353,7 @@ priorities:
         VETO:                  {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         UDG:                   {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FIRST_MALS:            {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        WD_BINARIES:           {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+#       WD_BINARIES:           {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LBG_TOMOG:             {UNOBS: 1800, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         QSO_RED:               {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         M31_KNOWN:             SAME_AS_LBG_TOMOG
@@ -388,6 +391,8 @@ priorities:
         MWS_MAIN_CLUSTER_SV:   {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         MWS_RRLYR:             {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         BRIGHT_HPM:            SAME_AS_LOW_MASS_AGN
+        WD_BINARIES_BRIGHT:    {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        WD_BINARIES_DARK:      {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS for bitname XXX
@@ -512,7 +517,7 @@ numobs:
         VETO:                     1
         UDG:                    100
         FIRST_MALS:             100
-        WD_BINARIES:            100
+#       WD_BINARIES:            100
         LBG_TOMOG:              100
         QSO_RED:                100
         M31_KNOWN:              100
@@ -550,3 +555,5 @@ numobs:
         MWS_RRLYR:              100
         BACKUP_CALIB:           SAME_AS_MWS_CALIB
         BRIGHT_HPM:             100
+        WD_BINARIES_BRIGHT:     100
+        WD_BINARIES_DARK:       100

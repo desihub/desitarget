@@ -27,7 +27,7 @@ ap.add_argument("dest",
 ap.add_argument("--density", type=int,
                 help='Number of points per sq. deg. to generate (defaults to the value of DENSITY in the header of the "randomcat" input file)',
                 default=None)
-ap.add_argument("--seed",
+ap.add_argument("--seed", type=int,
                 help='Force a particular seed to be used instead of reading from the header card "SEED"',
                 default=None)
 ap.add_argument("--numproc", type=int,
@@ -54,16 +54,25 @@ except OSError:
     sys.exit(1)
 
 # ADM determine the seed used for the existing random catalog.
-if ns.seed is None:
-    try:
-        seed = ranhead["SEED"]
-        log.info('read seed of {} from {}'.format(seed, ns.randomcat))
-    except KeyError:
-        seed = 1
-        log.info('defaulting to a SEED of {}'.format(seed))
-else:
-    seed = ns.seed
-    log.info('using a seed of 615 + {}' format(seed)
+try:
+    seed = ranhead["SEED"]
+    log.info('read original seed of {} from {}'.format(seed, ns.randomcat))
+except KeyError:
+    seed = 1
+    log.info('defaulting to an original SEED of {}'.format(seed))
+if ns.seed is not None:
+    # ADM if we enforced a new seed, store the original seed
+    # ADM but update to use the new seed.
+    origseed = seed
+    writeseed = ns.seed
+    batch = 20
+    if writeseed > batch-1:
+        log.error("Only set to batch 20 catalogs: Seed must be in range {}-{}"
+                  .format(0, writeseed-1))
+        raise IOError
+    seed = origseed*20 + writeseed
+    log.info('actually using a seed of {}*{}+{}={}'.format(
+        origseed, batch, writeseed, seed))
 
 # ADM grab the density used for the existing random catalog, if needed.
 if ns.density is None:
@@ -91,7 +100,11 @@ randoms = supplement_randoms(donebns, density=density, numproc=ns.numproc,
 
 # ADM extra header keywords for the output fits file.
 extra = {k: v for k, v in zip(["density", "seed"],
-                              [density, seed])}
+                              [density, writeseed])}
+# ADM if we enforced a new seed, also store the original seed
+# ADM that was used to make the original file of randoms.
+if ns.seed is not None:
+    extra["origseed"] = origseed
 
 # ADM write out the supplemental random catalog.
 nrands, outfile = io.write_randoms(ns.dest, randoms, indir=ns.randomcat,

@@ -371,6 +371,11 @@ def add_primary_info(scxtargs, priminfodir):
     :class:`~numpy.ndarray`
         The array of secondary targets, with the `TARGETID` column
         populated for matches to secondary targets
+
+    Notes
+    -----
+        - The input `scxtargs` is modified, so be careful to make
+          a copy if you want that variable to remain unchanged!
     """
     log.info("Begin matching primaries in {} to secondaries...t={:.1f}s"
              .format(priminfodir, time()-start))
@@ -399,24 +404,7 @@ def add_primary_info(scxtargs, priminfodir):
     scxids = 1000 * scxtargs["SCND_ORDER"].astype('int64') + scxbitnum
     primids = 1000 * primtargs["SCND_ORDER"].astype('int64') + primbitnum
 
-    # ADM a primary (with the same TARGETID) could match TWO (or more)
-    # ADM secondaries. Resolve these on which matched a primary target
-    # ADM (rather than just a source from the sweeps) and then ALSO on
-    # ADM which has highest priority (via True/False * PRIORITY_INIT).
-    alldups = []
-    for _, dups in duplicates(primtargs['TARGETID']):
-        am = np.argmax(primtargs[dups]["PRIM_MATCH"]*primtargs[dups]["PRIORITY_INIT"])
-        dups = np.delete(dups, am)
-        alldups.append(dups)
-    # ADM catch cases where there are no duplicates.
-    if len(alldups) != 0:
-        alldups = np.hstack(alldups)
-        primtargs = np.delete(primtargs, alldups)
-        primids = np.delete(primids, alldups)
-    log.info("Discard {} cases where a primary matched multiple secondaries".
-             format(len(alldups)))
-
-    # ADM matches could also have occurred ACROSS HEALPixels, producing
+    # ADM matches could have occurred ACROSS HEALPixels, producing
     # ADM duplicated secondary targets with different TARGETIDs...
     alldups = []
     for _, dups in duplicates(primids):
@@ -432,7 +420,7 @@ def add_primary_info(scxtargs, priminfodir):
         alldups = np.hstack(alldups)
         primtargs = np.delete(primtargs, alldups)
         primids = np.delete(primids, alldups)
-    log.info("Remove {} other cases where a secondary matched several primaries".
+    log.info("Remove {} cases where a secondary matched several primaries".
              format(len(alldups)))
 
     # ADM we already know that all primaries match a secondary, so,
@@ -444,8 +432,6 @@ def add_primary_info(scxtargs, priminfodir):
 
     # ADM sort-to-match sxcid and primid.
     primii = np.zeros_like(primids)
-#    ii[np.argsort(origids)] = np.argsort(refids)
-#    assert np.all(refids[ii] == origids)
     primii[np.argsort(scxids[scxii])] = np.argsort(primids)
     assert np.all(primids[primii] == scxids[scxii])
 
@@ -621,7 +607,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     scxtargs["PRIM_MATCH"][mscx] = True
 
     # ADM now we're done matching the primary and secondary targets, also
-    # ADM match the secondary targets to sweep files, if passes, to find
+    # ADM match the secondary targets to sweep files, if passed, to find
     # ADM TARGETIDs.
     notid = scxtargs["TARGETID"] == -1
     if swfiles is not None and np.sum(notid) > 0:
@@ -737,6 +723,11 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
         input `survey`. `RELEASE` is set to ((X-1)*100)+np.log2(scnd_bit)
         with X from the `survey` string survey=svX and scnd_bit from
         `SCND_TARGET`. For the main survey (survey="main") X-1 is 5.
+
+    Notes
+    -----
+        - The input `scxtargs` is modified, so be careful to make
+          a copy if you want that variable to remain unchanged!
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1
