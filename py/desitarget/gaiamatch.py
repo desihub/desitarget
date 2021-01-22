@@ -202,13 +202,13 @@ def gaia_dr_from_ref_cat(refcat):
     return gaiadr
 
 
-def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nfiletest=None):
+def scrape_gaia(dr="edr3", nfiletest=None):
     """Retrieve the bulk CSV files released by the Gaia collaboration.
 
     Parameters
     ----------
-    url : :class:`str`
-        The web directory that hosts the archived Gaia CSV files.
+    dr : :class:`str`, optional, defaults to "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3"
     nfiletest : :class:`int`, optional, defaults to ``None``
         If an integer is sent, only retrieve this number of files, for testing.
 
@@ -222,6 +222,15 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nf
         - The environment variable $GAIA_DIR must be set.
         - Runs in about 26 hours for 60,000 Gaia files.
     """
+    gdict = {"dr2": "http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/",
+             "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/"}
+    if dr not in gdict:
+        msg = "input dr must be one of {}".format(gdict.keys())
+        log.critical(msg)
+        raise IOError(msg)
+
+    url = gdict[dr]
+
     # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = get_gaia_dir()
 
