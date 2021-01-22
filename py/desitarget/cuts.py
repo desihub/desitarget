@@ -923,11 +923,12 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     mws &= gaia
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
+    # APC Gaia G mag of more than 16
+    mws &= gaiagmag > 16.
     # ADM all astrometric parameters are measured.
     mws &= paramssolved == 31
     # ADM parallax cut corresponding to 100pc
     mws &= (parallax + parallaxerr) > 10.   # NB: "+" is correct
-    # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
 
     return mws
 
