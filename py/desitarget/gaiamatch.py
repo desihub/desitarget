@@ -220,7 +220,8 @@ def scrape_gaia(dr="edr3", nfiletest=None):
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
-        - Runs in about 26 hours for 60,000 Gaia files.
+        - Runs in about 26 hours for ~60,000 Gaia DR2 files.
+        - Runs in about 15 hours for ~3,000 Gaia EDR3 files.
     """
     gdict = {"dr2": "http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/",
              "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/"}
@@ -233,6 +234,11 @@ def scrape_gaia(dr="edr3", nfiletest=None):
 
     # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = get_gaia_dir()
+
+    # ADM the specific meaning of the GAIA_DIR is the DR2 directory,
+    # ADM so reconstruct for other DRs.
+    if dr != "dr2":
+        gaiadir = os.path.join(os.path.dirname(gaiadir), "gaia_{}".format(dr))
 
     # ADM construct the directory to which to write files.
     csvdir = os.path.join(gaiadir, 'csv')
