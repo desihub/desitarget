@@ -220,8 +220,8 @@ def scrape_gaia(dr="edr3", nfiletest=None):
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
-        - Runs in about 26 hours for ~60,000 Gaia DR2 files.
-        - Runs in about 15 hours for ~3,000 Gaia EDR3 files.
+        - Runs in about 26 hours for ~61,234 Gaia DR2 files.
+        - Runs in about 15 hours for ~3,386 Gaia EDR3 files.
     """
     gdict = {"dr2": "http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/",
              "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/"}
@@ -268,16 +268,18 @@ def scrape_gaia(dr="edr3", nfiletest=None):
 
     # ADM loop through the filelist.
     t0 = time()
+    stepper = nfiles//600
     for nfile, fileinfo in enumerate(filelist):
         # ADM make the wget command to retrieve the file and issue it.
         cmd = 'wget -q {}/GaiaSource{} -P {}'.format(url, fileinfo[:-2], csvdir)
         os.system(cmd)
-        if nfile % 100 == 0 or test:
+        nfil = nfile + 1
+        if nfil % stepper == 0 or test:
             elapsed = time() - t0
-            rate = nfile / elapsed
+            rate = nfil / elapsed
             log.info(
                 '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
-                .format(nfile+1, nfiles, rate, elapsed/60.)
+                .format(nfil, nfiles, rate, elapsed/60.)
             )
 
     log.info('Done...t={:.1f}s'.format(time()-t0))
