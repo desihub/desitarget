@@ -5,7 +5,12 @@ desitarget Change Log
 0.49.1 (unreleased)
 -------------------
 
-No changes yet.
+* Updates to MWS main survey target cuts [`PR #672`_]. Includes:
+  * Add bright limit to MWS_NEARBY
+  * Add MWS_BHB as main survey class
+
+.. _`PR #672`: https://github.com/desihub/desitarget/pull/672
+
 
 0.49.0 (2020-01-18)
 -------------------

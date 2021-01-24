@@ -93,6 +93,9 @@ mws_mask:
     - [MWS_BROAD_NORTH,     4, "Milky Way Survey cuts tuned for Bok/Mosaic",               {obsconditions: BRIGHT}]
     - [MWS_BROAD_SOUTH,     5, "Milky Way Survey cuts tuned for DECam",                    {obsconditions: BRIGHT}]
 
+    #- 6: MWS BHBs
+    - [MWS_BHB,             6, "Milky Way Survey Blue Horizontal Branch stars", {obsconditions: BRIGHT|GRAY|DARK}]
+
     #- 8: Sub-classes of MWS_MAIN
     - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",              {obsconditions: BRIGHT}]
     - [MWS_MAIN_BLUE_NORTH, 9, "MWS magnitude limited blue sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT}]
@@ -224,6 +227,8 @@ priorities:
         MWS_BROAD:                    {UNOBS: 1400, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD:                       {UNOBS: 2998, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_BHB:                      {UNOBS: 1550, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         MWS_BROAD_NORTH:              {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD_NORTH
@@ -302,6 +307,7 @@ numobs:
         MWS_BROAD:                    1
         MWS_WD:                       1
         MWS_NEARBY:                   1
+        MWS_BHB:                      1
         # ADM don't observe a N/S target if it doesn't have other bits set
         MWS_BROAD_NORTH:              0
         MWS_BROAD_SOUTH:              0

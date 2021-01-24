@@ -923,13 +923,105 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     mws &= gaia
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
+    # APC Gaia G mag of more than 16
+    mws &= gaiagmag > 16.
     # ADM all astrometric parameters are measured.
     mws &= paramssolved == 31
     # ADM parallax cut corresponding to 100pc
     mws &= (parallax + parallaxerr) > 10.   # NB: "+" is correct
-    # ADM NOTE TO THE MWS GROUP: There is no bright cut on G. IS THAT THE REQUIRED BEHAVIOR?
 
     return mws
+
+
+def isMWS_bhb(primary=None, objtype=None,
+              gaia=None, gaiaaen=None, gaiadupsource=None, gaiagmag=None,
+              gflux=None, rflux=None, zflux=None,
+              w1flux=None, w1snr=None,
+              gnobs=None, rnobs=None, znobs=None,
+              gfracmasked=None, rfracmasked=None, zfracmasked=None,
+              parallax=None, parallaxerr=None):
+    """Set bits for BHB Milky Way Survey targets
+
+    Parameters
+    ----------
+    see :func:`~desitarget.cuts.set_target_bits` for other parameters.
+
+    Returns
+    -------
+    mask : array_like.
+        True if and only if the object is a MWS-BHB target.
+
+    Notes
+    -----
+    - Criteria supplied by Sergey Koposov
+    - gflux, rflux, zflux, w1flux have been corrected for extinction
+      (unlike other MWS selections, which use obs_flux).
+    - Current version (12/21/20) is version 149 on `the SV wiki`_.
+    """
+    if primary is None:
+        primary = np.ones_like(gaia, dtype='?')
+    mws = primary.copy()
+
+    # ADM do not target any objects for which entries are NaN
+    # ADM and turn off the NaNs for those entries
+    nans = np.isnan(gflux) | np.isnan(rflux) | np.isnan(zflux) | np.isnan(w1flux) | np.isnan(parallax) | np.isnan(gaiagmag)
+    w = np.where(nans)[0]
+    if len(w) > 0:
+        # ADM make copies as we are reassigning values
+        rflux, gflux, zflux, w1flux = rflux.copy(), gflux.copy(), zflux.copy(), w1flux.copy()
+        parallax = parallax.copy()
+        gaigmag = gaiagmag.copy()
+        rflux[w], gflux[w], zflux[w], w1flux[w] = 0., 0., 0., 0.
+        parallax[w] = 0.
+        gaiagmag[w] = 0.
+        mws &= ~nans
+        log.info('{}/{} NaNs in file...t = {:.1f}s'
+                 .format(len(w), len(mws), time()-start))
+
+    gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
+    rmag = 22.5 - 2.5 * np.log10(rflux.clip(1e-7))
+    zmag = 22.5 - 2.5 * np.log10(zflux.clip(1e-7))
+
+    gmr = gmag-rmag
+    rmz = rmag-zmag
+
+    # APC must be a Legacy Surveys object that matches a Gaia source
+    mws &= gaia
+    # APC type must be PSF
+    mws &= _psflike(objtype)
+    # APC no sources brighter than Gaia G = 10
+    mws &= gaiagmag > 10.
+    # APC exclude nearby sources by parallax
+    mws &= parallax <= 0.1 + 3*parallaxerr
+
+    mws &= (gfracmasked < 0.5) & (gflux > 0) & (gnobs > 0)
+    mws &= (rfracmasked < 0.5) & (rflux > 0) & (rnobs > 0)
+    mws &= (zfracmasked < 0.5) & (zflux > 0) & (znobs > 0)
+
+    # APC no gaia duplicated sources
+    mws &= ~gaiadupsource
+    # APC gaia astrometric excess noise < 3
+    mws &= gaiaaen < 3.0
+
+    # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02
+    mws &= (gmr >= -0.35) & (gmr <= -0.02)
+
+    # Coefficients from Sergey Koposov
+    bhb_sel = rmz - (1.07163*gmr**5 - 1.42272*gmr**4 + 0.69476*gmr**3 - 0.12911*gmr**2 + 0.66993*gmr - 0.11368)
+    mws &= (bhb_sel >= -0.05) & (bhb_sel <= 0.05)
+
+    # APC back out the WISE error = 1/sqrt(ivar) from the SNR = flux*sqrt(ivar)
+    w1fluxerr = w1flux/(w1snr.clip(1e-7))
+    w1mag_faint = 22.5 - 2.5 * np.log10((w1flux-3*w1fluxerr).clip(1e-7))
+
+    # APC WISE cut (Sergey Koposov)
+    mws &= rmag - 2.3*gmr - w1mag_faint < -1.5
+
+    # APC Legacy magnitude limits
+    mws &= (rmag >= 16.) & (rmag <= 20.)
+    return mws
+
+
 
 
 def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
@@ -2163,11 +2255,24 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM the zeroth element stores the northern targets bits (south=False).
     mws_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
     mws_nearby = tcfalse
+    mws_bhb = tcfalse
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
             parallaxerr=parallaxerr, paramssolved=gaiaparamssolved
         )
+
+        mws_bhb = isMWS_bhb(
+                    primary=primary,
+                    objtype=objtype,
+                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
+                    gflux=gflux, rflux=rflux, zflux=zflux,
+                    w1flux=w1flux, w1snr=w1snr,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                    gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                    parallax=parallax, parallaxerr=parallaxerr
+             )
+
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
             mws_classes[int(south)] = isMWS_main(
@@ -2271,6 +2376,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_target = mws_broad * mws_mask.MWS_BROAD
     mws_target |= mws_wd * mws_mask.MWS_WD
     mws_target |= mws_nearby * mws_mask.MWS_NEARBY
+    mws_target |= mws_bhb * mws_mask.MWS_BHB
 
     # ADM MWS main north/south split.
     mws_target |= mws_broad_n * mws_mask.MWS_BROAD_NORTH
