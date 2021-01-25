@@ -1036,8 +1036,8 @@ def get_targ_dens(targets, Mx, nside=256):
         else:
             if ('BGS' in bitname) and not('S_ANY' in bitname):
                 ii = targets["BGS_TARGET"] & bgs_mask[bitname] != 0
-            elif (('MWS' in bitname or 'BACKUP' in bitname) and
-                  not('S_ANY' in bitname)):
+            elif (('MWS' in bitname or 'BACKUP' in bitname or
+                   'GAIA_STD' in bitname) and not('S_ANY' in bitname)):
                 ii = targets["MWS_TARGET"] & mws_mask[bitname] != 0
             else:
                 ii = targets["DESI_TARGET"] & desi_mask[bitname] != 0

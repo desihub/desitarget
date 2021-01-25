@@ -1786,7 +1786,7 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         else:
             if ('BGS' in objtype) and not('S_ANY' in objtype) and not(cmx):
                 ii = targs["BGS_TARGET"] & b_mask[objtype] != 0
-            elif (('MWS' in objtype or 'BACKUP' in objtype) and
+            elif (('MWS' in objtype or 'BACKUP' in objtype or 'GAIA_STD' in objtype) and
                   not('S_ANY' in objtype) and not(cmx)):
                 ii = targs["MWS_TARGET"] & m_mask[objtype] != 0
             else:
