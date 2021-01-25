@@ -550,12 +550,11 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
     # ADM this is just to count processed files in _update_status.
     npix = np.zeros((), dtype='i8')
     t0 = time()
-    stepper = nfiles//600
 
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if npix % stepper == 0 and npix > 0:
+        if npix % 100 == 0 and npix > 0:
             rate = npix / (time() - t0)
             elapsed = time() - t0
             log.info(
