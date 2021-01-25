@@ -263,13 +263,14 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     Returns
     -------
     Nothing
-        But the archived Gaia CSV files are written to $GAIA_DIR/csv.
+        But the archived Gaia CSV files are written to $GAIA_DIR/csv. For
+        "edr3" the directory actually written to is $GAIA_DIR/../gaia_edr3.
 
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
-        - Runs in about 26 hours for ~61,234 Gaia DR2 files.
-        - Runs in about 19 hours for ~3,386 Gaia EDR3 files.
+        - Runs in about 26 hours for 61,234 Gaia DR2 files.
+        - Runs in about 19 hours for 3,386 Gaia EDR3 files.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = get_gaia_dir(dr)
@@ -331,7 +332,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3". For
+        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
     numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
@@ -348,8 +350,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in 1-2 hours with numproc=32 for ~60,000 Gaia DR2 files.
-        - Runs in 1-2 hours with numproc=32 for 3386 Gaia EDR3 files.
+        - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
+        - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
@@ -459,12 +461,15 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
     return
 
 
-def gaia_fits_to_healpix(numproc=4):
+def gaia_fits_to_healpix(dr="dr2", numproc=32):
     """Convert files in $GAIA_DIR/fits to files in $GAIA_DIR/healpix.
 
     Parameters
     ----------
-    numproc : :class:`int`, optional, defaults to 4
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3". For
+        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+    numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
     Returns
@@ -480,13 +485,14 @@ def gaia_fits_to_healpix(numproc=4):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in about 1-3 hours with numproc=32 for 60,000 files.
+        - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
+        - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
 
     # ADM construct the directories for reading/writing files.
     fitsdir = os.path.join(gaiadir, 'fits')
@@ -544,11 +550,12 @@ def gaia_fits_to_healpix(numproc=4):
     # ADM this is just to count processed files in _update_status.
     npix = np.zeros((), dtype='i8')
     t0 = time()
+    stepper = nfiles//600
 
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if npix % 100 == 0 and npix > 0:
+        if npix % stepper == 0 and npix > 0:
             rate = npix / (time() - t0)
             elapsed = time() - t0
             log.info(
