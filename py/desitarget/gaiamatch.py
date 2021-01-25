@@ -73,7 +73,7 @@ inedr3datamodel = np.array([], dtype=[
     ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
     ('DUPLICATED_SOURCE', '?'), ('ASTROMETRIC_SIGMA5D_MAX', '>f4'),
     ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('RUWE', '>f4'),
-    ('IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('IPD_FRAC_MULTI_PEAK', '>f4'),
+    ('IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('IPD_FRAC_MULTI_PEAK', '>i1'),
     ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
     ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
     ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
@@ -89,7 +89,7 @@ edr3datamodel = np.array([], dtype=[
     ('EDR3_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('EDR3_ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
     ('EDR3_DUPLICATED_SOURCE', '?'), ('EDR3_ASTROMETRIC_SIGMA5D_MAX', '>f4'),
     ('EDR3_ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('EDR3_RUWE', '>f4'),
-    ('EDR3_IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('EDR3_IPD_FRAC_MULTI_PEAK', '>f4'),
+    ('EDR3_IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('EDR3_IPD_FRAC_MULTI_PEAK', '>i1'),
     ('EDR3_PARALLAX', '>f4'), ('EDR3_PARALLAX_IVAR', '>f4'),
     ('EDR3_PMRA', '>f4'), ('EDR3_PMRA_IVAR', '>f4'),
     ('EDR3_PMDEC', '>f4'), ('EDR3_PMDEC_IVAR', '>f4')
