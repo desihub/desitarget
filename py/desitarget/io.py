@@ -2330,7 +2330,9 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         if seed is not None:
             fn = fn.replace(".{}".format(ender), "-{}.{}".format(seed, ender))
         if supp:
-            fn = fn.replace("randoms", "randoms-outside")
+            justfn = os.path.basename(fn)
+            justfn = justfn.replace("randoms", "randoms-outside")
+            fn = os.path.join(os.path.dirname(fn), justfn)
 
     return fn
 
