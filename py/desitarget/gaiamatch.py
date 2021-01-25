@@ -325,14 +325,14 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     return
 
 
-def gaia_csv_to_fits(dr="dr2", numproc=4):
+def gaia_csv_to_fits(dr="dr2", numproc=32):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
         Name of a Gaia data release. Options are "dr2", "edr3"
-    numproc : :class:`int`, optional, defaults to 4
+    numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
     Returns
@@ -348,7 +348,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=4):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in 1-3 hours (depending on node) with numproc=32 for 60,000 files.
+        - Runs in 1-2 hours with numproc=32 for ~60,000 Gaia DR2 files.
+        - Runs in 1-2 hours with numproc=32 for 3386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
