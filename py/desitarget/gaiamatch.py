@@ -413,11 +413,12 @@ def gaia_csv_to_fits(dr="dr2", numproc=4):
     # ADM this is just to count processed files in _update_status.
     nfile = np.zeros((), dtype='i8')
     t0 = time()
+    stepper = nfiles//600
 
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if nfile % 100 == 0 and nfile > 0:
+        if nfile % stepper == 0 and nfile > 0:
             rate = nfile / (time() - t0)
             elapsed = time() - t0
             log.info(
