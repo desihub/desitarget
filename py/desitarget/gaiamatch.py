@@ -486,7 +486,7 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
-        - Runs in ~30 minuts with numproc=32 for 3,386 Gaia EDR3 files.
+        - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
