@@ -486,7 +486,7 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
-        - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
+        - Runs in ~30 minuts with numproc=32 for 3,386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
@@ -579,12 +579,15 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
     return
 
 
-def make_gaia_files(numproc=4, download=False):
+def make_gaia_files(dr="dr2", numproc=32, download=False):
     """Make the HEALPix-split Gaia DR2 files used by desitarget.
 
     Parameters
     ----------
-    numproc : :class:`int`, optional, defaults to 4
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3". For
+        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3.
+    numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
     download : :class:`bool`, optional, defaults to ``False``
         If ``True`` then wget the Gaia DR2 csv files from ESA.
@@ -594,7 +597,8 @@ def make_gaia_files(numproc=4, download=False):
     Nothing
         But produces:
         - Full Gaia DR2 CSV files in $GAIA_DIR/csv.
-        - FITS files with columns from `ingaiadatamodel` in $GAIA_DIR/fits.
+        - FITS files with columns from `ingaiadatamodel` or
+          `inedr3datamodel` in $GAIA_DIR/fits.
         - FITS files reorganized by HEALPixel in $GAIA_DIR/healpix.
 
         The HEALPixel sense is nested with nside=_get_gaia_nside(), and
@@ -605,14 +609,14 @@ def make_gaia_files(numproc=4, download=False):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in about 26 hours if download is ``True``.
-        - Runs in 1-3 hours with numproc=32 if download is ``False``.
+        - Runs in ~26/20 hours for "dr2"/"edr3" if download is ``True``.
+        - Runs in 1-2 hours with numproc=32 if download is ``False``.
     """
     t0 = time()
     log.info('Begin making Gaia files...t={:.1f}s'.format(time()-t0))
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
 
     # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
@@ -626,13 +630,13 @@ def make_gaia_files(numproc=4, download=False):
                 raise ValueError(msg)
 
     if download:
-        scrape_gaia()
+        scrape_gaia(dr=dr)
         log.info('Retrieved Gaia files from ESA...t={:.1f}s'.format(time()-t0))
 
-    gaia_csv_to_fits(numproc=numproc)
+    gaia_csv_to_fits(dr=dr, numproc=numproc)
     log.info('Converted CSV files to FITS...t={:.1f}s'.format(time()-t0))
 
-    gaia_fits_to_healpix(numproc=numproc)
+    gaia_fits_to_healpix(dr=dr, numproc=numproc)
     log.info('Rearranged FITS files by HEALPixel...t={:.1f}s'.format(time()-t0))
 
     return
