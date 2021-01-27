@@ -2615,6 +2615,8 @@ def select_targets(infiles, numproc=4, cmxdir=None, noqso=False,
         gaiatargets = np.zeros(len(gaiatargs), dtype=targets.dtype)
         for col in set(gaiatargs.dtype.names).intersection(set(targets.dtype.names)):
             gaiatargets[col] = gaiatargs[col]
+        # ADM Gaia-only target always have PHOTSYS="G".
+        gaiatargets["PHOTSYS"] = "G"
 
         # ADM remove any duplicates. Order is important here, as np.unique
         # ADM keeps the first occurence, and we want to retain sweeps
