@@ -95,6 +95,7 @@ edr3datamodel = np.array([], dtype=[
     ('EDR3_PMDEC', '>f4'), ('EDR3_PMDEC_IVAR', '>f4')
 ])
 
+
 def get_gaia_dir(dr="dr2"):
     """Convenience function to grab the Gaia environment variable.
 

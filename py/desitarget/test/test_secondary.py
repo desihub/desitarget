@@ -1,9 +1,10 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
-"""Test desitarget.mtl.
+"""Test desitarget secondary targets.
 """
 import unittest
 from importlib import import_module
+
 
 class TestSECONDARY(unittest.TestCase):
 
@@ -27,7 +28,7 @@ class TestSECONDARY(unittest.TestCase):
         for Mx in Mxs:
             # ADM ...if we've already defined the flavor property...
             if "flavor" in dir(Mx[Mx[0]]):
-                flavs =set([Mx[bitname].flavor for bitname in Mx.names()])
+                flavs = set([Mx[bitname].flavor for bitname in Mx.names()])
                 # ADM ...all of the included flavors are allowed flavors.
                 self.assertTrue(flavs.issubset(self.flavors))
 
