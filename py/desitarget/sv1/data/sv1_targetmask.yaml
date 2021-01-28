@@ -360,13 +360,13 @@ priorities:
         M31_QSO:               SAME_AS_LBG_TOMOG
         M31_STAR:              SAME_AS_LBG_TOMOG
 #       MWS_DDOGIANTS:         {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_CLUS_GAL_DEEP:     {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CLUS_GAL_DEEP:     {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_MASS_AGN:          {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FAINT_HPM:             SAME_AS_LOW_MASS_AGN
         GW190412:              {UNOBS: 5000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         IC134191:              SAME_AS_GW190412
-        PV_BRIGHT:             {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_DARK:               {UNOBS: 100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_BRIGHT:             {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK:               {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_Z:                 {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BHB:                   {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         SPCV:                  SAME_AS_LOW_MASS_AGN
