@@ -6,6 +6,9 @@ desitarget.gaiamatch
 ====================
 
 Useful Gaia matching and manipulation routines.
+
+.. _`Gaia Collaboration/Babusiaux et al. (2018)`: https://ui.adsabs.harvard.edu/abs/2018A%26A...616A..10G/abstract
+.. _`borrowed shamelessly from Sergey Koposov`: https://github.com/desihub/desispec/blob/e67142d5a3c5489ae861735b447443afc6211310/py/desispec/scripts/stdstars.py#L74
 """
 import os
 import sys
@@ -187,6 +190,62 @@ def gaia_psflike(aen, g):
     )
 
     return psflike
+
+
+def unextinct_gaia_mags(G, Bp, Rp, ebv):
+    """Correct gaia magnitudes based for dust.
+
+    Parameters
+    ----------
+    G : :class:`array_like` or :class`float`
+        Gaia-based G MAGNITUDE (not Galactic-extinction-corrected).
+    Bp : :class:`array_like` or :class`float`
+        Gaia-based Bp MAGNITUDE (not Galactic-extinction-corrected).
+    Rp : :class:`array_like` or :class`float`
+        Gaia-based Rp MAGNITUDE (not Galactic-extinction-corrected).
+    Ebv : :class:`array_like` or :class`float`
+        E(B-V) values from the SFD dust maps at the passed locations.
+        Use BEST guesses (i.e. pass AFTER scaling for Schlafly/Finkbeiner
+        corrections to the SFD maps).
+
+    Returns
+    -------
+    :class:`array_like` or :class`float`
+        Gaia-based G MAGNITUDE (with Galactic-extinction correction).
+    :class:`array_like` or :class`float`
+        Gaia-based Bp MAGNITUDE (not Galactic-extinction correction).
+    :class:`array_like` or :class`float`
+        Gaia-based Rp MAGNITUDE (not Galactic-extinction correction).
+
+    Notes
+    -----
+        - See eqn1/tab1 of `Gaia Collaboration/Babusiaux et al. (2018)`_.
+        - First version `borrowed shamelessly from Segey Koposov`_.
+    """
+    # ADM correction coefficient for non-linear dust.
+    gaia_poly_coeff = {"G":[0.9761, -0.1704,
+                           0.0086, 0.0011, -0.0438, 0.0013, 0.0099],
+                      "BP": [1.1517, -0.0871, -0.0333, 0.0173,
+                             -0.0230, 0.0006, 0.0043],
+                      "RP":[0.6104, -0.0170, -0.0026,
+                            -0.0017, -0.0078, 0.00005, 0.0006]}
+
+    # ADM dictionaries to hold the input and output magnitudes.
+    inmags = {"G": G, "BP": Bp, "RP": Rp}
+    outmags = {}
+
+    # ADM apply the extinction corrections in each band.
+    gaia_a0 = 3.1 * ebv
+    bprp = Bp - Rp
+    for band in ['G', 'BP', 'RP']:
+        curp = gaia_poly_coeff[band]
+        dmag = (np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
+                 curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
+                 )*gaia_a0
+        # ADM populate the per-band extinction-corrected magnitudes.
+        outmags[band] = inmags[band] - dmag
+
+    return outmags["G"], outmags["BP"], outmags["RP"]
 
 
 def is_in_Galaxy(objs, radec=False):
