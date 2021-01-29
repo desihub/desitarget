@@ -9,15 +9,15 @@ desitarget Change Log
     * Deredden Gaia colors when selecting Gaia-only standards.
         * Add a general function to de-extinct Gaia magnitudes.
         * Add E(B-V) to supplemental targets for downstream calibrations.
-* Add a ``flavor`` property to the secondary targets.
-    * Flavor take values of "SPARE", "DEDICATED", "SSV", "QSO", "TOO".
-    * Add unit test to check allowed values of flavor.
-* Update priorities for dedicated secondary targets.
-    * Now that we can separate them from spare targets using ``flavor``.
-* Include ``PHOTSYS`` of "G" for targets that are derived only from Gaia.
-* Fix minor bugs that arose due to recent changes in the data model.
-* Add code to scrape Gaia EDR3 flat files from the web.
-    * And reformat them as FITS files, and by HEALPixel.
+    * Add a ``flavor`` property to the secondary targets.
+        * Flavor can be "SPARE", "DEDICATED", "SSV", "QSO", "TOO".
+        * Add unit test to check allowed values of flavor.
+    * Update priorities for dedicated secondary targets.
+        * Now they can be distinguished from spare targets by ``flavor``.
+    * Include ``PHOTSYS`` of "G" for Gaia-only targets.
+    * Fix minor bugs that arose due to recent changes in the data model.
+    * Add code to scrape Gaia EDR3 flat (csv) files from the web.
+        * And reformat them as FITS files, and by HEALPixel.
 
 .. _`PR #673`: https://github.com/desihub/desitarget/pull/673
 
