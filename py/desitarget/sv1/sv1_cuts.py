@@ -28,7 +28,6 @@ from desitarget.cuts import shift_photo_north
 from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp,
 from desitarget.gaiamatch import gaia_psflike, unextinct_gaia_mags
 from desitarget.geomask import imaging_mask
-from desitarget.randoms import get_dust
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger

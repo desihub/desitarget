@@ -244,9 +244,9 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
     # ADM populate the BRICKID columns.
     gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
 
-    # ADM retrieve E(B-V) from the SFD maps with the S&F scaling.
+    # ADM retrieve E(B-V) from the SFD maps.
     if addparams:
-        gfas["EBV"] = get_dust(gfas["RA"], gfas["DEC"], scaling=0.86)
+        gfas["EBV"] = get_dust(gfas["RA"], gfas["DEC"])
 
     # ADM limit by HEALPixel first as that's the fastest.
     if pixlist is not None:

@@ -222,7 +222,7 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
     -----
         - See eqn1/tab1 of `Gaia Collaboration/Babusiaux et al. (2018)`_.
         - First version `borrowed shamelessly from Segey Koposov`_.
-    """    
+    """
     # ADM correction coefficient for non-linear dust.
     gaia_poly_coeff = {"G":[0.9761, -0.1704,
                            0.0086, 0.0011, -0.0438, 0.0013, 0.0099],
