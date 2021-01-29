@@ -674,7 +674,7 @@ def get_dust(ras, decs, scaling=1, dustdir=None):
         E(B-V) values from the SFD dust maps at the passed locations
     """
     from desiutil.dust import SFDMap
-    return SFDMap(mapdir=dustdir).ebv(ras, decs, scaling=scaling)
+    return SFDMap(mapdir=dustdir, scaling=scaling).ebv(ras, decs)
 
 
 def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
@@ -1036,8 +1036,8 @@ def get_targ_dens(targets, Mx, nside=256):
         else:
             if ('BGS' in bitname) and not('S_ANY' in bitname):
                 ii = targets["BGS_TARGET"] & bgs_mask[bitname] != 0
-            elif (('MWS' in bitname or 'BACKUP' in bitname) and
-                  not('S_ANY' in bitname)):
+            elif (('MWS' in bitname or 'BACKUP' in bitname or
+                   'GAIA_STD' in bitname) and not('S_ANY' in bitname)):
                 ii = targets["MWS_TARGET"] & mws_mask[bitname] != 0
             else:
                 ii = targets["DESI_TARGET"] & desi_mask[bitname] != 0

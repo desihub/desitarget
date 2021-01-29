@@ -33,7 +33,7 @@ from astropy.table import Table, Row
 from desitarget import io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import match_gaia_to_primary, find_gaia_files_hp
-from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns
+from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns, unextinct_gaia_mags
 from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy, gaia_psflike
 from desitarget.targets import finalize, resolve
 from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
@@ -142,7 +142,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
 
 
 def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None,
-               parallax=None, parallaxovererror=None, gaiabprpfactor=None,
+               parallax=None, parallaxovererror=None, ebv=None, gaiabprpfactor=None,
                gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiadupsource=None, gaiaparamssolved=None,
                primary=None, test=False, nside=2):
@@ -150,6 +150,8 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Parameters
     ----------
+    ebv : :class:`array_like`
+        E(B-V) values from the SFD dust maps.
     test : :class:`bool`, optional, defaults to ``False``
         If ``True``, then we're running unit tests and don't have to
         find and read every possible Gaia file.
@@ -168,7 +170,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Notes
     -----
-    - Current version (01/15/21) is version 236 on `the wiki`_.
+    - Current version (01/28/21) is version 244 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -201,9 +203,12 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     ispsf = gaia_psflike(gaiaaen, gaiagmag)
     std &= ispsf
 
+    # ADM de-extinct the magnitudes before applying color cuts.
+    gd, bd, rd = unextinct_gaia_mags(gaiagmag, gaiabmag, gaiarmag, ebv)
+
     # ADM apply the Gaia color cuts for standards.
-    bprp = gaiabmag - gaiarmag
-    gbp = gaiagmag - gaiabmag
+    bprp = bd - rd
+    gbp = gd - bd
     std &= bprp > 0.2
     std &= bprp < 0.9
     std &= gbp > -1.*bprp/2.0
@@ -1020,8 +1025,6 @@ def isMWS_bhb(primary=None, objtype=None,
     # APC Legacy magnitude limits
     mws &= (rmag >= 16.) & (rmag <= 20.)
     return mws
-
-
 
 
 def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
@@ -2467,7 +2470,8 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     # ADM or are north of dec=-30.
     gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
                                  mindec=-30, mingalb=0, addobjid=True,
-                                 nside=nside, pixlist=pixlist, addparams=True)
+                                 nside=nside, pixlist=pixlist, addparams=True,
+                                 test=test)
     # ADM the convenience function we use adds an empty TARGETID
     # ADM field which we need to remove before finalizing.
     gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
@@ -2475,6 +2479,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     # ADM the relevant input quantities.
     ra = gaiaobjs["RA"]
     dec = gaiaobjs["DEC"]
+    ebv = gaiaobjs["EBV"]
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
         gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,      \
         gaiasigma5dmax, galb = _prepare_gaia(gaiaobjs)
@@ -2489,7 +2494,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     primary = np.ones_like(gaiaobjs, dtype=bool)
     std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
         ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
-        parallax=parallax, parallaxovererror=parallaxovererror,
+        parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
         gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
@@ -2904,6 +2909,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
                 gaiatargs.dtype.names).intersection(set(targets.dtype.names))
             for col in sc:
                 gaiatargets[col] = gaiatargs[col]
+            # ADM Gaia-only target always have PHOTSYS="G".
+            gaiatargets["PHOTSYS"] = "G"
 
             # ADM remove duplicates. Order is key here, as np.unique
             # ADM keeps the first occurence, and we want to retain sweeps

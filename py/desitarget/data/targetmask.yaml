@@ -161,7 +161,7 @@ targetid_mask:
     - [MOCK,       58, "this target is a mock target",                                                   {nbits: 1}]
     - [SKY,        59, "this target is a sky fiber target",                                              {nbits: 1}]
     - [GAIADR,     60, "RIGHTMOST bit encoding Gaia DR number when not in Legacy Surveys (bits 60-61)",  {nbits: 2}]
-    - [RESERVED,   62, "RIGHTMOST bit for left over bit space (encompasses bits 62-63 inclusive)",       {nbits: 2}]
+    - [RESERVED,   62, "RIGHTMOST bit for left over bit space (encompasses bit 62 inclusive)",           {nbits: 1}]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.

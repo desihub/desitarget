@@ -6,6 +6,9 @@ desitarget.gaiamatch
 ====================
 
 Useful Gaia matching and manipulation routines.
+
+.. _`Gaia Collaboration/Babusiaux et al. (2018)`: https://ui.adsabs.harvard.edu/abs/2018A%26A...616A..10G/abstract
+.. _`borrowed shamelessly from Sergey Koposov`: https://github.com/desihub/desispec/blob/e67142d5a3c5489ae861735b447443afc6211310/py/desispec/scripts/stdstars.py#L74
 """
 import os
 import sys
@@ -37,47 +40,96 @@ start = time()
 
 # ADM the current data model for Gaia columns for READING from Gaia files
 ingaiadatamodel = np.array([], dtype=[
-            ('SOURCE_ID', '>i8'), ('REF_CAT', 'S2'), ('RA', '>f8'), ('DEC', '>f8'),
-            ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
-            ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('DUPLICATED_SOURCE', '?'),
-            ('ASTROMETRIC_SIGMA5D_MAX', '>f4'), ('ASTROMETRIC_PARAMS_SOLVED', '>i1'),
-            ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
-            ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
-            ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
-                                   ])
+    ('SOURCE_ID', '>i8'), ('REF_CAT', 'S2'), ('RA', '>f8'), ('DEC', '>f8'),
+    ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('DUPLICATED_SOURCE', '?'),
+    ('ASTROMETRIC_SIGMA5D_MAX', '>f4'), ('ASTROMETRIC_PARAMS_SOLVED', '>i1'),
+    ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
+    ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
+])
 
 # ADM the current data model for Gaia columns for WRITING to target files
 gaiadatamodel = np.array([], dtype=[
-            ('REF_ID', '>i8'), ('REF_CAT', 'S2'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
-            ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-            ('GAIA_PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
-            ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('GAIA_DUPLICATED_SOURCE', '?'),
-            ('GAIA_ASTROMETRIC_SIGMA5D_MAX', '>f4'), ('GAIA_ASTROMETRIC_PARAMS_SOLVED', '>i1'),
-            ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
-            ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
-            ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4')
-                                   ])
+    ('REF_ID', '>i8'), ('REF_CAT', 'S2'), ('GAIA_RA', '>f8'), ('GAIA_DEC', '>f8'),
+    ('GAIA_PHOT_G_MEAN_MAG', '>f4'), ('GAIA_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('GAIA_PHOT_BP_MEAN_MAG', '>f4'), ('GAIA_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('GAIA_PHOT_RP_MEAN_MAG', '>f4'), ('GAIA_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('GAIA_PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('GAIA_DUPLICATED_SOURCE', '?'),
+    ('GAIA_ASTROMETRIC_SIGMA5D_MAX', '>f4'), ('GAIA_ASTROMETRIC_PARAMS_SOLVED', '>i1'),
+    ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
+    ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4')
+])
+
+# ADM the current data model for READING from Gaia EDR3 files.
+inedr3datamodel = np.array([], dtype=[
+    ('SOURCE_ID', '>i8'), ('REF_CAT', 'S2'), ('RA', '>f8'), ('DEC', '>f8'),
+    ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
+    ('DUPLICATED_SOURCE', '?'), ('ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('RUWE', '>f4'),
+    ('IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
+    ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
+])
+
+# ADM the current data model for WRITING to Gaia EDR3 files.
+edr3datamodel = np.array([], dtype=[
+    ('REF_ID', '>i8'), ('REF_CAT', 'S2'), ('EDR3_RA', '>f8'), ('EDR3_DEC', '>f8'),
+    ('EDR3_PHOT_G_MEAN_MAG', '>f4'), ('EDR3_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('EDR3_PHOT_BP_MEAN_MAG', '>f4'), ('EDR3_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('EDR3_PHOT_RP_MEAN_MAG', '>f4'), ('EDR3_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('EDR3_PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('EDR3_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('EDR3_ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
+    ('EDR3_DUPLICATED_SOURCE', '?'), ('EDR3_ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('EDR3_ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('EDR3_RUWE', '>f4'),
+    ('EDR3_IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('EDR3_IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('EDR3_PARALLAX', '>f4'), ('EDR3_PARALLAX_IVAR', '>f4'),
+    ('EDR3_PMRA', '>f4'), ('EDR3_PMRA_IVAR', '>f4'),
+    ('EDR3_PMDEC', '>f4'), ('EDR3_PMDEC_IVAR', '>f4')
+])
 
 
-def get_gaia_dir():
+def get_gaia_dir(dr="dr2"):
     """Convenience function to grab the Gaia environment variable.
+
+    Parameters
+    ----------
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
     :class:`str`
         The directory stored in the $GAIA_DIR environment variable.
     """
+    # ADM allowed Data Releases for input.
+    droptions = ["dr2", "edr3"]
+    if dr not in droptions:
+        msg = "input dr must be one of {}".format(droptions)
+        log.critical(msg)
+        raise IOError(msg)
+
     # ADM check that the $GAIA_DIR environment variable is set.
     gaiadir = os.environ.get('GAIA_DIR')
     if gaiadir is None:
         msg = "Set $GAIA_DIR environment variable!"
         log.critical(msg)
         raise ValueError(msg)
+
+    # ADM the specific meaning of the GAIA_DIR is the DR2 directory,
+    # ADM so reconstruct for other DRs.
+    if dr != "dr2":
+        gaiadir = os.path.join(os.path.dirname(gaiadir), "gaia_{}".format(dr))
 
     return gaiadir
 
@@ -138,6 +190,64 @@ def gaia_psflike(aen, g):
     )
 
     return psflike
+
+
+def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
+    """Correct gaia magnitudes based for dust.
+
+    Parameters
+    ----------
+    G : :class:`array_like` or :class`float`
+        Gaia-based G MAGNITUDE (not Galactic-extinction-corrected).
+    Bp : :class:`array_like` or :class`float`
+        Gaia-based Bp MAGNITUDE (not Galactic-extinction-corrected).
+    Rp : :class:`array_like` or :class`float`
+        Gaia-based Rp MAGNITUDE (not Galactic-extinction-corrected).
+    ebv : :class:`array_like` or :class`float`
+        E(B-V) values from the SFD dust maps.
+    scaling : :class:`int`
+        Multiply `ebv` by this scaling factor. Set to 0.86 to
+        apply Schlafly & Finkbeiner (2011) correction.
+
+    Returns
+    -------
+    :class:`array_like` or :class`float`
+        Gaia-based G MAGNITUDE (with Galactic-extinction correction).
+    :class:`array_like` or :class`float`
+        Gaia-based Bp MAGNITUDE (not Galactic-extinction correction).
+    :class:`array_like` or :class`float`
+        Gaia-based Rp MAGNITUDE (not Galactic-extinction correction).
+
+    Notes
+    -----
+        - See eqn1/tab1 of `Gaia Collaboration/Babusiaux et al. (2018)`_.
+        - First version `borrowed shamelessly from Sergey Koposov`_.
+    """
+    # ADM correction coefficient for non-linear dust.
+    gaia_poly_coeff = {"G": [0.9761, -0.1704,
+                             0.0086, 0.0011, -0.0438, 0.0013, 0.0099],
+                       "BP": [1.1517, -0.0871, -0.0333, 0.0173,
+                              -0.0230, 0.0006, 0.0043],
+                       "RP": [0.6104, -0.0170, -0.0026,
+                              -0.0017, -0.0078, 0.00005, 0.0006]}
+
+    # ADM dictionaries to hold the input and output magnitudes.
+    inmags = {"G": G, "BP": Bp, "RP": Rp}
+    outmags = {}
+
+    # ADM apply the extinction corrections in each band.
+    gaia_a0 = 3.1 * ebv * scaling
+    bprp = Bp - Rp
+    for band in ['G', 'BP', 'RP']:
+        curp = gaia_poly_coeff[band]
+        dmag = (
+            np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
+            curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
+        )*gaia_a0
+        # ADM populate the per-band extinction-corrected magnitudes.
+        outmags[band] = inmags[band] - dmag
+
+    return outmags["G"], outmags["BP"], outmags["RP"]
 
 
 def is_in_Galaxy(objs, radec=False):
@@ -202,28 +312,34 @@ def gaia_dr_from_ref_cat(refcat):
     return gaiadr
 
 
-def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nfiletest=None):
+def scrape_gaia(dr="dr2", nfiletest=None):
     """Retrieve the bulk CSV files released by the Gaia collaboration.
 
     Parameters
     ----------
-    url : :class:`str`
-        The web directory that hosts the archived Gaia CSV files.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
     nfiletest : :class:`int`, optional, defaults to ``None``
         If an integer is sent, only retrieve this number of files, for testing.
 
     Returns
     -------
     Nothing
-        But the archived Gaia CSV files are written to $GAIA_DIR/csv.
+        But the archived Gaia CSV files are written to $GAIA_DIR/csv. For
+        "edr3" the directory actually written to is $GAIA_DIR/../gaia_edr3.
 
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
-        - Runs in about 26 hours for 60,000 Gaia files.
+        - Runs in about 26 hours for 61,234 Gaia DR2 files.
+        - Runs in about 19 hours for 3,386 Gaia EDR3 files.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
+
+    gdict = {"dr2": "http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/",
+             "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/"}
+    url = gdict[dr]
 
     # ADM construct the directory to which to write files.
     csvdir = os.path.join(gaiadir, 'csv')
@@ -253,16 +369,18 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nf
 
     # ADM loop through the filelist.
     t0 = time()
+    stepper = nfiles//600
     for nfile, fileinfo in enumerate(filelist):
         # ADM make the wget command to retrieve the file and issue it.
         cmd = 'wget -q {}/GaiaSource{} -P {}'.format(url, fileinfo[:-2], csvdir)
         os.system(cmd)
-        if nfile % 100 == 0 or test:
+        nfil = nfile + 1
+        if nfil % stepper == 0 or test:
             elapsed = time() - t0
-            rate = nfile / elapsed
+            rate = nfil / elapsed
             log.info(
                 '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
-                .format(nfile+1, nfiles, rate, elapsed/60.)
+                .format(nfil, nfiles, rate, elapsed/60.)
             )
 
     log.info('Done...t={:.1f}s'.format(time()-t0))
@@ -270,12 +388,15 @@ def scrape_gaia(url="http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/", nf
     return
 
 
-def gaia_csv_to_fits(numproc=4):
+def gaia_csv_to_fits(dr="dr2", numproc=32):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
     ----------
-    numproc : :class:`int`, optional, defaults to 4
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3". For
+        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+    numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
     Returns
@@ -291,13 +412,14 @@ def gaia_csv_to_fits(numproc=4):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in 1-3 hours (depending on node) with numproc=32 for 60,000 files.
+        - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
+        - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     log.info("running on {} processors".format(numproc))
 
     # ADM construct the directories for reading/writing files.
@@ -335,10 +457,16 @@ def gaia_csv_to_fits(numproc=4):
 
         # ADM only write out the columns we need for targeting.
         nobjs = len(fitstable)
-        done = np.zeros(nobjs, dtype=ingaiadatamodel.dtype)
+        if dr == "dr2":
+            done = np.zeros(nobjs, dtype=ingaiadatamodel.dtype)
+        elif dr == "edr3":
+            done = np.zeros(nobjs, dtype=inedr3datamodel.dtype)
         for col in done.dtype.names:
             if col == 'REF_CAT':
-                done[col] = 'G2'
+                if dr == "dr2":
+                    done[col] = 'G2'
+                elif dr == "edr3":
+                    done[col] = 'G3'
             else:
                 done[col] = fitstable[col.lower()]
         fitsio.write(outfile, done, extname='GAIAFITS')
@@ -350,11 +478,12 @@ def gaia_csv_to_fits(numproc=4):
     # ADM this is just to count processed files in _update_status.
     nfile = np.zeros((), dtype='i8')
     t0 = time()
+    stepper = nfiles//600
 
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if nfile % 100 == 0 and nfile > 0:
+        if nfile % stepper == 0 and nfile > 0:
             rate = nfile / (time() - t0)
             elapsed = time() - t0
             log.info(
@@ -394,12 +523,15 @@ def gaia_csv_to_fits(numproc=4):
     return
 
 
-def gaia_fits_to_healpix(numproc=4):
+def gaia_fits_to_healpix(dr="dr2", numproc=32):
     """Convert files in $GAIA_DIR/fits to files in $GAIA_DIR/healpix.
 
     Parameters
     ----------
-    numproc : :class:`int`, optional, defaults to 4
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3". For
+        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+    numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
     Returns
@@ -415,13 +547,14 @@ def gaia_fits_to_healpix(numproc=4):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in about 1-3 hours with numproc=32 for 60,000 files.
+        - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
+        - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
 
     # ADM construct the directories for reading/writing files.
     fitsdir = os.path.join(gaiadir, 'fits')
@@ -508,12 +641,15 @@ def gaia_fits_to_healpix(numproc=4):
     return
 
 
-def make_gaia_files(numproc=4, download=False):
+def make_gaia_files(dr="dr2", numproc=32, download=False):
     """Make the HEALPix-split Gaia DR2 files used by desitarget.
 
     Parameters
     ----------
-    numproc : :class:`int`, optional, defaults to 4
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3". For
+        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3.
+    numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
     download : :class:`bool`, optional, defaults to ``False``
         If ``True`` then wget the Gaia DR2 csv files from ESA.
@@ -523,7 +659,8 @@ def make_gaia_files(numproc=4, download=False):
     Nothing
         But produces:
         - Full Gaia DR2 CSV files in $GAIA_DIR/csv.
-        - FITS files with columns from `ingaiadatamodel` in $GAIA_DIR/fits.
+        - FITS files with columns from `ingaiadatamodel` or
+        `inedr3datamodel` in $GAIA_DIR/fits.
         - FITS files reorganized by HEALPixel in $GAIA_DIR/healpix.
 
         The HEALPixel sense is nested with nside=_get_gaia_nside(), and
@@ -534,14 +671,14 @@ def make_gaia_files(numproc=4, download=False):
     -----
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
-        - Runs in about 26 hours if download is ``True``.
-        - Runs in 1-3 hours with numproc=32 if download is ``False``.
+        - Runs in ~26/20 hours for "dr2"/"edr3" if download is ``True``.
+        - Runs in 1-2 hours with numproc=32 if download is ``False``.
     """
     t0 = time()
     log.info('Begin making Gaia files...t={:.1f}s'.format(time()-t0))
 
     # ADM check that the GAIA_DIR is set.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
 
     # ADM a quick check that the fits and healpix directories are empty
     # ADM before embarking on the slower parts of the code.
@@ -555,13 +692,13 @@ def make_gaia_files(numproc=4, download=False):
                 raise ValueError(msg)
 
     if download:
-        scrape_gaia()
+        scrape_gaia(dr=dr)
         log.info('Retrieved Gaia files from ESA...t={:.1f}s'.format(time()-t0))
 
-    gaia_csv_to_fits(numproc=numproc)
+    gaia_csv_to_fits(dr=dr, numproc=numproc)
     log.info('Converted CSV files to FITS...t={:.1f}s'.format(time()-t0))
 
-    gaia_fits_to_healpix(numproc=numproc)
+    gaia_fits_to_healpix(dr=dr, numproc=numproc)
     log.info('Rearranged FITS files by HEALPixel...t={:.1f}s'.format(time()-t0))
 
     return

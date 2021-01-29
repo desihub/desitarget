@@ -25,6 +25,7 @@ from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
 from desitarget.geomask import bundle_bricks, sweep_files_touch_hp
+from desitarget.randoms import get_dust
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -157,8 +158,8 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     return gfas
 
 
-def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
-                 nside=None, pixlist=None, addobjid=False, addparams=False):
+def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
+                 pixlist=None, addobjid=False, addparams=False, test=False):
     """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
 
     Parameters
@@ -182,8 +183,11 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
         that is the integer number of each row read from file.
     addparams : :class:`bool`, optional, defaults to ``False``
         If ``True``, include some additional Gaia columns:
-        "GAIA_ASTROMETRIC_EXCESS_NOISE", "GAIA_DUPLICATED_SOURCE"
-        and "GAIA_ASTROMETRIC_PARAMS_SOLVED'.
+        "GAIA_ASTROMETRIC_EXCESS_NOISE", "GAIA_DUPLICATED_SOURCE",
+        "GAIA_ASTROMETRIC_PARAMS_SOLVED', "EBV".
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find the dust maps.
 
     Returns
     -------
@@ -213,11 +217,12 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
             dt.append(tup)
     if addparams:
         for tup in [('GAIA_DUPLICATED_SOURCE', '?'),
-                    ('GAIA_ASTROMETRIC_PARAMS_SOLVED', '>i1')]:
+                    ('GAIA_ASTROMETRIC_PARAMS_SOLVED', '>i1'),
+                    ('EBV', '>f4')]:
             dt.append(tup)
 
     gfas = np.zeros(len(objs), dtype=dt)
-    # ADM make sure all columns initially have "ridiculous" numbers
+    # ADM make sure all columns initially have "ridiculous" numbers.
     gfas[...] = -99.
     for col in gfas.dtype.names:
         if isinstance(gfas[col][0].item(), (bytes, str)):
@@ -242,6 +247,14 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
     # ADM populate the BRICKID columns.
     gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
 
+    # ADM retrieve E(B-V) from the SFD maps.
+    if addparams:
+        # ADM if we're running unit tests, make up some E(B-V) values.
+        if test:
+            gfas["EBV"] = 0.5
+        else:
+            gfas["EBV"] = get_dust(gfas["RA"], gfas["DEC"])
+
     # ADM limit by HEALPixel first as that's the fastest.
     if pixlist is not None:
         inhp = is_in_hp(gfas, nside, pixlist)
@@ -259,7 +272,8 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
 
 def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
                       tiles=None, mindec=-30, mingalb=10, nside=None,
-                      pixlist=None, addobjid=False, addparams=False):
+                      pixlist=None, addobjid=False, addparams=False,
+                      test=False):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -289,6 +303,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     addparams : :class:`bool`, optional, defaults to ``False``
         If ``True``, include some additional Gaia columns:
         "GAIA_DUPLICATED_SOURCE" and "GAIA_ASTROMETRIC_PARAMS_SOLVED'.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find the dust maps.
 
     Returns
     -------
@@ -309,7 +326,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         # ADM Gaia "00000" pixel file might not exist.
         dummyfile = find_gaia_files_hp(nside, pixlist[0],
                                        neighbors=False)[0]
-    dummygfas = np.array([], gaia_in_file(dummyfile, addparams=addparams).dtype)
+    dummygfas = np.array([], gaia_in_file(
+        dummyfile, addparams=addparams, test=test).dtype)
 
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
@@ -327,7 +345,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     def _get_gaia_gfas(fn):
         '''wrapper on gaia_in_file() given a file name'''
         return gaia_in_file(fn, maglim=maglim, mindec=mindec, mingalb=mingalb,
-                            nside=nside, pixlist=pixlist,
+                            nside=nside, pixlist=pixlist, test=test,
                             addobjid=addobjid, addparams=addparams)
 
     # ADM this is just to count sweeps files in _update_status.
