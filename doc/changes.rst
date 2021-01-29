@@ -2,7 +2,13 @@
 desitarget Change Log
 =====================
 
-0.49.1 (unreleased)
+0.50.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+
+0.50.0 (2021-01-29)
 -------------------
 
 * Improved functionality for Gaia-only targets [`PR #673`_]. Includes:
@@ -25,7 +31,7 @@ desitarget Change Log
 .. _`PR #672`: https://github.com/desihub/desitarget/pull/672
 .. _`PR #673`: https://github.com/desihub/desitarget/pull/673
 
-0.49.0 (2020-01-18)
+0.49.0 (2021-01-18)
 -------------------
 
 * General clean-up for final DR9 imaging [`PR #670`_]. Includes:
@@ -43,7 +49,7 @@ desitarget Change Log
 
 .. _`PR #670`: https://github.com/desihub/desitarget/pull/670
 
-0.48.0 (2020-01-09)
+0.48.0 (2021-01-09)
 -------------------
 
 * First run of secondaries with real target files [`PR #669`_]. Includes:
