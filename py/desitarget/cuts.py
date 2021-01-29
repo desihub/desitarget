@@ -143,7 +143,7 @@ def shift_photo_north(gflux=None, rflux=None, zflux=None):
 
 
 def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None,
-               parallax=None, parallaxovererror=None, gaiabprpfactor=None,
+               parallax=None, parallaxovererror=None, ebv=None, gaiabprpfactor=None,
                gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiadupsource=None, gaiaparamssolved=None,
                primary=None, test=False, nside=2):
@@ -151,6 +151,8 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Parameters
     ----------
+    ebv : :class:`array_like`
+        E(B-V) values from the SFD dust maps.
     test : :class:`bool`, optional, defaults to ``False``
         If ``True``, then we're running unit tests and don't have to
         find and read every possible Gaia file.
@@ -202,10 +204,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     ispsf = gaia_psflike(gaiaaen, gaiagmag)
     std &= ispsf
 
-    # ADM de-extinct the Gaia magnitude for color cuts.
-    # ADM first retrieve E(B-V) from the SFD maps with the S&F scaling.
-    ebv = get_dust(ra, dec, scaling=0.86)
-    # ADM now retrieve the corrected magnitudes.
+    # ADM de-extinct the magnitudes before applying color cuts.
     gd, bd, rd = unextinct_gaia_mags(gaiagmag, gaiabmag, gaiarmag, ebv)
 
     # ADM apply the Gaia color cuts for standards.
@@ -2376,6 +2375,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     # ADM the relevant input quantities.
     ra = gaiaobjs["RA"]
     dec = gaiaobjs["DEC"]
+    ebv = gaiaobjs["EBV"]
     gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
         gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,      \
         gaiasigma5dmax, galb = _prepare_gaia(gaiaobjs)
@@ -2390,7 +2390,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     primary = np.ones_like(gaiaobjs, dtype=bool)
     std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
         ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
-        parallax=parallax, parallaxovererror=parallaxovererror,
+        parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
         gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,

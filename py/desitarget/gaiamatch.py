@@ -192,7 +192,7 @@ def gaia_psflike(aen, g):
     return psflike
 
 
-def unextinct_gaia_mags(G, Bp, Rp, ebv):
+def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
     """Correct gaia magnitudes based for dust.
 
     Parameters
@@ -203,10 +203,11 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv):
         Gaia-based Bp MAGNITUDE (not Galactic-extinction-corrected).
     Rp : :class:`array_like` or :class`float`
         Gaia-based Rp MAGNITUDE (not Galactic-extinction-corrected).
-    Ebv : :class:`array_like` or :class`float`
-        E(B-V) values from the SFD dust maps at the passed locations.
-        Use BEST guesses (i.e. pass AFTER scaling for Schlafly/Finkbeiner
-        corrections to the SFD maps).
+    ebv : :class:`array_like` or :class`float`
+        E(B-V) values from the SFD dust maps.
+    scaling : :class:`int`
+        Multiply `ebv` by this scaling factor. Set to 0.86 to
+        apply Schlafly & Finkbeiner (2011) correction.
 
     Returns
     -------
@@ -221,7 +222,7 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv):
     -----
         - See eqn1/tab1 of `Gaia Collaboration/Babusiaux et al. (2018)`_.
         - First version `borrowed shamelessly from Segey Koposov`_.
-    """
+    """    
     # ADM correction coefficient for non-linear dust.
     gaia_poly_coeff = {"G":[0.9761, -0.1704,
                            0.0086, 0.0011, -0.0438, 0.0013, 0.0099],
@@ -235,7 +236,7 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv):
     outmags = {}
 
     # ADM apply the extinction corrections in each band.
-    gaia_a0 = 3.1 * ebv
+    gaia_a0 = 3.1 * ebv * scaling
     bprp = Bp - Rp
     for band in ['G', 'BP', 'RP']:
         curp = gaia_poly_coeff[band]

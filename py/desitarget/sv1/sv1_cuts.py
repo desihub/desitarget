@@ -39,7 +39,7 @@ start = time()
 
 
 def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None,
-               parallax=None, parallaxovererror=None, gaiabprpfactor=None,
+               parallax=None, parallaxovererror=None, ebv=None, gaiabprpfactor=None,
                gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiadupsource=None, gaiaparamssolved=None,
                primary=None, test=False, nside=2):
@@ -47,6 +47,8 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Parameters
     ----------
+    ebv : :class:`array_like`
+        E(B-V) values from the SFD dust maps.
     test : :class:`bool`, optional, defaults to ``False``
         If ``True``, then we're running unit tests and don't have to
         find and read every possible Gaia file.
@@ -98,10 +100,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     ispsf = gaia_psflike(gaiaaen, gaiagmag)
     std &= ispsf
 
-    # ADM de-extinct the Gaia magnitude for color cuts.
-    # ADM first retrieve E(B-V) from the SFD maps with the S&F scaling.
-    ebv = get_dust(ra, dec, scaling=0.86)
-    # ADM now retrieve the corrected magnitudes.
+    # ADM de-extinct the magnitudes before applying color cuts.
     gd, bd, rd = unextinct_gaia_mags(gaiagmag, gaiabmag, gaiarmag, ebv)
 
     # ADM apply the Gaia color cuts for standards.
