@@ -5,7 +5,7 @@ desitarget Change Log
 0.49.1 (unreleased)
 -------------------
 
-* Improved functionality for Gaia-only targets [`PR #670`_]. Includes:
+* Improved functionality for Gaia-only targets [`PR #673`_]. Includes:
     * Deredden Gaia colors when selecting Gaia-only standards.
         * Add a general function to de-extinct Gaia magnitudes.
         * Add E(B-V) to supplemental targets for downstream calibrations.
@@ -18,7 +18,11 @@ desitarget Change Log
     * Fix minor bugs that arose due to recent changes in the data model.
     * Add code to scrape Gaia EDR3 flat (csv) files from the web.
         * And reformat them as FITS files, and by HEALPixel.
+* Updates to MWS main survey target cuts [`PR #672`_]. Includes:
+    * Add bright limit to MWS_NEARBY
+    * Add MWS_BHB as main survey class
 
+.. _`PR #672`: https://github.com/desihub/desitarget/pull/672
 .. _`PR #673`: https://github.com/desihub/desitarget/pull/673
 
 0.49.0 (2020-01-18)
