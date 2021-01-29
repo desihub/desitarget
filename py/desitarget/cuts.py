@@ -170,7 +170,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Notes
     -----
-    - Current version (01/15/21) is version 236 on `the wiki`_.
+    - Current version (01/28/21) is version 244 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:

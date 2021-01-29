@@ -25,7 +25,7 @@ from astropy.coordinates import SkyCoord
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
-from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp,
+from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp
 from desitarget.gaiamatch import gaia_psflike, unextinct_gaia_mags
 from desitarget.geomask import imaging_mask
 
@@ -67,7 +67,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     Notes
     -----
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
-    - Current version (01/15/21) is version 151 on `the SV wiki`_.
+    - Current version (01/28/21) is version 154 on `the SV wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')
