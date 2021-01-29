@@ -221,15 +221,15 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
     Notes
     -----
         - See eqn1/tab1 of `Gaia Collaboration/Babusiaux et al. (2018)`_.
-        - First version `borrowed shamelessly from Segey Koposov`_.
+        - First version `borrowed shamelessly from Sergey Koposov`_.
     """
     # ADM correction coefficient for non-linear dust.
-    gaia_poly_coeff = {"G":[0.9761, -0.1704,
-                           0.0086, 0.0011, -0.0438, 0.0013, 0.0099],
-                      "BP": [1.1517, -0.0871, -0.0333, 0.0173,
-                             -0.0230, 0.0006, 0.0043],
-                      "RP":[0.6104, -0.0170, -0.0026,
-                            -0.0017, -0.0078, 0.00005, 0.0006]}
+    gaia_poly_coeff = {"G": [0.9761, -0.1704,
+                             0.0086, 0.0011, -0.0438, 0.0013, 0.0099],
+                       "BP": [1.1517, -0.0871, -0.0333, 0.0173,
+                              -0.0230, 0.0006, 0.0043],
+                       "RP": [0.6104, -0.0170, -0.0026,
+                              -0.0017, -0.0078, 0.00005, 0.0006]}
 
     # ADM dictionaries to hold the input and output magnitudes.
     inmags = {"G": G, "BP": Bp, "RP": Rp}
@@ -240,9 +240,10 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
     bprp = Bp - Rp
     for band in ['G', 'BP', 'RP']:
         curp = gaia_poly_coeff[band]
-        dmag = (np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
-                 curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
-                 )*gaia_a0
+        dmag = (
+            np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
+            curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
+        )*gaia_a0
         # ADM populate the per-band extinction-corrected magnitudes.
         outmags[band] = inmags[band] - dmag
 
@@ -659,7 +660,7 @@ def make_gaia_files(dr="dr2", numproc=32, download=False):
         But produces:
         - Full Gaia DR2 CSV files in $GAIA_DIR/csv.
         - FITS files with columns from `ingaiadatamodel` or
-          `inedr3datamodel` in $GAIA_DIR/fits.
+        `inedr3datamodel` in $GAIA_DIR/fits.
         - FITS files reorganized by HEALPixel in $GAIA_DIR/healpix.
 
         The HEALPixel sense is nested with nside=_get_gaia_nside(), and
