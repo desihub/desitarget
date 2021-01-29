@@ -2061,7 +2061,8 @@ def apply_cuts_gaia(numproc=4, cmxdir=None, nside=None, pixlist=None,
     # ADM No Gaia-only CMX target classes are fainter than G=20.
     gaiaobjs = all_gaia_in_tiles(maglim=20, numproc=numproc, allsky=True,
                                  mindec=-90, mingalb=0, addobjid=True,
-                                 nside=nside, pixlist=pixlist, addparams=True)
+                                 nside=nside, pixlist=pixlist, addparams=True,
+                                 test=test)
     # ADM the convenience function we use adds an empty TARGETID
     # ADM field which we need to remove before finalizing.
     gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")

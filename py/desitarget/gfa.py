@@ -158,8 +158,8 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     return gfas
 
 
-def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
-                 nside=None, pixlist=None, addobjid=False, addparams=False):
+def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
+                 pixlist=None, addobjid=False, addparams=False, test=False):
     """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
 
     Parameters
@@ -185,6 +185,9 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
         If ``True``, include some additional Gaia columns:
         "GAIA_ASTROMETRIC_EXCESS_NOISE", "GAIA_DUPLICATED_SOURCE",
         "GAIA_ASTROMETRIC_PARAMS_SOLVED', "EBV".
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find the dust maps.
 
     Returns
     -------
@@ -246,7 +249,11 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
 
     # ADM retrieve E(B-V) from the SFD maps.
     if addparams:
-        gfas["EBV"] = get_dust(gfas["RA"], gfas["DEC"])
+        # ADM if we're running unit tests, make up some E(B-V) values.
+        if test:
+            gfas["EBV"] = 0.5
+        else:
+            gfas["EBV"] = get_dust(gfas["RA"], gfas["DEC"])
 
     # ADM limit by HEALPixel first as that's the fastest.
     if pixlist is not None:
@@ -265,7 +272,8 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10.,
 
 def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
                       tiles=None, mindec=-30, mingalb=10, nside=None,
-                      pixlist=None, addobjid=False, addparams=False):
+                      pixlist=None, addobjid=False, addparams=False,
+                      test=False):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -295,6 +303,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     addparams : :class:`bool`, optional, defaults to ``False``
         If ``True``, include some additional Gaia columns:
         "GAIA_DUPLICATED_SOURCE" and "GAIA_ASTROMETRIC_PARAMS_SOLVED'.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then we're running unit tests and don't have to
+        find the dust maps.
 
     Returns
     -------
@@ -315,7 +326,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         # ADM Gaia "00000" pixel file might not exist.
         dummyfile = find_gaia_files_hp(nside, pixlist[0],
                                        neighbors=False)[0]
-    dummygfas = np.array([], gaia_in_file(dummyfile, addparams=addparams).dtype)
+    dummygfas = np.array([], gaia_in_file(
+        dummyfile, addparams=addparams, test=test).dtype)
 
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
@@ -333,7 +345,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     def _get_gaia_gfas(fn):
         '''wrapper on gaia_in_file() given a file name'''
         return gaia_in_file(fn, maglim=maglim, mindec=mindec, mingalb=mingalb,
-                            nside=nside, pixlist=pixlist,
+                            nside=nside, pixlist=pixlist, test=test,
                             addobjid=addobjid, addparams=addparams)
 
     # ADM this is just to count sweeps files in _update_status.

@@ -2472,7 +2472,8 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     # ADM or are north of dec=-30.
     gaiaobjs = all_gaia_in_tiles(maglim=19, numproc=numproc, allsky=True,
                                  mindec=-30, mingalb=0, addobjid=True,
-                                 nside=nside, pixlist=pixlist, addparams=True)
+                                 nside=nside, pixlist=pixlist, addparams=True,
+                                 test=test)
     # ADM the convenience function we use adds an empty TARGETID
     # ADM field which we need to remove before finalizing.
     gaiaobjs = rfn.drop_fields(gaiaobjs, "TARGETID")
