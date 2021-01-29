@@ -1027,8 +1027,6 @@ def isMWS_bhb(primary=None, objtype=None,
     return mws
 
 
-
-
 def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
              pmra=None, pmdec=None, parallax=None, parallaxovererror=None,
              photbprpexcessfactor=None, astrometricsigma5dmax=None,
