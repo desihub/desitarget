@@ -25,8 +25,10 @@ from astropy.coordinates import SkyCoord
 
 from desitarget.cuts import _getColors, _psflike, _check_BGS_targtype_sv
 from desitarget.cuts import shift_photo_north
-from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp, gaia_psflike
+from desitarget.gaiamatch import is_in_Galaxy, find_gaia_files_hp,
+from desitarget.gaiamatch import gaia_psflike, unextinct_gaia_mags
 from desitarget.geomask import imaging_mask
+from desitarget.randoms import get_dust
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -96,9 +98,15 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     ispsf = gaia_psflike(gaiaaen, gaiagmag)
     std &= ispsf
 
+    # ADM de-extinct the Gaia magnitude for color cuts.
+    # ADM first retrieve E(B-V) from the SFD maps with the S&F scaling.
+    ebv = get_dust(ra, dec, scaling=0.86)
+    # ADM now retrieve the corrected magnitudes.
+    gd, bd, rd = unextinct_gaia_mags(gaiagmag, gaiabmag, gaiarmag, ebv)
+
     # ADM apply the Gaia color cuts for standards.
-    bprp = gaiabmag - gaiarmag
-    gbp = gaiagmag - gaiabmag
+    bprp = bd - rd
+    gbp = gd - bd
     std &= bprp > 0.2
     std &= bprp < 0.9
     std &= gbp > -1.*bprp/2.0
