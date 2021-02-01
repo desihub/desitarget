@@ -1,4 +1,4 @@
-Copyright (c) 2015-2017, DESI Collaboration <desi-data@desi.lbl.gov>
+Copyright (c) 2015-2021, DESI Collaboration <desi-data@desi.lbl.gov>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without modification,

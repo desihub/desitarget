@@ -1,7 +1,6 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-=====================
 desitarget.tychomatch
 =====================
 
@@ -88,14 +87,14 @@ def grab_tycho(cosmodir="/global/cfs/cdirs/cosmo/staging/tycho2/"):
 
     Returns
     -------
-    Nothing
+    None
         But the Tycho fits file, README are written to $TYCHO_DIR/fits.
 
     Notes
     -----
-        - The environment variable $TYCHO_DIR must be set.
-        - The fits file is "cleaned up" to conform to DESI Data Systems
-          standards (e.g. all columns are converted to upper-case).
+    - The environment variable $TYCHO_DIR must be set.
+    - The fits file is "cleaned up" to conform to DESI Data Systems
+      standards (e.g. all columns are converted to upper-case).
     """
     # ADM check that the TYCHO_DIR is set and retrieve it.
     tychodir = get_tycho_dir()
@@ -159,7 +158,7 @@ def tycho_fits_to_healpix():
 
     Returns
     -------
-    Nothing
+    None
         But the archived Tycho FITS files in $TYCHO_DIR/fits are
         rearranged by HEALPixel in the directory $TYCHO_DIR/healpix.
         The HEALPixel sense is nested with nside=get_tycho_nside(), and
@@ -168,7 +167,7 @@ def tycho_fits_to_healpix():
 
     Notes
     -----
-        - The environment variable $TYCHO_DIR must be set.
+    - The environment variable $TYCHO_DIR must be set.
     """
     # ADM the resolution at which the Tycho HEALPix files are stored.
     nside = get_tycho_nside()
@@ -223,8 +222,9 @@ def make_tycho_files():
 
     Returns
     -------
-    Nothing
+    None
         But produces:
+
         - A FITS file with appropriate header and columns from
           `tychodatamodel`, and a README in $TYCHO_DIR/fits.
         - FITS files reorganized by HEALPixel in $TYCHO_DIR/healpix.
@@ -235,7 +235,7 @@ def make_tycho_files():
 
     Notes
     -----
-        - The environment variable $TYCHO_DIR must be set.
+    - The environment variable $TYCHO_DIR must be set.
     """
     t0 = time()
     log.info('Begin making Tycho files...t={:.1f}s'.format(time()-t0))
@@ -286,7 +286,7 @@ def find_tycho_files(objs, neighbors=True, radec=False):
 
     Notes
     -----
-        - The environment variable $TYCHO_DIR must be set.
+    - The environment variable $TYCHO_DIR must be set.
     """
     # ADM the resolution at which the Tycho HEALPix files are stored.
     nside = get_tycho_nside()
@@ -321,7 +321,7 @@ def find_tycho_files_hp(nside, pixlist, neighbors=True):
 
     Notes
     -----
-        - The environment variable $TYCHO_DIR must be set.
+    - The environment variable $TYCHO_DIR must be set.
     """
     # ADM the resolution at which the healpix files are stored.
     filenside = get_tycho_nside()
@@ -370,11 +370,11 @@ def match_to_tycho(objs, matchrad=1., radec=False):
 
     Notes
     -----
-        - For objects with NO match in Tycho, the "TYC1", "TYC2" and
-          "TYCHO_SEP" columns are -1, and other columns are zero.
-        - Retrieves the CLOSEST match to Tycho for each passed object.
-        - Because this reads in HEALPixel split files, it's (far) faster
-          for objects that are clumped rather than widely distributed.
+    - For objects with NO match in Tycho, the "TYC1", "TYC2" and
+      "TYCHO_SEP" columns are -1, and other columns are zero.
+    - Retrieves the CLOSEST match to Tycho for each passed object.
+    - Because this reads in HEALPixel split files, it's (far) faster
+      for objects that are clumped rather than widely distributed.
     """
     # ADM parse whether a structure or coordinate list was passed.
     if radec:

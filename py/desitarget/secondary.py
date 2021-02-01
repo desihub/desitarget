@@ -26,7 +26,7 @@ then $SCND_DIR/indata/blat.txt should not.
 
 Example files can be found in the NERSC directory:
 
-/project/projectdirs/desi/target/secondary
+/global/cfs/cdirs/desi/target/secondary
 
 Note that the OVERRIDE column in the data model means "do not just
 accept an existing target, override it and make a new TARGETID." It
@@ -114,16 +114,19 @@ def duplicates(seq):
     -------
     :class:`generator`
         A generator of the duplicated values in the sequence
-        and an array of the indexes for each duplicate, e.g.
-        for i in duplicates("adfgtarga"):
-            print(i)
-        returns
-            ('a', array([0, 5, 8]))
-            ('g', array([3, 7]))
+        and an array of the indexes for each duplicate, see Examples.
 
     Notes
     -----
-        - h/t https://stackoverflow.com/questions/5419204/index-of-duplicates-items-in-a-python-list
+    - h/t https://stackoverflow.com/questions/5419204/index-of-duplicates-items-in-a-python-list
+
+    Examples
+    --------
+    >>> for i in duplicates("adfgtarga"):
+    ...     print(i)
+    ('a', array([0, 5, 8]))
+    ('g', array([3, 7]))
+
     """
     tally = defaultdict(list)
     for i, item in enumerate(seq):
@@ -187,17 +190,17 @@ def _check_files(scxdir, scnd_mask):
 
     Returns
     -------
-    Nothing.
+    None
 
     Notes
     -----
-        - Checks that each file name has one corresponding bit in the
-          secondary_mask.
-        - Checks for only valid file extensions in the input directories.
-        - Checks that there are no duplicate files in the `scxdir`/indata
-          or in the `scxdir`/docs directory.
-        - Checks that every file in the `scxdir`/indata directory has a
-          corresponding informational file in `scxdir`/docs.
+    - Checks that each file name has one corresponding bit in the
+      secondary_mask.
+    - Checks for only valid file extensions in the input directories.
+    - Checks that there are no duplicate files in the `scxdir`/indata
+      or in the `scxdir`/docs directory.
+    - Checks that every file in the `scxdir`/indata directory has a
+      corresponding informational file in `scxdir`/docs.
     """
     # ADM the allowed extensions in each directory.
     extdic = {'indata': {'.txt', '.fits'},
@@ -708,26 +711,23 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
 
     Notes
     -----
-        - Secondaries without `OVERRIDE` are also matched to themselves
-        Such matches are given the same `TARGETID` (that of the primary
-        if they match a primary) and the bitwise or of `SCND_TARGET` and
-        `OBSCONDITIONS` bits across matches. The highest `PRIORITY_INIT`
-        is retained, and others are set to -1. Only secondaries with
-        priorities that are not -1 are written to the main file. If
-        multiple matching secondary targets have the same (highest)
-        priority, the first one encountered retains its `PRIORITY_INIT`
-        - The secondary `TARGETID` is designed to be reproducible. It
-        combines `BRICKID` based on location, `OBJID` based on the
-        order of the targets in the secondary file (`SCND_ORDER`) and
-        `RELEASE` from the secondary bit number (`SCND_TARGET`) and the
-        input `survey`. `RELEASE` is set to ((X-1)*100)+np.log2(scnd_bit)
-        with X from the `survey` string survey=svX and scnd_bit from
-        `SCND_TARGET`. For the main survey (survey="main") X-1 is 5.
-
-    Notes
-    -----
-        - The input `scxtargs` is modified, so be careful to make
-          a copy if you want that variable to remain unchanged!
+    - Secondaries without `OVERRIDE` are also matched to themselves
+      Such matches are given the same `TARGETID` (that of the primary
+      if they match a primary) and the bitwise or of `SCND_TARGET` and
+      `OBSCONDITIONS` bits across matches. The highest `PRIORITY_INIT`
+      is retained, and others are set to -1. Only secondaries with
+      priorities that are not -1 are written to the main file. If
+      multiple matching secondary targets have the same (highest)
+      priority, the first one encountered retains its `PRIORITY_INIT`
+    - The secondary `TARGETID` is designed to be reproducible. It
+      combines `BRICKID` based on location, `OBJID` based on the
+      order of the targets in the secondary file (`SCND_ORDER`) and
+      `RELEASE` from the secondary bit number (`SCND_TARGET`) and the
+      input `survey`. `RELEASE` is set to ((X-1)*100)+np.log2(scnd_bit)
+      with X from the `survey` string survey=svX and scnd_bit from
+      `SCND_TARGET`. For the main survey (survey="main") X-1 is 5.
+    - The input `scxtargs` is modified, so be careful to make
+      a copy if you want that variable to remain unchanged!
     """
     # ADM assign new TARGETIDs to targets without a primary match.
     nomatch = scxtargs["TARGETID"] == -1

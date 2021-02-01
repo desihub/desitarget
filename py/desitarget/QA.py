@@ -1,9 +1,8 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-==================
 desitarget.QA
-==================
+=============
 
 Module dealing with Quality Assurance tests for Target Selection
 """

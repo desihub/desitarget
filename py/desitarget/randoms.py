@@ -1,9 +1,8 @@
 # Licensed under a 3-clause BSD style license - see LICENSE.rst
 # -*- coding: utf-8 -*-
 """
-==========================
-desitarget.imagefootprint
-==========================
+desitarget.randoms
+==================
 
 Monte Carlo Legacy Surveys imaging at the pixel level to model the imaging footprint
 """
@@ -67,8 +66,8 @@ def dr_extension(drdir):
 
     Notes
     -----
-        - If the directory structure seems wrong or can't be found then
-          the post-DR4 convention (.fz files) is returned.
+    - If the directory structure seems wrong or can't be found then
+      the post-DR4 convention (.fz files) is returned.
     """
     try:
         # ADM a generator of all of the nexp files in the coadd directory.
@@ -106,7 +105,7 @@ def finalize_randoms(randoms):
 
     Notes
     -----
-        - Typically used in conjunction with :func:`add_default_mtl()`
+    - Typically used in conjunction with :func:`add_default_mtl()`
     """
     # ADM make every random the highest-priority target.
     dt = np.zeros_like(randoms["RA"]) + bitperprio[np.max(list(bitperprio))]
@@ -133,8 +132,8 @@ def add_default_mtl(randoms, seed):
 
     Notes
     -----
-        - Typically you will need to run :func:`finalize_randoms()`
-          first, to populate the columns for the target bits.
+    - Typically you will need to run :func:`finalize_randoms()`
+      first, to populate the columns for the target bits.
     """
     from desitarget.mtl import make_mtl
     randoms = np.array(make_mtl(randoms, obscon="DARK"))
@@ -177,8 +176,10 @@ def randoms_in_a_brick_from_edges(ramin, ramax, decmin, decmax, density=100000,
         reasonable for small bricks. ``False`` turns of this correction.
     seed : :class:`int`, optional, defaults to 1
         Random seed to use when shuffling across brick boundaries.
-        The actual np.random.seed defaults to:
+        The actual np.random.seed defaults to::
+
             seed*int(1e7)+int(4*ramin)*1000+int(4*(decmin+90))
+
     Returns
     -------
     :class:`~numpy.array`
@@ -248,7 +249,7 @@ def randoms_in_a_brick_from_name(brickname, drdir, density=100000):
 
     Notes
     -----
-        - First version copied shamelessly from Anand Raichoor.
+    - First version copied shamelessly from Anand Raichoor.
     """
     # ADM read in the survey bricks file to determine the brick boundaries
     hdu = fits.open(drdir+'survey-bricks.fits.gz')
@@ -308,8 +309,8 @@ def pre_or_post_dr8(drdir):
 
     Notes
     -----
-        - If the directory structure seems wrong or missing then the DR8
-          (and after) convention of a north/south split is assumed.
+    - If the directory structure seems wrong or missing then the DR8
+      (and after) convention of a north/south split is assumed.
     """
     if os.path.exists(os.path.join(drdir, "coadd")):
         drdirs = [drdir]
@@ -395,7 +396,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
 
     Notes
     -----
-        - First version copied shamelessly from Anand Raichoor.
+    - First version copied shamelessly from Anand Raichoor.
     """
     # ADM guard against too low a density of random locations.
     npts = len(ras)
@@ -608,15 +609,18 @@ def hp_with_nobs_in_a_brick(ramin, ramax, decmin, decmax, brickname, drdir,
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the following columns:
-            HPXPIXEL: Integer numbers of (only) those HEALPixels that overlap the passed brick
-            HPXCOUNT: Numbers of random points with one or more observations (NOBS > 0) in the
-                passed Data Release of the Legacy Surveys for each returned HPXPIXEL.
+
+        HPXPIXEL:
+            Integer numbers of (only) those HEALPixels that overlap the passed brick
+        HPXCOUNT:
+            Numbers of random points with one or more observations (NOBS > 0) in the
+            passed Data Release of the Legacy Surveys for each returned HPXPIXEL.
 
     Notes
     -----
-        - The HEALPixel numbering uses the NESTED scheme.
-        - In the event that there are no pixels with one or more observations in the passed
-          brick, and empty structured array will be returned.
+    - The HEALPixel numbering uses the NESTED scheme.
+    - In the event that there are no pixels with one or more observations in the passed
+      brick, and empty structured array will be returned.
     """
     # ADM this is only intended to work on one brick, so die if a larger
     # ADM array is passed.
@@ -721,29 +725,47 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
     -------
     :class:`~numpy.ndarray`
         a numpy structured array with the following columns:
-            RELEASE: The Legacy Surveys release number.
-            OBJID: A unique (to each brick) source identifier.
-            BRICKID: ID that corresponds to the passed brick name.
-            BRICKNAME: Passed brick name.
-            RA, DEC: Right Ascension, Declination of a random location.
-            NOBS_G, R, Z: Number of observations in g, r, z-band.
-            PSFDEPTH_G, R, Z: PSF depth at this location in g, r, z.
-            GALDEPTH_G, R, Z: Galaxy depth in g, r, z.
-            PSFDEPTH_W1, W2: (PSF) depth in W1, W2 (AB mag system).
-            PSFSIZE_G, R, Z: Weighted average PSF FWHM (arcsec).
-            APFLUX_G, R, Z: Sky background extracted in `aprad`.
-                Will be zero if `aprad` < 1e-8 is passed.
-            APFLUX_IVAR_G, R, Z: Inverse variance of sky background.
-                Will be zero if `aprad` < 1e-8 is passed.
-            MASKBITS: mask information. See header of extension 1 of e.g.
-              'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
-            WISEMASK_W1: mask info. See header of extension 2 of e.g.
-              'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
-            WISEMASK_W2: mask info. See header of extension 3 of e.g.
-              'coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz'
-            EBV: E(B-V) at this location from the SFD dust maps.
-            PHOTSYS: resolved north/south ('N' for an MzLS/BASS location,
-              'S' for a DECaLS location).
+
+        RELEASE:
+            The Legacy Surveys release number.
+        OBJID:
+            A unique (to each brick) source identifier.
+        BRICKID:
+            ID that corresponds to the passed brick name.
+        BRICKNAME:
+            Passed brick name.
+        RA, DEC:
+            Right Ascension, Declination of a random location.
+        NOBS_G, R, Z:
+            Number of observations in g, r, z-band.
+        PSFDEPTH_G, R, Z:
+            PSF depth at this location in g, r, z.
+        GALDEPTH_G, R, Z:
+            Galaxy depth in g, r, z.
+        PSFDEPTH_W1, W2:
+            (PSF) depth in W1, W2 (AB mag system).
+        PSFSIZE_G, R, Z:
+            Weighted average PSF FWHM (arcsec).
+        APFLUX_G, R, Z:
+            Sky background extracted in `aprad`.
+            Will be zero if `aprad` < 1e-8 is passed.
+        APFLUX_IVAR_G, R, Z:
+            Inverse variance of sky background.
+            Will be zero if `aprad` < 1e-8 is passed.
+        MASKBITS:
+            Mask information. See header of extension 1 of *e.g.*
+            ``coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz``
+        WISEMASK_W1:
+            Mask information. See header of extension 2 of *e.g.*
+            ``coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz``
+        WISEMASK_W2:
+            Mask information. See header of extension 3 of *e.g.*
+            ``coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz``
+        EBV:
+            E(B-V) at this location from the SFD dust maps.
+        PHOTSYS:
+            resolved north/south ('N' for an MzLS/BASS location,
+            'S' for a DECaLS location).
     """
     # ADM only intended to work on one brick, so die for larger arrays.
     if not isinstance(brickname, str):
@@ -854,12 +876,12 @@ def pixweight(randoms, density, nobsgrz=[0, 0, 0], nside=256,
 
     Notes
     -----
-        - `WEIGHT=1` means >=1 pointings across the entire pixel.
-        - `WEIGHT=0` means zero observations within it (e.g., perhaps
-          the pixel is completely outside of the LS DR footprint).
-        - `0 < WEIGHT < 1` for pixels that partially cover the LS DR
-          area with one or more observations.
-        - The index of the returned array is the HEALPixel integer.
+    - `WEIGHT=1` means >=1 pointings across the entire pixel.
+    - `WEIGHT=0` means zero observations within it (e.g., perhaps
+      the pixel is completely outside of the LS DR footprint).
+    - `0 < WEIGHT < 1` for pixels that partially cover the LS DR
+      area with one or more observations.
+    - The index of the returned array is the HEALPixel integer.
     """
     # ADM if a file name was passed for the random catalog, read it in.
     if isinstance(randoms, str):
@@ -927,7 +949,7 @@ def stellar_density(nside=256):
 
     Notes
     -----
-        - The environment variable $GAIA_DIR must be set.
+    - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = get_gaia_dir()

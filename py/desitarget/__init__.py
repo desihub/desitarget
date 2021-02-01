@@ -8,7 +8,7 @@ desitarget
 
 Tools for DESI_ target selection.
 
-.. _DESI: http://desi.lbl.gov
+.. _DESI: https://www.desi.lbl.gov
 """
 
 # help with 2to3 support.

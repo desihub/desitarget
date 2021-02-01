@@ -75,7 +75,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'desitarget'
-copyright = '2015-2016, DESI Collaboration'
+copyright = '2015-2021, DESI Collaboration'
 author = 'DESI Collaboration'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -139,8 +139,8 @@ napoleon_include_private_with_doc = True
 # building process.
 autodoc_mock_imports = []
 for missing in ('astropy', 'desimodel', 'desisim', 'desispec', 'desiutil',
-                'fitsio', 'healpy', 'matplotlib', 'numpy', 'scipy', 'sklearn',
-                'speclite', 'yaml', 'photutils'):
+                'fitsio', 'healpy', 'joblib', 'matplotlib', 'numpy', 'photutils',
+                'scipy', 'sklearn', 'speclite', 'yaml'):
     try:
         foo = import_module(missing)
     except ImportError:

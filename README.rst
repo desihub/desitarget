@@ -2,6 +2,21 @@
 desitarget
 ==========
 
+
+|Actions Status| |Coveralls Status| |Documentation Status|
+
+.. |Actions Status| image:: https://github.com/desihub/desitarget/workflows/CI/badge.svg
+    :target: https://github.com/desihub/desitarget/actions
+    :alt: GitHub Actions CI Status
+
+.. |Coveralls Status| image:: https://coveralls.io/repos/desihub/desitarget/badge.svg
+    :target: https://coveralls.io/github/desihub/desitarget
+    :alt: Test Coverage Status
+
+.. |Documentation Status| image:: https://readthedocs.org/projects/desitarget/badge/?version=latest
+    :target: https://desitarget.readthedocs.io/en/latest/
+    :alt: Documentation Status
+
 Introduction
 ------------
 
@@ -40,26 +55,7 @@ Full Documentation
 
 Please visit `desitarget on Read the Docs`_
 
-.. image:: https://readthedocs.org/projects/desitarget/badge/?version=latest
-    :target: http://desitarget.readthedocs.org/en/latest/
-    :alt: Documentation Status
-
-.. _`desitarget on Read the Docs`: http://desitarget.readthedocs.org/en/latest/
-
-Travis Build Status
--------------------
-
-.. image:: https://img.shields.io/travis/desihub/desitarget.svg
-    :target: https://travis-ci.org/desihub/desitarget
-    :alt: Travis Build Status
-
-
-Test Coverage Status
---------------------
-
-.. image:: https://coveralls.io/repos/desihub/desitarget/badge.svg?branch=master&service=github
-    :target: https://coveralls.io/github/desihub/desitarget?branch=master
-    :alt: Test Coverage Status
+.. _`desitarget on Read the Docs`: https://desitarget.readthedocs.io/en/latest/
 
 License
 -------
