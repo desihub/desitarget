@@ -55,7 +55,7 @@ Full Documentation
 
 Please visit `desitarget on Read the Docs`_
 
-.. _`desitarget on Read the Docs`: http://desitarget.readthedocs.io/en/latest/
+.. _`desitarget on Read the Docs`: https://desitarget.readthedocs.io/en/latest/
 
 License
 -------

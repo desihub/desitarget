@@ -75,7 +75,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'desitarget'
-copyright = '2015-2016, DESI Collaboration'
+copyright = '2015-2021, DESI Collaboration'
 author = 'DESI Collaboration'
 
 # The version info for the project you're documenting, acts as replacement for

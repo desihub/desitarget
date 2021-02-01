@@ -113,13 +113,17 @@ desitarget API
 .. automodule:: desitarget.train.data_collection.my_tractor_extract_batch
     :members:
 
-.. automodule:: desitarget.train.data_collection.my_tractor_extract
-    :members:
+.. This appears to be a script rather than a proper module.
+.. .. automodule:: desitarget.train.data_collection.my_tractor_extract
+..     :members:
 
 .. automodule:: desitarget.train.data_collection.RA_DEC_MatchingClassModule
     :members:
 
 .. automodule:: desitarget.train.data_collection.sweep_meta
+    :members:
+
+.. automodule:: desitarget.train.data_preparation
     :members:
 
 .. automodule:: desitarget.train.data_preparation.funcs
@@ -128,8 +132,9 @@ desitarget API
 .. automodule:: desitarget.train.data_preparation.make_test_sample
     :members:
 
-.. automodule:: desitarget.train.data_preparation.make_training_samples
-    :members:
+.. This appears to be a script rather than a proper module.
+.. .. automodule:: desitarget.train.data_preparation.make_training_samples
+..     :members:
 
 .. automodule:: desitarget.train.data_preparation.PredCountsFromQLF_ClassModule
     :members:
@@ -158,8 +163,9 @@ desitarget API
 .. automodule:: desitarget.train.train_test_RF.util.PredCountsFromQLF_ClassModule
     :members:
 
-.. automodule:: desitarget.train.train_test_RF.util.Scikit_RF_TO_DESI_RF
-    :members:
+.. This appears to be a script rather than a proper module.
+.. .. automodule:: desitarget.train.train_test_RF.util.Scikit_RF_TO_DESI_RF
+..     :members:
 
 .. automodule:: desitarget.tychomatch
     :members:

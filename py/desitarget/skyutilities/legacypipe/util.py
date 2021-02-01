@@ -1,6 +1,6 @@
-# Much of this code is from version dr6.rc1.2 of legacypipe: 
+# Much of this code is from version dr6.rc1.2 of legacypipe:
 # https://github.com/legacysurvey/legacypipe
-# The files from which this code was derived 
+# The files from which this code was derived
 # (legacypipe/survey.py) and (legacypipe/utils.py)
 # are licensed under the BSD-3 license as of
 # version dr6.rc1.2 of legacypipe (git hash e8a188a).
@@ -16,17 +16,24 @@ import os
 from desitarget.skyutilities.astrometry.fits import fits_table
 
 def get_rgb(imgs, bands, mnmx=None, arcsinh=None):
-    '''
-    Given a list of images in the given bands, returns a scaled RGB
-    image.
+    '''Given a list of images in the given bands, returns a scaled RGB image.
 
-    *imgs*  a list of numpy arrays, all the same size, in nanomaggies
-    *bands* a list of strings, eg, ['g','r','z']
-    *mnmx*  = (min,max), values that will become black/white *after* scaling.
-        Default is (-3,10)
-    *arcsinh* use nonlinear scaling as in SDSS
+    Parameters
+    ----------
+    imgs : :class:`list`
+        List of numpy arrays, all the same size, in nanomaggies.
+    bands : :class:`list`
+        List of strings, *e.g.*, ``['g','r','z']``.
+    mnmx : :func:`tuple`
+        (min,max), values that will become black/white *after* scaling.
+        Default is (-3,10).
+    arcsinh : :class:`float`, optional
+        Use nonlinear scaling as in SDSS.
 
-    Returns a (H,W,3) numpy array with values between 0 and 1.
+    Returns
+    -------
+    array-like
+        (H,W,3) numpy array with values between 0 and 1.
     '''
     bands = ''.join(bands)
 
@@ -137,7 +144,7 @@ class LegacySurveyData(object):
         Parameters
         ----------
         survey_dir : string
-            Where to look for files including calibration files, tables of CCDs and bricks, 
+            Where to look for files including calibration files, tables of CCDs and bricks,
             image data, etc.
         '''
         from desiutil.log import get_logger
@@ -269,7 +276,7 @@ class LegacySurveyData(object):
                 os.path.join(codir, '%s-%s-%s.fits' % (sname, brick, ty)))
 
         elif filetype in ['image-jpeg', 'model-jpeg', 'resid-jpeg',
-                          'imageblob-jpeg', 'simscoadd-jpeg','imagecoadd-jpeg']: 
+                          'imageblob-jpeg', 'simscoadd-jpeg','imagecoadd-jpeg']:
             ty = filetype.split('-')[0]
             return swap(
                 os.path.join(codir, '%s-%s-%s.jpg' % (sname, brick, ty)))

@@ -8,5 +8,4 @@ desitarget.train
 
 Tools for RF training QSO targets selection.
 
-.. _DESI: http://desi.lbl.gov
 """

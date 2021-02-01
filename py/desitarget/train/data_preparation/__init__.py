@@ -3,10 +3,9 @@
 #
 # -*- coding: utf-8 -*-
 """
-desitarget.data_preparation
-===========================
+desitarget.train.data_preparation
+=================================
 
 Tools for RF training QSO targets selection.
 
-.. _DESI: http://desi.lbl.gov
 """
