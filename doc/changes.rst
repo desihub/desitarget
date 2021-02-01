@@ -5,7 +5,9 @@ desitarget Change Log
 0.50.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Migrated unit tests to GitHub Actions [`PR #675`_].
+
+.. _`PR #675`: https://github.com/desihub/desitarget/pull/675
 
 
 0.50.0 (2021-01-29)
