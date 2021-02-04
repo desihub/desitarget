@@ -11,10 +11,9 @@ import astropy.io.fits as pyfits
 
 from desitarget.train.data_preparation.funcs import Flux2MagFunc, ColorsFunc, AreaFunc
 
-def make_test_sample(fpn_input, fpn_output, RELEASE='DR9'):
+def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', max_rmag=23.0):
     # ***CONFIGURATION***
     min_rmag = 17.5
-    max_rmag = 23.0  # 23.5 pour SV avec DR8/9 ?
 
     # Selection criteria
     OBJ_extraSelCMD = ""
