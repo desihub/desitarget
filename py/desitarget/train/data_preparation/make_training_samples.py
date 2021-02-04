@@ -143,9 +143,9 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     # "http://legacysurvey.org/dr8/bitmasks/"
     print("[WARNING] REMOVE FROM THE QSO TRAINING maskbits 1, 5, 6, 7, 10, 12, 13 (IF YOU WANT TO ADD/REMOVE MORE MASKBITS GO HERE)")
     QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 1)) == 0  # 'BRIGHT'
-    QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 5)) == 0
-    QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 6)) == 0
-    QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 7)) == 0
+    #QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 5)) == 0
+    #QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 6)) == 0
+    #QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 7)) == 0
     QSO_maskbits_OK &= (QSO_data['MASKBITS'] & np.power(2, 10)) == 0  # 'BLOP'
     QSO_maskbits_OK &= (QSO_data['MASKBITS'] & np.power(2, 12)) == 0  # 'GALAXY'
     QSO_maskbits_OK &= (QSO_data['MASKBITS'] & np.power(2, 13)) == 0  # 'CLUSTER'
@@ -187,8 +187,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_PSF_OK = (QSO_data['TYPE'] == "PSF")
 
     # Remove TestRegion --> we allready check that
-    noTestRegion_OK = ~ ((QSO_data.RA <= 45.) & (QSO_data.RA >= 30.) &
-                         (np.abs(QSO_data.DEC) <= 5.))
+    noTestRegion_OK = ~ ((QSO_data.RA <= 45.) & (QSO_data.RA >= 30.) & (np.abs(QSO_data.DEC) <= 5.))
 
     # QSO_OK
     # QSO_OK = QSO_rmag_OK & QSO_g_z_W1_W2_mag_OK & QSO_noBSinBLOB_OK
