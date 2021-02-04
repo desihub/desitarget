@@ -793,6 +793,110 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
     return ntargs, fn
 
 
+def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
+              nsidefile=None, hpxlist=None, extra=None, ecsv=True, mixed=False):
+    """Write Merged Target List ledgers or files.
+
+    Parameters
+    ----------
+    mtldir : :class:`str`
+        Path to output MTL directory (the directory structure and file
+        name are built on-the-fly from other inputs).
+    data : :class:`~numpy.ndarray`
+        numpy structured array of merged targets to write.
+    indir : :class:`str`, optional, defaults to `None`
+        If passed, note as the input directory in the output file header.
+    survey : :class:`str`, optional, defaults to "main"
+        Written to output file header as the keyword `SURVEY`.
+    obscon : :class:`str`, optional
+        Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
+    nsidefile : :class:`int`, optional, defaults to `mtl.get_mtl_dir()`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `hpxlist`.
+    hpxlist : :class:`list`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only this list of HEALPixels. Used in
+        conjunction with `nsidefile`.
+    extra : :class:`dict`, optional
+        If passed (and not None), write these extra dictionary keys and
+        values to the output header.
+    ecsv : :class:`bool`, defaults to ``True``
+        If ``True`` write a .ecsv file, if ``False`` with a .fits file.
+    mixed : :class:`bool`, defaults to ``False``
+        If ``True`` allow `data` to be from different Data Releases and
+        write out the largest data release integer to the file headers.
+        Useful when writing targets from, e.g., DR9 of the Legacy Surveys
+        and DR2 of Gaia to the same file.
+
+    Returns
+    -------
+    :class:`int`
+        The number of targets that were written to file.
+    :class:`str`
+        The name of the file to which targets were written.
+    """
+    # ADM begin to construct a dictionary of header keys and values.
+    keys, vals = ["INDIR", "SURVEY", "OBSCON"], [indir, survey, obscon]
+
+    # ADM hpxlist and nsidefile need to be passed together.
+    if hpxlist is not None or nsidefile is not None:
+        check_both_set(hpxlist, nsidefile)
+        # ADM warn if we've stored a pixel string that is too long.
+        _check_hpx_length(hpxlist, warning=True)
+        # ADM add to the header dictionary.
+        keys += ["FILENSID", "FILENEST", "FILEHPX"]
+        vals += [nsidefile, True, hpxlist]
+
+    # ADM catch cases where hpxlist wasn't passed.
+    hpx = hpxlist
+    if hpxlist is None:
+        hpx = "X"
+
+    # ADM determine the data release from a TARGETID.
+    _, _, release, _, _, _ = decode_targetid(data["TARGETID"])
+    # ADM if the mixed kwarg was sent, allow multiple data releases.
+    if mixed:
+        dr = np.atleast_1d(np.max(release//1000))
+    else:
+        dr = np.unique(release//1000)
+    if len(dr) == 0:
+        drint = 'X'
+    else:
+        try:
+            drint = int(dr)
+        except TypeError:
+            msg = "Multiple data releases in MTL ({})".format(dr)
+            log.error(msg)
+            raise TypeError(msg)
+    keys += ["DR"]
+    vals += [drint]
+
+    # ADM finalize the header dictionary.
+    hdrdict = {key: val for key, val in zip(keys, vals) if val is not None}
+    if extra is not None:
+        hdrdict = {**hdrdict, **extra}
+
+    # ADM set output format to ecsv if passed, or fits otherwise.
+    form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
+    fn = find_target_files(mtldir, dr=drint, flavor="mtl", survey=survey,
+                           obscon=obscon, hp=hpx, ender=form)
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
+
+    ntargs = len(data)
+    # ADM die if there are no targets to write.
+    if ntargs == 0:
+        return ntargs, fn
+
+    # ADM sort the output file on TARGETID.
+    data = data[np.argsort(data["TARGETID"])]
+
+    write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
+
+    return ntargs, fn
+
+
 def write_in_chunks(filename, data, nchunks, extname=None, header=None):
     """Write a FITS file in chunks to save memory.
 
@@ -2163,7 +2267,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         Name of a Legacy Surveys Data Release (e.g. 8). If this is an
         integer or a 1-character string it is prepended by "dr".
     flavor : :class:`str`, optional, defaults to `targets`
-        Options: "skies", "gfas", "targets", "randoms", "masks", "mtl".
+        Options: "skies", "gfas", "targets", "randoms",
+        "masks", "mtl", "ToO".
     survey : :class:`str`, optional, defaults to `main`
         Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
         Only relevant if `flavor` is "targets".
@@ -2229,7 +2334,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     if mock:
         allowed = ["targets", "truth", "sky"]
     else:
-        allowed = ["targets", "skies", "gfas", "randoms", "masks", "mtl"]
+        allowed = ["targets", "skies", "gfas", "randoms", "masks", "mtl", "ToO"]
     if flavor not in allowed:
         msg = "flavor must be {}, not {}".format(' or '.join(allowed), flavor)
         log.critical(msg)

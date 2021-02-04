@@ -11,22 +11,30 @@ from desiutil.log import get_logger
 log = get_logger()
 
 # ADM the data model for ToO, similar to that of secondary targets...
-from desitarget.secondary import outdatamodel as toodatamodel
-# ADM ...but with some extra columns.
-toodatamodel = np.array([], dtype=toodatamodel.dtype.descr + [
-    ('CHECKER', '>S3'), ('MJD_START', '>f4'), ('MJD_END', '>f4')])
+from desitarget.secondary import indatamodel
+from desitarget.secondary import outdatamodel
+# ADM ...but the OVERRIDE columns isn't necessary...
+indtype = [tup for tup in indatamodel.dtype.descr if "OVERRIDE" not in tup]
+outdtype = [tup for tup in outdatamodel.dtype.descr if "OVERRIDE" not in tup]
+# ADM ...and some extra columns are necessary.
+indatamodel = np.array([], dtype=indtype + [
+    ('CHECKER', '>U3'), ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
+outdatamodel = np.array([], dtype=outdtype + [
+    ('CHECKER', '>U3'), ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
 
 # ADM when using basic or csv ascii writes, specifying the formats of
 # ADM float32 columns can make things easier on the eye.
 tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 
+# ADM This RELEASE means Target of Opportunity in TARGETID.
+release = 9999
 
 def get_too_dir(toodir=None):
     """Convenience function to grab the TOO_DIR environment variable.
 
     Parameters
     ----------
-    :class:`str`, optional, defaults to ``None``
+    toodir : :class:`str`, optional, defaults to ``None``
         The directory to treat as the Targets of Opportunity I/O directory.
         If ``None`` then look up from the $TOO_DIR environment variable.
 
@@ -49,3 +57,45 @@ def get_too_dir(toodir=None):
         raise ValueError(msg)
 
     return toodir
+
+
+def make_initial_ledger(toodir=None):
+    """Set up the initial ToO ledger with one ersatz observation.
+
+    Parameters
+    ----------
+    toodir : :class:`str`, optional, defaults to ``None``
+        The directory to treat as the Targets of Opportunity I/O directory.
+        If ``None`` then look up from the $TOO_DIR environment variable.
+
+    Returns
+    -------
+    :class:`array_like`
+        An array of the initial, example values for the ToO ledger.
+        The initial (.ecsv) ledger is also written to toodir or $TOO_DIR.
+    """
+    # ADM get the ToO directory (or check it exists).
+    tdir = get_too_dir(toodir)
+
+    # ADM retrieve the file name to which to write.
+    from desitarget import io
+    dr = release//1000
+    fn = io.find_target_files(tdir, flavor="ToO", ender="ecsv", nohp=True, dr=dr)
+
+    # ADM make a single line of the ledger with some indicative values.
+    data = np.zeros(1, dtype=indatamodel.dtype)
+    data["RA"], data["DEC"] = 359.999999, -89.999999
+    data["PMRA"], data["PMDEC"] = 13.554634, -10.763842
+    data["REF_EPOCH"] = 2015.5
+    data["CHECKER"] = "ADM"
+    data["MJD_BEGIN"], data["MJD_END"] = 40811.04166667, 40811.95833333
+
+    hdr = {}
+
+    log.info("Writing initial ledger to {}".format(fn))
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
+    # ADM and write the initial ledger.
+    io.write_with_units(fn, data, extname="TOO", header=hdr, ecsv=True)
+
+    return data

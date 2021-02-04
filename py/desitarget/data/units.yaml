@@ -177,3 +177,8 @@ TIMESTAMP: s
 VERSION:
 Z:
 ZWARN:
+
+# ADM ToO-related units:
+CHECKER:
+MJD_BEGIN: day
+MJD_END: day
