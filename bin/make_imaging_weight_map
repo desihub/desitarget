@@ -14,7 +14,9 @@ from desitarget.randoms import pixmap
 #warnings.simplefilter('error')
 
 import multiprocessing
-nproc = multiprocessing.cpu_count() // 2
+#nproc = multiprocessing.cpu_count() // 2
+nproc = 64
+print(nproc)
 
 from desiutil.log import get_logger
 log = get_logger()

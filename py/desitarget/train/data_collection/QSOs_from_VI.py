@@ -165,7 +165,7 @@ def sdss_vi_merger(fits_file_1, fits_file_2, fits_file_output):
     print('Nbr QSOs from SDSS :', fits_1[:].size)
     print('Nbr QSOs frim VI :', fits_2[:].size)
 
-    fits.write(fits_1)
-    fits[-1].append(fits_2)
-    print('Nbr QSOs for training :', fits[:].size)
+    fits.write(fits_1[:])
+    fits[-1].append(fits_2[:])
+    print('Nbr QSOs for training :', fits[1][:].size)
     fits.close()
