@@ -42,7 +42,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     # Need to find a balance between acceptable errors in the measured data and
     # good representativeness of the photometric scattering inherent to QSO.
     # (ML model has to be trained over data which match real photo. data)
-    QSO_MAX_MAG_ERR_LEVEL = 0.2 # 0.02  # 0.02 by default
+    QSO_MAX_MAG_ERR_LEVEL = 0.1 # 0.02  # 0.02 by default
 
     # ***FUNCTION***
     def MAG_ERR_Func(FLUX, FLUX_IVAR):
