@@ -19,7 +19,7 @@ fpn_QLF_data = '../../py/desitarget/train/data_preparation/ROSS4_tabR.txt'
 
 # ***STARS & QSO INPUT/OUTPUT FILE PATH NAMES***
 
-def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_STARS_output):
+def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_STARS_output, max_rmag=23.0):
     remove_test_region = True # Change only to conduct some tests
 
     # ***CONFIGURATION***
@@ -34,7 +34,6 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
     # rmag bins
     min_rmag = 17.5
-    max_rmag = 23.0
     rmag_binStep = 0.2
 
     # Selection parameters
