@@ -43,9 +43,9 @@ def get_too_dir(toodir=None):
         log.critical(msg)
         raise ValueError(msg)
 
-    msg = "{} does not exist. " .format(toodir) + msg
+    msg = "{} does not exist. Make it or..." .format(toodir) + msg
     if not os.path.exists(toodir):
         log.critical(msg)
         raise ValueError(msg)
 
-    return mtldir
+    return toodir

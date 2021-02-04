@@ -85,3 +85,4 @@ setenv MASK_DIR /global/cfs/cdirs/desi/target/masks
 setenv GAIA_DIR /global/cfs/cdirs/desi/target/gaia_dr2
 setenv URAT_DIR /global/cfs/cdirs/desi/target/urat_dr1
 setenv TYCHO_DIR /global/cfs/cdirs/desi/target/tycho_dr2
+setenv TOO_DIR /global/cfs/cdirs/desi/target/ToO
