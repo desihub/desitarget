@@ -19,10 +19,8 @@ fpn_QLF_data = '../../py/desitarget/train/data_preparation/ROSS4_tabR.txt'
 
 # ***STARS & QSO INPUT/OUTPUT FILE PATH NAMES***
 
-
 def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_STARS_output):
-    # for test : remove_test_region --> False ect...
-    remove_test_region = True
+    remove_test_region = True # Change only to conduct some tests
 
     # ***CONFIGURATION***
 
@@ -81,13 +79,11 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QLF4Compl_dNdrmag = np.sum(QLF4Compl_dNdzdrmag, axis=1)
 
     # ***STARS SELECTION***
-
     STARS_data = pyfits.open(fpn_STARS_input, memmap=True)[1].data
     n_STARS = len(STARS_data)
     print("n_STARS initial :", n_STARS)
 
-    STARS_gmag, STARS_rmag, STARS_zmag, \
-        STARS_W1mag, STARS_W2mag = Flux2MagFunc(STARS_data)
+    STARS_gmag, STARS_rmag, STARS_zmag, STARS_W1mag, STARS_W2mag = Flux2MagFunc(STARS_data)
 
     STARS_rmag_OK = (STARS_rmag >= min_rmag) & (STARS_rmag <= max_rmag)
 
@@ -96,7 +92,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
     # STARS_noBSinBLOB_OK = ~STARS_data['BRIGHTSTARINBLOB']
     # "http://legacysurvey.org/dr9/bitmasks/"
-    print("[WARNING] REMOVE FROM THE STARS TRAINING maskbits 1, 5, 6, 7, 10, 12, 13")
+    print("[WARNING] REMOVE FROM THE STARS TRAINING maskbits 1, 5, 6, 7, 10, 12, 13 (IF YOU WANT TO ADD/REMOVE MORE MASKBITS GO HERE)")
     STARS_maskbits_OK = (STARS_data['MASKBITS'] & np.power(2, 1)) == 0  # 'BRIGHT'
     STARS_maskbits_OK = (STARS_data['MASKBITS'] & np.power(2, 5)) == 0
     STARS_maskbits_OK = (STARS_data['MASKBITS'] & np.power(2, 6)) == 0
@@ -122,6 +118,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_OK &= STARS_NOBS_OK & STARS_PSF_OK
 
     if remove_test_region:
+        print("[INFO] Removing test region...")
         STARS_OK &= noTestRegion_OK
 
     STARS_data = STARS_data[STARS_OK]
@@ -132,13 +129,11 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     print()
 
     # ***QSO SELECTION***
-
     QSO_data = pyfits.open(fpn_QSO_input, memmap=True)[1].data
     n_QSO = len(QSO_data)
     print("n_QSO initial :", n_QSO)
 
-    QSO_gmag, QSO_rmag, QSO_zmag, \
-        QSO_W1mag, QSO_W2mag = Flux2MagFunc(QSO_data)
+    QSO_gmag, QSO_rmag, QSO_zmag, QSO_W1mag, QSO_W2mag = Flux2MagFunc(QSO_data)
 
     QSO_rmag_OK = (QSO_rmag >= min_rmag) & (QSO_rmag <= max_rmag)
 
@@ -147,7 +142,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
     # QSO_noBSinBLOB_OK = ~QSO_data['BRIGHTSTARINBLOB']
     # "http://legacysurvey.org/dr8/bitmasks/"
-    print("[WARNING] REMOVE FROM THE QSO TRAINING maskbits 1, 5, 6, 7, 10, 12, 13")
+    print("[WARNING] REMOVE FROM THE QSO TRAINING maskbits 1, 5, 6, 7, 10, 12, 13 (IF YOU WANT TO ADD/REMOVE MORE MASKBITS GO HERE)")
     QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 1)) == 0  # 'BRIGHT'
     QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 5)) == 0
     QSO_maskbits_OK = (QSO_data['MASKBITS'] & np.power(2, 6)) == 0
@@ -202,6 +197,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_OK &= (FatStripe82_OK | brightQSOutOfFatStripe82_OK) & QSO_PSF_OK
 
     if remove_test_region:
+        print("[INFO] Removing test region...")
         QSO_OK &= noTestRegion_OK
 
     QSO_data = QSO_data[QSO_OK]
@@ -292,15 +288,12 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     print()
 
     # ***COMPUTE AND ADD COLORS***
-
     color_names = ['g_r', 'r_z', 'g_z', 'g_W1', 'r_W1', 'z_W1', 'g_W2', 'r_W2', 'z_W2', 'W1_W2', 'r']
     n_colors = len(color_names)
 
     # STARS
     list_cols = []
-
     STARS_gmag, STARS_rmag, STARS_zmag, STARS_W1mag, STARS_W2mag = Flux2MagFunc(STARS_data)
-
     STARS_Colors = ColorsFunc(n_STARS, n_colors, STARS_gmag, STARS_rmag, STARS_zmag, STARS_W1mag, STARS_W2mag)
 
     for i, col_name in enumerate(color_names):
@@ -312,9 +305,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
     # QSO
     list_cols = []
-
     QSO_gmag, QSO_rmag, QSO_zmag, QSO_W1mag, QSO_W2mag = Flux2MagFunc(QSO_data)
-
     QSO_Colors = ColorsFunc(n_QSO, n_colors, QSO_gmag, QSO_rmag, QSO_zmag, QSO_W1mag, QSO_W2mag)
 
     for i, col_name in enumerate(color_names):
@@ -325,7 +316,6 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_hdu = pyfits.BinTableHDU.from_columns(list(QSO_hdu.columns) + list_cols)
 
     # ***STARS & QSO TRAINING FITS CATALOG STORING***
-
     STARS_hdu.writeto(fpn_STARS_output, overwrite=True)
     print("Save :", fpn_STARS_output)
 
