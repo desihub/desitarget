@@ -1,0 +1,16 @@
+#!/usr/bin/env python
+
+from desitarget.ToO import make_initial_ledger, get_too_dir
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Make an initial ledger for Targets of Opportunity')
+ap.add_argument("-t", "--toodir",
+                help="Full path to the output directory to store the ledger. The \
+                filename and full directory structure are built on-the-fly.     \
+                [defaults to the environment variable $TOO_DIR]")
+
+ns = ap.parse_args()
+
+toodir = get_too_dir(ns.toodir)
+
+make_initial_ledger(toodir)
