@@ -90,7 +90,14 @@ def make_initial_ledger(toodir=None):
     data["CHECKER"] = "ADM"
     data["MJD_BEGIN"], data["MJD_END"] = 40811.04166667, 40811.95833333
 
+    # ADM Add a header for the ledger.
+    from . import __version__ as desitarget_version
+    from desitarget.io import gitversion
+    from desiutil import depend
     hdr = {}
+    depend.setdep(hdr, 'desitarget', desitarget_version)
+    depend.setdep(hdr, 'desitarget-git', gitversion())
+    hdr["RELEASE"] = release
 
     log.info("Writing initial ledger to {}".format(fn))
     # ADM create necessary directories, if they don't exist.
