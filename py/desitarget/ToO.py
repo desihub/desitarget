@@ -29,6 +29,39 @@ tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 # ADM This RELEASE means Target of Opportunity in TARGETID.
 release = 9999
 
+
+def get_filename(toodir=None, ender="ecsv", outname=False):
+    """Construct the input/output ToO filenames (with full directory path).
+
+    Parameters
+    ----------
+    toodir : :class:`str`, optional, defaults to ``None``
+        The directory to treat as the Targets of Opportunity I/O directory.
+        If ``None`` then look up from the $TOO_DIR environment variable.
+    ender : :class:`str`, optional, defaults to "ecsv"
+        File format (in file name), likely either "ecsv" or "fits".
+    outname : :class:`bool`, optional, defaults to ``False``
+        If ``True`` return the output ToO filename. Otherwise return
+        the input ToO filename.
+
+    Returns
+    -------
+    :class:`str`
+        The directory to treat as the Targets of Opportunity I/O directory.
+    """
+    # ADM retrieve the $TOO_DIR variable, if toodir wasn't passed.
+    tdir = get_too_dir(toodir)
+
+    from desitarget import io
+    dr = release//1000
+    fn = io.find_target_files(tdir, flavor="ToO", ender=ender, nohp=True, dr=dr)
+    # ADM change the name slightly to make this the "input" ledger.
+
+    if outname:
+        return fn
+    return fn.replace(".{}".format(ender), "-input.{}".format(ender))
+
+
 def get_too_dir(toodir=None):
     """Convenience function to grab the TOO_DIR environment variable.
 
@@ -78,9 +111,7 @@ def make_initial_ledger(toodir=None):
     tdir = get_too_dir(toodir)
 
     # ADM retrieve the file name to which to write.
-    from desitarget import io
-    dr = release//1000
-    fn = io.find_target_files(tdir, flavor="ToO", ender="ecsv", nohp=True, dr=dr)
+    fn = get_filename(tdir)
 
     # ADM make a single line of the ledger with some indicative values.
     data = np.zeros(1, dtype=indatamodel.dtype)
@@ -92,11 +123,11 @@ def make_initial_ledger(toodir=None):
 
     # ADM Add a header for the ledger.
     from . import __version__ as desitarget_version
-    from desitarget.io import gitversion
+    from desitarget import io
     from desiutil import depend
     hdr = {}
     depend.setdep(hdr, 'desitarget', desitarget_version)
-    depend.setdep(hdr, 'desitarget-git', gitversion())
+    depend.setdep(hdr, 'desitarget-git', io.gitversion())
     hdr["RELEASE"] = release
 
     log.info("Writing initial ledger to {}".format(fn))
@@ -106,3 +137,20 @@ def make_initial_ledger(toodir=None):
     io.write_with_units(fn, data, extname="TOO", header=hdr, ecsv=True)
 
     return data
+
+
+def ledger_to_targets(toodir=None):
+    """Process the initial ledger
+
+    Parameters
+    ----------
+    toodir : :class:`str`, optional, defaults to ``None``
+        The directory to treat as the Targets of Opportunity I/O directory.
+        If ``None`` then look up from the $TOO_DIR environment variable.
+
+    Returns
+    -------
+    :class:`array_like`
+        An array of the initial, example values for the ToO ledger.
+        The initial (.ecsv) ledger is also written to toodir or $TOO_DIR.
+    """

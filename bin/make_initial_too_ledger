@@ -6,7 +6,7 @@ from argparse import ArgumentParser
 ap = ArgumentParser(description='Make an initial ledger for Targets of Opportunity')
 ap.add_argument("-t", "--toodir",
                 help="Full path to the output directory to store the ledger. The \
-                filename and full directory structure are built on-the-fly.     \
+                filename and full directory structure are built on-the-fly.      \
                 [defaults to the environment variable $TOO_DIR]")
 
 ns = ap.parse_args()
