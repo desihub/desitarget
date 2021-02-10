@@ -124,6 +124,10 @@ scnd_mask:
     - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
        {obsconditions: DARK|GRAY, filename: 'dr16q'}]
 
+# ADM reserve 60/61 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
+    - [BRIGHT_TOO,    60, "Targets of Opportunity",   {obsconditions: BRIGHT,      filename: 'ToO'}]
+    - [DARK_TOO,      61, "Targets of Opportunity",   {obsconditions: DARK,        filename: 'ToO'}]
+
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
 #- in which they are allowed to be observed.
@@ -251,6 +255,8 @@ priorities:
     # ADM ...except VETO, which is special and always takes precedence.
         VETO:                         {UNOBS: 10000, DONE: 10000, OBS: 0, DONOTOBSERVE: 0}
         DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BRIGHT_TOO:            {UNOBS: 5000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        DARK_TOO:              SAME_AS_BRIGHT_TOO
 
 # ADM INITIAL number of observations (NUMOBS_INIT) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS_INIT for bitname XXX
@@ -327,5 +333,7 @@ numobs:
 
     # ADM initial number of observations for secondary targets
     scnd_mask:
-        VETO: 1
-        DR16Q: 1
+        VETO:         1
+        DR16Q:        1
+        BRIGHT_TOO:   1
+        DARK_TOO:     SAME_AS_BRIGHT_TOO
