@@ -255,7 +255,7 @@ priorities:
     # ADM ...except VETO, which is special and always takes precedence.
         VETO:                         {UNOBS: 10000, DONE: 10000, OBS: 0, DONOTOBSERVE: 0}
         DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BRIGHT_TOO:            {UNOBS: 5000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BRIGHT_TOO:            {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         DARK_TOO:              SAME_AS_BRIGHT_TOO
 
 # ADM INITIAL number of observations (NUMOBS_INIT) for each target bit

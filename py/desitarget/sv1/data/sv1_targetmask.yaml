@@ -399,7 +399,7 @@ priorities:
         BRIGHT_HPM:            SAME_AS_LOW_MASS_AGN
         WD_BINARIES_BRIGHT:    {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         WD_BINARIES_DARK:      {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        BRIGHT_TOO:            {UNOBS: 5000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BRIGHT_TOO:            {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         DARK_TOO:              SAME_AS_BRIGHT_TOO
 
 # ADM INITIAL number of observations (NUMOBS) for each target bit

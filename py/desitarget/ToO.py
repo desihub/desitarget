@@ -33,6 +33,16 @@ tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 # ADM This RELEASE means Target of Opportunity in TARGETID.
 release = 9999
 
+# ADM Constraints on how many ToOs are allowed in a given time period.
+# ADM constraints on fiber overrides in units of total fibers.
+constraints = {"FIBER": {"overrides_per_night": 2,
+                         "overrides_per_month": 50,
+                         "overrides_per_year": 500},
+# ADM constraints on field overrides. ALSO in units of TOTAL FIBERS.
+               "TILE": {"overrides_per_night": 5000,
+                        "overrides_per_month": 5000,
+                        "overrides_per_year": 10000}
+}
 
 def get_filename(toodir=None, ender="ecsv", outname=False):
     """Construct the input/output ToO filenames (with full directory path).
@@ -167,13 +177,13 @@ def make_initial_ledger(toodir=None):
 
     # ADM make a single line of the ledger with some indicative values.
     data = np.zeros(2, dtype=indatamodel.dtype)
-    data["RA"] = 359.999999, 0.000001
+    data["RA"] = 359.999999, 101.000001
     data["DEC"] = -89.999999, -89.999999
-    data["PMRA"] = 13.554634, 4.36455
+    data["PMRA"] = 13.554634, 4.364553
     data["PMDEC"] = 10.763842, -10.763842
     data["REF_EPOCH"] = 2015.5, 2015.5
-    data["CHECKER"] = "ADM", "ADM"
-    data["TOO_TYPE"] = "FIELD", "FIBER"
+    data["CHECKER"] = "ADM", "AM"
+    data["TOO_TYPE"] = "TILE", "FIBER"
     data["MJD_BEGIN"] = 40811.04166667, 41811.14166667
     data["MJD_END"] = 40811.95833333, 41811.85833333
     data["OCLAYER"] = "BRIGHT", "DARK"
@@ -182,6 +192,124 @@ def make_initial_ledger(toodir=None):
     _write_too_files(fn, data, ecsv=True)
 
     return data
+
+
+def _check_ledger(inledger):
+    """Perform checks that the ledger conforms to requirements.
+
+    Parameters
+    ----------
+    inledger : :class:`~astropy.table.Table`
+        A Table of input Targets of Opportunity from the ToO ledger.
+
+    None
+        But a series of checks of the ledger are conducted.
+    """
+    # ADM check that every entry has been vetted by-eye.
+    checkers = np.array(list(set(inledger["CHECKER"])))
+    checkergood = np.array([len(checker) > 1 for checker in checkers])
+    if not np.all(checkergood):
+        msg = "An entry in the ToO ledger ({}) has not been checked!".format(
+            checkers[~checkergood])
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM check that TOO_TYPE's are all either TILE or FIBER.
+    # ADM and the observing condiations are all either DARK or BRIGHT.
+    allowed = {"TOO_TYPE": {'FIBER', 'TILE'},
+               "OCLAYER": {'BRIGHT', 'DARK'}}
+    for col in allowed:
+        if not set(inledger[col]).issubset(allowed[col]):
+            msg = "Some {} entries in the ToO ledger are not one of {}!".format(
+                col, allowed[col])
+            log.critical(msg)
+            raise ValueError(msg)
+
+    # ADM basic check that the dates are formatted correctly.
+    if np.any(inledger["MJD_BEGIN"] > inledger["MJD_END"]):
+        msg = "Some MJD_BEGINs are later than their associated MJD_END!"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM check that the requested ToOs don't exceed allocations.
+    # ADM there are different constraints for the types of observations.
+    ii = inledger["TOO_TYPE"] == "TILE"
+    # ADM work with discretized days that run from noon until noon so
+    # ADM each night of observations is encompassed by an integer day.
+    jdbegin, jdend = inledger["MJD_BEGIN"][ii]+0.5, inledger["MJD_END"][ii]+0.5
+    jdbegin, jdend = jdbegin.astype(int), jdend.astype(int)
+    # ADM establish the range of days to loop over.
+    start, fin = jdbegin.astype(int).min(), jdend.astype(int).max()+1
+
+    return
+
+
+def finalize_too(inledger, survey="main"):
+    """Add necessary targeting columns to a ToO ledger.
+
+    Parameters
+    ----------
+    inledger : :class:`~astropy.table.Table`
+        A Table of input Targets of Opportunity from the ToO ledger.
+    survey : :class:`str`, optional, defaults to ``'main'``
+        Specifies which target masks yaml file to use for bits, and which
+        column names to add in the output file. Options are ``'main'``
+        and ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and
+        different iterations of SV, respectively.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        A Table of targets generated from the ToO ledger, with the
+        necessary columns added for fiberassign to run.
+    """
+    # ADM create the output data table.
+    outdata = Table(np.zeros(len(inledger), dtype=outdatamodel.dtype))
+    # ADM change column names to reflect the survey.
+    if survey[:2] == "sv":
+        bitcols = [col for col in outdata.dtype.names if "_TARGET" in col]
+        for col in bitcols:
+            outdata.rename_column(col, "{}_{}".format(survey.upper(), col))
+
+    # ADM grab the appropriate masks and column names.
+    from desitarget.targets import main_cmx_or_sv
+    cols, Mxs, surv = main_cmx_or_sv(outdata, scnd=True)
+    dcol, bcol, mcol, scol = cols
+    dMx, bMx, mMx, sMx = Mxs
+
+    # ADM add the input columns to the output table.
+    for col in inledger.dtype.names:
+        outdata[col] = inledger[col]
+
+    # ADM add the output columns.
+    ntoo = len(outdata)
+    # ADM assign a TARGETID for each input targets.
+    from desiutil import brick
+    from desitarget.targets import encode_targetid
+    bricks = brick.Bricks(bricksize=0.25)
+    brickid = bricks.brickid(outdata["RA"], outdata["DEC"])
+    objid = np.arange(ntoo)
+    targetid = encode_targetid(objid=objid, brickid=brickid, release=release)
+    outdata["TARGETID"] = targetid
+
+    # ADM assign the target bitmasks and observing condition for
+    # ADM each of the possible observing conditions.
+    from desitarget.targetmask import obsconditions
+    outdata[dcol] = dMx["SCND_ANY"]
+    for oc in set(outdata["OCLAYER"]):
+        ii = outdata["OCLAYER"] == oc
+        bitname = "{}_TOO".format(oc)
+        outdata[scol][ii] = sMx[bitname]
+        outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities["UNOBS"]
+        outdata["NUMOBS_INIT"][ii] = sMx[bitname].numobs
+        outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
+            sMx[bitname].obsconditions)
+
+    # ADM assign a SUBPRIORITY.
+    np.random.seed(616)
+    outdata["SUBPRIORITY"] = np.random.random(ntoo)
+
+    return outdata
 
 
 def ledger_to_targets(toodir=None, survey="main", ecsv=False, outdir=None):
@@ -224,53 +352,11 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=False, outdir=None):
     fn = get_filename(tdir)
     indata = Table.read(fn, comment='#', format='ascii.basic', guess=False)
 
-    # ADM create the output data table.
-    outdata = Table(np.zeros(len(indata), dtype=outdatamodel.dtype))
-    # ADM change column names to reflect the survey.
-    if survey[:2] == "sv":
-        bitcols = [col for col in outdata.dtype.names if "_TARGET" in col]
-        for col in bitcols:
-            outdata.rename_column(col, "{}_{}".format(survey.upper(), col))
+    # ADM check the ledger conforms to requirements.
+    _check_ledger(indata)
 
-    # ADM grab the appropriate masks and column names.
-    from desitarget.targets import main_cmx_or_sv
-    cols, Mxs, surv = main_cmx_or_sv(outdata, scnd=True)
-    dcol, bcol, mcol, scol = cols
-    dMx, bMx, mMx, sMx = Mxs
-
-    # ADM add the input columns to the output table.
-    for col in indata.dtype.names:
-        outdata[col] = indata[col]
-
-    # ADM add the output columns.
-    ntoo = len(outdata)
-    # ADM assign a TARGETID for each input targets.
-    from desiutil import brick
-    from desitarget.targets import encode_targetid
-    bricks = brick.Bricks(bricksize=0.25)
-    brickid = bricks.brickid(outdata["RA"], outdata["DEC"])
-    objid = np.arange(ntoo)
-    targetid = encode_targetid(objid=objid, brickid=brickid, release=release)
-    outdata["TARGETID"] = targetid
-
-    # ADM assign the target bitmasks and observing condition for
-    # ADM each of the possible observing conditions.
-    from desitarget.targetmask import obsconditions
-    outdata[dcol] = dMx["SCND_ANY"]
-    for oc in set(outdata["OCLAYER"]):
-        ii = outdata["OCLAYER"] == oc
-        bitname = "{}_TOO".format(oc)
-        outdata[scol][ii] = sMx[bitname]
-        outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities["UNOBS"]
-        outdata["NUMOBS_INIT"][ii] = sMx[bitname].numobs
-        outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
-            sMx[bitname].obsconditions)
-
-    # ADM assign a SUBPRIORITY.
-    np.random.seed(616)
-    outdata["SUBPRIORITY"] = np.random.random(ntoo)
-
-    # ADM assign OBSCONDITIONS.
+    # ADM add the output targeting columns.
+    outdata = finalize_too(indata, survey=survey)
 
     # ADM determine the output filename.
     # ADM set output format to ecsv if passed, or fits otherwise.
