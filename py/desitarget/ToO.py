@@ -12,13 +12,12 @@ import numpy as np
 from astropy.table import Table
 
 from desiutil.log import get_logger
-log = get_logger()
 
 from desitarget import io
 # ADM the data model for ToO, similar to that of secondary targets...
 from desitarget.secondary import indatamodel
 from desitarget.secondary import outdatamodel
-# ADM ...but the OVERRIDE columns isn't necessary...
+# ADM ...but the OVERRIDE column isn't necessary...
 indtype = [tup for tup in indatamodel.dtype.descr if "OVERRIDE" not in tup]
 outdtype = [tup for tup in outdatamodel.dtype.descr if "OVERRIDE" not in tup]
 # ADM ...and some extra columns are necessary.
@@ -37,13 +36,13 @@ tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 release = 9999
 
 # ADM Constraints on how many ToOs are allowed in a given time period.
-# ADM dictionary keys are total nights, dictionary values are total fibers.
+# ADM dictionary keys are total nights, dictionary vals are total fibers.
 # ADM so, e.g., 365: 500 means no more than 500 fibers per year.
-# ADM constraints on fiber overrides.
+# ADM There are separate allocations for tile and fiber overrides.
 constraints = {"FIBER": {1: 2, 30: 50, 365: 500},
-# ADM constraints on tile overrides.
-               "TILE": {1: 5000, 30: 5000, 365: 10000}
-}
+               "TILE": {1: 5000, 30: 5000, 365: 10000}}
+
+log = get_logger()
 
 
 def get_filename(toodir=None, ender="ecsv", outname=False):
@@ -252,7 +251,7 @@ def all_integers_between_many_limits(ibegin, iend):
         1-D, sorted array of all integers in all [ibegin, iend] ranges.
         Ranges are inclusive, so `iend` is included for every pair.
     """
-    ranges = [np.arange(ib, ie+1) for ib, ie in zip(ibegin, iend)] 
+    ranges = [np.arange(ib, ie+1) for ib, ie in zip(ibegin, iend)]
     return np.sort(np.concatenate(ranges))
 
 
@@ -280,7 +279,7 @@ def max_integers_in_interval(ibegin, iend, narray):
     - Ranges are inclusive, so `iend` is included for every pair.
     - An example use would be: for a series of ranges of days [0, 365],
       [180, 456], [90, 565] what is the maximum number of days that
-      occurs in any rolling 365-day period? The answer would clearly 
+      occurs in any rolling 365-day period? The answer would clearly
       be 3, in this case, as, say, day 181, occurs in all three ranges.
     """
     # ADM grab all integers occuring in all ranges.
