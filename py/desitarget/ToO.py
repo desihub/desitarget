@@ -3,6 +3,9 @@ desitarget.too
 ==============
 
 Targets of Opportunity.
+
+.. _`moving average`: https://stackoverflow.com/a/14314054
+.. _`rolling sum`: https://stackoverflow.com/a/28288535
 """
 import os
 import numpy as np
@@ -34,15 +37,14 @@ tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 release = 9999
 
 # ADM Constraints on how many ToOs are allowed in a given time period.
-# ADM constraints on fiber overrides in units of total fibers.
-constraints = {"FIBER": {"overrides_per_night": 2,
-                         "overrides_per_month": 50,
-                         "overrides_per_year": 500},
-# ADM constraints on field overrides. ALSO in units of TOTAL FIBERS.
-               "TILE": {"overrides_per_night": 5000,
-                        "overrides_per_month": 5000,
-                        "overrides_per_year": 10000}
+# ADM dictionary keys are total nights, dictionary values are total fibers.
+# ADM so, e.g., 365: 500 means no more than 500 fibers per year.
+# ADM constraints on fiber overrides.
+constraints = {"FIBER": {1: 2, 30: 50, 365: 500},
+# ADM constraints on tile overrides.
+               "TILE": {1: 5000, 30: 5000, 365: 10000}
 }
+
 
 def get_filename(toodir=None, ender="ecsv", outname=False):
     """Construct the input/output ToO filenames (with full directory path).
@@ -194,6 +196,114 @@ def make_initial_ledger(toodir=None):
     return data
 
 
+def rolling_sum(array, n):
+    """
+    Sum each value in an array across itself and the next n-1 values.
+
+    Parameters
+    ----------
+    array : :class:`array_like`
+        A 1-D array of integers.
+    n : :class:`int`
+        A window over which to sum.
+
+    Returns
+    -------
+    :class:`array_like`
+        Each value in the input summed with the next `n`-1 values in the
+        array. By definition, the output array will have `n`-1 fewer
+        indexes than the input array.
+
+    Notes
+    -----
+    - h/t `moving average`_ and `rolling sum`_ on stack overflow.
+    """
+    # ADM n=0 is meaningless, here.
+    if n == 0:
+        msg = "n must be 1 or greater to calculate a rolling sum"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM a rolling sum can't be calculated if the window exceeds
+    # ADM the array length.
+    if n > len(array):
+        msg = "window exceeds array length, zero-length array will result"
+        log.warning(msg)
+
+    ret = np.cumsum(array)
+    ret[n:] = ret[n:] - ret[:-n]
+    return ret[n - 1:]
+
+
+def all_integers_between_many_limits(ibegin, iend):
+    """
+    Return array of all integers between arrays of start/end limits.
+
+    Parameters
+    ----------
+    ibegin : :class:`array_like`
+        Array of beginning integers.
+    iend : :class:`array_like`
+        Array of ending integers.
+
+    Returns
+    -------
+    :class:`array_like`
+        1-D, sorted array of all integers in all [ibegin, iend] ranges.
+        Ranges are inclusive, so `iend` is included for every pair.
+    """
+    ranges = [np.arange(ib, ie+1) for ib, ie in zip(ibegin, iend)] 
+    return np.sort(np.concatenate(ranges))
+
+
+def max_integers_in_interval(ibegin, iend, narray):
+    """
+    Maximum across [ibegin, iend] ranges totalled over intervals.
+
+    Parameters
+    ----------
+    ibegin : :class:`array_like`
+        Array of beginning integers.
+    iend : :class:`array_like`
+        Array of ending integers.
+    narray : :class:`array_like` or :class:`int` or :class:`list`
+        Intervals over which to sum and return the maximum.
+
+    Returns
+    -------
+    :class:`array_like`
+        The maximum number of integers across all of the ranges
+        [`ibegin`, `iend`] in each of the intervals in `narray`.
+
+    Notes
+    -----
+    - Ranges are inclusive, so `iend` is included for every pair.
+    - An example use would be: for a series of ranges of days [0, 365],
+      [180, 456], [90, 565] what is the maximum number of days that
+      occurs in any rolling 365-day period? The answer would clearly 
+      be 3, in this case, as, say, day 181, occurs in all three ranges.
+    """
+    # ADM grab all integers occuring in all ranges.
+    iall = all_integers_between_many_limits(ibegin, iend)
+
+    # ADM count the occurence of all the integers between the smallest
+    # ADM ibegin and the largest iend, include missing entries as zeros.
+    bins = np.arange(iall.min()-0.5, iall.max()+1.5)
+    isum, _ = np.histogram(iall, bins)
+
+    # ADM in case an integer was passed.
+    narray = np.atleast_1d(narray)
+
+    # ADM n should not be longer than the array-length for a rolling sum.
+    narray = narray.clip(0, len(isum))
+
+    # ADM calculate the maximum of the rolling sum over each n in narray.
+    maxes = np.array([np.max(rolling_sum(isum, n)) for n in narray])
+
+    # ADM return the maximum of the rolling sum.
+    return maxes
+
+
 def _check_ledger(inledger):
     """Perform checks that the ledger conforms to requirements.
 
@@ -231,15 +341,33 @@ def _check_ledger(inledger):
         log.critical(msg)
         raise ValueError(msg)
 
-    # ADM check that the requested ToOs don't exceed allocations.
-    # ADM there are different constraints for the types of observations.
-    ii = inledger["TOO_TYPE"] == "TILE"
-    # ADM work with discretized days that run from noon until noon so
-    # ADM each night of observations is encompassed by an integer day.
-    jdbegin, jdend = inledger["MJD_BEGIN"][ii]+0.5, inledger["MJD_END"][ii]+0.5
-    jdbegin, jdend = jdbegin.astype(int), jdend.astype(int)
-    # ADM establish the range of days to loop over.
-    start, fin = jdbegin.astype(int).min(), jdend.astype(int).max()+1
+    # ADM check that the requested ToOs don't exceed allocations. There
+    # ADM are different constraints for different types of observations.
+    for tootype in "FIBER", "TILE":
+        ii = inledger["TOO_TYPE"] == tootype
+        # ADM work with discretized days that run from noon until noon
+        # ADM so each observing night is encompassed by an integer day.
+        jdbegin = inledger["MJD_BEGIN"][ii]+0.5
+        jdend = inledger["MJD_END"][ii]+0.5
+        jdbegin, jdend = jdbegin.astype(int), jdend.astype(int)
+        # ADM grab the allowed fibers for each interval in nights.
+        nights = np.array(list(constraints[tootype].keys()))
+        allowed = np.array(list(constraints[tootype].values()))
+        # ADM check the total nights covered by the MJD ranges.
+        fibers = max_integers_in_interval(jdbegin, jdend, nights)
+        log.info("Working on ToO observations of type {}".format(tootype))
+        for fiber, night, allow in zip(fibers, nights, allowed):
+            log.info(
+                "Maximum of {} fibers requested across {} nights ({} allowed)"
+                .format(fiber, night, allow)
+                )
+        excess = fibers > allowed
+        if np.any(excess):
+            msg = "Allocation exceeded! "
+            msg += "{} fibers requested across {} nights ({} allowed)".format(
+                fibers[excess], nights[excess], allowed[excess])
+            log.critical(msg)
+            raise ValueError(msg)
 
     return
 
