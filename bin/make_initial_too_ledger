@@ -13,4 +13,4 @@ ns = ap.parse_args()
 
 toodir = get_too_dir(ns.toodir)
 
-make_initial_ledger(toodir)
+_ = make_initial_ledger(toodir)
