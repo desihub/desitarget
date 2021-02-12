@@ -354,7 +354,7 @@ priorities:
         UDG:                   {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FIRST_MALS:            {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
 #       WD_BINARIES:           {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        LBG_TOMOG:             {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        LBG_TOMOG:             {UNOBS: 1800, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         QSO_RED:               {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 # ADM LBG_TOMOG is the first dedicated program to be listed.
 # ADM Other dedicated programs will have a similar priority to LBG_TOMOG.
