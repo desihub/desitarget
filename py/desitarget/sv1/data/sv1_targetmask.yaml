@@ -375,7 +375,7 @@ priorities:
         LOW_Z:                 {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BHB:                   {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         SPCV:                  SAME_AS_LOW_MASS_AGN
-        DC3R2_GAMA:            SAME_AS_LOW_MASS_AGN
+        DC3R2_GAMA:            {UNOBS: 1020, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         UNWISE_BLUE:           SAME_AS_LBG_TOMOG
         UNWISE_GREEN:          SAME_AS_LBG_TOMOG
         HETDEX_MAIN:           SAME_AS_LBG_TOMOG
