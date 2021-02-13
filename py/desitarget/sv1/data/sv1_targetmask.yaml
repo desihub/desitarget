@@ -229,7 +229,10 @@ priorities:
     sv1_desi_mask:
         ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+# ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
+# ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
+# ADM of 100 should only be higher than DONE (and secondary filler) targets.
+        QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         LRG_OPT: SAME_AS_LRG
         LRG_IR: SAME_AS_LRG
         LRG_SV_OPT: SAME_AS_LRG

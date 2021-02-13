@@ -39,7 +39,7 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S15')
+    ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S16')
     ])
 
 # ADM when using basic or csv ascii writes, specifying the formats of
