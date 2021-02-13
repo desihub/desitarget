@@ -334,6 +334,14 @@ def read_files(scxdir, scnd_mask):
             log.error(msg)
             raise IOError(msg)
 
+        # ADM now checks are done, downsample to the required density.
+        log.debug("Read {} targets from {}".format(len(scxin), fn))
+        ds = scnd_mask[name].downsample
+        if ds < 1:
+            log.debug("Downsampling to first {}% of file".format(100*ds))
+        scxin = scxin[:int(len(scxin)*ds)]
+        log.debug("Working with {} targets for {}".format(len(scxin), name))
+
         # ADM the default is 2015.5 for the REF_EPOCH.
         ii = scxin["REF_EPOCH"] == 0
         scxin["REF_EPOCH"][ii] = 2015.5

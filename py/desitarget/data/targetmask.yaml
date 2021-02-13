@@ -120,9 +120,9 @@ mws_mask:
 #- ADM variable, e.g. $SECONDARY_DIR/veto.fits for VETO targets.
 scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto', downsample: 1}]
     - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY, filename: 'dr16q'}]
+       {obsconditions: DARK|GRAY, filename: 'dr16q', downsample: 1}]
 
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
