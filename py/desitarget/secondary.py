@@ -83,13 +83,15 @@ indatamodel = np.array([], dtype=[
 # ADM Note that TARGETID for secondary-only targets is unique because
 # ADM RELEASE is < 1000 (before DR1) for secondary-only targets.
 # ADM also add needed columns for fiberassign from the Gaia data model.
-gaiacols = ["PARALLAX", "GAIA_PHOT_G_MEAN_MAG", 'GAIA_ASTROMETRIC_EXCESS_NOISE']
-gaiadt = [(gaiadatamodel[gaiacols].dtype.names[i],
-           gaiadatamodel[gaiacols].dtype[i].str) for i in range(len(gaiacols))]
+_gaiacols = ["PARALLAX", "GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
+             "GAIA_PHOT_RP_MEAN_MAG", "GAIA_ASTROMETRIC_EXCESS_NOISE"]
+gaiadt = [(gaiadatamodel[_gaiacols].dtype.names[i],
+           gaiadatamodel[_gaiacols].dtype[i].str) for i in range(len(_gaiacols))]
 
 outdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
-    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?')] + gaiadt + [
+    ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'), ('FLUX_G', '>f4'),
+    ('FLUX_R', '>f4'), ('FLUX_Z', '>f4')] + gaiadt + [
     ('TARGETID', '>i8'), ('DESI_TARGET', '>i8'), ('SCND_TARGET', '>i8'),
     ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
     ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')])
@@ -447,9 +449,10 @@ def add_primary_info(scxtargs, priminfodir):
     assert np.all(primids[primii] == scxids[scxii])
 
     # ADM now we have the matches, update the secondary targets
-    # ADM with the primary TARGETIDs.
-    scxtargs["TARGETID"][scxii] = primtargs["TARGETID"][primii]
-    scxtargs["PRIM_MATCH"][scxii] = primtargs["PRIM_MATCH"][primii]
+    # ADM with the information from the primary targets..
+    for col in ["TARGETID", "PRIM_MATCH",
+                "FLUX_G", "FLUX_R", "FLUX_Z"] + _gaiacols:
+        scxtargs[col][scxii] = primtargs[col][primii]
 
     # APC Secondary targets that don't match to a primary target.
     # APC all still have TARGETID = -1 at this point. They
@@ -626,8 +629,9 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         # ADM first read in all of the sweeps files.
         swobjs = []
         for ifil, swfile in enumerate(swfiles):
-            swobj = fitsio.read(swfile, columns=["RELEASE", "BRICKID", "OBJID",
-                                                 "RA", "DEC"])
+            swobj = fitsio.read(
+                swfile, columns=["RELEASE", "BRICKID", "OBJID", "RA", "DEC",
+                                 "FLUX_G", "FLUX_R", "FLUX_Z"] + _gaiacols)
             # ADM limit to just sources in the healpix of interest.
             # ADM remembering to grab adjacent pixels for edge effects.
             inhp = np.ones(len(swobj), dtype="?")
@@ -666,6 +670,9 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
                                            release=swobjs['RELEASE'])
                 # ADM and add the targetid to the secondary targets.
                 scxtargs["TARGETID"][mscx] = targetid[mswobjs]
+                # ADM _gaiacols is a global at the top of the module.
+                for col in ["FLUX_G", "FLUX_R", "FLUX_Z"] + _gaiacols:
+                    scxtargs[col][mscx] = swobjs[col][mswobjs]
 
     # ADM write the secondary targets that have updated TARGETIDs.
     ii = scxtargs["TARGETID"] != -1
@@ -970,8 +977,8 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
     scxover = scxtargs[scxtargs["OVERRIDE"]]
     scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
 
-    log.info("Adding primary TARGETIDs...t={:.1f}m".format((time()-start)/60.))
-    # ADM add in the primary TARGETIDs where we have them.
+    log.info("Adding primary info...t={:.1f}m".format((time()-start)/60.))
+    # ADM add in the primary TARGETIDs and information.
     scxtargs = add_primary_info(scxtargs, priminfodir)
 
     # ADM now we're done matching, bring the override targets back...

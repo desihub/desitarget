@@ -29,6 +29,7 @@ from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
 from desimodel.footprint import is_point_in_desi, tiles2pix
+from desitarget.targetmask import obsconditions
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -330,7 +331,6 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         The modified data.
     """
     # ADM determine the bits for the OBSCONDITIONS.
-    from desitarget.targetmask import obsconditions
     if obscon == "DARK":
         obsbits = obsconditions.mask("DARK|GRAY")
         hdr["OBSCON"] = "DARK|GRAY"
@@ -973,9 +973,27 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM don't have PRIM_MATCH set.
-    ii = ~prim_match & (data["PRIORITY_INIT"] > -1)
+    standalone = ~prim_match & (data["PRIORITY_INIT"] > -1)
 
-    # ADM ...write them out.
+    # ADM as a fail-safe, never let standalone secondaries for standard
+    # ADM observing conditions be brighter than maglim in known bands.
+    maglim = 16
+    fluxlim = 10**((22.5-maglim)/2.5)
+    # ADM find any standalone secondary that is too bright in any band.
+    toobright = np.zeros(len(data), dtype="bool")
+    for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
+                "GAIA_PHOT_RP_MEAN_MAG"]:
+        toobright |= (data[col] != 0) & (data[col] < maglim)
+    for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
+        toobright |= (data[col] != 0) & (data[col] > fluxlim)
+
+    # ADM just targets to be observed in "standard" conditions.
+    standardoc = "DARK|GRAY|BRIGHT"
+    instandardoc = data["OBSCONDITIONS"] & obsconditions.mask(standardoc) != 0
+
+    # ADM write out standalone secondaries that aren't too bright and
+    # ADM that are intended to be observed in standard conditions.
+    ii = standalone & ~toobright & instandardoc
     write_with_units(filename, data[ii], extname='SCND_TARGETS', header=hdr)
 
     return np.sum(ii), filename
