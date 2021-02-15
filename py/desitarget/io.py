@@ -855,7 +855,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     data : :class:`~numpy.ndarray`
         numpy structured array of secondary targets to write.
     primhdr : :class:`str`, optional, defaults to `None`
-        If passed, added to the header of the output `filename`.
+        If passed, added to the header of the output catalogue.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         Name of the directory that hosts secondary targets.  The
         secondary targets are written back out to this directory in the
