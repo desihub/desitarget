@@ -9,9 +9,12 @@ from desitarget.train.data_preparation.funcs import Flux2MagFunc, ColorsFunc
 from desitarget.train.data_preparation.PredCountsFromQLF_ClassModule import PredCountsFromQLF_Class
 
 import numpy as np
+import pandas as pd
 import astropy.io.fits as pyfits
 import warnings
 warnings.simplefilter("ignore")
+
+import matplotlib.pyplot as plt
 
 # ***QLF DATA FILE PATH NAME***
 
@@ -42,8 +45,8 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     # Need to find a balance between acceptable errors in the measured data and
     # good representativeness of the photometric scattering inherent to QSO.
     # (ML model has to be trained over data which match real photo. data)
-    QSO_MAX_MAG_ERR_LEVEL = 0.1 # 0.02 by default (??) --> cf mail christophe on veut un ratio plus grand que 5 et pplus que 10 pour etre mega ultra sur de ouf
-    print(f"[INFO] QSO_MAX_MAG_ERR_LEVEL = {QSO_MAX_MAG_ERR_LEVEL} (0.2 ==> ratio=5 and 0.1 ==> ratio=10)")
+    QSO_MAX_MAG_ERR_LEVEL = 0.02 # 0.02 by default (??) --> cf mail christophe on veut un ratio plus grand que 5 et pplus que 10 pour etre mega ultra sur de ouf
+    print(f"[INFO] QSO_MAX_MAG_ERR_LEVEL = {QSO_MAX_MAG_ERR_LEVEL} (0.2 ==> ratio=5 | 0.1 ==> ratio=10 | 0.02 ==> ratio=50)")
 
     # ***FUNCTION***
     def MAG_ERR_Func(FLUX, FLUX_IVAR):
@@ -136,7 +139,18 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_gmag, QSO_rmag, QSO_zmag, QSO_W1mag, QSO_W2mag = Flux2MagFunc(QSO_data)
 
     QSO_rmag_OK = (QSO_rmag >= min_rmag) & (QSO_rmag <= max_rmag)
-
+    
+    plt.figure()
+    plt.plot(22.5 - 2.5*np.log10(QSO_data.FLUX_R), MAG_ERR_Func(QSO_data.FLUX_R, QSO_data.FLUX_IVAR_R), ls='', marker='.')
+    plt.xlabel('r')
+    plt.ylabel('2.5 /np.log(10) / np.abs(flux_r * sqrt(flux_ivar_r))')
+    plt.yscale('log')
+    plt.title("Cut sur le ratio flux / flux_err")
+    plt.axhline(0.02, color='black', linestyle='--', label='ratio = 50')
+    plt.axhline(2.5/np.log(10.)*1/10, color='red', label='ratio = 10')
+    plt.legend()
+    plt.show()
+    
     QSO_g_z_W1_W2_mag_OK = (QSO_gmag > 0) & (QSO_zmag > 0)
     QSO_g_z_W1_W2_mag_OK &= (QSO_W1mag > 0) & (QSO_W2mag > 0)
 
@@ -307,8 +321,17 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_gmag, QSO_rmag, QSO_zmag, QSO_W1mag, QSO_W2mag = Flux2MagFunc(QSO_data)
     QSO_Colors = ColorsFunc(n_QSO, n_colors, QSO_gmag, QSO_rmag, QSO_zmag, QSO_W1mag, QSO_W2mag)
 
+    colors = pd.DataFrame(QSO_Colors, columns=color_names)
+    colors_to_cut = ['g_r', 'r_z', 'g_z', 'g_W1', 'r_W1', 'z_W1', 'g_W2', 'r_W2', 'z_W2', 'W1_W2']
+    tt = (colors[colors_to_cut] > colors[colors_to_cut].quantile(.001)) & (colors[colors_to_cut] < colors[colors_to_cut].quantile(.9995))
+    selection = tt.all(axis='columns')
+    print(f"[INFO] Removing outliers, % keep inside the dataframe : {selection.sum() / selection.size:2.2%}") 
+    
+    QSO_Colors = QSO_Colors[selection]
+    print("n_QSO after selection and cut outliers :", QSO_Colors.size / 11)
+
     for i, col_name in enumerate(color_names):
-        col = pyfits.Column(name=col_name,  format='D', array=QSO_Colors[:, i])
+        col = pyfits.Column(name=col_name, format='D', array=QSO_Colors[:, i])
         list_cols.append(col)
 
     QSO_hdu = pyfits.BinTableHDU(data=QSO_data)
