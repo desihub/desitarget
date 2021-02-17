@@ -93,14 +93,14 @@ outdatamodel = np.array([], dtype=[
     ('REF_EPOCH', '>f4'), ('OVERRIDE', '?'), ('FLUX_G', '>f4'),
     ('FLUX_R', '>f4'), ('FLUX_Z', '>f4')] + gaiadt + [
     ('TARGETID', '>i8'), ('DESI_TARGET', '>i8'), ('SCND_TARGET', '>i8'),
-    ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
+    ('SCND_ORDER', '>i4'), ('PRIORITY_INIT', '>i8'), ('SUBPRIORITY', '>f8'),
     ('NUMOBS_INIT', '>i8'), ('OBSCONDITIONS', '>i8')])
 
 # ADM extra columns that are used during processing but are
 # ADM not an official part of the input or output data model.
 # ADM PRIM_MATCH records whether a secondary matches a primary TARGET.
 suppdatamodel = np.array([], dtype=[
-    ('SCND_TARGET_INIT', '>i8'), ('SCND_ORDER', '>i4'), ('PRIM_MATCH', '?')
+    ('SCND_TARGET_INIT', '>i8'), ('PRIM_MATCH', '?')
 ])
 
 
@@ -934,10 +934,9 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
     Returns
     -------
     :class:`~numpy.ndarray`
-        All secondary targets from `scxdir` with columns ``TARGETID``,
-        ``SCND_TARGET``, ``PRIORITY_INIT``, ``SUBPRIORITY`` and
-        ``NUMOBS_INIT`` added. These columns are also populated,
-        excepting ``SUBPRIORITY``.
+        All secondary targets from `scxdir` with columns from
+        `outdatamodel` at the top of this module added. All of these
+        columns are populated, except ``SUBPRIORITY``.
     """
     # ADM Sanity check that priminfodir exists.
     if not os.path.exists(priminfodir):

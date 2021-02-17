@@ -923,13 +923,14 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    # ADM remove the SCND_TARGET_INIT, SCND_ORDER and PRIM_MATCH columns.
+    # ADM remove the supplemental columns.
+    from desitarget.secondary import suppdatamodel
+    # ADM store certain needed columns in case they get removed.
     scnd_target_init = data["SCND_TARGET_INIT"]
     scnd_order = data["SCND_ORDER"]
     prim_match = data["PRIM_MATCH"]
 
-    data = rfn.drop_fields(data,
-                           ["SCND_TARGET_INIT", "SCND_ORDER", "PRIM_MATCH"])
+    data = rfn.drop_fields(data, suppdatamodel.dtype.names)
     # ADM we only need a subset of the columns where we match a primary.
     smalldata = rfn.drop_fields(data, ["PRIORITY_INIT", "SUBPRIORITY",
                                        "NUMOBS_INIT", "OBSCONDITIONS"])
