@@ -49,8 +49,8 @@ def get_imaging_maskbits(bitnamelist=None):
 
     Notes
     -----
-        - For the definitions of the mask bits, see, e.g.,
-             https://www.legacysurvey.org/dr8/bitmasks/#maskbits
+    - For the definitions of the mask bits, see, e.g.,
+      https://www.legacysurvey.org/dr8/bitmasks/#maskbits
     """
     bitdict = {"BRIGHT": 1, "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
                "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}
@@ -62,7 +62,7 @@ def get_imaging_maskbits(bitnamelist=None):
     return bitdict
 
 
-def get_default_maskbits(bgs=False):
+def get_default_maskbits(bgs=False, mws=False):
     """Return the names of the default MASKBITS for targets.
 
     Parameters
@@ -70,18 +70,33 @@ def get_default_maskbits(bgs=False):
     bgs : :class:`bool`, defaults to ``False``.
         If ``True`` load the "default" scheme for Bright Galaxy Survey
         targets. Otherwise, load the default for other target classes.
+    mws : :class:`bool`, defaults to ``False``.
+        If ``True`` load the "default" scheme for Milky Way Survey
+        targets. Otherwise, load the default for other target classes.
 
     Returns
     -------
     :class:`list`
         A list of the default MASKBITS names for targets.
+
+    Notes
+    -----
+    - Only one of `bgs` or `mws` can be ``True``.
     """
+    if bgs and mws:
+        msg = "Only one of bgs or mws can be passed as True"
+        log.critical(msg)
+        raise ValueError(msg)
     if bgs:
         return ["BRIGHT", "CLUSTER"]
+    if mws:
+        return ["BRIGHT", "GALAXY"]
+
     return ["BRIGHT", "GALAXY", "CLUSTER"]
 
 
-def imaging_mask(maskbits, bitnamelist=get_default_maskbits(), bgsmask=False):
+def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
+                 bgsmask=False, mwsmask=False):
     """Apply the 'geometric' masks from the Legacy Surveys imaging.
 
     Parameters
@@ -93,16 +108,23 @@ def imaging_mask(maskbits, bitnamelist=get_default_maskbits(), bgsmask=False):
     bgsmask : :class:`bool`, defaults to ``False``.
         Load the "default" scheme for Bright Galaxy Survey targets.
         Overrides `bitnamelist`.
+    bgsmask : :class:`bool`, defaults to ``False``.
+        Load the "default" scheme for Milky Way Survey targets.
+        Overrides `bitnamelist`.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         A boolean array that is the same length as `maskbits` that
         contains ``False`` where any bits in `bitnamelist` are set.
+
+    Notes
+    -----
+    - Only one of `bgsmask` or `mwsmask` can be ``True``.
     """
-    # ADM default for the BGS.
-    if bgsmask:
-        bitnamelist = get_default_maskbits(bgs=True)
+    # ADM default for the BGS or MWS..
+    if bgsmask or mwsmask:
+        bitnamelist = get_default_maskbits(bgs=bgsmask, mws=mwsmask)
 
     # ADM get the bit values for the passed (or default) bit names.
     bits = get_imaging_maskbits(bitnamelist)
