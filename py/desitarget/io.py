@@ -2383,7 +2383,9 @@ def read_mtl_ledger(filename, unique=True):
             for line in f:
                 if "name" in line:
                     l = line.split()
-                    name, form = l[3][:-1], l[5][:-1]
+                    iname, iform = [i+1 for i, stringy in enumerate(l) if
+                                    "name" in stringy or "datatype" in stringy]
+                    name, form = l[iname][:-1], l[iform][:-1]
                     names.append(name)
                     if 'string' in form:
                         forms.append(mtldm[name].dtype.str)
@@ -2515,12 +2517,46 @@ def read_keyword_from_mtl_header(hpdirname, keyword):
                 msg = "no FITS or ECSV files in {}...?!".format(hpdirname)
                 log.info(msg)
 
-    # ADM this (rapidly) reads a single keyword from an ecsv file.
-    with open(hpdirname) as f:
+    hdr = read_ecsv_header(hpdirname)
+
+    return hdr[keyword]
+
+
+def read_ecsv_header(filename):
+    """Read header info from an ecsv file without reading the whole file.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The full path to the .ecsv file of interest.
+
+    Returns
+    -------
+    :class:`dict`
+        A dictionary of the "meta" keywords from the header.
+    """
+    # ADM first concatenate a single string of everything in the header
+    # ADM that isn't a column name. Break after the header for speed.
+    hdr = ""
+    with open(filename) as f:
         for line in f:
-            if keyword in line and 'name' not in line:
+            if '#' not in line:
                 break
-        return line.split(": ")[-1].split("}")[0]
+            else:
+                hdr += line.rstrip("\n").lstrip("#")
+
+    # ADM extract the meta keyword dictionary or dictionaries.
+    alldicts = re.findall("({.*?})", hdr)
+    # ADM loop in case header info comprises several dictionaries.
+    hdr = {}
+    for d in alldicts:
+        # ADM retrieve just the key, val pairs. Also remove white space.
+        keyvals = d.split("{")[-1].strip("}").replace(" ","").split(",")
+        for keyval in keyvals:
+            key, val = keyval.split(":")
+            hdr[key] = val
+
+    return hdr
 
 
 def find_mtl_file_format_from_header(hpdirname, returnoc=False):
@@ -2628,7 +2664,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, returnfn=False):
 
         # ADM if no mtls, look up the data model, return an empty array.
         if len(mtls) == 0:
-            fns = iglob(os.path.join(hpdirname, '*.{}'.format(ender)))
+            fns = iglob(fileform.format("*"))
             fn = next(fns)
             mtl = read_mtl_ledger(fn)
             outly = np.zeros(0, dtype=mtl.dtype)
