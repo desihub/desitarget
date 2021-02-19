@@ -7,7 +7,7 @@ desitarget.gaiamatch
 Useful Gaia matching and manipulation routines.
 
 .. _`Gaia Collaboration/Babusiaux et al. (2018)`: https://ui.adsabs.harvard.edu/abs/2018A%26A...616A..10G/abstract
-.. _`borrowed shamelessly from Sergey Koposov`: https://github.com/desihub/desispec/blob/e67142d5a3c5489ae861735b447443afc6211310/py/desispec/scripts/stdstars.py#L74
+.. _`borrowed shamelessly from Sergey Koposov`: https://github.com/desihub/desispec/blob/cd9af0dcc81c7c597aef2bc1c2a9454dcbc47e17/py/desispec/scripts/stdstars.py#L114
 """
 import os
 import sys
@@ -236,15 +236,20 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
 
     # ADM apply the extinction corrections in each band.
     gaia_a0 = 3.1 * ebv * scaling
-    bprp = Bp - Rp
-    for band in ['G', 'BP', 'RP']:
-        curp = gaia_poly_coeff[band]
-        dmag = (
-            np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
-            curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
-        )*gaia_a0
-        # ADM populate the per-band extinction-corrected magnitudes.
-        outmags[band] = inmags[band] - dmag
+
+    for i in range(2):
+        if i == 0:
+            bprp = Bp - Rp
+        else:
+            bprp = outmags["BP"] - outmags["RP"]
+        for band in ['G', 'BP', 'RP']:
+            curp = gaia_poly_coeff[band]
+            dmag = (
+                np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
+                curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
+            )*gaia_a0
+            # ADM populate the per-band extinction-corrected magnitudes.
+            outmags[band] = inmags[band] - dmag
 
     return outmags["G"], outmags["BP"], outmags["RP"]
 
