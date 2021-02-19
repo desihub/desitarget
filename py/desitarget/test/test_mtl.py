@@ -20,11 +20,12 @@ class TestMTL(unittest.TestCase):
         self.targets = Table()
         self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'QSO', 'ELG'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
-        self.post_prio = [Mx[t].priorities['MORE_ZGOOD'] for t in self.types]
+        self.post_prio = [Mx[t].priorities['UNOBS'] for t in self.types]
         self.post_prio[0] = Mx['ELG'].priorities['DONE']  # ELG
         self.post_prio[1] = Mx['LRG'].priorities['DONE']  # LRG...all one-pass
         self.post_prio[2] = Mx['QSO'].priorities['DONE']  # lowz QSO
         self.post_prio[3] = Mx['QSO'].priorities['MORE_MIDZQSO']  # midz QSO
+        self.post_prio[4] = Mx['QSO'].priorities['MORE_ZGOOD']  # highz QSO
         nt = len(self.types)
         # ADM add some "extra" columns that are needed for observations.
         for col in ["RA", "DEC", "PARALLAX", "PMRA", "PMDEC", "REF_EPOCH"]:
