@@ -20,12 +20,14 @@ class TestMTL(unittest.TestCase):
         self.targets = Table()
 
         # This is a dual identity case. In all cases the target is both QSO and ELG.
-        # The first case is a true QSO with lowz.
-        # The second case is a true QSO with highz.
-        # The third case is an ELG.
+        # ADM The first case is a true QSO with low z.
+        # ADM The second case is a true QSO with mid z.
+        # ADM The third case is a QSO with a z warning.
+        # ADM The fourth case is a true QSO with high z.
+        # ADM The fifth case is a z=1.5 ELG but that was a QSO target.
 
-        self.type_A = np.array(['QSO', 'QSO', 'ELG'])
-        self.type_B = np.array(['ELG', 'ELG', 'QSO'])
+        self.type_A = np.array(['QSO', 'QSO', 'QSO', 'QSO', 'ELG'])
+        self.type_B = np.array(['ELG', 'ELG', 'ELG', 'ELG', 'QSO'])
         self.priorities_A = np.array([Mx[t].priorities['UNOBS'] for t in self.type_A])
         self.priorities_B = np.array([Mx[t].priorities['UNOBS'] for t in self.type_B])
         self.priorities = np.maximum(self.priorities_A, self.priorities_B)  # get the maximum between the two.
@@ -50,20 +52,25 @@ class TestMTL(unittest.TestCase):
         # - reverse the order for zcat to make sure joins work.
         self.zcat = Table()
         self.zcat['TARGETID'] = self.targets['TARGETID'][::-1]
-        self.zcat['Z'] = [1.0, 1.5, 2.5]
-        self.zcat['ZWARN'] = [0, 0, 0]
-        self.zcat['NUMOBS'] = [1, 1, 1]
-        self.zcat['SPECTYPE'] = ['QSO', 'QSO', 'GALAXY']
+        self.zcat['Z'] = [1.5, 2.5, 1.2, 1.5, 0.5]
+        self.zcat['ZWARN'] = [0, 0, 1, 0, 0]
+        self.zcat['NUMOBS'] = [1, 1, 1, 1, 1]
+        self.zcat['SPECTYPE'] = ['GALAXY', 'QSO', 'QSO', 'QSO', 'QSO']
 
         # priorities and numobs more after measuring redshifts.
         self.post_prio = [0 for t in self.type_A]
         self.post_numobs_more = [0 for t in self.type_A]
-        self.post_prio[0] = Mx['QSO'].priorities['MORE_ZGOOD']  # highz QSO.
-        self.post_prio[1] = Mx['QSO'].priorities['DONE']  # Lowz QSO,  DONE.
-        self.post_prio[2] = Mx['ELG'].priorities['DONE']  # ELG, DONE.
-        self.post_numobs_more[0] = 3
-        self.post_numobs_more[1] = 0
-        self.post_numobs_more[2] = 0
+        self.post_prio[0] = Mx['QSO'].priorities['DONE']  # low-z QSO, DONE.
+        self.post_prio[1] = Mx['QSO'].priorities['MORE_MIDZQSO']  # mid-z QSO, reobserve at low priority.
+        self.post_prio[2] = Mx['QSO'].priorities['MORE_ZWARN']  # QSO, ZWARNING, reobserve.
+        self.post_prio[3] = Mx['QSO'].priorities['MORE_ZGOOD']  # high-z QSO, reobserve at high priority.
+        self.post_prio[4] = Mx['QSO'].priorities['MORE_MIDZQSO']  # mid-z QSO or galaxy, reobserve at low priority.
+
+        self.post_numobs_more[0] = 0
+        self.post_numobs_more[1] = 3
+        self.post_numobs_more[2] = 3
+        self.post_numobs_more[3] = 3
+        self.post_numobs_more[4] = 3
 
     def test_mtl(self):
         """Test output from MTL has the correct column names.
@@ -82,7 +89,7 @@ class TestMTL(unittest.TestCase):
         # ADM loop through once for SV and once for the main survey.
         mtl = make_mtl(self.targets, "GRAY|DARK")
         mtl.sort(keys='TARGETID')
-        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [4, 4, 4]))
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [4, 4, 4, 4, 4]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
 
     def test_zcat(self):
@@ -93,6 +100,20 @@ class TestMTL(unittest.TestCase):
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.post_numobs_more))
+
+    def test_numobs(self):
+        """Check that LRGs and ELGs only request one observation.
+        """
+        # ADM How sources are prioritized is set purely by Z and ZWARN.
+        # ADM So, we need to check that LRGs and ELGs only request one
+        # ADM observation. If they request more than 1, then presumably
+        # ADM they will have values of MORE_ZGOOD that exceed DONE. For
+        # ADM dual targets that are both, say ELGs and QSOs, the 4 QSO
+        # ADM observations could then adopt the high ELG priorities
+        # ADM rather than the low MORE_MIDZQSO priorities. Basically, we
+        # ADM need more careful logic if numobs > 1 for galaxies.
+        for bitname in "LRG", "ELG":
+            self.assertEqual(Mx[bitname].numobs, 1)
 
 
 if __name__ == '__main__':

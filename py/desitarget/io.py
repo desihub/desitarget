@@ -2551,7 +2551,7 @@ def read_ecsv_header(filename):
     hdr = {}
     for d in alldicts:
         # ADM retrieve just the key, val pairs. Also remove white space.
-        keyvals = d.split("{")[-1].strip("}").replace(" ","").split(",")
+        keyvals = d.split("{")[-1].strip("}").replace(" ", "").split(",")
         for keyval in keyvals:
             key, val = keyval.split(":")
             hdr[key] = val

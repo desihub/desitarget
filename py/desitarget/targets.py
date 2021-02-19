@@ -641,7 +641,6 @@ def calc_priority(targets, zcat, obscon, state=False):
                             priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                         priority[ii & sbool] = np.where(
                             priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
-
             # QSO could be Lyman-alpha or Tracer.
             name = 'QSO'
             # ADM only update priorities for passed observing conditions.

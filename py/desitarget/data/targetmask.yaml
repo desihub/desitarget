@@ -179,8 +179,11 @@ targetid_mask:
 priorities:
     #- Dark Survey: priorities 3000 - 3999
     desi_mask:
-        ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+# ADM safest to set MORE_ZGOOD for ELGs/LRGs to DONE PROVIDED they have NUMOBS=1 as
+# ADM they can match QSO targets that require multiple observations and trump those
+# ADM QSOs with a higher priority. There is a unit test to check NUMOBS=1 for ELGs/LRGs.
+        ELG: {UNOBS: 3000, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        LRG: {UNOBS: 3200, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 # ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
 # ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
