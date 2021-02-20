@@ -5,9 +5,15 @@ desitarget Change Log
 0.50.1 (unreleased)
 -------------------
 
+* Add formalism for Targets of Opportunity [`PR #676`_]. Includes:
+    * New ToO module.
+    * Function and script to write an initial ToO .ecsv ledger.
+    * Function and script to convert the ledger to a targets file.
+        * Includes checks on the ledger format and fiber allocations.
 * Migrated unit tests to GitHub Actions [`PR #675`_].
 
 .. _`PR #675`: https://github.com/desihub/desitarget/pull/675
+.. _`PR #676`: https://github.com/desihub/desitarget/pull/676
 
 
 0.50.0 (2021-01-29)

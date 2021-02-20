@@ -21,7 +21,7 @@ ap.add_argument("targdir",
                 `select_targets` with the `bundle_files` option).")
 ap.add_argument("--dest",
                 help="Full path to the output directory to host the ledger. The \
-                filename and full directory structure is built on-the-fly from  \
+                filename and full directory structure are built on-the-fly from \
                 file headers in targdirname. [defaults to {})".format(mtldir),
                 default=mtldir)
 ap.add_argument("--obscon",
