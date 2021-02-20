@@ -5,9 +5,21 @@ desitarget Change Log
 0.50.1 (unreleased)
 -------------------
 
+* Main Survey, secondary, outside-footprint target updates [`PR #677`_]:
+    * Update priorities for some secondary programs.
+    * MTL changes to reobserve 0.7 < z < 2.1 QSOs at low priority.
+        * Requested by two secondary programs.
+    * Allow secondaries to be truncated to first N targets in a file.
+    * Add fluxes/mags to the file of "standalone" secondaries.
+    * Apply bright star mask and a mag > 16 limit to secondary targets.
+    * Mask Main Survey MWS targets on BRIGHT and GALAXY using MASKBITS.
+    * Debug reading MTL ledger headers, now that they have units.
+    * Apply non-linear correction to de-extinct Gaia magnitudes TWICE.
+    * Add ``PHOT_G_N_OBS`` to the Gaia edr3 data model.
 * Migrated unit tests to GitHub Actions [`PR #675`_].
 
 .. _`PR #675`: https://github.com/desihub/desitarget/pull/675
+.. _`PR #677`: https://github.com/desihub/desitarget/pull/677
 
 
 0.50.0 (2021-01-29)
