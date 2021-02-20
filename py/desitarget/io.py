@@ -2182,7 +2182,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         Name of a Legacy Surveys Data Release (e.g. 8). If this is an
         integer or a 1-character string it is prepended by "dr".
     flavor : :class:`str`, optional, defaults to `targets`
-        Options: "skies", "gfas", "targets", "randoms", "masks", "mtl".
+        Options: "skies", "gfas", "targets", "randoms",
+        "masks", "mtl", "ToO".
     survey : :class:`str`, optional, defaults to `main`
         Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
         Only relevant if `flavor` is "targets".
@@ -2248,7 +2249,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     if mock:
         allowed = ["targets", "truth", "sky"]
     else:
-        allowed = ["targets", "skies", "gfas", "randoms", "masks", "mtl"]
+        allowed = ["targets", "skies", "gfas", "randoms", "masks", "mtl", "ToO"]
     if flavor not in allowed:
         msg = "flavor must be {}, not {}".format(' or '.join(allowed), flavor)
         log.critical(msg)

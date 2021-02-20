@@ -104,6 +104,9 @@ desitarget API
 .. automodule:: desitarget.targets
     :members:
 
+.. automodule:: desitarget.ToO
+    :members:
+
 .. automodule:: desitarget.train
     :members:
 

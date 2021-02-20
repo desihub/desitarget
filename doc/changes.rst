@@ -16,9 +16,15 @@ desitarget Change Log
     * Debug reading MTL ledger headers, now that they have units.
     * Apply non-linear correction to de-extinct Gaia magnitudes TWICE.
     * Add ``PHOT_G_N_OBS`` to the Gaia edr3 data model.
+* Add formalism for Targets of Opportunity [`PR #676`_]. Includes:
+    * New ToO module.
+    * Function and script to write an initial ToO .ecsv ledger.
+    * Function and script to convert the ledger to a targets file.
+        * Includes checks on the ledger format and fiber allocations.
 * Migrated unit tests to GitHub Actions [`PR #675`_].
 
 .. _`PR #675`: https://github.com/desihub/desitarget/pull/675
+.. _`PR #676`: https://github.com/desihub/desitarget/pull/676
 .. _`PR #677`: https://github.com/desihub/desitarget/pull/677
 
 
