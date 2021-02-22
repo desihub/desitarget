@@ -120,9 +120,9 @@ mws_mask:
 #- ADM variable, e.g. $SECONDARY_DIR/veto.fits for VETO targets.
 scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
-       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto'}]
+       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto', downsample: 1}]
     - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY, filename: 'dr16q'}]
+       {obsconditions: DARK|GRAY, filename: 'dr16q', downsample: 1}]
 
 # ADM reserve 60/61 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
     - [BRIGHT_TOO,    60, "Targets of Opportunity",   {obsconditions: BRIGHT,      filename: 'ToO'}]
@@ -147,12 +147,16 @@ obsconditions:
 #- if a target passes more than one target bit, it is possible that one bit
 #- will consider the observations "DONE" while another bit will want "MORE".
 #- DONOTOBSERVE trumps MORE which trumps DONE
+# ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
+# ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
+# ADM of 100 should only be higher than DONE (and secondary filler) targets.
 obsmask:
-    - [UNOBS,       0, "unobserved"]
-    - [OBS,         1, "observed but no spectro pipeline answer yet"]
-    - [DONE,        2, "enough observations already obtained"]
-    - [MORE_ZWARN,  3, "ambiguous redshift; need more observations"]
-    - [MORE_ZGOOD,  4, "redshift known; need more observations"]
+    - [UNOBS,          0, "unobserved"]
+    - [OBS,            1, "observed but no spectro pipeline answer yet"]
+    - [DONE,           2, "enough observations already obtained"]
+    - [MORE_ZWARN,     3, "ambiguous redshift; need more observations"]
+    - [MORE_ZGOOD,     4, "redshift known; need more observations"]
+    - [MORE_MIDZQSO,   8, "z > 0.7 QSO; more observations at very low priority"]
     - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
 
 #- Bits that can be set in TARGETID. See the schema at
@@ -179,9 +183,15 @@ targetid_mask:
 priorities:
     #- Dark Survey: priorities 3000 - 3999
     desi_mask:
-        ELG: {UNOBS: 3000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        LRG: {UNOBS: 3200, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+# ADM safest to set MORE_ZGOOD for ELGs/LRGs to DONE PROVIDED they have NUMOBS=1 as
+# ADM they can match QSO targets that require multiple observations and trump those
+# ADM QSOs with a higher priority. There is a unit test to check NUMOBS=1 for ELGs/LRGs.
+        ELG: {UNOBS: 3000, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        LRG: {UNOBS: 3200, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+# ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
+# ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
+# ADM of 100 should only be higher than DONE (and secondary filler) targets.
+        QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         QSO_HIZ: SAME_AS_LRG_NORTH

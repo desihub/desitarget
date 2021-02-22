@@ -18,12 +18,14 @@ class TestMTL(unittest.TestCase):
 
     def setUp(self):
         self.targets = Table()
-        self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'ELG'])
+        self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'QSO', 'ELG'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
-        self.post_prio = [Mx[t].priorities['MORE_ZGOOD'] for t in self.types]
-        self.post_prio[0] = 2  # ELG
-        self.post_prio[1] = 2  # LRG...all one-pass
-        self.post_prio[2] = 2  # lowz QSO
+        self.post_prio = [Mx[t].priorities['UNOBS'] for t in self.types]
+        self.post_prio[0] = Mx['ELG'].priorities['DONE']  # ELG
+        self.post_prio[1] = Mx['LRG'].priorities['DONE']  # LRG...all one-pass
+        self.post_prio[2] = Mx['QSO'].priorities['DONE']  # lowz QSO
+        self.post_prio[3] = Mx['QSO'].priorities['MORE_MIDZQSO']  # midz QSO
+        self.post_prio[4] = Mx['QSO'].priorities['MORE_ZGOOD']  # highz QSO
         nt = len(self.types)
         # ADM add some "extra" columns that are needed for observations.
         for col in ["RA", "DEC", "PARALLAX", "PMRA", "PMDEC", "REF_EPOCH"]:
@@ -42,10 +44,10 @@ class TestMTL(unittest.TestCase):
         # - reverse the order for zcat to make sure joins work
         self.zcat = Table()
         self.zcat['TARGETID'] = self.targets['TARGETID'][-2::-1]
-        self.zcat['Z'] = [2.5, 1.0, 0.5, 1.0]
-        self.zcat['ZWARN'] = [0, 0, 0, 0]
-        self.zcat['NUMOBS'] = [1, 1, 1, 1]
-        self.zcat['SPECTYPE'] = ['QSO', 'QSO', 'GALAXY', 'GALAXY']
+        self.zcat['Z'] = [2.5, 1.0, 0.5, 0.5, 1.0]
+        self.zcat['ZWARN'] = [0, 0, 0, 0, 0]
+        self.zcat['NUMOBS'] = [1, 1, 1, 1, 1]
+        self.zcat['SPECTYPE'] = ['QSO', 'QSO', 'QSO', 'GALAXY', 'GALAXY']
 
     def reset_targets(self, prefix):
         """Add prefix to TARGET columns"""
@@ -84,7 +86,7 @@ class TestMTL(unittest.TestCase):
             t = self.reset_targets(prefix)
             mtl = make_mtl(t, "GRAY|DARK")
             mtl.sort(keys='TARGETID')
-            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 1, 4, 4, 1]))
+            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 1, 4, 4, 4, 1]))
             self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
             # - Check that ELGs can be observed in gray conditions but not others
             iselg = (self.types == 'ELG')
@@ -100,10 +102,10 @@ class TestMTL(unittest.TestCase):
             mtl = make_mtl(t, "DARK|GRAY", zcat=self.zcat, trim=False)
             mtl.sort(keys='TARGETID')
             pp = self.post_prio.copy()
-            nom = [0, 0, 0, 3, 1]
+            nom = [0, 0, 0, 3, 3, 1]
             # ADM in SV, all quasars get all observations.
-            if prefix == "SV1_":
-                pp[2], nom[2] = pp[3], nom[3]
+#            if prefix == "SV1_":
+#                pp[2], nom[2] = pp[3], nom[3]
             self.assertTrue(np.all(mtl['PRIORITY'] == pp))
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
             # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
@@ -136,7 +138,7 @@ class TestMTL(unittest.TestCase):
         qtargets = self.targets.copy()
         qtargets["DESI_TARGET"] |= Mx["QSO"]
 
-        # ADM give them all a "tracer" redshift (below a LyA QSO).
+        # ADM give them all a "tracer" redshift (below a mid-z QSO).
         qzcat = self.zcat.copy()
         qzcat["Z"] = 0.5
 

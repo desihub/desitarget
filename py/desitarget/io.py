@@ -29,6 +29,7 @@ from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
 from desimodel.footprint import is_point_in_desi, tiles2pix
+from desitarget.targetmask import obsconditions
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -330,7 +331,6 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         The modified data.
     """
     # ADM determine the bits for the OBSCONDITIONS.
-    from desitarget.targetmask import obsconditions
     if obscon == "DARK":
         obsbits = obsconditions.mask("DARK|GRAY")
         hdr["OBSCON"] = "DARK|GRAY"
@@ -855,7 +855,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     data : :class:`~numpy.ndarray`
         numpy structured array of secondary targets to write.
     primhdr : :class:`str`, optional, defaults to `None`
-        If passed, added to the header of the output `filename`.
+        If passed, added to the header of the output catalogue.
     scxdir : :class:`str`, optional, defaults to :envvar:`SCND_DIR`
         Name of the directory that hosts secondary targets.  The
         secondary targets are written back out to this directory in the
@@ -923,13 +923,14 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         np.random.seed(616)
         data["SUBPRIORITY"] = np.random.random(ntargs)
 
-    # ADM remove the SCND_TARGET_INIT, SCND_ORDER and PRIM_MATCH columns.
+    # ADM remove the supplemental columns.
+    from desitarget.secondary import suppdatamodel
+    # ADM store certain needed columns in case they get removed.
     scnd_target_init = data["SCND_TARGET_INIT"]
     scnd_order = data["SCND_ORDER"]
     prim_match = data["PRIM_MATCH"]
 
-    data = rfn.drop_fields(data,
-                           ["SCND_TARGET_INIT", "SCND_ORDER", "PRIM_MATCH"])
+    data = rfn.drop_fields(data, suppdatamodel.dtype.names)
     # ADM we only need a subset of the columns where we match a primary.
     smalldata = rfn.drop_fields(data, ["PRIORITY_INIT", "SUBPRIORITY",
                                        "NUMOBS_INIT", "OBSCONDITIONS"])
@@ -973,9 +974,27 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
     # ADM standalone secondaries have PRIORITY_INIT > -1 and
     # ADM don't have PRIM_MATCH set.
-    ii = ~prim_match & (data["PRIORITY_INIT"] > -1)
+    standalone = ~prim_match & (data["PRIORITY_INIT"] > -1)
 
-    # ADM ...write them out.
+    # ADM as a fail-safe, never let standalone secondaries for standard
+    # ADM observing conditions be brighter than maglim in known bands.
+    maglim = 16
+    fluxlim = 10**((22.5-maglim)/2.5)
+    # ADM find any standalone secondary that is too bright in any band.
+    toobright = np.zeros(len(data), dtype="bool")
+    for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
+                "GAIA_PHOT_RP_MEAN_MAG"]:
+        toobright |= (data[col] != 0) & (data[col] < maglim)
+    for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
+        toobright |= (data[col] != 0) & (data[col] > fluxlim)
+
+    # ADM just targets to be observed in "standard" conditions.
+    standardoc = "DARK|GRAY|BRIGHT"
+    instandardoc = data["OBSCONDITIONS"] & obsconditions.mask(standardoc) != 0
+
+    # ADM write out standalone secondaries that aren't too bright and
+    # ADM that are intended to be observed in standard conditions.
+    ii = standalone & ~toobright & instandardoc
     write_with_units(filename, data[ii], extname='SCND_TARGETS', header=hdr)
 
     return np.sum(ii), filename
@@ -2365,7 +2384,9 @@ def read_mtl_ledger(filename, unique=True):
             for line in f:
                 if "name" in line:
                     l = line.split()
-                    name, form = l[3][:-1], l[5][:-1]
+                    iname, iform = [i+1 for i, stringy in enumerate(l) if
+                                    "name" in stringy or "datatype" in stringy]
+                    name, form = l[iname][:-1], l[iform][:-1]
                     names.append(name)
                     if 'string' in form:
                         forms.append(mtldm[name].dtype.str)
@@ -2497,12 +2518,46 @@ def read_keyword_from_mtl_header(hpdirname, keyword):
                 msg = "no FITS or ECSV files in {}...?!".format(hpdirname)
                 log.info(msg)
 
-    # ADM this (rapidly) reads a single keyword from an ecsv file.
-    with open(hpdirname) as f:
+    hdr = read_ecsv_header(hpdirname)
+
+    return hdr[keyword]
+
+
+def read_ecsv_header(filename):
+    """Read header info from an ecsv file without reading the whole file.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The full path to the .ecsv file of interest.
+
+    Returns
+    -------
+    :class:`dict`
+        A dictionary of the "meta" keywords from the header.
+    """
+    # ADM first concatenate a single string of everything in the header
+    # ADM that isn't a column name. Break after the header for speed.
+    hdr = ""
+    with open(filename) as f:
         for line in f:
-            if keyword in line and 'name' not in line:
+            if '#' not in line:
                 break
-        return line.split(": ")[-1].split("}")[0]
+            else:
+                hdr += line.rstrip("\n").lstrip("#")
+
+    # ADM extract the meta keyword dictionary or dictionaries.
+    alldicts = re.findall("({.*?})", hdr)
+    # ADM loop in case header info comprises several dictionaries.
+    hdr = {}
+    for d in alldicts:
+        # ADM retrieve just the key, val pairs. Also remove white space.
+        keyvals = d.split("{")[-1].strip("}").replace(" ", "").split(",")
+        for keyval in keyvals:
+            key, val = keyval.split(":")
+            hdr[key] = val
+
+    return hdr
 
 
 def find_mtl_file_format_from_header(hpdirname, returnoc=False):
@@ -2610,7 +2665,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, returnfn=False):
 
         # ADM if no mtls, look up the data model, return an empty array.
         if len(mtls) == 0:
-            fns = iglob(os.path.join(hpdirname, '*.{}'.format(ender)))
+            fns = iglob(fileform.format("*"))
             fn = next(fns)
             mtl = read_mtl_ledger(fn)
             outly = np.zeros(0, dtype=mtl.dtype)

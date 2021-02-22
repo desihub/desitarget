@@ -23,6 +23,9 @@ log = get_logger()
 
 # ADM common redshift that defines a Lyman-Alpha QSO.
 zcut = 2.1
+# ADM common redshift that defines a QSO to be reobserved for
+# ADM the Gontcho a Gontcho and Weiner et al. secondary programs.
+midzcut = 0.7
 
 
 def encode_targetid(objid=None, brickid=None, release=None,
@@ -471,8 +474,7 @@ def calc_numobs_more(targets, zcat, obscon):
           survey, commissioning or SV and behave accordingly.
         - Most targets are updated to NUMOBS_MORE = NUMOBS_INIT-NUMOBS.
           Special cases include BGS targets which always get NUMOBS_MORE
-          of 1 in bright time and QSO "tracer" targets which always get
-          NUMOBS_MORE=0 in dark time.
+          of 1 in bright time and "tracer" targets at z < midzcut.
     """
     # ADM check input arrays are sorted to match row-by-row on TARGETID.
     assert np.all(targets["TARGETID"] == zcat["TARGETID"])
@@ -498,11 +500,11 @@ def calc_numobs_more(targets, zcat, obscon):
 
     if survey == 'main':
         # ADM If a DARK layer target is confirmed to have a good redshift
-        # ADM at z < zcut it always needs just one total observation.
-        # ADM (zcut is defined at the top of this module).
+        # ADM at z < midzcut it always needs just one total observation.
+        # ADM (midzcut is defined at the top of this module).
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
             ii = (zcat['ZWARN'] == 0)
-            ii &= (zcat['Z'] < zcut)
+            ii &= (zcat['Z'] < midzcut)
             ii &= (zcat['NUMOBS'] > 0)
             numobs_more[ii] = 0
 
@@ -639,21 +641,30 @@ def calc_priority(targets, zcat, obscon, state=False):
                             priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                         priority[ii & sbool] = np.where(
                             priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
-
             # QSO could be Lyman-alpha or Tracer.
             name = 'QSO'
             # ADM only update priorities for passed observing conditions.
             pricon = obsconditions.mask(desi_mask[name].obsconditions)
             if (obsconditions.mask(obscon) & pricon) != 0:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
-                # ADM all redshifts require more observations in SV.
+                # ADM LyA QSOs require more observations.
                 # ADM (zcut is defined at the top of this module).
                 good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
-                if survey[:2] == 'sv':
-                    good_hiz = zgood & (zcat['ZWARN'] == 0)
+                # ADM Mid-z QSOs require more observations at low
+                # ADM priority as requested by some secondary programs.
+                good_midz = (zgood & (zcat['Z'] >= midzcut) &
+                             (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+
+# ADM useful to turn on if, for example, we want to get lots
+# ADM of QSO repeat observations during the 1% Survey:
+#                if survey[:2] == 'sv':
+#                    good_hiz = zgood & (zcat['ZWARN'] == 0)
+
                 for sbool, sname in zip(
-                        [unobs, done, good_hiz, ~good_hiz, zwarn],
-                        ["UNOBS", "DONE", "MORE_ZGOOD", "DONE", "MORE_ZWARN"]
+                        [unobs, done, good_hiz, good_midz,
+                         ~good_hiz & ~good_midz, zwarn],
+                        ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                         "DONE", "MORE_ZWARN"]
                 ):
                     # ADM update priorities and target states.
                     Mxp = desi_mask[name].priorities[sname]

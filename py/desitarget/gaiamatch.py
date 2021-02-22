@@ -7,7 +7,7 @@ desitarget.gaiamatch
 Useful Gaia matching and manipulation routines.
 
 .. _`Gaia Collaboration/Babusiaux et al. (2018)`: https://ui.adsabs.harvard.edu/abs/2018A%26A...616A..10G/abstract
-.. _`borrowed shamelessly from Sergey Koposov`: https://github.com/desihub/desispec/blob/e67142d5a3c5489ae861735b447443afc6211310/py/desispec/scripts/stdstars.py#L74
+.. _`borrowed shamelessly from Sergey Koposov`: https://github.com/desihub/desispec/blob/cd9af0dcc81c7c597aef2bc1c2a9454dcbc47e17/py/desispec/scripts/stdstars.py#L114
 """
 import os
 import sys
@@ -71,7 +71,7 @@ inedr3datamodel = np.array([], dtype=[
     ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-    ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'), ('PHOT_G_N_OBS', '>i4'),
     ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
     ('DUPLICATED_SOURCE', '?'), ('ASTROMETRIC_SIGMA5D_MAX', '>f4'),
     ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('RUWE', '>f4'),
@@ -87,7 +87,7 @@ edr3datamodel = np.array([], dtype=[
     ('EDR3_PHOT_G_MEAN_MAG', '>f4'), ('EDR3_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('EDR3_PHOT_BP_MEAN_MAG', '>f4'), ('EDR3_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
     ('EDR3_PHOT_RP_MEAN_MAG', '>f4'), ('EDR3_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
-    ('EDR3_PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('EDR3_PHOT_BP_RP_EXCESS_FACTOR', '>f4'), ('EDR3_PHOT_G_N_OBS', '>i4'),
     ('EDR3_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('EDR3_ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
     ('EDR3_DUPLICATED_SOURCE', '?'), ('EDR3_ASTROMETRIC_SIGMA5D_MAX', '>f4'),
     ('EDR3_ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('EDR3_RUWE', '>f4'),
@@ -236,15 +236,20 @@ def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
 
     # ADM apply the extinction corrections in each band.
     gaia_a0 = 3.1 * ebv * scaling
-    bprp = Bp - Rp
-    for band in ['G', 'BP', 'RP']:
-        curp = gaia_poly_coeff[band]
-        dmag = (
-            np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
-            curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
-        )*gaia_a0
-        # ADM populate the per-band extinction-corrected magnitudes.
-        outmags[band] = inmags[band] - dmag
+
+    for i in range(2):
+        if i == 0:
+            bprp = Bp - Rp
+        else:
+            bprp = outmags["BP"] - outmags["RP"]
+        for band in ['G', 'BP', 'RP']:
+            curp = gaia_poly_coeff[band]
+            dmag = (
+                np.poly1d(gaia_poly_coeff[band][:4][::-1])(bprp) +
+                curp[4]*gaia_a0 + curp[5]*gaia_a0**2 + curp[6]*bprp*gaia_a0
+            )*gaia_a0
+            # ADM populate the per-band extinction-corrected magnitudes.
+            outmags[band] = inmags[band] - dmag
 
     return outmags["G"], outmags["BP"], outmags["RP"]
 
@@ -437,7 +442,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
-    infiles = glob("{}/*csv*".format(csvdir))
+    infiles = glob("{}/GaiaSource*csv*".format(csvdir))
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -547,7 +552,7 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
         - The environment variable $GAIA_DIR must be set.
         - if numproc==1, use the serial code instead of the parallel code.
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
-        - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
+        - Runs in ~15 minutes with numproc=32 for 3,386 Gaia EDR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()

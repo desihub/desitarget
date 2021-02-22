@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
-import sys
 import fitsio
 import numpy as np
-import argparse
 from desitarget.secondary import select_secondary, _get_scxdir
+from desitarget.brightmask import is_in_bright_mask, get_recent_mask_dir
 from desitarget import io
 import os
 from glob import glob
@@ -29,7 +28,14 @@ ap.add_argument("--scnddir",
 ap.add_argument("--writeall",
                 action='store_true',
                 help="Default behavior is to split targets by bright/dark-time surveys. Set this to ALSO write a file of ALL targets")
+ap.add_argument("--nomasking", action='store_true',
+                help="Masking occurs by default. If this is set, do NOT use a bright star mask to mask the secondary targets")
+ap.add_argument("--maskdir",
+                help="Name of the specific directory (or file) containing the bright star mask (defaults to the most recent directory in $MASK_DIR)",
+                default=None)
+
 ns = ap.parse_args()
+do_mask = not(ns.nomasking)
 
 # ADM Sanity check that priminfodir exists.
 if not os.path.exists(ns.priminfodir):
@@ -61,6 +67,27 @@ try:
 except (ValueError, IndexError, AttributeError):
     drint = "X"
 
+# ADM if secondaries need masked, grab the mask directory and find which
+# ADM targets are masked. Also add the masking information to the header.
+mdcomp = None
+if do_mask:
+    # ADM grab the mask directory
+    maskdir = get_recent_mask_dir(ns.maskdir)
+    log.info("Masking secondaries using bright star masks in {}".format(maskdir))
+    # ADM read in the masks across the entire sky.
+    Mx = io.read_targets_in_quick(maskdir, shape='box',
+                                  radecbox=[0.0, 360.0, -90.0, 90.0])
+    log.info("Checking {} targets against {} masks".format(len(scx), len(Mx)))
+    in_mask, _ = is_in_bright_mask(scx, Mx, inonly=True)
+    # ADM the output in_mask is a list. We want the array it contains.
+    in_mask = in_mask[0]
+    log.info("{} targets are in bright star masks".format(np.sum(in_mask)))
+    # ADM a compact version of the maskdir name.
+    md = maskdir.split("/")
+    mdcomp = "/".join(md[md.index("masks"):])
+hdr["masked"] = do_mask
+hdr["maskdir"] = mdcomp
+
 # ADM write out the secondary targets, with bright-time
 # ADM and dark-time targets written separately.
 obscons = ["BRIGHT", "DARK"]
@@ -69,9 +96,14 @@ if ns.writeall:
     obscons.append(None)
 for obscon in obscons:
     # ADM the dict() here is to make hdr immutable.
-    ntargs, outfile = io.write_secondary(ns.dest, scx, primhdr=dict(hdr),
-                                         scxdir=scxdir, obscon=obscon,
-                                         drint=drint)
+    if obscon is None:
+        ntargs, outfile = io.write_secondary(ns.dest, scx, primhdr=dict(hdr),
+                                             scxdir=scxdir, obscon=obscon,
+                                             drint=drint)
+    else:
+        ntargs, outfile = io.write_secondary(ns.dest, scx[~in_mask],
+                                             primhdr=dict(hdr), scxdir=scxdir,
+                                             obscon=obscon, drint=drint)
 
     log.info('{} standalone secondary targets written to {}...t={:.1f}mins'
              .format(ntargs, outfile, (time()-time0)/60.))

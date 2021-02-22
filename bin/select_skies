@@ -159,13 +159,13 @@ else:
         skies = resolved
 
     # ADM mask the sky locations using a bright star mask.
+    mdcomp = None
     if do_mask:
         maskdir = get_recent_mask_dir(ns.maskdir)
         skies = mask_targets(skies, maskdir, nside=ns.nside, pixlist=pixlist)
-
-    # ADM a compact version of the maskdir name.
-    md = maskdir.split("/")
-    mdcomp = "/".join(md[md.index("masks"):])
+        # ADM a compact version of the maskdir name.
+        md = maskdir.split("/")
+        mdcomp = "/".join(md[md.index("masks"):])
 
     # ADM extra header keywords for the output fits file.
     extra = {k: v for k, v in zip(["masked", "maskdir"],
