@@ -12,8 +12,8 @@ import numpy as np
 from desitarget.train.train_test_RF.util.funcs import RecHyParamDictExplFunc
 
 
-def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample,
-                         fpn_TestSample, fpn_QLF, fpn_config, max_rmag = 23.0):
+def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_STARS_TrainingSample_Highz,
+                         fpn_TestSample, fpn_QLF, fpn_config, max_rmag = 23.0, suffixe=''):
     # ***CONFIGURATION***
 
     RELEASE = 'DR9s'  # seulement à titre informatif, aucun impact dans le pipeline
@@ -55,7 +55,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample,
     # MODEL file path name template
     # dirpn_model = "./WorkingDir/" + str(RELEASE) + "/RFmodel/{}/"
     # rootpn_model = "model_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
-    fpn_model_template = "/model_{}_z{}_MDepth{}_MLNodes{}_nTrees{}"
+    fpn_model_template = "/model_{}_z{}_MDepth{}_MLNodes{}_nTrees{}" + suffixe
 
     # NE PAS MODIFIER
     # TEST file path name template
@@ -184,6 +184,7 @@ def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample,
     configDict = dict()
     configDict['RELEASE'] = RELEASE
     configDict['fpn_STARS_TrainingSample'] = fpn_STARS_TrainingSample
+    configDict['fpn_STARS_TrainingSample_Highz'] = fpn_STARS_TrainingSample_Highz
     configDict['fpn_QSO_TrainingSample'] = fpn_QSO_TrainingSample
     configDict['fpn_TestSample'] = fpn_TestSample
     configDict['fpn_QLF'] = fpn_QLF

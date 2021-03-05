@@ -3,6 +3,9 @@ import numpy as np
 
 import joblib
 
+from desitarget.myRF import myRF
+from pkg_resources import resource_filename
+
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
 
@@ -49,6 +52,30 @@ def build_attributes(nbEntries, nfeatures, sample):
     colors[:, 10] = sample['r'][:]
 
     return colors
+
+
+def compute_proba_desitarget(sample):
+
+    attributes = build_attributes(len(sample), nfeatures, sample)
+
+    pathToRF = resource_filename('desitarget', 'data')
+    rf_fileName = pathToRF + f'/rf_model_dr9.npz'
+    rf_Highz_fileName = pathToRF + f'/rf_model_dr9_HighZ.npz'
+
+    print('Load Old Random Forest : ')
+    print('    * ' + rf_fileName)
+    print('    * ' + rf_Highz_fileName)
+    print('Random Forest over : ', len(attributes),' objects\n')
+
+    myrf =  myRF(attributes, pathToRF, numberOfTrees=500, version=2)
+    myrf.loadForest(rf_fileName)
+    proba_rf = myrf.predict_proba()
+
+    myrf_Highz =  myRF(attributes,pathToRF, numberOfTrees=500, version=2)
+    myrf_Highz.loadForest(rf_Highz_fileName)
+    proba_Highz_rf = myrf_Highz.predict_proba()
+
+    return proba_rf, proba_Highz_rf
 
 
 def compute_proba(sample, RF_file, RF_Highz_file):
@@ -179,7 +206,7 @@ def hist_ratio(n_x, n_y, bins):
     return bin_centers, ratio, errors
 
 
-def plot_completness(r, sel_qso, sel_tot, zred, N_bins_r=10, N_bins_z=10,
+def plot_completness(r, zred, sel_qso, sel_tot_1, label1, sel_tot_2=np.zeros(1), label2=None, N_bins_r=10, N_bins_z=10,
                      show=True, save=True, savename='Res_Compare/completeness.pdf'):
     fig = plt.figure(1, figsize=(10.0, 4.0))
 
@@ -188,19 +215,29 @@ def plot_completness(r, sel_qso, sel_tot, zred, N_bins_r=10, N_bins_z=10,
     ax2 = fig.add_subplot(gs[0, 1])
 
     n_r_ref, bins_r = np.histogram(r[sel_qso], bins=N_bins_r, range=(17., 23.))
-    n_r, bins_r = np.histogram(r[sel_qso & sel_tot], bins=N_bins_r, range=(17., 23.))
+    n_r, bins_r = np.histogram(r[sel_qso & sel_tot_1], bins=N_bins_r, range=(17., 23.))
     bin_centers, ratio, errors = hist_ratio(n_r_ref, n_r, bins_r)
     ax1.errorbar(x=bin_centers, y=ratio, yerr=errors, linestyle='none',
-                 marker='.', color='green', label=f"RF DR9s")
+                 marker='.', color='green', label=label1)
+    if np.size(sel_tot_2) > 1:
+        n_r, bins_r = np.histogram(r[sel_qso & sel_tot_2], bins=N_bins_r, range=(17., 23.))
+        bin_centers, ratio, errors = hist_ratio(n_r_ref, n_r, bins_r)
+        ax1.errorbar(x=bin_centers, y=ratio, yerr=errors, linestyle='none',
+                     marker='.', color='red', label=label2)
     ax1.set_xlabel('r mag')
     ax1.set_ylabel('Completeness')
     ax1.legend(loc='lower left')
 
     n_z_ref, bins_z = np.histogram(zred[sel_qso], bins=N_bins_z, range=(0., 4.))
-    n_z, bins_z = np.histogram(zred[sel_qso & sel_tot], bins=N_bins_z, range=(0., 4.))
+    n_z, bins_z = np.histogram(zred[sel_qso & sel_tot_1], bins=N_bins_z, range=(0., 4.))
     bin_centers, ratio, errors = hist_ratio(n_z_ref, n_z, bins_z)
     ax2.errorbar(x=bin_centers, y=ratio, yerr=errors, linestyle='none',
-                 marker='.', color='green', label=f"RF DR9s")
+                 marker='.', color='green', label=label1)
+    if np.size(sel_tot_2) > 1:
+        n_z, bins_z = np.histogram(zred[sel_qso & sel_tot_2], bins=N_bins_z, range=(0., 4.))
+        bin_centers, ratio, errors = hist_ratio(n_z_ref, n_z, bins_z)
+        ax2.errorbar(x=bin_centers, y=ratio, yerr=errors, linestyle='none',
+                     marker='.', color='red', label=label2)
     ax2.set_xlabel('redshift')
     ax2.legend(loc='lower left')
 
@@ -212,7 +249,7 @@ def plot_completness(r, sel_qso, sel_tot, zred, N_bins_r=10, N_bins_z=10,
         plt.close()
 
 
-def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file):
+def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file, rmax, cut=[0.7, 0.05, 20.5, 0.5]):
 
     # Load data.
     test_sample = read_file(inputFile)
@@ -228,7 +265,7 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file):
     dec = test_sample['DEC'][:]
 
     r_mag_min, r_mag_max = np.min(r), np.max(r)
-    r_mag_min_sel, r_mag_max_sel = 17.0, 22.7
+    r_mag_min_sel, r_mag_max_sel = 17.0, rmax
 
     r_sel = (r >= r_mag_min_sel) & (r <= r_mag_max_sel)
 
@@ -259,12 +296,13 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file):
     print("############################################\n")
 
     sel_qso = zred > 0
+    print(f"\n[INFO] There are {sel_qso.sum()} quasars on the test sample ... \n")
     sel_qso_highz = zred > 3
     sel_qso_2 = zred > 2
 
-    # Selection.
-    cut = 0.75 - 0.05*np.tanh(r - 20.5)
-    cut_Highz = 0.5
+    print(f"\n[INFO] :  cut = {cut[0]} - {cut[1]}*np.tanh(r - {cut[2]}) & cut_Highz = {cut[3]}\n")
+    cut = cut[0] - cut[1]*np.tanh(r - cut[2])
+    cut_Highz = cut[3]
 
     sel = proba_rf > cut
     sel_Highz = (proba_Highz_rf > cut_Highz) & ~sel
@@ -291,4 +329,268 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file):
     # Plots.
     plot_importance_feature(feature_imp, feature_imp_Highz, True, False)
     plot_cut_selection(r, sel, sel_qso, sel_Highz, proba_rf, proba_Highz_rf, True, False)
-    plot_completness(r, sel_qso, sel_tot, zred, N_bins_r=40, N_bins_z=40, show=True, save=False)
+    plot_completness(r, zred, sel_qso, sel_tot, '', N_bins_r=40, N_bins_z=40, show=True, save=False)
+
+def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut_1=[0.7, 0.05, 20.5, 0.5], cut_2=[0.7, 0.05, 20.5, 0.5], r_mag_max_sel=23.0):
+        # Load data.
+    test_sample = read_file(inputFile)
+
+    # RF output.
+    proba_rf_1, feature_imp_1, proba_Highz_rf_1, feature_imp_Highz_1 = compute_proba(
+        test_sample, RF_file_1, RF_Highz_file_1)
+    
+    # RF output.
+    proba_rf_2, feature_imp_2, proba_Highz_rf_2, feature_imp_Highz_2 = compute_proba(
+        test_sample, RF_file_2, RF_Highz_file_2)
+    
+
+    # Magnitude and Geometry.
+    zred = test_sample['zred'][:]
+    r = test_sample['r'][:]
+    ra = test_sample['RA'][:]
+    dec = test_sample['DEC'][:]
+
+    r_mag_min, r_mag_max = np.min(r), np.max(r)
+    r_mag_min_sel= 17.5
+
+    r_sel = (r >= r_mag_min_sel) & (r <= r_mag_max_sel)
+
+    # selection from r_magnitude
+    zred = zred[r_sel]
+    r = r[r_sel]
+    ra = ra[r_sel]
+    dec = dec[r_sel]
+
+    proba_rf_1, proba_Highz_rf_1 = proba_rf_1[r_sel], proba_Highz_rf_1[r_sel]
+    proba_rf_2, proba_Highz_rf_2 = proba_rf_2[r_sel], proba_Highz_rf_2[r_sel]
+
+    print("############################################")
+    print("R magnitude Elements from Test Sample : ")
+    print("R_mag max = ", r_mag_max, " -- R_mag min = ", r_mag_min)
+    print("R_mag max selected = ", r_mag_max_sel, " -- R_mag min selected = ", r_mag_min_sel)
+    print("############################################\n")
+
+    # on regarde des objets quasiment à l'horizon --> cos(theta) = 1
+    ra_min, ra_max = np.min(ra), np.max(ra)
+    dec_min, dec_max = np.min(dec), np.max(dec)
+    surface = (ra_max - ra_min)*(dec_max - dec_min)
+
+    print("############################################")
+    print("Geomeric Elements from Test Sample : ")
+    print("RA max = ", ra_max, " -- RA min = ", ra_min)
+    print("DEC max = ", dec_max, " -- DEC min = ", dec_min)
+    print("Surface = ", surface)
+    print("############################################\n")
+
+    sel_qso = zred > 0
+    print(f"\n[INFO] There are {sel_qso.sum()} quasars on the test sample ... \n")
+    sel_qso_highz = zred > 3
+    
+    plt.figure()
+    plt.hist(zred[sel_qso], bins=30, label="QSOs")
+    plt.legend()
+    plt.xlabel('zred')
+    plt.show()
+
+    
+    print(f"\n[INFO] CUT1 :  cut = {cut_1[0]} - {cut_1[1]}*np.tanh(r - {cut_1[2]}) & cut_Highz = {cut_1[3]}\n")
+    cut_1 = cut_1[0] - cut_1[1]*np.tanh(r - cut_1[2])
+    cut_Highz_1 = cut_1[3]
+    
+    sel_1 = proba_rf_1 > cut_1
+    sel_Highz_1 = (proba_Highz_rf_1 > cut_Highz_1) & ~sel_1
+    sel_tot_1 = sel_1 + sel_Highz_1
+
+    density_1 = float(len(r[sel_1]))/surface
+    effi_1 = float(len(r[sel_1 & sel_qso])) / float(len(r[sel_qso]))
+
+    density_Highz_1 = float(len(r[sel_Highz_1])) / surface
+    effi_Highz_1 = float(len(r[sel_Highz_1 & sel_qso])) / float(len(r[sel_qso]))
+
+    density_tot_1 = float(len(r[sel_tot_1])) / surface
+    effi_tot_1 = float(len(r[sel_tot_1 & sel_qso])) / float(len(r[sel_qso]))
+
+    print('\n############################################')
+    print(f'density dr9 = ', density_1, f' deg^-2 completeness dr9', effi_1)
+    print(f'density dr9 Highz = ', density_Highz_1, f' deg^-2 completeness dr9 Highz', effi_Highz_1)
+    print(f'density dr9 Total = ', density_tot_1, f' deg^-2 completeness dr9 Total', effi_tot_1)
+    print('############################################\n')
+    
+    
+    print(f"\n[INFO] CUT2 :  cut = {cut_2[0]} - {cut_2[1]}*np.tanh(r - {cut_2[2]}) & cut_Highz = {cut_2[3]}\n")
+    cut_2 = cut_2[0] - cut_2[1]*np.tanh(r - cut_2[2])
+    cut_Highz_2 = cut_2[3]
+    
+    sel_2 = proba_rf_2 > cut_2
+    sel_Highz_2 = (proba_Highz_rf_2 > cut_Highz_2) & ~sel_2
+    sel_tot_2 = sel_2 + sel_Highz_2
+
+    density_2 = float(len(r[sel_2]))/surface
+    effi_2 = float(len(r[sel_2 & sel_qso])) / float(len(r[sel_qso]))
+
+    density_Highz_2 = float(len(r[sel_Highz_2])) / surface
+    effi_Highz_2 = float(len(r[sel_Highz_2 & sel_qso])) / float(len(r[sel_qso]))
+
+    density_tot_2 = float(len(r[sel_tot_2])) / surface
+    effi_tot_2 = float(len(r[sel_tot_2 & sel_qso])) / float(len(r[sel_qso]))
+
+    print('\n############################################')
+    print(f'density dr9 = ', density_2, f' deg^-2 completeness dr9', effi_2)
+    print(f'density dr9 Highz = ', density_Highz_2, f' deg^-2 completeness dr9 Highz', effi_Highz_2)
+    print(f'density dr9 Total = ', density_tot_2, f' deg^-2 completeness dr9 Total', effi_tot_2)
+    print('############################################\n')
+
+    plot_completness(r, zred, sel_qso, sel_tot_1, '1', sel_tot_2=sel_tot_2, label2='2', N_bins_r=40, N_bins_z=40, show=True, save=False)
+    
+def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cut=[0.7, 0.05, 20.5, 0.5], r_mag_max_sel=23.0):
+    # Load data.
+    test_sample = read_file(inputFile)
+
+    # RF output.
+    proba_rf_new, feature_imp_new, proba_Highz_rf_new, feature_imp_Highz_new = compute_proba(
+        test_sample, RF_file_new, RF_Highz_file_new)
+    
+    # RF output.
+    proba_rf_ref, proba_Highz_rf_ref = compute_proba_desitarget(test_sample)
+    
+
+    # Magnitude and Geometry.
+    zred = test_sample['zred'][:]
+    r = test_sample['r'][:]
+    ra = test_sample['RA'][:]
+    dec = test_sample['DEC'][:]
+
+    r_mag_min, r_mag_max = np.min(r), np.max(r)
+    r_mag_min_sel= 17.5
+
+    r_sel = (r >= r_mag_min_sel) & (r <= r_mag_max_sel)
+
+    # selection from r_magnitude
+    zred = zred[r_sel]
+    r = r[r_sel]
+    ra = ra[r_sel]
+    dec = dec[r_sel]
+
+    proba_rf_new, proba_Highz_rf_new = proba_rf_new[r_sel], proba_Highz_rf_new[r_sel]
+    proba_rf_ref, proba_Highz_rf_ref = proba_rf_ref[r_sel], proba_Highz_rf_ref[r_sel]
+
+    print("############################################")
+    print("R magnitude Elements from Test Sample : ")
+    print("R_mag max = ", r_mag_max, " -- R_mag min = ", r_mag_min)
+    print("R_mag max selected = ", r_mag_max_sel, " -- R_mag min selected = ", r_mag_min_sel)
+    print("############################################\n")
+
+    # on regarde des objets quasiment à l'horizon --> cos(theta) = 1
+    ra_min, ra_max = np.min(ra), np.max(ra)
+    dec_min, dec_max = np.min(dec), np.max(dec)
+    surface = (ra_max - ra_min)*(dec_max - dec_min)
+
+    print("############################################")
+    print("Geomeric Elements from Test Sample : ")
+    print("RA max = ", ra_max, " -- RA min = ", ra_min)
+    print("DEC max = ", dec_max, " -- DEC min = ", dec_min)
+    print("Surface = ", surface)
+    print("############################################\n")
+
+    sel_qso = zred > 0
+    print(f"\n[INFO] There are {sel_qso.sum()} quasars on the test sample ... \n")
+    sel_qso_2 = zred > 2
+    sel_qso_highz = zred > 3
+    
+    plt.figure()
+    plt.hist(zred[sel_qso], bins=30, label="QSOs")
+    plt.legend()
+    plt.xlabel('zred')
+    plt.show()
+    
+    print('\n############ NEW #####################')
+    print(f"\n[INFO] FOR NEW :  cut = {cut[0]} - {cut[1]}*np.tanh(r - {cut[2]}) & cut_Highz = {cut[3]}\n")
+    cut_new = cut[0] - cut[1]*np.tanh(r - cut[2])
+    cut_Highz_new = cut[3]
+    
+    sel_new = proba_rf_new > cut_new
+    sel_Highz_new = (proba_Highz_rf_new > cut_Highz_new) & ~sel_new
+    sel_tot_new = sel_new + sel_Highz_new
+
+    density_new = float(len(r[sel_new]))/surface
+    effi_new = float(len(r[sel_new & sel_qso])) / float(len(r[sel_qso]))
+    density_test_new = float(len(r[sel_new & sel_qso_highz]))/surface
+    effi_test_new = float(len(r[sel_new & sel_qso_highz])) / float(len(r[sel_qso_highz]))
+    
+    density_Highz_new = float(len(r[sel_Highz_new])) / surface
+    effi_Highz_new = float(len(r[sel_Highz_new & sel_qso])) / float(len(r[sel_qso]))
+    density_Highz_test_new = float(len(r[sel_Highz_new & sel_qso_highz])) / surface
+    effi_Highz_test_new = float(len(r[sel_Highz_new & sel_qso_highz])) / float(len(r[sel_qso]))
+    
+    density_tot_new = float(len(r[sel_tot_new])) / surface
+    effi_tot_new = float(len(r[sel_tot_new & sel_qso])) / float(len(r[sel_qso]))
+
+    print(f'density dr9 = ', density_new, f' deg^-2 completeness dr9', effi_new, ' density dr9 QSO>3.0 : ', density_test_new, ' (ie) ', effi_test_new*100, "% de l'echantillong de test")
+    print(f'density dr9 Highz = ', density_Highz_new, f' deg^-2 completeness dr9 Highz', effi_Highz_new, ' densisty dr9 Highz QSO>3.0 : ', density_Highz_test_new, ' (ie) ', effi_Highz_test_new*100, "% de l'echantillong de test")
+    print(f'density dr9 Total = ', density_tot_new, f' deg^-2 completeness dr9 Total', effi_tot_new)
+    print('############################################\n')
+    
+    print('\n########## REFERENCE ############################')
+    print("\n[INFO] (WARNING : the test sample is in a contaminated region of DES) so the cut is harder than in des : cut = 0.8 - 0.05*np.tanh(r - 20.5) & cut_Highz = 0.55  \n")
+    cut_ref = 0.8 - 0.05*np.tanh(r - 20.5)
+    cut_Highz_ref = 0.55
+    
+    sel_ref = proba_rf_ref > cut_ref
+    sel_Highz_ref = (proba_Highz_rf_ref > cut_Highz_ref) & ~sel_ref
+    sel_tot_ref = sel_ref + sel_Highz_ref
+
+    density_ref = float(len(r[sel_ref]))/surface
+    effi_ref = float(len(r[sel_ref & sel_qso])) / float(len(r[sel_qso]))
+
+    density_Highz_ref = float(len(r[sel_Highz_ref])) / surface
+    effi_Highz_ref = float(len(r[sel_Highz_ref & sel_qso])) / float(len(r[sel_qso]))
+
+    density_tot_ref = float(len(r[sel_tot_ref])) / surface
+    effi_tot_ref = float(len(r[sel_tot_ref & sel_qso])) / float(len(r[sel_qso]))
+
+    print(f'density dr9 = ', density_ref, f' deg^-2 completeness dr9', effi_ref)
+    print(f'density dr9 Highz = ', density_Highz_ref, f' deg^-2 completeness dr9 Highz', effi_Highz_ref)
+    print(f'density dr9 Total = ', density_tot_ref, f' deg^-2 completeness dr9 Total', effi_tot_ref)
+    print('############################################\n')
+    
+    plt.figure(figsize=(12, 8))
+    plt.subplot(121)
+    plt.scatter(proba_rf_ref[~sel_qso], proba_rf_new[~sel_qso], s=1, color='red', label='Stars')
+    plt.scatter(proba_rf_ref[sel_qso], proba_rf_new[sel_qso], s=1, color='blue', label='True QSO')
+    plt.plot([0, 1], [0, 1], ls='--', color='black')
+    plt.xlabel('proba rf ref')
+    plt.ylabel('proba rf new')
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    
+    plt.subplot(122)
+    plt.scatter(proba_Highz_rf_ref[~sel_qso], proba_Highz_rf_new[~sel_qso], s=1, color='red', label='Stars')
+    plt.scatter(proba_Highz_rf_ref[sel_qso], proba_Highz_rf_new[sel_qso], s=1, color='blue', label='True QSO')
+    plt.plot([0, 1], [0, 1], ls='--', color='black')
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.xlabel('proba rf Highz ref')
+    plt.ylabel('proba rf Highz new')
+    plt.show()
+    
+    plt.figure(figsize=(12, 8))
+    plt.subplot(121)
+    plt.scatter(proba_rf_ref[~sel_qso], proba_Highz_rf_ref[~sel_qso], s=1, color='red', label='Stars')
+    plt.scatter(proba_rf_ref[sel_qso], proba_Highz_rf_ref[sel_qso], s=1, color='blue', label='True QSO')
+    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    plt.xlabel('proba rf ref')
+    plt.ylabel('proba rf Highz ref')
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    
+    plt.subplot(122)
+    plt.scatter(proba_rf_new[~sel_qso], proba_Highz_rf_new[~sel_qso], s=1, color='red', label='Stars')
+    plt.scatter(proba_rf_new[sel_qso], proba_Highz_rf_new[sel_qso], s=1, color='blue', label='True QSO')
+    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.xlabel('proba rf new')
+    plt.ylabel('proba rf Highz new')
+    plt.show()
+    
+    plot_completness(r, zred, sel_qso, sel_tot_new, 'NEW', sel_tot_2=sel_tot_ref, label2='REF', N_bins_r=40, N_bins_z=40, show=True, save=False)
