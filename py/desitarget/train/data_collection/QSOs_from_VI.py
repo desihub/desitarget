@@ -9,8 +9,8 @@ import os
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 
-SWEEP_south = '/global/homes/e/edmondc/Legacy_survey_sweep/dr9/south/sweep/9.0/'
-SWEEP_north = '/global/homes/e/edmondc/Legacy_survey_sweep/dr9/north/sweep/9.0/'
+SWEEP_south = '/global/homes/e/edmondc/Legacy_survey_sweep/south/sweep/9.0/'
+SWEEP_north = '/global/homes/e/edmondc/Legacy_survey_sweep/north/sweep/9.0/'
 
 sweepname_south = SWEEP_south + 'sweep-{}{}{}-{}{}{}.fits'
 sweepname_north = SWEEP_north + 'sweep-{}{}{}-{}{}{}.fits'
@@ -19,11 +19,15 @@ sweepname_north = SWEEP_north + 'sweep-{}{}{}-{}{}{}.fits'
 def build_catalog(list_tiles):
     print(f"[INFO] Read {list_tiles[0]} ...")
     cat = fitsio.FITS(list_tiles[0])[1][:]
-    for name in list_tiles[1:]:
-        print(f"[INFO] Read {name} ...")
-        cat = np.concatenate((cat, np.array(fitsio.FITS(name)[1][:], dtype=cat.dtype)))
-    return cat
-    
+    if len(list_tiles) > 1:
+        for name in list_tiles[1:]:
+            print(f"[INFO] Read {name} ...")
+            cat = np.concatenate((cat, np.array(fitsio.FITS(name)[1][:], dtype=cat.dtype)))
+    print("[INFO] WE CONSERVE ONLY QSO WITH z <= 5.0")
+    sel = (cat['redshift'] <= 5.0)
+    return cat[sel]
+
+
 def plot_tiles(coord_cat):
     ra, dec = coord_cat.ra.degree, coord_cat.dec.degree
 
@@ -35,16 +39,48 @@ def plot_tiles(coord_cat):
 
     plt.grid()
     plt.legend()
-    plt.xticks([i*10 for i in range(3, 17)])
-    plt.yticks([i*5 for i in range(-2, 15)])
+    plt.xticks([i*10 for i in range(3, 25)])
+    plt.yticks([i*5 for i in range(-5, 20)])
     plt.xlabel('RA')
     plt.ylabel('Dec')
-    
+
     plt.show()
 
 
 def build_ra_dec_list():
     #add sweep containg tiles observed to build the vi_catalog
+    # Tile in North
+    ra_list_north, dec_list_north = [], []
+
+    ra_list_north += [[90, 100], [90, 100]]
+    dec_list_north += [[40, 45], [45, 50]]
+
+    ra_list_north += [[100, 110], [100, 110], [100, 110], [100, 110], [100, 110], [100, 110]]
+    dec_list_north += [[30, 35], [35, 40], [40, 45], [45, 50], [50, 55], [55, 60]]
+
+    ra_list_north += [[110, 120], [110, 120], [110, 120], [110, 120]]
+    dec_list_north += [[30, 35], [35, 40], [40, 45], [45, 50]]
+
+    ra_list_north += [[120, 130], [120, 130], [120, 130]]
+    dec_list_north += [[30, 35], [35, 40], [80, 85]]
+
+    ra_list_north += [[130, 140], [130, 140]]
+    dec_list_north += [[30, 35], [80, 85]]
+
+    ra_list_north += [[140, 150], [140, 150], [140, 150], [140, 150]]
+    dec_list_north += [[30, 35], [60, 65], [65, 70], [80, 85]]
+
+    ra_list_north += [[150, 160], [150, 160]]
+    dec_list_north += [[30, 35], [80, 85]]
+
+    ra_list_north += [[160, 170], [160, 170]]
+    dec_list_north += [[30, 35], [80, 85]]
+
+    ra_list_north += [[170, 180]]
+    dec_list_north += [[80, 85]]
+
+    ra_list_north += [[210, 220], [210, 220], [210, 220]]
+    dec_list_north += [[45, 50], [50, 55], [55, 60]]
 
     #Tile in South
     ra_list_south, dec_list_south = [], []
@@ -52,23 +88,29 @@ def build_ra_dec_list():
     ra_list_south += [[30, 40], [30, 40], [30, 40]]
     dec_list_south += [[-10, -5], [-5, 0], [0, 5]]
 
-    ra_list_south += [[150, 160]]
+    ra_list_south += [[80, 90], [80, 90]]
+    dec_list_south += [[-25, -20], [-20, -15]]
+
+    ra_list_south += [[110, 120], [110, 120], [110, 120]]
+    dec_list_south += [[10, 15], [10, 15], [30, 35]]
+
+    ra_list_south += [[120, 130], [120, 130]]
+    dec_list_south += [[30, 35], [20, 25]]
+
+    ra_list_south += [[130, 140], [130, 140]]
+    dec_list_south += [[20, 25], [30, 35]]
+
+    ra_list_south += [[140, 150], [140, 150]]
+    dec_list_south += [[0, 5], [30, 35]]
+
+    ra_list_south += [[150, 160], [150, 160]]
+    dec_list_south += [[0, 5], [30, 35]]
+
+    ra_list_south += [[160, 170]]
     dec_list_south += [[30, 35]]
 
-    ra_list_south += [[140, 150], [150, 160]]
-    dec_list_south += [[0, 5], [0, 5]]
-
-    # Tile in North
-    ra_list_north, dec_list_north = [], []
-
-    ra_list_north += [[100, 110], [100, 110]]
-    dec_list_north += [[50, 55], [55, 60]]
-
-    ra_list_north += [[140, 150], [140, 150]]
-    dec_list_north += [[60, 65], [65, 70]]
-
-    ra_list_north += [[150, 160]]
-    dec_list_north += [[30, 35]]
+    ra_list_south += [[190, 200]]
+    dec_list_south += [[25, 30]]
 
     return ra_list_south, dec_list_south, ra_list_north, dec_list_north
 
@@ -154,7 +196,7 @@ def find_south_in_sdss(qso_south):
     coord_qso_sdss = SkyCoord(ra=sdss_cat['RA'][:]*u.degree, dec=sdss_cat['DEC'][:]*u.degree)
     idx, d2d, d3d = coord_qso_south.match_to_catalog_sky(coord_qso_sdss)
     sel = (d2d.arcsec >= 1)
-    
+
     print(f"    * Number of VI QSOs which are overlapping SDSS : {sel.size - sel.sum()}")
     return sel
 
@@ -172,7 +214,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
     cat = build_catalog(vi_tiles)
     coord_cat = SkyCoord(ra=cat['TARGET_RA'][:]*u.degree, dec=cat['TARGET_DEC'][:]*u.degree)
     plot_tiles(coord_cat)
-    
+
     ra_list_south, dec_list_south, ra_list_north, dec_list_north = build_ra_dec_list()
     list_name_south = build_list_name(ra_list_south, dec_list_south)
     list_name_north = build_list_name(ra_list_north, dec_list_north)
@@ -181,11 +223,11 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
 
     qso_dr9_south = match_cat_to_dr9(coord_cat, list_name_south, sweepname_south)
     qso_dr9_north = match_cat_to_dr9(coord_cat, list_name_north, sweepname_north)
-    
+
     print("Remove targets in South which are already in SDSS (avoid overlap and double check)")
     sel_not_in_sdss = find_south_in_sdss(qso_dr9_south)
     qso_dr9_south = qso_dr9_south[sel_not_in_sdss]
-    
+
     print("Remove targets in North which are also in South")
     sel_north = find_north_in_south(qso_dr9_south, qso_dr9_north)
     qso_dr9_north = qso_dr9_north[sel_north]
@@ -199,7 +241,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
     fits.write(qso_dr9_south)
     fits[-1].append(qso_dr9_north)
     fits[-1].insert_column('IS_NORTH', is_north)
-    
+
     ## add redshitf :
     coord_qso_vi_in_dr9 = SkyCoord(ra=fits[-1]['RA'][:]*u.degree, dec=fits[-1]['DEC'][:]*u.degree)
     idx, d2d, d3d = coord_cat.match_to_catalog_sky(coord_qso_vi_in_dr9)
@@ -208,6 +250,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
     fits[-1].insert_column('zred', zred)
 
     fits.close()
+
 
 def sdss_vi_merger(fits_file_1, fits_file_2, fits_file_output):
     if os.path.isfile(fits_file_output):
@@ -225,18 +268,19 @@ def sdss_vi_merger(fits_file_1, fits_file_2, fits_file_output):
     print('Nbr QSOs for training :', fits[1][:].size)
     fits.close()
 
+
 def add_qso_vi_test(fits_file_1, fits_file_2, fits_file_output, zone_test):
     fits_1 = fitsio.FITS(fits_file_1, 'r')[1]
     fits_2 = fitsio.FITS(fits_file_2, 'r')[1]
-    
+
     sel = (fits_2['RA'][:] >= zone_test[0]) & (fits_2['RA'][:] <= zone_test[1]) & (fits_2['DEC'][:] >= zone_test[2]) & (fits_2['DEC'][:] <= zone_test[3])
-    
+
     print('Nbr new quasars in Test zone : ', sel.sum())
-    
+
     if os.path.isfile(fits_file_output):
         os.remove(fits_file_output)
     fits = fitsio.FITS(fits_file_output, 'rw')
-    
+
     fits.write(fits_1[:])
     fits[-1].append(fits_2[:][sel])
     fits.close()
