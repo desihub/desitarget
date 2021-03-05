@@ -29,6 +29,7 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
     configDict = dict(np.load(fpn_config, allow_pickle=True)['CONFIG'][()])
     RELEASE = str(configDict['RELEASE'])
     fpn_STARS_TrainingSample = str(configDict['fpn_STARS_TrainingSample'])
+    fpn_STARS_TrainingSample_Highz = str(configDict['fpn_STARS_TrainingSample_Highz'])
     fpn_QSO_TrainingSample = str(configDict['fpn_QSO_TrainingSample'])
     random_state_seed = int(configDict['random_state_seed'])
     feature_names = list(configDict['feature_names'])
@@ -72,9 +73,14 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
 
     # ***TRAINING DATA LOADING***
     # STARS
-    infoStr = "STARS Training Sample : ('{:s}')".format(fpn_STARS_TrainingSample)
-    print(infoRootStr + infoStr)
-    STARS_data = pyfits.open(fpn_STARS_TrainingSample)[1].data
+    if MODEL == 'DR9s_LOW':
+        infoStr = "STARS Training Sample : ('{:s}')".format(fpn_STARS_TrainingSample)
+        print(infoRootStr + infoStr)
+        STARS_data = pyfits.open(fpn_STARS_TrainingSample)[1].data
+    if MODEL == 'DR9s_HighZ':
+        infoStr = "STARS Training Sample : ('{:s}')".format(fpn_STARS_TrainingSample_Highz)
+        print(infoRootStr + infoStr)
+        STARS_data = pyfits.open(fpn_STARS_TrainingSample_Highz)[1].data       
     STARS_colors = GetColorsFunc(STARS_data, feature_names)
     n_STARS = len(STARS_data)
     infoStr = "n_STARS : ({:d})".format(n_STARS)
