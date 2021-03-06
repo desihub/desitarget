@@ -241,7 +241,8 @@ def _check_files(scxdir, scnd_mask):
         setdic[subdir] = set(fns)
 
     # ADM check for bit correspondence.
-    setbitfns = set([scnd_mask[name].filename for name in scnd_mask.names()])
+    setbitfns = set([scnd_mask[name].filename for name in scnd_mask.names()
+                     if scnd_mask[name].flavor != "TOO"])
     if setbitfns != setdic['indata']:
         msg = "files in yaml file don't match files in {}\n".format(
             dirdic['indata'])
@@ -294,75 +295,78 @@ def read_files(scxdir, scnd_mask):
     scxall = []
     # ADM loop through all of the scx bits.
     for name in scnd_mask.names():
-        log.debug('SCND target: {}'.format(name))
-        # ADM the full file path without the extension.
-        fn = os.path.join(fulldir, scnd_mask[name].filename)
-        log.debug('     path:   {}'.format(fn))
-        # ADM if the relevant file is a .txt file, read it in.
-        if os.path.exists(fn+'.txt'):
-            try:
-                scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
-                                   dtype=indatamodel.dtype)
-            except (ValueError, IndexError):
-                msg = "First 6 columns don't correspond to {} in {}.txt".format(
-                    indatamodel.dtype, fn)
-                # ADM perhaps people provided .csv files as .txt files.
+        # ADM Targets of Opportunity are handled separately.
+        if scnd_mask[name].flavor != 'TOO':
+            log.debug('SCND target: {}'.format(name))
+            # ADM the full file path without the extension.
+            fn = os.path.join(fulldir, scnd_mask[name].filename)
+            log.debug('     path:   {}'.format(fn))
+            # ADM if the relevant file is a .txt file, read it in.
+            if os.path.exists(fn+'.txt'):
                 try:
                     scxin = np.loadtxt(fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
-                                       dtype=indatamodel.dtype, delimiter=",")
+                                       dtype=indatamodel.dtype)
                 except (ValueError, IndexError):
-                    log.error(msg)
-                    raise IOError(msg)
+                    msg = "First 6 columns don't look like {} in {}.txt".format(
+                        indatamodel.dtype, fn)
+                    # ADM perhaps people provided .csv files as .txt files.
+                    try:
+                        scxin = np.loadtxt(
+                            fn+'.txt', usecols=[0, 1, 2, 3, 4, 5],
+                            dtype=indatamodel.dtype, delimiter=",")
+                    except (ValueError, IndexError):
+                        log.error(msg)
+                        raise IOError(msg)
 
-        # ADM otherwise it's a fits file, read it in.
-        else:
-            scxin = fitsio.read(fn+'.fits',
-                                columns=indatamodel.dtype.names)
+            # ADM otherwise it's a fits file, read it in.
+            else:
+                scxin = fitsio.read(fn+'.fits',
+                                    columns=indatamodel.dtype.names)
 
-        # ADM ensure this is a properly constructed numpy array.
-        scxin = np.atleast_1d(scxin)
+            # ADM ensure this is a properly constructed numpy array.
+            scxin = np.atleast_1d(scxin)
 
-        # ADM assert the data model.
-        msg = "Data model doesn't match {} in {}".format(indatamodel.dtype, fn)
-        for col in indatamodel.dtype.names:
-            assert scxin[col].dtype == indatamodel[col].dtype, msg
+            # ADM assert the data model.
+            msg = "Data model mismatch: {} in {}".format(indatamodel.dtype, fn)
+            for col in indatamodel.dtype.names:
+                assert scxin[col].dtype == indatamodel[col].dtype, msg
 
-        # ADM check RA/Dec are reasonable.
-        outofbounds = ((scxin["RA"] >= 360.) | (scxin["RA"] < 0) |
-                       (scxin["DEC"] > 90) | (scxin["DEC"] < -90))
-        if np.any(outofbounds):
-            msg = "RA/Dec outside of range in {}; RA={}, Dec={}".format(
-                fn, scxin["RA"][outofbounds], scxin["DEC"][outofbounds])
-            log.error(msg)
-            raise IOError(msg)
+            # ADM check RA/Dec are reasonable.
+            outofbounds = ((scxin["RA"] >= 360.) | (scxin["RA"] < 0) |
+                           (scxin["DEC"] > 90) | (scxin["DEC"] < -90))
+            if np.any(outofbounds):
+                msg = "RA/Dec outside of range in {}; RA={}, Dec={}".format(
+                    fn, scxin["RA"][outofbounds], scxin["DEC"][outofbounds])
+                log.error(msg)
+                raise IOError(msg)
 
-        # ADM now checks are done, downsample to the required density.
-        log.debug("Read {} targets from {}".format(len(scxin), fn))
-        ds = scnd_mask[name].downsample
-        if ds < 1:
-            log.debug("Downsampling to first {}% of file".format(100*ds))
-        scxin = scxin[:int(len(scxin)*ds)]
-        log.debug("Working with {} targets for {}".format(len(scxin), name))
+            # ADM now checks are done, downsample to the required density.
+            log.debug("Read {} targets from {}".format(len(scxin), fn))
+            ds = scnd_mask[name].downsample
+            if ds < 1:
+                log.debug("Downsampling to first {}% of file".format(100*ds))
+            scxin = scxin[:int(len(scxin)*ds)]
+            log.debug("Working with {} targets for {}".format(len(scxin), name))
 
-        # ADM the default is 2015.5 for the REF_EPOCH.
-        ii = scxin["REF_EPOCH"] == 0
-        scxin["REF_EPOCH"][ii] = 2015.5
+            # ADM the default is 2015.5 for the REF_EPOCH.
+            ii = scxin["REF_EPOCH"] == 0
+            scxin["REF_EPOCH"][ii] = 2015.5
 
-        # ADM add the other output columns.
-        dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
-        scxout = np.zeros(len(scxin), dtype=dt)
-        for col in indatamodel.dtype.names:
-            scxout[col] = scxin[col]
-        scxout["SCND_TARGET"] = scnd_mask[name]
-        scxout["SCND_TARGET_INIT"] = scnd_mask[name]
-        scxout["SCND_ORDER"] = np.arange(len(scxin))
-        scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
-        scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
-        scxout["TARGETID"] = -1
-        scxout["OBSCONDITIONS"] =     \
-            obsconditions.mask(scnd_mask[name].obsconditions)
-        scxout["PRIM_MATCH"] = False
-        scxall.append(scxout)
+            # ADM add the other output columns.
+            dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
+            scxout = np.zeros(len(scxin), dtype=dt)
+            for col in indatamodel.dtype.names:
+                scxout[col] = scxin[col]
+            scxout["SCND_TARGET"] = scnd_mask[name]
+            scxout["SCND_TARGET_INIT"] = scnd_mask[name]
+            scxout["SCND_ORDER"] = np.arange(len(scxin))
+            scxout["PRIORITY_INIT"] = scnd_mask[name].priorities['UNOBS']
+            scxout["NUMOBS_INIT"] = scnd_mask[name].numobs
+            scxout["TARGETID"] = -1
+            scxout["OBSCONDITIONS"] =     \
+                obsconditions.mask(scnd_mask[name].obsconditions)
+            scxout["PRIM_MATCH"] = False
+            scxall.append(scxout)
 
     return np.concatenate(scxall)
 

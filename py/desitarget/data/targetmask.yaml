@@ -125,8 +125,8 @@ scnd_mask:
        {obsconditions: DARK|GRAY, filename: 'dr16q', downsample: 1}]
 
 # ADM reserve 60/61 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
-    - [BRIGHT_TOO,    60, "Targets of Opportunity",   {obsconditions: BRIGHT,      filename: 'ToO'}]
-    - [DARK_TOO,      61, "Targets of Opportunity",   {obsconditions: DARK,        filename: 'ToO'}]
+    - [BRIGHT_TOO,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT, flavor: 'TOO'}]
+    - [DARK_TOO,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,   flavor: 'TOO'}]
 
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
