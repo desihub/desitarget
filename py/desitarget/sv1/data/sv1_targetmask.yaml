@@ -178,7 +178,7 @@ sv1_scnd_mask:
     - [DC3R2_GAMA,          20, "See $SCND_DIR/sv1/docs/DC3R2_GAMA.ipynb",       {obsconditions: DARK,        filename: 'DC3R2_GAMA',         flavor: 'SPARE',      downsample: 0.02}]
     - [UNWISE_BLUE,         21, "See $SCND_DIR/sv1/docs/UNWISE_BLUE.txt",        {obsconditions: DARK,        filename: 'UNWISE_BLUE',        flavor: 'DEDICATED',  downsample: 1}]
     - [UNWISE_GREEN,        22, "See $SCND_DIR/sv1/docs/UNWISE_GREEN.txt",       {obsconditions: DARK,        filename: 'UNWISE_GREEN',       flavor: 'DEDICATED',  downsample: 1}]
-    - [HETDEX_MAIN,         23, "See $SCND_DIR/sv1/docs/HETDEX_MAIN.txt",        {obsconditions: DARK,        filename: 'HETDEX_MAIN',        flavor: 'DEDICATED',  downsample: 0.2}]
+    - [HETDEX_MAIN,         23, "See $SCND_DIR/sv1/docs/HETDEX_MAIN.txt",        {obsconditions: DARK,        filename: 'HETDEX_MAIN',        flavor: 'DEDICATED',  downsample: 1}]
     - [HETDEX_HP,           24, "See $SCND_DIR/sv1/docs/HETDEX_HP.txt",          {obsconditions: DARK,        filename: 'HETDEX_HP',          flavor: 'DEDICATED',  downsample: 1}]
 #   - [PSF_OUT_BRIGHT,      25, "See $SCND_DIR",                                 {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT',     flavor: 'SPARE',      downsample: 1}]
 #   - [PSF_OUT_DARK,        26, "See $SCND_DIR",                                 {obsconditions: DARK,        filename: 'PSF_OUT_DARK',       flavor: 'SPARE',      downsample: 1}]
