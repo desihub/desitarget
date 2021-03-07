@@ -954,20 +954,22 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
     # ADM and write out the information for each bit.
     for name in scnd_mask.names():
-        # ADM construct the output file name.
-        fn = "{}.fits".format(scnd_mask[name].filename)
-        scxfile = os.path.join(scxoutdir, fn)
-        # ADM retrieve just the data with this bit set.
-        ii = (scnd_target_init & scnd_mask[name]) != 0
-        # ADM only proceed to the write stage if there are targets.
-        if np.sum(ii) > 0:
-            # ADM to reorder to match the original input order.
-            order = np.argsort(scnd_order[ii])
-            # ADM write to file.
-            write_with_units(scxfile, smalldata[ii][order], extname='TARGETS',
-                             header=hdr)
-            log.info('Info for {} secondaries written to {}'
-                     .format(np.sum(ii), scxfile))
+        # ADM Targets of Opportunity are handled separately.
+        if scnd_mask[name].flavor != 'TOO':
+            # ADM construct the output file name.
+            fn = "{}.fits".format(scnd_mask[name].filename)
+            scxfile = os.path.join(scxoutdir, fn)
+            # ADM retrieve just the data with this bit set.
+            ii = (scnd_target_init & scnd_mask[name]) != 0
+            # ADM only proceed to the write stage if there are targets.
+            if np.sum(ii) > 0:
+                # ADM to reorder to match the original input order.
+                order = np.argsort(scnd_order[ii])
+                # ADM write to file.
+                write_with_units(scxfile, smalldata[ii][order],
+                                 extname='TARGETS', header=hdr)
+                log.info('Info for {} secondaries written to {}'
+                         .format(np.sum(ii), scxfile))
 
     # ADM make necessary directories for the file, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
