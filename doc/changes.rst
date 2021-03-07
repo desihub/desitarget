@@ -5,6 +5,9 @@ desitarget Change Log
 0.50.1 (unreleased)
 -------------------
 
+* Finalize dedicated secondaries for sv1->sv2 transition [`PR #678`_].
+    * Deprecates Targets of Opportunity as standard secondary targets.
+    * ToOs will be handled by a separate ledger-based mechanism.
 * Main Survey, secondary, outside-footprint target updates [`PR #677`_]:
     * Update priorities for some secondary programs.
     * MTL changes to reobserve 0.7 < z < 2.1 QSOs at low priority.
@@ -26,6 +29,7 @@ desitarget Change Log
 .. _`PR #675`: https://github.com/desihub/desitarget/pull/675
 .. _`PR #676`: https://github.com/desihub/desitarget/pull/676
 .. _`PR #677`: https://github.com/desihub/desitarget/pull/677
+.. _`PR #678`: https://github.com/desihub/desitarget/pull/678
 
 
 0.50.0 (2021-01-29)
