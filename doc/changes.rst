@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.50.1 (unreleased)
+0.51.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.51.0 (2021-03-07)
 -------------------
 
 * Finalize dedicated secondaries for sv1->sv2 transition [`PR #678`_].
