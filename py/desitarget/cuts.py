@@ -1571,7 +1571,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
-        rf_DR9_filename = pathToRF + '/rf_model_dr9_final.npz'
+        rf_DR9_fileName = pathToRF + '/rf_model_dr9_final.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1665,7 +1665,6 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                 pcut = 0.6 - 0.05*np.tanh(tmp_r_Reduced - 20.5)
             else:
                 pcut = np.ones(tmp_rf_proba.size)
-                pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
                 is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
                          (rnobs[preSelection][tmpReleaseOK] > 4) &\
                          (znobs[preSelection][tmpReleaseOK] > 4) &\
