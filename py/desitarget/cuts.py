@@ -1571,8 +1571,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
-        rf_DR9_fileName = pathToRF + '/rf_model_dr9.npz'
-        rf_DR9_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
+        rf_DR9_filename = pathToRF + '/rf_model_dr9_final.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1655,20 +1654,15 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                       numberOfTrees=500, version=2)
-            rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
-                            numberOfTrees=500, version=2)
             # rf loading
             rf.loadForest(rf_DR9_fileName)
-            rf_HighZ.loadForest(rf_DR9_HighZ_fileName)
             # Compute rf probabilities
             tmp_rf_proba = rf.predict_proba()
-            tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             if not south:
                 # threshold selection for North footprint.
-                pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
-                pcut_HighZ = 0.7
+                pcut = 0.6 - 0.05*np.tanh(tmp_r_Reduced - 20.5)
             else:
                 pcut = np.ones(tmp_rf_proba.size)
                 pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
@@ -1678,22 +1672,16 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                          ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
                          (dec[preSelection][tmpReleaseOK] <= 10)
                 # threshold selection for DES footprint.
-                pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
-                pcut_HighZ[is_des] = 0.50
+                pcut[is_des] = 0.6 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
                 # threshold selection for South footprint.
-                pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
-                pcut_HighZ[~is_des] = 0.65
+                pcut[~is_des] = 0.6 - 0.05*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
-                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
-            # ADM populate a mask specific to the "HighZ" selection.
-            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
-                (tmp_rf_HighZ_proba >= pcut_HighZ)
+                (tmp_rf_proba >= pcut)
             # ADM store the probabilities in case they need returned.
             pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
-            # ADM populate a mask specific to the "HighZ" selection.
-            pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
+
 
     # In case of call for a single object passed to the function with
     # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
