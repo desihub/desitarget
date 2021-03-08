@@ -652,7 +652,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
           gaia=None, astrometricexcessnoise=None, paramssolved=None,
           pmra=None, pmdec=None, parallax=None, dupsource=None,
           gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False,
-          usegaia=True, south=True):
+          usegaia=True, maskbits=None, south=True):
     """Select STD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isSTD_colors() for additional info.
 
@@ -703,9 +703,8 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         mask : boolean array, True if the object has colors like a STD star.
 
     Notes:
-        - Gaia-based quantities are as in `the Gaia data model`_.
-        - Current version (01/15/21) is version 236 on `the wiki`_.
-
+    - Gaia-based quantities are as in `the Gaia data model`_.
+    - Current version (02/18/21) is version 246 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -723,6 +722,9 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     # ADM apply type=PSF cut
     std &= _psflike(objtype)
+
+    # ADM don't target standards in Legacy Surveys mask regions.
+    std &= imaging_mask(maskbits, mwsmask=True)
 
     # ADM apply fracflux, S/N cuts and number of observations cuts.
     fracflux = [gfracflux, rfracflux, zfracflux]
@@ -763,7 +765,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                obs_rflux=None, objtype=None, gaia=None,
                gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiaaen=None, gaiadupsource=None, paramssolved=None,
-               primary=None, south=True):
+               primary=None, south=True, maskbits=None):
     """Set bits for main ``MWS`` targets.
 
     Args:
@@ -778,7 +780,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
 
     Notes:
-        - as of 11/2/18, based on version 158 on `the wiki`_.
+    - Current version (02/18/21) is version 246 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -789,7 +791,8 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # if south:
     mws &= notinMWS_main_mask(gaia=gaia, gfracmasked=gfracmasked, gnobs=gnobs,
                               gflux=gflux, rfracmasked=rfracmasked, rnobs=rnobs,
-                              rflux=rflux, gaiadupsource=gaiadupsource, primary=primary)
+                              rflux=rflux, gaiadupsource=gaiadupsource,
+                              primary=primary, maskbits=maskbits)
 
     # ADM pass the mws that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
@@ -805,7 +808,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
 
 def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
-                       rfracmasked=None, rnobs=None, rflux=None,
+                       rfracmasked=None, rnobs=None, rflux=None, maskbits=None,
                        gaiadupsource=None, primary=None):
     """Standard set of masking-based cuts used by MWS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
@@ -813,6 +816,9 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
     mws = primary.copy()
+
+    # ADM don't target MWS-like targets in Legacy Surveys mask regions.
+    mws &= imaging_mask(maskbits, mwsmask=True)
 
     # ADM apply the mask/logic selection for all MWS-MAIN targets
     # ADM main targets match to a Gaia source
@@ -941,7 +947,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isMWS_bhb(primary=None, objtype=None,
               gaia=None, gaiaaen=None, gaiadupsource=None, gaiagmag=None,
               gflux=None, rflux=None, zflux=None,
-              w1flux=None, w1snr=None,
+              w1flux=None, w1snr=None, maskbits=None,
               gnobs=None, rnobs=None, znobs=None,
               gfracmasked=None, rfracmasked=None, zfracmasked=None,
               parallax=None, parallaxerr=None):
@@ -961,7 +967,7 @@ def isMWS_bhb(primary=None, objtype=None,
     - Criteria supplied by Sergey Koposov
     - gflux, rflux, zflux, w1flux have been corrected for extinction
       (unlike other MWS selections, which use obs_flux).
-    - Current version (12/21/20) is version 149 on `the SV wiki`_.
+    - Current version (02/18/21) is version 246 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -989,6 +995,9 @@ def isMWS_bhb(primary=None, objtype=None,
 
     gmr = gmag-rmag
     rmz = rmag-zmag
+
+    # ADM don't target MWS-like targets in Legacy Surveys mask regions.
+    mws &= imaging_mask(maskbits, mwsmask=True)
 
     # APC must be a Legacy Surveys object that matches a Gaia source
     mws &= gaia
@@ -1121,8 +1130,9 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     return mws
 
 
-def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None, primary=None, south=True):
-    """Select a reasonable range of g-r colors for MWS targets. Returns a boolean array.
+def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None,
+                     w1flux=None, w2flux=None, primary=None, south=True):
+    """A reasonable range of g-r for MWS targets. Returns a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
@@ -2273,7 +2283,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     w1flux=w1flux, w1snr=w1snr,
                     gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                    parallax=parallax, parallaxerr=parallaxerr
+                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
              )
 
         # ADM run the MWS target types for (potentially) both north and south.
@@ -2283,7 +2293,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
                     gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
                     rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
-                    parallax=parallax, parallaxerr=parallaxerr,
+                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
                     paramssolved=gaiaparamssolved, primary=primary, south=south
             )
     mws_broad_n, mws_red_n, mws_blue_n = mws_classes[0]
@@ -2311,7 +2321,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         for bright in [False, True]:
             std_classes.append(
                 isSTD(
-                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
+                    primary=primary, zflux=zflux, rflux=rflux, gflux=gflux, maskbits=maskbits,
                     gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked, objtype=objtype,
                     zfracmasked=zfracmasked, gnobs=gnobs, rnobs=rnobs, znobs=znobs,

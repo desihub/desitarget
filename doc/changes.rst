@@ -2,12 +2,39 @@
 desitarget Change Log
 =====================
 
-0.50.1 (unreleased)
+0.51.1 (unreleased)
 -------------------
 
+* No changes yet.
+
+0.51.0 (2021-03-07)
+-------------------
+
+* Finalize dedicated secondaries for sv1->sv2 transition [`PR #678`_].
+    * Deprecates Targets of Opportunity as standard secondary targets.
+    * ToOs will be handled by a separate ledger-based mechanism.
+* Main Survey, secondary, outside-footprint target updates [`PR #677`_]:
+    * Update priorities for some secondary programs.
+    * MTL changes to reobserve 0.7 < z < 2.1 QSOs at low priority.
+        * Requested by two secondary programs.
+    * Allow secondaries to be truncated to first N targets in a file.
+    * Add fluxes/mags to the file of "standalone" secondaries.
+    * Apply bright star mask and a mag > 16 limit to secondary targets.
+    * Mask Main Survey MWS targets on BRIGHT and GALAXY using MASKBITS.
+    * Debug reading MTL ledger headers, now that they have units.
+    * Apply non-linear correction to de-extinct Gaia magnitudes TWICE.
+    * Add ``PHOT_G_N_OBS`` to the Gaia edr3 data model.
+* Add formalism for Targets of Opportunity [`PR #676`_]. Includes:
+    * New ToO module.
+    * Function and script to write an initial ToO .ecsv ledger.
+    * Function and script to convert the ledger to a targets file.
+        * Includes checks on the ledger format and fiber allocations.
 * Migrated unit tests to GitHub Actions [`PR #675`_].
 
 .. _`PR #675`: https://github.com/desihub/desitarget/pull/675
+.. _`PR #676`: https://github.com/desihub/desitarget/pull/676
+.. _`PR #677`: https://github.com/desihub/desitarget/pull/677
+.. _`PR #678`: https://github.com/desihub/desitarget/pull/678
 
 
 0.50.0 (2021-01-29)
