@@ -223,7 +223,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
 
     qso_dr9_south = match_cat_to_dr9(coord_cat, list_name_south, sweepname_south)
     qso_dr9_north = match_cat_to_dr9(coord_cat, list_name_north, sweepname_north)
-
+    
     print("Remove targets in South which are already in SDSS (avoid overlap and double check)")
     sel_not_in_sdss = find_south_in_sdss(qso_dr9_south)
     qso_dr9_south = qso_dr9_south[sel_not_in_sdss]
@@ -244,7 +244,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
 
     ## add redshitf :
     coord_qso_vi_in_dr9 = SkyCoord(ra=fits[-1]['RA'][:]*u.degree, dec=fits[-1]['DEC'][:]*u.degree)
-    idx, d2d, d3d = coord_cat.match_to_catalog_sky(coord_qso_vi_in_dr9)
+    idx, d2d, d3d = coord_qso_vi_in_dr9.match_to_catalog_sky(coord_cat)
     zred = cat['redshift'][:][idx]
     zred = np.array(zred, dtype='f8') #need this to add this qso to the Training Catalog.
     fits[-1].insert_column('zred', zred)
@@ -252,28 +252,37 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
     fits.close()
 
 
-def sdss_vi_merger(fits_file_1, fits_file_2, fits_file_output):
+def sdss_vi_merger(fits_file_1, fits_file_vi, fits_file_output, zone_tests):
     if os.path.isfile(fits_file_output):
         os.remove(fits_file_output)
     fits = fitsio.FITS(fits_file_output, 'rw')
 
     fits_1 = fitsio.FITS(fits_file_1, 'r')[1]
-    fits_2 = fitsio.FITS(fits_file_2, 'r')[1]
+    fits_vi = fitsio.FITS(fits_file_vi, 'r')[1]
 
     print('Nbr QSOs from SDSS :', fits_1[:].size)
-    print('Nbr QSOs from VI :', fits_2[:].size)
+    print('Nbr QSOs from VI :', fits_vi[:].size)
 
+    print("\nSelect QSOs which aren not on the test zone...")
+    sel = np.zeros(fits_vi['RA'][:].size, dtype=bool)
+    for zone_test in zone_tests:
+        sel |= (fits_vi['RA'][:] >= zone_test[0]) & (fits_vi['RA'][:] <= zone_test[1]) & (fits_vi['DEC'][:] >= zone_test[2]) & (fits_vi['DEC'][:] <= zone_test[3])
+    sel = ~sel
+    print(f'There is {sel.sum()} quasars which are not on the test zone')
+    
     fits.write(fits_1[:])
-    fits[-1].append(fits_2[:])
-    print('Nbr QSOs for training :', fits[1][:].size)
+    fits[-1].append(fits_vi[:][sel])
+    print('\nNbr QSOs for training :', fits[1][:].size)
     fits.close()
 
 
-def add_qso_vi_test(fits_file_1, fits_file_2, fits_file_output, zone_test):
+def add_qso_vi_test(fits_file_1, fits_file_vi, fits_file_output, zone_tests):
     fits_1 = fitsio.FITS(fits_file_1, 'r')[1]
-    fits_2 = fitsio.FITS(fits_file_2, 'r')[1]
+    fits_vi = fitsio.FITS(fits_file_vi, 'r')[1]
 
-    sel = (fits_2['RA'][:] >= zone_test[0]) & (fits_2['RA'][:] <= zone_test[1]) & (fits_2['DEC'][:] >= zone_test[2]) & (fits_2['DEC'][:] <= zone_test[3])
+    sel = np.zeros(fits_vi['RA'][:].size, dtype=bool)
+    for zone_test in zone_tests:
+        sel |= (fits_vi['RA'][:] >= zone_test[0]) & (fits_vi['RA'][:] <= zone_test[1]) & (fits_vi['DEC'][:] >= zone_test[2]) & (fits_vi['DEC'][:] <= zone_test[3])
 
     print('Nbr new quasars in Test zone : ', sel.sum())
 
@@ -282,5 +291,5 @@ def add_qso_vi_test(fits_file_1, fits_file_2, fits_file_output, zone_test):
     fits = fitsio.FITS(fits_file_output, 'rw')
 
     fits.write(fits_1[:])
-    fits[-1].append(fits_2[:][sel])
+    fits[-1].append(fits_vi[:][sel])
     fits.close()

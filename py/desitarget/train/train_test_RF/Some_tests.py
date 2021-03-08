@@ -331,7 +331,7 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file, rmax, cut=[0.7,
     plot_cut_selection(r, sel, sel_qso, sel_Highz, proba_rf, proba_Highz_rf, True, False)
     plot_completness(r, zred, sel_qso, sel_tot, '', N_bins_r=40, N_bins_z=40, show=True, save=False)
 
-def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut_1=[0.7, 0.05, 20.5, 0.5], cut_2=[0.7, 0.05, 20.5, 0.5], r_mag_max_sel=23.0):
+def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut1, cut2, r_mag_max_sel=23.0, surface_vi=True):
         # Load data.
     test_sample = read_file(inputFile)
 
@@ -370,17 +370,22 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     print("R_mag max selected = ", r_mag_max_sel, " -- R_mag min selected = ", r_mag_min_sel)
     print("############################################\n")
 
-    # on regarde des objets quasiment à l'horizon --> cos(theta) = 1
-    ra_min, ra_max = np.min(ra), np.max(ra)
-    dec_min, dec_max = np.min(dec), np.max(dec)
-    surface = (ra_max - ra_min)*(dec_max - dec_min)
+    
+    if surface_vi:
+        surface = 150 + 1.4 #we add 360 qso --> we say it is has a surface of 1.4 deg^2
+        
+    else:
+        # on regarde des objets quasiment à l'horizon --> cos(theta) = 1
+        ra_min, ra_max = np.min(ra), np.max(ra)
+        dec_min, dec_max = np.min(dec), np.max(dec)
+        surface = (ra_max - ra_min)*(dec_max - dec_min)
 
-    print("############################################")
-    print("Geomeric Elements from Test Sample : ")
-    print("RA max = ", ra_max, " -- RA min = ", ra_min)
-    print("DEC max = ", dec_max, " -- DEC min = ", dec_min)
-    print("Surface = ", surface)
-    print("############################################\n")
+        print("############################################")
+        print("Geomeric Elements from Test Sample : ")
+        print("RA max = ", ra_max, " -- RA min = ", ra_min)
+        print("DEC max = ", dec_max, " -- DEC min = ", dec_min)
+        print("Surface = ", surface)
+        print("############################################\n")
 
     sel_qso = zred > 0
     print(f"\n[INFO] There are {sel_qso.sum()} quasars on the test sample ... \n")
@@ -393,9 +398,9 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     plt.show()
 
     
-    print(f"\n[INFO] CUT1 :  cut = {cut_1[0]} - {cut_1[1]}*np.tanh(r - {cut_1[2]}) & cut_Highz = {cut_1[3]}\n")
-    cut_1 = cut_1[0] - cut_1[1]*np.tanh(r - cut_1[2])
-    cut_Highz_1 = cut_1[3]
+    print(f"\n[INFO] CUT1 :  cut = {cut1[0]} - {cut1[1]}*np.tanh(r - {cut1[2]}) & cut_Highz = {cut1[3]}\n")
+    cut_1 = cut1[0] - cut1[1]*np.tanh(r - cut1[2])
+    cut_Highz_1 = cut1[3]
     
     sel_1 = proba_rf_1 > cut_1
     sel_Highz_1 = (proba_Highz_rf_1 > cut_Highz_1) & ~sel_1
@@ -415,11 +420,10 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     print(f'density dr9 Highz = ', density_Highz_1, f' deg^-2 completeness dr9 Highz', effi_Highz_1)
     print(f'density dr9 Total = ', density_tot_1, f' deg^-2 completeness dr9 Total', effi_tot_1)
     print('############################################\n')
-    
-    
-    print(f"\n[INFO] CUT2 :  cut = {cut_2[0]} - {cut_2[1]}*np.tanh(r - {cut_2[2]}) & cut_Highz = {cut_2[3]}\n")
-    cut_2 = cut_2[0] - cut_2[1]*np.tanh(r - cut_2[2])
-    cut_Highz_2 = cut_2[3]
+      
+    print(f"\n[INFO] CUT2 :  cut = {cut2[0]} - {cut2[1]}*np.tanh(r - {cut2[2]}) & cut_Highz = {cut2[3]}\n")
+    cut_2 = cut2[0] - cut2[1]*np.tanh(r - cut2[2])
+    cut_Highz_2 = cut2[3]
     
     sel_2 = proba_rf_2 > cut_2
     sel_Highz_2 = (proba_Highz_rf_2 > cut_Highz_2) & ~sel_2
@@ -442,7 +446,7 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
 
     plot_completness(r, zred, sel_qso, sel_tot_1, '1', sel_tot_2=sel_tot_2, label2='2', N_bins_r=40, N_bins_z=40, show=True, save=False)
     
-def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cut=[0.7, 0.05, 20.5, 0.5], r_mag_max_sel=23.0):
+def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cut, r_mag_max_sel=23.0, surface_vi=True):
     # Load data.
     test_sample = read_file(inputFile)
 
@@ -450,9 +454,11 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     proba_rf_new, feature_imp_new, proba_Highz_rf_new, feature_imp_Highz_new = compute_proba(
         test_sample, RF_file_new, RF_Highz_file_new)
     
-    # RF output.
-    proba_rf_ref, proba_Highz_rf_ref = compute_proba_desitarget(test_sample)
-    
+    # RF output. trop lent desitarget p***$*
+    #proba_rf_ref, proba_Highz_rf_ref = compute_proba_desitarget(test_sample)
+    RF_file_ref = '/global/cfs/cdirs/desi/target/analysis/RF/RFmodel/DR9s_LOW/model_DR9s_LOW_z[0.0, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz'
+    RF_Highz_file_ref = '/global/cfs/cdirs/desi/target/analysis/RF/RFmodel/DR9s_HighZ/model_DR9s_HighZ_z[3.2, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz'
+    proba_rf_ref, _, proba_Highz_rf_ref, _ = compute_proba(test_sample, RF_file_ref, RF_Highz_file_ref)
 
     # Magnitude and Geometry.
     zred = test_sample['zred'][:]
@@ -479,18 +485,24 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     print("R_mag max = ", r_mag_max, " -- R_mag min = ", r_mag_min)
     print("R_mag max selected = ", r_mag_max_sel, " -- R_mag min selected = ", r_mag_min_sel)
     print("############################################\n")
+   
+    if surface_vi:
+        surface = 150 + 1.4 #we add 360 qso --> we say it is has a surface of 1.4 deg^2
+        print("############################################")
+        print("SURFACE = ", surface)
+        print("############################################\n")
+    else:
+        # on regarde des objets quasiment à l'horizon --> cos(theta) = 1
+        ra_min, ra_max = np.min(ra), np.max(ra)
+        dec_min, dec_max = np.min(dec), np.max(dec)
+        surface = (ra_max - ra_min)*(dec_max - dec_min)
 
-    # on regarde des objets quasiment à l'horizon --> cos(theta) = 1
-    ra_min, ra_max = np.min(ra), np.max(ra)
-    dec_min, dec_max = np.min(dec), np.max(dec)
-    surface = (ra_max - ra_min)*(dec_max - dec_min)
-
-    print("############################################")
-    print("Geomeric Elements from Test Sample : ")
-    print("RA max = ", ra_max, " -- RA min = ", ra_min)
-    print("DEC max = ", dec_max, " -- DEC min = ", dec_min)
-    print("Surface = ", surface)
-    print("############################################\n")
+        print("############################################")
+        print("Geomeric Elements from Test Sample : ")
+        print("RA max = ", ra_max, " -- RA min = ", ra_min)
+        print("DEC max = ", dec_max, " -- DEC min = ", dec_min)
+        print("Surface = ", surface)
+        print("############################################\n")
 
     sel_qso = zred > 0
     print(f"\n[INFO] There are {sel_qso.sum()} quasars on the test sample ... \n")
@@ -520,7 +532,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     density_Highz_new = float(len(r[sel_Highz_new])) / surface
     effi_Highz_new = float(len(r[sel_Highz_new & sel_qso])) / float(len(r[sel_qso]))
     density_Highz_test_new = float(len(r[sel_Highz_new & sel_qso_highz])) / surface
-    effi_Highz_test_new = float(len(r[sel_Highz_new & sel_qso_highz])) / float(len(r[sel_qso]))
+    effi_Highz_test_new = float(len(r[sel_Highz_new & sel_qso_highz])) / float(len(r[sel_qso_highz]))
     
     density_tot_new = float(len(r[sel_tot_new])) / surface
     effi_tot_new = float(len(r[sel_tot_new & sel_qso])) / float(len(r[sel_qso]))
@@ -531,8 +543,8 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     print('############################################\n')
     
     print('\n########## REFERENCE ############################')
-    print("\n[INFO] (WARNING : the test sample is in a contaminated region of DES) so the cut is harder than in des : cut = 0.8 - 0.05*np.tanh(r - 20.5) & cut_Highz = 0.55  \n")
-    cut_ref = 0.8 - 0.05*np.tanh(r - 20.5)
+    print("\n[INFO] (WARNING : the test sample is in a contaminated region of DES) so the cut is harder than in des : cut = 0.86 - 0.05*np.tanh(r - 20.5) & cut_Highz = 0.55  \n")
+    cut_ref = 0.86 - 0.05*np.tanh(r - 20.5)
     cut_Highz_ref = 0.55
     
     sel_ref = proba_rf_ref > cut_ref
@@ -541,17 +553,45 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
 
     density_ref = float(len(r[sel_ref]))/surface
     effi_ref = float(len(r[sel_ref & sel_qso])) / float(len(r[sel_qso]))
+    density_test_ref = float(len(r[sel_ref & sel_qso_highz]))/surface
+    effi_test_ref = float(len(r[sel_ref & sel_qso_highz])) / float(len(r[sel_qso_highz]))
 
     density_Highz_ref = float(len(r[sel_Highz_ref])) / surface
     effi_Highz_ref = float(len(r[sel_Highz_ref & sel_qso])) / float(len(r[sel_qso]))
+    density_Highz_test_ref = float(len(r[sel_Highz_ref & sel_qso_highz])) / surface
+    effi_Highz_test_ref = float(len(r[sel_Highz_ref & sel_qso_highz])) / float(len(r[sel_qso_highz]))
 
     density_tot_ref = float(len(r[sel_tot_ref])) / surface
     effi_tot_ref = float(len(r[sel_tot_ref & sel_qso])) / float(len(r[sel_qso]))
 
-    print(f'density dr9 = ', density_ref, f' deg^-2 completeness dr9', effi_ref)
-    print(f'density dr9 Highz = ', density_Highz_ref, f' deg^-2 completeness dr9 Highz', effi_Highz_ref)
+    print(f'density dr9 = ', density_ref, f' deg^-2 completeness dr9', effi_ref, ' density dr9 QSO>3.0 : ', density_test_ref, ' (ie) ', effi_test_ref*100, "% de l'echantillong de test")
+    print(f'density dr9 Highz = ', density_Highz_ref, f' deg^-2 completeness dr9 Highz', effi_Highz_ref, ' densisty dr9 Highz QSO>3.0 : ', density_Highz_test_ref, ' (ie) ', effi_Highz_test_ref*100, "% de l'echantillong de test")
     print(f'density dr9 Total = ', density_tot_ref, f' deg^-2 completeness dr9 Total', effi_tot_ref)
     print('############################################\n')
+    
+    
+    plt.figure(figsize=(12, 8))
+    plt.subplot(121)
+    plt.scatter(r[~sel_qso], proba_rf_new[~sel_qso], s=1, color='red', label='Stars')
+    plt.scatter(r[sel_qso], proba_rf_new[sel_qso], s=1, color='blue', label='True QSO')
+    plt.plot(np.arange(r_mag_min, r_mag_max, 1000), cut[0] - cut[1]*np.tanh(np.arange(r_mag_min, r_mag_max, 1000) - cut[2]), color='black') 
+    plt.xlabel('r')
+    plt.ylabel('proba rf new')
+    plt.legend()
+    plt.xlim(17, 23)
+    plt.ylim(0, 1)
+    
+    plt.subplot(122)
+    plt.scatter(r[~sel_qso], proba_rf_ref[~sel_qso], s=1, color='red', label='Stars')
+    plt.scatter(r[sel_qso], proba_rf_ref[sel_qso], s=1, color='blue', label='True QSO')
+    #plt.plot(np.arange(r_mag_min, r_mag_max, 1000), cut[0] - cut[1]*np.tanh(np.arange(r_mag_min, r_mag_max, 1000) - cut[2]), color='black') 
+    plt.xlabel('r')
+    plt.ylabel('proba rf ref')
+    plt.legend()
+    plt.xlim(17, 23)
+    plt.ylim(0, 1)
+    plt.show()
+    
     
     plt.figure(figsize=(12, 8))
     plt.subplot(121)
@@ -560,6 +600,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.plot([0, 1], [0, 1], ls='--', color='black')
     plt.xlabel('proba rf ref')
     plt.ylabel('proba rf new')
+    plt.legend()
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     
@@ -580,6 +621,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     #plt.plot([0, 1], [0, 1], ls='--', color='black')
     plt.xlabel('proba rf ref')
     plt.ylabel('proba rf Highz ref')
+    plt.legend()
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     
@@ -592,5 +634,27 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.xlabel('proba rf new')
     plt.ylabel('proba rf Highz new')
     plt.show()
+    
+    plt.figure(figsize=(12, 8))
+    plt.subplot(121)
+    plt.scatter(proba_rf_ref[sel_qso_2 & ~sel_qso_highz], proba_Highz_rf_ref[sel_qso_2 & ~sel_qso_highz], s=1, color='gold', label='QSO (z > 2)')
+    plt.scatter(proba_rf_ref[sel_qso_highz], proba_Highz_rf_ref[sel_qso_highz], s=1, color='blue', label='QSO (z > 3)')
+    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    plt.xlabel('proba rf ref')
+    plt.ylabel('proba rf Highz ref')
+    plt.legend()
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    
+    plt.subplot(122)
+    plt.scatter(proba_rf_new[sel_qso_2 & ~sel_qso_highz], proba_Highz_rf_new[sel_qso_2 & ~sel_qso_highz], s=1, color='gold', label='QSO (z > 2)')
+    plt.scatter(proba_rf_new[sel_qso_highz], proba_Highz_rf_new[sel_qso_highz], s=1, color='blue', label='QSO (z > 3)')
+    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    plt.xlim(0, 1)
+    plt.ylim(0, 1)
+    plt.xlabel('proba rf new')
+    plt.ylabel('proba rf Highz new')
+    plt.show()
+    
     
     plot_completness(r, zred, sel_qso, sel_tot_new, 'NEW', sel_tot_2=sel_tot_ref, label2='REF', N_bins_r=40, N_bins_z=40, show=True, save=False)
