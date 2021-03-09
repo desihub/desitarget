@@ -136,7 +136,7 @@ obsconditions:
     - [DARK,        0, "Moon is down"]
     - [GRAY,        1, "Moon up; illum fraction<0.6 and (illum*elev)<30 deg"]
     - [BRIGHT,      2, "Moon up and bright (not GRAY)"]
-    - [POOR,        3, "Very bad seeing, high extinction, or bright cloud cover"]
+    - [BACKUP,      3, "Very bad seeing, high extinction, or bright cloud cover"]
     - [TWILIGHT12,  4, "Between sunset/sunrise and 12 degree twilight"]
     - [TWILIGHT18,  5, "Between 12 and 18 degree twilight"]
     - [DAY,         6, "Daytime calibrations"]

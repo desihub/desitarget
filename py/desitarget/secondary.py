@@ -602,7 +602,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         if darkbright:
             ender, obscon = ["_DARK", "_BRIGHT"], ["DARK|GRAY", "BRIGHT"]
         else:
-            ender, obscon = [""], ["DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"]
+            ender, obscon = [""], ["DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18"]
 
         # APC secondaries can increase priority and numobs
         for edr, oc in zip(ender, obscon):
@@ -880,7 +880,7 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
     if darkbright:
         ender, obscon = ["_DARK", "_BRIGHT"], ["DARK|GRAY", "BRIGHT"]
     else:
-        ender, obscon = [""], ["DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"]
+        ender, obscon = [""], ["DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18"]
     cols, vals, forms = [], [], []
     for edr, oc in zip(ender, obscon):
         cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
