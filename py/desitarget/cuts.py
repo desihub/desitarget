@@ -2925,15 +2925,25 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             # ADM remove duplicates. Order is key here, as np.unique
             # ADM keeps the first occurence, and we want to retain sweeps
             # ADM information as much as possible.
+            # ADM
+            # ADM around about v0.51.0 of the code the executive decision
+            # ADM was made that it was better to retain duplicates so
+            # ADM that the "Backup" survey would have all available
+            # ADM Gaia-only sources. This means that the same target can
+            # ADM appear twice, once as a Gaia-only target (with
+            # ADM Gaia-based TARGETID and once as a Legacy Surveys target
+            # ADM (with LS-based TARGETID). Such duplicates can be
+            # ADM resolved on Gaia SOURCE_ID (which we call REF_ID).
             if len(infiles) > 0:
-                alltargs = np.concatenate([targets, gaiatargets])
-                # ADM Retain all non-Gaia sources, which have REF_ID of
-                # ADM -1 or 0 and thus are all duplicates on REF_ID.
-                ii = alltargs["REF_ID"] > 0
-                targs = alltargs[ii]
-                _, ind = np.unique(targs["REF_ID"], return_index=True)
-                targs = targs[ind]
-                targets = np.concatenate([targs, alltargs[~ii]])
+                targets = np.concatenate([targets, gaiatargets])
+#                alltargs = np.concatenate([targets, gaiatargets])
+#                # ADM Retain all non-Gaia sources, which have REF_ID of
+#                # ADM -1 or 0 and thus are all duplicates on REF_ID.
+#                ii = alltargs["REF_ID"] > 0
+#                targs = alltargs[ii]
+#                _, ind = np.unique(targs["REF_ID"], return_index=True)
+#                targs = targs[ind]
+#                targets = np.concatenate([targs, alltargs[~ii]])
             else:
                 targets = gaiatargets
 
