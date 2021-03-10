@@ -5,7 +5,17 @@ desitarget Change Log
 0.51.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Prepare SV2 for the ".1% Survey" [`PR #679`_]. Includes:
+    * Add an ``sv2_cuts.py`` module and an sv2 bitmask yaml file.
+    * Rename ``POOR`` observing conditions to be ``BACKUP`` throughout.
+    * Retain ``BACKUP`` targets that are duplicates. Specifically:
+        * duplicates between Gaia-only and Legacy Surveys targets.
+        * these are the same source with different ``TARGETID``
+	    * (one derived from Gaia and one from the Legacy Surveys).
+        * these can be removed using ``REF_ID`` (Gaia ``SOURCE_ID``).
+
+.. _`PR #679`: https://github.com/desihub/desitarget/pull/679
+
 
 0.51.0 (2021-03-07)
 -------------------
