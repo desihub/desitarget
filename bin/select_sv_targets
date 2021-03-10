@@ -77,11 +77,16 @@ ap.add_argument("-noc", "--nochecksum", action='store_true',
                 help='Do NOT add the list of input files and their checksums to the output target file as the second ("INFILES") extension')
 
 ns = ap.parse_args()
+
+# ADM never run secondary targets for sv2.
+if ns.iteration == '2':
+    ns.nosecondary = True
+
 # ADM build the list of command line arguments as
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in ["tcnames", "noresolve", "nomaskbits", "writeall",
+for nskey in ["tcnames", "noresolve", "nomaskbits", "writeall", "iteration",
               "nosecondary", "nobackup", "nochecksum", "scnddir"]:
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
@@ -102,7 +107,7 @@ if len(infiles) == 0:
     log.critical('no sweep or tractor files found')
     sys.exit(1)
 
-survey='sv'+ns.iteration
+survey = 'sv' + ns.iteration
 
 # ADM Only coded for objects with Gaia matches
 # ADM (e.g. DR6 or above). Fail for earlier Data Releases.

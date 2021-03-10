@@ -1,9 +1,5 @@
-#- THESE BIT DEFINITIONS WILL ALMOST CERTAINLY CHANGE
-#- After some initial development experimentation we will freeze the bit
-#- definitions, but we should expect this version (Nov 2015) to change.
-
-#- DESI primary survey target bit mask: dark survey + calib + 
-desi_mask:
+#- SV2 primary survey targets bit mask: dark survey + calib +
+sv2_desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
@@ -53,7 +49,7 @@ desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- Bright Galaxy Survey
-bgs_mask:
+sv2_bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",                     {obsconditions: BRIGHT|GRAY|DARK}]
     - [BGS_BRIGHT,          1, "BGS bright targets",                    {obsconditions: BRIGHT}]
     - [BGS_WISE,            2, "BGS wise targets",                      {obsconditions: BRIGHT}]
@@ -68,7 +64,7 @@ bgs_mask:
     - [BGS_WISE_SOUTH,      18, "BGS WISE cuts tuned for DECam",                   {obsconditions: BRIGHT}]
 
 #- Milky Way Survey
-mws_mask:
+sv2_mws_mask:
 
     # First layer defines main samples -- these are expected to have distinct
     # input catalogues. 
@@ -118,7 +114,7 @@ mws_mask:
 #- ADM note that the 'filenames', here, should all be present in the
 #- ADM directory that corresponds to the $SECONDARY_DIR environment
 #- ADM variable, e.g. $SECONDARY_DIR/veto.fits for VETO targets.
-scnd_mask:
+sv2_scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', downsample: 1}]
     - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
@@ -128,21 +124,6 @@ scnd_mask:
     - [BRIGHT_TOO,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT, flavor: 'TOO'}]
     - [DARK_TOO,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,   flavor: 'TOO'}]
 
-#- Observing conditions
-#- These are a bitmask to allow target bits to specify multiple conditions
-#- in which they are allowed to be observed.
-#- See DESI-0311 and DESI-0333 for discussion of DARK vs. GRAY
-obsconditions:
-    - [DARK,        0, "Moon is down"]
-    - [GRAY,        1, "Moon up; illum fraction<0.6 and (illum*elev)<30 deg"]
-    - [BRIGHT,      2, "Moon up and bright (not GRAY)"]
-    - [BACKUP,      3, "Very bad seeing, high extinction, or bright cloud cover"]
-    - [TWILIGHT12,  4, "Between sunset/sunrise and 12 degree twilight"]
-    - [TWILIGHT18,  5, "Between 12 and 18 degree twilight"]
-    - [DAY,         6, "Daytime calibrations"]
-    - [CLOSED,      7, "Nighttime but dome is closed due to rain, wind, dew..."]
-    - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]
-
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
 #- will consider the observations "DONE" while another bit will want "MORE".
@@ -150,7 +131,7 @@ obsconditions:
 # ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
 # ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
-obsmask:
+sv2_obsmask:
     - [UNOBS,          0, "unobserved"]
     - [OBS,            1, "observed but no spectro pipeline answer yet"]
     - [DONE,           2, "enough observations already obtained"]
@@ -158,18 +139,6 @@ obsmask:
     - [MORE_ZGOOD,     4, "redshift known; need more observations"]
     - [MORE_MIDZQSO,   8, "z > 0.7 QSO; more observations at very low priority"]
     - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
-
-#- Bits that can be set in TARGETID. See the schema at
-#- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
-#- Updated to include RELEASE from the new DR4+ data model, circa June 30th, 2016
-targetid_mask:
-    - [OBJID,       0, "RIGHTMOST bit that encodes OBJID (OBJID encompasses bits 0-21 inclusive)",       {nbits: 22}]
-    - [BRICKID,    22, "RIGHTMOST bit that encodes BRICKID (BRICKID encompasses bits 22-41 inclusive)",  {nbits: 20}]
-    - [RELEASE,    42, "RIGHTMOST bit that encodes Data Release (DR encompasses bits 42-57 inclusive)",  {nbits: 16}]
-    - [MOCK,       58, "this target is a mock target",                                                   {nbits: 1}]
-    - [SKY,        59, "this target is a sky fiber target",                                              {nbits: 1}]
-    - [GAIADR,     60, "RIGHTMOST bit encoding Gaia DR number when not in Legacy Surveys (bits 60-61)",  {nbits: 2}]
-    - [RESERVED,   62, "RIGHTMOST bit for left over bit space (encompasses bit 62 inclusive)",           {nbits: 1}]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
@@ -182,7 +151,7 @@ targetid_mask:
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
     #- Dark Survey: priorities 3000 - 3999
-    desi_mask:
+    sv2_desi_mask:
 # ADM safest to set MORE_ZGOOD for ELGs/LRGs to DONE PROVIDED they have NUMOBS=1 as
 # ADM they can match QSO targets that require multiple observations and trump those
 # ADM QSOs with a higher priority. There is a unit test to check NUMOBS=1 for ELGs/LRGs.
@@ -222,7 +191,7 @@ priorities:
     #- Bright Galaxy Survey: priorities 2000-2997
     # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
     #- reobserving successes has lower priority than MWS
-    bgs_mask:
+    sv2_bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -237,7 +206,7 @@ priorities:
 
     #- Milky Way Survey: priorities 1000-1999
     # ADM WDs should be prioritized above BGS at 2998
-    mws_mask: 
+    sv2_mws_mask: 
         MWS_BROAD:                    {UNOBS: 1400, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_WD:                       {UNOBS: 2998, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         MWS_NEARBY:                   {UNOBS: 1600, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -261,7 +230,7 @@ priorities:
         GAIA_STD_BRIGHT:  -1
 
     # ADM secondary target priorities. Probably all have very low UNOBS...
-    scnd_mask:
+    sv2_scnd_mask:
     # ADM ...except VETO, which is special and always takes precedence.
         VETO:                         {UNOBS: 10000, DONE: 10000, OBS: 0, DONOTOBSERVE: 0}
         DR16Q:                        {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
@@ -273,7 +242,7 @@ priorities:
 # ADM -1 means that the concept of NUMOBS_INIT doesn't apply to this bit
 numobs:
     # ADM initial number of observations for targets in the main (dark time) survey
-    desi_mask:
+    sv2_desi_mask:
         ELG: 1
         LRG: 1
         QSO: 4
@@ -305,7 +274,7 @@ numobs:
         SCND_ANY: -1
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
-    bgs_mask:
+    sv2_bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
         BGS_WISE: 1
@@ -319,7 +288,7 @@ numobs:
         BGS_WISE_NORTH: 0
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
-    mws_mask:
+    sv2_mws_mask:
         MWS_BROAD:                    1
         MWS_WD:                       1
         MWS_NEARBY:                   1
@@ -342,7 +311,7 @@ numobs:
         GAIA_STD_BRIGHT:  -1
 
     # ADM initial number of observations for secondary targets
-    scnd_mask:
+    sv2_scnd_mask:
         VETO:         1
         DR16Q:        1
         BRIGHT_TOO:   1

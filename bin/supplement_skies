@@ -73,7 +73,7 @@ if not official:
         ns.skydir)
     msg += " The remedy is typically to run bin/repartition_skies"
     log.critical(msg)
-    raise ValueError
+    raise ValueError(msg)
 
 # ADM if the GAIA directory was passed, set it...
 gaiadir = ns.gaiadir

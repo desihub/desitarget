@@ -69,30 +69,30 @@ sv1_desi_mask:
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [STD_FAINT,   33, "Standard stars for dark/gray conditions", {obsconditions: DARK|GRAY}]
     - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY|BRIGHT}]
     - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions", {obsconditions: BRIGHT}]
     - [BAD_SKY,     36, "Blank sky locations that are imperfect but still useable",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [SUPP_SKY,    37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,   49, "No known target at this location",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- Related to bright object masking
     - [BRIGHT_OBJECT,       50, "Known bright object to avoid",             {obsconditions: APOCALYPSE}]
     - [IN_BRIGHT_OBJECT,    51, "Too near a bright object; DO NOT OBSERVE", {obsconditions: APOCALYPSE}]
     - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
-            {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+            {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- A bit for another survey is set
     - [BGS_ANY,             60, "Any BGS bit is set",  {obsconditions: BRIGHT}]
     - [MWS_ANY,             61, "Any MWS bit is set",  {obsconditions: BRIGHT}]
     - [SCND_ANY,            62, "Any secondary bit is set",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- Bright Galaxy Survey SV targets
 sv1_bgs_mask:
@@ -142,9 +142,9 @@ sv1_mws_mask:
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
 
     # ADM back-up targets for poor conditions.
-    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
@@ -154,7 +154,7 @@ sv1_mws_mask:
 #- ADM i.e. downsample: 0.13 means "read first 13% of targets from file."
 sv1_scnd_mask:
     - [VETO,                   0, "Never observe, even if a primary target bit is set",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18, filename: 'veto', flavor: 'SPARE', downsample: 1}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', flavor: 'SPARE', downsample: 1}]
     - [UDG,                    1, "See $SCND_DIR/sv1/docs/UDG.txt",                {obsconditions: DARK,        filename: 'UDG',                flavor: 'SPARE',      downsample: 1}]
     - [FIRST_MALS,             2, "See $SCND_DIR/sv1/docs/FIRST_MALS.txt",         {obsconditions: DARK,        filename: 'FIRST_MALS',         flavor: 'SPARE',      downsample: 1}]
 # ADM the WD_BINARIES class was part of 0.48.0 but was then deprecated in favor of WD_BINARIES_DARK and WD_BINARIES_BRIGHT.
@@ -195,7 +195,7 @@ sv1_scnd_mask:
     - [MWS_CALIB,             36, "Stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_CALIB', flavor: 'SSV', downsample: 1}]
     - [BACKUP_CALIB,          37, "Very bright stars with APOGEE/BOSS/GALAH/GAIAESO spectra",
-        {obsconditions: POOR|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB', flavor: 'SSV', downsample: 1}]
+        {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18, filename: 'BACKUP_CALIB', flavor: 'SSV', downsample: 1}]
     - [MWS_MAIN_CLUSTER_SV,   38, "Main survey low mass and metal poor stars (OC/GC/dwarf/stream members)",
         {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV', flavor: 'SSV', downsample: 1}]
     - [MWS_RRLYR,             39, "Main survey halo tracers (RR Lyrae)",

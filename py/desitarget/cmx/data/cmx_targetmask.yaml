@@ -3,54 +3,54 @@ cmx_mask:
 
     - [STD_GAIA,                   0, "Gaia stars used for dithering (and other) tests", {obsconditions: DARK|GRAY|BRIGHT}]
     - [SV0_STD_FAINT,              1, "SV-like STD_FAINT class is set (very early SV selection)", {obsconditions: DARK|GRAY}]
-    - [SV0_STD_BRIGHT,             2, "SV-like STD_BRIGHT class is set (very early SV selection)", {obsconditions: BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [SV0_STD_BRIGHT,             2, "SV-like STD_BRIGHT class is set (very early SV selection)", {obsconditions: BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [STD_TEST,                   3, "Very bright stars for early tests", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [STD_CALSPEC,                4, "Matches to CALSPEC stars", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [STD_CALSPEC,                4, "Matches to CALSPEC stars", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [STD_DITHER,                 5, "Gaia stars specifically for dithering tests", {obsconditions: DARK|GRAY|BRIGHT}]
-    - [SV0_MWS_CLUSTER,            6, "SV-like Open and Globular clusters for the MWS", {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [SV0_MWS_CLUSTER,            6, "SV-like Open and Globular clusters for the MWS", {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
     - [SV0_MWS_CLUSTER_VERYBRIGHT, 7, "Bright SV-like Open and Globular clusters for the MWS", {obsconditions: TWILIGHT12|TWILIGHT18}]
 
     # ADM targeting bits that should resemble at least the initial SV selections ("SV0").
     - [SV0_BGS,          8, "SV-like BGS bit is set (very early SV selection)", {obsconditions: BRIGHT}]
-    - [SV0_MWS,          9, "SV-like MWS bit is set (very early SV selection)", {obsconditions: BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [SV0_MWS,          9, "SV-like MWS bit is set (very early SV selection)", {obsconditions: BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [SV0_LRG,         10, "SV-like LRG bit is set (very early SV selection)", {obsconditions: DARK}]
     - [SV0_ELG,         11, "SV-like ELG bit is set (very early SV selection)", {obsconditions: DARK|GRAY}]
     - [SV0_QSO,         12, "SV-like QSO bit is set (very early SV/RF selection)", {obsconditions: DARK}]
-    - [SV0_WD,          13, "SV-like WD bit is set (very early MWS_WD selection)", {obsconditions: BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [SV0_WD,          13, "SV-like WD bit is set (very early MWS_WD selection)", {obsconditions: BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [SV0_QSO_Z5,      14, "SV-like QSO bit is set (specifically for the QSO_Z5 selection from SV", {obsconditions: DARK}]
 
     # ADM back-up targets for poor conditions.
     - [BACKUP_BRIGHT,  16, "Bright Gaia targets for poor conditions",  {obsconditions: TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,   17, "Fainter Gaia targets for poor conditions",  {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,   17, "Fainter Gaia targets for poor conditions",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
 
     # ADM first light targets.
-    - [M31_STD_BRIGHT, 18, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_H2PN,       19, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_GC,         20, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_QSO,        21, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_VAR,        22, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_BSPL,       23, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_M31cen,     24, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M31_M31out,     25, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ORI_STD_BRIGHT, 26, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ORI_QSO,        27, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ORI_ORI,        28, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ORI_HA,         29, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ROS_STD_BRIGHT, 30, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ROS_QSO,        31, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [M31_STD_BRIGHT, 18, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M31_H2PN,       19, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M31_GC,         20, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M31_QSO,        21, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M31_VAR,        22, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M31_BSPL,       23, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M31_M31cen,     24, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M31_M31out,     25, "M31 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ORI_STD_BRIGHT, 26, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ORI_QSO,        27, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ORI_ORI,        28, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ORI_HA,         29, "Orion first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ROS_STD_BRIGHT, 30, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ROS_QSO,        31, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- ADM leave 32-37 reserved for calibration targets (to mirror the main survey)
 
-    - [ROS_ROSM17,     38, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ROS_ROS1,       39, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ROS_HA,         40, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [ROS_ROS2,       41, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M33_STD_BRIGHT, 42, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M33_H2PN,       43, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M33_GC,         44, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M33_QSO,        45, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M33_M33cen,     46, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
-    - [M33_M33out,     47, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+    - [ROS_ROSM17,     38, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ROS_ROS1,       39, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ROS_HA,         40, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [ROS_ROS2,       41, "Rosette first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M33_STD_BRIGHT, 42, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M33_H2PN,       43, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M33_GC,         44, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M33_QSO,        45, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M33_M33cen,     46, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [M33_M33out,     47, "M33 first light program", {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- ADM retain bits 49-52 for masking/convenience (to mirror the main survey)
 
@@ -59,18 +59,18 @@ cmx_mask:
     - [MINI_SV_QSO,        55, "QSOs (RF) for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT}]
     - [MINI_SV_BGS_BRIGHT, 56, "BGS (bright) for Mini SV tests (NORTH+SOUTH with noresolve)", {obsconditions: DARK|GRAY|BRIGHT}]
 
-    - [SV0_MWS_FAINT,      57, "Faint stars for Mini SV tests", {obsconditions: POOR|TWILIGHT12|TWILIGHT18}]
+    - [SV0_MWS_FAINT,      57, "Faint stars for Mini SV tests", {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
     - [STD_DITHER_GAIA,    58, "Gaia stars for dithering tests outside of the Legacy Surveys footprint", {obsconditions: DARK|GRAY|BRIGHT}]
 
     #- Calibration targets. Shared between main/cmx/sv programs.
     - [SKY,         32, "Blank sky locations",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [STD_FAINT,   33, "SV-like standard stars for dark/gray conditions", {obsconditions: DARK|GRAY}]
     - [STD_BRIGHT,  35, "SV-like standard stars for BRIGHT conditions", {obsconditions: BRIGHT}]
     - [BAD_SKY,     36, "Blank sky locations that are imperfect but still useable",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [SUPP_SKY,      37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
-        {obsconditions: DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
