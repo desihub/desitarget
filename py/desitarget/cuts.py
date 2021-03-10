@@ -1523,7 +1523,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     r = np.atleast_1d(r)
 
     # Preselection to speed up the process
-    rMax = 22.7   # r < 22.7
+    rMax = 23.0   # r < 22.7
     rMin = 17.5   # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
@@ -1660,9 +1660,13 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             tmp_rf_proba = rf.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+
+            #NO SECOND RF !
+            tmp_rf_HighZ_proba = np.zeros(tmp_r_Reduced.size)
+            pcut_HighZ = 1.1
             if not south:
                 # threshold selection for North footprint.
-                pcut = 0.6 - 0.05*np.tanh(tmp_r_Reduced - 20.5)
+                pcut = 0.75 - 0.05*np.tanh(tmp_r_Reduced - 20.5)
             else:
                 pcut = np.ones(tmp_rf_proba.size)
                 is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
@@ -1671,16 +1675,20 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                          ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
                          (dec[preSelection][tmpReleaseOK] <= 10)
                 # threshold selection for DES footprint.
-                pcut[is_des] = 0.6 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut[is_des] = 0.7 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
                 # threshold selection for South footprint.
-                pcut[~is_des] = 0.6 - 0.05*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
+                pcut[~is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
-                (tmp_rf_proba >= pcut)
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
+            qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_HighZ_proba >= pcut_HighZ)
             # ADM store the probabilities in case they need returned.
             pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
-
+            # ADM populate a mask specific to the "HighZ" selection.
+            pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
 
     # In case of call for a single object passed to the function with
     # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
