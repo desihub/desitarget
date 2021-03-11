@@ -493,9 +493,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         Dictionary of mock data to write out (only used in
         `desitarget.mock.build.targets_truth` via `select_mock_targets`).
     supp : :class:`bool`, optional, defaults to ``False``
-        Written to the header of the output file to indicate whether
-        this is a file of supplemental targets (targets that are
-        outside the Legacy Surveys footprint).
+        Written to the header of the output file as "BACKUP" to indicate
+        whether this is a file of backup targets (targets that are based
+        only on Gaia data).
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -608,7 +608,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
     # ADM indicate whether this is a supplemental file.
-    hdr["SUPP"] = supp
+    hdr["BACKUP"] = supp
     # ADM add the Data Release to the header.
     if supp:
         hdr["GAIADR"] = gaiadr
@@ -2201,7 +2201,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         `noresolve` file. Relevant if `flavor` is `targets` or `randoms`.
         Pass ``None`` to substitute `resolve` with "secondary".
     supp : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then find the supplemental targets file. Overrides
+        If ``True`` then find the supplemental/backup file. Overrides
         the `obscon` option.
     mock : :class:`bool`, optional, defaults to ``False``
         If ``True`` then construct the file path for mock target
@@ -2302,7 +2302,10 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     if obscon is None:
         obscon = "no-obscon"
     if supp:
-        obscon = "supp"
+        if flavor == "targets":
+            obscon = "backup"
+        else:
+            obscon = "supp"
     prefix = flavor
 
     # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
