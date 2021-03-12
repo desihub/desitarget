@@ -315,7 +315,7 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         numpy structured array of targets.
     obscon : :class:`str`
         Can be "DARK" or "BRIGHT" to only write targets appropriate for
-        "DARK|GRAY" or "BRIGHT" observing conditions. The relevant
+        "DARK" or "BRIGHT" observing conditions. The relevant
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
@@ -332,8 +332,8 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
     """
     # ADM determine the bits for the OBSCONDITIONS.
     if obscon == "DARK":
-        obsbits = obsconditions.mask("DARK|GRAY")
-        hdr["OBSCON"] = "DARK|GRAY"
+        obsbits = obsconditions.mask("DARK")
+        hdr["OBSCON"] = "DARK"
     else:
         # ADM will flag an error if obscon is not, now BRIGHT.
         obsbits = obsconditions.mask(obscon)
@@ -485,7 +485,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
         full set of data, rather only write targets appropriate for
-        "DARK|GRAY" or "BRIGHT" observing conditions. The relevant
+        "DARK" or "BRIGHT" observing conditions. The relevant
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
@@ -865,7 +865,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
         full set of secondary targets that do not match a primary,
-        rather only write targets appropriate for "DARK|GRAY" or
+        rather only write targets appropriate for "DARK" or
         "BRIGHT" observing conditions. The relevant `PRIORITY_INIT`
         and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
@@ -992,7 +992,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         toobright |= (data[col] != 0) & (data[col] > fluxlim)
 
     # ADM just targets to be observed in "standard" conditions.
-    standardoc = "DARK|GRAY|BRIGHT"
+    standardoc = "DARK|BRIGHT"
     instandardoc = data["OBSCONDITIONS"] & obsconditions.mask(standardoc) != 0
 
     # ADM write out standalone secondaries that aren't too bright and
