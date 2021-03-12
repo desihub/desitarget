@@ -431,13 +431,15 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
     # ADM the common function that is actually parallelized across.
     def _make_ledger_in_hp(pixnum):
         """make initial ledger in a single HEALPixel"""
+        # ADM construct a list of all pixels in pixnum at the MTL nside.
+        setpix = set(nside2nside(nside, mtlnside, pixnum))
+        pix = [p for p in pixlist if p in setpix]
+        if len(pix) == 0:
+            return
         # ADM read in the needed columns from the targets.
         targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
         if len(targs) == 0:
             return
-        # ADM construct a list of all pixels in pixnum at the MTL nside.
-        setpix = set(nside2nside(nside, mtlnside, pixnum))
-        pix = [p for p in pixlist if p in setpix]
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix,
