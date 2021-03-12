@@ -6,6 +6,8 @@ import operator
 import collections
 import numpy as np
 
+from desitarget.cuts import shift_photo_north
+
 # ***Fonction qui produit un string formaté pour afficher une durée à partir
 # d'une quantité donnée en secondes***
 
@@ -34,47 +36,6 @@ def Time2StrFunc(tm):
     return tmStr
 
 
-def shift_photo_north(gflux=None, rflux=None, zflux=None):
-    """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system.
-    Parameters
-    ----------
-    gflux, rflux, zflux : :class:`array_like` or `float`
-        The flux in nano-maggies of g, r, z bands.
-    Returns
-    -------
-    The equivalent fluxes shifted to the southern system.
-    Notes
-    -----
-    - see also https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=3390;filename=Raichoor_DESI_05Dec2017.pdf;version=1
-    """
-    # ADM only use the g-band color shift when r and g are non-zero
-    gshift = gflux * 10**(-0.4*0.013)
-    w = np.where((gflux != 0) & (rflux != 0))
-    gshift[w] = (gflux[w] * 10**(-0.4*0.013) * (gflux[w]/rflux[w])**complex(-0.059)).real
-
-    # ADM only use the r-band color shift when r and z are non-zero
-    # ADM and only use the z-band color shift when r and z are non-zero
-    w = np.where((rflux != 0) & (zflux != 0))
-    rshift = rflux * 10**(-0.4*0.007)
-    zshift = zflux * 10**(+0.4*0.022)
-
-    rshift[w] = (rflux[w] * 10**(-0.4*0.007) * (rflux[w]/zflux[w])**complex(-0.027)).real
-    zshift[w] = (zflux[w] * 10**(+0.4*0.022) * (rflux[w]/zflux[w])**complex(+0.019)).real
-
-    return gshift, rshift, zshift
-
-
-def _Flux2MagFunc(OBJ_Data_flux, OBJ_Data_mw_transmission):
-    OBJ_flux = OBJ_Data_flux/OBJ_Data_mw_transmission
-    limitInf = 1.e-04
-    OBJ_flux = OBJ_flux.clip(limitInf)
-    OBJ_mag = np.where(OBJ_flux > limitInf, 22.5 - 2.5 * np.log10(OBJ_flux), 0.)
-    OBJ_mag[np.isnan(OBJ_mag)] = 0.
-    OBJ_mag[np.isinf(OBJ_mag)] = 0.
-
-    return OBJ_mag
-
-
 def Flux2MagFunc(dataArray):
     gflux = dataArray.FLUX_G[:]/dataArray.MW_TRANSMISSION_G[:]
     rflux = dataArray.FLUX_R[:]/dataArray.MW_TRANSMISSION_R[:]
@@ -88,6 +49,11 @@ def Flux2MagFunc(dataArray):
     zflux = zflux.clip(limitInf)
     W1flux = W1flux.clip(limitInf)
     W2flux = W2flux.clip(limitInf)
+
+    # shift North photometry to South photometry:
+    is_north = dataArray['IS_NORTH'][:]
+    print(f'[INFO] shift photometry for {is_north.sum()} objects')
+    gflux[is_north], rflux[is_north], zflux[is_north] = shift_photo_north(gflux[is_north], rflux[is_north], zflux[is_north])
 
     g = np.where(gflux > limitInf, 22.5-2.5*np.log10(gflux), 0.)
     r = np.where(rflux > limitInf, 22.5-2.5*np.log10(rflux), 0.)

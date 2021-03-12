@@ -14,7 +14,14 @@ desitarget Change Log
 	    * (one derived from Gaia and one from the Legacy Surveys).
         * these can be removed using ``REF_ID`` (Gaia ``SOURCE_ID``).
 
+* NEW QSO target selection in SV2 [`PR #680`_] for validation:
+    * new RF file (dr9_final) trained with signifiance > 10 and SV quasars
+    * push selection to r<23
+    * add W1/W2 cut (<22.3)
+    * update notebook for example
+
 .. _`PR #679`: https://github.com/desihub/desitarget/pull/679
+.. _`PR #680`: https://github.com/desihub/desitarget/pull/680
 
 
 0.51.0 (2021-03-07)
@@ -147,7 +154,7 @@ desitarget Change Log
 * Extension of mag limit to 22.3 for RF selection [`PR #655`_].
 * Add input sweep files and their checksums to target files [`PR #641`_].
     * Addresses `issue #20`_.
-    
+
 .. _`issue #20`: https://github.com/desihub/desitarget/issues/20
 .. _`PR #641`: https://github.com/desihub/desitarget/pull/641
 .. _`PR #655`: https://github.com/desihub/desitarget/pull/655
