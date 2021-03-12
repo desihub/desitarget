@@ -1439,7 +1439,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (04/05/19) is version 173 on `the wiki`_.
+    - Current version (03/09/21) is version 1 on `the SV2 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
