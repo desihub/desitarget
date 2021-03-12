@@ -1468,7 +1468,6 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     return qso
 
-
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
                        gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
@@ -1500,7 +1499,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (03/09/21) is version 1 on `the SV2 wiki`_.
+    - Current version (04/05/19) is version 173 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
@@ -1522,8 +1521,15 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
 
+    # For the last version of QSO target selection we add a cut on the Band W1 and W2!
+    limitInf = 1.e-04
+    w1flux, w2flux = w1flux.clip(limitInf), w2flux.clip(limitInf)
+    W1 = np.atleast_1d(np.where(w1flux > limitInf, 22.5-2.5*np.log10(w1flux), 0.))
+    W2 = np.atleast_1d(np.where(w2flux > limitInf, 22.5-2.5*np.log10(w2flux), 0.))
+    W1_cut, W2_cut = 22.3, 22.3
+
     # Preselection to speed up the process
-    rMax = 22.7   # r < 22.7
+    rMax = 23.0   # r < 23.0
     rMin = 17.5   # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
@@ -1560,6 +1566,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         colorsReduced = colors[preSelection]
         releaseReduced = release[preSelection]
         r_Reduced = r[preSelection]
+        W1_Reduced, W2_Reduced = W1[preSelection], W2[preSelection]
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
 
@@ -1571,8 +1578,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
-        rf_DR9_fileName = pathToRF + '/rf_model_dr9.npz'
-        rf_DR9_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
+        rf_DR9_fileName = pathToRF + '/rf_model_dr9_final.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1655,44 +1661,41 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                       numberOfTrees=500, version=2)
-            rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
-                            numberOfTrees=500, version=2)
             # rf loading
             rf.loadForest(rf_DR9_fileName)
-            rf_HighZ.loadForest(rf_DR9_HighZ_fileName)
             # Compute rf probabilities
             tmp_rf_proba = rf.predict_proba()
-            tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+            tmp_W1_Reduced, tmp_W2_Reduced = W1_Reduced[tmpReleaseOK], W2_Reduced[tmpReleaseOK]
+
+            #NO SECOND RF ! ==> keep the structure but no impact on the selection
+            tmp_rf_HighZ_proba, pcut_HighZ = np.zeros(tmp_r_Reduced.size), 1.1
+
             if not south:
                 # threshold selection for North footprint.
-                pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
-                pcut_HighZ = 0.7
+                pcut = 0.88 - 0.04*np.tanh(tmp_r_Reduced - 20.5)
             else:
                 pcut = np.ones(tmp_rf_proba.size)
-                pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
                 is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
                          (rnobs[preSelection][tmpReleaseOK] > 4) &\
                          (znobs[preSelection][tmpReleaseOK] > 4) &\
                          ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
                          (dec[preSelection][tmpReleaseOK] <= 10)
                 # threshold selection for DES footprint.
-                pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
-                pcut_HighZ[is_des] = 0.50
+                pcut[is_des] = 0.7 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
                 # threshold selection for South footprint.
-                pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
-                pcut_HighZ[~is_des] = 0.65
+                pcut[~is_des] = 0.84 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
-                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
-            # ADM populate a mask specific to the "HighZ" selection.
+                (tmp_rf_proba >= pcut) & (tmp_W1_Reduced <= W1_cut) & (tmp_W2_Reduced <= W2_cut)
+            # (NO IMPACT) ADM populate a mask specific to the "HighZ" selection.
             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_HighZ_proba >= pcut_HighZ)
             # ADM store the probabilities in case they need returned.
             pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
-            # ADM populate a mask specific to the "HighZ" selection.
+            # (NO IMPACT) ADM populate a mask specific to the "HighZ" selection.
             pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
 
     # In case of call for a single object passed to the function with
@@ -1707,6 +1710,246 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     if return_probs:
         return qso, qsohiz, pqso, pqsohiz
     return qso, qsohiz
+
+
+# def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
+#                        w1flux=None, w2flux=None, objtype=None, release=None,
+#                        gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
+#                        primary=None, ra=None, dec=None, south=True, return_probs=False):
+#     """Define QSO targets from a Random Forest. Returns a boolean array.
+#
+#     Parameters
+#     ----------
+#     south : :class:`boolean`, defaults to ``True``
+#         If ``False``, shift photometry to the Northern (BASS/MzLS)
+#         imaging system.
+#     return_probs : :class:`boolean`, defaults to ``False``
+#         If ``True``, return the QSO/high-z QSO probabilities in addition
+#         to the QSO target booleans. Only coded up for DR8 or later of the
+#         Legacy Surveys. Will return arrays of zeros for earlier DRs.
+#
+#     Returns
+#     -------
+#     :class:`array_like`
+#         ``True`` for objects that are Random Forest quasar targets.
+#     :class:`array_like`
+#         ``True`` for objects that are high-z RF quasar targets.
+#     :class:`array_like`
+#         The (float) probability that a target is a quasar. Only returned
+#         if `return_probs` is ``True``.
+#     :class:`array_like`
+#         The (float) probability that a target is a high-z quasar. Only
+#         returned if `return_probs` is ``True``.
+#
+#     Notes
+#     -----
+#     - Current version (03/09/21) is version 1 on `the SV2 wiki`_.
+#     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
+#     """
+#     # ADM Primary (True for anything to initially consider as a possible target).
+#     if primary is None:
+#         primary = np.ones_like(gflux, dtype=bool)
+#
+#     # RELEASE
+#     # ADM default to RELEASE of 5000 if nothing is passed.
+#     if release is None:
+#         release = np.zeros_like(gflux, dtype='?') + 5000
+#     release = np.atleast_1d(release)
+#
+#     # Build variables for random forest
+#     nFeatures = 11   # Number of attributes describing each object to be classified by the rf
+#     nbEntries = rflux.size
+#     if not south:
+#         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
+#
+#     colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
+#     r = np.atleast_1d(r)
+#
+#     # Preselection to speed up the process
+#     rMax = 22.7   # r < 22.7
+#     rMin = 17.5   # r > 17.5
+#     preSelection = (r < rMax) & (r > rMin) & photOK & primary
+#
+#     # ADM targets have to be observed in every band.
+#     preSelection &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
+#
+#     if objtype is not None:
+#         preSelection &= _psflike(objtype)
+#     if deltaChi2 is not None:
+#         deltaChi2 = np.atleast_1d(deltaChi2)
+#         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
+#     # ADM Reject objects in masks.
+#     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+#     # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
+#     # Now only 1, 12, 13
+#     if maskbits is not None:
+#         # ADM default mask bits from the Legacy Surveys not set.
+#         preSelection &= imaging_mask(maskbits)
+#
+#     # "qso" mask initialized to "preSelection" mask.
+#     qso = np.copy(preSelection)
+#     # ADM to specifically store the selection from the "HighZ" RF.
+#     qsohiz = np.copy(preSelection)
+#
+#     # ADM these store the probabilities, should they need returned.
+#     pqso = np.zeros_like(qso, dtype='>f4')
+#     pqsohiz = np.zeros_like(qso, dtype='>f4')
+#
+#     if np.any(preSelection):
+#
+#         from desitarget.myRF import myRF
+#
+#         # Data reduction to preselected objects
+#         colorsReduced = colors[preSelection]
+#         releaseReduced = release[preSelection]
+#         r_Reduced = r[preSelection]
+#         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
+#         colorsReducedIndex = colorsIndex[preSelection]
+#
+#         # Path to random forest files
+#         pathToRF = resource_filename('desitarget', 'data')
+#         # rf filenames
+#         rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
+#         rf_DR7_fileName = pathToRF + '/rf_model_dr7.npz'
+#         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
+#         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
+#         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
+#         rf_DR9_fileName = pathToRF + '/rf_model_dr9.npz'
+#         rf_DR9_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
+#
+#         tmpReleaseOK = releaseReduced < 5000
+#         if np.any(tmpReleaseOK):
+#             # rf initialization - colors data duplicated within "myRF"
+#             rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+#                           numberOfTrees=200, version=1)
+#             # rf loading
+#             rf_DR3.loadForest(rf_DR3_fileName)
+#             # Compute rf probabilities
+#             tmp_rf_proba = rf_DR3.predict_proba()
+#             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+#             # Compute optimized proba cut
+#             pcut = np.where(tmp_r_Reduced > 20.0,
+#                             0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
+#             # Add rf proba test result to "qso" mask
+#             qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
+#             # ADM no high-z selection for DR3.
+#             qsohiz &= False
+#
+#         tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced < 8000)
+#         if np.any(tmpReleaseOK):
+#             # rf initialization - colors data duplicated within "myRF"
+#             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+#                       numberOfTrees=500, version=2)
+#             rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+#                             numberOfTrees=500, version=2)
+#             # rf loading
+#             rf.loadForest(rf_DR7_fileName)
+#             rf_HighZ.loadForest(rf_DR7_HighZ_fileName)
+#             # Compute rf probabilities
+#             tmp_rf_proba = rf.predict_proba()
+#             tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
+#             # Compute optimized proba cut
+#             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+#             pcut = np.where(tmp_r_Reduced > 20.8,
+#                             0.83 - (tmp_r_Reduced - 20.8) * 0.025, 0.83)
+#             pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+#             pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+#             pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
+#                                   0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
+#
+#             # Add rf proba test result to "qso" mask
+#             qso[colorsReducedIndex[tmpReleaseOK]] = \
+#                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+#             # ADM populate a mask specific to the "HighZ" selection.
+#             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+#                 (tmp_rf_HighZ_proba >= pcut_HighZ)
+#
+#         tmpReleaseOK = (releaseReduced >= 8000) & (releaseReduced < 9000)
+#         if np.any(tmpReleaseOK):
+#             # rf initialization - colors data duplicated within "myRF"
+#             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+#                       numberOfTrees=500, version=2)
+#             rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+#                             numberOfTrees=500, version=2)
+#             # rf loading
+#             rf.loadForest(rf_DR8_fileName)
+#             rf_HighZ.loadForest(rf_DR8_HighZ_fileName)
+#             # Compute rf probabilities
+#             tmp_rf_proba = rf.predict_proba()
+#             tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
+#             # Compute optimized proba cut
+#             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+#             pcut = 0.88 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
+#             pcut_HighZ = 0.55
+#
+#             # Add rf proba test result to "qso" mask
+#             qso[colorsReducedIndex[tmpReleaseOK]] = \
+#                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+#             # ADM populate a mask specific to the "HighZ" selection.
+#             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+#                 (tmp_rf_HighZ_proba >= pcut_HighZ)
+#             # ADM store the probabilities in case they need returned.
+#             pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
+#             # ADM populate a mask specific to the "HighZ" selection.
+#             pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
+#
+#         tmpReleaseOK = releaseReduced >= 9000
+#         if np.any(tmpReleaseOK):
+#             # rf initialization - colors data duplicated within "myRF"
+#             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+#                       numberOfTrees=500, version=2)
+#             rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+#                             numberOfTrees=500, version=2)
+#             # rf loading
+#             rf.loadForest(rf_DR9_fileName)
+#             rf_HighZ.loadForest(rf_DR9_HighZ_fileName)
+#             # Compute rf probabilities
+#             tmp_rf_proba = rf.predict_proba()
+#             tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
+#             # Compute optimized proba cut
+#             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
+#             if not south:
+#                 # threshold selection for North footprint.
+#                 pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
+#                 pcut_HighZ = 0.7
+#             else:
+#                 pcut = np.ones(tmp_rf_proba.size)
+#                 pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
+#                 is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
+#                          (rnobs[preSelection][tmpReleaseOK] > 4) &\
+#                          (znobs[preSelection][tmpReleaseOK] > 4) &\
+#                          ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
+#                          (dec[preSelection][tmpReleaseOK] <= 10)
+#                 # threshold selection for DES footprint.
+#                 pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+#                 pcut_HighZ[is_des] = 0.50
+#                 # threshold selection for South footprint.
+#                 pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
+#                 pcut_HighZ[~is_des] = 0.65
+#
+#             # Add rf proba test result to "qso" mask
+#             qso[colorsReducedIndex[tmpReleaseOK]] = \
+#                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+#             # ADM populate a mask specific to the "HighZ" selection.
+#             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
+#                 (tmp_rf_HighZ_proba >= pcut_HighZ)
+#             # ADM store the probabilities in case they need returned.
+#             pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
+#             # ADM populate a mask specific to the "HighZ" selection.
+#             pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
+#
+#     # In case of call for a single object passed to the function with
+#     # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
+#     if nbEntries == 1:
+#         qso = qso[0]
+#         qsohiz = qsohiz[0]
+#         pqso = pqso[0]
+#         pqsohiz = pqsohiz[0]
+#
+#     # ADM if requested, return the probabilities as well.
+#     if return_probs:
+#         return qso, qsohiz, pqso, pqsohiz
+#     return qso, qsohiz
 
 
 def _psflike(psftype):
