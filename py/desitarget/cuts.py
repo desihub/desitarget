@@ -1500,7 +1500,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (04/05/19) is version 173 on `the wiki`_.
+    - Current version (03/09/21) is version 1 on `the SV2 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
@@ -1523,7 +1523,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     r = np.atleast_1d(r)
 
     # Preselection to speed up the process
-    rMax = 23.0   # r < 22.7
+    rMax = 22.7   # r < 22.7
     rMin = 17.5   # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
@@ -1571,7 +1571,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
-        rf_DR9_fileName = pathToRF + '/rf_model_dr9_final.npz'
+        rf_DR9_fileName = pathToRF + '/rf_model_dr9.npz'
+        rf_DR9_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
@@ -1654,30 +1655,34 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                       numberOfTrees=500, version=2)
+            rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                            numberOfTrees=500, version=2)
             # rf loading
             rf.loadForest(rf_DR9_fileName)
+            rf_HighZ.loadForest(rf_DR9_HighZ_fileName)
             # Compute rf probabilities
             tmp_rf_proba = rf.predict_proba()
+            tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
             # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-
-            #NO SECOND RF !
-            tmp_rf_HighZ_proba = np.zeros(tmp_r_Reduced.size)
-            pcut_HighZ = 1.1
             if not south:
                 # threshold selection for North footprint.
-                pcut = 0.75 - 0.05*np.tanh(tmp_r_Reduced - 20.5)
+                pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
+                pcut_HighZ = 0.7
             else:
                 pcut = np.ones(tmp_rf_proba.size)
+                pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
                 is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
                          (rnobs[preSelection][tmpReleaseOK] > 4) &\
                          (znobs[preSelection][tmpReleaseOK] > 4) &\
                          ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
                          (dec[preSelection][tmpReleaseOK] <= 10)
                 # threshold selection for DES footprint.
-                pcut[is_des] = 0.7 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut_HighZ[is_des] = 0.50
                 # threshold selection for South footprint.
-                pcut[~is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
+                pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
+                pcut_HighZ[~is_des] = 0.65
 
             # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
