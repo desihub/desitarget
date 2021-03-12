@@ -120,6 +120,9 @@ desitarget API
 .. .. automodule:: desitarget.train.data_collection.my_tractor_extract
 ..     :members:
 
+.. automodule:: desitarget.train.data_collection.QSOs_from_VI.py
+    :members:
+
 .. automodule:: desitarget.train.data_collection.RA_DEC_MatchingClassModule
     :members:
 
