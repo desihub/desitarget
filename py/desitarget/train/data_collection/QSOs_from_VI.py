@@ -159,7 +159,7 @@ def match_cat_to_dr9(coord_cat, list_name, sweepname):
     print("\n", qso_dr9.shape)
 
     for name in list_name:
-        sel_in_cat = (coord_cat.ra.degree < float(name[3])) & (coord_cat.ra.degree  > float(name[0]))
+        sel_in_cat = (coord_cat.ra.degree < float(name[3])) & (coord_cat.ra.degree > float(name[0]))
         if name[1] == 'm':
             sel_in_cat &= (coord_cat.dec.degree > -float(name[2]))
         else:

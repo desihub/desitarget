@@ -332,6 +332,7 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file, rmax, cut=[0.7,
     plot_cut_selection(r, sel, sel_qso, sel_Highz, proba_rf, proba_Highz_rf, True, False)
     plot_completness(r, zred, sel_qso, sel_tot, '', N_bins_r=40, N_bins_z=40, show=True, save=False)
 
+
 def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut1, cut2,
                                          r_mag_max_sel=23.0, surface_vi=True, save=False, label1='1', label2='2'):
     # Load data.
@@ -444,6 +445,7 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
 
     plot_completness(r, zred, sel_qso, sel_tot_1, label1, sel_tot_2=sel_tot_2, label2=label2, N_bins_r=40, N_bins_z=40, show=True, save=save)
 
+
 def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cut, r_mag_max_sel=23.0, surface_vi=True):
     # Load data.
     test_sample = read_file(inputFile)
@@ -465,7 +467,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     dec = test_sample['DEC'][:]
 
     r_mag_min, r_mag_max = np.min(r), np.max(r)
-    r_mag_min_sel= 17.5
+    r_mag_min_sel = 17.5
 
     r_sel = (r >= r_mag_min_sel) & (r <= r_mag_max_sel)
 
@@ -625,7 +627,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.subplot(122)
     plt.scatter(proba_rf_new[~sel_qso], proba_Highz_rf_new[~sel_qso], s=1, color='red', label='Stars')
     plt.scatter(proba_rf_new[sel_qso], proba_Highz_rf_new[sel_qso], s=1, color='blue', label='True QSO')
-    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    # plt.plot([0, 1], [0, 1], ls='--', color='black')
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.xlabel('proba rf new')
@@ -636,7 +638,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.subplot(121)
     plt.scatter(proba_rf_ref[sel_qso_2 & ~sel_qso_highz], proba_Highz_rf_ref[sel_qso_2 & ~sel_qso_highz], s=1, color='gold', label='QSO (z > 2)')
     plt.scatter(proba_rf_ref[sel_qso_highz], proba_Highz_rf_ref[sel_qso_highz], s=1, color='blue', label='QSO (z > 3)')
-    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    # plt.plot([0, 1], [0, 1], ls='--', color='black')
     plt.xlabel('proba rf ref')
     plt.ylabel('proba rf Highz ref')
     plt.legend()
@@ -646,7 +648,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.subplot(122)
     plt.scatter(proba_rf_new[sel_qso_2 & ~sel_qso_highz], proba_Highz_rf_new[sel_qso_2 & ~sel_qso_highz], s=1, color='gold', label='QSO (z > 2)')
     plt.scatter(proba_rf_new[sel_qso_highz], proba_Highz_rf_new[sel_qso_highz], s=1, color='blue', label='QSO (z > 3)')
-    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    # plt.plot([0, 1], [0, 1], ls='--', color='black')
     plt.xlim(0, 1)
     plt.ylim(0, 1)
     plt.xlabel('proba rf new')
