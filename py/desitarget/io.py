@@ -777,13 +777,14 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     fn = find_target_files(mtldir, dr=drint, flavor="mtl", survey=survey,
                            obscon=obscon, hp=hpx, ender=form)
-    # ADM create necessary directories, if they don't exist.
-    os.makedirs(os.path.dirname(fn), exist_ok=True)
 
     ntargs = len(data)
     # ADM die if there are no targets to write.
     if ntargs == 0:
         return ntargs, fn
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
 
     # ADM sort the output file on TARGETID.
     data = data[np.argsort(data["TARGETID"])]
