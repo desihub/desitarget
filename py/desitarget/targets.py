@@ -358,7 +358,7 @@ def set_obsconditions(targets, scnd=False):
 
 
 def initial_priority_numobs(targets, scnd=False,
-                            obscon="DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"):
+                            obscon="DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18"):
     """highest initial priority and numobs for an array of target bits.
 
     Parameters
@@ -1013,7 +1013,7 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         # ADM populate bright/dark if splitting by survey OBSCONDITIONS.
         ender, obscon = ["_DARK", "_BRIGHT"], ["DARK|GRAY", "BRIGHT"]
     else:
-        ender, obscon = [""], ["DARK|GRAY|BRIGHT|POOR|TWILIGHT12|TWILIGHT18"]
+        ender, obscon = [""], ["DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18"]
     for edr, oc in zip(ender, obscon):
         cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
         vals += [nodata, nodata]

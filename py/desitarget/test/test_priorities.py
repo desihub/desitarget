@@ -201,13 +201,13 @@ class TestPriorities(unittest.TestCase):
         cmx_mask = masks[0]
 
         # ADM test handling of unobserved SV0_BGS and SV0_MWS
-        for name, obscon in [("SV0_BGS", "BRIGHT"), ("SV0_MWS", "POOR")]:
+        for name, obscon in [("SV0_BGS", "BRIGHT"), ("SV0_MWS", "BACKUP")]:
             t['CMX_TARGET'] = cmx_mask[name]
             self.assertTrue(np.all(calc_priority(
                 t, z, obscon) == cmx_mask[name].priorities['UNOBS']))
 
         # ADM done is Done, regardless of ZWARN.
-        for name, obscon in [("SV0_BGS", "BRIGHT"), ("SV0_MWS", "POOR")]:
+        for name, obscon in [("SV0_BGS", "BRIGHT"), ("SV0_MWS", "BACKUP")]:
             t['CMX_TARGET'] = cmx_mask[name]
             t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
 
