@@ -86,7 +86,8 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_rmag_OK = (STARS_rmag >= min_rmag) & (STARS_rmag <= max_rmag)
 
     STARS_g_z_W1_W2_mag_OK = (STARS_gmag > 0) & (STARS_zmag > 0)
-    STARS_g_z_W1_W2_mag_OK &= (STARS_W1mag > 0) & (STARS_W2mag > 0)
+    STARS_g_z_W1_W2_mag_OK &= (STARS_W1mag > 0) & (STARS_W2mag > 0) #& (STARS_W1mag < 22.3) & (STARS_W2mag < 22.3)
+    #print("[WARNIIIIING] CUT ON W1/W2 < 22.3")
 
     # STARS_noBSinBLOB_OK = ~STARS_data['BRIGHTSTARINBLOB']
     # "http://legacysurvey.org/dr9/bitmasks/"
@@ -148,7 +149,8 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     plt.show()
     
     QSO_g_z_W1_W2_mag_OK = (QSO_gmag > 0) & (QSO_zmag > 0)
-    QSO_g_z_W1_W2_mag_OK &= (QSO_W1mag > 0) & (QSO_W2mag > 0)
+    QSO_g_z_W1_W2_mag_OK &= (QSO_W1mag > 0) & (QSO_W2mag > 0) # & (QSO_W1mag < 22.3) & (QSO_W2mag < 22.3)
+    #print("[WARNIIIIING] CUT ON W1/W2 < 22.3")
 
     # QSO_noBSinBLOB_OK = ~QSO_data['BRIGHTSTARINBLOB']
     # "http://legacysurvey.org/dr8/bitmasks/"

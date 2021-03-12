@@ -208,7 +208,7 @@ def hist_ratio(n_x, n_y, bins):
 
 
 def plot_completness(r, zred, sel_qso, sel_tot_1, label1, sel_tot_2=np.zeros(1), label2=None, N_bins_r=10, N_bins_z=10,
-                     show=True, save=True, savename='Res_Compare/completeness.pdf'):
+                     show=True, save=True, savename='completeness.pdf'):
     fig = plt.figure(1, figsize=(10.0, 4.0))
 
     gs = GridSpec(1, 2, figure=fig)
@@ -332,7 +332,7 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file, rmax, cut=[0.7,
     plot_cut_selection(r, sel, sel_qso, sel_Highz, proba_rf, proba_Highz_rf, True, False)
     plot_completness(r, zred, sel_qso, sel_tot, '', N_bins_r=40, N_bins_z=40, show=True, save=False)
 
-def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut1, cut2, r_mag_max_sel=23.0, surface_vi=True):
+def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut1, cut2, r_mag_max_sel=23.0, surface_vi=True, save=False, label1='1', label2='2'):
         # Load data.
     test_sample = read_file(inputFile)
 
@@ -445,7 +445,7 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     print(f'density dr9 Total = ', density_tot_2, f' deg^-2 completeness dr9 Total', effi_tot_2)
     print('############################################\n')
 
-    plot_completness(r, zred, sel_qso, sel_tot_1, '1', sel_tot_2=sel_tot_2, label2='2', N_bins_r=40, N_bins_z=40, show=True, save=False)
+    plot_completness(r, zred, sel_qso, sel_tot_1, label1, sel_tot_2=sel_tot_2, label2=label2, N_bins_r=40, N_bins_z=40, show=True, save=save)
     
 def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cut, r_mag_max_sel=23.0, surface_vi=True):
     # Load data.
@@ -544,8 +544,9 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     print('############################################\n')
     
     print('\n########## REFERENCE ############################')
-    print("\n[INFO] (WARNING : the test sample is in a contaminated region of DES) so the cut is harder than in des : cut = 0.86 - 0.05*np.tanh(r - 20.5) & cut_Highz = 0.55  \n")
-    cut_ref = 0.86 - 0.05*np.tanh(r - 20.5)
+    print("\n[INFO] (WARNING : USE THE SAME CUT THAN TEST TO COMPARE WITH THE CUT THAT I WILL FIX FOR DES IN THE NEW TRAINING) reference cut : cut = 0.75 - 0.05*np.tanh(r - 20.5) & cut_Highz = 0.55  \n")
+    
+    cut_ref = 0.75 - 0.05*np.tanh(r - 20.5)
     cut_Highz_ref = 0.55
     
     sel_ref = proba_rf_ref > cut_ref
