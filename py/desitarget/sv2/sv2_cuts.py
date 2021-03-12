@@ -1609,7 +1609,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             tmp_W1_Reduced, tmp_W2_Reduced = W1_Reduced[tmpReleaseOK], W2_Reduced[tmpReleaseOK]
 
-            #NO SECOND RF ! ==> keep the structure but no impact on the selection
+            # NO SECOND RF ! ==> keep the structure but no impact on the selection
             tmp_rf_HighZ_proba, pcut_HighZ = np.zeros(tmp_r_Reduced.size), 1.1
 
             if not south:
@@ -1717,6 +1717,7 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     colors[:, 10] = r
 
     return colors, r, photOK
+
 
 def _is_row(table):
     """Return True/False if this is a row of a table instead of a full table.

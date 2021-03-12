@@ -80,7 +80,7 @@ def train_RF(fpn_config, MODEL, dpn_RFmodel):
     if MODEL == 'DR9s_HighZ':
         infoStr = "STARS Training Sample : ('{:s}')".format(fpn_STARS_TrainingSample_Highz)
         print(infoRootStr + infoStr)
-        STARS_data = pyfits.open(fpn_STARS_TrainingSample_Highz)[1].data       
+        STARS_data = pyfits.open(fpn_STARS_TrainingSample_Highz)[1].data
     STARS_colors = GetColorsFunc(STARS_data, feature_names)
     n_STARS = len(STARS_data)
     infoStr = "n_STARS : ({:d})".format(n_STARS)

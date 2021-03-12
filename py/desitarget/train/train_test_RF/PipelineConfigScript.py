@@ -13,7 +13,7 @@ from desitarget.train.train_test_RF.util.funcs import RecHyParamDictExplFunc
 
 
 def PipelineConfigScript(fpn_QSO_TrainingSample, fpn_STARS_TrainingSample, fpn_STARS_TrainingSample_Highz,
-                         fpn_TestSample, fpn_QLF, fpn_config, max_rmag = 23.0, suffixe=''):
+                         fpn_TestSample, fpn_QLF, fpn_config, max_rmag=23.0, suffixe=''):
     # ***CONFIGURATION***
 
     RELEASE = 'DR9s'  # seulement à titre informatif, aucun impact dans le pipeline

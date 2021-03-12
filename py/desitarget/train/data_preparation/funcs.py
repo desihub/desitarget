@@ -11,6 +11,7 @@ from desitarget.cuts import shift_photo_north
 # ***Fonction qui produit un string formaté pour afficher une durée à partir
 # d'une quantité donnée en secondes***
 
+
 def Time2StrFunc(tm):
     tmStr = []
     var_tm = divmod(tm, 60.)
@@ -49,7 +50,7 @@ def Flux2MagFunc(dataArray):
     W1flux = W1flux.clip(limitInf)
     W2flux = W2flux.clip(limitInf)
 
-    #shift North photometry to South photometry:
+    # shift North photometry to South photometry:
     is_north = dataArray['IS_NORTH'][:]
     print(f'[INFO] shift photometry for {is_north.sum()} objects')
     gflux[is_north], rflux[is_north], zflux[is_north] = shift_photo_north(gflux[is_north], rflux[is_north], zflux[is_north])

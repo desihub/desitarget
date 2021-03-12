@@ -8,22 +8,20 @@ from terminaltables import DoubleTable
 from desitarget.train.data_preparation.funcs import Flux2MagFunc, ColorsFunc
 from desitarget.train.data_preparation.PredCountsFromQLF_ClassModule import PredCountsFromQLF_Class
 
+import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import astropy.io.fits as pyfits
 import warnings
 warnings.simplefilter("ignore")
 
-import matplotlib.pyplot as plt
-
 # ***QLF DATA FILE PATH NAME***
-
 fpn_QLF_data = '../../py/desitarget/train/data_preparation/ROSS4_tabR.txt'
 
-# ***STARS & QSO INPUT/OUTPUT FILE PATH NAMES***
 
+# ***STARS & QSO INPUT/OUTPUT FILE PATH NAMES***
 def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_STARS_output, fpn_STARS_output_Highz, max_rmag, QSO_MAX_MAG_ERR_LEVEL):
-    remove_test_region = True # Change only to conduct some tests
+    remove_test_region = True  # Change only to conduct some tests
 
     # ***CONFIGURATION***
 
@@ -86,8 +84,8 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_rmag_OK = (STARS_rmag >= min_rmag) & (STARS_rmag <= max_rmag)
 
     STARS_g_z_W1_W2_mag_OK = (STARS_gmag > 0) & (STARS_zmag > 0)
-    STARS_g_z_W1_W2_mag_OK &= (STARS_W1mag > 0) & (STARS_W2mag > 0) #& (STARS_W1mag < 22.3) & (STARS_W2mag < 22.3)
-    #print("[WARNIIIIING] CUT ON W1/W2 < 22.3")
+    STARS_g_z_W1_W2_mag_OK &= (STARS_W1mag > 0) & (STARS_W2mag > 0)  # & (STARS_W1mag < 22.3) & (STARS_W2mag < 22.3)
+    # print("[WARNIIIIING] CUT ON W1/W2 < 22.3")
 
     # STARS_noBSinBLOB_OK = ~STARS_data['BRIGHTSTARINBLOB']
     # "http://legacysurvey.org/dr9/bitmasks/"
@@ -135,7 +133,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_gmag, QSO_rmag, QSO_zmag, QSO_W1mag, QSO_W2mag = Flux2MagFunc(QSO_data)
 
     QSO_rmag_OK = (QSO_rmag >= min_rmag) & (QSO_rmag <= max_rmag)
-    
+
     plt.figure()
     plt.plot(22.5 - 2.5*np.log10(QSO_data.FLUX_R), MAG_ERR_Func(QSO_data.FLUX_R, QSO_data.FLUX_IVAR_R), ls='', marker='.')
     plt.xlabel('r')
@@ -147,10 +145,10 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     plt.axhline(QSO_MAX_MAG_ERR_LEVEL, color='red', linestyle='--', label='current CUT')
     plt.legend()
     plt.show()
-    
+
     QSO_g_z_W1_W2_mag_OK = (QSO_gmag > 0) & (QSO_zmag > 0)
-    QSO_g_z_W1_W2_mag_OK &= (QSO_W1mag > 0) & (QSO_W2mag > 0) # & (QSO_W1mag < 22.3) & (QSO_W2mag < 22.3)
-    #print("[WARNIIIIING] CUT ON W1/W2 < 22.3")
+    QSO_g_z_W1_W2_mag_OK &= (QSO_W1mag > 0) & (QSO_W2mag > 0)  # & (QSO_W1mag < 22.3) & (QSO_W2mag < 22.3)
+    # print("[WARNIIIIING] CUT ON W1/W2 < 22.3")
 
     # QSO_noBSinBLOB_OK = ~QSO_data['BRIGHTSTARINBLOB']
     # "http://legacysurvey.org/dr8/bitmasks/"
@@ -222,7 +220,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
     # QSO rmag histogram
     QSO_dNdrmag = np.histogram(QSO_rmag, bins=rmag_binVect)[0]
-    
+
     sel_highz = QSO_data.zred > 3.2
     QSO_dNdrmag_highz = np.histogram(QSO_rmag[sel_highz], bins=rmag_binVect)[0]
 
@@ -234,7 +232,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     QSO_W_drmag[QLF4Compl_dNdrmag == 0.] = np.nan
     QSO_W_drmag[np.isnan(QSO_W_drmag)] = np.nan
     QSO_W_drmag[np.isinf(QSO_W_drmag)] = np.nan
-    
+
     nw_QSO_target = n_QSO
     QSO_W_drmag *= nw_QSO_target/np.sum(QSO_dNdrmag*QSO_W_drmag)
 
@@ -273,7 +271,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
         else:
             n_sel_STARS_drmag = n_STARS_drmag
             STARS_rnd_sel_ind = np.arange(n_STARS_drmag)
-            
+
         if (n_STARS_QSO_ratio_Highz >= 1.):
             n_sel_STARS_Highz_drmag = int(n_STARS_drmag/n_STARS_QSO_ratio_Highz)
             STARS_Highz_rnd_sel_ind = rs.choice(n_STARS_drmag, n_sel_STARS_Highz_drmag, replace=False)
@@ -282,7 +280,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
         STARS_sel_ind = np.arange(n_STARS)[STARS_drmag_OK][STARS_rnd_sel_ind]
         list_STARS_sel_ind.extend(list(STARS_sel_ind.astype(np.int)))
-        
+
         STARS_Highz_sel_ind = np.arange(n_STARS)[STARS_drmag_OK][STARS_Highz_rnd_sel_ind]
         list_STARS_Highz_sel_ind.extend(list(STARS_Highz_sel_ind.astype(np.int)))
 
@@ -294,17 +292,17 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     tab_title = "STARS/QSO TABLE"
     tab = DoubleTable(tab2print, tab_title)
     tab.inner_row_border = True
-    tab.justify_columns = {0: 'center', 1: 'center', 2: 'center', 3: 'center', 4:'center',
+    tab.justify_columns = {0: 'center', 1: 'center', 2: 'center', 3: 'center', 4: 'center',
                            4: 'center', 5: 'center', 6: 'center'}
     print(tab.table)
     print()
-    
+
     STARS_data_Highz = STARS_data[list_STARS_Highz_sel_ind]
     n_STARS_Highz = len(STARS_data_Highz)
 
     STARS_data = STARS_data[list_STARS_sel_ind]
     n_STARS = len(STARS_data)
-    
+
     print("n_QSO after selection :", n_QSO)
     print("n_STARS after selection & normalization :", n_STARS)
     print("n_STARS_Highz after selection & normalization :", n_STARS_Highz)
@@ -325,7 +323,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
 
     STARS_hdu = pyfits.BinTableHDU(data=STARS_data)
     STARS_hdu = pyfits.BinTableHDU.from_columns(list(STARS_hdu.columns) + list_cols)
-    
+
     # STARS High z
     list_cols = []
     STARS_gmag, STARS_rmag, STARS_zmag, STARS_W1mag, STARS_W2mag = Flux2MagFunc(STARS_data_Highz)
@@ -347,8 +345,8 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     colors_to_cut = ['g_r', 'r_z', 'g_z', 'g_W1', 'r_W1', 'z_W1', 'g_W2', 'r_W2', 'z_W2', 'W1_W2']
     tt = (colors[colors_to_cut] > colors[colors_to_cut].quantile(.001)) & (colors[colors_to_cut] < colors[colors_to_cut].quantile(.9995))
     selection = tt.all(axis='columns')
-    print(f"[INFO] Removing outliers, % keep inside the dataframe : {selection.sum() / selection.size:2.2%}") 
-    
+    print(f"[INFO] Removing outliers, % keep inside the dataframe : {selection.sum() / selection.size:2.2%}")
+
     QSO_Colors = QSO_Colors[selection]
     print("n_QSO after selection and cut outliers :", QSO_Colors.size / 11)
 

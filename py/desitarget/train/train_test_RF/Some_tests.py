@@ -66,13 +66,13 @@ def compute_proba_desitarget(sample):
     print('Load Old Random Forest : ')
     print('    * ' + rf_fileName)
     print('    * ' + rf_Highz_fileName)
-    print('Random Forest over : ', len(attributes),' objects\n')
+    print('Random Forest over : ', len(attributes), ' objects\n')
 
-    myrf =  myRF(attributes, pathToRF, numberOfTrees=500, version=2)
+    myrf = myRF(attributes, pathToRF, numberOfTrees=500, version=2)
     myrf.loadForest(rf_fileName)
     proba_rf = myrf.predict_proba()
 
-    myrf_Highz =  myRF(attributes,pathToRF, numberOfTrees=500, version=2)
+    myrf_Highz = myRF(attributes, pathToRF, numberOfTrees=500, version=2)
     myrf_Highz.loadForest(rf_Highz_fileName)
     proba_Highz_rf = myrf_Highz.predict_proba()
 
@@ -332,18 +332,18 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file, rmax, cut=[0.7,
     plot_cut_selection(r, sel, sel_qso, sel_Highz, proba_rf, proba_Highz_rf, True, False)
     plot_completness(r, zred, sel_qso, sel_tot, '', N_bins_r=40, N_bins_z=40, show=True, save=False)
 
-def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut1, cut2, r_mag_max_sel=23.0, surface_vi=True, save=False, label1='1', label2='2'):
-        # Load data.
+def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, RF_file_2, RF_Highz_file_2, cut1, cut2,
+                                         r_mag_max_sel=23.0, surface_vi=True, save=False, label1='1', label2='2'):
+    # Load data.
     test_sample = read_file(inputFile)
 
     # RF output.
     proba_rf_1, feature_imp_1, proba_Highz_rf_1, feature_imp_Highz_1 = compute_proba(
         test_sample, RF_file_1, RF_Highz_file_1)
-    
+
     # RF output.
     proba_rf_2, feature_imp_2, proba_Highz_rf_2, feature_imp_Highz_2 = compute_proba(
         test_sample, RF_file_2, RF_Highz_file_2)
-    
 
     # Magnitude and Geometry.
     zred = test_sample['zred'][:]
@@ -352,7 +352,7 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     dec = test_sample['DEC'][:]
 
     r_mag_min, r_mag_max = np.min(r), np.max(r)
-    r_mag_min_sel= 17.5
+    r_mag_min_sel = 17.5
 
     r_sel = (r >= r_mag_min_sel) & (r <= r_mag_max_sel)
 
@@ -371,10 +371,8 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     print("R_mag max selected = ", r_mag_max_sel, " -- R_mag min selected = ", r_mag_min_sel)
     print("############################################\n")
 
-    
     if surface_vi:
-        surface = 150 + 1.4 #we add 360 qso --> we say it is has a surface of 1.4 deg^2
-        
+        surface = 150 + 1.4  # we add 360 qso --> we say it is has a surface of 1.4 deg^2
     else:
         # on regarde des objets quasiment à l'horizon --> cos(theta) = 1
         ra_min, ra_max = np.min(ra), np.max(ra)
@@ -391,18 +389,17 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     sel_qso = zred > 0
     print(f"\n[INFO] There are {sel_qso.sum()} quasars on the test sample ... \n")
     sel_qso_highz = zred > 3
-    
+
     plt.figure()
     plt.hist(zred[sel_qso], bins=30, label="QSOs")
     plt.legend()
     plt.xlabel('zred')
     plt.show()
 
-    
     print(f"\n[INFO] CUT1 :  cut = {cut1[0]} - {cut1[1]}*np.tanh(r - {cut1[2]}) & cut_Highz = {cut1[3]}\n")
     cut_1 = cut1[0] - cut1[1]*np.tanh(r - cut1[2])
     cut_Highz_1 = cut1[3]
-    
+
     sel_1 = proba_rf_1 > cut_1
     sel_Highz_1 = (proba_Highz_rf_1 > cut_Highz_1) & ~sel_1
     sel_tot_1 = sel_1 + sel_Highz_1
@@ -421,11 +418,11 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     print(f'density dr9 Highz = ', density_Highz_1, f' deg^-2 completeness dr9 Highz', effi_Highz_1)
     print(f'density dr9 Total = ', density_tot_1, f' deg^-2 completeness dr9 Total', effi_tot_1)
     print('############################################\n')
-      
+
     print(f"\n[INFO] CUT2 :  cut = {cut2[0]} - {cut2[1]}*np.tanh(r - {cut2[2]}) & cut_Highz = {cut2[3]}\n")
     cut_2 = cut2[0] - cut2[1]*np.tanh(r - cut2[2])
     cut_Highz_2 = cut2[3]
-    
+
     sel_2 = proba_rf_2 > cut_2
     sel_Highz_2 = (proba_Highz_rf_2 > cut_Highz_2) & ~sel_2
     sel_tot_2 = sel_2 + sel_Highz_2
@@ -446,7 +443,7 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     print('############################################\n')
 
     plot_completness(r, zred, sel_qso, sel_tot_1, label1, sel_tot_2=sel_tot_2, label2=label2, N_bins_r=40, N_bins_z=40, show=True, save=save)
-    
+
 def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cut, r_mag_max_sel=23.0, surface_vi=True):
     # Load data.
     test_sample = read_file(inputFile)
@@ -454,9 +451,9 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     # RF output.
     proba_rf_new, feature_imp_new, proba_Highz_rf_new, feature_imp_Highz_new = compute_proba(
         test_sample, RF_file_new, RF_Highz_file_new)
-    
+
     # RF output. trop lent desitarget p***$*
-    #proba_rf_ref, proba_Highz_rf_ref = compute_proba_desitarget(test_sample)
+    # proba_rf_ref, proba_Highz_rf_ref = compute_proba_desitarget(test_sample)
     RF_file_ref = '/global/cfs/cdirs/desi/target/analysis/RF/RFmodel/DR9s_LOW/model_DR9s_LOW_z[0.0, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz'
     RF_Highz_file_ref = '/global/cfs/cdirs/desi/target/analysis/RF/RFmodel/DR9s_HighZ/model_DR9s_HighZ_z[3.2, 6.0]_MDepth25_MLNodes850_nTrees500.pkl.gz'
     proba_rf_ref, _, proba_Highz_rf_ref, _ = compute_proba(test_sample, RF_file_ref, RF_Highz_file_ref)
@@ -486,9 +483,9 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     print("R_mag max = ", r_mag_max, " -- R_mag min = ", r_mag_min)
     print("R_mag max selected = ", r_mag_max_sel, " -- R_mag min selected = ", r_mag_min_sel)
     print("############################################\n")
-   
+
     if surface_vi:
-        surface = 150 + 1.4 #we add 360 qso --> we say it is has a surface of 1.4 deg^2
+        surface = 150 + 1.4  # we add 360 qso --> we say it is has a surface of 1.4 deg^2
         print("############################################")
         print("SURFACE = ", surface)
         print("############################################\n")
@@ -509,18 +506,18 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     print(f"\n[INFO] There are {sel_qso.sum()} quasars on the test sample ... \n")
     sel_qso_2 = zred > 2
     sel_qso_highz = zred > 3
-    
+
     plt.figure()
     plt.hist(zred[sel_qso], bins=30, label="QSOs")
     plt.legend()
     plt.xlabel('zred')
     plt.show()
-    
+
     print('\n############ NEW #####################')
     print(f"\n[INFO] FOR NEW :  cut = {cut[0]} - {cut[1]}*np.tanh(r - {cut[2]}) & cut_Highz = {cut[3]}\n")
     cut_new = cut[0] - cut[1]*np.tanh(r - cut[2])
     cut_Highz_new = cut[3]
-    
+
     sel_new = proba_rf_new > cut_new
     sel_Highz_new = (proba_Highz_rf_new > cut_Highz_new) & ~sel_new
     sel_tot_new = sel_new + sel_Highz_new
@@ -529,12 +526,12 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     effi_new = float(len(r[sel_new & sel_qso])) / float(len(r[sel_qso]))
     density_test_new = float(len(r[sel_new & sel_qso_highz]))/surface
     effi_test_new = float(len(r[sel_new & sel_qso_highz])) / float(len(r[sel_qso_highz]))
-    
+
     density_Highz_new = float(len(r[sel_Highz_new])) / surface
     effi_Highz_new = float(len(r[sel_Highz_new & sel_qso])) / float(len(r[sel_qso]))
     density_Highz_test_new = float(len(r[sel_Highz_new & sel_qso_highz])) / surface
     effi_Highz_test_new = float(len(r[sel_Highz_new & sel_qso_highz])) / float(len(r[sel_qso_highz]))
-    
+
     density_tot_new = float(len(r[sel_tot_new])) / surface
     effi_tot_new = float(len(r[sel_tot_new & sel_qso])) / float(len(r[sel_qso]))
 
@@ -542,13 +539,13 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     print(f'density dr9 Highz = ', density_Highz_new, f' deg^-2 completeness dr9 Highz', effi_Highz_new, ' densisty dr9 Highz QSO>3.0 : ', density_Highz_test_new, ' (ie) ', effi_Highz_test_new*100, "% de l'echantillong de test")
     print(f'density dr9 Total = ', density_tot_new, f' deg^-2 completeness dr9 Total', effi_tot_new)
     print('############################################\n')
-    
+
     print('\n########## REFERENCE ############################')
     print("\n[INFO] (WARNING : USE THE SAME CUT THAN TEST TO COMPARE WITH THE CUT THAT I WILL FIX FOR DES IN THE NEW TRAINING) reference cut : cut = 0.75 - 0.05*np.tanh(r - 20.5) & cut_Highz = 0.55  \n")
-    
+
     cut_ref = 0.75 - 0.05*np.tanh(r - 20.5)
     cut_Highz_ref = 0.55
-    
+
     sel_ref = proba_rf_ref > cut_ref
     sel_Highz_ref = (proba_Highz_rf_ref > cut_Highz_ref) & ~sel_ref
     sel_tot_ref = sel_ref + sel_Highz_ref
@@ -570,31 +567,29 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     print(f'density dr9 Highz = ', density_Highz_ref, f' deg^-2 completeness dr9 Highz', effi_Highz_ref, ' densisty dr9 Highz QSO>3.0 : ', density_Highz_test_ref, ' (ie) ', effi_Highz_test_ref*100, "% de l'echantillong de test")
     print(f'density dr9 Total = ', density_tot_ref, f' deg^-2 completeness dr9 Total', effi_tot_ref)
     print('############################################\n')
-    
-    
+
     plt.figure(figsize=(12, 8))
     plt.subplot(121)
     plt.scatter(r[~sel_qso], proba_rf_new[~sel_qso], s=1, color='red', label='Stars')
     plt.scatter(r[sel_qso], proba_rf_new[sel_qso], s=1, color='blue', label='True QSO')
-    plt.plot(np.arange(r_mag_min, r_mag_max, 1000), cut[0] - cut[1]*np.tanh(np.arange(r_mag_min, r_mag_max, 1000) - cut[2]), color='black') 
+    plt.plot(np.arange(r_mag_min, r_mag_max, 1000), cut[0] - cut[1]*np.tanh(np.arange(r_mag_min, r_mag_max, 1000) - cut[2]), color='black')
     plt.xlabel('r')
     plt.ylabel('proba rf new')
     plt.legend()
     plt.xlim(17, 23)
     plt.ylim(0, 1)
-    
+
     plt.subplot(122)
     plt.scatter(r[~sel_qso], proba_rf_ref[~sel_qso], s=1, color='red', label='Stars')
     plt.scatter(r[sel_qso], proba_rf_ref[sel_qso], s=1, color='blue', label='True QSO')
-    #plt.plot(np.arange(r_mag_min, r_mag_max, 1000), cut[0] - cut[1]*np.tanh(np.arange(r_mag_min, r_mag_max, 1000) - cut[2]), color='black') 
+    # plt.plot(np.arange(r_mag_min, r_mag_max, 1000), cut[0] - cut[1]*np.tanh(np.arange(r_mag_min, r_mag_max, 1000) - cut[2]), color='black')
     plt.xlabel('r')
     plt.ylabel('proba rf ref')
     plt.legend()
     plt.xlim(17, 23)
     plt.ylim(0, 1)
     plt.show()
-    
-    
+
     plt.figure(figsize=(12, 8))
     plt.subplot(121)
     plt.scatter(proba_rf_ref[~sel_qso], proba_rf_new[~sel_qso], s=1, color='red', label='Stars')
@@ -605,7 +600,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.legend()
     plt.xlim(0, 1)
     plt.ylim(0, 1)
-    
+
     plt.subplot(122)
     plt.scatter(proba_Highz_rf_ref[~sel_qso], proba_Highz_rf_new[~sel_qso], s=1, color='red', label='Stars')
     plt.scatter(proba_Highz_rf_ref[sel_qso], proba_Highz_rf_new[sel_qso], s=1, color='blue', label='True QSO')
@@ -615,18 +610,18 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.xlabel('proba rf Highz ref')
     plt.ylabel('proba rf Highz new')
     plt.show()
-    
+
     plt.figure(figsize=(12, 8))
     plt.subplot(121)
     plt.scatter(proba_rf_ref[~sel_qso], proba_Highz_rf_ref[~sel_qso], s=1, color='red', label='Stars')
     plt.scatter(proba_rf_ref[sel_qso], proba_Highz_rf_ref[sel_qso], s=1, color='blue', label='True QSO')
-    #plt.plot([0, 1], [0, 1], ls='--', color='black')
+    # plt.plot([0, 1], [0, 1], ls='--', color='black')
     plt.xlabel('proba rf ref')
     plt.ylabel('proba rf Highz ref')
     plt.legend()
     plt.xlim(0, 1)
     plt.ylim(0, 1)
-    
+
     plt.subplot(122)
     plt.scatter(proba_rf_new[~sel_qso], proba_Highz_rf_new[~sel_qso], s=1, color='red', label='Stars')
     plt.scatter(proba_rf_new[sel_qso], proba_Highz_rf_new[sel_qso], s=1, color='blue', label='True QSO')
@@ -636,7 +631,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.xlabel('proba rf new')
     plt.ylabel('proba rf Highz new')
     plt.show()
-    
+
     plt.figure(figsize=(12, 8))
     plt.subplot(121)
     plt.scatter(proba_rf_ref[sel_qso_2 & ~sel_qso_highz], proba_Highz_rf_ref[sel_qso_2 & ~sel_qso_highz], s=1, color='gold', label='QSO (z > 2)')
@@ -647,7 +642,7 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.legend()
     plt.xlim(0, 1)
     plt.ylim(0, 1)
-    
+
     plt.subplot(122)
     plt.scatter(proba_rf_new[sel_qso_2 & ~sel_qso_highz], proba_Highz_rf_new[sel_qso_2 & ~sel_qso_highz], s=1, color='gold', label='QSO (z > 2)')
     plt.scatter(proba_rf_new[sel_qso_highz], proba_Highz_rf_new[sel_qso_highz], s=1, color='blue', label='QSO (z > 3)')
@@ -657,6 +652,5 @@ def new_training_versus_desitarget(inputFile, RF_file_new, RF_Highz_file_new, cu
     plt.xlabel('proba rf new')
     plt.ylabel('proba rf Highz new')
     plt.show()
-    
-    
+
     plot_completness(r, zred, sel_qso, sel_tot_new, 'NEW', sel_tot_2=sel_tot_ref, label2='REF', N_bins_r=40, N_bins_z=40, show=True, save=False)

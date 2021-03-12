@@ -32,8 +32,8 @@ def plot_tiles(coord_cat):
     ra, dec = coord_cat.ra.degree, coord_cat.dec.degree
 
     plt.figure(figsize=(11, 7))
-    plt.plot(ra[dec<32], dec[dec<32], ls='', marker='.', color='blue', label='sweep south')
-    plt.plot(ra[dec>=32], dec[dec>=32], ls='', marker='.', color='red', label='sweep north')
+    plt.plot(ra[dec < 32], dec[dec < 32], ls='', marker='.', color='blue', label='sweep south')
+    plt.plot(ra[dec >= 32], dec[dec >= 32], ls='', marker='.', color='red', label='sweep north')
 
     plt.plot([30, 30, 45, 45, 30], [-5, 5, 5, -5, -5], ls='--', color='black', label='test zone')
 
@@ -48,7 +48,7 @@ def plot_tiles(coord_cat):
 
 
 def build_ra_dec_list():
-    #add sweep containg tiles observed to build the vi_catalog
+    # add sweep containg tiles observed to build the vi_catalog
     # Tile in North
     ra_list_north, dec_list_north = [], []
 
@@ -82,7 +82,7 @@ def build_ra_dec_list():
     ra_list_north += [[210, 220], [210, 220], [210, 220]]
     dec_list_north += [[45, 50], [50, 55], [55, 60]]
 
-    #Tile in South
+    # Tile in South
     ra_list_south, dec_list_south = [], []
 
     ra_list_south += [[30, 40], [30, 40], [30, 40]]
@@ -137,13 +137,13 @@ def build_list_name(ra, dec):
         ra1, ra2 = str(ra[i][0]), str(ra[i][1])
         dec1, dec2 = dec[i][0], dec[i][1]
 
-        if dec1<0:
+        if dec1 < 0:
             dec1 = str(dec1)[1:]
             sgn1 = 'm'
         else:
             dec1 = str(dec1)
             sgn1 = 'p'
-        if dec2<0:
+        if dec2 < 0:
             dec2 = str(dec2)[1:]
             sgn2 = 'm'
         else:
@@ -154,20 +154,20 @@ def build_list_name(ra, dec):
 
 
 def match_cat_to_dr9(coord_cat, list_name, sweepname):
-    #build_structure with juste one element --> remove it  after the loop :D
+    # build_structure with juste one element --> remove it  after the loop :D
     qso_dr9 = np.array(fitsio.FITS(sweepname.format('100', 'p', '030', '110', 'p', '035'), 'r')[1][0:2])
     print("\n", qso_dr9.shape)
 
     for name in list_name:
         sel_in_cat = (coord_cat.ra.degree < float(name[3])) & (coord_cat.ra.degree  > float(name[0]))
         if name[1] == 'm':
-            sel_in_cat &=  (coord_cat.dec.degree  > - float(name[2]))
+            sel_in_cat &= (coord_cat.dec.degree > -float(name[2]))
         else:
-            sel_in_cat &=  (coord_cat.dec.degree  > float(name[2]))
+            sel_in_cat &= (coord_cat.dec.degree > float(name[2]))
         if name[4] == 'm':
-            sel_in_cat &= (coord_cat.dec.degree  < - float(name[5]))
+            sel_in_cat &= (coord_cat.dec.degree < -float(name[5]))
         else:
-            sel_in_cat &= (coord_cat.dec.degree  < float(name[5]))
+            sel_in_cat &= (coord_cat.dec.degree < float(name[5]))
 
         if sel_in_cat.sum() != 0:
             print("\n[SWEEP] : ", name)
@@ -175,7 +175,7 @@ def match_cat_to_dr9(coord_cat, list_name, sweepname):
             sweep = fitsio.FITS(sweepname.format(*name), 'r')['SWEEP']
             coord_sweep = SkyCoord(ra=sweep['RA'][:]*u.degree, dec=sweep['DEC'][:]*u.degree)
 
-            #pas dans l'autre sens ca n'a pas de sens sinon ...
+            # pas dans l'autre sens ca n'a pas de sens sinon ...
             idx, d2d, d3d = coord_cat[sel_in_cat].match_to_catalog_sky(coord_sweep)
 
             sel = (d2d.arcsec < 1)
@@ -203,7 +203,7 @@ def find_south_in_sdss(qso_south):
 
 def find_north_in_south(qso_south, qso_north):
     coord_qso_south = SkyCoord(ra=qso_south['RA'][:]*u.degree, dec=qso_south['DEC'][:]*u.degree)
-    coord_qso_north= SkyCoord(ra=qso_north['RA'][:]*u.degree, dec=qso_north['DEC'][:]*u.degree)
+    coord_qso_north = SkyCoord(ra=qso_north['RA'][:]*u.degree, dec=qso_north['DEC'][:]*u.degree)
     idx, d2d, d3d = coord_qso_north.match_to_catalog_sky(coord_qso_south)
     sel_north = (d2d.arcsec >= 1)
     print("    * Nombre de targets dans North qui sont dans l'overlap du South : ", sel_north.size - sel_north.sum())
@@ -223,7 +223,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
 
     qso_dr9_south = match_cat_to_dr9(coord_cat, list_name_south, sweepname_south)
     qso_dr9_north = match_cat_to_dr9(coord_cat, list_name_north, sweepname_north)
-    
+
     print("Remove targets in South which are already in SDSS (avoid overlap and double check)")
     sel_not_in_sdss = find_south_in_sdss(qso_dr9_south)
     qso_dr9_south = qso_dr9_south[sel_not_in_sdss]
@@ -232,7 +232,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
     sel_north = find_north_in_south(qso_dr9_south, qso_dr9_north)
     qso_dr9_north = qso_dr9_north[sel_north]
 
-    #new column ISNORTH for build_colors
+    # new column ISNORTH for build_colors
     is_north = np.concatenate((np.zeros(qso_dr9_south.size, dtype=bool), np.ones(qso_dr9_north.size, dtype=bool)))
 
     if os.path.isfile(fits_save_name):
@@ -242,11 +242,11 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
     fits[-1].append(qso_dr9_north)
     fits[-1].insert_column('IS_NORTH', is_north)
 
-    ## add redshitf :
+    # add redshitf :
     coord_qso_vi_in_dr9 = SkyCoord(ra=fits[-1]['RA'][:]*u.degree, dec=fits[-1]['DEC'][:]*u.degree)
     idx, d2d, d3d = coord_qso_vi_in_dr9.match_to_catalog_sky(coord_cat)
     zred = cat['redshift'][:][idx]
-    zred = np.array(zred, dtype='f8') #need this to add this qso to the Training Catalog.
+    zred = np.array(zred, dtype='f8')  # need this to add this qso to the Training Catalog.
     fits[-1].insert_column('zred', zred)
 
     fits.close()
@@ -269,7 +269,7 @@ def sdss_vi_merger(fits_file_1, fits_file_vi, fits_file_output, zone_tests):
         sel |= (fits_vi['RA'][:] >= zone_test[0]) & (fits_vi['RA'][:] <= zone_test[1]) & (fits_vi['DEC'][:] >= zone_test[2]) & (fits_vi['DEC'][:] <= zone_test[3])
     sel = ~sel
     print(f'There is {sel.sum()} quasars which are not on the test zone')
-    
+
     fits.write(fits_1[:])
     fits[-1].append(fits_vi[:][sel])
     print('\nNbr QSOs for training :', fits[1][:].size)
