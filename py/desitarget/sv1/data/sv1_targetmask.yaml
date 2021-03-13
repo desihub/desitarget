@@ -142,9 +142,9 @@ sv1_mws_mask:
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
 
     # ADM back-up targets for poor conditions.
-    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the

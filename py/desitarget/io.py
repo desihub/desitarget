@@ -331,13 +331,9 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         The modified data.
     """
     # ADM determine the bits for the OBSCONDITIONS.
-    if obscon == "DARK":
-        obsbits = obsconditions.mask("DARK")
-        hdr["OBSCON"] = "DARK"
-    else:
-        # ADM will flag an error if obscon is not, now BRIGHT.
-        obsbits = obsconditions.mask(obscon)
-        hdr["OBSCON"] = obscon
+    obsbits = obsconditions.mask(obscon)
+    hdr["OBSCON"] = obscon
+
     # ADM only retain targets appropriate to the conditions.
     ii = (data["OBSCONDITIONS"] & obsbits) != 0
     data = data[ii]

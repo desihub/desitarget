@@ -1011,7 +1011,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
     # ADM set the initial PRIORITY and NUMOBS.
     if darkbright:
         # ADM populate bright/dark if splitting by survey OBSCONDITIONS.
-        ender, obscon = ["_DARK", "_BRIGHT"], ["DARK|GRAY", "BRIGHT"]
+        ender = ["_DARK", "_BRIGHT", "_BACKUP"]
+        obscon = ["DARK|GRAY", "BRIGHT", "BACKUP"]
     else:
         ender, obscon = [""], ["DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18"]
     for edr, oc in zip(ender, obscon):

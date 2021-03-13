@@ -43,8 +43,8 @@ sv2_desi_mask:
             {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- A bit for another survey is set
-    - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: BRIGHT}]
-    - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: BRIGHT}]
+    - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: IGNORE}]
+    - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: IGNORE}]
     - [SCND_ANY     ,       62, "Any secondary bit is set",
         {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
@@ -106,9 +106,9 @@ sv2_mws_mask:
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
 
     # ADM back-up targets for poor conditions and as filler.
-    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",   {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",   {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- ADM secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
