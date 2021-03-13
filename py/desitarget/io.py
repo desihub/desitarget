@@ -746,7 +746,8 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
         hpx = "X"
 
     # ADM determine the data release from a TARGETID.
-    _, _, release, _, _, _ = decode_targetid(data["TARGETID"])
+    _, _, release, _, _, gaiadr = decode_targetid(data["TARGETID"])
+
     # ADM if the mixed kwarg was sent, allow multiple data releases.
     if mixed:
         dr = np.atleast_1d(np.max(release//1000))
@@ -761,8 +762,14 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
             msg = "Multiple data releases in MTL ({})".format(dr)
             log.error(msg)
             raise TypeError(msg)
-    keys += ["DR"]
-    vals += [drint]
+    if obscon == "BACKUP":
+        keys += ["GAIADR"]
+        vals += [gaiadr[0]]
+        drstring = "gaiadr{}".format(gaiadr[0])
+    else:
+        keys += ["DR"]
+        vals += [drint]
+        drstring = "dr{}".format(drint)
 
     # ADM finalize the header dictionary.
     hdrdict = {key: val for key, val in zip(keys, vals) if val is not None}
@@ -771,7 +778,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
 
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
-    fn = find_target_files(mtldir, dr=drint, flavor="mtl", survey=survey,
+    fn = find_target_files(mtldir, dr=drstring, flavor="mtl", survey=survey,
                            obscon=obscon, hp=hpx, ender=form)
 
     ntargs = len(data)
