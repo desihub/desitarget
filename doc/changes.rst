@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.51.1 (unreleased)
+0.52.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.52.0 (2021-03-13)
 -------------------
 
 * New secondary bits for COSMOS/unusual point sources [`PR #682`_].
