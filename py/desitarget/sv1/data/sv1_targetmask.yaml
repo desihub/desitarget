@@ -142,9 +142,9 @@ sv1_mws_mask:
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
 
     # ADM back-up targets for poor conditions.
-    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",        {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",       {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- ADM SV secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
@@ -390,24 +390,24 @@ priorities:
 #        IC134191:              SAME_AS_GW190412
         PV_BRIGHT:             {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         PV_DARK:               {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        LOW_Z:                 {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        LOW_Z:                 {UNOBS: 80, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BHB:                   {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         SPCV:                  SAME_AS_LOW_MASS_AGN
-        DC3R2_GAMA:            {UNOBS: 1020, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        DC3R2_GAMA:            {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         UNWISE_BLUE:           SAME_AS_LBG_TOMOG
         UNWISE_GREEN:          SAME_AS_LBG_TOMOG
         HETDEX_MAIN:           SAME_AS_LBG_TOMOG
         HETDEX_HP:             SAME_AS_LBG_TOMOG
-#       PSF_OUT_BRIGHT:        {UNOBS: 70, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+#       PSF_OUT_BRIGHT:        {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
 #       PSF_OUT_DARK:          SAME_AS_PSF_OUT_BRIGHT
         HPM_SOUM:              SAME_AS_LOW_MASS_AGN
         SN_HOSTS:              SAME_AS_BHB
         GAL_CLUS_BCG:          {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        GAL_CLUS_2ND:          {UNOBS: 1024, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        GAL_CLUS_2ND:          {UNOBS: 1020, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         GAL_CLUS_SAT:          {UNOBS: 200,  DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         HSC_HIZ_SNE:           SAME_AS_LBG_TOMOG
         ISM_CGM_QGP:           {UNOBS: 4100, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        STRONG_LENS:           SAME_AS_UDG
+        STRONG_LENS:           {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         WISE_VAR_QSO:          SAME_AS_QSO_RED
         MWS_CALIB:             {UNOBS: 2995, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BACKUP_CALIB:          SAME_AS_MWS_CALIB

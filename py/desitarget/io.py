@@ -315,7 +315,7 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         numpy structured array of targets.
     obscon : :class:`str`
         Can be "DARK" or "BRIGHT" to only write targets appropriate for
-        "DARK|GRAY" or "BRIGHT" observing conditions. The relevant
+        "DARK" or "BRIGHT" observing conditions. The relevant
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
@@ -331,13 +331,9 @@ def _bright_or_dark(filename, hdr, data, obscon, mockdata=None):
         The modified data.
     """
     # ADM determine the bits for the OBSCONDITIONS.
-    if obscon == "DARK":
-        obsbits = obsconditions.mask("DARK|GRAY")
-        hdr["OBSCON"] = "DARK|GRAY"
-    else:
-        # ADM will flag an error if obscon is not, now BRIGHT.
-        obsbits = obsconditions.mask(obscon)
-        hdr["OBSCON"] = obscon
+    obsbits = obsconditions.mask(obscon)
+    hdr["OBSCON"] = obscon
+
     # ADM only retain targets appropriate to the conditions.
     ii = (data["OBSCONDITIONS"] & obsbits) != 0
     data = data[ii]
@@ -485,7 +481,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
         full set of data, rather only write targets appropriate for
-        "DARK|GRAY" or "BRIGHT" observing conditions. The relevant
+        "DARK" or "BRIGHT" observing conditions. The relevant
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
@@ -493,9 +489,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         Dictionary of mock data to write out (only used in
         `desitarget.mock.build.targets_truth` via `select_mock_targets`).
     supp : :class:`bool`, optional, defaults to ``False``
-        Written to the header of the output file to indicate whether
-        this is a file of supplemental targets (targets that are
-        outside the Legacy Surveys footprint).
+        Written to the header of the output file as "BACKUP" to indicate
+        whether this is a file of backup targets (targets that are based
+        only on Gaia data).
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -608,7 +604,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM add whether or not MASKBITS was applied to the header.
     hdr["MASKBITS"] = maskbits
     # ADM indicate whether this is a supplemental file.
-    hdr["SUPP"] = supp
+    hdr["BACKUP"] = supp
     # ADM add the Data Release to the header.
     if supp:
         hdr["GAIADR"] = gaiadr
@@ -750,7 +746,8 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
         hpx = "X"
 
     # ADM determine the data release from a TARGETID.
-    _, _, release, _, _, _ = decode_targetid(data["TARGETID"])
+    _, _, release, _, _, gaiadr = decode_targetid(data["TARGETID"])
+
     # ADM if the mixed kwarg was sent, allow multiple data releases.
     if mixed:
         dr = np.atleast_1d(np.max(release//1000))
@@ -765,8 +762,14 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
             msg = "Multiple data releases in MTL ({})".format(dr)
             log.error(msg)
             raise TypeError(msg)
-    keys += ["DR"]
-    vals += [drint]
+    if obscon == "BACKUP":
+        keys += ["GAIADR"]
+        vals += [gaiadr[0]]
+        drstring = "gaiadr{}".format(gaiadr[0])
+    else:
+        keys += ["DR"]
+        vals += [drint]
+        drstring = "dr{}".format(drint)
 
     # ADM finalize the header dictionary.
     hdrdict = {key: val for key, val in zip(keys, vals) if val is not None}
@@ -775,15 +778,16 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
 
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
-    fn = find_target_files(mtldir, dr=drint, flavor="mtl", survey=survey,
+    fn = find_target_files(mtldir, dr=drstring, flavor="mtl", survey=survey,
                            obscon=obscon, hp=hpx, ender=form)
-    # ADM create necessary directories, if they don't exist.
-    os.makedirs(os.path.dirname(fn), exist_ok=True)
 
     ntargs = len(data)
     # ADM die if there are no targets to write.
     if ntargs == 0:
         return ntargs, fn
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(fn), exist_ok=True)
 
     # ADM sort the output file on TARGETID.
     data = data[np.argsort(data["TARGETID"])]
@@ -864,7 +868,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
         full set of secondary targets that do not match a primary,
-        rather only write targets appropriate for "DARK|GRAY" or
+        rather only write targets appropriate for "DARK" or
         "BRIGHT" observing conditions. The relevant `PRIORITY_INIT`
         and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
@@ -991,7 +995,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         toobright |= (data[col] != 0) & (data[col] > fluxlim)
 
     # ADM just targets to be observed in "standard" conditions.
-    standardoc = "DARK|GRAY|BRIGHT"
+    standardoc = "DARK|BRIGHT"
     instandardoc = data["OBSCONDITIONS"] & obsconditions.mask(standardoc) != 0
 
     # ADM write out standalone secondaries that aren't too bright and
@@ -2201,7 +2205,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         `noresolve` file. Relevant if `flavor` is `targets` or `randoms`.
         Pass ``None`` to substitute `resolve` with "secondary".
     supp : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then find the supplemental targets file. Overrides
+        If ``True`` then find the supplemental/backup file. Overrides
         the `obscon` option.
     mock : :class:`bool`, optional, defaults to ``False``
         If ``True`` then construct the file path for mock target
@@ -2302,7 +2306,10 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     if obscon is None:
         obscon = "no-obscon"
     if supp:
-        obscon = "supp"
+        if flavor == "targets":
+            obscon = "backup"
+        else:
+            obscon = "supp"
     prefix = flavor
 
     # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.

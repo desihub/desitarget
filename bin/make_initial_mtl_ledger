@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 
-from desitarget.mtl import make_ledger, get_mtl_dir
-#import warnings
-#warnings.simplefilter('error')
+from desitarget.mtl import make_ledger, get_mtl_dir, _get_mtl_nside
 
 # ADM this is the upper-limit for memory for mtl._get_mtl_nside()=32.
 nproc = 12
@@ -10,6 +8,7 @@ nproc = 12
 # nproc = 8
 # ADM retrieve the $MTL_DIR environment variable.
 mtldir = get_mtl_dir()
+mtlnside = _get_mtl_nside()
 # ADM default obsconditions.
 obscon = "DARK"
 
@@ -26,14 +25,24 @@ ap.add_argument("--dest",
                 default=mtldir)
 ap.add_argument("--obscon",
                 help="String matching ONE obscondition in the bitmask yaml file \
-                (e.g. 'GRAY'). Controls priorities when merging targets and     \
+                (e.g. 'BRIGHT'). Controls priorities when merging targets and   \
                 where the ledger is written. [defaults to {})".format(obscon),
                 default=obscon)
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [defaults to {}]'.
                 format(nproc),
                 default=nproc)
+ap.add_argument('--healpixels',
+                help="HEALPixels corresponding to `nside` (e.g. '6,9,57'). Only \
+                write the ledger for targets in these pixels, at the default    \
+                nside, which is [{}].format(mtlnside)",
+                default=None)
 
 ns = ap.parse_args()
 
-make_ledger(ns.targdir, ns.dest, obscon=ns.obscon, numproc=ns.numproc)
+# ADM parse the list of HEALPixels in which to run.
+pixlist = ns.healpixels
+if pixlist is not None:
+    pixlist = [int(pix) for pix in pixlist.split(',')]
+
+make_ledger(ns.targdir, ns.dest, pixlist=pixlist, obscon=ns.obscon, numproc=ns.numproc)

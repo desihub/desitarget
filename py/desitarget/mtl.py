@@ -310,7 +310,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
         Output directory to which to write the MTLs (the file names are
         constructed on the fly).
     nside : :class:`int`
-        (NESTED) HEALPixel nside that corresponds to `pixnum`.
+        (NESTED) HEALPixel nside that corresponds to `pixlist`.
     pixlist : :class:`list` or `int`
         HEALPixels at `nside` at which to write the MTLs.
     obscon : :class:`str`, optional, defaults to "DARK"
@@ -356,9 +356,9 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
     return
 
 
-def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
+def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
     """
-    Make initial MTL ledger files for all HEALPixels.
+    Make initial MTL ledger files for HEALPixels, in parallel.
 
     Parameters
     ----------
@@ -370,6 +370,10 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     outdirname : :class:`str`
         Output directory to which to write the MTL (the file name is
         constructed on the fly).
+    pixlist : :class:`list` or `int`, defaults to ``None``
+        (Nested) HEALPixels at which to write the MTLs at the default
+        `nside` (which is `_get_mtl_nside()`). Defaults to ``None``,
+        which runs all of the pixels at `_get_mtl_nside()`.
     obscon : :class:`str`, optional, defaults to "DARK"
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "GRAY"
@@ -411,6 +415,10 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
 
     # ADM the nside at which to write the MTLs.
     mtlnside = _get_mtl_nside()
+    # ADM default to running all pixels.
+    if pixlist is None:
+        mtlnpixels = hp.nside2npix(mtlnside)
+        pixlist = np.arange(mtlnpixels)
 
     # ADM check that the nside for writing MTLs is not at a lower
     # ADM resolution than the nside at which the files are stored.
@@ -423,15 +431,18 @@ def make_ledger(hpdirname, outdirname, obscon="DARK", numproc=1):
     # ADM the common function that is actually parallelized across.
     def _make_ledger_in_hp(pixnum):
         """make initial ledger in a single HEALPixel"""
+        # ADM construct a list of all pixels in pixnum at the MTL nside.
+        setpix = set(nside2nside(nside, mtlnside, pixnum))
+        pix = [p for p in pixlist if p in setpix]
+        if len(pix) == 0:
+            return
         # ADM read in the needed columns from the targets.
         targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
         if len(targs) == 0:
             return
-        # ADM construct a list of all pixels in pixnum at the MTL nside.
-        pixlist = nside2nside(nside, mtlnside, pixnum)
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
         return make_ledger_in_hp(
-            targs, outdirname, mtlnside, pixlist,
+            targs, outdirname, mtlnside, pix,
             obscon=obscon, indirname=hpdirname, verbose=False)
 
     # ADM this is just to count pixels in _update_status.

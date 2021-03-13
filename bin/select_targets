@@ -203,7 +203,7 @@ if ns.bundlefiles is None:
     # ADM together with the Gaia-only back-up objects.
     # ADM can use DARK for the back-up/supp objects as they never
     # ADM need merged with another target.
-    obscons = ["BRIGHT", "DARK", "DARK"]
+    obscons = ["BRIGHT", "DARK", "BACKUP"]
     iis = [~isgaia, ~isgaia, isgaia]
     supps = [False, False, True]
     if ns.writeall:

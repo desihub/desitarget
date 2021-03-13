@@ -5,6 +5,12 @@ desitarget Change Log
 0.51.1 (unreleased)
 -------------------
 
+* Add formalism to make ledger for BACKUP targets [`PR #681`_].
+* New QSO target selection in SV2 [`PR #680`_] for validation:
+    * RF file (dr9_final) trained with significance > 10 and SV QSOs.
+    * push selection to r < 23.
+    * add W1/W2 cut (< 22.3).
+    * update notebook with example.
 * Prepare SV2 for the ".1% Survey" [`PR #679`_]. Includes:
     * Add an ``sv2_cuts.py`` module and an sv2 bitmask yaml file.
     * Rename ``POOR`` observing conditions to be ``BACKUP`` throughout.
@@ -14,14 +20,10 @@ desitarget Change Log
 	    * (one derived from Gaia and one from the Legacy Surveys).
         * these can be removed using ``REF_ID`` (Gaia ``SOURCE_ID``).
 
-* NEW QSO target selection in SV2 [`PR #680`_] for validation:
-    * new RF file (dr9_final) trained with signifiance > 10 and SV quasars
-    * push selection to r<23
-    * add W1/W2 cut (<22.3)
-    * update notebook for example
 
 .. _`PR #679`: https://github.com/desihub/desitarget/pull/679
 .. _`PR #680`: https://github.com/desihub/desitarget/pull/680
+.. _`PR #681`: https://github.com/desihub/desitarget/pull/681
 
 
 0.51.0 (2021-03-07)
