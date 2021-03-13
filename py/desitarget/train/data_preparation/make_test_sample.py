@@ -9,13 +9,12 @@ import argparse
 import numpy as np
 import astropy.io.fits as pyfits
 
-from desitarget.train.data_preparation.funcs import shift_photo_north, Flux2MagFunc, ColorsFunc, AreaFunc
+from desitarget.train.data_preparation.funcs import Flux2MagFunc, ColorsFunc, AreaFunc
 
 
-def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
+def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', max_rmag=23.0):
     # ***CONFIGURATION***
     min_rmag = 17.5
-    max_rmag = 23.0  # 23.5 pour SV avec DR8/9 ?
 
     # Selection criteria
     OBJ_extraSelCMD = ""
@@ -60,11 +59,6 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
     OBJ_data = pyfits.open(fpn_input, memmap=True)[1].data
     print("n_OBJ avant selection :", len(OBJ_data))
     print("n_QSO avant selection :", np.sum(OBJ_data['zred'] > 0.))
-
-    # "shift_photo_north"
-    if is_north:
-        backup_FLUX_GRZ = [OBJ_data.FLUX_G.copy(), OBJ_data.FLUX_R.copy(), OBJ_data.FLUX_Z.copy()]
-        OBJ_data.FLUX_G, OBJ_data.FLUX_R, OBJ_data.FLUX_Z = shift_photo_north(OBJ_data.FLUX_G, OBJ_data.FLUX_R, OBJ_data.FLUX_Z)
 
     # Flux to magnitudes
     OBJ_gmag, OBJ_rmag, OBJ_zmag, OBJ_W1mag, OBJ_W2mag = Flux2MagFunc(OBJ_data)
@@ -119,12 +113,6 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', is_north=False):
         list_cols.append(col)
 
     OBJ_hdu = pyfits.BinTableHDU(data=OBJ_data)
-    if is_north:
-        for i, col_name in enumerate(['FLUX_G', 'FLUX_R', 'FLUX_Z']):
-            col = pyfits.Column(name=col_name + '_s',  format='D', array=OBJ_data[col_name].copy())
-            list_cols.append(col)
-            OBJ_data[col_name] = backup_FLUX_GRZ[i][OBJ_selection_OK]
-
     OBJ_hdu = pyfits.BinTableHDU.from_columns(list(OBJ_hdu.columns) + list_cols)
 
     # ***TEST SAMPLE STORING***

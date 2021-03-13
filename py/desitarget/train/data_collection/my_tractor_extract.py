@@ -83,6 +83,8 @@ if (SELCRIT == 'qso'):
     newhdu[1].insert_column('ra_SDSS', QSO_hdu_temp['RA'])
     newhdu[1].insert_column('dec_SDSS', QSO_hdu_temp['DEC'])
     newhdu[1].insert_column('zred', QSO_hdu_temp['Z'])
+    print('[INFO] IS_NORTH SET AS FALSE -> NO QSO IN THE NORTH PHOTOMETRY')
+    newhdu[1].insert_column('IS_NORTH', np.zeros(QSO_hdu_temp['Z'].size, dtype=bool))
     newhdu.close()
 
 # STARS
@@ -143,6 +145,8 @@ elif (SELCRIT == 'stars'):
 
     newhdu = fitsio.FITS(OUTFITS, 'rw')
     newhdu.write(hdu_temp)
+    print('[INFO] IS_NORTH SET AS FALSE -> NO STARS IN THE NORTH PHOTOMETRY')
+    newhdu[1].insert_column('IS_NORTH', np.zeros(hdu_temp.size, dtype=bool))
     newhdu.close()
 
 # TEST SAMPLE.
@@ -179,6 +183,8 @@ elif (SELCRIT == 'test'):
     newhdu[-1].insert_column('ra_SDSS', ra_SDSS)
     newhdu[-1].insert_column('dec_SDSS', dec_SDSS)
     newhdu[-1].insert_column('zred', zred)
+    print('[INFO] IS_NORTH SET AS FALSE -> NO TEST SAMPLE IN THE NORTH PHOTOMETRY')
+    newhdu[1].insert_column('IS_NORTH', np.zeros(zred.size, dtype=bool))
     newhdu.close()
 
 # PAR DÉFAUT
