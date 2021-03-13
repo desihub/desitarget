@@ -5,6 +5,7 @@ desitarget Change Log
 0.51.1 (unreleased)
 -------------------
 
+* New secondary bits for COSMOS/unusual point sources [`PR #682`_].
 * Add formalism to make ledger for BACKUP targets [`PR #681`_].
 * New QSO target selection in SV2 [`PR #680`_] for validation:
     * RF file (dr9_final) trained with significance > 10 and SV QSOs.
@@ -24,6 +25,7 @@ desitarget Change Log
 .. _`PR #679`: https://github.com/desihub/desitarget/pull/679
 .. _`PR #680`: https://github.com/desihub/desitarget/pull/680
 .. _`PR #681`: https://github.com/desihub/desitarget/pull/681
+.. _`PR #682`: https://github.com/desihub/desitarget/pull/682
 
 
 0.51.0 (2021-03-07)
