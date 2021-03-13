@@ -5,6 +5,7 @@ desitarget Change Log
 0.51.1 (unreleased)
 -------------------
 
+* Add formalism to make ledger for BACKUP targets [`PR #681`_].
 * Prepare SV2 for the ".1% Survey" [`PR #679`_]. Includes:
     * Add an ``sv2_cuts.py`` module and an sv2 bitmask yaml file.
     * Rename ``POOR`` observing conditions to be ``BACKUP`` throughout.
@@ -15,6 +16,7 @@ desitarget Change Log
         * these can be removed using ``REF_ID`` (Gaia ``SOURCE_ID``).
 
 .. _`PR #679`: https://github.com/desihub/desitarget/pull/679
+.. _`PR #681`: https://github.com/desihub/desitarget/pull/681
 
 
 0.51.0 (2021-03-07)
