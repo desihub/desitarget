@@ -42,27 +42,81 @@ mtldatamodel = np.array([], dtype=[
     ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S16')
     ])
 
+mtltilefiledm = np.array([], dtype=[
+    ('TILEID', '>i4'), ('TIMESTAMP', 'S19'), ('VERSION', 'S14')
+    ])
+
+
 # ADM when using basic or csv ascii writes, specifying the formats of
 # ADM float32 columns can make things easier on the eye.
 mtlformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 
 
-def get_mtl_dir():
-    """Convenience function to grab the MTL_DIR environment variable.
+def get_mtl_dir(mtldir=None):
+    """Convenience function to grab the $MTL_DIR environment variable.
+
+    Parameters
+    ----------
+    mtldir : :class:`str`, optional, defaults to $MTL_DIR
+        If `mtldir` is passed, it is returned from this function. If it's
+        not passed, the $MTL_DIR environment variable is returned.
 
     Returns
     -------
     :class:`str`
-        The directory stored in the $MTL_DIR environment variable.
+        If `mtldir` is passed, it is returned from this function. If it's
+        not passed, the directory stored in the $MTL_DIR environment
+        variable is returned.
     """
-    # ADM check that the $MTL_DIR environment variable is set.
-    mtldir = os.environ.get('MTL_DIR')
     if mtldir is None:
-        msg = "Set $MTL_DIR environment variable!"
-        log.critical(msg)
-        raise ValueError(msg)
+        mtldir = os.environ.get('MTL_DIR')
+        # ADM check that the $MTL_DIR environment variable is set.
+        if mtldir is None:
+            msg = "Pass mtldir or set $MTL_DIR environment variable!"
+            log.critical(msg)
+            raise ValueError(msg)
 
     return mtldir
+
+
+def get_zcat_dir(zcatdir=None):
+    """Convenience function to grab the $ZCAT_DIR environment variable.
+
+    Parameters
+    ----------
+    zcatdir : :class:`str`, optional, defaults to $ZCAT_DIR
+        If `zcatdir` is passed, it is returned from this function. If it's
+        not passed, the $ZCAT_DIR environment variable is returned.
+
+    Returns
+    -------
+    :class:`str`
+        If `zcatdir` is passed, it is returned from this function. If it's
+        not passed, the directory stored in the $ZCAT_DIR environment
+        variable is returned.
+    """
+    if zcatdir is None:
+        zcatdir = os.environ.get('ZCAT_DIR')
+        # ADM check that the $ZCAT_DIR environment variable is set.
+        if zcatdir is None:
+            msg = "Pass zcatdir or set $ZCAT_DIR environment variable!"
+            log.critical(msg)
+            raise ValueError(msg)
+
+    return zcatdir
+
+
+def get_tile_file_name():
+    """Convenience function to grab the name of the MTL tile file.
+
+    Returns
+    -------
+    :class:`str`
+        The name of the MTL tile file.
+    """
+    fn = "mtl-done-tiles.ecsv"
+
+    return fn
 
 
 def _get_mtl_nside():
