@@ -307,14 +307,13 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-        maskbits=maskbits
+        gaiagmag=gaiagmag, maskbits=maskbits
     )
 
     # ADM color-based selection of LRGs.
     lrg &= isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux, gaiagmag=gaiagmag, south=south,
-        primary=primary
+        zfiberflux=zfiberflux, south=south, primary=primary
     )
 
     return lrg
@@ -1861,7 +1860,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-                maskbits=maskbits, south=south
+                gaiagmag=gaiagmag, maskbits=maskbits, south=south
             )
     lrg_north, lrg_south = lrg_classes
 
