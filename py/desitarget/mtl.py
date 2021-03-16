@@ -560,7 +560,8 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
     return
 
 
-def update_ledger(hpdirname, zcat, targets=None, obscon="DARK"):
+def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
+                  numobs_from_ledger=False):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -582,6 +583,10 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK"):
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "GRAY"
         Governs how priorities are set using "obsconditions". Basically a
         check on whether the files in `hpdirname` are as expected.
+    numobs_from_ledger : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then inherit the number of observations so far from
+        the ledger rather than expecting it to have a reasonable value
+        in the `zcat.`
 
     Returns
     -------
@@ -607,6 +612,16 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK"):
         # ADM make_mtl(trimtozcat=True) only returns the updated targets.
         targets, fndict = io.read_mtl_in_hp(hpdirname, nside, pixnum,
                                             unique=True, returnfn=True)
+
+    # ADM if requested, use the previous values in the ledger to set
+    # ADM NUMOBS in the zcat.
+    if numobs_from_ledger:
+        lupd = dict(tuple(zip(targets["TARGETID"], np.arange(len(targets)))))
+        # ADM match zcat to targets on TARGETID.
+        inzcat = [tid in lupd for tid in zcat["TARGETID"]]
+        ii = np.array([lupd[tid] for tid in zcat["TARGETID"] if tid in lupd])
+        # ADM create NUMOBS for zcat based on previous ledger entry.
+        zcat["NUMOBS"][inzcat] = targets["NUMOBS"][ii] + 1
 
     # ADM run MTL, only returning the targets that are updated.
     mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True)
@@ -742,8 +757,7 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False)
     return done
 
 
-def tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon,
-                          tilestart=80860):
+def tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -759,9 +773,6 @@ def tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon,
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
         Governs how priorities are set when merging targets.
-    tilestart : :class:`int`, optional
-        Only consider tiles greater-than-or-equal-to this number. Tiles
-        of lower TILEID are ignored, even those not in the MTL tile file.
 
     Returns
     -------
@@ -780,8 +791,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon,
             tileid = int(os.path.basename(fn))
         except ValueError:
             pass
-        if tileid >= tilestart:
-            alltiles.append(tileid)
+        alltiles.append(tileid)
 
     # ADM read in the tile file, guarding against it not having being
     # ADM created yet.
@@ -864,7 +874,7 @@ def make_zcat_rr_backstop(zcatdir, tiles):
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
-                tilefn=None, tilestart=80860):
+                tilefn=None, numobs_from_ledger=True):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -888,9 +898,10 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     tilefn : :class:`str`, optional, defaults to ``None``
         Full path to the name of the tile file. This file is used to link
         TILEIDs to observing conditions.
-    tilestart : :class:`int`, optional
-        Only consider tiles greater-than-or-equal-to this number. Tiles
-        of lower TILEID are ignored, even those not in the MTL tile file.
+    numobs_from_ledger : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then inherit the number of observations so far from
+        the ledger rather than expecting it to have a reasonable value
+        in the `zcat.`
 
     Returns
     -------
@@ -927,8 +938,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     zcatdir = get_zcat_dir(zcatdir)
 
     # ADM grab an array of tiles that are yet to be processed.
-    tiles = tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon,
-                                  tilestart=tilestart)
+    tiles = tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon)
 
     # ADM stop if there are no tiles to process.
     if len(tiles) == 0:
@@ -939,7 +949,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     zcat = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
 
     # ADM update the appropriate ledger.
-    update_ledger(hpdirname, zcat, obscon=obscon)
+    update_ledger(hpdirname, zcat, obscon=obscon,
+                  numobs_from_ledger=numobs_from_ledger)
 
     # ADM write the processed tiles to the MTL tile file.
     io.write_mtl_tile_file(mtltilefn, tiles)
