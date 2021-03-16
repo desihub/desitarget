@@ -841,7 +841,7 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     Notes
     -----
     - How the `zcat` is constructed could certainly change once we have
-    the final schema in place.
+      the final schema in place.
     """
     # ADM for each tile, read in the spectroscopic and targeting info.
     allzs = []
