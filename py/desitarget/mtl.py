@@ -15,6 +15,7 @@ from astropy.io import ascii
 import fitsio
 from time import time
 from datetime import datetime
+from glob import glob
 
 from . import __version__ as dt_version
 from desitarget.targetmask import obsmask, obsconditions
@@ -40,6 +41,11 @@ mtldatamodel = np.array([], dtype=[
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
     ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S16')
+    ])
+
+zcatdatamodel = np.array([], dtype=[
+    ('RA', '>f8'), ('DEC', '>f8'), ('TARGETID', '>i8'),
+    ('NUMTILE', '>i4'), ('Z', '>f8'), ('ZWARN', '>i8')
     ])
 
 mtltilefiledm = np.array([], dtype=[
@@ -526,7 +532,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
     return
 
 
-def update_ledger(hpdirname, targets, zcat, obscon="DARK"):
+def update_ledger(hpdirname, zcat, targets=None, obscon="DARK"):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -535,13 +541,14 @@ def update_ledger(hpdirname, targets, zcat, obscon="DARK"):
     hpdirname : :class:`str`
         Full path to a directory containing an MTL ledger that has been
         partitioned by HEALPixel (i.e. as made by `make_ledger`).
-    targets : :class:`~numpy.array` or `~astropy.table.Table`
-        A numpy rec array or astropy Table with at least the columns
-        ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
-        and ``PRIORITY_INIT``.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
         ``Z``, ``ZWARN``.
+    targets : :class:`~numpy.array` or `~astropy.table.Table`, optional, defaults to ``None``
+        A numpy rec array or astropy Table with at least the columns
+        ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
+        and ``PRIORITY_INIT``. If ``None``, then assume the `zcat`
+        includes ``RA`` and ``DEC`` and look up `targets` in the ledger.
     obscon : :class:`str`, optional, defaults to "DARK"
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "GRAY"
@@ -552,15 +559,6 @@ def update_ledger(hpdirname, targets, zcat, obscon="DARK"):
     -------
     Nothing, but relevant ledger files are updated.
     """
-# ADM in theory, here, fiberassign wouldn't need to carry much around at
-# ADM all. We could, instead, simply read the relevant MTL pixel-ledgers
-# ADM and match on TARGETID to recover everything we'd need. Better yet,
-# ADM if the zcat included RA/Dec, we wouldn't even need `targets`..e.g.:
-    # ADM read the relevant pixel-ledger (and record the files we read).
-#    mtltargs, fndict = io.read_mtl_in_hp(hpdirname, nside, pixnum,
-#                                         unique=True, returnfn=True)
-    # ADM then match between mtltargs and targets on TARGETID, etc.
-
     # ADM find the general format for the ledger files in `hpdirname`.
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
@@ -571,10 +569,21 @@ def update_ledger(hpdirname, targets, zcat, obscon="DARK"):
         log.critical(msg)
         raise ValueError(msg)
 
+    # ADM if targets wasn't sent, that means the zcat includes
+    # ADM coordinates and we can read relevant targets from the ledger.
+    if targets is None:
+        nside = _get_mtl_nside()
+        theta, phi = np.radians(90-zcat["DEC"]), np.radians(zcat["RA"])
+        pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+        # ADM we'll read in too many targets, here, but that's OK as
+        # ADM make_mtl(trimtozcat=True) only returns the updated targets.
+        targets, fndict = io.read_mtl_in_hp(hpdirname, nside, pixnum,
+                                            unique=True, returnfn=True)
+
     # ADM run MTL, only returning the targets that are updated.
     mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True)
 
-    # ADM look up which HEALPixels are represented in the updated MTL.
+    # ADM this is redundant if targets wasn't sent, but it's quick.
     nside = _get_mtl_nside()
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
@@ -702,4 +711,191 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False)
 
     if header:
         return done, hdr
+    return done
+
+
+def tiles_to_be_processed(zcatdir, tilefn, tilestart=80860):
+    """Execute full MTL loop, including reading files, updating ledgers.
+
+    Parameters
+    ----------
+    zcatdir : :class:`str`
+        Full path to the directory that hosts the redshift catalogs.
+    tilefn : :class:`str`
+        Full path to the file of tiles that have been processed by MTL.
+    tilestart : :class:`int`, optional
+        Only consider tiles greater-than-or-equal-to this number. Tiles
+        of lower TILEID are ignored, even those not in the MTL tile file.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        An array of tiles that have not yet been processed and written to
+        the mtl tile file.
+    """
+    # ADM determine the tiles to be processed.
+    alltiles = []
+    for fn in glob(os.path.join(zcatdir, "*")):
+        # ADM sometimes there are weird tile names like "temp".
+        try:
+            tileid = int(os.path.basename(fn))
+        except ValueError:
+            pass
+        if tileid >= tilestart:
+            alltiles.append(tileid)
+
+    # ADM read in the tile file, guarding against it not having being
+    # ADM created yet.
+    donetiles = None
+    if os.path.isfile(tilefn):
+        donetiles = io.read_mtl_tile_file(tilefn)
+
+    # ADM extract the updated tiles.
+    if donetiles is None:
+        tiles = np.array(alltiles)
+    else:
+        tiles = np.array(list(set(alltiles) - set(donetiles["TILEID"])))
+
+    return tiles
+
+
+def make_zcat_rr_backstop(zcatdir, tiles):
+    """Make the simplest possible zcat using SV1-era redrock outputs.
+
+    Parameters
+    ----------
+    zcatdir : :class:`str`
+        Full path to the directory that hosts the redshift catalogs.
+    tiles : :class:`~numpy.array`
+        List of tiles in `zcatdir` from which to construct the `zcat`.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        A zcat in the official format (`zcatdatamodel`) compiled from
+        the `tiles` in `zcatdir`.
+
+    Notes
+    -----
+    - How the `zcat` is constructed could certainly change once we have
+    the final schema in place.
+    """
+    # ADM for each tile, read in the spectroscopic and targeting info.
+    allzs = []
+    allfms = []
+    for tile in tiles:
+        zbestfns = os.path.join(zcatdir, "{}".format(tile), "*", "zbest*")
+        for zbestfn in glob(zbestfns):
+            allzs.append(fitsio.read(zbestfn, "ZBEST"))
+            allfms.append(fitsio.read(zbestfn, "FIBERMAP"))
+    zs = np.concatenate(allzs)
+    fms = np.concatenate(allfms)
+
+    # ADM currently, the spectroscopic files aren't coadds, so aren't
+    # ADM unique. We therefore need to look up (any) coordinates for
+    # ADM each z in the fibermap.
+    d = dict(tuple(zip(fms["TARGETID"], np.arange(len(fms)))))
+    # ADM loop through the zs and look-up the index in the dictionary.
+    zid = np.array([d[tid] for tid in zs["TARGETID"]])
+
+    # ADM write out the zcat as a file with the correct data model.
+    zcat = np.zeros(len(zs), dtype=zcatdatamodel.dtype)
+    zcat["RA"] = fms[zid]["TARGET_RA"]
+    zcat["DEC"] = fms[zid]["TARGET_DEC"]
+    for col in set(zcat.dtype.names) - set(['RA', 'DEC']):
+        zcat[col] = zs[col]
+
+    return zcat
+
+
+def make_tile_array(tileids):
+    """Make a tile array by adding a timestamp and git version.
+
+    Parameters
+    ----------
+    tiles : :class:`~numpy.array` or `list`
+        A list of TILEIDs.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        A tile array in the official format (`mtltilefiledm`).
+    """
+    # ADM initialize the output array and add the tiles.
+    donetiles = np.zeros(len(tileids), dtype=mtltilefiledm.dtype)
+    donetiles["TILEID"] = tileids
+
+    # ADM look up the time.
+    utc = datetime.utcnow().isoformat(timespec='seconds')
+    donetiles["TIMESTAMP"] = utc
+
+    # ADM add the version of desitarget.
+    donetiles["VERSION"] = dt_version
+
+    return donetiles
+
+
+def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
+                tilestart=80860):
+    """Execute full MTL loop, including reading files, updating ledgers.
+
+    Parameters
+    ----------
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Governs how priorities are set when merging targets.
+    survey : :class:`str`, optional, defaults to "main"
+        Used to look up the correct filename for `obscon`. Options are
+        ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.) for the main
+        survey and different iterations of SV, respectively.
+    zcatdir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the redshift catalogs.
+        If this is ``None``, look up the redshift catalog directory from
+        the $ZCAT_DIR environment variable.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that host the MTL ledgers and the MTL
+        tile file. If this ``None``, look up the MTL directory from the
+        $MTL_DIR environment variable.
+    tilestart : :class:`int`, optional
+        Only consider tiles greater-than-or-equal-to this number. Tiles
+        of lower TILEID are ignored, even those not in the MTL tile file.
+
+    Returns
+    -------
+    Nothing, but the various relevant ledgers are updated.
+
+    Notes
+    -----
+    - Assumes all of the relevant ledgers have already been made by,
+      e.g., make_ledger()
+    """
+    ## ADM first grab all of the relevant files.
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+    # ADM construct the full path to the mtl tile file.
+    tilefn = os.path.join(mtldir, get_tile_file_name())
+
+    # ADM construct the relevant sub-directory for this survey and
+    # ADM set of observing conditions..
+    form = get_mtl_ledger_format()
+    hpdirname = io.find_target_files(mtldir, flavor="mtl",
+                                     survey=survey, obscon=obscon, ender=form)
+    # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
+    zcatdir = get_zcat_dir(zcatdir)
+
+    # ADM grab an array of tiles that are yet to be processed.
+    tiles = tiles_to_be_processed(zcatdir, tilefn, tilestart=tilestart)
+
+    # ADM create the zcat: This will likely change, but for now let's
+    # ADM just use redrock in the SV1-era format.
+    zcat = make_zcat_rr_backstop(zcatdir, tiles)
+
+    # ADM update the appropriate ledger.
+    update_ledger(hpdirname, zcat, obscon=obscon)
+
+    # ADM write the processed tiles to the MTL tile file.
+    proctiles = make_tile_array(tiles)
+    io.write_mtl_tile_file(tilefn, proctiles)
+
     return done

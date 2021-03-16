@@ -2317,6 +2317,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
 
     # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
     fn = os.path.join(targdir, drstr, version, flavor)
+    if flavor == "mtl":
+        fn = targdir
 
     # ADM masks are a special case beneath $MASK_DIR.
     if flavor == "masks":
@@ -2422,10 +2424,11 @@ def write_mtl_tile_file(filename, data):
         ascii.write(data, f, format='no_header')
         f.close()
     else:
-        # ADM we need to make the file.
+        # ADM if the file doesn't exist we may need to make the directory.
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
         write_with_units(filename, data, extname='MTLTILE', ecsv=True)
 
-    return(len(data), filename)
+    return len(data), filename
 
 
 def read_mtl_ledger(filename, unique=True):
