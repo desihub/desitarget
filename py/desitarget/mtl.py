@@ -897,7 +897,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         $MTL_DIR environment variable.
     tilefn : :class:`str`, optional, defaults to ``None``
         Full path to the name of the tile file. This file is used to link
-        TILEIDs to observing conditions.
+        TILEIDs to observing conditions. If passed as ``None``, looked up
+        from the $TILE_FN environment variable.
     numobs_from_ledger : :class:`bool`, optional, defaults to ``True``
         If ``True`` then inherit the number of observations so far from
         the ledger rather than expecting it to have a reasonable value
@@ -942,7 +943,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM stop if there are no tiles to process.
     if len(tiles) == 0:
-        return hpdirname, mtltilefn, tiles
+        return hpdirname, mtltilefn, tilefn, tiles
 
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock in the SV1-era format.

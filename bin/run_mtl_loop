@@ -1,0 +1,46 @@
+#!/usr/bin/env python
+
+from desitarget.mtl import loop_ledger
+from desiutil.log import get_logger
+log = get_logger()
+
+# ADM default survey to run.
+survey = "main"
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Make an initial HEALPixel-split ledger for a Merged Target List based on a directory of targets')
+ap.add_argument("obscon",
+                help="String matching ONE obscondition in the bitmask yaml file \
+                (e.g. 'BRIGHT'). Controls priorities when merging targets,      \
+                which tiles to process, etc.")
+ap.add_argument("-s", "--survey",
+                help="Flavor of survey to run. Defaults to [{}]".format(survey),
+                default=survey)
+ap.add_argument('--zcatdir',
+                help="Full path to the directory that hosts the redshift        \
+                catalogs. Default is to use the $ZCAT_DIR environment variable",
+                default=None)
+ap.add_argument('--mtldir',
+                help="Full path to the directory that hosts the MTL ledgers.    \
+                Default is to use the $ZCAT_DIR environment variable",
+                default=None)
+ap.add_argument('--tilefn',
+                help="Full path to the name of the tile file.                   \
+                Default is to use the $TILE_FN environment variable",
+                default=None)
+ap.add_argument("-n", "--numobsfromzcat", action='store_true',
+                help="If passed, the zcat includes a meaningfule NUMOBS.        \
+                Otherwise, NUMOBS is looked up from the ledger itself")
+
+ns = ap.parse_args()
+
+numobs_from_ledger = not(ns.numobsfromzcat)
+
+hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
+    ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
+    tilefn=ns.tilefn, numobs_from_ledger=numobs_from_ledger)
+
+log.info("MTL ledger directory: {}".format(hpdirname))
+log.info("MTL tile file: {}".format(mtltilefn))
+log.info("Tile file: {}".format(tilefn))
+log.info("Processed {} new tiles, which are: {}".format(len(tiles), tiles))
