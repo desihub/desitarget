@@ -383,7 +383,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if south:
         lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut.
         lrg &= (
-            ((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.13)
+            (((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.13))
             | (rmag - w1mag > 1.8)                       # low-z cut.
         )
         lrg &= rmag - w1mag > (w1mag - 17.27) * 1.8      # double sliding cut 1.
@@ -391,7 +391,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6   # non-stellar cut.
         lrg &= (
-            ((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.23)
+            (((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.23))
             | (rmag - w1mag > 1.8)                       # low-z cut.
         )
         lrg &= rmag - w1mag > (w1mag - 17.23) * 1.8      # double sliding cut 1.
