@@ -921,7 +921,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     - Assumes all of the relevant ledgers have already been made by,
       e.g., `make_ledger()`.
     """
-    ## ADM first grab all of the relevant files.
+    # ADM first grab all of the relevant files.
     # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
     mtldir = get_mtl_dir(mtldir)
     # ADM construct the full path to the mtl tile file.

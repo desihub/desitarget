@@ -2397,7 +2397,7 @@ def write_mtl_tile_file(filename, data):
     Parameters
     ----------
     filename : :class:`str`
-        The full path to the MTL tile file. If this doesn't exist, then 
+        The full path to the MTL tile file. If this doesn't exist, then
         a new file is begun.
     data : :class`~numpy.ndarray`
         The data to append to the end of the MTL tile file, which should
@@ -2419,7 +2419,7 @@ def write_mtl_tile_file(filename, data):
         raise IOError(msg)
 
     if os.path.isfile(filename):
-       # ADM as we're working with .ecsv, simply append to the end.
+        # ADM as we're working with .ecsv, simply append to the end.
         f = open(filename, "a")
         ascii.write(data, f, format='no_header')
         f.close()
