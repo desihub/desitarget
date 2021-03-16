@@ -45,11 +45,12 @@ mtldatamodel = np.array([], dtype=[
 
 zcatdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('TARGETID', '>i8'),
-    ('NUMTILE', '>i4'), ('Z', '>f8'), ('ZWARN', '>i8')
+    ('NUMOBS', '>i4'), ('Z', '>f8'), ('ZWARN', '>i8'),
     ])
 
 mtltilefiledm = np.array([], dtype=[
-    ('TILEID', '>i4'), ('TIMESTAMP', 'S19'), ('VERSION', 'S14')
+    ('TILEID', '>i4'), ('TIMESTAMP', 'S19'),
+    ('VERSION', 'S14'), ('PROGRAM', 'S6')
     ])
 
 
@@ -112,7 +113,34 @@ def get_zcat_dir(zcatdir=None):
     return zcatdir
 
 
-def get_tile_file_name():
+def get_tile_full_path(tilefn=None):
+    """Convenience function to grab the $TILE_FN environment variable.
+
+    Parameters
+    ----------
+    tilefn : :class:`str`, optional, defaults to $TILE_FN
+        If `tilefn` is passed, it is returned from this function. If it's
+        not passed, the $TILE_FN environment variable is returned.
+
+    Returns
+    -------
+    :class:`str`
+        If `tilefn` is passed, it is returned from this function. If it's
+        not passed, the filename stored in the $TILE_FN environment
+        variable is returned.
+    """
+    if tilefn is None:
+        tilefn = os.environ.get('TILE_FN')
+        # ADM check that the $TILE_FN environment variable is set.
+        if tilefn is None:
+            msg = "Pass tilefn or set $TILE_FN environment variable!"
+            log.critical(msg)
+            raise ValueError(msg)
+
+    return tilefn
+
+
+def get_mtl_tile_file_name():
     """Convenience function to grab the name of the MTL tile file.
 
     Returns
@@ -714,15 +742,23 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False)
     return done
 
 
-def tiles_to_be_processed(zcatdir, tilefn, tilestart=80860):
+def tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon,
+                          tilestart=80860):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
     ----------
     zcatdir : :class:`str`
         Full path to the directory that hosts the redshift catalogs.
-    tilefn : :class:`str`
+    mtltilefn : :class:`str`
         Full path to the file of tiles that have been processed by MTL.
+    tilefn : :class:`str`, optional, defaults to ``None``
+        Full path to the name of the tile file. This file is used to link
+        TILEIDs to observing conditions.
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Governs how priorities are set when merging targets.
     tilestart : :class:`int`, optional
         Only consider tiles greater-than-or-equal-to this number. Tiles
         of lower TILEID are ignored, even those not in the MTL tile file.
@@ -733,6 +769,9 @@ def tiles_to_be_processed(zcatdir, tilefn, tilestart=80860):
         An array of tiles that have not yet been processed and written to
         the mtl tile file.
     """
+    # ADM read in the tile file.
+    tilelookup = Table.read(tilefn)
+
     # ADM determine the tiles to be processed.
     alltiles = []
     for fn in glob(os.path.join(zcatdir, "*")):
@@ -747,16 +786,30 @@ def tiles_to_be_processed(zcatdir, tilefn, tilestart=80860):
     # ADM read in the tile file, guarding against it not having being
     # ADM created yet.
     donetiles = None
-    if os.path.isfile(tilefn):
-        donetiles = io.read_mtl_tile_file(tilefn)
+    if os.path.isfile(mtltilefn):
+        donetiles = io.read_mtl_tile_file(mtltilefn)
 
     # ADM extract the updated tiles.
     if donetiles is None:
-        tiles = np.array(alltiles)
+        tilesallcon = np.array(alltiles)
     else:
-        tiles = np.array(list(set(alltiles) - set(donetiles["TILEID"])))
+        tilesallcon = np.array(list(set(alltiles) - set(donetiles["TILEID"])))
 
-    return tiles
+    obstiles = tilelookup[tilelookup["PROGRAM"] == obscon]["TILEID"]
+    tileids = list(set(obstiles).intersection(set(tilesallcon)))
+
+    # ADM initialize the output array and add the tiles.
+    donetiles = np.zeros(len(tileids), dtype=mtltilefiledm.dtype)
+    donetiles["TILEID"] = tileids
+    # ADM look up the time.
+    utc = datetime.utcnow().isoformat(timespec='seconds')
+    donetiles["TIMESTAMP"] = utc
+    # ADM add the version of desitarget.
+    donetiles["VERSION"] = dt_version
+    # ADM add the program/obscon.
+    donetiles["PROGRAM"] = obscon
+
+    return donetiles
 
 
 def make_zcat_rr_backstop(zcatdir, tiles):
@@ -767,11 +820,11 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     zcatdir : :class:`str`
         Full path to the directory that hosts the redshift catalogs.
     tiles : :class:`~numpy.array`
-        List of tiles in `zcatdir` from which to construct the `zcat`.
+        List of TILEIDs in `zcatdir` from which to construct the `zcat`.
 
     Returns
     -------
-    :class:`~numpy.array`
+    :class:`~astropy.table.Table`
         A zcat in the official format (`zcatdatamodel`) compiled from
         the `tiles` in `zcatdir`.
 
@@ -799,44 +852,19 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     zid = np.array([d[tid] for tid in zs["TARGETID"]])
 
     # ADM write out the zcat as a file with the correct data model.
-    zcat = np.zeros(len(zs), dtype=zcatdatamodel.dtype)
+    zcat = Table(np.zeros(len(zs), dtype=zcatdatamodel.dtype))
+
     zcat["RA"] = fms[zid]["TARGET_RA"]
     zcat["DEC"] = fms[zid]["TARGET_DEC"]
-    for col in set(zcat.dtype.names) - set(['RA', 'DEC']):
+    zcat["NUMOBS"] = zs["NUMTILE"]
+    for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS']):
         zcat[col] = zs[col]
 
     return zcat
 
 
-def make_tile_array(tileids):
-    """Make a tile array by adding a timestamp and git version.
-
-    Parameters
-    ----------
-    tiles : :class:`~numpy.array` or `list`
-        A list of TILEIDs.
-
-    Returns
-    -------
-    :class:`~numpy.array`
-        A tile array in the official format (`mtltilefiledm`).
-    """
-    # ADM initialize the output array and add the tiles.
-    donetiles = np.zeros(len(tileids), dtype=mtltilefiledm.dtype)
-    donetiles["TILEID"] = tileids
-
-    # ADM look up the time.
-    utc = datetime.utcnow().isoformat(timespec='seconds')
-    donetiles["TIMESTAMP"] = utc
-
-    # ADM add the version of desitarget.
-    donetiles["VERSION"] = dt_version
-
-    return donetiles
-
-
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
-                tilestart=80860):
+                tilefn=None, tilestart=80860):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -854,27 +882,41 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         If this is ``None``, look up the redshift catalog directory from
         the $ZCAT_DIR environment variable.
     mtldir : :class:`str`, optional, defaults to ``None``
-        Full path to the directory that host the MTL ledgers and the MTL
+        Full path to the directory that hosts the MTL ledgers and the MTL
         tile file. If this ``None``, look up the MTL directory from the
         $MTL_DIR environment variable.
+    tilefn : :class:`str`, optional, defaults to ``None``
+        Full path to the name of the tile file. This file is used to link
+        TILEIDs to observing conditions.
     tilestart : :class:`int`, optional
         Only consider tiles greater-than-or-equal-to this number. Tiles
         of lower TILEID are ignored, even those not in the MTL tile file.
 
     Returns
     -------
-    Nothing, but the various relevant ledgers are updated.
+    :class:`str`
+        The directory containing the ledger that was updated.
+    :class:`str`
+        The name of the MTL tile file that was updated.
+    :class:`str`
+        The name of the tile file that was used to link TILEIDs to
+        observing conditions.
+    :class:`~numpy.array`
+        Information for the tiles that were processed.
 
     Notes
     -----
     - Assumes all of the relevant ledgers have already been made by,
-      e.g., make_ledger()
+      e.g., `make_ledger()`.
     """
     ## ADM first grab all of the relevant files.
     # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
     mtldir = get_mtl_dir(mtldir)
     # ADM construct the full path to the mtl tile file.
-    tilefn = os.path.join(mtldir, get_tile_file_name())
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name())
+
+    # ADM grab the TILE filename (in case we're relying on $TILE_FN).
+    tilefn = get_tile_full_path(tilefn)
 
     # ADM construct the relevant sub-directory for this survey and
     # ADM set of observing conditions..
@@ -885,17 +927,21 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     zcatdir = get_zcat_dir(zcatdir)
 
     # ADM grab an array of tiles that are yet to be processed.
-    tiles = tiles_to_be_processed(zcatdir, tilefn, tilestart=tilestart)
+    tiles = tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon,
+                                  tilestart=tilestart)
+
+    # ADM stop if there are no tiles to process.
+    if len(tiles) == 0:
+        return hpdirname, mtltilefn, tiles
 
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock in the SV1-era format.
-    zcat = make_zcat_rr_backstop(zcatdir, tiles)
+    zcat = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
 
     # ADM update the appropriate ledger.
     update_ledger(hpdirname, zcat, obscon=obscon)
 
     # ADM write the processed tiles to the MTL tile file.
-    proctiles = make_tile_array(tiles)
-    io.write_mtl_tile_file(tilefn, proctiles)
+    io.write_mtl_tile_file(mtltilefn, tiles)
 
-    return done
+    return hpdirname, mtltilefn, tilefn, tiles
