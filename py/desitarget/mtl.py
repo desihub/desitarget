@@ -661,7 +661,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
     return
 
 
-def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False):
+def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
+                   quick=False):
     """Add a fuller set of target columns to an MTL.
 
     Parameters
@@ -682,6 +683,9 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False)
     strictcols : :class:`bool`, optional, defaults to ``False``
         If ``True`` then strictly return only the columns in `columns`,
         otherwise, inflate the ledger with the new columns.
+    quick : :class:`bool`, optional, defaults to ``False``
+        If ``True``, call the "quick" version of reading targets
+        which is much faster but makes fewer error checks.
 
     Returns
     -------
@@ -717,13 +721,13 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False)
 
     # ADM read in targets in the required pixels.
     targs = io.read_targets_in_hp(hpdirname, nside, pixlist, columns=columns,
-                                  header=header)
+                                  header=header, quick=quick)
     if header:
         targs, hdr = targs
 
     # ADM match the mtl back to the targets on TARGETID.
-    etargids, smtlids = enumerate(targs["TARGETID"]), set(mtl["TARGETID"])
-    ii = [i for i, tid in etargids if tid in smtlids]
+    lupd = dict(tuple(zip(targs["TARGETID"], np.arange(len(targs)))))
+    ii = np.array([lupd[tid] for tid in mtl["TARGETID"]])
 
     # ADM reorder targets to match MTL on TARGETID.
     targs = targs[ii]
