@@ -5,7 +5,12 @@ desitarget Change Log
 0.52.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Update the LRG selection for SV2 [`PR #683`_]:
+    * Switch from optical to IR as the (tentative) baseline selection
+    * Tweak the low-z and and IR sliding cuts
+    * Remove bright (G<18) GAIA sources
+
+.. _`PR #683`: https://github.com/desihub/desitarget/pull/683
 
 0.52.0 (2021-03-13)
 -------------------

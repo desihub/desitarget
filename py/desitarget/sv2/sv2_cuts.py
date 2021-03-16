@@ -277,8 +277,8 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rfluxivar=None, zfluxivar=None, w1fluxivar=None,
-          gnobs=None, rnobs=None, znobs=None, maskbits=None, primary=None,
-          south=True):
+          gaiagmag=None, gnobs=None, rnobs=None, znobs=None, maskbits=None,
+          primary=None, south=True):
     """
     Parameters
     ----------
@@ -307,7 +307,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-        maskbits=maskbits
+        gaiagmag=gaiagmag, maskbits=maskbits
     )
 
     # ADM color-based selection of LRGs.
@@ -322,7 +322,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
                   zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
                   rfluxivar=None, zfluxivar=None, w1fluxivar=None,
-                  maskbits=None):
+                  gaiagmag=None, maskbits=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
     Returns
@@ -342,6 +342,8 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rfluxivar > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zfluxivar > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1fluxivar > 0) & (w1flux > 0)  # ADM quality in W1.
+
+    lrg &= (gaiagmag == 0) | (gaiagmag > 18)  # remove bright GAIA sources
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -380,19 +382,19 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if south:
         lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut.
         lrg &= (
-            ((gmag - w1mag > 2.6) & (gmag - rmag > 1.4))
+            (((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.13))
             | (rmag - w1mag > 1.8)                       # low-z cut.
         )
-        lrg &= rmag - zmag > (zmag - 16.83) * 0.45       # double sliding cut 1.
-        lrg &= rmag - zmag > (zmag - 13.80) * 0.19       # double sliding cut 2.
+        lrg &= rmag - w1mag > (w1mag - 17.27) * 1.8      # double sliding cut 1.
+        lrg &= rmag - w1mag > (w1mag - 16.37) * 1.       # double sliding cut 2.
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6   # non-stellar cut.
         lrg &= (
-            ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45))
-            | (rmag - w1mag > 1.85)                      # low-z cut.
+            (((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.23))
+            | (rmag - w1mag > 1.8)                       # low-z cut.
         )
-        lrg &= rmag - zmag > (zmag - 16.79) * 0.45       # double sliding cut 1.
-        lrg &= rmag - zmag > (zmag - 13.76) * 0.19       # double sliding cut 2.
+        lrg &= rmag - w1mag > (w1mag - 17.23) * 1.8      # double sliding cut 1.
+        lrg &= rmag - w1mag > (w1mag - 16.33) * 1.       # double sliding cut 2.
 
     lrg &= zfibermag < 21.5    # faint limit.
 
@@ -1483,7 +1485,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
     # ADM Reject objects in masks.
     # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
-    # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
+    # ALLMASK_G | ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
     # Now only 1, 12, 13
     if maskbits is not None:
         # ADM default mask bits from the Legacy Surveys not set.
@@ -1858,7 +1860,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-                maskbits=maskbits, south=south
+                gaiagmag=gaiagmag, maskbits=maskbits, south=south
             )
     lrg_north, lrg_south = lrg_classes
 
