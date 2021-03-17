@@ -5,19 +5,21 @@ desitarget Change Log
 0.52.1 (unreleased)
 -------------------
 
-* Update the LRG selection for SV2 [`PR #683`_]:
+* Update the ELG selection for sv2 [`PR #685`_]
+* Update the LRG selection for sv2 [`PR #683`_]:
     * Switch from optical to IR as the (tentative) baseline selection
     * Tweak the low-z and and IR sliding cuts
     * Remove bright (G<18) GAIA sources
 
 .. _`PR #683`: https://github.com/desihub/desitarget/pull/683
+.. _`PR #685`: https://github.com/desihub/desitarget/pull/685
 
 0.52.0 (2021-03-13)
 -------------------
 
 * New secondary bits for COSMOS/unusual point sources [`PR #682`_].
 * Add formalism to make ledger for BACKUP targets [`PR #681`_].
-* New QSO target selection in SV2 [`PR #680`_] for validation:
+* New QSO target selection in sv2 [`PR #680`_] for validation:
     * RF file (dr9_final) trained with significance > 10 and SV QSOs.
     * push selection to r < 23.
     * add W1/W2 cut (< 22.3).
@@ -31,12 +33,10 @@ desitarget Change Log
 	    * (one derived from Gaia and one from the Legacy Surveys).
         * these can be removed using ``REF_ID`` (Gaia ``SOURCE_ID``).
 
-
 .. _`PR #679`: https://github.com/desihub/desitarget/pull/679
 .. _`PR #680`: https://github.com/desihub/desitarget/pull/680
 .. _`PR #681`: https://github.com/desihub/desitarget/pull/681
 .. _`PR #682`: https://github.com/desihub/desitarget/pull/682
-
 
 0.51.0 (2021-03-07)
 -------------------
@@ -66,7 +66,6 @@ desitarget Change Log
 .. _`PR #676`: https://github.com/desihub/desitarget/pull/676
 .. _`PR #677`: https://github.com/desihub/desitarget/pull/677
 .. _`PR #678`: https://github.com/desihub/desitarget/pull/678
-
 
 0.50.0 (2021-01-29)
 -------------------

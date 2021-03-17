@@ -402,13 +402,14 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gsnr=None, rsnr=None, zsnr=None, gnobs=None, rnobs=None, znobs=None,
+          gfiberflux=None, gsnr=None, rsnr=None, zsnr=None,
+          gnobs=None, rnobs=None, znobs=None,
           maskbits=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (03/09/21) is version 1 on `the SV2 wiki`_.
+    - Current version (03/16/21) is version 5 on `the SV2 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -418,7 +419,8 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                          gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
     elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                        w2flux=w2flux, south=south, primary=primary)
+                        w2flux=w2flux, gfiberflux=gfiberflux, south=south,
+                        primary=primary)
 
     return elg
 
@@ -445,7 +447,7 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
 
 
 def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, south=True, primary=None):
+                 w2flux=None, gfiberflux=None, south=True, primary=None):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
@@ -458,21 +460,22 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
+    gfib = 22.5 - 2.5*np.log10(gfiberflux.clip(1e-16))
 
     # ADM cuts shared by the northern and southern selections.
     elg &= g > 20                       # bright cut.
-    elg &= r - z > 0.3                  # blue cut.
-    elg &= r - z < 1.6                  # red cut.
+    elg &= r - z > 0.15                  # blue cut.
+#    elg &= r - z < 1.6                  # red cut.
     elg &= g - r < -1.2*(r - z) + 1.6   # OII flux cut.
 
-    # ADM cuts that are unique to the north or south.
+    # ADM cuts that are unique to the north or south. Identical for sv2
+    # ADM but keep the north/south formalism in case we use it for sv3.
     if south:
-        elg &= g < 23.4  # faint cut.
-        # ADM south has the FDR cut to remove stars and low-z galaxies.
-        elg &= g - r < 1.15*(r - z) - 0.15
+        elg &= gfib < 24.1  # faint cut.
+        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars and low-z galaxies.
     else:
-        elg &= g < 23.5  # faint cut.
-        elg &= g - r < 1.15*(r - z) - 0.20  # remove stars and low-z galaxies.
+        elg &= gfib < 24.1  # faint cut.
+        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars and low-z galaxies.
 
     return elg
 
@@ -1441,7 +1444,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (03/09/21) is version 1 on `the SV2 wiki`_.
+    - Current version (03/16/21) is version 8 on `the SV2 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
@@ -1874,7 +1877,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                gfiberflux=gfiberflux, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                 gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
                 south=south
             )
