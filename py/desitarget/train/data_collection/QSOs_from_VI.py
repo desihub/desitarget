@@ -224,6 +224,7 @@ def extract_qsos_from_vi(vi_tiles, fits_save_name):
     qso_dr9_south = match_cat_to_dr9(coord_cat, list_name_south, sweepname_south)
     qso_dr9_north = match_cat_to_dr9(coord_cat, list_name_north, sweepname_north)
 
+    # We don't remove qso from SDSS in the north since for the training we only consider qso in the south from SDSS
     print("Remove targets in South which are already in SDSS (avoid overlap and double check)")
     sel_not_in_sdss = find_south_in_sdss(qso_dr9_south)
     qso_dr9_south = qso_dr9_south[sel_not_in_sdss]
