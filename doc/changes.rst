@@ -5,8 +5,8 @@ desitarget Change Log
 0.52.1 (unreleased)
 -------------------
 
-* Update the ELG selection for SV2 [`PR #685`_]
-* Update the LRG selection for SV2 [`PR #683`_]:
+* Update the ELG selection for sv2 [`PR #685`_]
+* Update the LRG selection for sv2 [`PR #683`_]:
     * Switch from optical to IR as the (tentative) baseline selection
     * Tweak the low-z and and IR sliding cuts
     * Remove bright (G<18) GAIA sources
@@ -19,7 +19,7 @@ desitarget Change Log
 
 * New secondary bits for COSMOS/unusual point sources [`PR #682`_].
 * Add formalism to make ledger for BACKUP targets [`PR #681`_].
-* New QSO target selection in SV2 [`PR #680`_] for validation:
+* New QSO target selection in sv2 [`PR #680`_] for validation:
     * RF file (dr9_final) trained with significance > 10 and SV QSOs.
     * push selection to r < 23.
     * add W1/W2 cut (< 22.3).
