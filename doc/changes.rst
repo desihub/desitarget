@@ -17,6 +17,15 @@ desitarget Change Log
 0.52.0 (2021-03-13)
 -------------------
 
+* Implement full MTL loop [`PR #684`_]. Includes:
+    * Modify ledgers based on any new tiles in a ``zcat`` directory.
+    * An MTL tile file to track which tiles have been processed by MTL.
+    * Read standard tile file to get observing conditions for each tile.
+        * Only update ledgers for tiles with the appropriate conditions.
+    * Option to use the ledgers themselves to updated ``NUMOBS``
+        * instead of expecting ``NUMOBS`` to be in the ``zcat``.
+    * A command-line script to execute the full loop.
+        * Input directories and files can be environment variables.
 * New secondary bits for COSMOS/unusual point sources [`PR #682`_].
 * Add formalism to make ledger for BACKUP targets [`PR #681`_].
 * New QSO target selection in sv2 [`PR #680`_] for validation:
@@ -37,6 +46,7 @@ desitarget Change Log
 .. _`PR #680`: https://github.com/desihub/desitarget/pull/680
 .. _`PR #681`: https://github.com/desihub/desitarget/pull/681
 .. _`PR #682`: https://github.com/desihub/desitarget/pull/682
+.. _`PR #684`: https://github.com/desihub/desitarget/pull/684
 
 0.51.0 (2021-03-07)
 -------------------

@@ -20,7 +20,8 @@ class TestPriorities(unittest.TestCase):
             ('Z', np.float32),
             ('ZWARN', np.float32),
             ('NUMOBS', np.float32),
-            ('SPECTYPE', np.str)
+            ('SPECTYPE', np.str),
+            ('ZTILEID', np.int32)
         ]
 
         n = 3

@@ -12,6 +12,7 @@ import numpy as np
 # import pandas as pd
 import fitsio
 from astropy.table import Table
+from astropy.io import ascii
 import os
 import re
 from . import __version__ as desitarget_version
@@ -430,8 +431,10 @@ def write_with_units(filename, data, extname=None, header=None, ecsv=False):
 
     # ADM write the file for either ecsv or fits..
     if ecsv:
-        data.meta = dict(header)
-        data.meta['EXTNAME'] = extname
+        if header is not None:
+            data.meta = dict(header)
+        if extname is not None:
+            data.meta['EXTNAME'] = extname
         data.write(filename+'.tmp', format='ascii.ecsv', overwrite=True)
     else:
         fitsio.write(filename+'.tmp', data, units=units, extname=extname,
@@ -702,7 +705,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
         Written to output file header as the keyword `SURVEY`.
     obscon : :class:`str`, optional
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
-    nsidefile : :class:`int`, optional, defaults to `mtl.get_mtl_dir()`
+    nsidefile : :class:`int`, optional
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
         nside. Used in conjunction with `hpxlist`.
@@ -2314,6 +2317,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
 
     # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
     fn = os.path.join(targdir, drstr, version, flavor)
+    if flavor == "mtl":
+        fn = targdir
 
     # ADM masks are a special case beneath $MASK_DIR.
     if flavor == "masks":
@@ -2363,6 +2368,67 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
             fn = os.path.join(os.path.dirname(fn), justfn)
 
     return fn
+
+
+def read_mtl_tile_file(filename):
+    """Read which tiles have been processed by MTL from the tile file.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The full path to the MTL tile file.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured numpy array of the MTL tile file.
+    """
+    from desitarget.mtl import mtltilefiledm as dm
+    dt = dm.dtype
+    mtltiles = Table.read(filename, comment="#", delimiter=" ",
+                          format='pandas.csv', dtype=dt)
+
+    return mtltiles
+
+
+def write_mtl_tile_file(filename, data):
+    """Append new tiles to the end of the MTL tile file.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The full path to the MTL tile file. If this doesn't exist, then
+        a new file is begun.
+    data : :class`~numpy.ndarray`
+        The data to append to the end of the MTL tile file, which should
+        be in the format of desitarget.mtl.mtltilefiledm
+
+    Returns
+    -------
+    :class:`int`
+        The number of targets that were written to file.
+    :class:`str`
+        The name of the file to which targets were written.
+    """
+    from desitarget.mtl import mtltilefiledm as dm
+    dt = dm.dtype
+    if data.dtype != dt:
+        msg = "Data for MTL tile file formatted as {}. Should be {}".format(
+            data.dtype, dt)
+        log.error(msg)
+        raise IOError(msg)
+
+    if os.path.isfile(filename):
+        # ADM as we're working with .ecsv, simply append to the end.
+        f = open(filename, "a")
+        ascii.write(data, f, format='no_header')
+        f.close()
+    else:
+        # ADM if the file doesn't exist we may need to make the directory.
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        write_with_units(filename, data, extname='MTLTILE', ecsv=True)
+
+    return len(data), filename
 
 
 def read_mtl_ledger(filename, unique=True):

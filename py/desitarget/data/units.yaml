@@ -177,6 +177,8 @@ TIMESTAMP: s
 VERSION:
 Z:
 ZWARN:
+ZTILEID:
+TILEID:
 
 # ADM ToO-related units:
 CHECKER:

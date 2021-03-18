@@ -221,9 +221,9 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
-        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 9, OBS: 9, DONOTOBSERVE: 0}
-        BACKUP_FAINT:                 {UNOBS: 8, DONE: 8, OBS: 8, DONOTOBSERVE: 0}
-        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 7, OBS: 7, DONOTOBSERVE: 0}
+        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BACKUP_FAINT:                 {UNOBS: 8, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM Standards are special; priorities don't apply.
         GAIA_STD_FAINT:  -1
         GAIA_STD_WD:  -1
