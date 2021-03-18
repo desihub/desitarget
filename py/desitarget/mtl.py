@@ -339,7 +339,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
                                     dtype=mtldatamodel["SCND_TARGET"].dtype)
 
     # ADM initialize columns to avoid zero-length/missing/format errors.
-    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "ZTILEID"]
+    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN"]
     for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
         mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
 
@@ -359,6 +359,12 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['TARGET_STATE'][zmatcher] = target_state
     for col in zcols:
         mtl[col][zmatcher] = ztargets[col]
+    # ADM also add the ZTILEID column, if passed, otherwise we're likely
+    # ADM to be working with non-ledger-based mocks and can let it slide.
+    if "ZTILEID" in ztargets:
+        mtl["ZTILEID"][zmatcher] = ztargets["ZTILEID"]
+    else:
+        mtl["ZTILEID"] = -1
 
     # Filter out any targets marked as done.
     if trim:
@@ -959,6 +965,14 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock in the SV1-era format.
     zcat = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
+    # ADM insist that for an MTL loop with real observations, the zcat
+    # ADM must conform to the data model. In particular, it must include
+    # ADM ZTILEID, which may not be needed for non-ledger simulations.
+    if zcat.dtype.descr != zcatdatamodel.dtype.descr:
+        msg = "zcat data model must be {} not {}!".format(
+            zcatdatamodel.dtype.descr, zcat.dtype.descr)
+        log.critical(msg)
+        raise ValueError(msg)
 
     # ADM update the appropriate ledger.
     update_ledger(hpdirname, zcat, obscon=obscon,
