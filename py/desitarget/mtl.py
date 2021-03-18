@@ -41,7 +41,7 @@ mtldatamodel = np.array([], dtype=[
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
     ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S16'),
-    ('TILEID', '>i4')
+    ('ZTILEID', '>i4')
     ])
 
 zcatdatamodel = np.array([], dtype=[
@@ -200,8 +200,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         "DARK|GRAY". Governs the behavior of how priorities are set based
         on "obsconditions" in the desitarget bitmask yaml file.
     zcat : :class:`~astropy.table.Table`, optional
-        Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
-        ``ZWARN``, ``TILEID``.
+        Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
+        ``Z``, ``ZWARN``, ``ZTILEID``.
     scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
         A set of secondary targets associated with the `targets`. As with
         the `target` must include at least ``TARGETID``, ``NUMOBS_INIT``,
@@ -297,7 +297,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
         ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN'] = -1 * np.ones(n, dtype=np.int32)
-        ztargets['TILEID'] = -1 * np.ones(n, dtype=np.int32)
+        ztargets['ZTILEID'] = -1 * np.ones(n, dtype=np.int32)
         # ADM if zcat wasn't passed, there is a one-to-one correspondence
         # ADM between the targets and the zcat.
         zmatcher = np.arange(n)
@@ -339,7 +339,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
                                     dtype=mtldatamodel["SCND_TARGET"].dtype)
 
     # ADM initialize columns to avoid zero-length/missing/format errors.
-    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "TILEID"]
+    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "ZTILEID"]
     for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
         mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
 
@@ -575,7 +575,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         partitioned by HEALPixel (i.e. as made by `make_ledger`).
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
-        ``Z``, ``ZWARN``, ``TILEID``.
+        ``Z``, ``ZWARN``, ``ZTILEID``.
     targets : :class:`~numpy.array` or `~astropy.table.Table`, optional, defaults to ``None``
         A numpy rec array or astropy Table with at least the columns
         ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
@@ -879,9 +879,9 @@ def make_zcat_rr_backstop(zcatdir, tiles):
 
     zcat["RA"] = fms[zid]["TARGET_RA"]
     zcat["DEC"] = fms[zid]["TARGET_DEC"]
-    zcat["TILEID"] = fms[zid]["TILEID"]
+    zcat["ZTILEID"] = fms[zid]["TILEID"]
     zcat["NUMOBS"] = zs["NUMTILE"]
-    for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS', 'TILEID']):
+    for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS', 'ZTILEID']):
         zcat[col] = zs[col]
 
     return zcat
