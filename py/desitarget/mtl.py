@@ -40,7 +40,8 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S16')
+    ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S16'),
+    ('TILEID', '>i4')
     ])
 
 zcatdatamodel = np.array([], dtype=[
@@ -200,7 +201,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         on "obsconditions" in the desitarget bitmask yaml file.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``, ``Z``,
-        ``ZWARN``.
+        ``ZWARN``, ``TILEID``.
     scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
         A set of secondary targets associated with the `targets`. As with
         the `target` must include at least ``TARGETID``, ``NUMOBS_INIT``,
@@ -296,6 +297,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
         ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN'] = -1 * np.ones(n, dtype=np.int32)
+        ztargets['TILEID'] = -1 * np.ones(n, dtype=np.int32)
         # ADM if zcat wasn't passed, there is a one-to-one correspondence
         # ADM between the targets and the zcat.
         zmatcher = np.arange(n)
@@ -337,7 +339,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
                                     dtype=mtldatamodel["SCND_TARGET"].dtype)
 
     # ADM initialize columns to avoid zero-length/missing/format errors.
-    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN"]
+    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "TILEID"]
     for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
         mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
 
@@ -555,7 +557,8 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
         for pixel in pixels:
             _update_status(_make_ledger_in_hp(pixel))
 
-    log.info("Done writing ledger...t = {:.1f} mins".format((time()-t0)/60.))
+    log.info("Done writing ledger to {}...t = {:.1f} mins".format(
+        outdirname, (time()-t0)/60.))
 
     return
 
@@ -572,7 +575,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         partitioned by HEALPixel (i.e. as made by `make_ledger`).
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
-        ``Z``, ``ZWARN``.
+        ``Z``, ``ZWARN``, ``TILEID``.
     targets : :class:`~numpy.array` or `~astropy.table.Table`, optional, defaults to ``None``
         A numpy rec array or astropy Table with at least the columns
         ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
@@ -854,7 +857,13 @@ def make_zcat_rr_backstop(zcatdir, tiles):
         zbestfns = os.path.join(zcatdir, "{}".format(tile), "*", "zbest*")
         for zbestfn in glob(zbestfns):
             allzs.append(fitsio.read(zbestfn, "ZBEST"))
-            allfms.append(fitsio.read(zbestfn, "FIBERMAP"))
+            fm = fitsio.read(zbestfn, "FIBERMAP")
+            allfms.append(fm)
+            # ADM check the correct TILEID was written in the fibermap.
+            if set(fm["TILEID"]) != set([tile]):
+                msg = "Directory and fibermap don't match for tile".format(tile)
+                log.critical(msg)
+                raise ValueError(msg)
     zs = np.concatenate(allzs)
     fms = np.concatenate(allfms)
 
@@ -870,8 +879,9 @@ def make_zcat_rr_backstop(zcatdir, tiles):
 
     zcat["RA"] = fms[zid]["TARGET_RA"]
     zcat["DEC"] = fms[zid]["TARGET_DEC"]
+    zcat["TILEID"] = fms[zid]["TILEID"]
     zcat["NUMOBS"] = zs["NUMTILE"]
-    for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS']):
+    for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS', 'TILEID']):
         zcat[col] = zs[col]
 
     return zcat
