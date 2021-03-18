@@ -56,6 +56,7 @@ class TestMTL(unittest.TestCase):
         self.zcat['ZWARN'] = [0, 0, 1, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1, 1]
         self.zcat['SPECTYPE'] = ['GALAXY', 'QSO', 'QSO', 'QSO', 'QSO']
+        self.zcat['ZTILEID'] = [-1, -1, -1, -1, -1]
 
         # priorities and numobs more after measuring redshifts.
         self.post_prio = [0 for t in self.type_A]

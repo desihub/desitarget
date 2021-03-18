@@ -46,7 +46,7 @@ mtldatamodel = np.array([], dtype=[
 
 zcatdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('TARGETID', '>i8'),
-    ('NUMOBS', '>i4'), ('Z', '>f8'), ('ZWARN', '>i8'),
+    ('NUMOBS', '>i4'), ('Z', '>f8'), ('ZWARN', '>i8'), ('ZTILEID', '>i4')
     ])
 
 mtltilefiledm = np.array([], dtype=[
