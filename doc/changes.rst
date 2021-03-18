@@ -2,21 +2,15 @@
 desitarget Change Log
 =====================
 
-0.52.1 (unreleased)
+0.53.1 (unreleased)
 -------------------
 
-* Update the ELG selection for sv2 [`PR #685`_]
-* Update the LRG selection for sv2 [`PR #683`_]:
-    * Switch from optical to IR as the (tentative) baseline selection
-    * Tweak the low-z and and IR sliding cuts
-    * Remove bright (G<18) GAIA sources
+* No changes yet.
 
-.. _`PR #683`: https://github.com/desihub/desitarget/pull/683
-.. _`PR #685`: https://github.com/desihub/desitarget/pull/685
-
-0.52.0 (2021-03-13)
+0.53.0 (2021-03-18)
 -------------------
 
+* Update the ELG selection for SV2 [`PR #685`_]
 * Implement full MTL loop [`PR #684`_]. Includes:
     * Modify ledgers based on any new tiles in a ``zcat`` directory.
     * An MTL tile file to track which tiles have been processed by MTL.
@@ -26,9 +20,23 @@ desitarget Change Log
         * instead of expecting ``NUMOBS`` to be in the ``zcat``.
     * A command-line script to execute the full loop.
         * Input directories and files can be environment variables.
+    * The ``zcat`` now requires a ``ZTILEID``
+        * indicating which tile was used to update the redshifts.
+* Update the LRG selection for SV2 [`PR #683`_]:
+    * Switch from optical to IR as the (tentative) baseline selection.
+    * Tweak the low-z and and IR sliding cuts.
+    * Remove bright (G<18) GAIA sources.
+
+.. _`PR #683`: https://github.com/desihub/desitarget/pull/683
+.. _`PR #684`: https://github.com/desihub/desitarget/pull/684
+.. _`PR #685`: https://github.com/desihub/desitarget/pull/685
+
+0.52.0 (2021-03-13)
+-------------------
+
 * New secondary bits for COSMOS/unusual point sources [`PR #682`_].
 * Add formalism to make ledger for BACKUP targets [`PR #681`_].
-* New QSO target selection in sv2 [`PR #680`_] for validation:
+* New QSO target selection in SV2 [`PR #680`_] for validation:
     * RF file (dr9_final) trained with significance > 10 and SV QSOs.
     * push selection to r < 23.
     * add W1/W2 cut (< 22.3).
@@ -46,7 +54,6 @@ desitarget Change Log
 .. _`PR #680`: https://github.com/desihub/desitarget/pull/680
 .. _`PR #681`: https://github.com/desihub/desitarget/pull/681
 .. _`PR #682`: https://github.com/desihub/desitarget/pull/682
-.. _`PR #684`: https://github.com/desihub/desitarget/pull/684
 
 0.51.0 (2021-03-07)
 -------------------
