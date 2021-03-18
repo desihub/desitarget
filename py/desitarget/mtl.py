@@ -965,6 +965,14 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock in the SV1-era format.
     zcat = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
+    # ADM insist that for an MTL loop with real observations, the zcat
+    # ADM must conform to the data model. In particular, it must include
+    # ADM ZTILEID, which may not be needed for non-ledger simulations.
+    if zcat.dtype.descr != zcatdatamodel.dtype.descr:
+        msg = "zcat data model must be {} not {}!".format(
+            zcatdatamodel.dtype.descr, zcat.dtype.descr)
+        log.critical(msg)
+        raise ValueError(msg)
 
     # ADM update the appropriate ledger.
     update_ledger(hpdirname, zcat, obscon=obscon,
