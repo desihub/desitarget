@@ -734,9 +734,6 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
 
     # ADM reorder targets to match MTL on TARGETID.
     targs = targs[ii]
-    targsort = np.argsort(targs["TARGETID"])
-    mtlsort = np.argsort(mtl["TARGETID"])
-    targs = targs[targsort][mtlsort]
 
     # ADM create an array to contain the fuller set of target columns.
     # ADM start with the data model for the target columns.
