@@ -5,11 +5,13 @@ desitarget Change Log
 0.53.1 (unreleased)
 -------------------
 
+* Don't pass the DR when constructing MTL filenames [`PR #688`_].
 * Don't insist that ``ZTILEID`` has to be in the ``zcat`` [`PR #687`_].
 * Install the SV2-related data files [`PR #686`_].
 
 .. _`PR #686`: https://github.com/desihub/desitarget/pull/686
 .. _`PR #687`: https://github.com/desihub/desitarget/pull/687
+.. _`PR #688`: https://github.com/desihub/desitarget/pull/688
 
 0.53.0 (2021-03-18)
 -------------------
