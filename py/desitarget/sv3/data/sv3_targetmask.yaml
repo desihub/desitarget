@@ -67,7 +67,7 @@ sv3_bgs_mask:
 sv3_mws_mask:
 
     # First layer defines main samples -- these are expected to have distinct
-    # input catalogues. 
+    # input catalogues.
 
     #- Bits 0-3 (7 ids)
     - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT}]
@@ -79,7 +79,7 @@ sv3_mws_mask:
     # distinct groups for the purpose of assigning priorities and observing
     # conditions.
 
-    # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS 
+    # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS
 
     # => A main sample star at low galactic latitude, faint enough to be
     # considered filler but with parallax factored into the subpriority and

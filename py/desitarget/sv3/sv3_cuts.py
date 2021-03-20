@@ -1337,7 +1337,6 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
-
     if not south:
         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
 
