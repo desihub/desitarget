@@ -98,6 +98,24 @@ desitarget API
 .. automodule:: desitarget.sv1.sv1_targetmask
     :members:
 
+.. automodule:: desitarget.sv2
+    :members:
+
+.. automodule:: desitarget.sv2.sv2_cuts
+    :members:
+
+.. automodule:: desitarget.sv2.sv2_targetmask
+    :members:
+
+.. automodule:: desitarget.sv3
+    :members:
+
+.. automodule:: desitarget.sv3.sv3_cuts
+    :members:
+
+.. automodule:: desitarget.sv3.sv3_targetmask
+    :members:
+
 .. automodule:: desitarget.targetmask
     :members:
 
