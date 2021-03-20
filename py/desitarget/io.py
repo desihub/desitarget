@@ -2663,14 +2663,13 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False):
         - Should work for both .ecsv and .fits files.
     """
     # ADM grab information from the target directory.
-    dr = read_keyword_from_mtl_header(hpdirname, "DR")
     surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
     oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
     from desitarget.mtl import get_mtl_ledger_format
     ender = get_mtl_ledger_format()
 
     # ADM construct the full directory path.
-    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}", dr=dr,
+    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}",
                                survey=surv, ender=ender, obscon=oc)
     # ADM return the filename.
     fileform = os.path.join(hpdirname, os.path.basename(hugefn))
