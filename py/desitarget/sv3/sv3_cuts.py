@@ -2,13 +2,13 @@
 desitarget.sv3.sv3_cuts
 =======================
 
-Target Selection for DESI Survey Validation derived from `the sv3 wiki`_.
+Target Selection for DESI Survey Validation derived from `the SV3 wiki`_.
 
 A collection of helpful (static) methods to check whether an object's
 flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
 
 .. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
-.. _`the sv3 wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/sv3
+.. _`the SV3 wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SV3
 """
 import warnings
 from time import time
@@ -120,7 +120,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     Notes
     -----
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if primary is None:
@@ -241,7 +241,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
     Notes
     -----
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')
@@ -294,7 +294,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -409,7 +409,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (03/16/21) is version 5 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -498,7 +498,7 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         mask : boolean array, True if the object has colors like a STD star target
 
     Notes:
-        - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
 
     if primary is None:
@@ -557,7 +557,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
         mask : boolean array, True if the object passes Gaia quality cuts.
 
     Notes:
-        - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -659,7 +659,7 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
 
     Notes:
     - Gaia-based quantities are as in `the Gaia data model`_.
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gflux, dtype='?')
@@ -735,7 +735,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
 
     Notes:
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -866,7 +866,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             True if and only if the object is a MWS-NEARBY target.
 
     Notes:
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -922,7 +922,7 @@ def isMWS_bhb(primary=None, objtype=None,
     - Criteria supplied by Sergey Koposov
     - gflux, rflux, zflux, w1flux have been corrected for extinction
       (unlike other MWS selections, which use obs_flux).
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1005,7 +1005,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
             True if and only if the object is a MWS-WD target.
 
     Notes:
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -1159,7 +1159,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
 
     Notes
     -----
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
@@ -1334,7 +1334,7 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/09/21) is version 1 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     if not south:
@@ -1443,7 +1443,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (03/16/21) is version 8 on `the sv3 wiki`_.
+    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
