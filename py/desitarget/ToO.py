@@ -22,11 +22,13 @@ indtype = [tup for tup in indatamodel.dtype.descr if "OVERRIDE" not in tup]
 outdtype = [tup for tup in outdatamodel.dtype.descr if "OVERRIDE" not in tup]
 # ADM ...and some extra columns are necessary.
 indatamodel = np.array([], dtype=indtype + [
-    ('CHECKER', '>U3'), ('TOO_TYPE', '>U5'), ('OCLAYER', '>U6'),
-    ('TOOID', '>i4'), ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
+    ('CHECKER', '>U7'), ('TOO_TYPE', '>U5'),
+    ('TOO_PRIO', '>U2'), ('OCLAYER', '>U6'),
+    ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8'), ('TOOID', '>i4')])
 outdatamodel = np.array([], dtype=outdtype + [
-    ('CHECKER', '>U3'), ('TOO_TYPE', '>U5'), ('OCLAYER', '>U6'),
-    ('TOOID', '>i4'), ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
+    ('CHECKER', '>U7'), ('TOO_TYPE', '>U5'),
+    ('TOO_PRIO', '>U2'), ('OCLAYER', '>U6'),
+    ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8'), ('TOOID', '>i4')])
 
 # ADM when using basic or csv ascii writes, specifying the formats of
 # ADM float32 columns can make things easier on the eye.
@@ -35,10 +37,11 @@ tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 # ADM This RELEASE means Target of Opportunity in TARGETID.
 release = 9999
 
-# ADM Constraints on how many ToOs are allowed in a given time period.
+# ADM Constrain how many high-priority ToOs are allowed in a given time.
 # ADM dictionary keys are total nights, dictionary vals are total fibers.
 # ADM so, e.g., 365: 500 means no more than 500 fibers per year.
 # ADM There are separate allocations for tile and fiber overrides.
+# ADM Only apply to high-priority ToOs, which can override primaries.
 constraints = {"FIBER": {1: 2, 30: 50, 365: 500},
                "TILE": {1: 5000, 30: 5000, 365: 10000}}
 
@@ -177,17 +180,18 @@ def make_initial_ledger(toodir=None):
     fn = get_filename(tdir)
 
     # ADM make a single line of the ledger with some indicative values.
-    data = np.zeros(2, dtype=indatamodel.dtype)
-    data["RA"] = 359.999999, 101.000001
-    data["DEC"] = -89.999999, -89.999999
-    data["PMRA"] = 13.554634, 4.364553
-    data["PMDEC"] = 10.763842, -10.763842
-    data["REF_EPOCH"] = 2015.5, 2015.5
-    data["CHECKER"] = "ADM", "AM"
-    data["TOO_TYPE"] = "TILE", "FIBER"
-    data["MJD_BEGIN"] = 40811.04166667, 41811.14166667
-    data["MJD_END"] = 40811.95833333, 41811.85833333
-    data["OCLAYER"] = "BRIGHT", "DARK"
+    data = np.zeros(3, dtype=indatamodel.dtype)
+    data["RA"] = 359.999999, 101.000001, 201.5
+    data["DEC"] = -89.999999, -89.999999, -89.999999
+    data["PMRA"] = 13.554634, 4.364553, 12.734214
+    data["PMDEC"] = 10.763842, -10.763842, -10.763842
+    data["REF_EPOCH"] = 2015.5, 2015.5, 2015.5
+    data["CHECKER"] = "ADM", "AM", "ADM"
+    data["TOO_TYPE"] = "TILE", "FIBER", "TILE"
+    data["TOO_PRIO"] = "HI", "LO", "HI"
+    data["MJD_BEGIN"] = 40811.04166667, 41811.14166667, 42811.14
+    data["MJD_END"] = 40811.95833333, 41811.85833333,  42811.85
+    data["OCLAYER"] = "BRIGHT", "DARK", "DARK"
 
     # ADM write out the results.
     _write_too_files(fn, data, ecsv=True)
@@ -325,7 +329,9 @@ def _check_ledger(inledger):
 
     # ADM check that TOO_TYPE's are all either TILE or FIBER.
     # ADM and the observing condiations are all either DARK or BRIGHT.
+    # ADM and the priorities are all LO or HI.
     allowed = {"TOO_TYPE": {'FIBER', 'TILE'},
+               "TOO_PRIO": {'LO', 'HI'},
                "OCLAYER": {'BRIGHT', 'DARK'}}
     for col in allowed:
         if not set(inledger[col]).issubset(allowed[col]):
@@ -343,30 +349,32 @@ def _check_ledger(inledger):
     # ADM check that the requested ToOs don't exceed allocations. There
     # ADM are different constraints for different types of observations.
     for tootype in "FIBER", "TILE":
-        ii = inledger["TOO_TYPE"] == tootype
+        # ADM only restrict observations at higher-than-primary priority.
+        ii = (inledger["TOO_TYPE"] == tootype) & (inledger["TOO_PRIO"] == "HI")
         # ADM work with discretized days that run from noon until noon
         # ADM so each observing night is encompassed by an integer day.
-        jdbegin = inledger["MJD_BEGIN"][ii]+0.5
-        jdend = inledger["MJD_END"][ii]+0.5
-        jdbegin, jdend = jdbegin.astype(int), jdend.astype(int)
-        # ADM grab the allowed fibers for each interval in nights.
-        nights = np.array(list(constraints[tootype].keys()))
-        allowed = np.array(list(constraints[tootype].values()))
-        # ADM check the total nights covered by the MJD ranges.
-        fibers = max_integers_in_interval(jdbegin, jdend, nights)
-        log.info("Working on ToO observations of type {}".format(tootype))
-        for fiber, night, allow in zip(fibers, nights, allowed):
-            log.info(
-                "Maximum of {} fibers requested across {} nights ({} allowed)"
-                .format(fiber, night, allow)
-                )
-        excess = fibers > allowed
-        if np.any(excess):
-            msg = "Allocation exceeded! "
-            msg += "{} fibers requested across {} nights ({} allowed)".format(
-                fibers[excess], nights[excess], allowed[excess])
-            log.critical(msg)
-            raise ValueError(msg)
+        if np.any(ii):
+            jdbegin = inledger["MJD_BEGIN"][ii]+0.5
+            jdend = inledger["MJD_END"][ii]+0.5
+            jdbegin, jdend = jdbegin.astype(int), jdend.astype(int)
+            # ADM grab the allowed fibers for each interval in nights.
+            nights = np.array(list(constraints[tootype].keys()))
+            allowed = np.array(list(constraints[tootype].values()))
+            # ADM check the total nights covered by the MJD ranges.
+            fibers = max_integers_in_interval(jdbegin, jdend, nights)
+            log.info("Working on ToO observations of type {}".format(tootype))
+            for fiber, night, allow in zip(fibers, nights, allowed):
+                log.info(
+                    "Maximum of {} fibers requested over {} nights ({} allowed)"
+                    .format(fiber, night, allow)
+                    )
+            excess = fibers > allowed
+            if np.any(excess):
+                msg = "Allocation exceeded! "
+                msg += "{} fibers requested over {} nights ({} allowed)".format(
+                    fibers[excess], nights[excess], allowed[excess])
+                log.critical(msg)
+                raise ValueError(msg)
 
     return
 
@@ -424,13 +432,15 @@ def finalize_too(inledger, survey="main"):
     from desitarget.targetmask import obsconditions
     outdata[dcol] = dMx["SCND_ANY"]
     for oc in set(outdata["OCLAYER"]):
-        ii = outdata["OCLAYER"] == oc
-        bitname = "{}_TOO".format(oc)
-        outdata[scol][ii] = sMx[bitname]
-        outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities["UNOBS"]
-        outdata["NUMOBS_INIT"][ii] = sMx[bitname].numobs
-        outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
-            sMx[bitname].obsconditions)
+        # ADM there are multiple possible priorities.
+        for prio in set(outdata["TOO_PRIO"]):
+            ii = (outdata["OCLAYER"] == oc) & (outdata["TOO_PRIO"] == prio)
+            bitname = "{}_TOO_{}P".format(oc, prio)
+            outdata[scol][ii] = sMx[bitname]
+            outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities["UNOBS"]
+            outdata["NUMOBS_INIT"][ii] = sMx[bitname].numobs
+            outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
+                sMx[bitname].obsconditions)
 
     # ADM assign a SUBPRIORITY.
     np.random.seed(616)
