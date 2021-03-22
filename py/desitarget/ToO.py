@@ -23,10 +23,10 @@ outdtype = [tup for tup in outdatamodel.dtype.descr if "OVERRIDE" not in tup]
 # ADM ...and some extra columns are necessary.
 indatamodel = np.array([], dtype=indtype + [
     ('CHECKER', '>U3'), ('TOO_TYPE', '>U5'), ('OCLAYER', '>U6'),
-    ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
+    ('TOOID', '>i4'), ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
 outdatamodel = np.array([], dtype=outdtype + [
     ('CHECKER', '>U3'), ('TOO_TYPE', '>U5'), ('OCLAYER', '>U6'),
-    ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
+    ('TOOID', '>i4'), ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8')])
 
 # ADM when using basic or csv ascii writes, specifying the formats of
 # ADM float32 columns can make things easier on the eye.
