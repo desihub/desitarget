@@ -43,8 +43,6 @@ import healpy as hp
 
 import numpy.lib.recfunctions as rfn
 
-import astropy.units as u
-from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
 from time import time
@@ -823,6 +821,8 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
                  .format(len(scxtargs), time()-t0))
         # ADM use astropy for the matching. At NERSC, astropy matches
         # ADM ~20M objects to themselves in about 10 minutes.
+        import astropy.units as u
+        from astropy.coordinates import SkyCoord
         c = SkyCoord(scxtargs["RA"][w]*u.deg, scxtargs["DEC"][w]*u.deg)
         m1, m2, _, _ = c.search_around_sky(c, sep*u.arcsec)
         log.info("Done with matching...t={:.1f}s".format(time()-t0))
