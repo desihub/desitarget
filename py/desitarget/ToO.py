@@ -349,6 +349,7 @@ def _check_ledger(inledger):
     # ADM check that the requested ToOs don't exceed allocations. There
     # ADM are different constraints for different types of observations.
     for tootype in "FIBER", "TILE":
+        log.info("Working on ToO observations of type {}".format(tootype))
         # ADM only restrict observations at higher-than-primary priority.
         ii = (inledger["TOO_TYPE"] == tootype) & (inledger["TOO_PRIO"] == "HI")
         # ADM work with discretized days that run from noon until noon
@@ -362,19 +363,20 @@ def _check_ledger(inledger):
             allowed = np.array(list(constraints[tootype].values()))
             # ADM check the total nights covered by the MJD ranges.
             fibers = max_integers_in_interval(jdbegin, jdend, nights)
-            log.info("Working on ToO observations of type {}".format(tootype))
             for fiber, night, allow in zip(fibers, nights, allowed):
                 log.info(
-                    "Maximum of {} fibers requested over {} nights ({} allowed)"
+                    "Max of {} HIP fibers requested over {} nights ({} allowed)"
                     .format(fiber, night, allow)
                     )
             excess = fibers > allowed
             if np.any(excess):
-                msg = "Allocation exceeded! "
-                msg += "{} fibers requested over {} nights ({} allowed)".format(
-                    fibers[excess], nights[excess], allowed[excess])
+                msg = "Allocation exceeded! Number of HIP fibers requested over"
+                msg += "{} nights is {} (but only {} are allowed)".format(
+                    nights[excess], fibers[excess], allowed[excess])
                 log.critical(msg)
                 raise ValueError(msg)
+        else:
+            log.info("No fibers requested")
 
     return
 
