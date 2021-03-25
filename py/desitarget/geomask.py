@@ -84,6 +84,8 @@ def match(A, B):
     -----
     - Result should be such that for Aii, Bii = match(A, B)
       np.all(A[Aii] == B[Bii]) is True.
+    - Only works if there is a unique mapping from A->B, i.e
+      if A and B do NOT contain duplicates.
     - h/t Anand Raichoor `by way of Stack Overflow`_.
     """
     # AR sorting A,B

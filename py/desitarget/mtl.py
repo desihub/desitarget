@@ -22,6 +22,7 @@ from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, calc_numobs_more
 from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
 from desitarget.targets import set_obsconditions
+from desitarget.geomask import match, match_to
 from desitarget.internal import sharedmem
 from desitarget import io
 
@@ -294,11 +295,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # ADM if a redshift catalog was passed, order it to match the input targets
     # ADM catalog on 'TARGETID'.
     if zcat is not None:
-        # ADM there might be a quicker way to do this?
-        # ADM set up a dictionary of the indexes of each target id.
-        d = dict(tuple(zip(targets["TARGETID"], np.arange(n))))
-        # ADM loop through the zcat and look-up the index in the dictionary.
-        zmatcher = np.array([d[tid] for tid in zcat["TARGETID"]])
+        # ADM find where zcat matches target array.
+        zmatcher = match_to(targets["TARGETID"], zcat["TARGETID"])
         ztargets = zcat
         if ztargets.masked:
             unobs = ztargets['NUMOBS'].mask
@@ -640,12 +638,10 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
     # ADM if requested, use the previous values in the ledger to set
     # ADM NUMOBS in the zcat.
     if numobs_from_ledger:
-        lupd = dict(tuple(zip(targets["TARGETID"], np.arange(len(targets)))))
-        # ADM match zcat to targets on TARGETID.
-        inzcat = [tid in lupd for tid in zcat["TARGETID"]]
-        ii = np.array([lupd[tid] for tid in zcat["TARGETID"] if tid in lupd])
-        # ADM create NUMOBS for zcat based on previous ledger entry.
-        zcat["NUMOBS"][inzcat] = targets["NUMOBS"][ii] + 1
+        # ADM match the zcat to the targets.
+        tii, zii = match(targets["TARGETID"], zcat["TARGETID"])
+        # ADM update NUMOBS in the zcat for matches.
+        zcat["NUMOBS"][zii] = targets["NUMOBS"][tii] + 1
 
     # ADM run MTL, only returning the targets that are updated.
     mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True)
@@ -750,10 +746,8 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
         targs, hdr = targs
 
     # ADM match the mtl back to the targets on TARGETID.
-    lupd = dict(tuple(zip(targs["TARGETID"], np.arange(len(targs)))))
-    ii = np.array([lupd[tid] for tid in mtl["TARGETID"]])
-
-    # ADM reorder targets to match MTL on TARGETID.
+    ii = match_to(targs["TARGETID"], mtl["TARGETID"])
+    # ADM extract just the targets that match the mtl.
     targs = targs[ii]
 
     # ADM create an array to contain the fuller set of target columns.
@@ -887,9 +881,7 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     # ADM currently, the spectroscopic files aren't coadds, so aren't
     # ADM unique. We therefore need to look up (any) coordinates for
     # ADM each z in the fibermap.
-    d = dict(tuple(zip(fms["TARGETID"], np.arange(len(fms)))))
-    # ADM loop through the zs and look-up the index in the dictionary.
-    zid = np.array([d[tid] for tid in zs["TARGETID"]])
+    zid = match_to(fms["TARGETID"], zs["TARGETID"])
 
     # ADM write out the zcat as a file with the correct data model.
     zcat = Table(np.zeros(len(zs), dtype=zcatdatamodel.dtype))
