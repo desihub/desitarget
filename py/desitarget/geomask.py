@@ -4,9 +4,10 @@
 desitarget.geomask
 ==================
 
-Utility functions for geometry on the sky, masking, etc.
+Utility functions for geometry on the sky, masking, matching, etc.
 
 .. _`this post on Stack Overflow`: https://stackoverflow.com/questions/7392143/python-implementations-of-packing-algorithm
+.. _`by way of Stack Overflow`: https://stackoverflow.com/a/32654989
 """
 from __future__ import (absolute_import, division)
 #
@@ -30,6 +31,75 @@ import healpy as hp
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
 log = get_logger()
+
+
+def match_to(A, B):
+    """Return indexes where B matches A, holding A in place.
+
+    Parameters
+    ----------
+    A : :class:`~numpy.ndarray` or `list`
+        Array of integers to match TO.
+    B : :class:`~numpy.ndarray` or `list`
+        Array of integers matched to `A`
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The integer indexes in A that B matches to.
+
+    Notes
+    -----
+    - Result should be such that for ii = match_to(A, B)
+      np.all(A[ii] == B) is True.
+    - We're looking up locations of B in A so B can be
+      a shorter array than A (provided the B->A matches are
+      unique) but A cannot be a shorter array than B.
+    """
+    # ADM grab the integer matchers.
+    Aii, Bii = match(A, B)
+
+    # ADM return, restoring the original order.
+    return Aii[np.argsort(Bii)]
+
+
+def match(A, B):
+    """Return matching indexes for two arrays on a unique key.
+
+    Parameters
+    ----------
+    A : :class:`~numpy.ndarray` or `list`
+        An array of integers.
+    B : :class:`~numpy.ndarray` or `list`
+        An array of integers.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The integer indexes in A to match to B.
+    :class:`~numpy.ndarray`
+        The integer indexes in B to match to A.
+
+    Notes
+    -----
+    - Result should be such that for Aii, Bii = match(A, B)
+      np.all(A[Aii] == B[Bii]) is True.
+    - h/t Anand Raichoor `by way of Stack Overflow`_.
+    """
+    # AR sorting A,B
+    tmpA = np.sort(A)
+    tmpB = np.sort(B)
+
+    # AR create mask equivalent to np.in1d(A,B) and np.in1d(B,A) for unique elements
+    maskA = (
+        np.searchsorted(tmpB, tmpA, "right") - np.searchsorted(tmpB, tmpA, "left")
+    ) == 1
+    maskB = (
+        np.searchsorted(tmpA, tmpB, "right") - np.searchsorted(tmpA, tmpB, "left")
+    ) == 1
+
+    # AR to get back to original indexes
+    return np.argsort(A)[maskA], np.argsort(B)[maskB]
 
 
 def get_imaging_maskbits(bitnamelist=None):
