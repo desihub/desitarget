@@ -2509,8 +2509,14 @@ def read_mtl_ledger(filename, unique=True, isodate=None):
 
     # ADM restrict to dates before isodate, if requested.
     if isodate is not None:
-        ii = mtl["TIMESTAMP"] < isodate
-        mtl = mtl[ii]
+        # ADM try a couple of choices to guard against byte-type versus
+        # string-type errors.
+        try:
+            ii = mtl["TIMESTAMP"] < isodate
+            mtl = mtl[ii]
+        except TypeError:
+            ii = mtl["TIMESTAMP"] < isodate.encode()
+            mtl = mtl[ii]
 
     if unique:
         # ADM the reverse is because np.unique retains the FIRST unique
