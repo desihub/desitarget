@@ -146,9 +146,11 @@ sv3_scnd_mask:
     - [WD_BINARIES_BRIGHT,     41, "See $SCND_DIR/sv3/docs/WD_BINARIES_BRIGHT.txt",   {obsconditions: BRIGHT,           filename: 'WD_BINARIES_BRIGHT',  flavor: 'SPARE',  downsample: 1}]
     - [WD_BINARIES_DARK,       42, "See $SCND_DIR/sv3/docs/WD_BINARIES_DARK.txt",     {obsconditions: DARK,             filename: 'WD_BINARIES_DARK',    flavor: 'SPARE',  downsample: 1}]
 
-# ADM reserve 60/61 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
-    - [BRIGHT_TOO,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT, flavor: 'TOO'}]
-    - [DARK_TOO,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,   flavor: 'TOO'}]
+# ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
+    - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO'}]
+    - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO'}]
+    - [DARK_TOO_LOP,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO'}]
+    - [DARK_TOO_HIP,      62, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO'}]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -284,8 +286,10 @@ priorities:
         BRIGHT_HPM:             SAME_AS_LOW_MASS_AGN
         WD_BINARIES_BRIGHT:     {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         WD_BINARIES_DARK:       {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        BRIGHT_TOO:             {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        DARK_TOO:               SAME_AS_BRIGHT_TOO
+        BRIGHT_TOO_LOP:         {UNOBS: 1000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BRIGHT_TOO_HIP:         {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
+        DARK_TOO_HIP:           SAME_AS_BRIGHT_TOO_HIP
 
 # ADM INITIAL number of observations (NUMOBS_INIT) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS_INIT for bitname XXX
@@ -389,5 +393,7 @@ numobs:
         BRIGHT_HPM:             100
         WD_BINARIES_BRIGHT:     100
         WD_BINARIES_DARK:       100
-        BRIGHT_TOO:               1
-        DARK_TOO:               SAME_AS_BRIGHT_TOO
+        BRIGHT_TOO_LOP:         1
+        BRIGHT_TOO_HIP:         1
+        DARK_TOO_LOP:           1
+        DARK_TOO_HIP:           1

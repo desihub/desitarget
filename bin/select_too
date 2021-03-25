@@ -2,6 +2,9 @@
 
 from desitarget.ToO import get_too_dir, ledger_to_targets
 
+# ADM default to the main survey.
+survey = "main"
+
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Make an initial ledger for Targets of Opportunity')
 ap.add_argument("-t", "--toodir",
@@ -11,9 +14,12 @@ ap.add_argument("-t", "--toodir",
 ap.add_argument("-o", "--outdir",
                 help="Output directory to which to write the file of targets. \
                 [defaults to the environment variable $TOO_DIR]")
+ap.add_argument("-s", "--survey",
+                help="Survey flavor (e.g. sv3). [defaults to {}]".format(survey),
+                default=survey)
 
 ns = ap.parse_args()
 
 toodir = get_too_dir(ns.toodir)
 
-_ = ledger_to_targets(toodir, outdir=ns.outdir)
+_ = ledger_to_targets(toodir, outdir=ns.outdir, survey=ns.survey)

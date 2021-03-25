@@ -5,6 +5,7 @@ desitarget Change Log
 0.53.1 (unreleased)
 -------------------
 
+* Update ToO Ledger with TOOID and HI/LO priority options [`PR #690`_]
 * Add an ``sv3_cuts.py`` module and sv3 bitmask yaml file [`PR #689`_].
 * Don't pass the DR when constructing MTL filenames [`PR #688`_].
 * Don't insist that ``ZTILEID`` has to be in the ``zcat`` [`PR #687`_].
@@ -14,6 +15,7 @@ desitarget Change Log
 .. _`PR #687`: https://github.com/desihub/desitarget/pull/687
 .. _`PR #688`: https://github.com/desihub/desitarget/pull/688
 .. _`PR #689`: https://github.com/desihub/desitarget/pull/689
+.. _`PR #690`: https://github.com/desihub/desitarget/pull/690
 
 0.53.0 (2021-03-18)
 -------------------
