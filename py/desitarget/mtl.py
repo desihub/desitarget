@@ -60,6 +60,22 @@ mtltilefiledm = np.array([], dtype=[
 mtlformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 
 
+def get_utc_date():
+    """Convenience function to grab the UTC date.
+
+    Returns
+    -------
+    :class:`str`
+        The UTC data, appropriate to make a TIMESTAMP.
+
+    Notes
+    -----
+    - This is spun off into its own function to have a consistent way to
+    record time across the entire desitarget package.
+    """
+    return datetime.utcnow().isoformat(timespec='seconds')
+
+
 def get_mtl_dir(mtldir=None):
     """Convenience function to grab the $MTL_DIR environment variable.
 
@@ -349,8 +365,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['PRIORITY'] = mtl['PRIORITY_INIT']
     mtl['TARGET_STATE'] = "UNOBS"
     # ADM add the time and version of the desitarget code that was run.
-    utc = datetime.utcnow().isoformat(timespec='seconds')
-    mtl["TIMESTAMP"] = utc
+    mtl["TIMESTAMP"] = get_utc_date()
     mtl["VERSION"] = dt_version
 
     # ADM now populate the new mtl columns with the updated information.
@@ -822,8 +837,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, tilefn, obscon):
     donetiles = np.zeros(len(tileids), dtype=mtltilefiledm.dtype)
     donetiles["TILEID"] = tileids
     # ADM look up the time.
-    utc = datetime.utcnow().isoformat(timespec='seconds')
-    donetiles["TIMESTAMP"] = utc
+    donetiles["TIMESTAMP"] = get_utc_date()
     # ADM add the version of desitarget.
     donetiles["VERSION"] = dt_version
     # ADM add the program/obscon.
