@@ -89,16 +89,21 @@ class TestPriorities(unittest.TestCase):
             self.assertEqual(p[2], bgs_mask.BGS_FAINT.priorities['MORE_ZGOOD'])
             # BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
-            # ADM but in DARK conditions, BGS_FAINT should behave as
-            # ADM for other target classes.
             z = self.zcat.copy()
             z['NUMOBS'] = [0, 1, 1]
             z['ZWARN'] = [1, 1, 0]
             p = make_mtl(t, "DARK|GRAY", zcat=z)["PRIORITY"]
-
-            self.assertEqual(p[0], bgs_mask.BGS_FAINT.priorities['UNOBS'])
-            self.assertEqual(p[1], bgs_mask.BGS_FAINT.priorities['DONE'])
-            self.assertEqual(p[2], bgs_mask.BGS_FAINT.priorities['DONE'])
+            # ADM but in DARK conditions, BGS_FAINT should behave as
+            # ADM for other target classes as of SV1.
+            if prefix == "SV1_":
+                self.assertEqual(p[0], bgs_mask.BGS_FAINT.priorities['UNOBS'])
+                self.assertEqual(p[1], bgs_mask.BGS_FAINT.priorities['DONE'])
+                self.assertEqual(p[2], bgs_mask.BGS_FAINT.priorities['DONE'])
+            # ADM no BGS_FAINT allowed in Main Survey DARK conditions.
+            elif prefix == "":
+                self.assertEqual(p[0], 0)
+                self.assertEqual(p[1], 0)
+                self.assertEqual(p[2], 0)
 
             # ADM In BRIGHT conditions BGS BRIGHT targets are
             # ADM never DONE, only MORE_ZGOOD.

@@ -72,7 +72,7 @@ def get_utc_date():
     Notes
     -----
     - This is spun off into its own function to have a consistent way to
-    record time across the entire desitarget package.
+      record time across the entire desitarget package.
     """
     return datetime.utcnow().isoformat(timespec='seconds')
 
