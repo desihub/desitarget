@@ -555,7 +555,6 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
         misscols = set(neededcols) - set(cols)
         if len(misscols) > 0:
             # ADM the data type for the DESI_TARGET column.
-#            dtdt = mtldatamodel.dtype.fields["DESI_TARGET"][0].str
             dtdt = mtldatamodel["DESI_TARGET"].dtype
             zerod = [np.zeros(len(targs)), np.zeros(len(targs))]
             targs = rfn.append_fields(

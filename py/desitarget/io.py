@@ -798,9 +798,9 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         hdrdict = {**hdrdict, **extra}
 
     # ADM resolve of None adds secondary to the output directory.
-    resolve=True
+    resolve = True
     if scnd:
-        resolve=None
+        resolve = None
 
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
