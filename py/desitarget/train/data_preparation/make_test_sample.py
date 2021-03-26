@@ -13,22 +13,17 @@ from desitarget.train.data_preparation.funcs import Flux2MagFunc, ColorsFunc, Ar
 
 
 def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', max_rmag=23.0):
-    # ***CONFIGURATION***
-    min_rmag = 17.5
-
     # Selection criteria
     OBJ_extraSelCMD = ""
     if RELEASE == 'DR7':
         OBJ_extraKeys = ['BRIGHTSTARINBLOB']
         OBJ_extraSelCMD += "OBJ_selection_OK &= True"
-        OBJ_extraSelCMD += " & (OBJ_rmag > {:f})".format(min_rmag)
         OBJ_extraSelCMD += " & (OBJ_W1mag > 0.)"
         OBJ_extraSelCMD += " & (OBJ_W2mag > 0.)"
         OBJ_extraSelCMD += " & (~OBJ_BRIGHTSTARINBLOB)"
     elif RELEASE == 'DR8':
         OBJ_extraKeys = ['MASKBITS']
         OBJ_extraSelCMD += "OBJ_selection_OK &= True"
-        OBJ_extraSelCMD += " & (OBJ_rmag > {:f})".format(min_rmag)
         OBJ_extraSelCMD += " & (OBJ_W1mag > 0.)"
         OBJ_extraSelCMD += " & (OBJ_W2mag > 0.)"
         print("MASKBIT USED : 1, 11, 12, 13 ")
@@ -39,7 +34,6 @@ def make_test_sample(fpn_input, fpn_output, RELEASE='DR9', max_rmag=23.0):
     elif RELEASE == 'DR9':
         OBJ_extraKeys = ['MASKBITS']
         OBJ_extraSelCMD += "OBJ_selection_OK &= True"
-        OBJ_extraSelCMD += " & (OBJ_rmag > {:f})".format(min_rmag)
         OBJ_extraSelCMD += " & (OBJ_W1mag > 0.)"
         OBJ_extraSelCMD += " & (OBJ_W2mag > 0.)"
         print("MASKBIT USED : 1, 5, 6, 7, 10, 12, 13 ")

@@ -14,6 +14,7 @@ desitarget Change Log
     * Remove -ve ``TARGETIDs`` before matching.
     * Add the date that redshifts were extracted to the mtl tiles file.
     * Add the root redshift directory (``ZCAT_DIR``) to the manifest.
+* Change minimum r_value for QSO RF from 17.5 to 16.5 [`PR #692`].
 * Some clean-up for the 1% Survey [`PR #691`_]. Includes:
     * Don't allow ``BGS_FAINT`` targets to be observed in ``DARK``.
     * Warn about primary targets that might be too bright.
@@ -32,6 +33,7 @@ desitarget Change Log
 .. _`PR #689`: https://github.com/desihub/desitarget/pull/689
 .. _`PR #690`: https://github.com/desihub/desitarget/pull/690
 .. _`PR #691`: https://github.com/desihub/desitarget/pull/691
+.. _`PR #692`: https://github.com/desihub/desitarget/pull/692
 .. _`PR #693`: https://github.com/desihub/desitarget/pull/693
 
 0.53.0 (2021-03-18)
