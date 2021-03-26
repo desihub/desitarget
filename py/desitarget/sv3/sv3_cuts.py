@@ -1474,7 +1474,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     # Preselection to speed up the process
     rMax = 23.0   # r < 23.0
-    rMin = 17.5   # r > 17.5
+    rMin = 17.0   # r > 17.0
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
     # ADM targets have to be observed in every band.

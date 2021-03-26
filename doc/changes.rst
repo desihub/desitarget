@@ -5,7 +5,7 @@ desitarget Change Log
 0.53.1 (unreleased)
 -------------------
 
-* Change required minimum r_value for QSO RF selection from 17.5 to 16.5 [`PR #691`]
+* Change required minimum r_value for QSO RF selection from 17.5 to 17.0 [`PR #691`]
 * Update ToO Ledger with TOOID and HI/LO priority options [`PR #690`_]
 * Add an ``sv3_cuts.py`` module and sv3 bitmask yaml file [`PR #689`_].
 * Don't pass the DR when constructing MTL filenames [`PR #688`_].
