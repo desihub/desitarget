@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.53.1 (unreleased)
+0.54.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.54.0 (2021-03-26)
 -------------------
 
 * Update MTL loop for new data model [`PR #693`_]. Includes:
