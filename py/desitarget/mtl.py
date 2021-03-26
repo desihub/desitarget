@@ -41,7 +41,7 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'S19'), ('VERSION', 'S14'), ('TARGET_STATE', 'S16'),
+    ('TIMESTAMP', 'U19'), ('VERSION', 'U14'), ('TARGET_STATE', 'U16'),
     ('ZTILEID', '>i4')
     ])
 
@@ -51,8 +51,8 @@ zcatdatamodel = np.array([], dtype=[
     ])
 
 mtltilefiledm = np.array([], dtype=[
-    ('TILEID', '>i4'), ('TIMESTAMP', 'S19'),
-    ('VERSION', 'S14'), ('PROGRAM', 'S6')
+    ('TILEID', '>i4'), ('TIMESTAMP', 'U19'),
+    ('VERSION', 'U14'), ('PROGRAM', 'U6'), ('ZDATE', 'U8')
     ])
 
 
@@ -849,6 +849,8 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     donetiles["VERSION"] = dt_version
     # ADM add the program/obscon.
     donetiles["PROGRAM"] = obscon
+    # ADM add a placeholder for the YYYYMMDD of tile redshifts.
+    donetiles["ZDATE"] = ""
 
     return donetiles
 
@@ -1002,7 +1004,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock in the SV1-era format.
-    zcat = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
+    zcat, ymd = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
+    # ADM update the tiles table with the YYYYMMDD.
+    tiles["ZDATE"] = ymd
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include
     # ADM ZTILEID, which may not be needed for non-ledger simulations.
