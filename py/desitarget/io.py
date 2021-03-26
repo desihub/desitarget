@@ -702,7 +702,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     return ntargs, filename
 
 
-def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
+def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
               nsidefile=None, hpxlist=None, extra=None, ecsv=True, mixed=False):
     """Write Merged Target List ledgers or files.
 
@@ -719,6 +719,9 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
         Written to output file header as the keyword `SURVEY`.
     obscon : :class:`str`, optional
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
+    scnd : :class:`bool`, defaults to ``False``
+        If ``True`` then these are secondary targets. Write scnd=True to
+        the header and /secondary/ to the output directory structure.
     nsidefile : :class:`int`, optional
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
@@ -746,7 +749,8 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
         The name of the file to which targets were written.
     """
     # ADM begin to construct a dictionary of header keys and values.
-    keys, vals = ["INDIR", "SURVEY", "OBSCON"], [indir, survey, obscon]
+    keys = ["INDIR", "SURVEY", "OBSCON", "SCND"]
+    vals = [indir, survey, obscon, scnd]
 
     # ADM hpxlist and nsidefile need to be passed together.
     if hpxlist is not None or nsidefile is not None:
@@ -765,8 +769,8 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
     # ADM determine the data release from a TARGETID.
     _, _, release, _, _, gaiadr = decode_targetid(data["TARGETID"])
 
-    # ADM if the mixed kwarg was sent, allow multiple data releases.
-    if mixed:
+    # ADM if the mixed or scnd kwargs were sent, allow multiple DRs.
+    if mixed or scnd:
         dr = np.atleast_1d(np.max(release//1000))
     else:
         dr = np.unique(release//1000)
@@ -793,10 +797,15 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None,
     if extra is not None:
         hdrdict = {**hdrdict, **extra}
 
+    # ADM resolve of None adds secondary to the output directory.
+    resolve = True
+    if scnd:
+        resolve = None
+
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     fn = find_target_files(mtldir, dr=drstring, flavor="mtl", survey=survey,
-                           obscon=obscon, hp=hpx, ender=form)
+                           resolve=resolve, obscon=obscon, hp=hpx, ender=form)
 
     ntargs = len(data)
     # ADM die if there are no targets to write.
@@ -2220,7 +2229,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     resolve : :class:`bool`, optional, defaults to ``True``
         If ``True`` then find the `resolve` file. Otherwise find the
         `noresolve` file. Relevant if `flavor` is `targets` or `randoms`.
-        Pass ``None`` to substitute `resolve` with "secondary".
+        Pass ``None`` to substitute `resolve` with "secondary", which
+        also works if `flavor` is `mtl`.
     supp : :class:`bool`, optional, defaults to ``False``
         If ``True`` then find the supplemental/backup file. Overrides
         the `obscon` option.
@@ -2285,6 +2295,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
             res = "resolve"
     resdir = ""
     if flavor in ["targets", "randoms"]:
+        resdir = res
+    if flavor == "mtl" and resolve is None:
         resdir = res
     if isinstance(dr, int) or len(dr) == 1:
         drstr = "dr{}".format(dr)
