@@ -6,7 +6,6 @@ desitarget.QA
 
 Module dealing with Quality Assurance tests for Target Selection
 """
-from __future__ import (absolute_import, division)
 from time import time
 import numpy as np
 import fitsio
@@ -22,8 +21,6 @@ from collections import defaultdict
 from glob import glob, iglob
 from scipy.optimize import leastsq
 from scipy.spatial import ConvexHull
-from astropy import units as u
-from astropy.coordinates import SkyCoord
 from desiutil import brick
 from desiutil.log import get_logger
 from desitarget.internal import sharedmem
