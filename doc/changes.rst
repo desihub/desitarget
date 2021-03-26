@@ -5,7 +5,7 @@ desitarget Change Log
 0.53.1 (unreleased)
 -------------------
 
-* Change required minimum r_value for QSO RF selection from 17.5 to 17.0 [`PR #692`]
+* Change required minimum r_value for QSO RF selection from 17.5 to 16.5 [`PR #692`]
 * Some clean-up for the 1% Survey [`PR #691`_]. Includes:
     * Don't allow ``BGS_FAINT`` targets to be observed in ``DARK``.
     * Warn about primary targets that might be too bright.
