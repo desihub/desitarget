@@ -23,6 +23,7 @@ from desitarget import io
 from desitarget.internal import sharedmem
 from desimodel.footprint import radec2pix
 from desitarget.geomask import add_hp_neighbors, radec_match_to, nside2nside
+from desitarget.mtl import get_utc_date
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -133,9 +134,8 @@ def grab_tycho(cosmodir="/global/cfs/cdirs/cosmo/staging/tycho2/"):
             done[col] = objs[col]
 
     # ADM add some information to the header
-    copydate = datetime.utcnow().isoformat(timespec='seconds')
+    hdr["COPYDATE"] = get_utc_date()
     hdr["COSMODIR"] = cosmodir
-    hdr["COPYDATE"] = copydate
 
     # ADM write the data.
     fitsio.write(outfile, done, extname='TYCHOFITS', header=hdr)
@@ -205,7 +205,7 @@ def tycho_fits_to_healpix():
         hdr = dict(allhdr).copy()
         hdr["HPXNSIDE"] = nside
         hdr["HPXNEST"] = True
-        hdr["HPXDATE"] = datetime.utcnow().isoformat(timespec='seconds')
+        hdr["HPXDATE"] = get_utc_date()
 
         # ADM determine which objects are in this pixel and write out.
         done = objs[pix == pixnum]

@@ -19,9 +19,6 @@ from glob import glob
 import numpy as np
 import numpy.lib.recfunctions as rfn
 
-from astropy.coordinates import SkyCoord
-from astropy import units as u
-
 from matplotlib.patches import Polygon
 from matplotlib.collections import PatchCollection
 
@@ -587,6 +584,8 @@ def is_in_bright_mask(targs, sourcemask, inonly=False):
     used_near_mask = np.zeros(len(sourcemask), dtype=bool)
 
     # ADM turn the mask and target coordinates into SkyCoord objects.
+    from astropy.coordinates import SkyCoord
+    from astropy import units as u
     ctargs = SkyCoord(targs["RA"]*u.degree, targs["DEC"]*u.degree)
     cmask = SkyCoord(sourcemask["RA"]*u.degree, sourcemask["DEC"]*u.degree)
 

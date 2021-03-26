@@ -8,8 +8,6 @@ import os
 import fitsio
 import numpy as np
 import numpy.lib.recfunctions as rfn
-from astropy.coordinates import SkyCoord
-from astropy import units as u
 from glob import glob
 import healpy as hp
 import tempfile
@@ -208,6 +206,8 @@ class TestBRIGHTMASK(unittest.TestCase):
         safes = targs[np.where(skybitset)]
         # ADM for each mask location check that every safe location is
         # ADM equidistant from the mask center.
+        from astropy.coordinates import SkyCoord
+        from astropy import units as u
         c = SkyCoord(safes["RA"]*u.deg, safes["DEC"]*u.deg)
         for i in range(2):
             cent = SkyCoord(self.mask[i]["RA"]*u.deg, self.mask[i]["DEC"]*u.deg)

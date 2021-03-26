@@ -54,16 +54,16 @@ desi_mask:
 
 #- Bright Galaxy Survey
 bgs_mask:
-    - [BGS_FAINT,           0, "BGS faint targets",                     {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_FAINT,           0, "BGS faint targets",                     {obsconditions: BRIGHT}]
     - [BGS_BRIGHT,          1, "BGS bright targets",                    {obsconditions: BRIGHT}]
     - [BGS_WISE,            2, "BGS wise targets",                      {obsconditions: BRIGHT}]
     - [BGS_FAINT_HIP,       3, "BGS faint targets at bright priorty",   {obsconditions: BRIGHT}]
 
     #- BGS North vs. South selections
-    - [BGS_FAINT_NORTH,     8, "BGS faint cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_FAINT_NORTH,     8, "BGS faint cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT}]
     - [BGS_BRIGHT_NORTH,    9, "BGS bright cuts tuned for Bok/Mosaic",             {obsconditions: BRIGHT}]
     - [BGS_WISE_NORTH,      10, "BGS WISE cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT}]
-    - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",                  {obsconditions: BRIGHT|GRAY|DARK}]
+    - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",                  {obsconditions: BRIGHT}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",                 {obsconditions: BRIGHT}]
     - [BGS_WISE_SOUTH,      18, "BGS WISE cuts tuned for DECam",                   {obsconditions: BRIGHT}]
 
