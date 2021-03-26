@@ -353,7 +353,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
                                     dtype=mtldatamodel["SCND_TARGET"].dtype)
 
     # ADM initialize columns to avoid zero-length/missing/format errors.
-    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN"]
+    zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "ZTILEID"]
     for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
         mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
 
@@ -374,7 +374,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         mtl[col][zmatcher] = ztargets[col]
     # ADM also add the ZTILEID column, if passed, otherwise we're likely
     # ADM to be working with non-ledger-based mocks and can let it slide.
-    if "ZTILEID" in ztargets:
+    if "ZTILEID" in ztargets.dtype.names:
         mtl["ZTILEID"][zmatcher] = ztargets["ZTILEID"]
     else:
         mtl["ZTILEID"] = -1
