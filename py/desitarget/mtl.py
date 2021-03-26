@@ -406,8 +406,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     return mtl
 
 
-def make_ledger_in_hp(targets, outdirname, nside, pixlist,
-                      obscon="DARK", indirname=None, verbose=True):
+def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
+                      indirname=None, verbose=True, scnd=False):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -432,6 +432,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
         of the output MTL files.
     verbose : :class:`bool`, optional, defaults to ``True``
         If ``True`` then log target and file information.
+    scnd : :class:`bool`, defaults to ``False``
+        If ``True`` then this is a ledger of secondary targets.
 
     Returns
     -------
@@ -455,12 +457,14 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist,
     for pix in pixlist:
         inpix = mtlpix == pix
         ecsv = get_mtl_ledger_format() == "ecsv"
-        nt, fn = io.write_mtl(
-            outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
-            survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix)
-        if verbose:
-            log.info('{} targets written to {}...t={:.1f}s'.format(
-                nt, fn, time()-t0))
+        if np.any(inpix):
+            nt, fn = io.write_mtl(
+                outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
+                survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix,
+                scnd=scnd)
+            if verbose:
+                log.info('{} targets written to {}...t={:.1f}s'.format(
+                    nt, fn, time()-t0))
 
     return
 
@@ -512,13 +516,23 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
         log.critical(msg)
         raise ValueError(msg)
 
+    # ADM check whether this is a file of standalone secondary targets.
+    scnd = False
+    if hdr["EXTNAME"] == 'SCND_TARGETS':
+        scnd = True
+
     # ADM the MTL datamodel must reflect the target flavor (SV, etc.).
     mtldm = switch_main_cmx_or_sv(mtldatamodel, np.array([], dt))
     # ADM speed-up by only reading the necessary columns.
     cols = list(set(mtldm.dtype.names).intersection(dt.names))
 
     # ADM optimal nside for reading in the targeting files.
-    nside = hdr["FILENSID"]
+    if "FILENSID" in hdr:
+        nside = hdr["FILENSID"]
+    else:
+        # ADM if a file was passed instead of a HEALPixel-split directory
+        # ADM use nside=4 as 196 pixels often balances well across CPUs.
+        nside = 4
     npixels = hp.nside2npix(nside)
     pixels = np.arange(npixels)
 
@@ -549,10 +563,21 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
         targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
         if len(targs) == 0:
             return
+        # ADM the secondary targeting files don't include the BGS_TARGET
+        # ADM and MWS_TARGET columns, which are needed for MTL.
+        neededcols, _, _ = main_cmx_or_sv(targs)
+        misscols = set(neededcols) - set(cols)
+        if len(misscols) > 0:
+            # ADM the data type for the DESI_TARGET column.
+#            dtdt = mtldatamodel.dtype.fields["DESI_TARGET"][0].str
+            dtdt = mtldatamodel["DESI_TARGET"].dtype
+            zerod = [np.zeros(len(targs)), np.zeros(len(targs))]
+            targs = rfn.append_fields(
+                targs, misscols, data=zerod, dtypes=[dtdt, dtdt], usemask=False)
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
         return make_ledger_in_hp(
-            targs, outdirname, mtlnside, pix,
-            obscon=obscon, indirname=hpdirname, verbose=False)
+            targs, outdirname, mtlnside, pix, obscon=obscon,
+            indirname=hpdirname, verbose=False, scnd=scnd)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')
