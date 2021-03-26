@@ -266,7 +266,7 @@ def make_some_tests_and_plots(inputFile, RF_file, RF_Highz_file, rmax, cut=[0.7,
     dec = test_sample['DEC'][:]
 
     r_mag_min, r_mag_max = np.min(r), np.max(r)
-    r_mag_min_sel, r_mag_max_sel = 17.0, rmax
+    r_mag_min_sel, r_mag_max_sel = 17.5, rmax
 
     r_sel = (r >= r_mag_min_sel) & (r <= r_mag_max_sel)
 
@@ -353,7 +353,7 @@ def make_some_tests_and_plots_2_training(inputFile, RF_file_1, RF_Highz_file_1, 
     dec = test_sample['DEC'][:]
 
     r_mag_min, r_mag_max = np.min(r), np.max(r)
-    r_mag_min_sel = 17.5
+    r_mag_min_sel = 17.0
 
     r_sel = (r >= r_mag_min_sel) & (r <= r_mag_max_sel)
 
