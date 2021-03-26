@@ -868,20 +868,40 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     :class:`~astropy.table.Table`
         A zcat in the official format (`zcatdatamodel`) compiled from
         the `tiles` in `zcatdir`.
+    :class:`list`
+        The YEARMMDD timestamp that corresponds to each tile in the
+        input `tiles`.
 
     Notes
     -----
     - How the `zcat` is constructed could certainly change once we have
       the final schema in place.
     """
+    # ADM the root directory in the data model.
+    rootdir = os.path.join(zcatdir, "tiles", "cumulative")
+
     # ADM for each tile, read in the spectroscopic and targeting info.
     allzs = []
     allfms = []
+    ymds = []
     for tile in tiles:
-        zbestfns = os.path.join(zcatdir, "{}".format(tile), "*", "zbest*")
-        for zbestfn in glob(zbestfns):
-            allzs.append(fitsio.read(zbestfn, "ZBEST"))
-            fm = fitsio.read(zbestfn, "FIBERMAP")
+        # ADM build the correct directory structure.
+        tiledir = os.path.join(rootdir, str(tile))
+        ymd = os.listdir(tiledir)
+        # ADM there should only be one date in the cumulative directory.
+        if len(ymd) != 1:
+            msg = "expected 1 date in {} but found {}".format(tiledir, len(ymd))
+            log.critical(msg)
+            raise OSError(msg)
+        ymdir = os.path.join(tiledir, ymd[0])
+        # ADM record the YYYYMMDD string for this tile.
+        ymds.append(ymd[0])
+        zbestfns = glob(os.path.join(ymdir, "zbest*"))
+        for zbestfn in zbestfns:
+            zz = fitsio.read(zbestfn, "ZBEST")
+            allzs.append(zz)
+            # ADM only read in the first set of exposures.
+            fm = fitsio.read(zbestfn, "FIBERMAP", rows=np.arange(len(zz)))
             allfms.append(fm)
             # ADM check the correct TILEID was written in the fibermap.
             if set(fm["TILEID"]) != set([tile]):
@@ -890,6 +910,10 @@ def make_zcat_rr_backstop(zcatdir, tiles):
                 raise ValueError(msg)
     zs = np.concatenate(allzs)
     fms = np.concatenate(allfms)
+
+    # ADM remove -ve TARGETIDs which should correspond to bad fibers.
+    zs = zs[zs["TARGETID"] >= 0]
+    fms = fms[fms["TARGETID"] >= 0]
 
     # ADM currently, the spectroscopic files aren't coadds, so aren't
     # ADM unique. We therefore need to look up (any) coordinates for
@@ -906,7 +930,7 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS', 'ZTILEID']):
         zcat[col] = zs[col]
 
-    return zcat
+    return zcat, ymds
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
