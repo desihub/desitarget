@@ -52,7 +52,7 @@ sv3_desi_mask:
 sv3_bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",                     {obsconditions: BRIGHT}]
     - [BGS_BRIGHT,          1, "BGS bright targets",                    {obsconditions: BRIGHT}]
-    - [BGS_WISE,            2, "BGS wise targets",                      {obsconditions: BRIGHT}]
+    - [BGS_WISE,            2, "BGS wise targets (AGN-like)",           {obsconditions: BRIGHT}]
     - [BGS_FAINT_HIP,       3, "BGS faint targets at bright priorty",   {obsconditions: BRIGHT}]
 
     #- BGS North vs. South selections

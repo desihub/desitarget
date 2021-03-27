@@ -294,7 +294,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -418,7 +418,7 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -1452,7 +1452,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
