@@ -5,9 +5,14 @@ desitarget Change Log
 0.54.1 (unreleased)
 -------------------
 
-* Update the LRG selection for SV3 (1% Survey):
+* Update the ELG selection for SV3 (1% Survey) [`PR #696`_]:
+    * Add functionality for low (LOP) and high (HIP) priority ELGs.
+* Update the LRG selection for SV3 (1% Survey) [`PR #694`_]:
     * Add fainter (and higher redshift) LRG targets
-    
+
+.. _`PR #694`: https://github.com/desihub/desitarget/pull/694
+.. _`PR #696`: https://github.com/desihub/desitarget/pull/696
+
 0.54.0 (2021-03-26)
 -------------------
 

@@ -423,8 +423,9 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
 
-    nomask = notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
+    nomask = notinELG_mask(
+        maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
     elglop, elghip = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
                                   w1flux=w1flux, w2flux=w2flux,
