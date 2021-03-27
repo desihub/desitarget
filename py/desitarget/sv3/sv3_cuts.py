@@ -1287,8 +1287,10 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     if targtype == 'bright':
         if south:
             bgs &= rflux > 10**((22.5-19.5)/2.5)
+            bgs &= rflux <= 10**((22.5-12.0)/2.5)
         else:
             bgs &= rflux > 10**((22.5-(19.5+offset))/2.5)
+            bgs &= rflux <= 10**((22.5-12.0)/2.5)
     elif targtype == 'faint':
         if south:
             bgs &= rflux > 10**((22.5-20.3)/2.5)
@@ -2013,7 +2015,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         w = np.where(bgs_faint)[0]
         nbgsf = len(w)
         if nbgsf > 0:
-            hip = np.random.choice(w, nbgsf//20, replace=False)
+            hip = np.random.choice(w, nbgsf//5, replace=False)
 
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
