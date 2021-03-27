@@ -345,6 +345,9 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= (gaiagmag == 0) | (gaiagmag > 18)  # remove bright GAIA sources
 
+    # remove bright stars with zfiber<16 that are missing from GAIA
+    lrg &= zfiberflux < 10**(-0.4*(16-22.5))
+
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
@@ -380,23 +383,29 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
 
     if south:
-        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut.
+        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
+        lrg &= zfibermag < 21.7                   # faint limit
         lrg &= (
-            (((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.13))
-            | (rmag - w1mag > 1.8)                       # low-z cut.
-        )
-        lrg &= rmag - w1mag > (w1mag - 17.27) * 1.8      # double sliding cut 1.
-        lrg &= rmag - w1mag > (w1mag - 16.37) * 1.       # double sliding cut 2.
+            (gmag - rmag > 1.3) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.13)
+            | (rmag - w1mag > 1.8)
+            )  # low-z cuts
+        lrg &= (
+            (rmag - w1mag > (w1mag - 17.26) * 1.8)
+            & (rmag - w1mag > (w1mag - 16.36) * 1.)
+            | (rmag - w1mag > 3.29)
+            )  # double sliding cuts and high-z extension
     else:
-        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6   # non-stellar cut.
+        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
+        lrg &= zfibermag < 21.72                   # faint limit
         lrg &= (
-            (((gmag - rmag) > 0.3 * (rmag - w1mag)+0.9) & ((gmag - rmag) > -1.55*(rmag - w1mag)+3.23))
-            | (rmag - w1mag > 1.8)                       # low-z cut.
-        )
-        lrg &= rmag - w1mag > (w1mag - 17.23) * 1.8      # double sliding cut 1.
-        lrg &= rmag - w1mag > (w1mag - 16.33) * 1.       # double sliding cut 2.
-
-    lrg &= zfibermag < 21.5    # faint limit.
+            (gmag - rmag > 1.34) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.23)
+            | (rmag - w1mag > 1.8)
+            )  # low-z cuts
+        lrg &= (
+            (rmag - w1mag > (w1mag - 17.24) * 1.83)
+            & (rmag - w1mag > (w1mag - 16.33) * 1.)
+            | (rmag - w1mag > 3.39)
+            )  # double sliding cuts and high-z extension
 
     return lrg
 

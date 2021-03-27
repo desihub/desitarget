@@ -5,8 +5,9 @@ desitarget Change Log
 0.54.1 (unreleased)
 -------------------
 
-* No changes yet.
-
+* Update the LRG selection for SV3 (1% Survey):
+    * Add fainter (and higher redshift) LRG targets
+    
 0.54.0 (2021-03-26)
 -------------------
 
