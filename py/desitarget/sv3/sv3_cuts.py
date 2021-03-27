@@ -345,6 +345,9 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= (gaiagmag == 0) | (gaiagmag > 18)  # remove bright GAIA sources
 
+    # remove bright stars with zfiber<16 that are missing from GAIA
+    lrg &= zfiberflux < 10**(-0.4*(16-22.5))
+
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
 
