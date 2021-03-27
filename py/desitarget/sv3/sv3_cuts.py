@@ -1183,7 +1183,10 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
                              gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
 
         bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                            refcat=refcat, maskbits=maskbits, south=south, targtype=targtype, primary=primary)
+                            maskbits=maskbits, south=south, targtype=targtype, primary=primary)
+        
+        bgs |= isBGS_sga(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                            refcat=refcat, maskbits=maskbits, south=south, targtype=targtype)
 
     return bgs
 
@@ -1217,7 +1220,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
 
 
 def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
-                 refcat=None, maskbits=None, south=True, targtype=None, primary=None):
+                 maskbits=None, south=True, targtype=None, primary=None):
     """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
@@ -1232,21 +1235,6 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
     fmc = np.zeros_like(rflux, dtype='?')
-    
-    # the LSLGA galaxies.
-    LX = fmc.copy()
-    # ADM Could check on "L2" for DR8, need to check on "LX" post-DR8.
-    if refcat is not None:
-        rc1d = np.atleast_1d(refcat)
-        if isinstance(rc1d[0], str):
-            LX = [(rc[0] == "L") if len(rc) > 0 else False for rc in rc1d]
-        else:
-            LX = [(rc.decode()[0] == "L") if len(rc) > 0 else False for rc in rc1d]
-        if np.ndim(refcat) == 0:
-            LX = np.array(LX[0], dtype=bool)
-        else:
-            LX = np.array(LX, dtype=bool)
-    
 
     if south:
         bgs &= rflux > gflux * 10**(-1.0/2.5)
@@ -1269,13 +1257,10 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     # with the aim of increase the redshift success rate.
     fmc |= ((rfib < (2.9 + 1.2 + 1.0) + r) & (r < 17.8))
     fmc |= ((rfib < 22.9) & (r < 20.0) & (r > 17.8))
-    # Remove next line?
+    # Remove next line for the Main Survey?
     fmc |= ((rfib < 2.9 + r) & (r > 20))
 
     bgs &= fmc
-        
-    # Make sure we grab all the Large Galaxies
-    bgs |= ((LX) & (imaging_mask(maskbits, bgsmask=True)))
     
     # D. Schlegel - ChangHoon H. color selection to get a high redshift success rate
     schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
@@ -1288,9 +1273,11 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
         if south:
             bgs &= rflux > 10**((22.5-19.5)/2.5)
             bgs &= rflux <= 10**((22.5-12.0)/2.5)
+            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
         else:
             bgs &= rflux > 10**((22.5-(19.5+offset))/2.5)
             bgs &= rflux <= 10**((22.5-12.0)/2.5)
+            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
     elif targtype == 'faint':
         if south:
             bgs &= rflux > 10**((22.5-20.3)/2.5)
@@ -1363,6 +1350,70 @@ def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
     AGN = (agn_ext) & (quality) & ~((stars) & (~agn_ext)) & (Grr < 0.6) & (gaiagmag != 0)
     
     return AGN
+
+def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
+                rfiberflux=None, maskbits=None, south=True, targtype=None):
+    """Module to recover the SGA objects in all BGS target selection classes
+    (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
+    """
+    
+    _check_BGS_targtype(targtype)
+
+    bgs = np.zeros_like(rflux, dtype='?')
+
+    # the SGA galaxies.
+    LX = np.zeros_like(rflux, dtype='?')
+    # ADM Could check on "L2" for DR8, need to check on "LX" post-DR8.
+    if refcat is not None:
+        rc1d = np.atleast_1d(refcat)
+        if isinstance(rc1d[0], str):
+            LX = [(rc[0] == "L") if len(rc) > 0 else False for rc in rc1d]
+        else:
+            LX = [(rc.decode()[0] == "L") if len(rc) > 0 else False for rc in rc1d]
+        if np.ndim(refcat) == 0:
+            LX = np.array(LX[0], dtype=bool)
+        else:
+            LX = np.array(LX, dtype=bool)
+
+    # Make sure to include all the SGA galaxies
+    bgs |= LX
+    # ADM geometric masking cuts from the Legacy Surveys.
+    # Remove SGA in BRIGHT and CLUSTER
+    bgs &= imaging_mask(maskbits, bgsmask=True)
+    
+    g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
+    r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
+    z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
+    w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
+    rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
+
+    # D. Schlegel - ChangHoon H. color selection to get a high redshift success rate
+    schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
+    rfibcol =(rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
+
+    #BASS r-mag offset with DECaLS
+    offset = 0.025
+    
+    if targtype == 'bright':
+        if south:
+            bgs &= rflux > 10**((22.5-19.5)/2.5)
+            bgs &= rflux <= 10**((22.5-12.0)/2.5)
+            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
+        else:
+            bgs &= rflux > 10**((22.5-(19.5+offset))/2.5)
+            bgs &= rflux <= 10**((22.5-12.0)/2.5)
+            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
+    elif targtype == 'faint':
+        if south:
+            bgs &= rflux > 10**((22.5-20.3)/2.5)
+            bgs &= rflux <= 10**((22.5-19.5)/2.5)
+            bgs &= (rfibcol)
+        else:
+            bgs &= rflux > 10**((22.5-(20.3+offset))/2.5)
+            bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
+            bgs &= (rfibcol)
+
+    return bgs
 
 
 def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
