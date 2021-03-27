@@ -24,10 +24,6 @@ ap.add_argument('--mtldir',
                 help="Full path to the directory that hosts the MTL ledgers.    \
                 Default is to use the $ZCAT_DIR environment variable",
                 default=None)
-ap.add_argument('--tilefn',
-                help="Full path to the name of the tile file.                   \
-                Default is to use the $TILE_FN environment variable",
-                default=None)
 ap.add_argument("-n", "--numobsfromzcat", action='store_true',
                 help="If passed, the zcat includes a meaningfule NUMOBS.        \
                 Otherwise, NUMOBS is looked up from the ledger itself")
@@ -38,9 +34,9 @@ numobs_from_ledger = not(ns.numobsfromzcat)
 
 hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
     ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-    tilefn=ns.tilefn, numobs_from_ledger=numobs_from_ledger)
+    numobs_from_ledger=numobs_from_ledger)
 
 log.info("MTL ledger directory: {}".format(hpdirname))
 log.info("MTL tile file: {}".format(mtltilefn))
-log.info("Tile file: {}".format(tilefn))
+log.info("Redshift tile file: {}".format(tilefn))
 log.info("Processed {} new tiles, which are: {}".format(len(tiles), tiles))

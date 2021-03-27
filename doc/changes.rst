@@ -2,17 +2,31 @@
 desitarget Change Log
 =====================
 
-0.53.1 (unreleased)
+0.54.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.54.0 (2021-03-26)
 -------------------
 
 * Updates in BGS selection for sv3. Main changes include [`PR #695`_]:
-
     * ``BGS_FAINT`` goes as deep as r-tot mag of 20.3 and includes a fibermag-colour based selection.
     * ``BGS_BRIGHT`` holds same r-tot mag limits (< 19.5).
     * We've revived the ``BGS_WISE`` bit TARGTYPE that selects AGN's (~3 /deg^2).
     * WE've increased the r-tot mag faint limits to around 0.025 mags for BASS/MzLS only. It goes to r-tot < 19.5+0.025 for ``BGS_BRIGHT`` sample and to 19.5+0.025 < r-tot < 20.3+0.025 for ``BGS_FAINT`` sample.
     * HIP was changed to promote 20% targets from ``BGS_FAINT`` sample instead of 10%.
-* Change required minimum r_value for QSO RF selection from 17.5 to 16.5 [`PR #692`]
+* Change required minimum r_value for QSO RF selection from 17.5 to 16.5 [`PR #692`_]
+* Update MTL loop for new data model [`PR #693`_]. Includes:
+    * Functionality to make initial ledgers for secondary targets.
+    * Use the ``ZTILE`` file to look-up redshift "done-ness" (``zdone``)
+        * instead of relying on a "done" directory.
+    * Also derive the survey and program/obscon from the ``ZTILE`` file.
+    * Switch to reading the ``zbest`` files in the cumulative directory.
+    * Remove -ve ``TARGETIDs`` before matching.
+    * Add the date that redshifts were extracted to the mtl tiles file.
+    * Add the root redshift directory (``ZCAT_DIR``) to the manifest.
+* Change minimum r_value for QSO RF from 17.5 to 16.5 [`PR #692`_].
 * Some clean-up for the 1% Survey [`PR #691`_]. Includes:
     * Don't allow ``BGS_FAINT`` targets to be observed in ``DARK``.
     * Warn about primary targets that might be too bright.
@@ -32,7 +46,9 @@ desitarget Change Log
 .. _`PR #690`: https://github.com/desihub/desitarget/pull/690
 .. _`PR #691`: https://github.com/desihub/desitarget/pull/691
 .. _`PR #692`: https://github.com/desihub/desitarget/pull/692
+.. _`PR #693`: https://github.com/desihub/desitarget/pull/693
 .. _`PR #695`: https://github.com/desihub/desitarget/pull/695
+
 
 0.53.0 (2021-03-18)
 -------------------
