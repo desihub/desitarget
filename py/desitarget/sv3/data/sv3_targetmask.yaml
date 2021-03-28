@@ -308,12 +308,12 @@ priorities:
         BRIGHT_HPM:             SAME_AS_LOW_MASS_AGN
         WD_BINARIES_BRIGHT:     {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         WD_BINARIES_DARK:       {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_BRIGHT_HIGH          {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_BRIGHT_MEDIUM        {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_BRIGHT_LOW           {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_DARK_HIGH            {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_DARK_MEDIUM          {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        PV_DARK_LOW             {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_BRIGHT_HIGH:         {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_BRIGHT_MEDIUM:       {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_BRIGHT_LOW:          {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK_HIGH:           {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK_MEDIUM:         {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK_LOW:            {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BRIGHT_TOO_LOP:         {UNOBS: 1000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         BRIGHT_TOO_HIP:         {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
@@ -428,7 +428,7 @@ numobs:
         BRIGHT_HPM:             100
         WD_BINARIES_BRIGHT:     100
         WD_BINARIES_DARK:       100
-        PV_BRIGHT_DARK:         5
+        PV_BRIGHT_HIGH:         5
         PV_BRIGHT_MEDIUM:       1
         PV_BRIGHT_LOW:          1
         PV_DARK_HIGH:           5
