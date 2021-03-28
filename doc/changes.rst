@@ -5,24 +5,30 @@ desitarget Change Log
 0.54.1 (unreleased)
 -------------------
 
-* Update the ELG selection for SV3 (1% Survey) [`PR #696`_]:
+* Update the secondary target bits for SV3 [`PR #697`_].
+    * Also make ``FIBERTOTFLUX_*`` available for target cuts.
+* Update the ELG selection for SV3 [`PR #696`_]:
     * Add functionality for low (LOP) and high (HIP) priority ELGs.
-* Update the LRG selection for SV3 (1% Survey) [`PR #694`_]:
-    * Add fainter (and higher redshift) LRG targets
+* Update the BGS selection for SV3 [`PR #695`_]. Main changes include:
+    * ``BGS_FAINT`` goes as deep as r-tot mag of 20.3.
+    * ``BGS_FAINT`` also includes a fibermag-color based selection.
+    * ``BGS_BRIGHT`` maintains the same r-tot mag limits (< 19.5).
+    * Revive the ``BGS_WISE`` bit/``TARGTYPE`` to select AGN (~3 /deg^2).
+    * Increase the r-tot mag faint limit by ~0.025 mags for BASS/MzLS.
+        * Now goes to r-tot < 19.5+0.025 for ``BGS_BRIGHT`` sample
+	  and to 19.5+0.025 < r-tot < 20.3+0.025 for ``BGS_FAINT``.
+    * Promote 20% of ``BGS_FAINT`` to ``BGS_FAINT_HIP`` (instead of 10%).
+* Update the LRG selection for SV3 (The 1% Survey) [`PR #694`_]:
+    * Add fainter (and higher redshift) LRG targets.
 
 .. _`PR #694`: https://github.com/desihub/desitarget/pull/694
+.. _`PR #695`: https://github.com/desihub/desitarget/pull/695
 .. _`PR #696`: https://github.com/desihub/desitarget/pull/696
+.. _`PR #697`: https://github.com/desihub/desitarget/pull/697
 
 0.54.0 (2021-03-26)
 -------------------
 
-* Updates in BGS selection for sv3. Main changes include [`PR #695`_]:
-    * ``BGS_FAINT`` goes as deep as r-tot mag of 20.3 and includes a fibermag-colour based selection.
-    * ``BGS_BRIGHT`` holds same r-tot mag limits (< 19.5).
-    * We've revived the ``BGS_WISE`` bit TARGTYPE that selects AGN's (~3 /deg^2).
-    * WE've increased the r-tot mag faint limits to around 0.025 mags for BASS/MzLS only. It goes to r-tot < 19.5+0.025 for ``BGS_BRIGHT`` sample and to 19.5+0.025 < r-tot < 20.3+0.025 for ``BGS_FAINT`` sample.
-    * HIP was changed to promote 20% targets from ``BGS_FAINT`` sample instead of 10%.
-* Change required minimum r_value for QSO RF selection from 17.5 to 16.5 [`PR #692`_]
 * Update MTL loop for new data model [`PR #693`_]. Includes:
     * Functionality to make initial ledgers for secondary targets.
     * Use the ``ZTILE`` file to look-up redshift "done-ness" (``zdone``)
@@ -39,7 +45,7 @@ desitarget Change Log
     * Have a single function for calculating UTC time stamps.
     * Functionality to read ledgers strictly before a certain UTC time.
     * Centralize and speed up routines to match arrays on ``TARGETID``.
-* Update ToO Ledger with TOOID and HI/LO priority options [`PR #690`_]
+* Update ToO Ledger with TOOID and HI/LO priority options [`PR #690`_].
 * Add an ``sv3_cuts.py`` module and sv3 bitmask yaml file [`PR #689`_].
 * Don't pass the DR when constructing MTL filenames [`PR #688`_].
 * Don't insist that ``ZTILEID`` has to be in the ``zcat`` [`PR #687`_].
@@ -53,8 +59,6 @@ desitarget Change Log
 .. _`PR #691`: https://github.com/desihub/desitarget/pull/691
 .. _`PR #692`: https://github.com/desihub/desitarget/pull/692
 .. _`PR #693`: https://github.com/desihub/desitarget/pull/693
-.. _`PR #695`: https://github.com/desihub/desitarget/pull/695
-
 
 0.53.0 (2021-03-18)
 -------------------
