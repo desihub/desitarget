@@ -21,7 +21,7 @@ from . import __version__ as dt_version
 from desitarget.targetmask import obsmask, obsconditions
 from desitarget.targets import calc_priority, calc_numobs_more
 from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
-from desitarget.targets import set_obsconditions
+from desitarget.targets import set_obsconditions, decode_targetid
 from desitarget.geomask import match, match_to
 from desitarget.internal import sharedmem
 from desitarget import io
@@ -1002,7 +1002,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         return hpdirname, mtltilefn, ztilefn, tiles
 
     # ADM create the zcat: This will likely change, but for now let's
-    # ADM just use redrock in the SV1-era format.
+    # ADM just use redrock.
     zcat, ymd = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
     # ADM update the tiles table with the YYYYMMDD.
     tiles["ZDATE"] = ymd
@@ -1014,6 +1014,11 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
             zcatdatamodel.dtype.descr, zcat.dtype.descr)
         log.critical(msg)
         raise ValueError(msg)
+    # ADM useful to know how many targets were updated.
+    _, _, _, _, sky, _ = decode_targetid(zcat["TARGETID"])
+    ntargs, nsky = np.sum(sky==0), np.sum(sky)
+    log.info("Update state for {} targets (zcat also contains {} skies)".format(
+        ntargs, nsky))
 
     # ADM update the appropriate ledger.
     update_ledger(hpdirname, zcat, obscon=obscon,
