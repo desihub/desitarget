@@ -1740,7 +1740,8 @@ def _is_row(table):
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    gfiberflux, rfiberflux, zfiberflux, objtype, release,
+                    gfiberflux, rfiberflux, zfiberflux, gfibertotflux,
+                    rfibertotflux, zfibertotflux, objtype, release,
                     ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,

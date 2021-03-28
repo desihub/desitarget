@@ -1836,6 +1836,11 @@ def _prepare_optical_wise(objects, mask=True):
     # ADM the observed r-band flux (used for F standards and MWS, below)
     # ADM make copies of values that we may reassign due to NaNs
     obs_rflux = objects['FLUX_R']
+    # ADM don't de-extinct the FIBERTOTFLUXES as they're mainly used to
+    # ADM limit bright-end observations to prevent fiber cross-talk.
+    gfibertotflux = objects['FIBERTOTFLUX_G']
+    rfibertotflux = objects['FIBERTOTFLUX_R']
+    zfibertotflux = objects['FIBERTOTFLUX_Z']
 
     # - undo Milky Way extinction
     flux = unextinct_fluxes(objects)
@@ -1908,7 +1913,8 @@ def _prepare_optical_wise(objects, mask=True):
 
     return (photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,
             w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,
-            objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
+            gfibertotflux, rfibertotflux, zfibertotflux, objtype, release,
+            ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
             gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
             gfracmasked, rfracmasked, zfracmasked,
             gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,
@@ -2035,7 +2041,8 @@ def unextinct_fluxes(objects):
 
 def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gflux, rflux, zflux, w1flux, w2flux,
-                    gfiberflux, rfiberflux, zfiberflux, objtype, release,
+                    gfiberflux, rfiberflux, zfiberflux, gfibertotflux,
+                    rfibertotflux, zfibertotflux, objtype, release,
                     ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
                     gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
                     gfracmasked, rfracmasked, zfracmasked,
@@ -2614,6 +2621,7 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # ADM process the Legacy Surveys columns for Target Selection.
     photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
         w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
+        gfibertotflux, rfibertotflux, zfibertotflux,                                  \
         objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,       \
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
         gfracmasked, rfracmasked, zfracmasked,                                        \
@@ -2646,8 +2654,8 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
 
     desi_target, bgs_target, mws_target = targcuts.set_target_bits(
         photsys_north, photsys_south, obs_rflux,
-        gflux, rflux, zflux, w1flux, w2flux,
-        gfiberflux, rfiberflux, zfiberflux, objtype, release,
+        gflux, rflux, zflux, w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,
+        gfibertotflux, rfibertotflux, zfibertotflux, objtype, release,
         ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,
         gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,
         gfracmasked, rfracmasked, zfracmasked,
