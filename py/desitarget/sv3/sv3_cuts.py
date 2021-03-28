@@ -294,7 +294,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -418,20 +418,21 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    elg = primary.copy()
 
-    elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
+    nomask = notinELG_mask(
+        maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+        gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
-    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                        w2flux=w2flux, gfiberflux=gfiberflux, south=south,
-                        primary=primary)
+    elglop, elghip = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                                  w1flux=w1flux, w2flux=w2flux,
+                                  gfiberflux=gfiberflux, south=south,
+                                  primary=primary)
 
-    return elg
+    return elglop & nomask, elghip & nomask
 
 
 def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
@@ -475,7 +476,6 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     elg &= g > 20                       # bright cut.
     elg &= r - z > 0.15                  # blue cut.
 #    elg &= r - z < 1.6                  # red cut.
-    elg &= g - r < -1.2*(r - z) + 1.6   # OII flux cut.
 
     # ADM cuts that are unique to the north or south. Identical for sv3
     # ADM but keep the north/south formalism in case we use it for sv3.
@@ -486,7 +486,17 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         elg &= gfib < 24.1  # faint cut.
         elg &= g - r < 0.5*(r - z) + 0.1  # remove stars and low-z galaxies.
 
-    return elg
+    # ADM separate a high-priority and a regular (low-priority) sample.
+    elghip = elg.copy()
+
+    # ADM low-priority OII flux cut.
+    elg &= g - r < -1.2*(r - z) + 1.6
+    elg &= g - r >= -1.2*(r - z) + 1.3
+
+    # ADM high-priority OII flux cut.
+    elghip &= g - r < -1.2*(r - z) + 1.3
+
+    return elg, elghip
 
 
 def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1555,7 +1565,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM Primary (True for anything to initially consider as a possible target).
@@ -1950,8 +1960,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     -----
     - Gaia quantities have units as for `the Gaia data model`_.
     """
-
-    from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+    from desitarget.sv3.sv3_targetmask import desi_mask, bgs_mask, mws_mask
 
     # ADM if resolvetargs is set, limit to only sending north/south objects
     # ADM through north/south cuts.
@@ -1983,7 +1992,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    elg_classes = [tcfalse, tcfalse]
+    elg_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
     if "ELG" in tcnames:
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
@@ -1992,10 +2001,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
                 south=south
             )
-    elg_north, elg_south = elg_classes
+    elg_lop_north, elg_hip_north = elg_classes[0]
+    elg_lop_south, elg_hip_south = elg_classes[1]
 
     # ADM combine ELG target bits for an ELG target based on any imaging.
-    elg = (elg_north & photsys_north) | (elg_south & photsys_south)
+    elg_lop = (elg_lop_north & photsys_north) | (elg_lop_south & photsys_south)
+    elg_hip = (elg_hip_north & photsys_north) | (elg_hip_south & photsys_south)
+    elg_north = elg_lop_north | elg_hip_north
+    elg_south = elg_lop_south | elg_hip_south
+    elg = elg_lop | elg_hip
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -2156,16 +2170,22 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
+    desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
+    desi_target |= elg_hip_south * desi_mask.ELG_HIP_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
+    desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
+    desi_target |= elg_hip_north * desi_mask.ELG_HIP_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
+    desi_target |= elg_lop * desi_mask.ELG_LOP
+    desi_target |= elg_hip * desi_mask.ELG_HIP
     desi_target |= qso * desi_mask.QSO
     desi_target |= qsohiz * desi_mask.QSO_HIZ
 

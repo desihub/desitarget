@@ -1,20 +1,28 @@
 #- sv3 primary survey targets bit mask: dark survey + calib +
 sv3_desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
-    - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
+    - [ELG,         1, "ELG", {obsconditions: DARK}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
 
     #- ADM QSO sub-classes
     - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
 
-    #- North vs. South selections
-    - [LRG_NORTH,   8, "LRG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK}]
-    - [ELG_NORTH,   9, "ELG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK|GRAY}]
-    - [QSO_NORTH,   10, "QSO cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
+    # ADM ELG sub-classes
+    - [ELG_LOP,     5, "ELG at lower priority",  {obsconditions: DARK}]
+    - [ELG_HIP,     6, "ELG at higher priority", {obsconditions: DARK}]
 
-    - [LRG_SOUTH,   16, "LRG cuts tuned for DECam data",      {obsconditions: DARK}]
-    - [ELG_SOUTH,   17, "ELG cuts tuned for DECam data",      {obsconditions: DARK|GRAY}]
-    - [QSO_SOUTH,   18, "QSO cuts tuned for DECam data",      {obsconditions: DARK}]
+    #- North vs. South selections
+    - [LRG_NORTH,      8, "LRG cuts tuned for Bok/Mosaic data",               {obsconditions: DARK}]
+    - [ELG_NORTH,      9, "ELG cuts tuned for Bok/Mosaic data",               {obsconditions: DARK}]
+    - [QSO_NORTH,     10, "QSO cuts tuned for Bok/Mosaic data",               {obsconditions: DARK}]
+    - [ELG_LOP_NORTH, 11, "ELG at lower priority tuned for Bok/Mosaic data",  {obsconditions: DARK}]
+    - [ELG_HIP_NORTH, 12, "ELG at higher priority tuned for Bok/Mosaic data", {obsconditions: DARK}]
+
+    - [LRG_SOUTH,     16, "LRG cuts tuned for DECam data",                    {obsconditions: DARK}]
+    - [ELG_SOUTH,     17, "ELG cuts tuned for DECam data",                    {obsconditions: DARK}]
+    - [QSO_SOUTH,     18, "QSO cuts tuned for DECam data",                    {obsconditions: DARK}]
+    - [ELG_LOP_SOUTH, 19, "ELG at lower priority tuned for DECam data",       {obsconditions: DARK}]
+    - [ELG_HIP_SOUTH, 20, "ELG at higher priority tuned for DECam data",      {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
@@ -52,7 +60,7 @@ sv3_desi_mask:
 sv3_bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",                     {obsconditions: BRIGHT}]
     - [BGS_BRIGHT,          1, "BGS bright targets",                    {obsconditions: BRIGHT}]
-    - [BGS_WISE,            2, "BGS wise targets",                      {obsconditions: BRIGHT}]
+    - [BGS_WISE,            2, "BGS wise targets (AGN-like)",           {obsconditions: BRIGHT}]
     - [BGS_FAINT_HIP,       3, "BGS faint targets at bright priorty",   {obsconditions: BRIGHT}]
 
     #- BGS North vs. South selections
@@ -189,14 +197,20 @@ priorities:
 # ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        ELG_LOP: {UNOBS: 3000, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        ELG_HIP: {UNOBS: 3100, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         QSO_HIZ: SAME_AS_LRG_NORTH
         ELG_NORTH: SAME_AS_LRG_NORTH
         QSO_NORTH: SAME_AS_LRG_NORTH
+        ELG_LOP_NORTH: SAME_AS_LRG_NORTH
+        ELG_HIP_NORTH: SAME_AS_LRG_NORTH
         LRG_SOUTH: SAME_AS_LRG_NORTH
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
+        ELG_LOP_SOUTH: SAME_AS_LRG_NORTH
+        ELG_HIP_SOUTH: SAME_AS_LRG_NORTH
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -300,13 +314,19 @@ numobs:
         ELG: 1
         LRG: 1
         QSO: 4
+        ELG_LOP: 1
+        ELG_HIP: 1
         # ADM don't observe a N/S target if it doesn't have other bits set
         LRG_NORTH: 0
         ELG_NORTH: 0
         QSO_NORTH: 0
+        ELG_LOP_NORTH: 0
+        ELG_HIP_NORTH: 0
         LRG_SOUTH: 0
         ELG_SOUTH: 0
         QSO_SOUTH: 0
+        ELG_LOP_SOUTH: 0
+        ELG_HIP_SOUTH: 0
         BAD_SKY: 0
         #- Standards and sky are treated specially; NUMOBS doesn't apply
         STD_FAINT:  -1

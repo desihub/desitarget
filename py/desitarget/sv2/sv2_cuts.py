@@ -1840,7 +1840,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     - Gaia quantities have units as for `the Gaia data model`_.
     """
 
-    from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
+    from desitarget.sv2.sv2_targetmask import desi_mask, bgs_mask, mws_mask
 
     # ADM if resolvetargs is set, limit to only sending north/south objects
     # ADM through north/south cuts.
