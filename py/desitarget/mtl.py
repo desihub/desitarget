@@ -1016,7 +1016,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         raise ValueError(msg)
     # ADM useful to know how many targets were updated.
     _, _, _, _, sky, _ = decode_targetid(zcat["TARGETID"])
-    ntargs, nsky = np.sum(sky==0), np.sum(sky)
+    ntargs, nsky = np.sum(sky == 0), np.sum(sky)
     log.info("Update state for {} targets (zcat also contains {} skies)".format(
         ntargs, nsky))
 

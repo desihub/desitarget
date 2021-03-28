@@ -1157,10 +1157,11 @@ def _check_BGS_targtype(targtype):
         raise ValueError(msg)
 
 
-def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gnobs=None, rnobs=None, znobs=None, gfluxivar=None, rfluxivar=None, zfluxivar=None, 
-          maskbits=None, Grr=None, refcat=None, w1snr=None, w2snr=None, gaiagmag=None, objtype=None, 
-          primary=None, south=True, targtype=None):
+def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None,
+          w1flux=None, w2flux=None, gnobs=None, rnobs=None, znobs=None,
+          gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None,
+          Grr=None, refcat=None, w1snr=None, w2snr=None, gaiagmag=None,
+          objtype=None, primary=None, south=True, targtype=None):
     """Definition of BGS target classes. Returns a boolean array.
 
     Args
@@ -1186,26 +1187,32 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2fl
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
-    
+
     if targtype == 'wise':
-        
-        bgs &= isBGS_wise(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                 w2flux=w2flux, refcat=refcat, maskbits=maskbits, w1snr=w1snr, w2snr=w2snr, 
-               Grr=Grr, gaiagmag=gaiagmag, gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-               gnobs=gnobs, rnobs=rnobs, znobs=znobs, south=south, targtype=targtype, objtype=objtype,
-               primary=primary)
+        bgs &= isBGS_wise(
+            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+            w1flux=w1flux, w2flux=w2flux, refcat=refcat, maskbits=maskbits,
+            w1snr=w1snr, w2snr=w2snr, Grr=Grr, gaiagmag=gaiagmag,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            gnobs=gnobs, rnobs=rnobs, znobs=znobs, south=south,
+            targtype=targtype, objtype=objtype, primary=primary
+        )
     else:
-        
-
-        bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
-                             gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
-                             gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
-
-        bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                            maskbits=maskbits, south=south, targtype=targtype, primary=primary)
-        
-        bgs |= isBGS_sga(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                            refcat=refcat, maskbits=maskbits, south=south, targtype=targtype)
+        bgs &= notinBGS_mask(
+            gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
+            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+            Grr=Grr, gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype
+        )
+        bgs &= isBGS_colors(
+            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+            w1flux=w1flux, maskbits=maskbits, south=south, targtype=targtype,
+            primary=primary
+        )
+        bgs |= isBGS_sga(
+            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+            w1flux=w1flux, refcat=refcat, maskbits=maskbits, south=south,
+            targtype=targtype
+        )
 
     return bgs
 
@@ -1233,7 +1240,6 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
         bgs &= ((Grr > 0.6) | (gaiagmag == 0))
     elif targtype == 'faint':
         bgs &= ((Grr > 0.6) | (gaiagmag == 0))
-
 
     return bgs
 
@@ -1280,14 +1286,15 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     fmc |= ((rfib < 2.9 + r) & (r > 20))
 
     bgs &= fmc
-    
-    # D. Schlegel - ChangHoon H. color selection to get a high redshift success rate
-    schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
-    rfibcol =(rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
 
-    #BASS r-mag offset with DECaLS
+    # D. Schlegel - ChangHoon H. color selection to get a high redshift
+    # success rate.
+    schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
+    rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
+
+    # BASS r-mag offset with DECaLS.
     offset = 0.025
-    
+
     if targtype == 'bright':
         if south:
             bgs &= rflux > 10**((22.5-19.5)/2.5)
@@ -1311,14 +1318,13 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
 
 
 def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, refcat=None, maskbits=None, w1snr=None, w2snr=None, 
+               w2flux=None, refcat=None, maskbits=None, w1snr=None, w2snr=None,
                Grr=None, gaiagmag=None, gfluxivar=None, rfluxivar=None, zfluxivar=None,
-               gnobs=None, rnobs=None, znobs=None, south=True, targtype=None, objtype=None,
-               primary=None):
+               gnobs=None, rnobs=None, znobs=None, south=True, targtype=None,
+               objtype=None, primary=None):
     """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
-    
     _check_BGS_targtype(targtype)
 
     # ADM to maintain backwards-compatibility with mocks.
@@ -1329,53 +1335,54 @@ def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
-    
+
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
     w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
     w2 = 22.5 - 2.5*np.log10(w2flux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
-    
+
     agnw2 = primary.copy()
-    agnw2 = (z - w2 - (g - r) > -0.5) &\
+    agnw2 = (z - w2 - (g - r) > -0.5) &   \
             (w2snr > 10) &\
-            ((maskbits & 2**(9))==0) &\
-            (w2flux>0)
-    
+            ((maskbits & 2**(9)) == 0) &  \
+            (w2flux > 0)
+
     quality = primary.copy()
-    quality = (rflux>0) & (gflux>0) & (zflux>0) &\
-              (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0) &\
-              (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1) &\
-              (imaging_mask(maskbits, bgsmask=True)) &\
-              ((gaiagmag == 0) | ((gaiagmag != 0) & (gaiagmag > 16))) &\
-              (r < 20.3) & (r > 16) &\
-              (rfib < 22) &\
-              (((rfib  < 21.5) & (r > 19.5)) | (r < 19.5)) &\
+    quality = (rflux > 0) & (gflux > 0) & (zflux > 0) &                   \
+              (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0) &       \
+              (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1) &                \
+              (imaging_mask(maskbits, bgsmask=True)) &                    \
+              ((gaiagmag == 0) | ((gaiagmag != 0) & (gaiagmag > 16))) &   \
+              (r < 20.3) & (r > 16) &                                     \
+              (rfib < 22) &                                               \
+              (((rfib < 21.5) & (r > 19.5)) | (r < 19.5)) &               \
               (((_psflike(objtype)) & (r < 17.5)) | (~_psflike(objtype)))
-    
+
     stars = primary.copy()
     stars = ((gaiagmag != 0) & (Grr < 0.6)) | ((gaiagmag == 0) & (_psflike(objtype)))
 
     additional = primary.copy()
-    additional = ((w1 - w2) > -0.2) &\
-                  (z - w1 - (g - r) > -0.7) &\
-                  (w1snr > 10)
+    additional = ((w1 - w2) > -0.2) &          \
+                 (z - w1 - (g - r) > -0.7) &   \
+                 (w1snr > 10)
 
     agn_ext = primary.copy()
     agn_ext = (agnw2) & (additional)
-    
+
     AGN = primary.copy()
     AGN = (agn_ext) & (quality) & ~((stars) & (~agn_ext)) & (Grr < 0.6) & (gaiagmag != 0)
-    
+
     return AGN
 
+
 def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
-                rfiberflux=None, maskbits=None, south=True, targtype=None):
+              rfiberflux=None, maskbits=None, south=True, targtype=None):
     """Module to recover the SGA objects in all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
-    
+
     _check_BGS_targtype(targtype)
 
     bgs = np.zeros_like(rflux, dtype='?')
@@ -1394,25 +1401,26 @@ def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
         else:
             LX = np.array(LX, dtype=bool)
 
-    # Make sure to include all the SGA galaxies
+    # Make sure to include all the SGA galaxies.
     bgs |= LX
     # ADM geometric masking cuts from the Legacy Surveys.
-    # Remove SGA in BRIGHT and CLUSTER
+    # Remove SGA in BRIGHT and CLUSTER.
     bgs &= imaging_mask(maskbits, bgsmask=True)
-    
+
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
     w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
 
-    # D. Schlegel - ChangHoon H. color selection to get a high redshift success rate
+    # D. Schlegel - ChangHoon H. color selection to get a high redshift
+    # success rate.
     schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
-    rfibcol =(rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
+    rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
 
-    #BASS r-mag offset with DECaLS
+    # BASS r-mag offset with DECaLS.
     offset = 0.025
-    
+
     if targtype == 'bright':
         if south:
             bgs &= rflux > 10**((22.5-19.5)/2.5)
@@ -2061,8 +2069,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                         rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
                         w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                        maskbits=maskbits, Grr=Grr, refcat=refcat, w1snr=w1snr, w2snr=w2snr, 
-                        gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=south, targtype=targtype
+                        maskbits=maskbits, Grr=Grr, refcat=refcat, w1snr=w1snr, w2snr=w2snr,
+                        gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=south,
+                        targtype=targtype
                     )
                 )
             bgs_classes[int(south)] = bgs_store
