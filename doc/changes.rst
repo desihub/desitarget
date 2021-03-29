@@ -7,6 +7,7 @@ desitarget Change Log
 
 * Update the LRG selection for SV3 (The 1% Survey) [`PR #699`_]:
     * Replace the zfiber>16 cut with a zfibertot>16 cut to reject shredded bright stars.
+.. _`PR #699`: https://github.com/desihub/desitarget/pull/699
 
 0.55.0 (2021-03-29)
 -------------------
