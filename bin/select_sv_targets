@@ -75,6 +75,8 @@ ap.add_argument("-nob", "--nobackup", action='store_true',
                 help="Do NOT run the Gaia-only backup targets (which require the GAIA_DIR environment variable to be set).")
 ap.add_argument("-noc", "--nochecksum", action='store_true',
                 help='Do NOT add the list of input files and their checksums to the output target file as the second ("INFILES") extension')
+ap.add_argument("-check", "--checkbright", action='store_true',
+                help='If passed, then log a warning about targets that could be too bright when writing output files')
 
 ns = ap.parse_args()
 
@@ -218,6 +220,6 @@ if ns.bundlefiles is None:
             survey=survey, nsidefile=ns.nside, hpxlist=pixlist, supp=supp,
             qso_selection=survey, nside=nside, obscon=obscon, scndout=scndout,
             resolve=not(ns.noresolve), maskbits=not(ns.nomaskbits),
-            extra=extra, infiles=shatab
+            extra=extra, infiles=shatab, checkbright=ns.checkbright
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))
