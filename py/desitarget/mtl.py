@@ -825,9 +825,9 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
            (tilelookup["FAPRGRM"] == obscon.upper()))
     # ADM redshift processing must be complete.
     ii &= zdone
-    alltiles = tilelookup["TILEID"][ii]
+    alltiles = tilelookup[ii]
 
-    # ADM read in the tile file, guarding against it not having being
+    # ADM read in the MTL tile file, guarding against it not having being
     # ADM created yet.
     donetiles = None
     if os.path.isfile(mtltilefn):
@@ -835,23 +835,28 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
 
     # ADM extract the updated tiles.
     if donetiles is None:
-        tileids = np.array(alltiles)
+        # ADM first time through, all tiles have yet to be processed...
+        tiles = alltiles
     else:
-        tileids = np.array(list(set(alltiles) - set(donetiles["TILEID"])))
+        # ADM ...else, we want tiles that uniquely appear in the combined
+        # ADM "alltiles" and "donetiles" (as they aren't in "donetiles").
+        tids = np.concatenate([alltiles["TILEID"], donetiles["TILEID"]])
+        _, cnt = np.unique(tids, return_counts=True)
+        tiles = alltiles[cnt == 1]
 
     # ADM initialize the output array and add the tiles.
-    donetiles = np.zeros(len(tileids), dtype=mtltilefiledm.dtype)
-    donetiles["TILEID"] = tileids
+    newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
+    newtiles["TILEID"] = tiles["TILEID"]
     # ADM look up the time.
-    donetiles["TIMESTAMP"] = get_utc_date()
+    newtiles["TIMESTAMP"] = get_utc_date()
     # ADM add the version of desitarget.
-    donetiles["VERSION"] = dt_version
+    newtiles["VERSION"] = dt_version
     # ADM add the program/obscon.
-    donetiles["PROGRAM"] = obscon
-    # ADM add a placeholder for the YYYYMMDD of tile redshifts.
-    donetiles["ZDATE"] = ""
+    newtiles["PROGRAM"] = obscon
+    # ADM the final processed date for the redshifts.
+    newtiles["ZDATE"] = tiles["LASTNIGHT"]
 
-    return donetiles
+    return newtiles
 
 
 def make_zcat_rr_backstop(zcatdir, tiles):
@@ -862,16 +867,15 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     zcatdir : :class:`str`
         Full path to the "daily" directory that hosts redshift catalogs.
     tiles : :class:`~numpy.array`
-        List of TILEIDs in `zcatdir` from which to construct the `zcat`.
+        Numpy array of tiles to be processed. Must contain at least:
+        * TILEID - unique tile identifier.
+        * ZDATE - final night processed to complete the tile (YYYYMMDD).
 
     Returns
     -------
     :class:`~astropy.table.Table`
         A zcat in the official format (`zcatdatamodel`) compiled from
         the `tiles` in `zcatdir`.
-    :class:`list`
-        The YEARMMDD timestamp that corresponds to each tile in the
-        input `tiles`.
 
     Notes
     -----
@@ -884,19 +888,11 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     # ADM for each tile, read in the spectroscopic and targeting info.
     allzs = []
     allfms = []
-    ymds = []
     for tile in tiles:
         # ADM build the correct directory structure.
-        tiledir = os.path.join(rootdir, str(tile))
-        ymd = os.listdir(tiledir)
-        # ADM there should only be one date in the cumulative directory.
-        if len(ymd) != 1:
-            msg = "expected 1 date in {} but found {}".format(tiledir, len(ymd))
-            log.critical(msg)
-            raise OSError(msg)
-        ymdir = os.path.join(tiledir, ymd[0])
-        # ADM record the YYYYMMDD string for this tile.
-        ymds.append(ymd[0])
+        tiledir = os.path.join(rootdir, str(tile["TILEID"]))
+        ymdir = os.path.join(tiledir, tile["ZDATE"])
+        # ADM and retrieve the redshifts.
         zbestfns = glob(os.path.join(ymdir, "zbest*"))
         for zbestfn in zbestfns:
             zz = fitsio.read(zbestfn, "ZBEST")
@@ -905,7 +901,7 @@ def make_zcat_rr_backstop(zcatdir, tiles):
             fm = fitsio.read(zbestfn, "FIBERMAP", rows=np.arange(len(zz)))
             allfms.append(fm)
             # ADM check the correct TILEID was written in the fibermap.
-            if set(fm["TILEID"]) != set([tile]):
+            if set(fm["TILEID"]) != set([tile["TILEID"]]):
                 msg = "Directory and fibermap don't match for tile".format(tile)
                 log.critical(msg)
                 raise ValueError(msg)
@@ -931,7 +927,7 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS', 'ZTILEID']):
         zcat[col] = zs[col]
 
-    return zcat, ymds
+    return zcat
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
@@ -1003,9 +999,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock.
-    zcat, ymd = make_zcat_rr_backstop(zcatdir, tiles["TILEID"])
-    # ADM update the tiles table with the YYYYMMDD.
-    tiles["ZDATE"] = ymd
+    zcat = make_zcat_rr_backstop(zcatdir, tiles)
+
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include
     # ADM ZTILEID, which may not be needed for non-ledger simulations.

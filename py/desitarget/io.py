@@ -2413,10 +2413,7 @@ def read_mtl_tile_file(filename):
     :class:`~numpy.ndarray`
         A structured numpy array of the MTL tile file.
     """
-    from desitarget.mtl import mtltilefiledm as dm
-    dt = dm.dtype
-    mtltiles = Table.read(filename, comment="#", delimiter=" ",
-                          format='pandas.csv', dtype=dt)
+    mtltiles = Table.read(filename, comment="#", delimiter=" ")
 
     return mtltiles
 

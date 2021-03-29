@@ -5,6 +5,7 @@ desitarget Change Log
 0.54.1 (unreleased)
 -------------------
 
+* Another update to the data model for the MTL loop [`PR #698`_].
 * Update the secondary target bits for SV3 [`PR #697`_].
     * Also make ``FIBERTOTFLUX_*`` available for target cuts.
 * Update the ELG selection for SV3 [`PR #696`_]:
@@ -25,6 +26,7 @@ desitarget Change Log
 .. _`PR #695`: https://github.com/desihub/desitarget/pull/695
 .. _`PR #696`: https://github.com/desihub/desitarget/pull/696
 .. _`PR #697`: https://github.com/desihub/desitarget/pull/697
+.. _`PR #698`: https://github.com/desihub/desitarget/pull/698
 
 0.54.0 (2021-03-26)
 -------------------
