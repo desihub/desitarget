@@ -842,7 +842,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
         # ADM "alltiles" and "donetiles" (as they aren't in "donetiles").
         tids = np.concatenate([alltiles["TILEID"], donetiles["TILEID"]])
         _, cnt = np.unique(tids, return_counts=True)
-        tiles = alltiles[cnt==1]
+        tiles = alltiles[cnt == 1]
 
     # ADM initialize the output array and add the tiles.
     newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
