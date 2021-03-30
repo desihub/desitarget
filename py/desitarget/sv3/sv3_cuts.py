@@ -427,12 +427,12 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
-    elglop, elghip = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                                  w1flux=w1flux, w2flux=w2flux,
-                                  gfiberflux=gfiberflux, south=south,
-                                  primary=primary)
+    elg, elghip = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                               w1flux=w1flux, w2flux=w2flux,
+                               gfiberflux=gfiberflux, south=south,
+                               primary=primary)
 
-    return elglop & nomask, elghip & nomask
+    return elg & nomask, elghip & nomask
 
 
 def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
@@ -2011,15 +2011,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
                 south=south
             )
-    elg_lop_north, elg_hip_north = elg_classes[0]
-    elg_lop_south, elg_hip_south = elg_classes[1]
+    elg_north, elg_hip_north = elg_classes[0]
+    elg_south, elg_hip_south = elg_classes[1]
 
     # ADM combine ELG target bits for an ELG target based on any imaging.
-    elg_lop = (elg_lop_north & photsys_north) | (elg_lop_south & photsys_south)
+    elg = (elg_north & photsys_north) | (elg_south & photsys_south)
     elg_hip = (elg_hip_north & photsys_north) | (elg_hip_south & photsys_south)
-    elg_north = elg_lop_north | elg_hip_north
-    elg_south = elg_lop_south | elg_hip_south
-    elg = elg_lop | elg_hip
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -2181,21 +2178,18 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
-    desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
     desi_target |= elg_hip_south * desi_mask.ELG_HIP_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
-    desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
     desi_target |= elg_hip_north * desi_mask.ELG_HIP_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
-    desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= elg_hip * desi_mask.ELG_HIP
     desi_target |= qso * desi_mask.QSO
     desi_target |= qsohiz * desi_mask.QSO_HIZ
@@ -2209,20 +2203,20 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
     # ADM turn off BGS_WISE until we're sure we'll use it.
-    # bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
+    bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
     # BGS targets, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
     # ADM turn off BGS_WISE until we're sure we'll use it.
-    # bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
+    bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
 
     # BGS targets, combined.
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
     # ADM turn off BGS_WISE until we're sure we'll use it.
-    # bgs_target |= bgs_wise * bgs_mask.BGS_WISE
-    # ADM set 10% of the BGS_FAINT targets to BGS_FAINT_HIP.
+    bgs_target |= bgs_wise * bgs_mask.BGS_WISE
+    # ADM set a fraction of the BGS_FAINT targets to BGS_FAINT_HIP.
     if hip is not None:
         if hip is True:
             bgs_target |= bgs_mask.BGS_FAINT_HIP
