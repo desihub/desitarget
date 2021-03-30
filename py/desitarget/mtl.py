@@ -640,6 +640,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         nside = _get_mtl_nside()
         theta, phi = np.radians(90-zcat["DEC"]), np.radians(zcat["RA"])
         pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+        pixnum = list(set(pixnum))
         # ADM we'll read in too many targets, here, but that's OK as
         # ADM make_mtl(trimtozcat=True) only returns the updated targets.
         targets, fndict = io.read_mtl_in_hp(hpdirname, nside, pixnum,
@@ -931,7 +932,7 @@ def make_zcat_rr_backstop(zcatdir, tiles):
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
-                numobs_from_ledger=True):
+                numobs_from_ledger=True, secondary=False):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -956,6 +957,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         If ``True`` then inherit the number of observations so far from
         the ledger rather than expecting it to have a reasonable value
         in the `zcat.`
+    secondary : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then process secondary targets instead of primaries
+        for passed `survey` and `obscon`.
 
     Returns
     -------
@@ -983,7 +987,10 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     # ADM construct the relevant sub-directory for this survey and
     # ADM set of observing conditions..
     form = get_mtl_ledger_format()
-    hpdirname = io.find_target_files(mtldir, flavor="mtl",
+    resolve = True
+    if secondary:
+        resolve = None
+    hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
     zcatdir = get_zcat_dir(zcatdir)

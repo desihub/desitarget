@@ -2141,7 +2141,14 @@ def check_hp_target_dir(hpdirname):
     pixdict = {}
     for fn in fns:
         hdr = read_targets_header(fn)
-        nside.append(hdr["FILENSID"])
+        # ADM if there's no directory structure, maybe a file was meant.
+        try:
+            nside.append(hdr["FILENSID"])
+        except KeyError:
+            msg = "You passed a directory containing {}.".format(fns)
+            msg += "Perhaps you meant to pass a file instead?"
+            log.error(msg)
+            raise KeyError
         pixels = hdr["FILEHPX"]
         # ADM hdr["FILEHPX"] could be a str, depending on fitsio version.
         if isinstance(pixels, str):

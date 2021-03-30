@@ -25,8 +25,11 @@ ap.add_argument('--mtldir',
                 Default is to use the $ZCAT_DIR environment variable",
                 default=None)
 ap.add_argument("-n", "--numobsfromzcat", action='store_true',
-                help="If passed, the zcat includes a meaningfule NUMOBS.        \
+                help="If passed, the zcat includes a meaningful NUMOBS.         \
                 Otherwise, NUMOBS is looked up from the ledger itself")
+ap.add_argument("-sec", "--secondary", action='store_true',
+                help="If passed, process the ledger of secondary targets        \
+                instead of the primaries")
 
 ns = ap.parse_args()
 
@@ -34,7 +37,7 @@ numobs_from_ledger = not(ns.numobsfromzcat)
 
 hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
     ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-    numobs_from_ledger=numobs_from_ledger)
+    numobs_from_ledger=numobs_from_ledger, secondary=ns.secondary)
 
 log.info("MTL ledger directory: {}".format(hpdirname))
 log.info("MTL tile file: {}".format(mtltilefn))
