@@ -474,7 +474,8 @@ def calc_numobs_more(targets, zcat, obscon):
           survey, commissioning or SV and behave accordingly.
         - Most targets are updated to NUMOBS_MORE = NUMOBS_INIT-NUMOBS.
           Special cases include BGS targets which always get NUMOBS_MORE
-          of 1 in bright time and "tracer" targets at z < midzcut.
+          of 1 in bright time and "tracer" primary targets at z <
+          midzcut, which always get just one total observation.
     """
     # ADM check input arrays are sorted to match row-by-row on TARGETID.
     assert np.all(targets["TARGETID"] == zcat["TARGETID"])
@@ -501,9 +502,12 @@ def calc_numobs_more(targets, zcat, obscon):
     if survey == 'main':
         # ADM If a DARK layer target is confirmed to have a good redshift
         # ADM at z < midzcut it always needs just one total observation.
-        # ADM (midzcut is defined at the top of this module).
+        # ADM (midzcut is defined at the top of this module). Turn off
+        # ADM for secondaries.
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
-            ii = (zcat['ZWARN'] == 0)
+            # ADM standalone secondaries set JUST SCND_ANY in DESI_TARGET.
+            ii = targets[desi_target] != desi_mask.SCND_ANY
+            ii &= (zcat['ZWARN'] == 0)
             ii &= (zcat['Z'] < midzcut)
             ii &= (zcat['NUMOBS'] > 0)
             numobs_more[ii] = 0

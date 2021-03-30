@@ -206,6 +206,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
         ``Z``, ``ZWARN``, ``ZTILEID``.
     scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
+        TYPICALLY, we have a separate secondary targets (they have their
+        own "ledger"). So passing associated secondaries is DEPRECATED
+        (but still works). `scnd` is kept for backwards compatibility.
         A set of secondary targets associated with the `targets`. As with
         the `target` must include at least ``TARGETID``, ``NUMOBS_INIT``,
         ``PRIORITY_INIT`` or the corresponding SV columns.
