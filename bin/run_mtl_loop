@@ -27,17 +27,24 @@ ap.add_argument('--mtldir',
 ap.add_argument("-n", "--numobsfromzcat", action='store_true',
                 help="If passed, the zcat includes a meaningful NUMOBS.         \
                 Otherwise, NUMOBS is looked up from the ledger itself")
-ap.add_argument("-sec", "--secondary", action='store_true',
-                help="If passed, process the ledger of secondary targets        \
-                instead of the primaries")
+ap.add_argument("-nosec", "--nosecondary", action='store_true',
+                help="By default, we always process the ledger of secondaries   \
+                in addition to the primaries so they keep pace. Pass this if    \
+                there are no secondaries to process")
 
 ns = ap.parse_args()
 
 numobs_from_ledger = not(ns.numobsfromzcat)
 
+# ADM if nosecondary wasn't passed, also process the secondary ledger.
+if not(ns.nosecondary):
+    hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
+        ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
+        numobs_from_ledger=numobs_from_ledger, secondary=True)
+
 hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
     ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-    numobs_from_ledger=numobs_from_ledger, secondary=ns.secondary)
+    numobs_from_ledger=numobs_from_ledger, secondary=False)
 
 log.info("MTL ledger directory: {}".format(hpdirname))
 log.info("MTL tile file: {}".format(mtltilefn))

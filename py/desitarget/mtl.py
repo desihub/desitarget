@@ -131,8 +131,14 @@ def get_zcat_dir(zcatdir=None):
     return zcatdir
 
 
-def get_mtl_tile_file_name():
+def get_mtl_tile_file_name(secondary=False):
     """Convenience function to grab the name of the MTL tile file.
+
+    Parameters
+    ----------
+    secondary : :class:`bool`, optional, defaults to ``False``
+        If ``True`` return the name of the MTL tile file for secondary
+        targets instead of the standard, primary MTL tile file.
 
     Returns
     -------
@@ -140,6 +146,8 @@ def get_mtl_tile_file_name():
         The name of the MTL tile file.
     """
     fn = "mtl-done-tiles.ecsv"
+    if secondary:
+        fn = "scnd-mtl-done-tiles.ecsv"
 
     return fn
 
@@ -916,6 +924,16 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     zs = zs[zs["TARGETID"] >= 0]
     fms = fms[fms["TARGETID"] >= 0]
 
+    # ADM check the TARGETIDs are unique. If they aren't the likely
+    # ADM explanation is that overlapping tiles (which could include
+    # ADM duplicate targets) are being processed.
+    if len(zs) != len(set(zs["TARGETID"])):
+        msg = "a target is duplicated!!! You are likely trying to process "
+        msg += "overlapping tiles when one of these tiles should already have "
+        msg += "been processed and locked in mtl-done-tiles.ecsv"
+        log.critical(msg)
+        raise ValueError(msg)
+
     # ADM currently, the spectroscopic files aren't coadds, so aren't
     # ADM unique. We therefore need to look up (any) coordinates for
     # ADM each z in the fibermap.
@@ -985,14 +1003,18 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
     mtldir = get_mtl_dir(mtldir)
     # ADM construct the full path to the mtl tile file.
-    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name())
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(secondary=secondary))
 
     # ADM construct the relevant sub-directory for this survey and
     # ADM set of observing conditions..
     form = get_mtl_ledger_format()
     resolve = True
+    msg = "running on {} ledger with obscon={} and survey={}"
     if secondary:
+        log.info(msg.format("SECONDARY", obscon, survey))
         resolve = None
+    else:
+        log.info(msg.format("PRIMARY", obscon, survey))
     hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
