@@ -36,17 +36,17 @@ ns = ap.parse_args()
 
 numobs_from_ledger = not(ns.numobsfromzcat)
 
+scndstates = [False]
 # ADM if nosecondary wasn't passed, also process the secondary ledger.
 if not(ns.nosecondary):
+    scndstates = [True, False]
+
+for secondary in scndstates:
     hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
         ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-        numobs_from_ledger=numobs_from_ledger, secondary=True)
+        numobs_from_ledger=numobs_from_ledger, secondary=secondary)
 
-hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
-    ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-    numobs_from_ledger=numobs_from_ledger, secondary=False)
-
-log.info("MTL ledger directory: {}".format(hpdirname))
-log.info("MTL tile file: {}".format(mtltilefn))
-log.info("Redshift tile file: {}".format(tilefn))
-log.info("Processed {} new tiles, which are: {}".format(len(tiles), tiles))
+    log.info("MTL ledger directory: {}".format(hpdirname))
+    log.info("MTL tile file: {}".format(mtltilefn))
+    log.info("Redshift tile file: {}".format(tilefn))
+    log.info("Processed {} new tiles, which are: {}".format(len(tiles), tiles))
