@@ -5,10 +5,15 @@ desitarget Change Log
 0.55.1 (unreleased)
 -------------------
 
+* Some bug fixes for SV3 [`PR #700`_]. Includes:
+    * Turn on the ``BGS_WISE`` bit, which had been deprecated.
+    * Correct behavior for ``ELG_HIP`` when making MTLs.
+        * Also change ``ELG_LOP`` to just ``ELG`` for simplicity.
 * Update the LRG selection for SV3 (The 1% Survey) [`PR #699`_]:
-    * Replace the zfiber>16 cut with a zfibertot>16 cut to reject shredded bright stars.
+    * Replace zfiber>16 with zfibertot>16 to reject bright star shreds.
 
 .. _`PR #699`: https://github.com/desihub/desitarget/pull/699
+.. _`PR #700`: https://github.com/desihub/desitarget/pull/700
 
 0.55.0 (2021-03-29)
 -------------------
