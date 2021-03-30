@@ -278,7 +278,7 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rfluxivar=None, zfluxivar=None, w1fluxivar=None,
           gaiagmag=None, gnobs=None, rnobs=None, znobs=None, maskbits=None,
-          primary=None, south=True):
+          zfibertotflux=None, primary=None, south=True):
     """
     Parameters
     ----------
@@ -307,7 +307,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-        gaiagmag=gaiagmag, maskbits=maskbits
+        gaiagmag=gaiagmag, maskbits=maskbits, zfibertotflux=zfibertotflux
     )
 
     # ADM color-based selection of LRGs.
@@ -322,7 +322,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
                   zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
                   rfluxivar=None, zfluxivar=None, w1fluxivar=None,
-                  gaiagmag=None, maskbits=None):
+                  gaiagmag=None, maskbits=None, zfibertotflux=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
     Returns
@@ -346,7 +346,7 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (gaiagmag == 0) | (gaiagmag > 18)  # remove bright GAIA sources
 
     # remove bright stars with zfiber<16 that are missing from GAIA
-    lrg &= zfiberflux < 10**(-0.4*(16-22.5))
+    lrg &= zfibertotflux < 10**(-0.4*(16-22.5))
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -1992,7 +1992,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-                gaiagmag=gaiagmag, maskbits=maskbits, south=south
+                gaiagmag=gaiagmag, zfibertotflux=zfibertotflux,
+                maskbits=maskbits, south=south
             )
     lrg_north, lrg_south = lrg_classes
 
