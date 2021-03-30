@@ -8,6 +8,7 @@ sv3_desi_mask:
     - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
 
     # ADM ELG sub-classes
+    # ADM ELG_LOP was deprecated early in SV3. We just use "ELG" for the low-priority ELGs.
     - [ELG_LOP,     5, "ELG at lower priority",  {obsconditions: DARK}]
     - [ELG_HIP,     6, "ELG at higher priority", {obsconditions: DARK}]
 
