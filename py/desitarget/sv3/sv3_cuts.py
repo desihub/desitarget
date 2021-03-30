@@ -2209,20 +2209,20 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
     # ADM turn off BGS_WISE until we're sure we'll use it.
-    # bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
+    bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
     # BGS targets, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
     # ADM turn off BGS_WISE until we're sure we'll use it.
-    # bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
+    bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
 
     # BGS targets, combined.
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
     # ADM turn off BGS_WISE until we're sure we'll use it.
-    # bgs_target |= bgs_wise * bgs_mask.BGS_WISE
-    # ADM set 10% of the BGS_FAINT targets to BGS_FAINT_HIP.
+    bgs_target |= bgs_wise * bgs_mask.BGS_WISE
+    # ADM set a fraction of the BGS_FAINT targets to BGS_FAINT_HIP.
     if hip is not None:
         if hip is True:
             bgs_target |= bgs_mask.BGS_FAINT_HIP
