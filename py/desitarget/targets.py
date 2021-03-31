@@ -659,7 +659,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                 # ADM Mid-z QSOs require more observations at low
                 # ADM priority as requested by some secondary programs.
                 good_midz = (zgood & (zcat['Z'] >= midzcut) &
-                            (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+                             (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
 
 # ADM useful to turn on if, for example, we want to get lots
 # ADM of QSO repeat observations during the 1% Survey:
@@ -754,7 +754,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                     # ADM Mid-z QSOs require more observations at low
                     # ADM priority as requested by some secondary programs.
                     good_midz = (zgood & (zcat['Z'] >= midzcut) &
-                                (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+                                 (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
                     # ADM secondary QSOs need processed like primary QSOs.
                     if scnd_mask[name].flavor == "QSO":
                         sbools = [unobs, done, good_hiz, good_midz,
