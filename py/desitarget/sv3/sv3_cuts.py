@@ -427,12 +427,12 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
-    elg, elghip = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                               w1flux=w1flux, w2flux=w2flux,
-                               gfiberflux=gfiberflux, south=south,
-                               primary=primary)
+    elglop, elghip = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                                  w1flux=w1flux, w2flux=w2flux,
+                                  gfiberflux=gfiberflux, south=south,
+                                  primary=primary)
 
-    return elg & nomask, elghip & nomask
+    return elglop & nomask, elghip & nomask
 
 
 def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
@@ -2011,12 +2011,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
                 south=south
             )
-    elg_north, elg_hip_north = elg_classes[0]
-    elg_south, elg_hip_south = elg_classes[1]
+    elg_lop_north, elg_hip_north = elg_classes[0]
+    elg_lop_south, elg_hip_south = elg_classes[1]
 
     # ADM combine ELG target bits for an ELG target based on any imaging.
-    elg = (elg_north & photsys_north) | (elg_south & photsys_south)
+    elg_lop = (elg_lop_north & photsys_north) | (elg_lop_south & photsys_south)
     elg_hip = (elg_hip_north & photsys_north) | (elg_hip_south & photsys_south)
+    elg_north = elg_lop_north | elg_hip_north
+    elg_south = elg_lop_south | elg_hip_south
+    elg = elg_lop | elg_hip
 
     # ADM initially set everything to arrays of False for the QSO selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -2178,18 +2181,21 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
+    desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
     desi_target |= elg_hip_south * desi_mask.ELG_HIP_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
+    desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
     desi_target |= elg_hip_north * desi_mask.ELG_HIP_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
+    desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= elg_hip * desi_mask.ELG_HIP
     desi_target |= qso * desi_mask.QSO
     desi_target |= qsohiz * desi_mask.QSO_HIZ
