@@ -5,6 +5,8 @@ desitarget Change Log
 0.55.1 (unreleased)
 -------------------
 
+* Revert ``ELG_LOP`` back to being its own target class [`PR #701`_].
+    * But maintain the correct behavior for ``ELG_HIP`` when making MTLs.
 * Some bug fixes for SV3 [`PR #700`_]. Includes:
     * Turn on the ``BGS_WISE`` bit, which had been deprecated.
     * Correct behavior for ``ELG_HIP`` when making MTLs.
@@ -14,6 +16,7 @@ desitarget Change Log
 
 .. _`PR #699`: https://github.com/desihub/desitarget/pull/699
 .. _`PR #700`: https://github.com/desihub/desitarget/pull/700
+.. _`PR #701`: https://github.com/desihub/desitarget/pull/701
 
 0.55.0 (2021-03-29)
 -------------------
