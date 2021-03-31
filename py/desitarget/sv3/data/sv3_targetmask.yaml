@@ -284,7 +284,7 @@ priorities:
         VETO:                   {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         UDG:                    {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FIRST_MALS:             {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 #       MWS_DDOGIANTS:          {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_MASS_AGN:           {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
@@ -423,7 +423,7 @@ numobs:
         GAL_CLUS_2ND:           1
         GAL_CLUS_SAT:           1
         STRONG_LENS:            1
-        WISE_VAR_QSO:           1
+        WISE_VAR_QSO:           4
         Z5_QSO:                 4
         MWS_MAIN_CLUSTER_SV:    1
         BRIGHT_HPM:             1
