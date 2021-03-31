@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.55.1 (unreleased)
+0.56.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.56.0 (2021-03-31)
 -------------------
 
 * Update the MTL loop to work for secondary ledgers for sv3 [`PR #702`_]:
