@@ -11,6 +11,8 @@ desitarget Change Log
     * Default to running secondary ledgers when the primaries are run.
         * i.e. specifically in the ``run_mtl_loop`` script.
     * Catch some special cases in setting ``NUMOBS`` for secondaries.
+    * Set ``NUMOBS`` to sensible numbers for secondary targets.
+        * philosophically, they'll drop to the ``DONE`` priority.
 * Some bug fixes for SV3 [`PR #700`_]. Includes:
     * Turn on the ``BGS_WISE`` bit, which had been deprecated.
     * Correct behavior for ``ELG_HIP`` when making MTLs.
