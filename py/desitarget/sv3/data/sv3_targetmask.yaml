@@ -284,7 +284,7 @@ priorities:
         VETO:                   {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         UDG:                    {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FIRST_MALS:             {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 #       MWS_DDOGIANTS:          {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_MASS_AGN:           {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
@@ -401,34 +401,34 @@ numobs:
 
     # ADM initial number of observations for secondary targets
     sv3_scnd_mask:
-        VETO:                     1
-        UDG:                    100
-        FIRST_MALS:             100
-        QSO_RED:                100
-#       MWS_DDOGIANTS:          100
-        MWS_CLUS_GAL_DEEP:      100
-        LOW_MASS_AGN:           100
-        FAINT_HPM:              100
-        LOW_Z_TIER1:            100
-        LOW_Z_TIER2:            100
-        LOW_Z_TIER3:            100
-        BHB:                    100
-        SPCV:                   100
-        DC3R2_GAMA:             100
-        PSF_OUT_BRIGHT:         100
-        PSF_OUT_DARK:           100
-        HPM_SOUM:               100
-        SN_HOSTS:               100
+        VETO:                   1
+        UDG:                    1
+        FIRST_MALS:             1
+        QSO_RED:                4
+#       MWS_DDOGIANTS:          1
+        MWS_CLUS_GAL_DEEP:      1
+        LOW_MASS_AGN:           1
+        FAINT_HPM:              1
+        LOW_Z_TIER1:            1
+        LOW_Z_TIER2:            1
+        LOW_Z_TIER3:            1
+        BHB:                    1
+        SPCV:                   1
+        DC3R2_GAMA:             1
+        PSF_OUT_BRIGHT:         1
+        PSF_OUT_DARK:           1
+        HPM_SOUM:               1
+        SN_HOSTS:               1
         GAL_CLUS_BCG:           2
         GAL_CLUS_2ND:           1
         GAL_CLUS_SAT:           1
-        STRONG_LENS:            100
-        WISE_VAR_QSO:           100
-        Z5_QSO:                 100
-        MWS_MAIN_CLUSTER_SV:    100
-        BRIGHT_HPM:             100
-        WD_BINARIES_BRIGHT:     100
-        WD_BINARIES_DARK:       100
+        STRONG_LENS:            1
+        WISE_VAR_QSO:           4
+        Z5_QSO:                 4
+        MWS_MAIN_CLUSTER_SV:    1
+        BRIGHT_HPM:             1
+        WD_BINARIES_BRIGHT:     1
+        WD_BINARIES_DARK:       1
         PV_BRIGHT_HIGH:         5
         PV_BRIGHT_MEDIUM:       1
         PV_BRIGHT_LOW:          1

@@ -474,7 +474,8 @@ def calc_numobs_more(targets, zcat, obscon):
           survey, commissioning or SV and behave accordingly.
         - Most targets are updated to NUMOBS_MORE = NUMOBS_INIT-NUMOBS.
           Special cases include BGS targets which always get NUMOBS_MORE
-          of 1 in bright time and "tracer" targets at z < midzcut.
+          of 1 in bright time and "tracer" primary targets at z <
+          midzcut, which always get just one total observation.
     """
     # ADM check input arrays are sorted to match row-by-row on TARGETID.
     assert np.all(targets["TARGETID"] == zcat["TARGETID"])
@@ -501,9 +502,12 @@ def calc_numobs_more(targets, zcat, obscon):
     if survey == 'main':
         # ADM If a DARK layer target is confirmed to have a good redshift
         # ADM at z < midzcut it always needs just one total observation.
-        # ADM (midzcut is defined at the top of this module).
+        # ADM (midzcut is defined at the top of this module). Turn off
+        # ADM for secondaries.
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
-            ii = (zcat['ZWARN'] == 0)
+            # ADM standalone secondaries set JUST SCND_ANY in DESI_TARGET.
+            ii = targets[desi_target] != desi_mask.SCND_ANY
+            ii &= (zcat['ZWARN'] == 0)
             ii &= (zcat['Z'] < midzcut)
             ii &= (zcat['NUMOBS'] > 0)
             numobs_more[ii] = 0
@@ -725,8 +729,8 @@ def calc_priority(targets, zcat, obscon, state=False):
 
         # ADM Secondary targets.
         if scnd_target in targets.dtype.names:
-            # APC Secondary target bits only drive updates to targets with specific DESI_TARGET bits
-            # APC See https://github.com/desihub/desitarget/pull/530
+            # APC Secondaries only drive updates for specific DESI_TARGET
+            # APC bits (https://github.com/desihub/desitarget/pull/530).
             scnd_update = (targets[desi_target] & desi_mask['SCND_ANY']) != 0
             if np.any(scnd_update):
                 # APC Allow changes to primaries if the DESI_TARGET bitmask has any of the
@@ -744,10 +748,23 @@ def calc_priority(targets, zcat, obscon, state=False):
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[scnd_target] & scnd_mask[name]) != 0
                     ii &= scnd_update
-                    for sbool, sname in zip(
-                            [unobs, done, zgood, zwarn],
-                            ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
-                    ):
+                    # ADM LyA QSOs require more observations.
+                    # ADM (zcut is defined at the top of this module).
+                    good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
+                    # ADM Mid-z QSOs require more observations at low
+                    # ADM priority as requested by some secondary programs.
+                    good_midz = (zgood & (zcat['Z'] >= midzcut) &
+                                 (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+                    # ADM secondary QSOs need processed like primary QSOs.
+                    if scnd_mask[name].flavor == "QSO":
+                        sbools = [unobs, done, good_hiz, good_midz,
+                                  ~good_hiz & ~good_midz, zwarn]
+                        snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                                  "DONE", "MORE_ZWARN"]
+                    else:
+                        sbools = [unobs, done, zgood, zwarn]
+                        snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                    for sbool, sname in zip(sbools, snames):
                         # ADM update priorities and target states.
                         Mxp = scnd_mask[name].priorities[sname]
                         # ADM update states BEFORE changing priorities.

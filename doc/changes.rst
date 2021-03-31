@@ -5,6 +5,15 @@ desitarget Change Log
 0.55.1 (unreleased)
 -------------------
 
+* Update the MTL loop to work for secondary ledgers for sv3 [`PR #702`_]:
+    * Add tile file to check secondary processing tracks with primaries.
+        * called ``scnd-mtl-done-tiles.ecsv``.
+    * Default to running secondary ledgers whenever primaries are run.
+        * i.e. specifically in the ``run_mtl_loop`` script.
+    * Catch some special cases for secondaries.
+        * e.g. secondary QSOs should update like primary QSOs.
+    * Set ``NUMOBS`` to more sensible numbers for secondary targets.
+        * let ``NUMOBS_MORE`` drop to zero and ``PRIORITY`` to ``DONE``.
 * Revert ``ELG_LOP`` back to being its own target class [`PR #701`_].
     * But maintain the correct behavior for ``ELG_HIP`` when making MTLs.
 * Some bug fixes for SV3 [`PR #700`_]. Includes:
@@ -17,6 +26,7 @@ desitarget Change Log
 .. _`PR #699`: https://github.com/desihub/desitarget/pull/699
 .. _`PR #700`: https://github.com/desihub/desitarget/pull/700
 .. _`PR #701`: https://github.com/desihub/desitarget/pull/701
+.. _`PR #702`: https://github.com/desihub/desitarget/pull/702
 
 0.55.0 (2021-03-29)
 -------------------
