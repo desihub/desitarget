@@ -625,7 +625,7 @@ def calc_priority(targets, zcat, obscon, state=False):
             names = ('ELG', 'LRG')
             # ADM for sv3 the ELG guiding columns are ELG and ELG_HIP.
             if survey == 'sv3':
-                names = ('ELG', 'ELG_HIP', 'LRG')
+                names = ('ELG_LOP', 'ELG_HIP', 'LRG')
             for name in names:
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(desi_mask[name].obsconditions)
