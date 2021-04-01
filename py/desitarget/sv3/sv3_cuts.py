@@ -300,10 +300,10 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM LRG targets.
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    lrg = primary.copy()
+    lrg_quality = primary.copy()
 
     # ADM basic quality cuts.
-    lrg &= notinLRG_mask(
+    lrg_quality &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
@@ -311,12 +311,15 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     )
 
     # ADM color-based selection of LRGs.
-    lrg &= isLRG_colors(
+    lrg, lrg_lowdens = isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, south=south, primary=primary
     )
 
-    return lrg
+    lrg &= lrg_quality
+    lrg_lowdens &= lrg_quality
+
+    return lrg, lrg_lowdens
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
@@ -345,8 +348,8 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= (gaiagmag == 0) | (gaiagmag > 18)  # remove bright GAIA sources
 
-    # remove bright stars with zfiber<16 that are missing from GAIA
-    lrg &= zfibertotflux < 10**(-0.4*(16-22.5))
+    # ADM remove stars with zfibertot < 17.5 that are missing from GAIA.
+    lrg &= zfibertotflux < 10**(-0.4*(17.5-22.5))
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -369,6 +372,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
+    lrg_lowdens = primary.copy()  # lower density LRG selection
 
     # ADM to maintain backwards-compatibility with mocks.
     if zfiberflux is None:
@@ -382,6 +386,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
     zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
 
+    # Full SV3 selection
     if south:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg &= zfibermag < 21.7                   # faint limit
@@ -407,7 +412,33 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
             | (rmag - w1mag > 3.39)
             )  # double sliding cuts and high-z extension
 
-    return lrg
+    # Selection of the lower density subset
+    if south:
+        lrg_lowdens &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
+        lrg_lowdens &= zfibermag < 21.7                   # faint limit
+        lrg_lowdens &= (
+            (gmag - rmag > 1.3) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.13)
+            | (rmag - w1mag > 1.8)
+            )  # low-z cuts
+        lrg_lowdens &= (
+            (rmag - w1mag > (w1mag - 17.07) * 1.8)
+            & (rmag - w1mag > (w1mag - 16.17) * 1.)
+            | (rmag - w1mag > 3.39)
+            )  # double sliding cuts and high-z extension
+    else:
+        lrg_lowdens &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
+        lrg_lowdens &= zfibermag < 21.72                   # faint limit
+        lrg_lowdens &= (
+            (gmag - rmag > 1.34) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.23)
+            | (rmag - w1mag > 1.8)
+            )  # low-z cuts
+        lrg_lowdens &= (
+            (rmag - w1mag > (w1mag - 17.05) * 1.83)
+            & (rmag - w1mag > (w1mag - 16.14) * 1.)
+            | (rmag - w1mag > 3.49)
+            )  # double sliding cuts and high-z extension
+
+    return lrg, lrg_lowdens
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1984,7 +2015,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [tcfalse, tcfalse]
+    lrg_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
     if "LRG" in tcnames:
         for south in south_cuts:
             lrg_classes[int(south)] = isLRG(
@@ -1995,10 +2026,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gaiagmag=gaiagmag, zfibertotflux=zfibertotflux,
                 maskbits=maskbits, south=south
             )
-    lrg_north, lrg_south = lrg_classes
+    lrg_north, lrg_lowdens_north = lrg_classes[0]
+    lrg_south, lrg_lowdens_south = lrg_classes[1]
 
     # ADM combine LRG target bits for an LRG target based on any imaging.
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
+    lrg_lowdens = ((lrg_lowdens_north & photsys_north) |
+                   (lrg_lowdens_south & photsys_south))
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -2180,6 +2214,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
+    desi_target = lrg_south * desi_mask.LRG_LOWDENS_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
     desi_target |= elg_hip_south * desi_mask.ELG_HIP_SOUTH
@@ -2187,6 +2222,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
+    desi_target |= lrg_north * desi_mask.LRG_LOWDENS_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
     desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
     desi_target |= elg_hip_north * desi_mask.ELG_HIP_NORTH
@@ -2194,6 +2230,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
+    desi_target |= lrg_north * desi_mask.LRG_LOWDENS
     desi_target |= elg * desi_mask.ELG
     desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= elg_hip * desi_mask.ELG_HIP
