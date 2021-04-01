@@ -294,7 +294,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
+    - Current version (03/31/21) is version 15 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -1209,7 +1209,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/29/21) is version 13 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
@@ -1925,8 +1925,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         The flux in nano-maggies of g, r, z, W1 and W2 bands.
         Corrected for Galactic extinction.
     gfiberflux, rfiberflux, zfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in g/r/z-band.
+        Predicted fiber flux from object in 1 arcsecond seeing in g/r/z.
         Corrected for Galactic extinction.
+    gfibertotflux, rfibertotflux, zfibertotflux : :class:`~numpy.ndarray`
+        Predicted fiber flux from ALL sources at object's location in 1
+        arcsecond seeing in g/r/z. NOT corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
     gfluxivar, rfluxivar, zfluxivar, w1fluxivar: :class:`~numpy.ndarray`
