@@ -5,7 +5,13 @@ desitarget Change Log
 0.56.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Further updates to the LRG selection for SV3 [`PR #703`_]. Includes:
+    * Change bright-end cut to ``zfibertot`` > 17.5 (instead of > 16).
+    * Add low-density (600-per-sq.-deg.) LRG sample (``LRG_LOWDENS``).
+        * Bit is informational as ``LRG_LOWDENS`` is a subset of ``LRG``.
+    * Update the intersphinx URLs to fix the online documentation builds.
+
+.. _`PR #703`: https://github.com/desihub/desitarget/pull/703
 
 0.56.0 (2021-03-31)
 -------------------
