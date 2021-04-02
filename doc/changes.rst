@@ -5,7 +5,10 @@ desitarget Change Log
 0.56.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Bright limit (GAIA_G > 15) AND (ZFIBERTOT > 15) for MWS [`PR #704`_].
+    * Applied to all MWS targets (``BROAD/NEARBY/WD/BHB``).
+
+.. _`PR #704`: https://github.com/desihub/desitarget/pull/704
 
 0.56.0 (2021-03-31)
 -------------------
