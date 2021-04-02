@@ -174,6 +174,21 @@ targetid_mask:
     - [GAIADR,     60, "RIGHTMOST bit encoding Gaia DR number when not in Legacy Surveys (bits 60-61)",  {nbits: 2}]
     - [RESERVED,   62, "RIGHTMOST bit for left over bit space (encompasses bit 62 inclusive)",           {nbits: 1}]
 
+# ADM ZWARN mask (bits that can be set to warn that a redshift is bad).
+# ADM inherited from https://github.com/desihub/redrock/blob/8e33f642b6d8a762c4d71626fb3aca6377c976d4/py/redrock/zwarning.py
+zwarn_mask:
+    - [SKY,                0, "sky fiber"]
+    - [LITTLE_COVERAGE,    1, "too little wavelength coverage"]
+    - [SMALL_DELTA_CHI2,   2, "chi-squared of best fit is too close to that of second best"]
+    - [NEGATIVE_MODEL,     3, "synthetic spectrum is negative"]
+    - [MANY_OUTLIERS,      4, "fraction of points more than 5 sigma away from best model is too large (>0.05)"]
+    - [Z_FITLIMIT,         5, "chi-squared minimum at edge of the redshift fitting range"]
+    - [NEGATIVE_EMISSION,  6, "a QSO line exhibits negative emission, triggered only in QSO spectra, if  C_IV, C_III, Mg_II, H_beta, or H_alpha has LINEAREA + 3 * LINEAREA_ERR < 0"]
+    - [UNPLUGGED,          7, "the fiber was unplugged/broken, so no spectrum obtained"]
+    - [BAD_TARGET,         8, "catastrophically bad targeting data"]
+    - [NODATA,             9, "No data for this fiber, e.g. because spectrograph was broken during this exposure (ivar=0 for all pixels)"]
+    - [BAD_MINFIT,        10, "Bad parabola fit to the chi2 minimum"]
+
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
 #- NOTE: these aren't a bitmask, they are a mapping from bit -> priority

@@ -460,7 +460,7 @@ def calc_numobs_more(targets, zcat, obscon):
     obscon : :class:`str`
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
-        "DARK|GRAY". Governs the behavior of how priorities are set based
+        "DARK". Governs the behavior of how priorities are set based
         on "obsconditions" in the desitarget bitmask yaml file.
 
     Returns
