@@ -116,9 +116,9 @@ sv2_mws_mask:
 #- ADM variable, e.g. $SECONDARY_DIR/veto.fits for VETO targets.
 sv2_scnd_mask:
     - [VETO,        0, "Never observe, even if a primary target bit is set",
-       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', downsample: 1}]
+       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', flavor: 'SPARE', downsample: 1}]
     - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY, filename: 'dr16q', downsample: 1}]
+       {obsconditions: DARK|GRAY, filename: 'dr16q', flavor: 'SPARE', downsample: 1}]
 
 # ADM reserve 60/61 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
     - [BRIGHT_TOO,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT, flavor: 'TOO'}]
