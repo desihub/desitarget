@@ -46,6 +46,42 @@ log = get_logger()
 start = time()
 
 
+def MWS_too_bright(gaiagmag=None, zfibertotflux=None):
+    """Whether a target is too bright to include for MWS observations.
+
+    Parameters
+    ----------
+    gaiagmag : :class:`~numpy.ndarray`
+            Gaia-based g-band MAGNITUDE.
+    zfibertotflux : :class:`~numpy.ndarray`
+        Predicted fiber flux from ALL sources at object's location in 1
+        arcsecond seeing in z. NOT corrected for Galactic extinction.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is FAINTER than the MWS
+        bright-cut limits.
+
+    Notes
+    -----
+    - Current version (04/02/21) is version 16 on `the SV3 wiki`_.
+    """
+    # ADM set up an array to store objects that is all True.
+    too_bright = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM True if Gaia G is too bright.
+    # ADM remember that gaiagmag of 0 corresponds to missing sources.
+    too_bright &= (gaiagmag < 15) & (gaiagmag != 0)
+
+    # ADM or True if the Legacy Surveys zfibertot is too bright.
+    # ADM remember that zflux of 0 corresponds to missing sources.
+    zmag = 22.5-2.5*np.log10(zfibertotflux.clip(1e-7))
+    too_bright |= (zmag < 15) & (zfibertotflux != 0)
+
+    return too_bright
+
+
 def shift_photo_north(gflux=None, rflux=None, zflux=None):
     """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system.
 
