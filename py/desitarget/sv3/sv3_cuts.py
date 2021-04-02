@@ -65,7 +65,7 @@ def MWS_too_bright(gaiagmag=None, zfibertotflux=None):
 
     Notes
     -----
-    - Current version (04/02/21) is version 16 on `the SV3 wiki`_.
+    - Current version (04/02/21) is version 17 on `the SV3 wiki`_.
     """
     # ADM set up an array to store objects that is all True.
     too_bright = np.ones_like(gaiagmag, dtype='?')
