@@ -5,7 +5,11 @@ desitarget Change Log
 0.56.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Updates un BGS for SV3 [`PR #705`_].
+    * Updating the BGS bright limit to r > 12 & rfibertotmag > 15
+    * Slightly different faint limits in r and rfibermag in BASS/MzLS than in DECaLS
+
+.. _`PR #705`: https://github.com/desihub/desitarget/pull/705
 
 0.56.0 (2021-03-31)
 -------------------
