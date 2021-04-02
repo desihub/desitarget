@@ -2217,7 +2217,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
-    desi_target = lrg_south * desi_mask.LRG_LOWDENS_SOUTH
+    desi_target |= lrg_lowdens_south * desi_mask.LRG_LOWDENS_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
     desi_target |= elg_hip_south * desi_mask.ELG_HIP_SOUTH
@@ -2225,7 +2225,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
-    desi_target |= lrg_north * desi_mask.LRG_LOWDENS_NORTH
+    desi_target |= lrg_lowdens_north * desi_mask.LRG_LOWDENS_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
     desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
     desi_target |= elg_hip_north * desi_mask.ELG_HIP_NORTH
@@ -2233,7 +2233,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
-    desi_target |= lrg_north * desi_mask.LRG_LOWDENS
+    desi_target |= lrg_lowdens * desi_mask.LRG_LOWDENS
     desi_target |= elg * desi_mask.ELG
     desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= elg_hip * desi_mask.ELG_HIP
