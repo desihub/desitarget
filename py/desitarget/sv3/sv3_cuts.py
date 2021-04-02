@@ -2143,11 +2143,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
     mws_nearby = tcfalse
     mws_bhb = tcfalse
+    # ADM this denotes a bright limit for all MWS sources.
+    too_bright = MWS_too_bright(gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
             parallaxerr=parallaxerr, paramssolved=gaiaparamssolved
         )
+        # ADM impose bright limits for all MWS_NEARBY targets.
+        mws_nearby &= ~too_bright
 
         mws_bhb = isMWS_bhb(
                     primary=primary,
@@ -2159,6 +2163,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                     parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
              )
+        # ADM impose bright limits for all MWS_BHB targets.
+        mws_bhb &= ~too_bright
 
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
@@ -2170,6 +2176,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
                     paramssolved=gaiaparamssolved, primary=primary, south=south
             )
+            # ADM impose bright limits for all MWS_MAIN targets.
+            mws_classes[int(south)] &= ~too_bright
+
     mws_broad_n, mws_red_n, mws_blue_n = mws_classes[0]
     mws_broad_s, mws_red_s, mws_blue_s = mws_classes[1]
 
@@ -2184,6 +2193,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
+        # ADM impose bright limits for all MWS_WD targets.
+        mws_wd &= ~too_bright
 
     # ADM initially set everything to False for the standards.
     std_faint, std_bright, std_wd = tcfalse, tcfalse, tcfalse
