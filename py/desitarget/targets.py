@@ -492,9 +492,10 @@ def calc_numobs_more(targets, zcat, obscon):
     # ADM main case, just decrement by NUMOBS.
     numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
 
-    if survey != 'cmx':
+    if survey != 'cmx' and survey != 'sv3':
         # ADM BGS targets are observed during the BRIGHT survey, regardless
         # ADM of how often they've previously been observed.
+        # ADM This behavios is turned off for SV3.
         if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
             ii = targets[desi_target] & desi_mask.BGS_ANY > 0
             numobs_more[ii] = 1
