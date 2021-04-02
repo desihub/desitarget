@@ -18,7 +18,7 @@ from datetime import datetime
 from glob import glob
 
 from . import __version__ as dt_version
-from desitarget.targetmask import obsmask, obsconditions
+from desitarget.targetmask import obsmask, obsconditions, zwarn_mask
 from desitarget.targets import calc_priority, calc_numobs_more
 from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
 from desitarget.targets import set_obsconditions, decode_targetid
@@ -197,7 +197,7 @@ def get_mtl_ledger_format():
 
 def make_mtl(targets, obscon, zcat=None, scnd=None,
              trim=False, trimcols=False, trimtozcat=False):
-    """Adds fiberassign and zcat columns to a targets table.
+    """Add zcat columns to a targets table, update priorities and NUMOBS.
 
     Parameters
     ----------
@@ -243,6 +243,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         * OBSCONDITIONS  - replaces old GRAYLAYER
         * TIMESTAMP      - time that (this) make_mtl() function was run
         * VERSION        - version of desitarget used to run make_mtl()
+
+    Notes
+    -----
+    - Sources in the zcat with `ZWARN` of `NODATA` are always ignored.
     """
     start = time()
     # ADM set up the default logger.
@@ -280,6 +284,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         log.info('Done with padding...t={:.1f}s'.format(time()-start))
 
     # Trim targets from zcat that aren't in original targets table.
+    # ADM or that didn't actually obtain an observation.
     if zcat is not None:
         ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
@@ -287,6 +292,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             log.warning("Ignoring {} zcat entries that aren't "
                         "in the input target list".format(num_extra))
             zcat = zcat[ok]
+        # ADM also ignore anything with NODATA set in ZWARN.
+        nodata = zcat["ZWARN"] & zwarn_mask["NODATA"] != 0
+        log.info("Ignoring {} zcat entries with NODATA".format(np.sum(nodata)))
+        zcat = zcat[~nodata]
 
     n = len(targets)
     # ADM if a redshift catalog was passed, order it to match the input targets
@@ -736,8 +745,8 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
 
     Notes
     -----
-        - Will run more quickly if the targets in `mtl` are clustered.
-        - TARGETID is always returned, even if it isn't in `columns`.
+    - Will run more quickly if the targets in `mtl` are clustered.
+    - TARGETID is always returned, even if it isn't in `columns`.
     """
     # ADM if a table was passed convert it to a numpy array.
     if isinstance(mtl, Table):

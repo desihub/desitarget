@@ -586,8 +586,6 @@ def calc_priority(targets, zcat, obscon, state=False):
                             dtype=mtldatamodel["TARGET_STATE"].dtype)
 
     # Determine which targets have been observed.
-    # TODO: this doesn't distinguish between really unobserved vs not yet
-    # processed.
     unobs = (zcat["NUMOBS"] == 0)
     log.debug('calc_priority has %d unobserved targets' % (np.sum(unobs)))
     if np.all(unobs):
