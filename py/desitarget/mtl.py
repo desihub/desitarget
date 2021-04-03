@@ -845,15 +845,8 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
 
     # ADM the ZDONE column is a string, convert to a Boolean.
     zdone = np.array(["true" in row for row in tilelookup["ZDONE"]])
-
-    # ADM determine the tiles to be processed.
-    # ADM must match the correct survey.
-    ii = tilelookup["SURVEY"] == survey
-    # ADM must match the correct OBSCON, could be lower- or upper-case.
-    ii &= ((tilelookup["FAPRGRM"] == obscon.lower()) |
-           (tilelookup["FAPRGRM"] == obscon.upper()))
     # ADM redshift processing must be complete.
-    ii &= zdone
+    ii = zdone
     alltiles = tilelookup[ii]
 
     # ADM read in the MTL tile file, guarding against it not having being
@@ -880,6 +873,13 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
         tids = np.concatenate([alltiles["TILEID"], donetiles["TILEID"]])
         _, cnt = np.unique(tids, return_counts=True)
         tiles = alltiles[cnt == 1]
+
+    # ADM restrict the tiles to be processed to the correct survey.
+    ii = tiles["SURVEY"] == survey
+    # ADM also must match the correct lower- or upper-case (OBSCON)..
+    ii &= ((tiles["FAPRGRM"] == obscon.lower()) |
+           (tiles["FAPRGRM"] == obscon.upper()))
+    tiles = tiles[ii]
 
     # ADM initialize the output array and add the tiles.
     newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
