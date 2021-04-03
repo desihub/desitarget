@@ -328,7 +328,7 @@ numobs:
     sv3_desi_mask:
         ELG: 9
         LRG: 9
-        QSO: 5
+        QSO: 4
         ELG_LOP: 9
         ELG_HIP: 9
         # ADM don't observe a N/S target if it doesn't have other bits set

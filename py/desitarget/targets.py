@@ -25,7 +25,7 @@ log = get_logger()
 zcut = 2.1
 # ADM common redshift that defines a QSO to be reobserved for
 # ADM the Gontcho a Gontcho and Weiner et al. secondary programs.
-midzcut = 0.7
+midzcut = 1.6
 
 
 def encode_targetid(objid=None, brickid=None, release=None,
