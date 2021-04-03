@@ -289,14 +289,21 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
         if num_extra > 0:
-            log.warning("Ignoring {} zcat entries that aren't in the input "
-                        "target list (i.e. likely skies)".format(num_extra))
+            log.info("Ignoring {} zcat entries that aren't in the input "
+                     "target list (i.e. likely skies)".format(num_extra))
             zcat = zcat[ok]
         # ADM also ignore anything with NODATA set in ZWARN.
         nodata = zcat["ZWARN"] & zwarn_mask["NODATA"] != 0
-        log.info("Ignoring a further {} zcat entries with NODATA set".format(
-            np.sum(nodata)))
-        zcat = zcat[~nodata]
+        num_nod = np.sum(nodata)
+        if num_nod > 0:
+            log.info("Ignoring a further {} zcat entries with NODATA set".format(
+                num_nod))
+            zcat = zcat[~nodata]
+        # ADM simulations (I think) and some unit tests expect zcat to
+        # ADM be modified by make_mtl().
+        if num_extra > 0 or num_nod > 0:
+            msg = "The size of the zcat has changed, so it won't be modified!"
+            log.warning(msg)
 
     n = len(targets)
     # ADM if a redshift catalog was passed, order it to match the input targets
