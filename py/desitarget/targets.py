@@ -644,7 +644,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                         # ADM priority using the bit's zwarndecrement.
                         if survey == "sv3" and sname == "MORE_ZWARN":
                             zwd = desi_mask[name].priorities["ZWARN_DECREMENT"]
-                            Mxp -= zwd*(targets[ii & sbool]["NUMOBS"] + 1)
+                            Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                         # ADM update states BEFORE changing priorities.
                         ts = "{}|{}".format(name, sname)
                         target_state[ii & sbool] = np.where(
@@ -677,7 +677,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                     # ADM priority using the bit's zwarndecrement.
                     if survey == "sv3" and sname == "MORE_ZWARN":
                         zwd = desi_mask[name].priorities["ZWARN_DECREMENT"]
-                        Mxp -= zwd*(targets[ii & sbool]["NUMOBS"] + 1)
+                        Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                     # ADM update states BEFORE changing priorities.
                     ts = "{}|{}".format(name, sname)
                     target_state[ii & sbool] = np.where(
@@ -702,7 +702,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                         # ADM priority using the bit's zwarndecrement.
                         if survey == "sv3" and sname == "MORE_ZWARN":
                             zwd = bgs_mask[name].priorities["ZWARN_DECREMENT"]
-                            Mxp -= zwd*(targets[ii & sbool]["NUMOBS"] + 1)
+                            Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                         # ADM update states BEFORE changing priorities.
                         ts = "{}|{}".format("BGS", sname)
                         target_state[ii & sbool] = np.where(
@@ -733,7 +733,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             # ADM priority using the bit's zwarndecrement.
                             if survey == "sv3" and sname == "MORE_ZWARN":
                                 zwd = mws_mask[name].priorities["ZWARN_DECREMENT"]
-                                Mxp -= zwd*(targets[ii & sbool]["NUMOBS"] + 1)
+                                Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                             # ADM update states BEFORE changing priorities.
                             ts = "{}|{}".format("MWS", sname)
                             target_state[ii & sbool] = np.where(
@@ -783,9 +783,9 @@ def calc_priority(targets, zcat, obscon, state=False):
                         Mxp = scnd_mask[name].priorities[sname]
                         # ADM tiered system in SV3. Decrement MORE_ZWARN
                         # ADM priority using the bit's zwarndecrement.
-                        if survey == "sv3" and sname == "MORE_ZWARN":
-                            zwd = scnd_mask[name].priorities["ZWARN_DECREMENT"]
-                            Mxp -= zwd*(targets[ii & sbool]["NUMOBS"] + 1)
+                        # if survey == "sv3" and sname == "MORE_ZWARN":
+                        #    zwd = scnd_mask[name].priorities["ZWARN_DECREMENT"]
+                        #    Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                         # ADM update states BEFORE changing priorities.
                         ts = "{}|{}".format("SCND", sname)
                         target_state[ii & sbool] = np.where(

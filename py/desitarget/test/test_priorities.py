@@ -206,7 +206,8 @@ class TestPriorities(unittest.TestCase):
                     priloss = Mx[b].numobs * Mx[b].priorities["ZWARN_DECREMENT"]
                     # ADM amount it CAN be decremented before zero.
                     pritot = Mx[b].priorities["MORE_ZWARN"]
-                    self.assertTrue(priloss <= pritot)
+                    self.assertTrue(priloss <= pritot,
+                                    "{} will decrement below zero".format(b))
 
     def test_cmx_priorities(self):
         """Test that priority calculation can handle commissioning files.

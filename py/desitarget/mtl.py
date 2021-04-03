@@ -842,6 +842,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     # ADM read in the ZTILE file.
     ztilefn = os.path.join(zcatdir, get_ztile_file_name())
     tilelookup = Table.read(ztilefn)
+    tilelookup["SURVEY"][tilelookup["SURVEY"] == "sv2"] = "sv3"#ADM remove this line
 
     # ADM the ZDONE column is a string, convert to a Boolean.
     zdone = np.array(["true" in row for row in tilelookup["ZDONE"]])
@@ -854,14 +855,13 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     donetiles = None
     if os.path.isfile(mtltilefn):
         donetiles = io.read_mtl_tile_file(mtltilefn)
-
-    # ADM check the loop from ZTILES to MTL_DONE_TILES isn't out-of-sync.
-    ncheck = len(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
-    if ncheck > 0:
-        msg = "{} tile(s) that have been processed by MTL".format(ncheck)
-        msg += " are missing from the ZTILES file!!!"
-        log.critical(msg)
-        raise ValueError(msg)
+        # ADM check loop from ZTILES to MTL_DONE_TILES isn't out-of-sync.
+        ncheck = len(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
+        if ncheck > 0:
+            msg = "{} tile(s) that have been processed by MTL".format(ncheck)
+            msg += " are missing from the ZTILES file!!!"
+            log.critical(msg)
+            raise ValueError(msg)
 
     # ADM extract the updated tiles.
     if donetiles is None:
