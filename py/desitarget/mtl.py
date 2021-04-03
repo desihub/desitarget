@@ -289,12 +289,13 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
         if num_extra > 0:
-            log.warning("Ignoring {} zcat entries that aren't "
-                        "in the input target list".format(num_extra))
+            log.warning("Ignoring {} zcat entries that aren't in the input "
+                        "target list (i.e. likely skies)".format(num_extra))
             zcat = zcat[ok]
         # ADM also ignore anything with NODATA set in ZWARN.
         nodata = zcat["ZWARN"] & zwarn_mask["NODATA"] != 0
-        log.info("Ignoring {} zcat entries with NODATA".format(np.sum(nodata)))
+        log.info("Ignoring a further {} zcat entries with NODATA set".format(
+            np.sum(nodata)))
         zcat = zcat[~nodata]
 
     n = len(targets)
