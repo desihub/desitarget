@@ -5,7 +5,19 @@ desitarget Change Log
 0.56.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Updates to MTL schema for SV3 [`PR #706`_]. Includes:
+    * Turn off the "unlimited BGS observations" Main Survey code for SV3.
+    * Add the ``ZWARN`` bitmask to the desitarget bitmask yaml file.
+    * Fix a bug where SV2 secondaries didn't have a ``flavor`` property.
+        * ``flavor`` in this context is, e.g., ``SPARE``, ``DEDICATED``.
+        * Just caught this now as we didn't have secondaries for SV2.
+    * Don't process observations if ``ZWARN`` includes ``NODATA``.
+        * Such observations are now completely ignored in the MTL loop.
+    * Create a system to decrement priorities for ``MORE_ZWARN`` sources.
+        * The decrement amount can be controlled by a bit-property.
+        * This property is called ``ZWARN_DECREMENT``.
+
+.. _`PR #706`: https://github.com/desihub/desitarget/pull/706
 
 0.56.0 (2021-03-31)
 -------------------
