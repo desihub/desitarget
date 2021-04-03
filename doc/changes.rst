@@ -5,10 +5,21 @@ desitarget Change Log
 0.56.1 (unreleased)
 -------------------
 
+* Updates un BGS for SV3 [`PR #705`_].
+    * Updating the BGS bright limit to r > 12 & rfibertotmag > 15.
+    * Slightly different faint limits for BASS/MzLS and DECaLS.
+        * For both r and rfibermag.
 * Bright limit (GAIA_G > 15) AND (ZFIBERTOT > 15) for MWS [`PR #704`_].
     * Applied to all MWS targets (``BROAD/NEARBY/WD/BHB``).
+* Further updates to the LRG selection for SV3 [`PR #703`_]. Includes:
+    * Change bright-end cut to ``zfibertot`` > 17.5 (instead of > 16).
+    * Add low-density (600-per-sq.-deg.) LRG sample (``LRG_LOWDENS``).
+        * Bit is informational as ``LRG_LOWDENS`` is a subset of ``LRG``.
+    * Update the intersphinx URLs to fix the online documentation builds.
 
+.. _`PR #703`: https://github.com/desihub/desitarget/pull/703
 .. _`PR #704`: https://github.com/desihub/desitarget/pull/704
+.. _`PR #705`: https://github.com/desihub/desitarget/pull/705
 
 0.56.0 (2021-03-31)
 -------------------
