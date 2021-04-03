@@ -10,8 +10,12 @@ desitarget Change Log
     * Add low-density (600-per-sq.-deg.) LRG sample (``LRG_LOWDENS``).
         * Bit is informational as ``LRG_LOWDENS`` is a subset of ``LRG``.
     * Update the intersphinx URLs to fix the online documentation builds.
+* Updates un BGS for SV3 [`PR #705`_].
+    * Updating the BGS bright limit to r > 12 & rfibertotmag > 15
+    * Slightly different faint limits in r and rfibermag in BASS/MzLS than in DECaLS
 
 .. _`PR #703`: https://github.com/desihub/desitarget/pull/703
+.. _`PR #705`: https://github.com/desihub/desitarget/pull/705
 
 0.56.0 (2021-03-31)
 -------------------
