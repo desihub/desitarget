@@ -176,6 +176,8 @@ class TestPriorities(unittest.TestCase):
         self.assertEqual(p[2], -1, "IN_BRIGHT_OBJECT priority not -1")
 
     def test_mask_priorities(self):
+        """Test that each mask has a sensible priority.
+        """
         for mask in [desi_mask, bgs_mask, mws_mask]:
             for name in mask.names():
                 if (
@@ -187,6 +189,24 @@ class TestPriorities(unittest.TestCase):
                     for state in obsmask.names():
                         self.assertIn(state, mask[name].priorities,
                                       '{} not in mask.{}.priorities'.format(state, name))
+
+    def test_sv3_decrement(self):
+        """Check that SV3 "ZWARN" priorities never decrement below zero.
+        """
+        from desitarget.sv3.sv3_targetmask import desi_mask as dm
+        from desitarget.sv3.sv3_targetmask import bgs_mask as bm
+        from desitarget.sv3.sv3_targetmask import mws_mask as mm
+        # ADM loop through all of the SV3 masks.
+        for Mx in dm, bm, mm:
+            # ADM loop through the bits in each mask.
+            for b in Mx.names():
+                # ADM ignore skies and other informative target bits.
+                if Mx[b].numobs != -1:
+                    # ADM amount a ZWARN priority COULD be decremented.
+                    priloss = Mx[b].numobs * Mx[b].priorities["ZWARN_DECREMENT"]
+                    # ADM amount it CAN be decremented before zero.
+                    pritot = Mx[b].priorities["MORE_ZWARN"]
+                    self.assertTrue(priloss <= pritot)
 
     def test_cmx_priorities(self):
         """Test that priority calculation can handle commissioning files.

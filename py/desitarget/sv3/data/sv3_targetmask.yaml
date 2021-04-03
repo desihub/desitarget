@@ -265,15 +265,15 @@ priorities:
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         MWS_BROAD_NORTH:              {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
         MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD_NORTH
-        MWS_MAIN_BLUE:                {UNOBS: 1500, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        MWS_MAIN_BLUE:                {UNOBS: 101500, MORE_ZWARN: 101500, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
         MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
-        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        BACKUP_FAINT:                 {UNOBS: 8, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        BACKUP_BRIGHT:                {UNOBS: 100009, MORE_ZWARN: 100009, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        BACKUP_FAINT:                 {UNOBS: 100008, MORE_ZWARN: 100009, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        BACKUP_VERY_FAINT:            {UNOBS: 100007, MORE_ZWARN: 100009, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
         # ADM Standards are special; priorities don't apply.
         GAIA_STD_FAINT:  -1
         GAIA_STD_WD:  -1
@@ -281,42 +281,42 @@ priorities:
 
     # ADM secondary target priorities.
     sv3_scnd_mask:
-        VETO:                   {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, ZWARN_DECREMENT: 0}
-        UDG:                    {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        FIRST_MALS:             {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-#       MWS_DDOGIANTS:          {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        LOW_MASS_AGN:           {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        VETO:                   {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        UDG:                    {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        FIRST_MALS:             {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+#       MWS_DDOGIANTS:          {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        LOW_MASS_AGN:           {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FAINT_HPM:              SAME_AS_LOW_MASS_AGN
-        LOW_Z_TIER1:            {UNOBS: 80, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        LOW_Z_TIER2:            {UNOBS: 70, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        LOW_Z_TIER3:            {UNOBS: 60, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        BHB:                    {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        LOW_Z_TIER1:            {UNOBS: 80, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        LOW_Z_TIER2:            {UNOBS: 70, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        LOW_Z_TIER3:            {UNOBS: 60, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BHB:                    {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         SPCV:                   SAME_AS_LOW_MASS_AGN
-        DC3R2_GAMA:             {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        PSF_OUT_BRIGHT:         {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        DC3R2_GAMA:             {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PSF_OUT_BRIGHT:         {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         PSF_OUT_DARK:           SAME_AS_PSF_OUT_BRIGHT
         HPM_SOUM:               SAME_AS_LOW_MASS_AGN
         SN_HOSTS:               SAME_AS_BHB
-        GAL_CLUS_BCG:           {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        GAL_CLUS_2ND:           {UNOBS: 1020, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        GAL_CLUS_SAT:           {UNOBS: 200,  DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        STRONG_LENS:            {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        GAL_CLUS_BCG:           {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        GAL_CLUS_2ND:           {UNOBS: 1020, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        GAL_CLUS_SAT:           {UNOBS: 200,  DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        STRONG_LENS:            {UNOBS: 4000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         WISE_VAR_QSO:           SAME_AS_QSO_RED
         Z5_QSO:                 SAME_AS_QSO_RED
-        MWS_MAIN_CLUSTER_SV:    {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        MWS_MAIN_CLUSTER_SV:    {UNOBS: 1450, DONE:  400, OBS: 1, DONOTOBSERVE: 0}
         BRIGHT_HPM:             SAME_AS_LOW_MASS_AGN
-        WD_BINARIES_BRIGHT:     {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        WD_BINARIES_DARK:       {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        PV_BRIGHT_HIGH:         {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        PV_BRIGHT_MEDIUM:       {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        PV_BRIGHT_LOW:          {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        PV_DARK_HIGH:           {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        PV_DARK_MEDIUM:         {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        PV_DARK_LOW:            {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        BRIGHT_TOO_LOP:         {UNOBS: 1000, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        BRIGHT_TOO_HIP:         {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        WD_BINARIES_BRIGHT:     {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        WD_BINARIES_DARK:       {UNOBS: 1998, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_BRIGHT_HIGH:         {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_BRIGHT_MEDIUM:       {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_BRIGHT_LOW:          {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK_HIGH:           {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK_MEDIUM:         {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        PV_DARK_LOW:            {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BRIGHT_TOO_LOP:         {UNOBS: 1000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        BRIGHT_TOO_HIP:         {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
         DARK_TOO_HIP:           SAME_AS_BRIGHT_TOO_HIP
 
@@ -324,13 +324,13 @@ priorities:
 # ADM SAME_AS_XXX means to use the NUMOBS_INIT for bitname XXX
 # ADM -1 means that the concept of NUMOBS_INIT doesn't apply to this bit
 numobs:
-    # ADM initial number of observations for targets in the main (dark time) survey
+    # ADM initial number of observations for targets in the dark-time survey.
     sv3_desi_mask:
-        ELG: 1
-        LRG: 1
-        QSO: 4
-        ELG_LOP: 1
-        ELG_HIP: 1
+        ELG: 9
+        LRG: 9
+        QSO: 5
+        ELG_LOP: 9
+        ELG_HIP: 9
         # ADM don't observe a N/S target if it doesn't have other bits set
         LRG_NORTH: 0
         ELG_NORTH: 0
@@ -364,10 +364,10 @@ numobs:
 
     # ADM initial number of observations for targets in the Bright Galaxy Survey
     sv3_bgs_mask:
-        BGS_FAINT: 1
-        BGS_BRIGHT: 1
-        BGS_WISE: 1
-        BGS_FAINT_HIP: 1
+        BGS_FAINT: 9
+        BGS_BRIGHT: 9
+        BGS_WISE: 9
+        BGS_FAINT_HIP: 9
         # ADM don't observe a N/S target if it doesn't have other bits set
         BGS_FAINT_SOUTH: 0
         BGS_FAINT_NORTH: 0
@@ -376,22 +376,22 @@ numobs:
         BGS_WISE_SOUTH: 0
         BGS_WISE_NORTH: 0
 
-    # ADM initial number of observations for targets in the Bright Galaxy Survey
+    # ADM initial number of observations for targets in the Milky Way Survey
     sv3_mws_mask:
-        MWS_BROAD:                    1
-        MWS_WD:                       1
-        MWS_NEARBY:                   1
-        MWS_BHB:                      1
+        MWS_BROAD:                    9
+        MWS_WD:                       9
+        MWS_NEARBY:                   9
+        MWS_BHB:                      9
         # ADM don't observe a N/S target if it doesn't have other bits set
         MWS_BROAD_NORTH:              0
         MWS_BROAD_SOUTH:              0
-        MWS_MAIN_BLUE:                1
+        MWS_MAIN_BLUE:                9
         MWS_MAIN_BLUE_NORTH:          0
         MWS_MAIN_BLUE_SOUTH:          0
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           0
         MWS_MAIN_RED_SOUTH:           0
-        BACKUP_BRIGHT:                1
+        BACKUP_BRIGHT:                9
         BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
         BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
         # ADM Standards are special; numobs doesn't apply.

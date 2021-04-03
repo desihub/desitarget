@@ -876,7 +876,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
 
     # ADM restrict the tiles to be processed to the correct survey.
     ii = tiles["SURVEY"] == survey
-    # ADM also must match the correct lower- or upper-case (OBSCON)..
+    # ADM also must match the correct lower- or upper-case (OBSCON).
     ii &= ((tiles["FAPRGRM"] == obscon.lower()) |
            (tiles["FAPRGRM"] == obscon.upper()))
     tiles = tiles[ii]
