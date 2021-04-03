@@ -181,7 +181,7 @@ sv3_obsmask:
     - [DONE,           2, "enough observations already obtained"]
     - [MORE_ZWARN,     3, "ambiguous redshift; need more observations"]
     - [MORE_ZGOOD,     4, "redshift known; need more observations"]
-    - [MORE_MIDZQSO,   8, "z > 0.7 QSO; more observations at very low priority"]
+    - [MORE_MIDZQSO,   8, "Mid-z QSO; more observations at very low priority"]
     - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
 
 #- Priorities for each target bit
@@ -204,9 +204,9 @@ priorities:
 # ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
 # ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
-        QSO: {UNOBS: 103400, MORE_ZGOOD: 103350, MORE_ZWARN: 103300, MORE_MIDZQSO: 103300, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        QSO: {UNOBS: 103400, MORE_ZGOOD: 103350, MORE_ZWARN: 103300, MORE_MIDZQSO: 103350, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
         ELG_LOP: {UNOBS: 103000, MORE_ZGOOD: 2, MORE_ZWARN: 103000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        ELG_HIP: {UNOBS: 103100, MORE_ZGOOD: 2, MORE_ZWARN: 103000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        ELG_HIP: {UNOBS: 103100, MORE_ZGOOD: 2, MORE_ZWARN: 103100, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, ZWARN_DECREMENT: 0}
         QSO_HIZ: SAME_AS_LRG_NORTH
@@ -271,9 +271,9 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
-        BACKUP_BRIGHT:                {UNOBS: 100009, MORE_ZWARN: 100009, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        BACKUP_FAINT:                 {UNOBS: 100008, MORE_ZWARN: 100009, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        BACKUP_VERY_FAINT:            {UNOBS: 100007, MORE_ZWARN: 100009, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        BACKUP_BRIGHT:                {UNOBS: 100009, MORE_ZWARN: 100009, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        BACKUP_FAINT:                 {UNOBS: 100008, MORE_ZWARN: 100008, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        BACKUP_VERY_FAINT:            {UNOBS: 100007, MORE_ZWARN: 100007, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
         # ADM Standards are special; priorities don't apply.
         GAIA_STD_FAINT:  -1
         GAIA_STD_WD:  -1
@@ -284,7 +284,7 @@ priorities:
         VETO:                   {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
         UDG:                    {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         FIRST_MALS:             {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        QSO_RED:                {UNOBS: 103400, MORE_ZGOOD: 103350, MORE_ZWARN: 103300, MORE_MIDZQSO: 103350, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
 #       MWS_DDOGIANTS:          {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
         LOW_MASS_AGN:           {UNOBS: 1025, DONE:    2, OBS: 1, DONOTOBSERVE: 0}

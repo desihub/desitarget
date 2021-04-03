@@ -209,6 +209,48 @@ class TestPriorities(unittest.TestCase):
                     self.assertTrue(priloss <= pritot,
                                     "{} will decrement below zero".format(b))
 
+    def test_sv3_priorities(self):
+        """Check that for SV3 UNOBS==MORE_ZWARN and DONE==MORE_ZGOOD.
+        """
+        from desitarget.sv3.sv3_targetmask import desi_mask as dm
+        from desitarget.sv3.sv3_targetmask import bgs_mask as bm
+        from desitarget.sv3.sv3_targetmask import mws_mask as mm
+        from desitarget.sv3.sv3_targetmask import scnd_mask as sm
+        # ADM loop through all of the SV3 masks.
+        for Mx in dm, bm, mm:
+            # ADM loop through the bits in each mask.
+            for b in Mx.names():
+                # ADM ignore skies and other informative target bits.
+                if Mx[b].numobs != -1 and 'QSO' not in b:
+                    # ADM Excepting QSOs: UNOBS should equal ZWARN and
+                    # ADM DONE should equal ZGOOD.
+                    unobs = Mx[b].priorities["UNOBS"]
+                    zwarn = Mx[b].priorities["MORE_ZWARN"]
+                    zgood = Mx[b].priorities["MORE_ZGOOD"]
+                    done = Mx[b].priorities["DONE"]
+                    self.assertEqual(unobs, zwarn,
+                                     "UNOBS not equal to ZWARN for {}".format(b))
+                    self.assertEqual(zgood, done,
+                                     "DONE not equal to ZGOOD for {}".format(b))
+
+        # ADM also check the primary and secondary QSO behavior.
+        for Mx in dm, sm:
+            # ADM loop through the bits in each mask.
+            for b in Mx.names():
+                # ADM ignore informational bits.
+                if 'QSO' in b and Mx[b].priorities["UNOBS"] > 0:
+                    # ADM DONE should equal ZGOOD.
+                    unobs = Mx[b].priorities["UNOBS"]
+                    zwarn = Mx[b].priorities["MORE_ZWARN"]
+                    zgood = Mx[b].priorities["MORE_ZGOOD"]
+                    done = Mx[b].priorities["DONE"]
+                    self.assertGreater(unobs, zgood,
+                                       "UNOBS <= ZGOOD for {}".format(b))
+                    self.assertGreater(zgood, zwarn,
+                                       "ZGOOD <= ZWARN for {}".format(b))
+                    self.assertGreater(zwarn, done,
+                                       "ZWARN <= DONE for {}".format(b))
+
     def test_cmx_priorities(self):
         """Test that priority calculation can handle commissioning files.
         """
