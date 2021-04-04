@@ -1344,7 +1344,7 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
     w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
-    
+
     # Fibre Magnitude Cut (FMC) -- This is a low surface brightness cut
     # with the aim of increase the redshift success rate.
     fmc |= ((rfib < (2.9 + 1.2 + 1.0) + r) & (r < 17.8))
@@ -1356,7 +1356,7 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
 
     # BASS r-mag offset with DECaLS.
     offset = 0.04
-    
+
     # D. Schlegel - ChangHoon H. color selection to get a high redshift
     # success rate.
     if south:
@@ -1428,9 +1428,9 @@ def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
               (imaging_mask(maskbits, bgsmask=True)) &                    \
               ((gaiagmag == 0) | ((gaiagmag != 0) & (gaiagmag > 16))) &   \
               (r < 20.3) & (r > 16) &                                     \
-              (rfib < 22) &  (rfibtot > 15) &                             \
+              (rfib < 22) & (rfibtot > 15) &                              \
               (((rfib < 21.5) & (r > 19.5)) | (r < 19.5)) &               \
-              (((_psflike(objtype)) & (r < 17.5)) | (~_psflike(objtype))) 
+              (((_psflike(objtype)) & (r < 17.5)) | (~_psflike(objtype)))
 
     stars = primary.copy()
     stars = ((gaiagmag != 0) & (Grr < 0.6)) | ((gaiagmag == 0) & (_psflike(objtype)))
@@ -1487,7 +1487,7 @@ def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None, rfib
 
     # BASS r-mag offset with DECaLS.
     offset = 0.04
-    
+
     # D. Schlegel - ChangHoon H. color selection to get a high redshift
     # success rate.
     if south:
@@ -2149,11 +2149,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             for targtype in ["bright", "faint", "wise"]:
                 bgs_store.append(
                     isBGS(
-                        rfiberflux=rfiberflux, rfibertotflux=rfibertotflux, gflux=gflux, 
-                        rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, 
+                        rfiberflux=rfiberflux, rfibertotflux=rfibertotflux, gflux=gflux,
+                        rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, gnobs=gnobs,
                         rnobs=rnobs, znobs=znobs, gfluxivar=gfluxivar, rfluxivar=rfluxivar,
-                        zfluxivar=zfluxivar, maskbits=maskbits, Grr=Grr, refcat=refcat, 
-                        w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag, objtype=objtype, 
+                        zfluxivar=zfluxivar, maskbits=maskbits, Grr=Grr, refcat=refcat,
+                        w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag, objtype=objtype,
                         primary=primary, south=south, targtype=targtype
                     )
                 )

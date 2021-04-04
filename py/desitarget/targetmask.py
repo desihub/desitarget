@@ -78,6 +78,7 @@ try:
     obsconditions = BitMask('obsconditions', _bitdefs)
     obsmask = BitMask('obsmask', _bitdefs)
     targetid_mask = BitMask('targetid_mask', _bitdefs)
+    zwarn_mask = BitMask('zwarn_mask', _bitdefs)
 except TypeError:
     desi_mask = object()
     mws_mask = object()
@@ -86,6 +87,7 @@ except TypeError:
     obsconditions = object()
     obsmask = object()
     targetid_mask = object()
+    zwarn_mask = object()
 
 # -------------------------------------------------------------------------
 # -Do some error checking that the bitmasks are consistent with each other

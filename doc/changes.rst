@@ -5,7 +5,20 @@ desitarget Change Log
 0.56.1 (unreleased)
 -------------------
 
-* Updates un BGS for SV3 [`PR #705`_].
+* Updates to MTL schema for SV3 [`PR #706`_]. Includes:
+    * Add priorities and initial numbers of observations for SV3.
+    * Ensure targets that are both of ELG/QSO revert to QSO if z > 1.6.
+    * Turn off the "unlimited BGS observations" Main Survey code for SV3.
+    * Add the ``ZWARN`` bitmask to the desitarget bitmask yaml file.
+    * Fix a bug where SV2 secondaries didn't have a ``flavor`` property.
+        * ``flavor`` in this context is, e.g., ``SPARE``, ``DEDICATED``.
+        * Just caught this now as we didn't have secondaries for SV2.
+    * Don't process observations if ``ZWARN`` includes ``NODATA``.
+        * Such observations are now completely ignored in the MTL loop.
+    * Create a system to decrement priorities for ``MORE_ZWARN`` sources.
+        * The decrement amount can be controlled by a bit-property.
+        * This property is called ``ZWARN_DECREMENT``.
+* Updates to BGS for SV3 [`PR #705`_].
     * Updating the BGS bright limit to r > 12 & rfibertotmag > 15.
     * Slightly different faint limits for BASS/MzLS and DECaLS.
         * For both r and rfibermag.
@@ -20,6 +33,7 @@ desitarget Change Log
 .. _`PR #703`: https://github.com/desihub/desitarget/pull/703
 .. _`PR #704`: https://github.com/desihub/desitarget/pull/704
 .. _`PR #705`: https://github.com/desihub/desitarget/pull/705
+.. _`PR #706`: https://github.com/desihub/desitarget/pull/706
 
 0.56.0 (2021-03-31)
 -------------------

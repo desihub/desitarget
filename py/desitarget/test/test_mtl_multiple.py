@@ -52,7 +52,7 @@ class TestMTL(unittest.TestCase):
         # - reverse the order for zcat to make sure joins work.
         self.zcat = Table()
         self.zcat['TARGETID'] = self.targets['TARGETID'][::-1]
-        self.zcat['Z'] = [1.5, 2.5, 1.2, 1.5, 0.5]
+        self.zcat['Z'] = [1.61, 2.5, 1.2, 1.7, 0.5]
         self.zcat['ZWARN'] = [0, 0, 1, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1, 1]
         self.zcat['SPECTYPE'] = ['GALAXY', 'QSO', 'QSO', 'QSO', 'QSO']

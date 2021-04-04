@@ -691,7 +691,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM A final check to warn about too-bright targets in standard
     # observing conditions, as a fail-safe.
     if checkbright:
-        maglim = 16
+        maglim = 15
         fluxlim = 10**((22.5-maglim)/2.5)
         toobright = np.zeros(len(data), dtype="bool")
         for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",

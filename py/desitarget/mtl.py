@@ -18,7 +18,7 @@ from datetime import datetime
 from glob import glob
 
 from . import __version__ as dt_version
-from desitarget.targetmask import obsmask, obsconditions
+from desitarget.targetmask import obsmask, obsconditions, zwarn_mask
 from desitarget.targets import calc_priority, calc_numobs_more
 from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
 from desitarget.targets import set_obsconditions, decode_targetid
@@ -197,7 +197,7 @@ def get_mtl_ledger_format():
 
 def make_mtl(targets, obscon, zcat=None, scnd=None,
              trim=False, trimcols=False, trimtozcat=False):
-    """Adds fiberassign and zcat columns to a targets table.
+    """Add zcat columns to a targets table, update priorities and NUMOBS.
 
     Parameters
     ----------
@@ -243,6 +243,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         * OBSCONDITIONS  - replaces old GRAYLAYER
         * TIMESTAMP      - time that (this) make_mtl() function was run
         * VERSION        - version of desitarget used to run make_mtl()
+
+    Notes
+    -----
+    - Sources in the zcat with `ZWARN` of `NODATA` are always ignored.
     """
     start = time()
     # ADM set up the default logger.
@@ -262,7 +266,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
     # ADM set the first column to be the "desitarget" column
     desi_target, desi_mask = colnames[0], masks[0]
-    scnd_target = colnames[-1]
+    scnd_target, scnd_mask = colnames[-1], masks[-1]
 
     # ADM if secondaries were passed, concatenate them with the targets.
     if scnd is not None:
@@ -280,13 +284,26 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         log.info('Done with padding...t={:.1f}s'.format(time()-start))
 
     # Trim targets from zcat that aren't in original targets table.
+    # ADM or that didn't actually obtain an observation.
     if zcat is not None:
         ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
         if num_extra > 0:
-            log.warning("Ignoring {} zcat entries that aren't "
-                        "in the input target list".format(num_extra))
+            log.info("Ignoring {} zcat entries that aren't in the input "
+                     "target list (i.e. likely skies)".format(num_extra))
             zcat = zcat[ok]
+        # ADM also ignore anything with NODATA set in ZWARN.
+        nodata = zcat["ZWARN"] & zwarn_mask["NODATA"] != 0
+        num_nod = np.sum(nodata)
+        if num_nod > 0:
+            log.info("Ignoring a further {} zcat entries with NODATA set".format(
+                num_nod))
+            zcat = zcat[~nodata]
+        # ADM simulations (I think) and some unit tests expect zcat to
+        # ADM be modified by make_mtl().
+        if num_extra > 0 or num_nod > 0:
+            msg = "The size of the zcat has changed, so it won't be modified!"
+            log.warning(msg)
 
     n = len(targets)
     # ADM if a redshift catalog was passed, order it to match the input targets
@@ -315,6 +332,20 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
     # ADM extract just the targets that match the input zcat.
     targets_zmatcher = targets[zmatcher]
+
+    # ADM special case. In dark time, if a QSO target is above feasible
+    # ADM galaxy redshifts, set NUMOBS_INIT to be like a QSO, not an ELG.
+    if survey == "sv3" or survey == "main":
+        if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
+            ii = targets_zmatcher[desi_target] & desi_mask["QSO"] != 0
+            # ADM the secondary bit-names that correspond to primary QSOs.
+            sns = [bn for bn in scnd_mask.names() if scnd_mask[bn].flavor == 'QSO']
+            for sn in sns:
+                ii |= targets_zmatcher[scnd_target] & scnd_mask[sn] != 0
+            # ADM above feasible galaxy redshifts (with no warning).
+            ii &= ztargets['Z'] > 1.6
+            ii &= ztargets['ZWARN'] == 0
+            targets_zmatcher["NUMOBS_INIT"][ii] = desi_mask["QSO"].numobs
 
     # ADM update the number of observations for the targets.
     ztargets['NUMOBS_MORE'] = calc_numobs_more(targets_zmatcher, ztargets, obscon)
@@ -736,8 +767,8 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
 
     Notes
     -----
-        - Will run more quickly if the targets in `mtl` are clustered.
-        - TARGETID is always returned, even if it isn't in `columns`.
+    - Will run more quickly if the targets in `mtl` are clustered.
+    - TARGETID is always returned, even if it isn't in `columns`.
     """
     # ADM if a table was passed convert it to a numpy array.
     if isinstance(mtl, Table):
@@ -828,15 +859,8 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
 
     # ADM the ZDONE column is a string, convert to a Boolean.
     zdone = np.array(["true" in row for row in tilelookup["ZDONE"]])
-
-    # ADM determine the tiles to be processed.
-    # ADM must match the correct survey.
-    ii = tilelookup["SURVEY"] == survey
-    # ADM must match the correct OBSCON, could be lower- or upper-case.
-    ii &= ((tilelookup["FAPRGRM"] == obscon.lower()) |
-           (tilelookup["FAPRGRM"] == obscon.upper()))
     # ADM redshift processing must be complete.
-    ii &= zdone
+    ii = zdone
     alltiles = tilelookup[ii]
 
     # ADM read in the MTL tile file, guarding against it not having being
@@ -844,6 +868,13 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     donetiles = None
     if os.path.isfile(mtltilefn):
         donetiles = io.read_mtl_tile_file(mtltilefn)
+        # ADM check loop from ZTILES to MTL_DONE_TILES isn't out-of-sync.
+        ncheck = len(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
+        if ncheck > 0:
+            msg = "{} tile(s) that have been processed by MTL".format(ncheck)
+            msg += " are missing from the ZTILES file!!!"
+            log.critical(msg)
+            raise ValueError(msg)
 
     # ADM extract the updated tiles.
     if donetiles is None:
@@ -855,6 +886,13 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
         tids = np.concatenate([alltiles["TILEID"], donetiles["TILEID"]])
         _, cnt = np.unique(tids, return_counts=True)
         tiles = alltiles[cnt == 1]
+
+    # ADM restrict the tiles to be processed to the correct survey.
+    ii = tiles["SURVEY"] == survey
+    # ADM also must match the correct lower- or upper-case (OBSCON).
+    ii &= ((tiles["FAPRGRM"] == obscon.lower()) |
+           (tiles["FAPRGRM"] == obscon.upper()))
+    tiles = tiles[ii]
 
     # ADM initialize the output array and add the tiles.
     newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
