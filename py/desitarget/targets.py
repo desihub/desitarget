@@ -473,9 +473,9 @@ def calc_numobs_more(targets, zcat, obscon):
         - Will automatically detect if the passed targets are main
           survey, commissioning or SV and behave accordingly.
         - Most targets are updated to NUMOBS_MORE = NUMOBS_INIT-NUMOBS.
-          Special cases include BGS targets which always get NUMOBS_MORE
-          of 1 in bright time and "tracer" primary targets at z <
-          midzcut, which always get just one total observation.
+          Special cases for the main survey include BGS targets which
+          always get NUMOBS_MORE of 1 in bright time and "tracer" primary
+          targets at z < midzcut, which always get just one observation.
     """
     # ADM check input arrays are sorted to match row-by-row on TARGETID.
     assert np.all(targets["TARGETID"] == zcat["TARGETID"])

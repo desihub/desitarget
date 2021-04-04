@@ -266,7 +266,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     colnames, masks, survey = main_cmx_or_sv(targets, scnd=True)
     # ADM set the first column to be the "desitarget" column
     desi_target, desi_mask = colnames[0], masks[0]
-    scnd_target = colnames[-1]
+    scnd_target, scnd_mask = colnames[-1], masks[-1]
 
     # ADM if secondaries were passed, concatenate them with the targets.
     if scnd is not None:
@@ -332,6 +332,19 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
     # ADM extract just the targets that match the input zcat.
     targets_zmatcher = targets[zmatcher]
+
+    # ADM special case. In dark time, if a QSO target is above feasible
+    # ADM galaxy redshifts, set NUMOBS_INIT to be like a QSO, not an ELG.
+    if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
+        ii = targets_zmatcher[desi_target] & desi_mask["QSO"] != 0
+        # ADM the secondary bit-names that correspond to primary QSOs.
+        sns = [bn for bn in scnd_mask.names() if scnd_mask[bn].flavor == 'QSO']
+        for sn in sns:
+            ii |= targets_zmatcher[scnd_target] & scnd_mask[sn] != 0
+        # ADM above feasible galaxy redshifts (with no warning).
+        ii &= ztargets['Z'] > 1.6
+        ii &= (zcat['ZWARN'] == 0)
+        targets_zmatcher["NUMOBS_INIT"][ii] = desi_mask["QSO"].numobs
 
     # ADM update the number of observations for the targets.
     ztargets['NUMOBS_MORE'] = calc_numobs_more(targets_zmatcher, ztargets, obscon)
