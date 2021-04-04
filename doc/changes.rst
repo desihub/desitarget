@@ -6,6 +6,8 @@ desitarget Change Log
 -------------------
 
 * Updates to MTL schema for SV3 [`PR #706`_]. Includes:
+    * Add priorities and initial numbers of observations for SV3.
+    * Ensure targets that are both of ELG/QSO revert to QSO if z > 1.6.
     * Turn off the "unlimited BGS observations" Main Survey code for SV3.
     * Add the ``ZWARN`` bitmask to the desitarget bitmask yaml file.
     * Fix a bug where SV2 secondaries didn't have a ``flavor`` property.
