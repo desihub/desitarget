@@ -343,7 +343,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             ii |= targets_zmatcher[scnd_target] & scnd_mask[sn] != 0
         # ADM above feasible galaxy redshifts (with no warning).
         ii &= ztargets['Z'] > 1.6
-        ii &= (zcat['ZWARN'] == 0)
+        ii &= ztargets['ZWARN'] == 0
         targets_zmatcher["NUMOBS_INIT"][ii] = desi_mask["QSO"].numobs
 
     # ADM update the number of observations for the targets.
@@ -855,7 +855,6 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     # ADM read in the ZTILE file.
     ztilefn = os.path.join(zcatdir, get_ztile_file_name())
     tilelookup = Table.read(ztilefn)
-    tilelookup["SURVEY"][tilelookup["SURVEY"] == "sv2"] = "sv3"#ADM remove this line
 
     # ADM the ZDONE column is a string, convert to a Boolean.
     zdone = np.array(["true" in row for row in tilelookup["ZDONE"]])
