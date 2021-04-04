@@ -203,7 +203,6 @@ class TestPriorities(unittest.TestCase):
                 # ADM ignore skies and other informative target bits.
                 if Mx[b].numobs != -1:
                     # ADM amount a ZWARN priority COULD be decremented.
-                    print(b)
                     priloss = Mx[b].numobs * Mx[b].priorities["ZWARN_DECREMENT"]
                     # ADM amount it CAN be decremented before zero.
                     pritot = Mx[b].priorities["MORE_ZWARN"]
