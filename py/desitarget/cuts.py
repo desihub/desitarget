@@ -2066,8 +2066,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         The flux in nano-maggies of g, r, z, W1 and W2 bands.
         Corrected for Galactic extinction.
     gfiberflux, rfiberflux, zfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in g/r/z-band.
+        Predicted fiber flux from object in 1 arcsecond seeing in g/r/z.
         Corrected for Galactic extinction.
+    gfibertotflux, rfibertotflux, zfibertotflux : :class:`~numpy.ndarray`
+        Predicted fiber flux from ALL sources at object's location in 1
+        arcsecond seeing in g/r/z. NOT corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
     gfluxivar, rfluxivar, zfluxivar, w1fluxivar: :class:`~numpy.ndarray`

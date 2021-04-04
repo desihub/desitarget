@@ -46,6 +46,42 @@ log = get_logger()
 start = time()
 
 
+def MWS_too_bright(gaiagmag=None, zfibertotflux=None):
+    """Whether a target is too bright to include for MWS observations.
+
+    Parameters
+    ----------
+    gaiagmag : :class:`~numpy.ndarray`
+            Gaia-based g-band MAGNITUDE.
+    zfibertotflux : :class:`~numpy.ndarray`
+        Predicted fiber flux from ALL sources at object's location in 1
+        arcsecond seeing in z. NOT corrected for Galactic extinction.
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if and only if the object is FAINTER than the MWS
+        bright-cut limits.
+
+    Notes
+    -----
+    - Current version (04/02/21) is version 17 on `the SV3 wiki`_.
+    """
+    # ADM set up an array to store objects that is all True.
+    too_bright = np.ones_like(gaiagmag, dtype='?')
+
+    # ADM True if Gaia G is too bright.
+    # ADM remember that gaiagmag of 0 corresponds to missing sources.
+    too_bright &= (gaiagmag < 15) & (gaiagmag != 0)
+
+    # ADM or True if the Legacy Surveys zfibertot is too bright.
+    # ADM remember that zflux of 0 corresponds to missing sources.
+    zmag = 22.5-2.5*np.log10(zfibertotflux.clip(1e-7))
+    too_bright |= (zmag < 15) & (zfibertotflux != 0)
+
+    return too_bright
+
+
 def shift_photo_north(gflux=None, rflux=None, zflux=None):
     """Convert fluxes in the northern (BASS/MzLS) to the southern (DECaLS) system.
 
@@ -294,16 +330,16 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
+    - Current version (03/31/21) is version 15 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    lrg = primary.copy()
+    lrg_quality = primary.copy()
 
     # ADM basic quality cuts.
-    lrg &= notinLRG_mask(
+    lrg_quality &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
@@ -311,12 +347,15 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     )
 
     # ADM color-based selection of LRGs.
-    lrg &= isLRG_colors(
+    lrg, lrg_lowdens = isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, south=south, primary=primary
     )
 
-    return lrg
+    lrg &= lrg_quality
+    lrg_lowdens &= lrg_quality
+
+    return lrg, lrg_lowdens
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
@@ -345,8 +384,8 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
     lrg &= (gaiagmag == 0) | (gaiagmag > 18)  # remove bright GAIA sources
 
-    # remove bright stars with zfiber<16 that are missing from GAIA
-    lrg &= zfibertotflux < 10**(-0.4*(16-22.5))
+    # ADM remove stars with zfibertot < 17.5 that are missing from GAIA.
+    lrg &= zfibertotflux < 10**(-0.4*(17.5-22.5))
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -369,6 +408,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
+    lrg_lowdens = primary.copy()  # lower density LRG selection
 
     # ADM to maintain backwards-compatibility with mocks.
     if zfiberflux is None:
@@ -382,6 +422,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
     zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
 
+    # Full SV3 selection
     if south:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg &= zfibermag < 21.7                   # faint limit
@@ -407,7 +448,33 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
             | (rmag - w1mag > 3.39)
             )  # double sliding cuts and high-z extension
 
-    return lrg
+    # Selection of the lower density subset
+    if south:
+        lrg_lowdens &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
+        lrg_lowdens &= zfibermag < 21.7                   # faint limit
+        lrg_lowdens &= (
+            (gmag - rmag > 1.3) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.13)
+            | (rmag - w1mag > 1.8)
+            )  # low-z cuts
+        lrg_lowdens &= (
+            (rmag - w1mag > (w1mag - 17.07) * 1.8)
+            & (rmag - w1mag > (w1mag - 16.17) * 1.)
+            | (rmag - w1mag > 3.39)
+            )  # double sliding cuts and high-z extension
+    else:
+        lrg_lowdens &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
+        lrg_lowdens &= zfibermag < 21.72                   # faint limit
+        lrg_lowdens &= (
+            (gmag - rmag > 1.34) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.23)
+            | (rmag - w1mag > 1.8)
+            )  # low-z cuts
+        lrg_lowdens &= (
+            (rmag - w1mag > (w1mag - 17.05) * 1.83)
+            & (rmag - w1mag > (w1mag - 16.14) * 1.)
+            | (rmag - w1mag > 3.49)
+            )  # double sliding cuts and high-z extension
+
+    return lrg, lrg_lowdens
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -1157,7 +1224,7 @@ def _check_BGS_targtype(targtype):
         raise ValueError(msg)
 
 
-def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None,
+def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=None,
           w1flux=None, w2flux=None, gnobs=None, rnobs=None, znobs=None,
           gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None,
           Grr=None, refcat=None, w1snr=None, w2snr=None, gaiagmag=None,
@@ -1178,7 +1245,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None,
 
     Notes
     -----
-    - Current version (03/20/21) is version 1 on `the SV3 wiki`_.
+    - Current version (03/29/21) is version 13 on `the SV3 wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
@@ -1190,7 +1257,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None,
 
     if targtype == 'wise':
         bgs &= isBGS_wise(
-            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, rfibertotflux=rfibertotflux,
             w1flux=w1flux, w2flux=w2flux, refcat=refcat, maskbits=maskbits,
             w1snr=w1snr, w2snr=w2snr, Grr=Grr, gaiagmag=gaiagmag,
             gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
@@ -1204,12 +1271,12 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None,
             Grr=Grr, gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype
         )
         bgs &= isBGS_colors(
-            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, rfibertotflux=rfibertotflux,
             w1flux=w1flux, maskbits=maskbits, south=south, targtype=targtype,
             primary=primary
         )
         bgs |= isBGS_sga(
-            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, rfibertotflux=rfibertotflux,
             w1flux=w1flux, refcat=refcat, maskbits=maskbits, south=south,
             targtype=targtype
         )
@@ -1244,7 +1311,7 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     return bgs
 
 
-def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
+def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, rfibertotflux=None,
                  maskbits=None, south=True, targtype=None, primary=None):
     """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
@@ -1277,7 +1344,7 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
     w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
-
+    
     # Fibre Magnitude Cut (FMC) -- This is a low surface brightness cut
     # with the aim of increase the redshift success rate.
     fmc |= ((rfib < (2.9 + 1.2 + 1.0) + r) & (r < 17.8))
@@ -1287,37 +1354,41 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=Non
 
     bgs &= fmc
 
+    # BASS r-mag offset with DECaLS.
+    offset = 0.04
+    
     # D. Schlegel - ChangHoon H. color selection to get a high redshift
     # success rate.
-    schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
-    rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
-
-    # BASS r-mag offset with DECaLS.
-    offset = 0.025
+    if south:
+        schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
+        rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
+    else:
+        schlegel_color = (z - w1) - 3/2.5 * (g - (r-offset)) + 1.2
+        rfibcol = (rfib < 20.75+offset) | ((rfib < 21.5+offset) & (schlegel_color > 0.))
 
     if targtype == 'bright':
         if south:
             bgs &= rflux > 10**((22.5-19.5)/2.5)
             bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
+            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
         else:
             bgs &= rflux > 10**((22.5-(19.5+offset))/2.5)
             bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
+            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
     elif targtype == 'faint':
         if south:
             bgs &= rflux > 10**((22.5-20.3)/2.5)
             bgs &= rflux <= 10**((22.5-19.5)/2.5)
             bgs &= (rfibcol)
         else:
-            bgs &= rflux > 10**((22.5-(20.3+offset))/2.5)
+            bgs &= rflux > 10**((22.5-(20.3))/2.5)
             bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
             bgs &= (rfibcol)
 
     return bgs
 
 
-def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
+def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, rfibertotflux=None,
                w2flux=None, refcat=None, maskbits=None, w1snr=None, w2snr=None,
                Grr=None, gaiagmag=None, gfluxivar=None, rfluxivar=None, zfluxivar=None,
                gnobs=None, rnobs=None, znobs=None, south=True, targtype=None,
@@ -1342,6 +1413,7 @@ def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
     w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
     w2 = 22.5 - 2.5*np.log10(w2flux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
+    rfibtot = 22.5 - 2.5*np.log10(rfibertotflux.clip(1e-16))
 
     agnw2 = primary.copy()
     agnw2 = (z - w2 - (g - r) > -0.5) &   \
@@ -1356,9 +1428,9 @@ def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
               (imaging_mask(maskbits, bgsmask=True)) &                    \
               ((gaiagmag == 0) | ((gaiagmag != 0) & (gaiagmag > 16))) &   \
               (r < 20.3) & (r > 16) &                                     \
-              (rfib < 22) &                                               \
+              (rfib < 22) &  (rfibtot > 15) &                             \
               (((rfib < 21.5) & (r > 19.5)) | (r < 19.5)) &               \
-              (((_psflike(objtype)) & (r < 17.5)) | (~_psflike(objtype)))
+              (((_psflike(objtype)) & (r < 17.5)) | (~_psflike(objtype))) 
 
     stars = primary.copy()
     stars = ((gaiagmag != 0) & (Grr < 0.6)) | ((gaiagmag == 0) & (_psflike(objtype)))
@@ -1377,7 +1449,7 @@ def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
     return AGN
 
 
-def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
+def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None, rfibertotflux=None,
               rfiberflux=None, maskbits=None, south=True, targtype=None):
     """Module to recover the SGA objects in all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
@@ -1413,30 +1485,34 @@ def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
     w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
 
+    # BASS r-mag offset with DECaLS.
+    offset = 0.04
+    
     # D. Schlegel - ChangHoon H. color selection to get a high redshift
     # success rate.
-    schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
-    rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
-
-    # BASS r-mag offset with DECaLS.
-    offset = 0.025
+    if south:
+        schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
+        rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
+    else:
+        schlegel_color = (z - w1) - 3/2.5 * (g - (r-offset)) + 1.2
+        rfibcol = (rfib < 20.75+offset) | ((rfib < 21.5+offset) & (schlegel_color > 0.))
 
     if targtype == 'bright':
         if south:
             bgs &= rflux > 10**((22.5-19.5)/2.5)
             bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
+            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
         else:
             bgs &= rflux > 10**((22.5-(19.5+offset))/2.5)
             bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfiberflux <= 10**((22.5-15.0)/2.5)
+            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
     elif targtype == 'faint':
         if south:
             bgs &= rflux > 10**((22.5-20.3)/2.5)
             bgs &= rflux <= 10**((22.5-19.5)/2.5)
             bgs &= (rfibcol)
         else:
-            bgs &= rflux > 10**((22.5-(20.3+offset))/2.5)
+            bgs &= rflux > 10**((22.5-(20.3))/2.5)
             bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
             bgs &= (rfibcol)
 
@@ -1894,8 +1970,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         The flux in nano-maggies of g, r, z, W1 and W2 bands.
         Corrected for Galactic extinction.
     gfiberflux, rfiberflux, zfiberflux : :class:`~numpy.ndarray`
-        Predicted fiber flux in 1 arcsecond seeing in g/r/z-band.
+        Predicted fiber flux from object in 1 arcsecond seeing in g/r/z.
         Corrected for Galactic extinction.
+    gfibertotflux, rfibertotflux, zfibertotflux : :class:`~numpy.ndarray`
+        Predicted fiber flux from ALL sources at object's location in 1
+        arcsecond seeing in g/r/z. NOT corrected for Galactic extinction.
     objtype, release : :class:`~numpy.ndarray`
         `The Legacy Surveys`_ imaging ``TYPE`` and ``RELEASE`` columns.
     gfluxivar, rfluxivar, zfluxivar, w1fluxivar: :class:`~numpy.ndarray`
@@ -1984,7 +2063,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM initially set everything to arrays of False for the LRG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [tcfalse, tcfalse]
+    lrg_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
     if "LRG" in tcnames:
         for south in south_cuts:
             lrg_classes[int(south)] = isLRG(
@@ -1995,10 +2074,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gaiagmag=gaiagmag, zfibertotflux=zfibertotflux,
                 maskbits=maskbits, south=south
             )
-    lrg_north, lrg_south = lrg_classes
+    lrg_north, lrg_lowdens_north = lrg_classes[0]
+    lrg_south, lrg_lowdens_south = lrg_classes[1]
 
     # ADM combine LRG target bits for an LRG target based on any imaging.
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
+    lrg_lowdens = ((lrg_lowdens_north & photsys_north) |
+                   (lrg_lowdens_south & photsys_south))
 
     # ADM initially set everything to arrays of False for the ELG selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -2067,12 +2149,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             for targtype in ["bright", "faint", "wise"]:
                 bgs_store.append(
                     isBGS(
-                        rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
-                        w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-                        maskbits=maskbits, Grr=Grr, refcat=refcat, w1snr=w1snr, w2snr=w2snr,
-                        gaiagmag=gaiagmag, objtype=objtype, primary=primary, south=south,
-                        targtype=targtype
+                        rfiberflux=rfiberflux, rfibertotflux=rfibertotflux, gflux=gflux, 
+                        rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, 
+                        rnobs=rnobs, znobs=znobs, gfluxivar=gfluxivar, rfluxivar=rfluxivar,
+                        zfluxivar=zfluxivar, maskbits=maskbits, Grr=Grr, refcat=refcat, 
+                        w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag, objtype=objtype, 
+                        primary=primary, south=south, targtype=targtype
                     )
                 )
             bgs_classes[int(south)] = bgs_store
@@ -2107,11 +2189,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
     mws_nearby = tcfalse
     mws_bhb = tcfalse
+    # ADM this denotes a bright limit for all MWS sources.
+    too_bright = MWS_too_bright(gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
             parallaxerr=parallaxerr, paramssolved=gaiaparamssolved
         )
+        # ADM impose bright limits for all MWS_NEARBY targets.
+        mws_nearby &= ~too_bright
 
         mws_bhb = isMWS_bhb(
                     primary=primary,
@@ -2123,6 +2209,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
                     parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
              )
+        # ADM impose bright limits for all MWS_BHB targets.
+        mws_bhb &= ~too_bright
 
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
@@ -2134,6 +2222,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
                     paramssolved=gaiaparamssolved, primary=primary, south=south
             )
+            # ADM impose bright limits for all MWS_MAIN targets.
+            mws_classes[int(south)] &= ~too_bright
+
     mws_broad_n, mws_red_n, mws_blue_n = mws_classes[0]
     mws_broad_s, mws_red_s, mws_blue_s = mws_classes[1]
 
@@ -2148,6 +2239,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
+        # ADM impose bright limits for all MWS_WD targets.
+        mws_wd &= ~too_bright
 
     # ADM initially set everything to False for the standards.
     std_faint, std_bright, std_wd = tcfalse, tcfalse, tcfalse
@@ -2180,6 +2273,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
+    desi_target |= lrg_lowdens_south * desi_mask.LRG_LOWDENS_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
     desi_target |= elg_hip_south * desi_mask.ELG_HIP_SOUTH
@@ -2187,6 +2281,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
+    desi_target |= lrg_lowdens_north * desi_mask.LRG_LOWDENS_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
     desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
     desi_target |= elg_hip_north * desi_mask.ELG_HIP_NORTH
@@ -2194,6 +2289,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
+    desi_target |= lrg_lowdens * desi_mask.LRG_LOWDENS
     desi_target |= elg * desi_mask.ELG
     desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= elg_hip * desi_mask.ELG_HIP
