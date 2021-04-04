@@ -203,22 +203,19 @@ priorities:
 # ADM safest to set MORE_ZGOOD for ELGs/LRGs to DONE PROVIDED they have NUMOBS=1 as
 # ADM they can match QSO targets that require multiple observations and trump those
 # ADM QSOs with a higher priority. There is a unit test to check NUMOBS=1 for ELGs/LRGs.
-        ELG: {UNOBS: 103000, MORE_ZGOOD: 2, MORE_ZWARN: 103000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        LRG: {UNOBS: 103200, MORE_ZGOOD: 2, MORE_ZWARN: 103200, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        ELG: {UNOBS: 103000, MORE_ZGOOD: 2, MORE_ZWARN: 103000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 10000}
+        LRG: {UNOBS: 103200, MORE_ZGOOD: 2, MORE_ZWARN: 103200, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 10000}
 # ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
 # ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
         QSO: {UNOBS: 103400, MORE_ZGOOD: 103350, MORE_ZWARN: 103300, MORE_MIDZQSO: 103350, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        ELG_LOP: {UNOBS: 103000, MORE_ZGOOD: 2, MORE_ZWARN: 103000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
-        ELG_HIP: {UNOBS: 103100, MORE_ZGOOD: 2, MORE_ZWARN: 103100, DONE: 2, OBS: 1, DONOTOBSERVE: 0, ZWARN_DECREMENT: 10000}
+        ELG_LOP: {UNOBS: 103000, MORE_ZGOOD: 2, MORE_ZWARN: 103000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 10000}
+        ELG_HIP: {UNOBS: 103100, MORE_ZGOOD: 2, MORE_ZWARN: 103100, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 10000}
         # ADM Informational bits. Don't let them set priorities.
         LRG_LOWDENS: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 0}
         QSO_HIZ: SAME_AS_LRG_LOWDENS
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 0}
-        QSO_HIZ: SAME_AS_LRG_NORTH
-        # ADM don't prioritize a N/S target if it doesn't have other bits set
-        LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         ELG_NORTH: SAME_AS_LRG_NORTH
         QSO_NORTH: SAME_AS_LRG_NORTH
         ELG_LOP_NORTH: SAME_AS_LRG_NORTH
@@ -276,7 +273,7 @@ priorities:
         # ADM don't prioritize a N/S target if it doesn't have other bits set
         MWS_BROAD_NORTH:              {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 0}
         MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD_NORTH
-        MWS_MAIN_BLUE:                {UNOBS: 101500, MORE_ZWARN: 101500, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 0}
+        MWS_MAIN_BLUE:                {UNOBS: 101500, MORE_ZWARN: 101500, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, ZWARN_DECREMENT: 10000}
         MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
