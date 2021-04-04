@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.56.1 (unreleased)
+0.57.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.57.0 (2021-04-04)
 -------------------
 
 * Updates to MTL schema for SV3 [`PR #706`_]. Includes:
