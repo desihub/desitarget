@@ -909,8 +909,8 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     return newtiles
 
 
-def make_zcat_rr_backstop(zcatdir, tiles):
-    """Make the simplest possible zcat using SV1-era redrock outputs.
+def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
+    """Make a simple zcat using only redrock outputs.
 
     Parameters
     ----------
@@ -920,6 +920,14 @@ def make_zcat_rr_backstop(zcatdir, tiles):
         Numpy array of tiles to be processed. Must contain at least:
         * TILEID - unique tile identifier.
         * ZDATE - final night processed to complete the tile (YYYYMMDD).
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. `desitarget.targetmask.obsconditions`), e.g. "DARK".
+        Governs how ZWARN is updated using `DELTACHI2`.
+    survey : :class:`str`, optional, defaults to "main"
+        Used to update `ZWARN` using `DELTACHI2` for a given survey type.
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
 
     Returns
     -------
@@ -986,6 +994,19 @@ def make_zcat_rr_backstop(zcatdir, tiles):
     zcat["NUMOBS"] = zs["NUMTILE"]
     for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS', 'ZTILEID']):
         zcat[col] = zs[col]
+
+    # ADM Finally, flag the ZWARN bit if DELTACHI2 is too low.
+    if survey == "sv3":
+        from desitarget.sv3.sv3_targetmask import desi_mask
+        desi_target = fms[zid]["SV3_DESI_TARGET"]
+        # ADM set ZWARN flag for everything with DELTACHI2 < 25.
+        lodc2 = zs["DELTACHI2"] < 25
+        zcat["ZWARN"] |= lodc2*zwarn_mask["LOW_DEL_CHI2"]
+        if obscon == "BRIGHT":
+            lodc2 = zs["DELTACHI2"] < 40
+            bgs = desi_target & desi_mask["BGS_ANY"] != 0
+            lodc2bgs = bgs & lodc2
+            zcat["ZWARN"] |= lodc2bgs*zwarn_mask["LOW_DEL_CHI2_BGS"]
 
     return zcat
 
@@ -1069,7 +1090,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock.
-    zcat = make_zcat_rr_backstop(zcatdir, tiles)
+    zcat = make_zcat_rr_backstop(zcatdir, tiles, obscon, survey)
 
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include
