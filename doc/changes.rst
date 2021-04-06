@@ -5,7 +5,11 @@ desitarget Change Log
 0.57.1 (unreleased)
 -------------------
 
-* No changes yet.
+* When making a zcat, update ``ZWARN`` using ``DELTACHI2`` [`PR #707`_]:
+    * Flag ``ZWARN`` for all targets with ``DELTACHI2 < 25``.
+    * Also flag ``BGS`` targets in bright-time with ``DELTACHI2 < 40``.
+
+.. _`PR #707`: https://github.com/desihub/desitarget/pull/707
 
 0.57.0 (2021-04-04)
 -------------------
