@@ -5,11 +5,20 @@ desitarget Change Log
 0.57.1 (unreleased)
 -------------------
 
+* Late-breaking updates to MTL for SV3 [`PR #708`_]:
+    * Never run the secondary ledgers for ``BACKUP`` targets.
+        * Because they *have no* secondary ledgers.
+    * Force anything with ``NUMOBS_INIT`` = 9 to ``NUMOBS_INIT`` = 3.
+        * As we made a late decision to have 3 passes rather than 9.
+        * The first ledger row will reflect 9 to match the target files.
+	    * Subsequent rows will change to ``NUMOBS_INIT`` = 3.
+	    * And ``NUMOBS_MORE`` will appropriately drop to 2.
 * When making a zcat, update ``ZWARN`` using ``DELTACHI2`` [`PR #707`_]:
     * Flag ``ZWARN`` for all targets with ``DELTACHI2 < 25``.
     * Also flag ``BGS`` targets in bright-time with ``DELTACHI2 < 40``.
 
 .. _`PR #707`: https://github.com/desihub/desitarget/pull/707
+.. _`PR #708`: https://github.com/desihub/desitarget/pull/708
 
 0.57.0 (2021-04-04)
 -------------------
