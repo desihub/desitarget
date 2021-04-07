@@ -37,9 +37,12 @@ ns = ap.parse_args()
 numobs_from_ledger = not(ns.numobsfromzcat)
 
 scndstates = [False]
-# ADM if nosecondary wasn't passed, also process the secondary ledger.
-if not(ns.nosecondary):
-    scndstates = [True, False]
+
+# ADM if nosecondary wasn't passed, also process the secondary ledger
+# ADM for programs that actually have secondary ledgers (BRIGHT/DARK).
+if ns.obscon in ["BRIGHT", "DARK"]:
+    if not(ns.nosecondary):
+        scndstates = [True, False]
 
 for secondary in scndstates:
     hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
