@@ -333,10 +333,19 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # ADM extract just the targets that match the input zcat.
     targets_zmatcher = targets[zmatcher]
 
-    # ADM special case. In dark time, if a QSO target is above feasible
-    # ADM galaxy redshifts, set NUMOBS_INIT to be like a QSO, not an ELG.
-    if survey == "sv3" or survey == "main":
+    # ADM special cases for SV3.
+    if survey == "sv3":
+        if zcat is not None:
+            # ADM a necessary hack as we created ledgers for SV3 with
+            # ADM NUMOBS_INIT==9 then later decided on NUMOBS_INIT==3.
+            ii = targets_zmatcher["NUMOBS_INIT"] == 9
+            targets_zmatcher["NUMOBS_INIT"][ii] = 3
+            # ADM make sure to also force a permanent change of state for
+            # ADM the actual *targets* that will be returned as the mtl.
+            targets["NUMOBS_INIT"][zmatcher[ii]] = 3
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
+            # ADM In dark time, if a QSO target is above feasible galaxy
+            # ADM redshifts, NUMOBS should behave like a QSO, not an ELG.
             ii = targets_zmatcher[desi_target] & desi_mask["QSO"] != 0
             # ADM the secondary bit-names that correspond to primary QSOs.
             sns = [bn for bn in scnd_mask.names() if scnd_mask[bn].flavor == 'QSO']
