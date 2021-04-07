@@ -5,7 +5,7 @@ desitarget Change Log
 0.57.1 (unreleased)
 -------------------
 
-* Late-breaking updates to MTL for SV3 [`PR #708`_]:
+* Late-breaking updates to MTL for SV3 [`PR #709`_]:
     * Never run the secondary ledgers for ``BACKUP`` targets.
         * Because they *have no* secondary ledgers.
     * Force anything with ``NUMOBS_INIT`` = 9 to ``NUMOBS_INIT`` = 3.
@@ -18,7 +18,7 @@ desitarget Change Log
     * Also flag ``BGS`` targets in bright-time with ``DELTACHI2 < 40``.
 
 .. _`PR #707`: https://github.com/desihub/desitarget/pull/707
-.. _`PR #708`: https://github.com/desihub/desitarget/pull/708
+.. _`PR #709`: https://github.com/desihub/desitarget/pull/709
 
 0.57.0 (2021-04-04)
 -------------------
