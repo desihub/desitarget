@@ -892,9 +892,9 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     else:
         # ADM ...else, we want tiles that uniquely appear in the combined
         # ADM "alltiles" and "donetiles" (as they aren't in "donetiles").
-        tids = np.concatenate([alltiles["TILEID"], donetiles["TILEID"]])
-        _, cnt = np.unique(tids, return_counts=True)
-        tiles = alltiles[cnt == 1]
+        newtids = set(alltiles["TILEID"]) - set(donetiles["TILEID"])
+        ii = np.array([tid in newtids for tid in alltiles["TILEID"]])
+        tiles = alltiles[ii]
 
     # ADM restrict the tiles to be processed to the correct survey.
     ii = tiles["SURVEY"] == survey
