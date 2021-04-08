@@ -177,6 +177,19 @@ class TestMTL(unittest.TestCase):
         # ADM all BGS targets should always have NUMOBS_MORE=1.
         self.assertTrue(np.all(bgszcat["NUMOBS_MORE"] == 1))
 
+    def test_zwarn_in_sync(self):
+        """Check redrock doesn't add ZWARN flags missing from desitarget.
+        """
+        # ADM import the zwarn mask from redrock.
+        from redrock.zwarning import ZWarningMask as rrMx
+        # ADM import the zwarn mask from desitarget.
+        from desitarget.targetmask import zwarn_mask as dtMx
+        dtbitnames = dtMx.names()
+        for (bitname, bitval) in rrMx.flags():
+            self.assertTrue(bitname in dtbitnames,
+                            "missing ZWARN bit {} from redrock".format(bitname))
+            self.assertTrue(dtMx[bitname] == bitval,
+                            "ZWARN bit value mismatch for {}".format(bitname))
 
 if __name__ == '__main__':
     unittest.main()
