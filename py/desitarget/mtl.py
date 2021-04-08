@@ -764,7 +764,8 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
         from the `hpdirname` directory.
     strictcols : :class:`bool`, optional, defaults to ``False``
         If ``True`` then strictly return only the columns in `columns`,
-        otherwise, inflate the ledger with the new columns.
+        otherwise, inflate the ledger with the new columns. Ignored if
+        `columns` is set to ``None``.
     quick : :class:`bool`, optional, defaults to ``False``
         If ``True``, call the "quick" version of reading targets
         which is much faster but makes fewer error checks.
@@ -778,6 +779,9 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
     -----
     - Will run more quickly if the targets in `mtl` are clustered.
     - TARGETID is always returned, even if it isn't in `columns`.
+    - Any column in `mtl` that is also in `columns` will be OVERWRITTEN.
+      So, be careful not to pass `columns=None` if you only intend to
+      ADD columns to `mtl` rather than also SUBSTITUTING some columns.
     """
     # ADM if a table was passed convert it to a numpy array.
     if isinstance(mtl, Table):
