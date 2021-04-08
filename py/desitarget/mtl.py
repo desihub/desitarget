@@ -15,7 +15,7 @@ from astropy.io import ascii
 import fitsio
 from time import time
 from datetime import datetime
-from glob import glob
+from glob import glob, iglob
 
 from . import __version__ as dt_version
 from desitarget.targetmask import obsmask, obsconditions, zwarn_mask
@@ -767,8 +767,8 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
         otherwise, inflate the ledger with the new columns. Ignored if
         `columns` is set to ``None``.
     quick : :class:`bool`, optional, defaults to ``False``
-        If ``True``, call the "quick" version of reading targets
-        which is much faster but makes fewer error checks.
+        If ``True``, assume the fidelity of the data model. This is much
+        faster but makes fewer error checks.
 
     Returns
     -------
@@ -798,7 +798,13 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
             columns.append("TARGETID")
 
     # ADM look up the optimal nside for reading targets.
-    nside, _ = io.check_hp_target_dir(hpdirname)
+    if quick:
+        fns = iglob(os.path.join(hpdirname, "*fits"))
+        fn = next(fns)
+        # ADM grab the FILENSID from one of the files.
+        nside = fitsio.read_header(fn, 1)["FILENSID"]
+    else:
+        nside, _ = io.check_hp_target_dir(hpdirname)
 
     # ADM which pixels do we need to read.
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
