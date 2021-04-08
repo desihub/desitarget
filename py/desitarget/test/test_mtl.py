@@ -191,6 +191,7 @@ class TestMTL(unittest.TestCase):
             self.assertTrue(dtMx[bitname] == bitval,
                             "ZWARN bit value mismatch for {}".format(bitname))
 
+
 if __name__ == '__main__':
     unittest.main()
 
