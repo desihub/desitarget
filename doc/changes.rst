@@ -5,7 +5,11 @@ desitarget Change Log
 0.57.2 (unreleased)
 -------------------
 
-* No changes yet.
+* General improvements to MTL functionality [`PR #710`_]. Includes:
+   * Significant speed-up of :func:`mtl.inflate_ledger()`.
+   * Unit test to compare the desitarget ``ZWARN`` bit-mask to redrock.
+
+.. _`PR #710`: https://github.com/desihub/desitarget/pull/710
 
 0.57.1 (2021-04-07)
 -------------------
