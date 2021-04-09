@@ -128,7 +128,6 @@ def scrape_urat(url="http://cdsarc.u-strasbg.fr/ftp/I/329/URAT1/v12/",
     for nfile, fileinfo in enumerate(filelist):
         # ADM make the wget command to retrieve the file and issue it.
         cmd = 'wget -q {} -P {}'.format(os.path.join(url, fileinfo), bindir)
-        print(cmd)
         os.system(cmd)
         if nfile % 25 == 0 or test:
             elapsed = time() - start

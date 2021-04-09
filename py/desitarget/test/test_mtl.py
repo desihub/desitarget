@@ -2,6 +2,18 @@
 # -*- coding: utf-8 -*-
 """Test desitarget.mtl.
 """
+
+# ADM only run unit tests that require redrock if its installed.
+try:
+    # ADM import the zwarn mask from redrock.
+    from redrock.zwarning import ZWarningMask as rrMx
+    norr = False
+except ImportError:
+    from desiutil.log import get_logger
+    log = get_logger()
+    log.info('redrock not installed; skipping ZWARN consistency check')
+    norr = True
+
 import os
 import unittest
 import numpy as np
@@ -177,17 +189,18 @@ class TestMTL(unittest.TestCase):
         # ADM all BGS targets should always have NUMOBS_MORE=1.
         self.assertTrue(np.all(bgszcat["NUMOBS_MORE"] == 1))
 
+    @unittest.skipIf(norr, 'redrock not installed; skip ZWARN consistency check')
     def test_zwarn_in_sync(self):
-        """Check redrock doesn't add ZWARN flags missing from desitarget.
+        """Check redrock and desitarget ZWARN bit-masks are consistent.
         """
-        # ADM import the zwarn mask from redrock.
-        from redrock.zwarning import ZWarningMask as rrMx
         # ADM import the zwarn mask from desitarget.
         from desitarget.targetmask import zwarn_mask as dtMx
         dtbitnames = dtMx.names()
         for (bitname, bitval) in rrMx.flags():
+            # ADM check bit-names are consistent.
             self.assertTrue(bitname in dtbitnames,
                             "missing ZWARN bit {} from redrock".format(bitname))
+            # ADM check bit-values are consistent.
             self.assertTrue(dtMx[bitname] == bitval,
                             "ZWARN bit value mismatch for {}".format(bitname))
 
