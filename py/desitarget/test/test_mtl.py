@@ -197,12 +197,15 @@ class TestMTL(unittest.TestCase):
         from desitarget.targetmask import zwarn_mask as dtMx
         dtbitnames = dtMx.names()
         for (bitname, bitval) in rrMx.flags():
-            # ADM check bit-names are consistent.
-            self.assertTrue(bitname in dtbitnames,
-                            "missing ZWARN bit {} from redrock".format(bitname))
-            # ADM check bit-values are consistent.
-            self.assertTrue(dtMx[bitname] == bitval,
-                            "ZWARN bit value mismatch for {}".format(bitname))
+            if "RESERVED" not in bitname:
+                # ADM check bit-names are consistent.
+                self.assertTrue(bitname in dtbitnames,
+                                "missing ZWARN bit {} from redrock".format(
+                                    bitname))
+                # ADM check bit-values are consistent.
+                self.assertTrue(dtMx[bitname] == bitval,
+                                "ZWARN bit value mismatch for {}".format(
+                                    bitname))
 
 
 if __name__ == '__main__':
