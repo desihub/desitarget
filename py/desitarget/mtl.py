@@ -14,7 +14,7 @@ from astropy.table import Table
 from astropy.io import ascii
 import fitsio
 from time import time
-from datetime import datetime
+from datetime import datetime, timezone
 from glob import glob, iglob
 
 from . import __version__ as dt_version
@@ -61,8 +61,15 @@ mtltilefiledm = np.array([], dtype=[
 mtlformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 
 
-def get_utc_date():
+def get_utc_date(survey="sv3"):
     """Convenience function to grab the UTC date.
+
+    Parameters
+    ----------
+    survey : :class:`str`, optional, defaults to "sv3"
+        Used to look up the correct ledger, in combination with `obscon`.
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
 
     Returns
     -------
@@ -73,8 +80,28 @@ def get_utc_date():
     -----
     - This is spun off into its own function to have a consistent way to
       record time across the entire desitarget package.
+    - The `survey` input defaults to `"sv3"` for backwards compatibility
+      (we became stricter about the format for the main survey).
     """
-    return datetime.utcnow().isoformat(timespec='seconds')
+    if survey[:2] == 'sv':
+        return datetime.utcnow().isoformat(timespec='seconds')
+    elif survey == 'main':
+        return get_utc_iso_date()
+    else:
+        msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+
+
+def get_utc_iso_date():
+    """Convenience function to grab the UTC date in STRICT ISO format.
+
+    Returns
+    -------
+    :class:`str`
+        The UTC data in STRICT ISO format, appropriate for a TIMESTAMP.
+    """
+    return datetime.now(tz=timezone.utc).isoformat(timespec='seconds')
 
 
 def get_mtl_dir(mtldir=None):
