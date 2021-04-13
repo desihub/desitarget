@@ -3,6 +3,8 @@ desitarget.mtl
 ==============
 
 Merged target lists.
+
+.. _`STRICT ISO format`: https://stackoverflow.com/a/55157458
 """
 
 import os
@@ -74,7 +76,7 @@ def get_utc_date(survey="sv3"):
     Returns
     -------
     :class:`str`
-        The UTC data, appropriate to make a TIMESTAMP.
+        The UTC date, appropriate for making a TIMESTAMP.
 
     Notes
     -----
@@ -99,7 +101,7 @@ def get_utc_iso_date():
     Returns
     -------
     :class:`str`
-        The UTC data in STRICT ISO format, appropriate for a TIMESTAMP.
+        UTC date in `STRICT ISO format`_, appropriate for a TIMESTAMP.
     """
     return datetime.now(tz=timezone.utc).isoformat(timespec='seconds')
 
@@ -427,7 +429,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['PRIORITY'] = mtl['PRIORITY_INIT']
     mtl['TARGET_STATE'] = "UNOBS"
     # ADM add the time and version of the desitarget code that was run.
-    mtl["TIMESTAMP"] = get_utc_date()
+    mtl["TIMESTAMP"] = get_utc_date(survey=survey)
     mtl["VERSION"] = dt_version
 
     # ADM now populate the new mtl columns with the updated information.
@@ -944,7 +946,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
     newtiles["TILEID"] = tiles["TILEID"]
     # ADM look up the time.
-    newtiles["TIMESTAMP"] = get_utc_date()
+    newtiles["TIMESTAMP"] = get_utc_date(survey=survey)
     # ADM add the version of desitarget.
     newtiles["VERSION"] = dt_version
     # ADM add the program/obscon.
