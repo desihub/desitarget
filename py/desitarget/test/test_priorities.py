@@ -12,6 +12,8 @@ from desitarget.targets import calc_priority, main_cmx_or_sv
 from desitarget.targets import initial_priority_numobs
 from desitarget.mtl import make_mtl, mtldatamodel
 
+from desiutil.log import get_logger
+log = get_logger()
 
 class TestPriorities(unittest.TestCase):
 
@@ -250,6 +252,27 @@ class TestPriorities(unittest.TestCase):
                                        "ZGOOD <= ZWARN for {}".format(b))
                     self.assertGreater(zwarn, done,
                                        "ZWARN <= DONE for {}".format(b))
+
+    def test_target_state_length(self):
+        """Test TARGET_STATE string is long enough for every bit-state.
+        """
+        # ADM this just recovers the length of the TARGET_STATE string.
+        splitter = mtldatamodel["TARGET_STATE"].dtype.char
+        tslen = int(mtldatamodel["TARGET_STATE"].dtype.str.split(splitter)[-1])
+        log.info("TARGET_STATE can hold strings with lengths up to {}".format(
+            tslen))
+        msg = "Length of TARGET_STATE string insufficient to hold: {}"
+
+        # ADM loop through the bit-names.
+        for bn in desi_mask.names():
+            if "SKY" not in bn:
+                # ADM loop through defined priority states.
+                for pn in desi_mask[bn].priorities:
+                    if desi_mask[bn].priorities[pn] > 0:
+                        # ADM the length of each target state string.
+                        ts = "|".join([bn, pn])
+                        # ADM check the length is sufficient.
+                        self.assertGreaterEqual(tslen, len(ts), msg.format(ts))
 
     def test_cmx_priorities(self):
         """Test that priority calculation can handle commissioning files.
