@@ -78,8 +78,8 @@ def survey_data_model(dm, survey='main'):
         `mtldatamodel`.
     survey : :class:`str`, optional, defaults to "main"
         Used to construct the right data model for an iteration of DESI.
-        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
-        for the main survey and different iterations of SV, respectively.
+        Options are ``'main'`` ``'cmx'``, ``'svX``' (for X of 1, 2, etc.)
+        for the main survey, commissioning and iterations of SV.
 
     Returns
     -------
@@ -88,7 +88,7 @@ def survey_data_model(dm, survey='main'):
         the passed `dm` with any columns from `msaddcols` added. If
         `survey` is sv-like, this will just be the input `dm`.
     """
-    if survey[:2] == 'sv':
+    if survey[:2] == 'sv' or survey == 'cmx':
         return dm
     elif survey == 'main':
         return np.array([],
@@ -105,9 +105,9 @@ def get_utc_date(survey="sv3"):
     Parameters
     ----------
     survey : :class:`str`, optional, defaults to "sv3"
-        Used to look up the correct ledger, in combination with `obscon`.
-        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
-        for the main survey and different iterations of SV, respectively.
+        Used to construct the right ISO format for an iteration of DESI.
+        Options are ``'main'`` ``'cmx'``, ``'svX``' (for X of 1, 2, etc.)
+        for the main survey, commissioning and iterations of SV.
 
     Returns
     -------
@@ -121,7 +121,7 @@ def get_utc_date(survey="sv3"):
     - The `survey` input defaults to `"sv3"` for backwards compatibility
       (we became stricter about the format for the main survey).
     """
-    if survey[:2] == 'sv':
+    if survey[:2] == 'sv' or survey == 'cmx':
         return datetime.utcnow().isoformat(timespec='seconds')
     elif survey == 'main':
         return get_utc_iso_date()
