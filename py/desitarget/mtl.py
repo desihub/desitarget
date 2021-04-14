@@ -277,7 +277,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         on "obsconditions" in the desitarget bitmask yaml file.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
-        ``Z``, ``ZWARN``, ``ZTILEID``.
+        ``Z``, ``ZWARN``, ``ZTILEID``, and possibly the extra columns in
+        ``msaddcols`` at the top of the module.
     scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
         TYPICALLY, we have a separate secondary targets (they have their
         own "ledger"). So passing associated secondaries is DEPRECATED
@@ -393,7 +394,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
         ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN'] = -1 * np.ones(n, dtype=np.int32)
-        ztargets['ZTILEID'] = -1 * np.ones(n, dtype=np.int32)
+        # ADM a catch all for added zcat columns.
+        xtracols = ['ZTILEID'] + list(msaddcols.dtype.names)
+        for xtracol in xtracols:
+            ztargets[xtracol] = -1 * np.ones(n, dtype=np.int32)
         # ADM if zcat wasn't passed, there is a one-to-one correspondence
         # ADM between the targets and the zcat.
         zmatcher = np.arange(n)
@@ -462,6 +466,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
     # ADM initialize columns to avoid zero-length/missing/format errors.
     zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "ZTILEID"]
+    if survey == 'main':
+        zcols += list(msaddcols.dtype.names)
     for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
         mtl[col] = np.empty(len(mtl), dtype=mtldm[col].dtype)
 
@@ -480,12 +486,14 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['TARGET_STATE'][zmatcher] = target_state
     for col in zcols:
         mtl[col][zmatcher] = ztargets[col]
-    # ADM also add the ZTILEID column, if passed, otherwise we're likely
+    # ADM add ZTILEID, other columns, if passed, otherwise we're likely
     # ADM to be working with non-ledger-based mocks and can let it slide.
-    if "ZTILEID" in ztargets.dtype.names:
-        mtl["ZTILEID"][zmatcher] = ztargets["ZTILEID"]
-    else:
-        mtl["ZTILEID"] = -1
+    xtracols = ['ZTILEID'] + list(msaddcols.dtype.names)
+    for xtracol in xtracols:
+        if xtracol in ztargets.dtype.names:
+            mtl[xtracol][zmatcher] = ztargets[xtracol]
+        else:
+            mtl[xtracol] = -1
 
     # Filter out any targets marked as done.
     if trim:
@@ -723,7 +731,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         partitioned by HEALPixel (i.e. as made by `make_ledger`).
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
-        ``Z``, ``ZWARN``, ``ZTILEID``.
+        ``Z``, ``ZWARN``, ``ZTILEID``, and ``msaddcols`` at the top of
+        the code for the Main Survey.
     targets : :class:`~numpy.array` or `~astropy.table.Table`, optional, defaults to ``None``
         A numpy rec array or astropy Table with at least the columns
         ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
