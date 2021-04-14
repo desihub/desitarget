@@ -43,8 +43,13 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'U19'), ('VERSION', 'U14'), ('TARGET_STATE', 'U16'),
+    ('TIMESTAMP', 'U25'), ('VERSION', 'U14'), ('TARGET_STATE', 'U18'),
     ('ZTILEID', '>i4')
+    ])
+
+# ADM columns to add to the mtl/zcat data models for the Main Survey.
+msaddcols = np.array([], dtype=[
+    ('DELTACHI2', '>f8')
     ])
 
 zcatdatamodel = np.array([], dtype=[
@@ -53,7 +58,7 @@ zcatdatamodel = np.array([], dtype=[
     ])
 
 mtltilefiledm = np.array([], dtype=[
-    ('TILEID', '>i4'), ('TIMESTAMP', 'U19'),
+    ('TILEID', '>i4'), ('TIMESTAMP', 'U25'),
     ('VERSION', 'U14'), ('PROGRAM', 'U6'), ('ZDATE', 'U8')
     ])
 
@@ -61,6 +66,37 @@ mtltilefiledm = np.array([], dtype=[
 # ADM when using basic or csv ascii writes, specifying the formats of
 # ADM float32 columns can make things easier on the eye.
 mtlformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
+
+
+def survey_data_model(dm, survey='main'):
+    """Construct the appropriate data model for a given survey.
+
+    Parameters
+    ----------
+    dm :class:`~numpy.array`
+        A data model related to MTL. Typically one of `zcatdatamodel` or
+        `mtldatamodel`.
+    survey : :class:`str`, optional, defaults to "main"
+        Used to construct the right data model for an iteration of DESI.
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        The approriate data model. If `survey` is `'main'` this will be
+        the passed `dm` with any columns from `msaddcols` added. If
+        `survey` is sv-like, this will just be the input `dm`.
+    """
+    if survey[:2] == 'sv':
+        return dm
+    elif survey == 'main':
+        return np.array([],
+                        dtype=dm.dtype.descr + msaddcols.dtype.descr)
+    else:
+        msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
 
 
 def get_utc_date(survey="sv3"):
@@ -285,6 +321,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # ADM if trimcols was passed, reduce input target columns to minimal.
     if trimcols:
         mtldm = switch_main_cmx_or_sv(mtldatamodel, targets)
+        # ADM the data model for mtl depends on the survey type.
+        _, _, survey = main_cmx_or_sv(mtldm)
+        mtldm = survey_data_model(mtldm, survey=survey)
         cullcols = list(set(targets.dtype.names) - set(mtldm.dtype.names))
         if isinstance(targets, Table):
             targets.remove_columns(cullcols)
@@ -413,15 +452,18 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl = Table(targets)
     mtl.meta['EXTNAME'] = 'MTL'
 
+    # ADM use the Main Survey data model, if appropriate.
+    mtldm = survey_data_model(mtldatamodel, survey=survey)
+
     # ADM add a placeholder for the secondary bit-mask, if it isn't there.
     if scnd_target not in mtl.dtype.names:
         mtl[scnd_target] = np.zeros(len(mtl),
-                                    dtype=mtldatamodel["SCND_TARGET"].dtype)
+                                    dtype=mtldm["SCND_TARGET"].dtype)
 
     # ADM initialize columns to avoid zero-length/missing/format errors.
     zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "ZTILEID"]
     for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
-        mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
+        mtl[col] = np.empty(len(mtl), dtype=mtldm[col].dtype)
 
     # ADM any target that wasn't matched to the ZCAT should retain its
     # ADM original (INIT) value of PRIORITY and NUMOBS.
@@ -457,13 +499,6 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # See https://github.com/astropy/astropy/issues/4707
     # and https://github.com/astropy/astropy/issues/4708
     mtl['NUMOBS_MORE'].fill_value = -1
-
-    # ADM assert the data model is complete.
-    # ADM turning this off for now, useful for testing.
-#    mtltypes = [mtl[i].dtype.type for i in mtl.dtype.names]
-#    mtldmtypes = [mtldm[i].dtype.type for i in mtl.dtype.names]
-#    assert set(mtl.dtype.names) == set(mtldm.dtype.names)
-#    assert mtltypes == mtldmtypes
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
@@ -587,8 +622,12 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
     if hdr["EXTNAME"] == 'SCND_TARGETS':
         scnd = True
 
-    # ADM the MTL datamodel must reflect the target flavor (SV, etc.).
+    # ADM the MTL datamodel must reflect the target flavor (SV, etc.)...
     mtldm = switch_main_cmx_or_sv(mtldatamodel, np.array([], dt))
+    # ADM ...and the data model can differ with survey type..
+    _, _, survey = main_cmx_or_sv(mtldm)
+    mtldm = survey_data_model(mtldm, survey=survey)
+
     # ADM speed-up by only reading the necessary columns.
     cols = list(set(mtldm.dtype.names).intersection(dt.names))
 
@@ -1034,7 +1073,8 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
     zid = match_to(fms["TARGETID"], zs["TARGETID"])
 
     # ADM write out the zcat as a file with the correct data model.
-    zcat = Table(np.zeros(len(zs), dtype=zcatdatamodel.dtype))
+    zcatdm = survey_data_model(zcatdatamodel, survey=survey)
+    zcat = Table(np.zeros(len(zs), dtype=zcatdm.dtype))
 
     zcat["RA"] = fms[zid]["TARGET_RA"]
     zcat["DEC"] = fms[zid]["TARGET_DEC"]
@@ -1142,10 +1182,13 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include
-    # ADM ZTILEID, which may not be needed for non-ledger simulations.
-    if zcat.dtype.descr != zcatdatamodel.dtype.descr:
+    # ADM ZTILEID, and other columns addes for the Main Survey. These
+    # ADM columns may not be needed for non-ledger simulations.
+    # ADM Note that the data model differs with survey type.
+    zcatdm = survey_data_model(zcatdatamodel, survey=survey)
+    if zcat.dtype.descr != zcatdm.dtype.descr:
         msg = "zcat data model must be {} not {}!".format(
-            zcatdatamodel.dtype.descr, zcat.dtype.descr)
+            zcatdm.dtype.descr, zcat.dtype.descr)
         log.critical(msg)
         raise ValueError(msg)
     # ADM useful to know how many targets were updated.
