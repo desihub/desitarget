@@ -6,13 +6,16 @@ import unittest
 from pkg_resources import resource_filename
 import numpy as np
 
+from glob import glob
+from os.path import basename
+
 from desitarget import skyfibers
 from desitarget.targetmask import desi_mask
 
 from desitarget.skyutilities.legacypipe.util import LegacySurveyData
 
-from glob import glob
-from os.path import basename
+from desiutil.log import get_logger
+log = get_logger()
 
 
 class TestSKYFIBERS(unittest.TestCase):
@@ -32,10 +35,11 @@ class TestSKYFIBERS(unittest.TestCase):
         self.brickname = bricknames[0]
 
         if self.brickname != '0959p805':
-            print("brick name is {} not '0959p805'".format(brickname))
-            print("'0959p805' was chosen to as it has good g-band")
-            print("images and is relatively small")
-            raise ValueError
+            msg = "brick name is {} not '0959p805'".format(brickname)
+            msg += " '0959p805' was chosen for unit tests as it has"
+            msg += " good g-band images and is relatively small"
+            log.critical(msg)
+            raise ValueError(msg)
 
         # ADM generate a handful (~4) sky locations.
         brickarea = 0.25*0.25

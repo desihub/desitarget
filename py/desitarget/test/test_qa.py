@@ -10,9 +10,11 @@ import warnings
 import numpy as np
 import healpy as hp
 from pkg_resources import resource_filename
+from glob import glob
 from desitarget.QA import make_qa_page, _load_systematics
 from desitarget.QA import _parse_tcnames, _in_desi_footprint
-from glob import glob
+from desiutil.log import get_logger
+log = get_logger()
 
 
 class TestQA(unittest.TestCase):
@@ -26,7 +28,7 @@ class TestQA(unittest.TestCase):
         cls.pixmapfile = os.path.join(cls.datadir, 'pixweight.fits')
         cls.origdir = os.getcwd()
         cls.testdir = tempfile.mkdtemp()
-        print("working in {}...".format(cls.testdir))
+        log.info("working in {}...".format(cls.testdir))
         os.chdir(cls.testdir)
 
     @classmethod
