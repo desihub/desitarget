@@ -1051,9 +1051,12 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
         for zbestfn in zbestfns:
             zz = fitsio.read(zbestfn, "ZBEST")
             allzs.append(zz)
-            # ADM only read in the first set of exposures.
-            fm = fitsio.read(zbestfn, "FIBERMAP", rows=np.arange(len(zz)))
-            allfms.append(fm)
+            # ADM read in all of the exposures in the fibermap.
+            fm = fitsio.read(zbestfn, "FIBERMAP")
+            # ADM recover the information for unique targets based on the
+            # ADM first entry for each TARGETID.
+            _, ii = np.unique(fm['TARGETID'], return_index=True)
+            allfms.append(fm[ii])
             # ADM check the correct TILEID was written in the fibermap.
             if set(fm["TILEID"]) != set([tile["TILEID"]]):
                 msg = "Directory and fibermap don't match for tile".format(tile)
