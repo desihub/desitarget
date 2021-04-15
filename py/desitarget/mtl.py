@@ -73,7 +73,7 @@ def survey_data_model(dm, survey='main'):
 
     Parameters
     ----------
-    dm :class:`~numpy.array`
+    dm : :class:`~numpy.array`
         A data model related to MTL. Typically one of `zcatdatamodel` or
         `mtldatamodel`.
     survey : :class:`str`, optional, defaults to "main"
