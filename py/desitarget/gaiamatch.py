@@ -744,7 +744,7 @@ def pop_gaia_columns(inarr, popcols):
     return rfn.drop_fields(inarr, popcols)
 
 
-def read_gaia_file(filename, header=False, addobjid=False):
+def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
     """Read in a Gaia healpix file in the appropriate format for desitarget.
 
     Parameters
@@ -758,6 +758,9 @@ def read_gaia_file(filename, header=False, addobjid=False):
         "GAIA_OBJID" that is the integer number of each row read from
         file and a column "GAIA_BRICKID" that is the integer number of
         the file itself.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3". Used to
+        format the output data model.
 
     Returns
     -------
@@ -777,33 +780,56 @@ def read_gaia_file(filename, header=False, addobjid=False):
     fxcolnames = fx[1].get_colnames()
     hdr = fx[1].read_header()
 
-    # ADM the default list of columns.
-    readcolumns = list(ingaiadatamodel.dtype.names)
-    # ADM read 'em in.
-    outdata = fx[1].read(columns=readcolumns)
-    # ADM change the data model to what we want for each column.
-    outdata.dtype.names = gaiadatamodel.dtype.names
-
-    # ADM the proper motion ERRORS need to be converted to IVARs.
-    # ADM remember to leave 0 entries as 0.
-    for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
-        w = np.where(outdata[col] != 0)[0]
-        outdata[col][w] = 1./(outdata[col][w]**2.)
+    # ADM read appropriate columns and convert output data model names.
+    if dr == "edr3":
+        readcolumns = list(inedr3datamodel.dtype.names)
+        try:
+            outdata = fx[1].read(columns=readcolumns)
+        # ADM basic check for mismatched files.
+        except ValueError:
+            msg = "{} is a dr2 file, but the dr input is {}".format(filename, dr)
+            log.error(msg)
+            raise ValueError(msg)
+        outdata.dtype.names = edr3datamodel.dtype.names
+        prefix = "EDR3"
+        # ADM the proper motion ERRORS need to be converted to IVARs.
+        # ADM remember to leave 0 entries as 0.
+        for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
+            outcol = "{}_{}".format(prefix, col)
+            w = np.where(outdata[outcol] != 0)[0]
+            outdata[outcol][w] = 1./(outdata[outcol][w]**2.)
+    else:
+        readcolumns = list(ingaiadatamodel.dtype.names)
+        outdata = fx[1].read(columns=readcolumns)
+        # ADM basic check for mismatched files.
+        if 'G3' in outdata["REF_CAT"]:
+            msg = "{} is a dr3 file, but the dr input is {}".format(filename, dr)
+            log.error(msg)
+            raise ValueError(msg)
+        outdata.dtype.names = gaiadatamodel.dtype.names
+        prefix = "GAIA"
+        # ADM the proper motion ERRORS need to be converted to IVARs.
+        # ADM remember to leave 0 entries as 0.
+        for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
+            w = np.where(outdata[col] != 0)[0]
+            outdata[col][w] = 1./(outdata[col][w]**2.)
 
     # ADM if requested, add an object identifier for each file row.
     if addobjid:
         newdt = outdata.dtype.descr
-        for tup in ('GAIA_BRICKID', '>i4'), ('GAIA_OBJID', '>i4'):
+        for tup in [('{}_BRICKID'.format(prefix), '>i4'),
+                    ('{}_OBJID'.format(prefix), '>i4')]:
             newdt.append(tup)
         nobjs = len(outdata)
         newoutdata = np.zeros(nobjs, dtype=newdt)
         for col in outdata.dtype.names:
             newoutdata[col] = outdata[col]
-        newoutdata['GAIA_OBJID'] = np.arange(nobjs)
+        newoutdata['{}_OBJID'.format(prefix)] = np.arange(nobjs)
         nside = _get_gaia_nside()
-        hpnum = radec2pix(nside, outdata["GAIA_RA"], outdata["GAIA_DEC"])
+        hpnum = radec2pix(nside, outdata["{}_RA".format(prefix)],
+                          outdata["{}_DEC".format(prefix)])
         # ADM int should fail if HEALPix in the file aren't unique.
-        newoutdata['GAIA_BRICKID'] = int(np.unique(hpnum))
+        newoutdata['{}_BRICKID'.format(prefix)] = int(np.unique(hpnum))
         outdata = newoutdata
 
     # ADM return data from the Gaia file, with the header if requested.
@@ -1055,13 +1081,13 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
 
 def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
                           gaiabounds=[0., 360., -90., 90.], dr="edr3"):
-    """Match a set of objects to Gaia healpix files and return the Gaia information.
+    """Match objects to Gaia healpix files and return Gaia information.
 
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
         Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE 
-        EPOCH OF 2015.5 and EQUINOX J2000.
+        EPOCH OF 2015.5 and EQUINOX J2000/ICRS.
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The matching radius in arcseconds.
     retaingaia : :class:`float`, optional, defaults to False
@@ -1124,13 +1150,13 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
 
     # ADM determine which Gaia files need to be considered.
     if retaingaia:
-        gaiafiles = find_gaia_files_box(gaiabounds)
+        gaiafiles = find_gaia_files_box(gaiabounds, dr=dr)
     else:
-        gaiafiles = find_gaia_files(objs)
+        gaiafiles = find_gaia_files(objs, dr=dr)
 
     # ADM loop through the Gaia files and match to the passed objects.
-    for file in gaiafiles:
-        gaia = read_gaia_file(file)
+    for fn in gaiafiles:
+        gaia = read_gaia_file(fn)
         cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
@@ -1206,8 +1232,8 @@ def match_gaia_to_primary_single(objs, matchrad=1.):
     gaiafiles = find_gaia_files(objs)
 
     # ADM loop through the Gaia files and match to the passed object.
-    for file in gaiafiles:
-        gaia = read_gaia_file(file)
+    for fn in gaiafiles:
+        gaia = read_gaia_file(fn)
         cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
