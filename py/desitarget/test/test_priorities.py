@@ -15,6 +15,7 @@ from desitarget.mtl import make_mtl, mtldatamodel, survey_data_model
 from desiutil.log import get_logger
 log = get_logger()
 
+
 class TestPriorities(unittest.TestCase):
 
     def setUp(self):

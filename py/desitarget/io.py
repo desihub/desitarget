@@ -2354,7 +2354,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
 
     # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
     fn = os.path.join(targdir, drstr, version, flavor)
-    if flavor == "mtl":
+    if flavor == "mtl" or flavor == "ToO":
         fn = targdir
 
     # ADM masks are a special case beneath $MASK_DIR.
