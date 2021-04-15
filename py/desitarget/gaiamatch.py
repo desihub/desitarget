@@ -1207,7 +1207,7 @@ def match_gaia_to_primary_single(objs, matchrad=1.):
     return gaiainfo
 
 
-def write_gaia_matches(infiles, numproc=4, outdir="."):
+def write_gaia_matches(infiles, numproc=4, outdir=".", dr="edr3", include=False):
     """Match sweeps files to Gaia and rewrite with the Gaia columns added
 
     Parameters
@@ -1219,15 +1219,21 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
         The number of parallel processes to use.
     outdir : :class:`str`, optional, default to the current directory
         The directory to write the files.
+    dr : :class:`str`, optional, defaults to "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3"
+    include : :class:`bool`, optional, defaults to ``False``
+        If ``True``, include the original sweeps columns in the output
+        file. Otherwise, just include the Gaia columns.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        The original sweeps files with the columns in `gaiadatamodel`
-        added (except for the columns `GAIA_RA` and `GAIA_DEC`) are
-        written to file. The filename is the same as the input
-        filename with the ".fits" replaced by "-gaia$DRmatch.fits"
-        where $DR is extracted from the $GAIA_DIR environment variable.
+        Columns in `gaiadatamodel` or `edr3datamodel` that are matched to
+        the input sweeps files are added (if `include=True`) or returned
+        (if `include=False`) and written to file. Gaia `_RA` and `_DEC`
+        columns are not added if `include=True`. The filename is as for
+        the input filename with ".fits" replaced by "-gaia$DRmatch.fits"
+        where $DR corresponds to `dr`.
 
     Notes
     -----
@@ -1235,7 +1241,7 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
         - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
 
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
@@ -1248,13 +1254,7 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
 
     nfiles = len(infiles)
 
-    # ADM extract a reasonable name for output files from the Gaia directory.
-    drloc = gaiadir.find("dr")
-    # ADM if we didn't find the substring "dr" go generic.
-    if drloc == -1:
-        ender = '-gaiamatch.fits'
-    else:
-        ender = '-gaia{}match.fits'.format(gaiadir[drloc:drloc+3])
+    ender = '-gaia{}match.fits'.format(dr)
 
     # ADM the critical function to run on every file.
     def _get_gaia_matches(fnwdir):
