@@ -5,6 +5,14 @@ desitarget Change Log
 0.57.2 (unreleased)
 -------------------
 
+* Update data model of MTL ledgers for the Main Survey [`PR #712`_]:
+   * Express the ``TIMESTAMP`` in strict ISO format.
+   * Ensure ``TARGET_STATE`` is a long enough string for all states.
+   * Allow new columns to be easily added to the zcat/MTL ledgers.
+       * In preparation for SQUEzE, QuasarNET, etc.
+   * Don't assume first 500 fibermap rows are unique targets for a petal.
+   * Simplify the data model for ToO ledgers and default to .ecsv format.
+       * In preparation for committing ToO ledgers to svn.
 * Fix new ``ZWARN`` unit test from `PR #710`_ [`PR #711`_].
 * General improvements to MTL functionality [`PR #710`_]. Includes:
    * Significant speed-up of :func:`mtl.inflate_ledger()`.
@@ -12,6 +20,7 @@ desitarget Change Log
 
 .. _`PR #710`: https://github.com/desihub/desitarget/pull/710
 .. _`PR #711`: https://github.com/desihub/desitarget/pull/711
+.. _`PR #712`: https://github.com/desihub/desitarget/pull/712
 
 0.57.1 (2021-04-07)
 -------------------

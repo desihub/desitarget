@@ -35,7 +35,7 @@ ap.add_argument("--numproc", type=int,
 ap.add_argument('--healpixels',
                 help="HEALPixels corresponding to `nside` (e.g. '6,9,57'). Only \
                 write the ledger for targets in these pixels, at the default    \
-                nside, which is [{}].format(mtlnside)",
+                nside, which is [{}]".format(mtlnside),
                 default=None)
 
 ns = ap.parse_args()

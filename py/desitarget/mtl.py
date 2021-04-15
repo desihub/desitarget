@@ -3,6 +3,8 @@ desitarget.mtl
 ==============
 
 Merged target lists.
+
+.. _`STRICT ISO format`: https://stackoverflow.com/a/55157458
 """
 
 import os
@@ -14,7 +16,7 @@ from astropy.table import Table
 from astropy.io import ascii
 import fitsio
 from time import time
-from datetime import datetime
+from datetime import datetime, timezone
 from glob import glob, iglob
 
 from . import __version__ as dt_version
@@ -41,8 +43,13 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'U19'), ('VERSION', 'U14'), ('TARGET_STATE', 'U16'),
+    ('TIMESTAMP', 'U25'), ('VERSION', 'U14'), ('TARGET_STATE', 'U18'),
     ('ZTILEID', '>i4')
+    ])
+
+# ADM columns to add to the mtl/zcat data models for the Main Survey.
+msaddcols = np.array([], dtype=[
+    ('DELTACHI2', '>f8')
     ])
 
 zcatdatamodel = np.array([], dtype=[
@@ -51,7 +58,7 @@ zcatdatamodel = np.array([], dtype=[
     ])
 
 mtltilefiledm = np.array([], dtype=[
-    ('TILEID', '>i4'), ('TIMESTAMP', 'U19'),
+    ('TILEID', '>i4'), ('TIMESTAMP', 'U25'),
     ('VERSION', 'U14'), ('PROGRAM', 'U6'), ('ZDATE', 'U8')
     ])
 
@@ -61,20 +68,78 @@ mtltilefiledm = np.array([], dtype=[
 mtlformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 
 
-def get_utc_date():
+def survey_data_model(dm, survey='main'):
+    """Construct the appropriate data model for a given survey.
+
+    Parameters
+    ----------
+    dm : :class:`~numpy.array`
+        A data model related to MTL. Typically one of `zcatdatamodel` or
+        `mtldatamodel`.
+    survey : :class:`str`, optional, defaults to "main"
+        Used to construct the right data model for an iteration of DESI.
+        Options are ``'main'`` ``'cmx'``, ``'svX``' (for X of 1, 2, etc.)
+        for the main survey, commissioning and iterations of SV.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        The approriate data model. If `survey` is `'main'` this will be
+        the passed `dm` with any columns from `msaddcols` added. If
+        `survey` is sv-like, this will just be the input `dm`.
+    """
+    if survey[:2] == 'sv' or survey == 'cmx':
+        return dm
+    elif survey == 'main':
+        return np.array([],
+                        dtype=dm.dtype.descr + msaddcols.dtype.descr)
+    else:
+        msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+
+
+def get_utc_date(survey="sv3"):
     """Convenience function to grab the UTC date.
+
+    Parameters
+    ----------
+    survey : :class:`str`, optional, defaults to "sv3"
+        Used to construct the right ISO format for an iteration of DESI.
+        Options are ``'main'`` ``'cmx'``, ``'svX``' (for X of 1, 2, etc.)
+        for the main survey, commissioning and iterations of SV.
 
     Returns
     -------
     :class:`str`
-        The UTC data, appropriate to make a TIMESTAMP.
+        The UTC date, appropriate for making a TIMESTAMP.
 
     Notes
     -----
     - This is spun off into its own function to have a consistent way to
       record time across the entire desitarget package.
+    - The `survey` input defaults to `"sv3"` for backwards compatibility
+      (we became stricter about the format for the main survey).
     """
-    return datetime.utcnow().isoformat(timespec='seconds')
+    if survey[:2] == 'sv' or survey == 'cmx':
+        return datetime.utcnow().isoformat(timespec='seconds')
+    elif survey == 'main':
+        return get_utc_iso_date()
+    else:
+        msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+
+
+def get_utc_iso_date():
+    """Convenience function to grab the UTC date in STRICT ISO format.
+
+    Returns
+    -------
+    :class:`str`
+        UTC date in `STRICT ISO format`_, appropriate for a TIMESTAMP.
+    """
+    return datetime.now(tz=timezone.utc).isoformat(timespec='seconds')
 
 
 def get_mtl_dir(mtldir=None):
@@ -212,7 +277,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         on "obsconditions" in the desitarget bitmask yaml file.
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
-        ``Z``, ``ZWARN``, ``ZTILEID``.
+        ``Z``, ``ZWARN``, ``ZTILEID``, and possibly the extra columns in
+        ``msaddcols`` at the top of the module.
     scnd : :class:`~numpy.array`, `~astropy.table.Table`, optional
         TYPICALLY, we have a separate secondary targets (they have their
         own "ledger"). So passing associated secondaries is DEPRECATED
@@ -256,6 +322,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # ADM if trimcols was passed, reduce input target columns to minimal.
     if trimcols:
         mtldm = switch_main_cmx_or_sv(mtldatamodel, targets)
+        # ADM the data model for mtl depends on the survey type.
+        _, _, survey = main_cmx_or_sv(mtldm)
+        mtldm = survey_data_model(mtldm, survey=survey)
         cullcols = list(set(targets.dtype.names) - set(mtldm.dtype.names))
         if isinstance(targets, Table):
             targets.remove_columns(cullcols)
@@ -325,7 +394,12 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ztargets['NUMOBS'] = np.zeros(n, dtype=np.int32)
         ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN'] = -1 * np.ones(n, dtype=np.int32)
-        ztargets['ZTILEID'] = -1 * np.ones(n, dtype=np.int32)
+        # ADM a catch all for added zcat columns.
+        xtracols = ['ZTILEID']
+        if survey == 'main':
+            xtracols += list(msaddcols.dtype.names)
+        for xtracol in xtracols:
+            ztargets[xtracol] = -1 * np.ones(n, dtype=np.int32)
         # ADM if zcat wasn't passed, there is a one-to-one correspondence
         # ADM between the targets and the zcat.
         zmatcher = np.arange(n)
@@ -384,15 +458,20 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl = Table(targets)
     mtl.meta['EXTNAME'] = 'MTL'
 
+    # ADM use the Main Survey data model, if appropriate.
+    mtldm = survey_data_model(mtldatamodel, survey=survey)
+
     # ADM add a placeholder for the secondary bit-mask, if it isn't there.
     if scnd_target not in mtl.dtype.names:
         mtl[scnd_target] = np.zeros(len(mtl),
-                                    dtype=mtldatamodel["SCND_TARGET"].dtype)
+                                    dtype=mtldm["SCND_TARGET"].dtype)
 
     # ADM initialize columns to avoid zero-length/missing/format errors.
     zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "ZTILEID"]
+    if survey == 'main':
+        zcols += list(msaddcols.dtype.names)
     for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
-        mtl[col] = np.empty(len(mtl), dtype=mtldatamodel[col].dtype)
+        mtl[col] = np.empty(len(mtl), dtype=mtldm[col].dtype)
 
     # ADM any target that wasn't matched to the ZCAT should retain its
     # ADM original (INIT) value of PRIORITY and NUMOBS.
@@ -400,7 +479,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['PRIORITY'] = mtl['PRIORITY_INIT']
     mtl['TARGET_STATE'] = "UNOBS"
     # ADM add the time and version of the desitarget code that was run.
-    mtl["TIMESTAMP"] = get_utc_date()
+    mtl["TIMESTAMP"] = get_utc_date(survey=survey)
     mtl["VERSION"] = dt_version
 
     # ADM now populate the new mtl columns with the updated information.
@@ -409,12 +488,16 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     mtl['TARGET_STATE'][zmatcher] = target_state
     for col in zcols:
         mtl[col][zmatcher] = ztargets[col]
-    # ADM also add the ZTILEID column, if passed, otherwise we're likely
+    # ADM add ZTILEID, other columns, if passed, otherwise we're likely
     # ADM to be working with non-ledger-based mocks and can let it slide.
-    if "ZTILEID" in ztargets.dtype.names:
-        mtl["ZTILEID"][zmatcher] = ztargets["ZTILEID"]
-    else:
-        mtl["ZTILEID"] = -1
+    xtracols = ['ZTILEID']
+    if survey == "main":
+        xtracols += list(msaddcols.dtype.names)
+    for xtracol in xtracols:
+        if xtracol in ztargets.dtype.names:
+            mtl[xtracol][zmatcher] = ztargets[xtracol]
+        else:
+            mtl[xtracol] = -1
 
     # Filter out any targets marked as done.
     if trim:
@@ -428,13 +511,6 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # See https://github.com/astropy/astropy/issues/4707
     # and https://github.com/astropy/astropy/issues/4708
     mtl['NUMOBS_MORE'].fill_value = -1
-
-    # ADM assert the data model is complete.
-    # ADM turning this off for now, useful for testing.
-#    mtltypes = [mtl[i].dtype.type for i in mtl.dtype.names]
-#    mtldmtypes = [mtldm[i].dtype.type for i in mtl.dtype.names]
-#    assert set(mtl.dtype.names) == set(mtldm.dtype.names)
-#    assert mtltypes == mtldmtypes
 
     log.info('Done...t={:.1f}s'.format(time()-start))
 
@@ -558,8 +634,12 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
     if hdr["EXTNAME"] == 'SCND_TARGETS':
         scnd = True
 
-    # ADM the MTL datamodel must reflect the target flavor (SV, etc.).
+    # ADM the MTL datamodel must reflect the target flavor (SV, etc.)...
     mtldm = switch_main_cmx_or_sv(mtldatamodel, np.array([], dt))
+    # ADM ...and the data model can differ with survey type..
+    _, _, survey = main_cmx_or_sv(mtldm)
+    mtldm = survey_data_model(mtldm, survey=survey)
+
     # ADM speed-up by only reading the necessary columns.
     cols = list(set(mtldm.dtype.names).intersection(dt.names))
 
@@ -655,7 +735,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         partitioned by HEALPixel (i.e. as made by `make_ledger`).
     zcat : :class:`~astropy.table.Table`, optional
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
-        ``Z``, ``ZWARN``, ``ZTILEID``.
+        ``Z``, ``ZWARN``, ``ZTILEID``, and ``msaddcols`` at the top of
+        the code for the Main Survey.
     targets : :class:`~numpy.array` or `~astropy.table.Table`, optional, defaults to ``None``
         A numpy rec array or astropy Table with at least the columns
         ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
@@ -917,7 +998,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
     newtiles["TILEID"] = tiles["TILEID"]
     # ADM look up the time.
-    newtiles["TIMESTAMP"] = get_utc_date()
+    newtiles["TIMESTAMP"] = get_utc_date(survey=survey)
     # ADM add the version of desitarget.
     newtiles["VERSION"] = dt_version
     # ADM add the program/obscon.
@@ -974,9 +1055,12 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
         for zbestfn in zbestfns:
             zz = fitsio.read(zbestfn, "ZBEST")
             allzs.append(zz)
-            # ADM only read in the first set of exposures.
-            fm = fitsio.read(zbestfn, "FIBERMAP", rows=np.arange(len(zz)))
-            allfms.append(fm)
+            # ADM read in all of the exposures in the fibermap.
+            fm = fitsio.read(zbestfn, "FIBERMAP")
+            # ADM recover the information for unique targets based on the
+            # ADM first entry for each TARGETID.
+            _, ii = np.unique(fm['TARGETID'], return_index=True)
+            allfms.append(fm[ii])
             # ADM check the correct TILEID was written in the fibermap.
             if set(fm["TILEID"]) != set([tile["TILEID"]]):
                 msg = "Directory and fibermap don't match for tile".format(tile)
@@ -1005,7 +1089,8 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
     zid = match_to(fms["TARGETID"], zs["TARGETID"])
 
     # ADM write out the zcat as a file with the correct data model.
-    zcat = Table(np.zeros(len(zs), dtype=zcatdatamodel.dtype))
+    zcatdm = survey_data_model(zcatdatamodel, survey=survey)
+    zcat = Table(np.zeros(len(zs), dtype=zcatdm.dtype))
 
     zcat["RA"] = fms[zid]["TARGET_RA"]
     zcat["DEC"] = fms[zid]["TARGET_DEC"]
@@ -1113,10 +1198,13 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include
-    # ADM ZTILEID, which may not be needed for non-ledger simulations.
-    if zcat.dtype.descr != zcatdatamodel.dtype.descr:
+    # ADM ZTILEID, and other columns addes for the Main Survey. These
+    # ADM columns may not be needed for non-ledger simulations.
+    # ADM Note that the data model differs with survey type.
+    zcatdm = survey_data_model(zcatdatamodel, survey=survey)
+    if zcat.dtype.descr != zcatdm.dtype.descr:
         msg = "zcat data model must be {} not {}!".format(
-            zcatdatamodel.dtype.descr, zcat.dtype.descr)
+            zcatdm.dtype.descr, zcat.dtype.descr)
         log.critical(msg)
         raise ValueError(msg)
     # ADM useful to know how many targets were updated.

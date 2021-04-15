@@ -71,7 +71,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     tdir = get_too_dir(toodir)
 
     dr = release//1000
-    fn = io.find_target_files(tdir, flavor="ToO", ender=ender, nohp=True, dr=dr)
+    fn = io.find_target_files(tdir, flavor="ToO", ender="ecsv", nohp=True)
     # ADM change the name slightly to make this the "input" ledger.
 
     if outname:
@@ -79,7 +79,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=False):
+def _write_too_files(filename, data, ecsv=True):
     """Write ToO ledgers and files.
 
     Parameters
@@ -88,7 +88,7 @@ def _write_too_files(filename, data, ecsv=False):
         Full path to filename to which to write Targets of Opportunity.
     data : :class:`~numpy.ndarray` or `~astropy.table.Table`
         Table or array of Targets of Opportunity to write.
-    ecsv : :class:`bool`, optional, defaults to ``False``
+    ecsv : :class:`bool`, optional, defaults to ``True``
         If ``True`` then write as a .ecsv file, if ``False`` then write
         as a .fits file.
 
@@ -451,7 +451,7 @@ def finalize_too(inledger, survey="main"):
     return outdata
 
 
-def ledger_to_targets(toodir=None, survey="main", ecsv=False, outdir=None):
+def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     """Convert a ToO ledger to a file of ToO targets.
 
     Parameters
@@ -464,7 +464,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=False, outdir=None):
     toodir : :class:`str`, optional, defaults to ``None``
         The directory to treat as the Targets of Opportunity I/O directory.
         If ``None`` then look up from the $TOO_DIR environment variable.
-    ecsv : :class:`bool`, optional, defaults to ``False``
+    ecsv : :class:`bool`, optional, defaults to ``True``
         If ``True`` then write as a .ecsv file, if ``False`` then write
         as a .fits file.
     outdir : :class:`str`, optional, defaults to ``None``

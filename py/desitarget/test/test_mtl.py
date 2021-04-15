@@ -21,7 +21,7 @@ from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
 from desitarget.targetmask import bgs_mask, obsconditions
-from desitarget.mtl import make_mtl, mtldatamodel
+from desitarget.mtl import make_mtl, mtldatamodel, survey_data_model
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
 from desitarget.targets import switch_main_cmx_or_sv
 
@@ -62,6 +62,17 @@ class TestMTL(unittest.TestCase):
         self.zcat['SPECTYPE'] = ['QSO', 'QSO', 'QSO', 'GALAXY', 'GALAXY']
         self.zcat['ZTILEID'] = [-1, -1, -1, -1, -1]
 
+    def update_data_model(self, cat):
+        """Catalogs have a different data model for the Main Survey.
+        """
+        _, _, survey = main_cmx_or_sv(cat)
+        truedm = survey_data_model(cat, survey=survey)
+        addedcols = list(set(truedm.dtype.names) - set(cat.dtype.names))
+        for col in addedcols:
+            cat[col] = [-1] * len(cat)
+
+        return cat
+
     def reset_targets(self, prefix):
         """Add prefix to TARGET columns"""
 
@@ -85,8 +96,11 @@ class TestMTL(unittest.TestCase):
         # ADM loop through once each for the main survey, commissioning and SV.
         for prefix in ["", "CMX_", "SV1_"]:
             t = self.reset_targets(prefix)
+            t = self.update_data_model(t)
             mtl = make_mtl(t, "BRIGHT|GRAY|DARK", trimcols=True)
             mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
+            _, _, survey = main_cmx_or_sv(mtldm)
+            mtldm = survey_data_model(mtldm, survey=survey)
             refnames = sorted(mtldm.dtype.names)
             mtlnames = sorted(mtl.dtype.names)
             self.assertEqual(refnames, mtlnames)
@@ -97,6 +111,7 @@ class TestMTL(unittest.TestCase):
         # ADM loop through once for SV and once for the main survey.
         for prefix in ["", "SV1_"]:
             t = self.reset_targets(prefix)
+            t = self.update_data_model(t)
             mtl = make_mtl(t, "GRAY|DARK")
             mtl.sort(keys='TARGETID')
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 1, 4, 4, 4, 1]))
@@ -112,7 +127,9 @@ class TestMTL(unittest.TestCase):
         # ADM loop through once for SV and once for the main survey.
         for prefix in ["", "SV1_"]:
             t = self.reset_targets(prefix)
-            mtl = make_mtl(t, "DARK|GRAY", zcat=self.zcat, trim=False)
+            t = self.update_data_model(t)
+            zcat = self.update_data_model(self.zcat.copy())
+            mtl = make_mtl(t, "DARK|GRAY", zcat=zcat, trim=False)
             mtl.sort(keys='TARGETID')
             pp = self.post_prio.copy()
             nom = [0, 0, 0, 3, 3, 1]
@@ -123,7 +140,8 @@ class TestMTL(unittest.TestCase):
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
             # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
             t[prefix+'DESI_TARGET'][0] = Mx.BAD_SKY
-            mtl = make_mtl(t, "DARK|GRAY", zcat=self.zcat, trim=False)
+            zcat = self.update_data_model(self.zcat.copy())
+            mtl = make_mtl(t, "DARK|GRAY", zcat=zcat, trim=False)
             mtl.sort(keys='TARGETID')
             self.assertEqual(mtl['PRIORITY'][0], 0)
 
@@ -133,7 +151,9 @@ class TestMTL(unittest.TestCase):
         # ADM loop through once for SV and once for the main survey.
         for prefix in ["", "SV1_"]:
             t = self.reset_targets(prefix)
-            mtl = make_mtl(t, "BRIGHT", zcat=self.zcat, trim=True)
+            t = self.update_data_model(t)
+            zcat = self.update_data_model(self.zcat.copy())
+            mtl = make_mtl(t, "BRIGHT", zcat=zcat, trim=True)
             testfile = 'test-aszqweladfqwezceas.fits'
             mtl.write(testfile, overwrite=True)
             x = mtl.read(testfile)
@@ -152,7 +172,7 @@ class TestMTL(unittest.TestCase):
         qtargets["DESI_TARGET"] |= Mx["QSO"]
 
         # ADM give them all a "tracer" redshift (below a mid-z QSO).
-        qzcat = self.zcat.copy()
+        qzcat = self.update_data_model(self.zcat.copy())
         qzcat["Z"] = 0.5
 
         # ADM set their initial conditions to be that of a QSO.
@@ -181,7 +201,7 @@ class TestMTL(unittest.TestCase):
         bgstargets["NUMOBS_INIT"] = ninit
 
         # ADM create a copy of the zcat.
-        bgszcat = self.zcat.copy()
+        bgszcat = self.update_data_model(self.zcat.copy())
 
         # ADM run through MTL.
         mtl = make_mtl(bgstargets, obscon="BRIGHT", zcat=bgszcat)

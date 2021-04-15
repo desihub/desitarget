@@ -10,7 +10,10 @@ from astropy.table import Table
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask
 from desitarget.targets import calc_priority, main_cmx_or_sv
 from desitarget.targets import initial_priority_numobs
-from desitarget.mtl import make_mtl, mtldatamodel
+from desitarget.mtl import make_mtl, mtldatamodel, survey_data_model
+
+from desiutil.log import get_logger
+log = get_logger()
 
 
 class TestPriorities(unittest.TestCase):
@@ -45,9 +48,18 @@ class TestPriorities(unittest.TestCase):
                 t.rename_column(name, prefix+name)
 
             # ADM retrieve the mask and column names for this survey flavor.
-            colnames, masks, _ = main_cmx_or_sv(t)
+            colnames, masks, survey = main_cmx_or_sv(t)
             desi_target, bgs_target, mws_target = colnames
             desi_mask, bgs_mask, mws_mask = masks
+
+            # ADM the data model is slightly different for the Main Survey.
+            truedm = survey_data_model(z, survey=survey)
+            addedcols = list(set(truedm.dtype.names) - set(z.dtype.names))
+            for col in addedcols:
+                t[col] = -1
+                z[col] = -1
+            # ADM retain an unaltered copy of z.
+            zcat = z.copy()
 
             # - No targeting bits set is priority=0
             self.assertTrue(np.all(calc_priority(t, z, "BRIGHT") == 0))
@@ -89,7 +101,7 @@ class TestPriorities(unittest.TestCase):
             self.assertEqual(p[2], bgs_mask.BGS_FAINT.priorities['MORE_ZGOOD'])
             # BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2000, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
-            z = self.zcat.copy()
+            z = zcat.copy()
             z['NUMOBS'] = [0, 1, 1]
             z['ZWARN'] = [1, 1, 0]
             p = make_mtl(t, "DARK|GRAY", zcat=z)["PRIORITY"]
@@ -250,6 +262,27 @@ class TestPriorities(unittest.TestCase):
                                        "ZGOOD <= ZWARN for {}".format(b))
                     self.assertGreater(zwarn, done,
                                        "ZWARN <= DONE for {}".format(b))
+
+    def test_target_state_length(self):
+        """Test TARGET_STATE string is long enough for every bit-state.
+        """
+        # ADM this just recovers the length of the TARGET_STATE string.
+        splitter = mtldatamodel["TARGET_STATE"].dtype.char
+        tslen = int(mtldatamodel["TARGET_STATE"].dtype.str.split(splitter)[-1])
+        log.info("TARGET_STATE can hold strings with lengths up to {}".format(
+            tslen))
+        msg = "Length of TARGET_STATE string insufficient to hold: {}"
+
+        # ADM loop through the bit-names.
+        for bn in desi_mask.names():
+            if "SKY" not in bn:
+                # ADM loop through defined priority states.
+                for pn in desi_mask[bn].priorities:
+                    if desi_mask[bn].priorities[pn] > 0:
+                        # ADM the length of each target state string.
+                        ts = "|".join([bn, pn])
+                        # ADM check the length is sufficient.
+                        self.assertGreaterEqual(tslen, len(ts), msg.format(ts))
 
     def test_cmx_priorities(self):
         """Test that priority calculation can handle commissioning files.

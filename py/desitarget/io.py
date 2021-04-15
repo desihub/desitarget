@@ -2354,7 +2354,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
 
     # ADM the generic directory structure beneath $TARG_DIR or $MTL_DIR.
     fn = os.path.join(targdir, drstr, version, flavor)
-    if flavor == "mtl":
+    if flavor == "mtl" or flavor == "ToO":
         fn = targdir
 
     # ADM masks are a special case beneath $MASK_DIR.
@@ -2492,7 +2492,10 @@ def read_mtl_ledger(filename, unique=True, isodate=None):
     if ".ecsv" in filename:
         # ADM infer the column names and types (for the dtype).
         # ADM (this snippet is much quicker than a Table read).
-        from desitarget.mtl import mtldatamodel as mtldm
+        from desitarget.mtl import mtldatamodel, survey_data_model
+        # ADM allow for the full set of possible columns.
+        mtldm = survey_data_model(mtldatamodel, survey="main")
+        # ADM the data model can differ depending on survey type.
         names, forms = [], []
         with open(filename) as f:
             for line in f:

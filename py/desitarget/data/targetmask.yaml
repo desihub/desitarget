@@ -159,7 +159,7 @@ obsmask:
     - [DONE,           2, "enough observations already obtained"]
     - [MORE_ZWARN,     3, "ambiguous redshift; need more observations"]
     - [MORE_ZGOOD,     4, "redshift known; need more observations"]
-    - [MORE_MIDZQSO,   8, "z > 0.7 QSO; more observations at very low priority"]
+    - [MORE_MIDZQSO,   8, "mid-z QSO; more observations at very low priority"]
     - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
 
 #- Bits that can be set in TARGETID. See the schema at
@@ -207,21 +207,21 @@ priorities:
 # ADM safest to set MORE_ZGOOD for ELGs/LRGs to DONE PROVIDED they have NUMOBS=1 as
 # ADM they can match QSO targets that require multiple observations and trump those
 # ADM QSOs with a higher priority. There is a unit test to check NUMOBS=1 for ELGs/LRGs.
-        ELG: {UNOBS: 3000, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        LRG: {UNOBS: 3200, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        ELG: {UNOBS: 3000, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        LRG: {UNOBS: 3200, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 # ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
 # ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         QSO_HIZ: SAME_AS_LRG_NORTH
         ELG_NORTH: SAME_AS_LRG_NORTH
         QSO_NORTH: SAME_AS_LRG_NORTH
         LRG_SOUTH: SAME_AS_LRG_NORTH
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
-        BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0}
+        BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, MORE_MIDZQSO: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
         STD_WD:     -1
@@ -244,12 +244,12 @@ priorities:
     # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
     #- reobserving successes has lower priority than MWS
     bgs_mask:
-        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BGS_FAINT_HIP: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BGS_FAINT_HIP: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        BGS_FAINT_SOUTH: {UNOBS: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        BGS_FAINT_SOUTH: {UNOBS: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_BRIGHT_NORTH: SAME_AS_BGS_FAINT_SOUTH
@@ -259,23 +259,23 @@ priorities:
     #- Milky Way Survey: priorities 1000-1999
     # ADM WDs should be prioritized above BGS at 2998
     mws_mask: 
-        MWS_BROAD:                    {UNOBS: 1400, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_WD:                       {UNOBS: 2998, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_NEARBY:                   {UNOBS: 1600, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        MWS_BHB:                      {UNOBS: 1550, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_BROAD:                    {UNOBS: 1400, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_WD:                       {UNOBS: 2998, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_NEARBY:                   {UNOBS: 1600, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_BHB:                      {UNOBS: 1550, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
         # ADM don't prioritize a N/S target if it doesn't have other bits set
-        MWS_BROAD_NORTH:              {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0}
+        MWS_BROAD_NORTH:              {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD_NORTH
-        MWS_MAIN_BLUE:                {UNOBS: 1500, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        MWS_MAIN_BLUE:                {UNOBS: 1500, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_MAIN_BLUE_NORTH:          SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_BLUE_SOUTH:          SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
-        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BACKUP_FAINT:                 {UNOBS: 8, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
+        BACKUP_BRIGHT:                {UNOBS: 9, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_FAINT:                 {UNOBS: 8, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         # ADM Standards are special; priorities don't apply.
         GAIA_STD_FAINT:  -1
         GAIA_STD_WD:  -1
@@ -284,10 +284,10 @@ priorities:
     # ADM secondary target priorities. Probably all have very low UNOBS...
     scnd_mask:
     # ADM ...except VETO, which is special and always takes precedence.
-        VETO:                   {UNOBS: 10000, DONE: 10000, OBS: 0, DONOTOBSERVE: 0}
-        DR16Q:                  {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        BRIGHT_TOO_LOP:         {UNOBS: 1000, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
-        BRIGHT_TOO_HIP:         {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0}
+        VETO:                   {UNOBS: 10000, DONE: 10000, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        DR16Q:                  {UNOBS: 10, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BRIGHT_TOO_LOP:         {UNOBS: 1000, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BRIGHT_TOO_HIP:         {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
         DARK_TOO_HIP:           SAME_AS_BRIGHT_TOO_HIP
 

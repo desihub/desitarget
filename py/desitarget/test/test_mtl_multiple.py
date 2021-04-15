@@ -9,7 +9,7 @@ from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
 from desitarget.targetmask import obsconditions
-from desitarget.mtl import make_mtl, mtldatamodel
+from desitarget.mtl import make_mtl, mtldatamodel, msaddcols, survey_data_model
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
 from desitarget.targets import switch_main_cmx_or_sv
 
@@ -57,6 +57,8 @@ class TestMTL(unittest.TestCase):
         self.zcat['NUMOBS'] = [1, 1, 1, 1, 1]
         self.zcat['SPECTYPE'] = ['GALAXY', 'QSO', 'QSO', 'QSO', 'QSO']
         self.zcat['ZTILEID'] = [-1, -1, -1, -1, -1]
+        for col in msaddcols.dtype.names:
+            self.zcat[col] = [-1, -1, -1, -1, -1]
 
         # priorities and numobs more after measuring redshifts.
         self.post_prio = [0 for t in self.type_A]
@@ -76,10 +78,10 @@ class TestMTL(unittest.TestCase):
     def test_mtl(self):
         """Test output from MTL has the correct column names.
         """
-        # ADM loop through once each for the main survey, commissioning and SV.
-        # t = self.reset_targets(prefix)
         mtl = make_mtl(self.targets, "GRAY|DARK", trimcols=True)
         mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
+        _, _, survey = main_cmx_or_sv(mtldm)
+        mtldm = survey_data_model(mtldm, survey=survey)
         refnames = sorted(mtldm.dtype.names)
         mtlnames = sorted(mtl.dtype.names)
         self.assertEqual(refnames, mtlnames)
@@ -87,7 +89,6 @@ class TestMTL(unittest.TestCase):
     def test_numobs(self):
         """Test priorities, numobs and obsconditions are set correctly with no zcat.
         """
-        # ADM loop through once for SV and once for the main survey.
         mtl = make_mtl(self.targets, "GRAY|DARK")
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [4, 4, 4, 4, 4]))
@@ -96,7 +97,6 @@ class TestMTL(unittest.TestCase):
     def test_zcat(self):
         """Test priorities, numobs and obsconditions are set correctly after zcat.
         """
-        # ADM loop through once for SV and once for the main survey.
         mtl = make_mtl(self.targets, "DARK|GRAY", zcat=self.zcat, trim=False)
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
