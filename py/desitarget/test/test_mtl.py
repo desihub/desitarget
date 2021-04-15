@@ -21,7 +21,7 @@ from astropy.table import Table, join
 
 from desitarget.targetmask import desi_mask as Mx
 from desitarget.targetmask import bgs_mask, obsconditions
-from desitarget.mtl import make_mtl, mtldatamodel, msaddcols, survey_data_model
+from desitarget.mtl import make_mtl, mtldatamodel, survey_data_model
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
 from desitarget.targets import switch_main_cmx_or_sv
 
