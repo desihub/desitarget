@@ -815,7 +815,7 @@ def read_gaia_file(filename, header=False, addobjid=False):
         return outdata
 
 
-def find_gaia_files(objs, neighbors=True, radec=False):
+def find_gaia_files(objs, neighbors=True, radec=False, dr="dr2"):
     """Find full paths to Gaia healpix files for objects by RA/Dec.
 
     Parameters
@@ -829,6 +829,8 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` then the passed `objs` is an [RA, Dec] list instead of
         a rec array.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -844,14 +846,14 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     return io.find_star_files(objs, hpxdir, nside,
                               neighbors=neighbors, radec=radec)
 
 
-def find_gaia_files_hp(nside, pixlist, neighbors=True):
+def find_gaia_files_hp(nside, pixlist, neighbors=True, dr="dr2"):
     """Find full paths to Gaia healpix files in a set of HEALPixels.
 
     Parameters
@@ -864,6 +866,8 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
         Also return files corresponding to all neighbors that touch the
         pixels in `pixlist` to prevent edge effects (e.g. a Gaia source
         is 1 arcsec outside of `pixlist` and so in an adjacent pixel).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -879,7 +883,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
     filenside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM work with pixlist as an array.
@@ -899,7 +903,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
     return gaiafiles
 
 
-def find_gaia_files_box(gaiabounds, neighbors=True):
+def find_gaia_files_box(gaiabounds, neighbors=True, dr="dr2"):
     """Find full paths to Gaia healpix files in an RA/Dec box.
 
     Parameters
@@ -911,6 +915,8 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
         Also return files corresponding to all neighboring pixels that touch
         the files that touch the box in order to prevent edge effects (e.g. if a Gaia
         source might be 1 arcsec outside of the box and so in an adjacent pixel)
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -930,7 +936,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the box.
@@ -947,7 +953,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     return gaiafiles
 
 
-def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
+def find_gaia_files_beyond_gal_b(mingalb, neighbors=True, dr="dr2"):
     """Find full paths to Gaia healpix files beyond a Galactic b.
 
     Parameters
@@ -959,6 +965,8 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
         Also return files corresponding to neighboring pixels that touch
         in order to prevent edge effects (e.g. if a Gaia source might be
         1 arcsec beyond mingalb and so in an adjacent pixel).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3".
 
     Returns
     -------
@@ -977,7 +985,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels beyond mingalb.
@@ -994,7 +1002,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
     return gaiafiles
 
 
-def find_gaia_files_tiles(tiles=None, neighbors=True):
+def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
     """
     Parameters
     ----------
@@ -1005,6 +1013,8 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
         Also return all neighboring pixels that touch the files of interest
         in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
         away from a primary source and so in an adjacent pixel).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3".
 
     Returns
     -------
@@ -1025,7 +1035,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the tiles.
@@ -1044,40 +1054,44 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
 
 
 def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
-                          gaiabounds=[0., 360., -90., 90.]):
+                          gaiabounds=[0., 360., -90., 90.], dr="edr3"):
     """Match a set of objects to Gaia healpix files and return the Gaia information.
 
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
-        Must contain at least "RA" and "DEC".
+        Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE 
+        EPOCH OF 2015.5 and EQUINOX J2000.
     matchrad : :class:`float`, optional, defaults to 1 arcsec
         The matching radius in arcseconds.
     retaingaia : :class:`float`, optional, defaults to False
-        If set, return all of the Gaia information in the "area" occupied by
-        the passed objects (whether a Gaia object matches a passed RA/Dec
-        or not.) THIS ASSUMES THAT THE PASSED OBJECTS ARE FROM A SWEEPS file
-        and that the integer values nearest the maximum and minimum passed RAs
+        If set, return all of the Gaia information in the "area" occupied
+        by `objs` (whether a Gaia object matches a passed RA/Dec or not.)
+        THIS ASSUMES THAT THE PASSED OBJECTS ARE FROM A SWEEPS file and
+        that integer values nearest the maximum and minimum passed RAs
         and Decs fairly represent the areal "edges" of that file.
     gaiabounds : :class:`list`, optional, defaults to the whole sky
-        Used in conjunction with `retaingaia` to determine over what area to
-        retrieve Gaia objects that don't match a sweeps object. Pass a 4-entry
-        list to represent an area bounded by [RAmin, RAmax, DECmin, DECmax]
+        Used with `retaingaia` to determine the area over which to
+        retrieve Gaia objects that don't match a sweeps object. Pass a
+        4-entry (corresponding to [RAmin, RAmax, DECmin, DECmax]).
+    dr : :class:`str`, optional, defaults to "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3". Specifies
+        which output data model to use.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        The matching Gaia information for each object, where the returned format and
-        columns correspond to `desitarget.gaiamatch.gaiadatamodel`
+        Gaia information for each matching object, in a format like
+        `gaiadatamodel` (for `dr=dr2`) or `edr3datamodel` (`dr=edr3`).
 
     Notes
     -----
-        - The first len(objs) objects correspond row-by-row to the passed objects.
-        - For objects that do NOT have a match in the Gaia files, the "REF_ID"
+        - The first len(`objs`) objects correspond row-by-row to `objs`.
+        - For objects that do NOT have a match in Gaia, the "REF_ID"
           column is set to -1, and all other columns are zero.
-        - If `retaingaia` is True then objects after the first len(objs) objects are
-          Gaia objects that do not have a sweeps match but that are in the area
-          bounded by `gaiabounds`
+        - If `retaingaia` is ``True`` then objects after the first
+          len(`objs`) objects are Gaia objects that do not have a sweeps
+          match but are in the area bounded by `gaiabounds`.
     """
     # ADM I'm getting this old Cython RuntimeWarning on search_around_sky ****:
     # RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
@@ -1086,23 +1100,23 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
     # ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
     import warnings
 
-    # ADM if retaingaia is True, retain all Gaia objects in a sweeps-like box.
+    # ADM retain all Gaia objects in a sweeps-like box.
     if retaingaia:
         ramin, ramax, decmin, decmax = gaiabounds
 
-    # ADM convert the coordinates of the input objects to a SkyCoord object.
+    # ADM convert the coordinates of the objects to a SkyCoord object.
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
     nobjs = cobjs.size
 
-    # ADM deal with the special case that only a single object was passed.
+    # ADM catch the special case that only a single object was passed.
     if nobjs == 1:
         return match_gaia_to_primary_single(objs, matchrad=matchrad)
 
-    # ADM set up a zerod array of Gaia information for the passed objects.
+    # ADM make a zerod array of Gaia information for the passed objects.
     gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
 
-    # ADM a supplemental (zero-length) array to hold Gaia objects that don't
-    # ADM match a sweeps object, in case retaingaia was set.
+    # ADM a supplemental (zero-length) array to hold Gaia objects that
+    # ADM don't match a sweeps object, in case retaingaia was set.
     suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
 
     # ADM objects without matches should have REF_ID of -1.
