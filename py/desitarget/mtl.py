@@ -395,7 +395,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN'] = -1 * np.ones(n, dtype=np.int32)
         # ADM a catch all for added zcat columns.
-        xtracols = ['ZTILEID'] + list(msaddcols.dtype.names)
+        xtracols = ['ZTILEID']
+        if survey == 'main':
+            xtracols += list(msaddcols.dtype.names)
         for xtracol in xtracols:
             ztargets[xtracol] = -1 * np.ones(n, dtype=np.int32)
         # ADM if zcat wasn't passed, there is a one-to-one correspondence
@@ -488,7 +490,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         mtl[col][zmatcher] = ztargets[col]
     # ADM add ZTILEID, other columns, if passed, otherwise we're likely
     # ADM to be working with non-ledger-based mocks and can let it slide.
-    xtracols = ['ZTILEID'] + list(msaddcols.dtype.names)
+    xtracols = ['ZTILEID']
+    if survey == "main":
+        xtracols += list(msaddcols.dtype.names)
     for xtracol in xtracols:
         if xtracol in ztargets.dtype.names:
             mtl[xtracol][zmatcher] = ztargets[xtracol]
