@@ -10,6 +10,7 @@ desitarget Change Log
    * Ensure ``TARGET_STATE`` is a long enough string for all states.
    * Allow new columns to be easily added to the zcat/MTL ledgers.
        * In preparation for SQUEzE, QuasarNET, etc.
+   * Don't assume first 500 fibermap rows are unique targets for a petal.
    * Simplify the data model for ToO ledgers and default to .ecsv format.
        * In preparation for committing ToO ledgers to svn.
 * Fix new ``ZWARN`` unit test from `PR #710`_ [`PR #711`_].
