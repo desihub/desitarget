@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.57.2 (unreleased)
+0.57.3 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.57.2 (2021-04-18)
 -------------------
 
 * Update data model of MTL ledgers for the Main Survey [`PR #712`_]:
