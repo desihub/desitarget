@@ -1079,7 +1079,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
     return gaiafiles
 
 
-def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
+def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
                           gaiabounds=[0., 360., -90., 90.], dr="edr3"):
     """Match objects to Gaia healpix files and return Gaia information.
 
@@ -1088,7 +1088,7 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
     objs : :class:`~numpy.ndarray`
         Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE 
         EPOCH OF 2015.5 and EQUINOX J2000/ICRS.
-    matchrad : :class:`float`, optional, defaults to 1 arcsec
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
         The matching radius in arcseconds.
     retaingaia : :class:`float`, optional, defaults to False
         If set, return all of the Gaia information in the "area" occupied
@@ -1129,7 +1129,7 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
 
     # ADM catch the special case that only a single object was passed.
     if nobjs == 1:
-        return match_gaia_to_primary_single(objs, matchrad=matchrad)
+        return match_gaia_to_primary_single(objs, matchrad=matchrad, dr=dr)
 
     # ADM set up the output arrays, contingent on the Gaia Data Release.
     if dr == "edr3":
@@ -1157,11 +1157,11 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
         # ADM rewind the coordinates in the case of Gaia EDR3, which is
         # ADM at a reference epoch of 2016.0 not 2015.5.
         if dr == 'edr3':
-            rapast, decpast = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
-                                    gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
-                                    epochnow=2016.0, epochpast=2015.5)
-            gaia["EDR3_RA"] = rapast
-            gaia["EDR3_DEC"] = decpast
+            rarew, decrew = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
+                                          gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
+                                          epochnow=2016.0, epochpast=2015.5)
+            gaia["EDR3_RA"] = rarew
+            gaia["EDR3_DEC"] = decrew
         cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
         idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
         # ADM assign the Gaia info to the array that corresponds to the passed objects.
@@ -1190,15 +1190,18 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
     return gaiainfo
 
 
-def match_gaia_to_primary_single(objs, matchrad=1.):
+def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
     """Match ONE object to Gaia "chunks" files and return the Gaia information.
 
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
         Must contain at least "RA" and "DEC". MUST BE A SINGLE ROW.
-    matchrad : :class:`float`, optional, defaults to 1 arcsec
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
         The matching radius in arcseconds.
+    dr : :class:`str`, optional, defaults to "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3". Specifies
+        which output data model to use.
 
     Returns
     -------
@@ -1211,37 +1214,42 @@ def match_gaia_to_primary_single(objs, matchrad=1.):
         - If the object does NOT have a match in the Gaia files, the "REF_ID"
           column is set to -1, and all other columns are zero
     """
-    # ADM I'm getting this old Cython RuntimeWarning on search_around_sky ****:
-    # RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
-    # ADM but it doesn't seem malicious, so I'm filtering. I think its caused
-    # ADM by importing a scipy compiled against an older numpy than is installed
-    # ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
-    import warnings
-
     # ADM convert the coordinates of the input objects to a SkyCoord object.
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
     nobjs = cobjs.size
     if nobjs > 1:
         log.error("Only matches one row but {} rows were sent".format(nobjs))
 
-    # ADM set up a zerod array of Gaia information for the passed object.
-    gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
+    # ADM set up the output arrays, contingent on the Gaia Data Release.
+    if dr == "edr3":
+        gaiainfo = np.zeros(nobjs, dtype=edr3datamodel.dtype)
+        prefix = "EDR3"
+    else:
+        gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
+        prefix = "GAIA"
 
     # ADM an object without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
 
     # ADM determine which Gaia files need to be considered.
-    gaiafiles = find_gaia_files(objs)
+    gaiafiles = find_gaia_files(objs, dr=dr)
 
     # ADM loop through the Gaia files and match to the passed object.
+    gracol, gdeccol = "{}_RA".format(prefix), "{}_DEC".format(prefix)
     for fn in gaiafiles:
-        gaia = read_gaia_file(fn)
-        cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # ADM ****here's where the warning occurs...
-            sep = cobjs.separation(cgaia)
-            idgaia = np.where(sep < matchrad*u.arcsec)[0]
+        gaia = read_gaia_file(fn, dr=dr)
+        # ADM rewind the coordinates in the case of Gaia EDR3, which is
+        # ADM at a reference epoch of 2016.0 not 2015.5.
+        if dr == 'edr3':
+            rarew, decrew = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
+                                          gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
+                                          epochnow=2016.0, epochpast=2015.5)
+            gaia["EDR3_RA"] = rarew
+            gaia["EDR3_DEC"] = decrew
+
+        cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
+        sep = cobjs.separation(cgaia)
+        idgaia = np.where(sep < matchrad*u.arcsec)[0]
         # ADM assign the Gaia info to the array that corresponds to the passed object.
         if len(idgaia) > 0:
             gaiainfo = gaia[idgaia]
