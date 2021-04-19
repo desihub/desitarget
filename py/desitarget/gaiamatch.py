@@ -24,7 +24,7 @@ from desitarget import io
 from desitarget.io import check_fitsio_version
 from desitarget.internal import sharedmem
 from desitarget.geomask import hp_in_box, add_hp_neighbors, pixarea2nside
-from desitarget.geomask import hp_beyond_gal_b, nside2nside
+from desitarget.geomask import hp_beyond_gal_b, nside2nside, rewind_coords
 from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -1119,13 +1119,6 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
           len(`objs`) objects are Gaia objects that do not have a sweeps
           match but are in the area bounded by `gaiabounds`.
     """
-    # ADM I'm getting this old Cython RuntimeWarning on search_around_sky ****:
-    # RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
-    # ADM but it doesn't seem malicious, so I'm filtering. I think its caused
-    # ADM by importing a scipy compiled against an older numpy than is installed
-    # ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
-    import warnings
-
     # ADM retain all Gaia objects in a sweeps-like box.
     if retaingaia:
         ramin, ramax, decmin, decmax = gaiabounds
@@ -1138,12 +1131,15 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
     if nobjs == 1:
         return match_gaia_to_primary_single(objs, matchrad=matchrad)
 
-    # ADM make a zerod array of Gaia information for the passed objects.
-    gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
-
-    # ADM a supplemental (zero-length) array to hold Gaia objects that
-    # ADM don't match a sweeps object, in case retaingaia was set.
-    suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
+    # ADM set up the output arrays, contingent on the Gaia Data Release.
+    if dr == "edr3":
+        gaiainfo = np.zeros(nobjs, dtype=edr3datamodel.dtype)
+        suppgaiainfo = np.zeros(0, dtype=edr3datamodel.dtype)
+        prefix = "EDR3"
+    else:
+        gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
+        suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
+        prefix = "GAIA"
 
     # ADM objects without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
@@ -1155,13 +1151,19 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
         gaiafiles = find_gaia_files(objs, dr=dr)
 
     # ADM loop through the Gaia files and match to the passed objects.
+    gracol, gdeccol = "{}_RA".format(prefix), "{}_DEC".format(prefix)
     for fn in gaiafiles:
-        gaia = read_gaia_file(fn)
-        cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # ADM ****here's where the warning occurs...
-            idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
+        gaia = read_gaia_file(fn, dr=dr)
+        # ADM rewind the coordinates in the case of Gaia EDR3, which is
+        # ADM at a reference epoch of 2016.0 not 2015.5.
+        if dr == 'edr3':
+            rapast, decpast = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
+                                    gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
+                                    epochnow=2016.0, epochpast=2015.5)
+            gaia["EDR3_RA"] = rapast
+            gaia["EDR3_DEC"] = decpast
+        cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
+        idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
         # ADM assign the Gaia info to the array that corresponds to the passed objects.
         gaiainfo[idobjs] = gaia[idgaia]
 
@@ -1175,8 +1177,8 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
             if len(noidgaia) > 0:
                 suppg = gaia[noidgaia]
                 winbounds = np.where(
-                    (suppg["GAIA_RA"] >= ramin) & (suppg["GAIA_RA"] < ramax)
-                    & (suppg["GAIA_DEC"] >= decmin) & (suppg["GAIA_DEC"] < decmax)
+                    (suppg[gracol] >= ramin) & (suppg[gracol] < ramax)
+                    & (suppg[gdeccol] >= decmin) & (suppg[gdeccol] < decmax)
                 )[0]
                 # ADM Append those Gaia objects to the suppgaiainfo array.
                 if len(winbounds) > 0:
