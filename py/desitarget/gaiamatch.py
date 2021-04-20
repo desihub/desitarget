@@ -1086,7 +1086,7 @@ def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
-        Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE 
+        Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE
         EPOCH OF 2015.5 and EQUINOX J2000/ICRS.
     matchrad : :class:`float`, optional, defaults to 0.2 arcsec
         The matching radius in arcseconds.
