@@ -1258,14 +1258,14 @@ def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
 
 
 def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
-                       include=False):
+                       merge=False):
     """Match sweeps files to Gaia and rewrite with the Gaia columns added
 
     Parameters
     ----------
     infiles : :class:`list` or `str`
         A list of input filenames (sweep files) OR a single filename.
-        Arrays in the files must contain at least the columns "RA" and "DEC".
+        The files must contain at least the columns "RA" and "DEC".
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
     outdir : :class:`str`, optional, default to the current directory
@@ -1274,18 +1274,18 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
         The matching radius in arcseconds.
     dr : :class:`str`, optional, defaults to "edr3"
         Name of a Gaia data release. Options are "dr2", "edr3"
-    include : :class:`bool`, optional, defaults to ``False``
-        If ``True``, include the original sweeps columns in the output
-        file. Otherwise, just include the Gaia columns.
+    merge : :class:`bool`, optional, defaults to ``False``
+        If ``True``, merge the Gaia columns into the original sweeps
+        file. Otherwise, just write the Gaia columns.
 
     Returns
     -------
     Nothing
         But columns in `gaiadatamodel` or `edr3datamodel` that match
-        the input sweeps files are written to file (if `include=False`).
-        Columns from the input sweeps are also include if `include=True`.
-        The output filename resembles the input filename with ".fits"
-        replaced by "-gaia$DRmatch.fits", where $DR corresponds to `dr`.
+        the input sweeps files are written to file (if `merge=False`)
+        or written after merging with the input sweeps columns (if
+        `merge=True`). The output filename is the input filename with
+        ".fits" replaced by "-gaia$DRmatch.fits", where $DR is `dr`.
 
     Notes
     -----
@@ -1320,13 +1320,20 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
         # ADM read in the objects.
         objs, hdr = io.read_tractor(fnwdir, header=True)
 
+        # ADM add relevant header information.
+        hdr["SWEEP"] = fnwdir
+        hdr["MATCHRAD"] = matchrad
+        hdr["GAIADR"] = dr
+        # ADM match_gaia_to_primary always rewinds the epoch to 2015.5.
+        hdr["REFEPOCH"] = 2015.5
+
         # ADM match to Gaia sources.
         gaiainfo = match_gaia_to_primary(objs, matchrad=matchrad, dr=dr)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objs), time()-start))
 
         # ADM the extension name for the output file.
-        if include:
+        if merge:
             # ADM if we are writing sweeps columns, remove GAIA_RA/DEC
             # ADM as they aren't in the imaging surveys data model.
             gaiainfo = pop_gaia_coords(gaiainfo)
@@ -1335,9 +1342,10 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
             # ADM nothing will happen if the EDR3 fields aren't present.
             colmapper = {"EDR3_"+col.split("GAIA_")[-1]: col for col in
                          gaiadatamodel.dtype.names if "REF" not in col}
-            rfn.rename_fields(blat, colmapper)
+            gaiainfo = rfn.rename_fields(gaiainfo, colmapper)
             # ADM add the Gaia column information to the sweeps array.
-            for col in gaiainfo.dtype.names:
+            scols = set(gaiainfo.dtype.names).intersection(set(objs.dtype.names))
+            for col in scols:
                 objs[col] = gaiainfo[col]
             # ADM write out the file, atomically.
             fitsio.write(outfile+".tmp", objs,
