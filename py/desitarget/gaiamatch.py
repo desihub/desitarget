@@ -1326,7 +1326,6 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
                  .format(len(objs), time()-start))
 
         # ADM the extension name for the output file.
-        en = "GAIA_SWEEP"
         if include:
             # ADM if we are writing sweeps columns, remove GAIA_RA/DEC
             # ADM as they aren't in the imaging surveys data model.
@@ -1340,8 +1339,9 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
             # ADM add the Gaia column information to the sweeps array.
             for col in gaiainfo.dtype.names:
                 objs[col] = gaiainfo[col]
-            # ADM write out the file.
-            fitsio.write(outfile, objs, extname=en, header=hdr, clobber=True)
+            # ADM write out the file, atomically.
+            fitsio.write(outfile+".tmp", objs,
+                         extname="GAIA_SWEEP", header=hdr, clobber=True)
         else:
             # ADM we're just writing the gaiainfo. But, include object
             # ADM identification information (RELEASE, BRICKID, OBJID).
@@ -1353,8 +1353,11 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
                 outobjs[col] = objs[col]
             for col in gaiainfo.dtype.names:
                 outobjs[col] = gaiainfo[col]
-            # ADM write out the file.
-            fitsio.write(outfile, outobjs, extname=en, header=hdr, clobber=True)
+            # ADM write out the file, atomically.
+            fitsio.write(outfile+".tmp", outobjs,
+                         extname="GAIA_SWEEP", header=hdr, clobber=True)
+        # ADM rename the atomically written file.
+        os.rename(outfile+'.tmp', outfile)
 
         return True
 
