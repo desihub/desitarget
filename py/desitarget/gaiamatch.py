@@ -1369,9 +1369,11 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if nfile % 50 == 0 and nfile > 0:
-            rate = nfile / (time() - t0)
-            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
+        if nfile % 20 == 0 and nfile > 0:
+            elapsed = time() - t0
+            rate = elapsed / nfile
+            log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
+                     .format(nfile, nfiles, rate, elapsed/60.))
         nfile[...] += 1    # this is an in-place modification.
         return result
 
