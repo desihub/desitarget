@@ -709,7 +709,7 @@ def make_gaia_files(dr="dr2", numproc=32, download=False):
 
 
 def pop_gaia_coords(inarr):
-    """Convenience function to pop GAIA_RA and GAIA_DEC columns off an array
+    """Pop (DR2 and/or EDR3) GAIA_RA and GAIA_DEC columns off an array.
 
     Parameters
     ----------
@@ -719,10 +719,10 @@ def pop_gaia_coords(inarr):
     Returns
     -------
     :class:`~numpy.ndarray`
-        Input array with columns called "GAIA_RA" and/or "GAIA_DEC" removed.
+        Input array with Gaia RA/Dec columns removed.
     """
-
-    return rfn.drop_fields(inarr, ['GAIA_RA', 'GAIA_DEC'])
+    posscols = ['GAIA_RA', 'GAIA_DEC', 'EDR3_RA', 'EDR3_DEC']
+    return rfn.drop_fields(inarr, posscols)
 
 
 def pop_gaia_columns(inarr, popcols):
@@ -1257,7 +1257,8 @@ def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
     return gaiainfo
 
 
-def write_gaia_matches(infiles, numproc=4, outdir=".", dr="edr3", include=False):
+def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
+                       include=False):
     """Match sweeps files to Gaia and rewrite with the Gaia columns added
 
     Parameters
@@ -1269,6 +1270,8 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", dr="edr3", include=False)
         The number of parallel processes to use.
     outdir : :class:`str`, optional, default to the current directory
         The directory to write the files.
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
+        The matching radius in arcseconds.
     dr : :class:`str`, optional, defaults to "edr3"
         Name of a Gaia data release. Options are "dr2", "edr3"
     include : :class:`bool`, optional, defaults to ``False``
@@ -1277,13 +1280,12 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", dr="edr3", include=False)
 
     Returns
     -------
-    :class:`~numpy.ndarray`
-        Columns in `gaiadatamodel` or `edr3datamodel` that are matched to
-        the input sweeps files are added (if `include=True`) or returned
-        (if `include=False`) and written to file. Gaia `_RA` and `_DEC`
-        columns are not added if `include=True`. The filename is as for
-        the input filename with ".fits" replaced by "-gaia$DRmatch.fits"
-        where $DR corresponds to `dr`.
+    Nothing
+        But columns in `gaiadatamodel` or `edr3datamodel` that match
+        the input sweeps files are written to file (if `include=False`).
+        Columns from the input sweeps are also include if `include=True`.
+        The output filename resembles the input filename with ".fits"
+        replaced by "-gaia$DRmatch.fits", where $DR corresponds to `dr`.
 
     Notes
     -----
@@ -1300,7 +1302,9 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", dr="edr3", include=False)
     # ADM check that files exist before proceeding.
     for filename in infiles:
         if not os.path.exists(filename):
-            raise ValueError("{} doesn't exist".format(filename))
+            msg = "{} doesn't exist".format(filename)
+            log.critical(msg)
+            raise FileNotFoundError(msg)
 
     nfiles = len(infiles)
 
@@ -1317,19 +1321,31 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", dr="edr3", include=False)
         objs, hdr = io.read_tractor(fnwdir, header=True)
 
         # ADM match to Gaia sources.
-        gaiainfo = match_gaia_to_primary(objs)
+        gaiainfo = match_gaia_to_primary(objs, matchrad=matchrad, dr=dr)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objs), time()-start))
 
-        # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        # ADM in the imaging surveys data model.
-        gaiainfo = pop_gaia_coords(gaiainfo)
+        # ADM the extension name for the output file.
+        en = 'GAIA_SWEEP'
+        if include:
+            # ADM if we are writing sweeps columns, remove GAIA_RA/DEC
+            # ADM as they aren't in the imaging surveys data model.
+            gaiainfo = pop_gaia_coords(gaiainfo)
+            # ADM for EDR3, change column names to mimic the Legacy
+            # ADM Surveys if we're updating the Legacy Surveys files.
+            # ADM nothing will happen if the EDR3 fields aren't present.
+            colmapper = {"EDR3_"+col.split("GAIA_")[-1]: col for col in
+                         gaiadatamodel.dtype.names if "REF" not in col}
+            rfn.rename_fields(blat, colmapper)
+            # ADM add the Gaia column information to the sweeps array.
+            for col in gaiainfo.dtype.names:
+                objs[col] = gaiainfo[col]
+            # ADM write out.
+            fitsio.write(outfile, objs, extname=en, header=hdr, clobber=True)
+        else:
+            # ADM otherwise we're just writing the gaiainfo.
+            fitsio.write(outfile, gaiainfo, extname=en, header=hdr, clobber=True)
 
-        # ADM add the Gaia column information to the sweeps array.
-        for col in gaiainfo.dtype.names:
-            objs[col] = gaiainfo[col]
-
-        fitsio.write(outfile, objs, extname='SWEEP', header=hdr, clobber=True)
         return True
 
     # ADM this is just to count sweeps files in _update_status.
@@ -1352,7 +1368,7 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", dr="edr3", include=False)
         with pool:
             _ = pool.map(_get_gaia_matches, infiles, reduce=_update_status)
     else:
-        for file in infiles:
-            _ = _update_status(_get_gaia_matches(file))
+        for fn in infiles:
+            _ = _update_status(_get_gaia_matches(fn))
 
     return
