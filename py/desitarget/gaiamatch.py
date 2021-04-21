@@ -19,9 +19,10 @@ import pickle
 from glob import glob
 from time import time
 import healpy as hp
-from os.path import basename
+from . import __version__ as desitarget_version
+from desiutil import depend
 from desitarget import io
-from desitarget.io import check_fitsio_version
+from desitarget.io import check_fitsio_version, gitversion
 from desitarget.internal import sharedmem
 from desitarget.geomask import hp_in_box, add_hp_neighbors, pixarea2nside
 from desitarget.geomask import hp_beyond_gal_b, nside2nside, rewind_coords
@@ -1326,6 +1327,8 @@ def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
         hdr["GAIADR"] = dr
         # ADM match_gaia_to_primary always rewinds the epoch to 2015.5.
         hdr["REFEPOCH"] = 2015.5
+        depend.setdep(hdr, 'desitarget', desitarget_version)
+        depend.setdep(hdr, 'desitarget-git', gitversion())
 
         # ADM match to Gaia sources.
         gaiainfo = match_gaia_to_primary(objs, matchrad=matchrad, dr=dr)
