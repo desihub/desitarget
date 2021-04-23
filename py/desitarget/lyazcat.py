@@ -21,7 +21,7 @@ from quasarnp.io import load_model
 from quasarnp.io import load_desi_coadd
 from quasarnp.utils import process_preds
 from squeze.model import Model
-from squeze.common_functions import save_json, load_json
+from squeze.common_functions import load_json
 from squeze.candidates import Candidates
 from squeze.desi_spectrum import DesiSpectrum
 from squeze.spectra import Spectra
@@ -116,10 +116,10 @@ def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
     data, w = load_desi_coadd(coaddname)
     data = data[:, :, None]
     p = qnp_model.predict(data)
-    c_line, z_line, zbest, cbest, c_line_bal, z_line_bal = process_preds(p,
-                                                                         qnp_lines,
-                                                                         qnp_lines_bal)
+    c_line, z_line, zbest, c_line_bal, z_line_bal = process_preds(p, qnp_lines,
+                                                                  qnp_lines_bal)
 
+    cbest = np.array(c_line[c_line.argmax(axis=0), np.arange(len(zbest))])
     c_thresh = 0.5
     n_thresh = 1
     is_qso = np.sum(c_line > c_thresh, axis=0) >= n_thresh
@@ -306,9 +306,9 @@ def create_zcat(tile, night, petal_num,
                 zcatdir='/global/cfs/cdirs/desi/spectro/redux/daily', 
                 outputdir='/global/cfs/cdirs/desi/spectro/redux/daily',
                 qn_flag=False, sq_flag=False, abs_flag=False,
-                qnp_model='/global/cfs/cdirs/desi/science/lya/qn_models/boss_dr12/qn_train_coadd_indtrain_0_0_boss10.h5',
-                squeze_model='/global/homes/e/ebie/local/SQUEzE/data/BOSS_train_64plates_model.json',
-                qnp_lines=None, qnp_lines_bal=None):
+                qnp_model='/global/cfs/cdirs/desi/target/catalogs/lya/qn_models/qn_train_coadd_indtrain_0_0_boss10.h5',
+                squeze_model='/global/cfs/cdirs/desi/target/catalogs/lya/sq_models/BOSS_train_64plates_model.json',
+                qnp_lines=None, qnp_lines_bal=None, vi_flag=False):
     """This will create a single zcat file from a set of user inputs.
     
     Parameters
@@ -346,6 +346,11 @@ def create_zcat(tile, night, petal_num,
         The list of BAL lines to use for QuasarNP to identify BALs. If
         the script is run in loop mode, the list is passed from the calling
         function, otherwise it's created below.
+    vi_flag : :class:'bool'
+        Flag to test this script on the VI'd tiles from SV1/Blanc. These
+        were created with exposures only totalling ~1000 sec R_DEPTH_EBVAIR,
+        so we can use them as a truth set. This will load coadd and zbest
+        files from a different directory automatically.
         
     Outputs
     -------
@@ -359,11 +364,11 @@ def create_zcat(tile, night, petal_num,
     # EBL Load the SQUEzE Model file first. This is a very large file,
     # so if multiple petals are to be processed, we only want to load
     # it into memory once.
-    if isintance(qnp_model, str) and qn_flag:
+    if isinstance(qnp_model, str) and qn_flag:
         tmark('    Loading QuasarNP Model file')
         qnp_lines = ['LYA', 'CIV(1548)', 'CIII(1909)', 'MgII(2796)', 'Hbeta', 'Halpha']
         qnp_lines_bal = ['CIV(1548)']
-        qnp_model = load_model('/global/cfs/cdirs/desi/science/lya/qn_models/boss_dr12/qn_train_coadd_indtrain_0_0_boss10.h5')
+        qnp_model = load_model(qnp_model)
         tmark('      QNP model file loaded')
     if isinstance(squeze_model, str) and sq_flag:
         tmark('    Loading SQUEzE Model file')
@@ -381,6 +386,9 @@ def create_zcat(tile, night, petal_num,
     zbestname = f'zbest-{filename_tag}'
     coaddname = f'coadd-{filename_tag}'
     outputname = f'zqso-{filename_tag}'
+    
+    if vi_flag:
+        ymdir = os.path.join(os.getenv('CSCRATCH'), 'graydark')
     
     zcat = make_new_zcat(os.path.join(ymdir, zbestname))
     if isinstance(zcat, bool):
@@ -409,6 +417,11 @@ if __name__=='__main__':
     #    -1, 20210406
     #    -84, 20210410
     #    -85, 20210412
+    # For the VI'd tiles using the processed r_depth_ebvair of ~1000
+    #    TILEIDs: 80605, 80607, 80609, 80620, 80622
+    #    NIGHTID: All use 20210302 (when I made those files). Date is
+    #             meaningless in this case, just there due to filename
+    #             format requirements.
     import argparse
     
     parser = argparse.ArgumentParser(description='Create a zcat file with additional ML data for a single tile/night combination.')
@@ -428,10 +441,12 @@ if __name__=='__main__':
                         help='Add SQUEzE data to zcat.')
     parser.add_argument('-m', '--add_mgii', action='store_true',
                         help='Add MgII absorption data to zcat.')
-    parser.add_argument('-n', '--qnp_modelfn', default='/global/cfs/cdirs/desi/science/lya/qn_models/boss_dr12/qn_train_coadd_indtrain_0_0_boss10.h5',
+    parser.add_argument('-n', '--qnp_modelfn', default='/global/cfs/cdirs/desi/target/catalogs/lya/qn_models/qn_train_coadd_indtrain_0_0_boss10.h5',
                         help='The full path and filename for the SQUEzE model file.')
-    parser.add_argument('-e', '--squeze_modelfn', default='/global/homes/e/ebie/local/SQUEzE/data/BOSS_train_64plates_model.json',
+    parser.add_argument('-e', '--squeze_modelfn', default='/global/cfs/cdirs/desi/target/catalogs/lya/sq_models/BOSS_train_64plates_model.json',
                         help='The full path and filename for the SQUEzE model file.')
+    parser.add_argument('-v', '--vi_test_flag', action='store_true',
+                        help='Bypasses the daily directory for redrock and uses the reprocessed VI tiles for testing.')
     args = parser.parse_args()
     
     # EBL For temporary testing purposes:
@@ -442,7 +457,7 @@ if __name__=='__main__':
             tmark('    Loading QuasarNP Model file')
             qnp_lines = ['LYA', 'CIV(1548)', 'CIII(1909)', 'MgII(2796)', 'Hbeta', 'Halpha']
             qnp_lines_bal = ['CIV(1548)']
-            qnp_model = load_model('/global/cfs/cdirs/desi/science/lya/qn_models/boss_dr12/qn_train_coadd_indtrain_0_0_boss10.h5')
+            qnp_model = load_model(args.qnp_modelfn)
             tmark('      QNP model file loaded')
         if args.add_squeze:
             tmark('    Loading SQUEzE Model file')
@@ -454,10 +469,12 @@ if __name__=='__main__':
                         qn_flag=args.add_quasarnp, sq_flag=args.add_squeze,
                         abs_flag=args.add_mgii, qnp_model=qnp_model,
                         squeze_model=sq_model, qnp_lines=qnp_lines,
-                        qnp_lines_bal=qnp_lines_bal)
+                        qnp_lines_bal=qnp_lines_bal,
+                        vi_flag=args.vi_test_flag)
     else:
         create_zcat(args.tile, args.night, args.petal_num,
                     zcatdir=args.input_dir, outputdir=args.output_dir,
                     qn_flag=args.add_quasarnp, sq_flag=args.add_squeze,
                     abs_flag=args.add_mgii, qnp_model=args.qnp_modelfn,
-                    squeze_model=args.squeze_modelfn)
+                    squeze_model=args.squeze_modelfn,
+                    vi_flag=args.vi_test_flag)
