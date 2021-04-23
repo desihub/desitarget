@@ -60,7 +60,7 @@ def tmark(istring):
     """
     t0 = time.time()
     t_start = time.strftime('%Y-%m-%d | %H:%M:%S')
-    print('\n{}: {}'.format(istring,t_start))
+    log.info('\n{}: {}'.format(istring,t_start))
 
     
 def make_new_zcat(zbestname):
@@ -117,7 +117,8 @@ def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
     data = data[:, :, None]
     p = qnp_model.predict(data)
     c_line, z_line, zbest, c_line_bal, z_line_bal = process_preds(p, qnp_lines,
-                                                                  qnp_lines_bal)
+                                                                  qnp_lines_bal,
+                                                                  verbose=False)
 
     cbest = np.array(c_line[c_line.argmax(axis=0), np.arange(len(zbest))])
     c_thresh = 0.5
@@ -407,8 +408,8 @@ def create_zcat(tile, night, petal_num,
         full_outputname = zcat_writer(outputdir, fzcat, outputname, qn_flag,
                                       sq_flag, abs_flag)
     
-        tmark('--{} written out correctly.'.format(full_outputname))
-        print('===================================')
+        tmark('    --{} written out correctly.'.format(full_outputname))
+        print('='*60)
 
     
 if __name__=='__main__':
