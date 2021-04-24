@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+
+import os
+from desitarget.mtl import get_zcat_dir
+from desitarget.lyazcat import get_qn_model_fname, load_qn_model
+from desitarget.lyazcat import get_sq_model_fname, load_sq_model
+from desitarget.lyazcat import create_zcat, tmark
+
+# EBL get the directory where zbest and coadd files are stored.
+zcat_dir = get_zcat_dir()
+zcat_dir = os.path.join(zcat_dir, 'tiles', 'cumulative')
+
+# EBL retrieve the file names for the QuasarNP and SQUEzE models
+#     from environment variables.
+qnmodel_fname = get_qn_model_fname()
+sqmodel_fname = get_sq_model_fname()
+
+# EBL Handy tileid/nightid combos for testing
+#    -  1, 20210406, Note: missing petal 7, good test for skipping bad petal.
+#    - 84, 20210410
+#    - 85, 20210412
+# For the VI'd tiles using the processed r_depth_ebvair of ~1000
+#    TILEIDs: 80605, 80607, 80609, 80620, 80622
+#    NIGHTID: All use 20210302 (when I made those files). Date is
+#             meaningless in this case, just there due to filename
+#             format requirements.
+
+from argparse import ArgumentParser
+
+arp = ArgumentParser(description='Create a zqso file with additional ML data for a single tile/night combination.')
+arp.add_argument('tile',
+                 help='TILEID of the tile to process.')
+arp.add_argument('night',
+                 help='NIGHTID of the tile to process in YYYYMMDD.')
+arp.add_argument('-p', '--petal', 
+                 type=int,
+                 metavar='NUM',
+                 choices=[-1,0,1,2,3,4,5,6,7,8,9],
+                 default=-1,
+                 help='Run for all petals (-1) or a single petal (0-9). \
+                 Defaults to -1.')
+arp.add_argument('-i', '--input_dir',
+                 metavar='ZCAT_DIR',
+                 default=zcat_dir,
+                 help='The input directory that contains redrock output. \
+                 Defaults to ${ZCAT_DIR}/tiles/cumulative/.')
+arp.add_argument('-o', '--output_dir',
+                 metavar='ZCAT_DIR',
+                 default=zcat_dir,
+                 help='The output directory for the zqso file. \
+                 Defaults to ${ZCAT_DIR}/tiles/cumulative/.')
+arp.add_argument('-q', '--add_quasarnp',
+                 action='store_true',
+                 help='Add QuasarNP data to zqso file.')
+arp.add_argument('-s', '--add_squeze',
+                 action='store_true',
+                 help='Add SQUEzE data to zqso file.')
+arp.add_argument('-m', '--add_mgii',
+                 action='store_true',
+                 help='Add MgII absorption data to zqso file.')
+arp.add_argument('-n', '--qn_model',
+                 metavar='QN_MODEL_FILE',
+                 default=qnmodel_fname,
+                 help='The full path and filename for the QuasarNP model \
+                 file. Defaults to ${QN_MODEL_FILE}.')
+arp.add_argument('-e', '--sqz_model',
+                 metavar='SQ_MODEL_FILE',
+                 default=sqmodel_fname,
+                 help='The full path and filename for the SQUEzE model \
+                 file. Defaults to ${SQ_MODEL_FILE}.')
+args = arp.parse_args()
+
+# EBL Load the QuasarNP model file if QuasarNP is activated.
+if args.add_quasarnp:
+    tmark('    Loading QuasarNP Model file')
+    qnp_model, qnp_lines, qnp_lines_bal = load_qn_model(args.qn_model)
+    tmark('      QNP model file loaded')
+else:
+    qnp_model, qnp_lines, qnp_lines_bal = None, None, None
+
+if args.add_squeze:
+    tmark('    Loading SQUEzE Model file')
+    sq_model = load_sq_model(args.sqz_model)
+    tmark('      Model file loaded')
+else:
+    sq_model = None
+
+# EBL For temporary testing purposes:
+args.output_dir = os.path.join(os.getenv('CSCRATCH'), 'lya_test', args.tile)
+
+if args.petal == -1:
+    for pnum in range(10):
+        create_zcat(args.tile, args.night, pnum,
+                    zcatdir=args.input_dir, outputdir=args.output_dir,
+                    qn_flag=args.add_quasarnp, qnp_model=qnp_model,
+                    qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
+                    sq_flag=args.add_squeze, squeze_model=sq_model,
+                    abs_flag=args.add_mgii)
+else:
+    create_zcat(args.tile, args.night, args.petal,
+                zcatdir=args.input_dir, outputdir=args.output_dir,
+                qn_flag=args.add_quasarnp, qnp_model=qnp_model,
+                qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
+                sq_flag=args.add_squeze, squeze_model=sq_model,
+                abs_flag=args.add_mgii)

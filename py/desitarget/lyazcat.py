@@ -12,7 +12,7 @@ from astropy.io import fits
 import fitsio
 import time
 
-from desitarget.geomask import match, match_to
+from desitarget.geomask import match
 from desitarget.internal import sharedmem
 from desitarget import io
 from desispec.io import read_spectra
@@ -52,11 +52,10 @@ def tmark(istring):
     istring : :class:'str'
         The input string to print to the terminal.
         
-    Output
-    ------
-    :class:'str'
-        A string with the date and time in ISO 8061 standard followed
-        by the istring.
+    Notes
+    -----
+    - A string with the date and time in ISO 8061 standard followed
+      by the 'istring'.
     """
     t0 = time.time()
     t_start = time.strftime('%Y-%m-%d | %H:%M:%S')
@@ -73,9 +72,10 @@ def make_new_zcat(zbestname):
         
     Returns
     -------
-    :class:`~numpy.array`
+    :class:`~numpy.array` or 'bool'
         A zcat in the official format (`zcatdatamodel`) compiled from
-        the `tile', 'night', and 'petal_num', in `zcatdir`.
+        the `tile', 'night', and 'petal_num', in `zcatdir`. If the zbest
+        file for that petal doesn't exist, returns False.
     """
     tmark('    Making redrock zcat')
     try:
@@ -92,6 +92,57 @@ def make_new_zcat(zbestname):
         return False
 
     
+def get_qn_model_fname(qnmodel_fname=None):
+    """Convenience function to grab the $QN_MODEL_FNAME environment variable.
+
+    Parameters
+    ----------
+    qnmodel_fname : :class:`str`, optional, defaults to $QN_MODEL_FNAME
+        If `qnmodel_fname` is passed, it is returned from this function. If it's
+        not passed, the $QN_MODEL_FNAME variable is returned.
+
+    Returns
+    -------
+    :class:`str`
+        not passed, the directory stored in the $QN_MODEL_FNAME environment
+        variable is returned prepended to the default filename.
+    """
+    if qnmodel_fname is None:
+        qnmodel_fname = os.environ.get('QN_MODEL_FILE')
+        # EBL check that the $QN_MODEL_FNAME environment variable is set.
+        if qnmodel_fname is None:
+            msg = "Pass qnmodel_fname or set $QN_MODEL_FNAME environment variable!"
+            log.critical(msg)
+            raise ValueError(msg)
+
+    return qnmodel_fname
+
+
+def load_qn_model(model_filename):
+    """Convenience function to load the QuasarNP model and line lists.
+    
+    Parameters
+    ----------
+    model_filename : :class:'str'
+        The filename and path of the QuasarNP model. Either input by user or defaults
+        to get_qn_model_fname().
+    
+    Returns
+    -------
+    :class:'~numpy.array'
+        The QuasarNP model file loaded as an array.
+    :class:'~numpy.array'
+        An array of the emission line names to be used for quasarnp.process_preds().
+    :class:'~numpy.array'
+        An array of the BAL emission line names to be used by quasarnp.process_preds().
+    """
+    lines = ['LYA', 'CIV(1548)', 'CIII(1909)', 'MgII(2796)', 'Hbeta', 'Halpha']
+    lines_bal = ['CIV(1548)']
+    model = load_model(model_filename)
+    
+    return model, lines, lines_bal
+
+
 def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
     """Apply the QuasarNP model to the input zcat and add data to columns.
     
@@ -99,26 +150,34 @@ def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
     ----------
     zcat : :class:'~numpy.array'
         The structured array that was created by make_new_zcat()
-    coaddname : class:'str'
+    coaddname : :class:'str'
         The name of the coadd file corresponding to the zbest file used
         in make_new_zcat()
+    qnp_model : :class:'h5.array'
+        The array containing the pre-trained QuasarNP model.
+    qnp_lines : :class:'list'
+        A list containing the names of the emission lines that
+        quasarnp.process_preds() should use.
+    qnp_lines_bal : :class:'list'
+        A list containing the names of the emission lines to check
+        for BAL troughs.
         
     Returns
     -------
     :class:'~numpy.array'
         The zcat array with QuasarNP data included in the columns:
-        * Z_QN
-        * Z_QN_CONF
-        * IS_QSO_QN
+        
+        * Z_QN        - The best QuasarNP redshift for the object
+        * Z_QN_CONF   - The confidence of Z_QN
+        * IS_QSO_QN   - A binary flag indicated object is a quasar
     """
     tmark('    Adding QuasarNP data')
     
     data, w = load_desi_coadd(coaddname)
     data = data[:, :, None]
     p = qnp_model.predict(data)
-    c_line, z_line, zbest, c_line_bal, z_line_bal = process_preds(p, qnp_lines,
-                                                                  qnp_lines_bal,
-                                                                  verbose=False)
+    c_line, z_line, zbest, *_ = process_preds(p, qnp_lines, qnp_lines_bal,
+                                              verbose=False)
 
     cbest = np.array(c_line[c_line.argmax(axis=0), np.arange(len(zbest))])
     c_thresh = 0.5
@@ -130,6 +189,56 @@ def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
     zcat['IS_QSO_QN'][w] = is_qso
 
     return zcat
+
+
+def get_sq_model_fname(sqmodel_fname=None):
+    """Convenience function to grab the $SQ_MODEL_FNAME environment variable.
+
+    Parameters
+    ----------
+    sqmodel_fname : :class:`str`, optional, defaults to $SQ_MODEL_FNAME
+        If `sqmodel_fname` is passed, it is returned from this function. If it's
+        not passed, the $SQ_MODEL_FNAME environment variable is returned.
+
+    Returns
+    -------
+    :class:`str`
+        If `sqmodel_fname` is passed, it is returned from this function. If it's
+        not passed, the directory stored in the $SQ_MODEL_FNAME environment
+        variable is returned.
+    """
+    if sqmodel_fname is None:
+        sqmodel_fname = os.environ.get('SQ_MODEL_FILE')
+        # EBL check that the $SQ_MODEL_FNAME environment variable is set.
+        if sqmodel_fname is None:
+            msg = "Pass sqmodel_fname or set $SQ_MODEL_FNAME environment variable!"
+            log.critical(msg)
+            raise ValueError(msg)
+
+    return sqmodel_fname
+
+
+def load_sq_model(model_filename):
+    """Convenience function for loading the SQUEzE model file.
+    
+    Parameters
+    ----------
+    model_filename : :class:'str'
+        The filename and path of the SQUEzE model file. Either input by user
+        or defaults to get_sq_model_fname().
+    
+    Returns
+    -------
+    :class:'~numpy.array'
+        A numpy array of the SQUEzE model.
+    
+    Notes
+    -----
+    - The input model file needs to be in the json file format.
+    """
+    model = Model.from_json(load_json(model_filename))
+    
+    return model
 
 
 def add_sq_data(zcat, coaddname, squeze_model):
@@ -149,8 +258,9 @@ def add_sq_data(zcat, coaddname, squeze_model):
     -------
     :class:'~numpy.array'
         The zcat array with SQUEzE data included in the columns:
-        * Z_SQ
-        * Z_SQ_CONF
+        
+        * Z_SQ        - The best redshift from SQUEzE for each object.
+        * Z_SQ_CONF   - The confidence value of this redshift.
     """
     tmark('    Adding SQUEzE data')
     mdata = ['TARGETID']
@@ -232,9 +342,10 @@ def add_abs_data(zcat, coaddname):
     Returns
     -------
     :class:'~numpy.array'
-        The zcat array with SQUEzE data included in the columns:
-        * Z_ABS
-        * Z_ABS_CONF
+        The zcat array with MgII Absorption data included in the columns:
+        
+        * Z_ABS        - The highest redshift of MgII absorption
+        * Z_ABS_CONF   - The confidence value for this redshift.
     """
     tmark('    MgII Absorption data not yet added.')
 
@@ -255,8 +366,9 @@ def zcomb_selector(zcat, proc_flag=False):
     -------
     :class:'~numpy.array'
         The zcat array with SQUEzE data included in the columns:
-        * Z_COMB
-        * Z_COMB_PROB
+        
+        * Z_COMB        - The best models-combined redshift for each object.
+        * Z_COMB_PROB   - The combined probability value of that redshift.
     """
     zcat['Z_COMB'][:] = zcat['Z']
     zcat['Z_COMB_PROB'][:] = 0.95
@@ -264,17 +376,17 @@ def zcomb_selector(zcat, proc_flag=False):
     return zcat
 
 
-def zcat_writer(outputdir, zcat, outputname, qn_flag=False, sq_flag=False, abs_flag=False):
+def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_flag=False):
     """Writes the zcat structured array out as a FITS file.
     
     Parameters
     ----------
+    zcat : :class:'~numpy.array'
+        The structured array that was created by make_new_zcat()
     outputdir : :class:'str'
         The directory where the zcat file will be written.
-    zcat : :class:'~numpy.array'
-        stuff
     outputname : :class:'str'
-        The filename of the zcat output file.
+        The filename of the zqso output file.
     qn_flag : :class:'bool'
         Flag if QuasarNP data (or not) was added to the zcat file.
     sq_flag : :class:'bool'
@@ -303,14 +415,10 @@ def zcat_writer(outputdir, zcat, outputname, qn_flag=False, sq_flag=False, abs_f
     return full_outputname
 
 
-def create_zcat(tile, night, petal_num,
-                zcatdir='/global/cfs/cdirs/desi/spectro/redux/daily', 
-                outputdir='/global/cfs/cdirs/desi/spectro/redux/daily',
-                qn_flag=False, sq_flag=False, abs_flag=False,
-                qnp_model='/global/cfs/cdirs/desi/target/catalogs/lya/qn_models/qn_train_coadd_indtrain_0_0_boss10.h5',
-                squeze_model='/global/cfs/cdirs/desi/target/catalogs/lya/sq_models/BOSS_train_64plates_model.json',
-                qnp_lines=None, qnp_lines_bal=None, vi_flag=False):
-    """This will create a single zcat file from a set of user inputs.
+def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
+                qnp_model=None, qnp_lines=None, qnp_lines_bal=None,
+                sq_flag=False, squeze_model=None, abs_flag=False):
+    """This will create a single zqso file from a set of user inputs.
     
     Parameters
     ----------
@@ -325,60 +433,30 @@ def create_zcat(tile, night, petal_num,
         The location for the daily redrock output.
     outputdir : :class:'str'
         The filepath to write out the zcat file.
-    qn_flag : :class:'bool'
+    qn_flag : :class:'bool', optional
         Flag to add QuasarNP data (or not) to the zcat file.
-    sq_flag : :class:'bool'
+    qnp_model : :class:'h5 array', optional
+        The QuasarNP model file to be used for line predictions.
+    qnp_lines : :class:'list', optional
+        The list of lines to use in the QuasarNP model to test against.
+    qnp_lines : :class:'list', optional
+        The list of BAL lines to use for QuasarNP to identify BALs.
+    sq_flag : :class:'bool', optional
         Flag to add SQUEzE data (or not) to the zcat file.
-    abs_flag : :class:'bool'
+    squeze_model : :class:'numpy.array', optional
+        The numpy array for the SQUEzE model file.
+    abs_flag : :class:'bool', optional
         Flag to add MgII Absorption data (or not) to the zcat file.
-    qnp_model : :class:'str' or 'h5 array'
-        The filename and path for the QuasarNP model file. IF this function
-        is run as part of a loop, the calling function will load the model
-        file and this will be an array instead.
-    squeze_model : :class:'str' or 'numpy.array'
-        The filename and path for the SQUEzE model file. IF this function
-        is run as part of a loop, the calling function will load the model
-        file and this will be an array instead.
-    qnp_lines : :class:'list' or None
-        The list of lines to use in the QuasarNP model to test against. If
-        the script is run in loop mode, the list is passed from the calling
-        function, otherwise it's created below.
-    qnp_lines : :class:'list' or None
-        The list of BAL lines to use for QuasarNP to identify BALs. If
-        the script is run in loop mode, the list is passed from the calling
-        function, otherwise it's created below.
-    vi_flag : :class:'bool'
-        Flag to test this script on the VI'd tiles from SV1/Blanc. These
-        were created with exposures only totalling ~1000 sec R_DEPTH_EBVAIR,
-        so we can use them as a truth set. This will load coadd and zbest
-        files from a different directory automatically.
-        
-    Outputs
-    -------
-    A FITS catalog that incorporates redrock, QuasarNP, SQUEzE, and MgII
-    absorption redshifts and confidence values.
     
     Notes
     -----
-    - There will be many here.
+    - Writes a FITS catalog that incorporates redrock, QuasarNP, SQUEzE, and MgII
+      absorption redshifts and confidence values. This will write to the same
+      directory of the zbest and coadd files unless a different output directory is
+      passed.
     """
-    # EBL Load the SQUEzE Model file first. This is a very large file,
-    # so if multiple petals are to be processed, we only want to load
-    # it into memory once.
-    if isinstance(qnp_model, str) and qn_flag:
-        tmark('    Loading QuasarNP Model file')
-        qnp_lines = ['LYA', 'CIV(1548)', 'CIII(1909)', 'MgII(2796)', 'Hbeta', 'Halpha']
-        qnp_lines_bal = ['CIV(1548)']
-        qnp_model = load_model(qnp_model)
-        tmark('      QNP model file loaded')
-    if isinstance(squeze_model, str) and sq_flag:
-        tmark('    Loading SQUEzE Model file')
-        squeze_model = Model.from_json(load_json(squeze_model))
-        tmark('      SQUEzE model file loaded')
-    
     # EBL Create the filepath for the input tile/night combination
-    rootdir = os.path.join(zcatdir, 'tiles', 'cumulative')
-    tiledir = os.path.join(rootdir, tile)
+    tiledir = os.path.join(zcatdir, tile)
     ymdir = os.path.join(tiledir, night)
         
     # EBL Create the filename tag that appends to zbest-*, coadd-*, and zqso-*
@@ -387,9 +465,6 @@ def create_zcat(tile, night, petal_num,
     zbestname = f'zbest-{filename_tag}'
     coaddname = f'coadd-{filename_tag}'
     outputname = f'zqso-{filename_tag}'
-    
-    if vi_flag:
-        ymdir = os.path.join(os.getenv('CSCRATCH'), 'graydark')
     
     zcat = make_new_zcat(os.path.join(ymdir, zbestname))
     if isinstance(zcat, bool):
@@ -405,77 +480,8 @@ def create_zcat(tile, night, petal_num,
         
         fzcat = zcomb_selector(zcat)
     
-        full_outputname = zcat_writer(outputdir, fzcat, outputname, qn_flag,
+        full_outputname = zcat_writer(fzcat, outputdir, outputname, qn_flag,
                                       sq_flag, abs_flag)
     
         tmark('    --{} written out correctly.'.format(full_outputname))
-        print('='*60)
-
-    
-if __name__=='__main__':
-    # TODO:  FIX TERMINAL FEEDBACK
-    # List of handy tiles to test (TILEID, NIGHTID)
-    #    -1, 20210406
-    #    -84, 20210410
-    #    -85, 20210412
-    # For the VI'd tiles using the processed r_depth_ebvair of ~1000
-    #    TILEIDs: 80605, 80607, 80609, 80620, 80622
-    #    NIGHTID: All use 20210302 (when I made those files). Date is
-    #             meaningless in this case, just there due to filename
-    #             format requirements.
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Create a zcat file with additional ML data for a single tile/night combination.')
-    parser.add_argument('tile', help='TILEID of the tile to process.')
-    parser.add_argument('night', help='NIGHTID of the tile to process.')
-    parser.add_argument('-i', '--input_dir', default='/global/cfs/cdirs/desi/spectro/redux/daily',
-                        help='The input directory that contains redrock output.')
-    parser.add_argument('-o', '--output_dir', default='/global/cfs/cdirs/desi/spectro/redux/daily',
-                        help='The output directory for the zcat file. Defaults to the zbest directory.')
-    parser.add_argument('-a', '--all_petals', action='store_true',
-                        help='Run all petals for a given tile/night combination.')
-    parser.add_argument('-p', '--petal_num', type=int, metavar='', choices=[0,1,2,3,4,5,6,7,8,9],
-                        default=0, help='Run for this petal number only.')
-    parser.add_argument('-q', '--add_quasarnp', action='store_true',
-                        help='Add QuasarNP data to zcat.')
-    parser.add_argument('-s', '--add_squeze', action='store_true',
-                        help='Add SQUEzE data to zcat.')
-    parser.add_argument('-m', '--add_mgii', action='store_true',
-                        help='Add MgII absorption data to zcat.')
-    parser.add_argument('-n', '--qnp_modelfn', default='/global/cfs/cdirs/desi/target/catalogs/lya/qn_models/qn_train_coadd_indtrain_0_0_boss10.h5',
-                        help='The full path and filename for the SQUEzE model file.')
-    parser.add_argument('-e', '--squeze_modelfn', default='/global/cfs/cdirs/desi/target/catalogs/lya/sq_models/BOSS_train_64plates_model.json',
-                        help='The full path and filename for the SQUEzE model file.')
-    parser.add_argument('-v', '--vi_test_flag', action='store_true',
-                        help='Bypasses the daily directory for redrock and uses the reprocessed VI tiles for testing.')
-    args = parser.parse_args()
-    
-    # EBL For temporary testing purposes:
-    args.output_dir = os.path.join(os.getenv('CSCRATCH'), 'lya_test', args.tile)
-    
-    if args.all_petals:
-        if args.add_quasarnp:
-            tmark('    Loading QuasarNP Model file')
-            qnp_lines = ['LYA', 'CIV(1548)', 'CIII(1909)', 'MgII(2796)', 'Hbeta', 'Halpha']
-            qnp_lines_bal = ['CIV(1548)']
-            qnp_model = load_model(args.qnp_modelfn)
-            tmark('      QNP model file loaded')
-        if args.add_squeze:
-            tmark('    Loading SQUEzE Model file')
-            sq_model = Model.from_json(load_json(args.squeze_modelfn))
-            tmark('      Model file loaded')
-        for petal_num in range(10):
-            create_zcat(args.tile, args.night, petal_num,
-                        zcatdir=args.input_dir, outputdir=args.output_dir,
-                        qn_flag=args.add_quasarnp, sq_flag=args.add_squeze,
-                        abs_flag=args.add_mgii, qnp_model=qnp_model,
-                        squeze_model=sq_model, qnp_lines=qnp_lines,
-                        qnp_lines_bal=qnp_lines_bal,
-                        vi_flag=args.vi_test_flag)
-    else:
-        create_zcat(args.tile, args.night, args.petal_num,
-                    zcatdir=args.input_dir, outputdir=args.output_dir,
-                    qn_flag=args.add_quasarnp, sq_flag=args.add_squeze,
-                    abs_flag=args.add_mgii, qnp_model=args.qnp_modelfn,
-                    squeze_model=args.squeze_modelfn,
-                    vi_flag=args.vi_test_flag)
+        print('='*79)
