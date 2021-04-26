@@ -87,3 +87,5 @@ setenv URAT_DIR /global/cfs/cdirs/desi/target/urat_dr1
 setenv TYCHO_DIR /global/cfs/cdirs/desi/target/tycho_dr2
 setenv TOO_DIR /global/cfs/cdirs/desi/target/ToO
 setenv ZCAT_DIR /global/cfs/cdirs/desi/spectro/redux/daily
+setenv QN_MODEL_FILE /global/cfs/cdirs/desi/target/catalogs/lya/qn_models/qn_train_coadd_indtrain_0_0_boss10.h5
+setenv SQ_MODEL_FILE /global/cfs/cdirs/desi/target/catalogs/lya/sq_models/BOSS_train_64plates_model.json
