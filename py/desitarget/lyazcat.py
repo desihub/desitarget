@@ -7,14 +7,11 @@ Post-redrock ML processing for LyA Quasar object identification.
 
 import os
 import numpy as np
-import sys
 from astropy.io import fits
-import fitsio
 import time
 
 from desitarget.geomask import match
 from desitarget.internal import sharedmem
-from desitarget import io
 from desispec.io import read_spectra
 
 from quasarnp.io import load_model
