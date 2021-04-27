@@ -6,6 +6,8 @@ desitarget Change Log
 -------------------
 
 * Add EDR3 options to code that writes Gaia-matched sweeps [`PR #715`_].
+* New function and bin script to make a redshift catalog [`PR #714`_]
+   * Incorporates functionality from QuasarNET and SQUEzE.
 * Update data model of MTL ledgers for the Main Survey [`PR #712`_]:
    * Express the ``TIMESTAMP`` in strict ISO format.
    * Ensure ``TARGET_STATE`` is a long enough string for all states.
@@ -22,6 +24,7 @@ desitarget Change Log
 .. _`PR #710`: https://github.com/desihub/desitarget/pull/710
 .. _`PR #711`: https://github.com/desihub/desitarget/pull/711
 .. _`PR #712`: https://github.com/desihub/desitarget/pull/712
+.. _`PR #714`: https://github.com/desihub/desitarget/pull/714
 .. _`PR #715`: https://github.com/desihub/desitarget/pull/715
 
 0.57.1 (2021-04-07)
