@@ -212,7 +212,8 @@ def sub_gaia_edr3(filename, objs=None):
 
     Notes
     -----
-        - The GAIA_DIR environment variable must be set.
+    - The GAIA_DIR environment variable must be set.
+    - The input `objs` will be altered (it it is not ``None``).
     """
     # ADM construct the GAIA sweep file location.
     ender = filename.split("dr9/")[-1].replace(".fits", '-gaiaedr3match.fits')

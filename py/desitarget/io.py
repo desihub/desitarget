@@ -153,7 +153,7 @@ def add_photsys(indata):
     return outdata
 
 
-def read_tractor(filename, header=False, columns=None):
+def read_tractor(filename, header=False, columns=None, gaiasub=False):
     """Read a tractor catalogue or sweeps file.
 
     Parameters
@@ -167,6 +167,11 @@ def read_tractor(filename, header=False, columns=None):
         desitarget.io.tsdatamodel.dtype.names + most of the columns in
         desitarget.gaiamatch.gaiadatamodel.dtype.names, where
         tsdatamodel is, e.g., basetsdatamodel + dr9addedcols.
+    gaiasub : :class:`boolean`, optional, defaults to ``False``
+        If ``True``, substitute Gaia EDR3 proper motion and parallax
+        columns over the sweeps values. If ``True``, then the GAIA_DIR
+        environment variable must be set to find the Gaia sweeps files,
+        and `filename` must be the full path to a DR9 sweeps file.
 
     Returns
     -------
@@ -182,6 +187,11 @@ def read_tractor(filename, header=False, columns=None):
                                   columns=columns)
     else:
         indata = fitsio.read(filename, upper=True, columns=columns)
+
+    # ADM if requested, sub-in Gaia EDR3 proper motions and parallaxes.
+    if gaiasub:
+        from desitarget.gaiamatch import sub_gaia_edr3
+        indata = sub_gaia_edr3(filename, objs=indata)
 
     # ADM form the final data model in a manner that maintains
     # ADM backwards-compatability with DR8.

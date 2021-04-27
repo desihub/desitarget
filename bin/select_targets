@@ -40,8 +40,8 @@ ap.add_argument('-m', "--mask",
                 help="If sent then mask the targets, the name of the mask file should be supplied")
 ap.add_argument('--qsoselection', choices=qso_selection_options, default='randomforest',
                 help="QSO target selection method")
-ap.add_argument("--gaiamatch", action='store_true',
-                help="DO match to Gaia DR2 chunks files in order to populate Gaia columns for MWS/STD selection")
+ap.add_argument("--gaiasub", action='store_true',
+                help="Substitute Gaia EDR3 proper motions and parallaxes in place of the sweeps (DR2) values. Only valid for DR9 sweeps files.")
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [defaults to {}]'.format(nproc),
                 default=nproc)
@@ -147,7 +147,7 @@ tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
 
 targets, infn = select_targets(
     infiles, numproc=ns.numproc, qso_selection=ns.qsoselection,
-    gaiamatch=ns.gaiamatch, nside=ns.nside, pixlist=pixlist, extra=extra,
+    gaiasub=ns.gaiasub, nside=ns.nside, pixlist=pixlist, extra=extra,
     bundlefiles=ns.bundlefiles, radecbox=inlists[0], radecrad=inlists[1],
     tcnames=tcnames, survey='main', backup=not(ns.nobackup),
     resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits), return_infiles=True
@@ -195,8 +195,8 @@ if ns.bundlefiles is None:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["tcnames"],
-                                  [ns.tcnames])}
+    extra = {k: v for k, v in zip(["tcnames", "gaiasub"],
+                                  [ns.tcnames, ns.gaiasub])}
 
     # ADM differentiate the Gaia-only and Legacy Surveys targets.
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
