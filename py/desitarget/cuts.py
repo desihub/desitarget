@@ -2653,7 +2653,7 @@ qso_selection_options = ['colorcuts', 'randomforest']
 
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-                   gaiamatch=False, nside=None, pixlist=None, bundlefiles=None,
+                   gaiasub=False, nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True, backup=True,
@@ -2669,7 +2669,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are
         ``'colorcuts'`` and ``'randomforest'``.
-    gaiamatch : :class:`boolean`, optional, defaults to ``False``
+    gaiasub : :class:`boolean`, optional, defaults to ``False``
         If ``True``, substitute Gaia EDR3 proper motion and parallax
         columns over the sweeps values. If ``True``, then the GAIA_DIR
         environment variable must be set to find the Gaia sweeps files.
@@ -2832,7 +2832,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     # - functions to run on every brick/sweep file
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
-        objects = io.read_tractor(filename)
+        objects = io.read_tractor(filename, gaiasub=gaiasub)
         desi_target, bgs_target, mws_target = apply_cuts(
             objects, qso_selection=qso_selection, tcnames=tcnames,
             survey=survey, resolvetargs=resolvetargs, mask=mask

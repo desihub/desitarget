@@ -192,6 +192,50 @@ def gaia_psflike(aen, g):
     return psflike
 
 
+def sub_gaia_edr3(filename, objs=None):
+    """Substitute Gaia EDR3 parallax and proper motions into DR9 sweeps.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Full path to a sweeps file e.g.
+        `legacysurvey/dr9/south/sweep/9.0/sweep-210p015-220p020.fits`.
+    objs : :class:`array_like`, optional, defaults to ``None``
+        The contents of `filename`. If ``None``, read from `filename`.
+
+    Returns
+    -------
+    :class:`array_like`
+        `objs` (or the contents of `filename`) is returned but with the
+        PARALLAX, PARALLAX_IVAR, PMRA, PMRA_IVAR, PMDEC, PMDEC_IVAR
+        columns substituted with their Gaia EDR3 values.
+
+    Notes
+    -----
+        - The GAIA_DIR environment variable must be set.
+    """
+    # ADM construct the GAIA sweep file location.
+    ender = filename.split("dr9/")[-1].replace(".fits", '-gaiaedr3match.fits')
+    gd = get_gaia_dir("edr3")
+    gsweepfn = os.path.join(gd, "sweeps", ender)
+
+    # ADM read the gaia sweep.
+    cols = ["PARALLAX", "PARALLAX_IVAR",
+            "PMRA", "PMRA_IVAR", "PMDEC", "PMDEC_IVAR"]
+    gaiacols = ["EDR3_{}".format(col) for col in cols]
+    gswobjs = fitsio.read(gsweepfn, "GAIA_SWEEP", columns=gaiacols)
+
+    # ADM if "objs" wasn't sent, read in the sweeps file.
+    if objs is None:
+        objs = fitsio.read(filename, "SWEEP")
+
+    # ADM substitute the proper motion/parallax columns.
+    for col, gaiacol in zip(cols, gaiacols):
+        objs[col] = gswobjs[gaiacol]
+
+    return objs
+
+
 def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
     """Correct gaia magnitudes based for dust.
 
