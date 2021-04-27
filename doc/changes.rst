@@ -6,6 +6,8 @@ desitarget Change Log
 -------------------
 
 * Add EDR3 options to code that writes Gaia-matched sweeps [`PR #715`_].
+   * Also add ``gaiasub`` functionality when selecting targets.
+   * Swaps EDR3 proper motions/parallaxes for values in sweeps files.
 * New function and bin script to make a redshift catalog [`PR #714`_]
    * Incorporates functionality from QuasarNET and SQUEzE.
 * Update data model of MTL ledgers for the Main Survey [`PR #712`_]:
