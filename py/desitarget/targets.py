@@ -746,29 +746,29 @@ def calc_priority(targets, zcat, obscon, state=False):
             # APC Secondaries only drive updates for specific DESI_TARGET
             # APC bits (https://github.com/desihub/desitarget/pull/530).
 
-            # Default behaviour is that targets with SCND_ANY bits set will
-            # ONLY be updated based on their secondary targetmask parameters IF
-            # they have NO primary target bits set (hence == on next line).
+            # APC Default behaviour is that targets with SCND_ANY bits set will
+            # APC ONLY be updated based on their secondary targetmask parameters IF
+            # APC they have NO primary target bits set (hence == on next line).
             scnd_update = (targets[desi_target] & desi_mask['SCND_ANY']) == 0
             log.info('{} scnd targets to be updated as secondary-only'.format(scnd_update.sum()))
 
-            # The exception to the rule above is that a subset of bits flagged
-            # with updatemws=True in the targetmask can drive updates for a
-            # subset of primary bits corresponding to MWS targets and
-            # standards. We first create a whitelist bitmask of those seconday
-            # bits.
+            # APC The exception to the rule above is that a subset of bits flagged
+            # APC with updatemws=True in the targetmask can drive updates for a
+            # APC subset of primary bits corresponding to MWS targets and
+            # APC standards. We first create a whitelist bitmask of those seconday
+            # APC bits.
             whitelist_scnd_bits = 0
             for name in scnd_mask.names():
                 if scnd_mask[name].updatemws:
                     whitelist_scnd_bits |= scnd_mask[name]
 
-            # Now we flag any target combinbing the whitelisted secondary bits
-            # and the restricted set of primary bits.
+            # APC Now we flag any target combinbing the whitelisted secondary bits
+            # APC and the restricted set of primary bits.
             whitelist_scnd = (targets[scnd_target] & whitelist_scnd_bits) != 0
 
             # APC Allow changes to primaries to be driven by the status of
-            # their matched secondary bits if the DESI_TARGET bitmask has any
-            # of the following bits set, but not any other bits.
+            # APC their matched secondary bits if the DESI_TARGET bitmask has any
+            # APC of the following bits set, but not any other bits.
             update_from_scnd_bits = (
                 desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
                 desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
@@ -776,7 +776,7 @@ def calc_priority(targets, zcat, obscon, state=False):
             whitelist_scnd &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
             log.info('{} more scnd targets allowed to update MWS primaries'.format((whitelist_scnd & ~scnd_update).sum()))
 
-            # Updateable targets are either pure secondary or whitelisted
+            # APC Updateable targets are either pure secondary or whitelisted
             scnd_update |= whitelist_scnd
             log.info('{} scnd targets to be updated in total'.format(scnd_update.sum()))
 

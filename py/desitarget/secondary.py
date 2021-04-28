@@ -576,23 +576,23 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     # APC obsconditions for specific DESI_TARGET bits
     # APC See https://github.com/desihub/desitarget/pull/530
 
-    # Default behaviour is that targets with SCND_ANY bits set will ONLY be
-    # have initial state set based on their secondary targetmask parameters IF
-    # they have NO primary target bits set (hence == on next line).
+    # APC Default behaviour is that targets with SCND_ANY bits set will ONLY be
+    # APC have initial state set based on their secondary targetmask parameters IF
+    # APC they have NO primary target bits set (hence == on next line).
     scnd_update = (targs[desicols[0]] & desi_mask['SCND_ANY']) == 0
     log.info('{} scnd targets will have initial state set as secondary-only'.format(scnd_update.sum()))
 
-    # The exception to the rule above is that a subset of bits flagged with
-    # updatemws=True in the targetmask can drive initial state for a subset of
-    # primary bits corresponding to MWS targets and standards. We first create
-    # a whitelist bitmask of those seconday bits.
+    # APC The exception to the rule above is that a subset of bits flagged with
+    # APC updatemws=True in the targetmask can drive initial state for a subset of
+    # APC primary bits corresponding to MWS targets and standards. We first create
+    # APC a whitelist bitmask of those seconday bits.
     whitelist_scnd_bits = 0
     for name in scnd_mask.names():
         if scnd_mask[name].updatemws:
             whitelist_scnd_bits |= scnd_mask[name]
 
-    # Now we flag any target combinbing the whitelisted secondary bits
-    # and the restricted set of primary bits.
+    # APC Now we flag any target combinbing the whitelisted secondary bits
+    # APC and the restricted set of primary bits.
     whitelist_scnd = (targets[scnd_target] & whitelist_scnd_bits) != 0
 
     # APC Allow changes to primaries to be driven by the status of
@@ -606,7 +606,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     log.info('{} scnd targets set initial priority, numobs, obscon of matched MWS primaries'.format(
         (whitelist_scnd & ~scnd_update).sum()))
 
-    # Updateable targets are either pure secondary or whitelisted
+    # APC Updateable targets are either pure secondary or whitelisted
     scnd_update |= whitelist_scnd
     log.info('{} scnd targets to be updated in total'.format(scnd_update.sum()))
 
