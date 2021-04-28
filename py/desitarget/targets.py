@@ -773,7 +773,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                 desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
                 desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
                 desi_mask['STD_WD'])
-            whitelist_scnd &= (targets[desi_target] & ~update_from_scnd_bits) == 0)
+            whitelist_scnd &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
             log.info('{} more scnd targets allowed to update MWS primaries'.format((whitelist_scnd & ~scnd_update).sum()))
 
             # Updateable targets are either pure secondary or whitelisted

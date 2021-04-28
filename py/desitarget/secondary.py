@@ -602,7 +602,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
         desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
         desi_mask['STD_WD'])
-    whitelist_scnd &= (targets[desicols[0]] & ~update_from_scnd_bits) == 0)
+    whitelist_scnd &= ((targets[desicols[0]] & ~update_from_scnd_bits) == 0)
     log.info('{} scnd targets set initial priority, numobs, obscon of matched MWS primaries'.format(
         (whitelist_scnd & ~scnd_update).sum()))
 
