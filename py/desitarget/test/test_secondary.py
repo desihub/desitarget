@@ -37,6 +37,16 @@ class TestSECONDARY(unittest.TestCase):
                 # ADM ...all of the included flavors are allowed flavors.
                 self.assertTrue(flavs.issubset(self.flavors))
 
+    def test_updatemws(self):
+        """Test that secondary masks have updatemws=True|False
+        """
+        # ADM for each mask...
+        for Mx in self.Mxs:
+            # ADM ...if we've already defined the updatemws property...
+            if "updatemws" in dir(Mx[Mx[0]]):
+                for bitname in Mx.names():
+                    self.assertTrue(isinstance(Mx[bitname].updatemws,bool))
+
     def test_downsample(self):
         """Test that secondary masks all have downsample defined and <= 1.
         """
