@@ -576,20 +576,41 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     # APC obsconditions for specific DESI_TARGET bits
     # APC See https://github.com/desihub/desitarget/pull/530
 
-    # APC Only consider primary targets with secondary bits set
-    scnd_update = (targs[desicols[0]] & desi_mask['SCND_ANY']) != 0
-    if np.any(scnd_update):
-        # APC Allow changes to primaries if the DESI_TARGET bitmask has
-        # APC only the following bits set, in any combination.
-        log.info('Test if secondaries can update {} matched primaries'.format(
-            scnd_update.sum()))
-        update_from_scnd_bits = (desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
-                                 desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT']
-                                 | desi_mask['STD_WD'])
-        scnd_update &= ((targs[desicols[0]] & ~update_from_scnd_bits) == 0)
-        log.info('New priority, numobs, obscon for {} matched primaries'.format(
-            scnd_update.sum()))
+    # Default behaviour is that targets with SCND_ANY bits set will ONLY be
+    # have initial state set based on their secondary targetmask parameters IF
+    # they have NO primary target bits set (hence == on next line).
+    scnd_update = (targs[desicols[0]] & desi_mask['SCND_ANY']) == 0
+    log.info('{} scnd targets will have initial state set as secondary-only'.format(scnd_update.sum()))
 
+    # The exception to the rule above is that a subset of bits flagged with
+    # updatemws=True in the targetmask can drive initial state for a subset of
+    # primary bits corresponding to MWS targets and standards. We first create
+    # a whitelist bitmask of those seconday bits.
+    whitelist_scnd_bits = 0
+    for name in scnd_mask.names():
+        if scnd_mask[name].updatemws:
+            whitelist_scnd_bits |= scnd_mask[name]
+
+    # Now we flag any target combinbing the whitelisted secondary bits
+    # and the restricted set of primary bits.
+    whitelist_scnd = (targets[scnd_target] & whitelist_scnd_bits) != 0
+
+    # APC Allow changes to primaries to be driven by the status of
+    # APC their matched secondary bits if the DESI_TARGET bitmask has any
+    # APC of the following bits set, but not any other bits.
+    update_from_scnd_bits = (
+        desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
+        desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
+        desi_mask['STD_WD'])
+    whitelist_scnd &= (targets[desicols[0]] & ~update_from_scnd_bits) == 0)
+    log.info('{} scnd targets set initial priority, numobs, obscon of matched MWS primaries'.format(
+        (whitelist_scnd & ~scnd_update).sum()))
+
+    # Updateable targets are either pure secondary or whitelisted
+    scnd_update |= whitelist_scnd
+    log.info('{} scnd targets to be updated in total'.format(scnd_update.sum()))
+
+    if np.any(scnd_update):
         # APC Primary and secondary obsconditions are or'd
         scnd_obscon = set_obsconditions(targs[scnd_update], scnd=True)
         targs['OBSCONDITIONS'][scnd_update] &= scnd_obscon

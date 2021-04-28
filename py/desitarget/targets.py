@@ -745,53 +745,78 @@ def calc_priority(targets, zcat, obscon, state=False):
         if scnd_target in targets.dtype.names:
             # APC Secondaries only drive updates for specific DESI_TARGET
             # APC bits (https://github.com/desihub/desitarget/pull/530).
-            scnd_update = (targets[desi_target] & desi_mask['SCND_ANY']) != 0
-            if np.any(scnd_update):
-                # APC Allow changes to primaries if the DESI_TARGET bitmask has any of the
-                # APC following bits set, but not any other bits.
-                update_from_scnd_bits = (
-                    desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
-                    desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
-                    desi_mask['STD_WD'])
-                scnd_update &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
-                log.info('{} scnd targets to be updated'.format(scnd_update.sum()))
 
+            # Default behaviour is that targets with SCND_ANY bits set will
+            # ONLY be updated based on their secondary targetmask parameters IF
+            # they have NO primary target bits set (hence == on next line).
+            scnd_update = (targets[desi_target] & desi_mask['SCND_ANY']) == 0
+            log.info('{} scnd targets to be updated as secondary-only'.format(scnd_update.sum()))
+
+            # The exception to the rule above is that a subset of bits flagged
+            # with updatemws=True in the targetmask can drive updates for a
+            # subset of primary bits corresponding to MWS targets and
+            # standards. We first create a whitelist bitmask of those seconday
+            # bits.
+            whitelist_scnd_bits = 0
             for name in scnd_mask.names():
-                # ADM only update priorities for passed observing conditions.
-                pricon = obsconditions.mask(scnd_mask[name].obsconditions)
-                if (obsconditions.mask(obscon) & pricon) != 0:
-                    ii = (targets[scnd_target] & scnd_mask[name]) != 0
-                    ii &= scnd_update
-                    # ADM LyA QSOs require more observations.
-                    # ADM (zcut is defined at the top of this module).
-                    good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
-                    # ADM Mid-z QSOs require more observations at low
-                    # ADM priority as requested by some secondary programs.
-                    good_midz = (zgood & (zcat['Z'] >= midzcut) &
-                                 (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
-                    # ADM secondary QSOs need processed like primary QSOs.
-                    if scnd_mask[name].flavor == "QSO":
-                        sbools = [unobs, done, good_hiz, good_midz,
-                                  ~good_hiz & ~good_midz, zwarn]
-                        snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
-                                  "DONE", "MORE_ZWARN"]
-                    else:
-                        sbools = [unobs, done, zgood, zwarn]
-                        snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
-                    for sbool, sname in zip(sbools, snames):
-                        # ADM update priorities and target states.
-                        Mxp = scnd_mask[name].priorities[sname]
-                        # ADM tiered system in SV3. Decrement MORE_ZWARN
-                        # ADM priority using the bit's zwarndecrement.
-                        # if survey == "sv3" and sname == "MORE_ZWARN":
-                        #    zwd = scnd_mask[name].priorities["ZWARN_DECREMENT"]
-                        #    Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
-                        # ADM update states BEFORE changing priorities.
-                        ts = "{}|{}".format("SCND", sname)
-                        target_state[ii & sbool] = np.where(
-                            priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
-                        priority[ii & sbool] = np.where(
-                            priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
+                if scnd_mask[name].updatemws:
+                    whitelist_scnd_bits |= scnd_mask[name]
+
+            # Now we flag any target combinbing the whitelisted secondary bits
+            # and the restricted set of primary bits.
+            whitelist_scnd = (targets[scnd_target] & whitelist_scnd_bits) != 0
+
+            # APC Allow changes to primaries to be driven by the status of
+            # their matched secondary bits if the DESI_TARGET bitmask has any
+            # of the following bits set, but not any other bits.
+            update_from_scnd_bits = (
+                desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
+                desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
+                desi_mask['STD_WD'])
+            whitelist_scnd &= (targets[desi_target] & ~update_from_scnd_bits) == 0)
+            log.info('{} more scnd targets allowed to update MWS primaries'.format((whitelist_scnd & ~scnd_update).sum()))
+
+            # Updateable targets are either pure secondary or whitelisted
+            scnd_update |= whitelist_scnd
+            log.info('{} scnd targets to be updated in total'.format(scnd_update.sum()))
+
+            if np.any(scnd_update):
+                for name in scnd_mask.names():
+                    # ADM only update priorities for passed observing conditions.
+                    pricon = obsconditions.mask(scnd_mask[name].obsconditions)
+                    if (obsconditions.mask(obscon) & pricon) != 0:
+                        ii = (targets[scnd_target] & scnd_mask[name]) != 0
+                        ii &= scnd_update
+                        # ADM LyA QSOs require more observations.
+                        # ADM (zcut is defined at the top of this module).
+                        good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
+                        # ADM Mid-z QSOs require more observations at low
+                        # ADM priority as requested by some secondary programs.
+                        good_midz = (zgood & (zcat['Z'] >= midzcut) &
+                                     (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+                        # ADM secondary QSOs need processed like primary QSOs.
+                        if scnd_mask[name].flavor == "QSO":
+                            sbools = [unobs, done, good_hiz, good_midz,
+                                      ~good_hiz & ~good_midz, zwarn]
+                            snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                                      "DONE", "MORE_ZWARN"]
+                        else:
+                            sbools = [unobs, done, zgood, zwarn]
+                            snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+                        for sbool, sname in zip(sbools, snames):
+                            # ADM update priorities and target states.
+                            Mxp = scnd_mask[name].priorities[sname]
+                            # ADM tiered system in SV3. Decrement MORE_ZWARN
+                            # ADM priority using the bit's zwarndecrement.
+                            # if survey == "sv3" and sname == "MORE_ZWARN":
+                            #    zwd = scnd_mask[name].priorities["ZWARN_DECREMENT"]
+                            #    Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
+                            # ADM update states BEFORE changing priorities.
+                            ts = "{}|{}".format("SCND", sname)
+                            target_state[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                            priority[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
 
         # Special case: IN_BRIGHT_OBJECT means priority=-1 no matter what.
         ii = (targets[desi_target] & desi_mask.IN_BRIGHT_OBJECT) != 0
