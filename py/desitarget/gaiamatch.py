@@ -19,12 +19,13 @@ import pickle
 from glob import glob
 from time import time
 import healpy as hp
-from os.path import basename
+from . import __version__ as desitarget_version
+from desiutil import depend
 from desitarget import io
-from desitarget.io import check_fitsio_version
+from desitarget.io import check_fitsio_version, gitversion
 from desitarget.internal import sharedmem
 from desitarget.geomask import hp_in_box, add_hp_neighbors, pixarea2nside
-from desitarget.geomask import hp_beyond_gal_b, nside2nside
+from desitarget.geomask import hp_beyond_gal_b, nside2nside, rewind_coords
 from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -189,6 +190,51 @@ def gaia_psflike(aen, g):
     )
 
     return psflike
+
+
+def sub_gaia_edr3(filename, objs=None):
+    """Substitute Gaia EDR3 parallax and proper motions into DR9 sweeps.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        Full path to a sweeps file e.g.
+        `legacysurvey/dr9/south/sweep/9.0/sweep-210p015-220p020.fits`.
+    objs : :class:`array_like`, optional, defaults to ``None``
+        The contents of `filename`. If ``None``, read from `filename`.
+
+    Returns
+    -------
+    :class:`array_like`
+        `objs` (or the contents of `filename`) is returned but with the
+        PARALLAX, PARALLAX_IVAR, PMRA, PMRA_IVAR, PMDEC, PMDEC_IVAR
+        columns substituted with their Gaia EDR3 values.
+
+    Notes
+    -----
+    - The GAIA_DIR environment variable must be set.
+    - The input `objs` will be altered (it it is not ``None``).
+    """
+    # ADM construct the GAIA sweep file location.
+    ender = filename.split("dr9/")[-1].replace(".fits", '-gaiaedr3match.fits')
+    gd = get_gaia_dir("edr3")
+    gsweepfn = os.path.join(gd, "sweeps", ender)
+
+    # ADM read the gaia sweep.
+    cols = ["PARALLAX", "PARALLAX_IVAR",
+            "PMRA", "PMRA_IVAR", "PMDEC", "PMDEC_IVAR"]
+    gaiacols = ["EDR3_{}".format(col) for col in cols]
+    gswobjs = fitsio.read(gsweepfn, "GAIA_SWEEP", columns=gaiacols)
+
+    # ADM if "objs" wasn't sent, read in the sweeps file.
+    if objs is None:
+        objs = fitsio.read(filename, "SWEEP")
+
+    # ADM substitute the proper motion/parallax columns.
+    for col, gaiacol in zip(cols, gaiacols):
+        objs[col] = gswobjs[gaiacol]
+
+    return objs
 
 
 def unextinct_gaia_mags(G, Bp, Rp, ebv, scaling=0.86):
@@ -709,7 +755,7 @@ def make_gaia_files(dr="dr2", numproc=32, download=False):
 
 
 def pop_gaia_coords(inarr):
-    """Convenience function to pop GAIA_RA and GAIA_DEC columns off an array
+    """Pop (DR2 and/or EDR3) GAIA_RA and GAIA_DEC columns off an array.
 
     Parameters
     ----------
@@ -719,10 +765,10 @@ def pop_gaia_coords(inarr):
     Returns
     -------
     :class:`~numpy.ndarray`
-        Input array with columns called "GAIA_RA" and/or "GAIA_DEC" removed.
+        Input array with Gaia RA/Dec columns removed.
     """
-
-    return rfn.drop_fields(inarr, ['GAIA_RA', 'GAIA_DEC'])
+    posscols = ['GAIA_RA', 'GAIA_DEC', 'EDR3_RA', 'EDR3_DEC']
+    return rfn.drop_fields(inarr, posscols)
 
 
 def pop_gaia_columns(inarr, popcols):
@@ -744,7 +790,7 @@ def pop_gaia_columns(inarr, popcols):
     return rfn.drop_fields(inarr, popcols)
 
 
-def read_gaia_file(filename, header=False, addobjid=False):
+def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
     """Read in a Gaia healpix file in the appropriate format for desitarget.
 
     Parameters
@@ -758,6 +804,9 @@ def read_gaia_file(filename, header=False, addobjid=False):
         "GAIA_OBJID" that is the integer number of each row read from
         file and a column "GAIA_BRICKID" that is the integer number of
         the file itself.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3". Used to
+        format the output data model.
 
     Returns
     -------
@@ -777,33 +826,56 @@ def read_gaia_file(filename, header=False, addobjid=False):
     fxcolnames = fx[1].get_colnames()
     hdr = fx[1].read_header()
 
-    # ADM the default list of columns.
-    readcolumns = list(ingaiadatamodel.dtype.names)
-    # ADM read 'em in.
-    outdata = fx[1].read(columns=readcolumns)
-    # ADM change the data model to what we want for each column.
-    outdata.dtype.names = gaiadatamodel.dtype.names
-
-    # ADM the proper motion ERRORS need to be converted to IVARs.
-    # ADM remember to leave 0 entries as 0.
-    for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
-        w = np.where(outdata[col] != 0)[0]
-        outdata[col][w] = 1./(outdata[col][w]**2.)
+    # ADM read appropriate columns and convert output data model names.
+    if dr == "edr3":
+        readcolumns = list(inedr3datamodel.dtype.names)
+        try:
+            outdata = fx[1].read(columns=readcolumns)
+        # ADM basic check for mismatched files.
+        except ValueError:
+            msg = "{} is a dr2 file, but the dr input is {}".format(filename, dr)
+            log.error(msg)
+            raise ValueError(msg)
+        outdata.dtype.names = edr3datamodel.dtype.names
+        prefix = "EDR3"
+        # ADM the proper motion ERRORS need to be converted to IVARs.
+        # ADM remember to leave 0 entries as 0.
+        for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
+            outcol = "{}_{}".format(prefix, col)
+            w = np.where(outdata[outcol] != 0)[0]
+            outdata[outcol][w] = 1./(outdata[outcol][w]**2.)
+    else:
+        readcolumns = list(ingaiadatamodel.dtype.names)
+        outdata = fx[1].read(columns=readcolumns)
+        # ADM basic check for mismatched files.
+        if 'G3' in outdata["REF_CAT"]:
+            msg = "{} is a dr3 file, but the dr input is {}".format(filename, dr)
+            log.error(msg)
+            raise ValueError(msg)
+        outdata.dtype.names = gaiadatamodel.dtype.names
+        prefix = "GAIA"
+        # ADM the proper motion ERRORS need to be converted to IVARs.
+        # ADM remember to leave 0 entries as 0.
+        for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
+            w = np.where(outdata[col] != 0)[0]
+            outdata[col][w] = 1./(outdata[col][w]**2.)
 
     # ADM if requested, add an object identifier for each file row.
     if addobjid:
         newdt = outdata.dtype.descr
-        for tup in ('GAIA_BRICKID', '>i4'), ('GAIA_OBJID', '>i4'):
+        for tup in [('{}_BRICKID'.format(prefix), '>i4'),
+                    ('{}_OBJID'.format(prefix), '>i4')]:
             newdt.append(tup)
         nobjs = len(outdata)
         newoutdata = np.zeros(nobjs, dtype=newdt)
         for col in outdata.dtype.names:
             newoutdata[col] = outdata[col]
-        newoutdata['GAIA_OBJID'] = np.arange(nobjs)
+        newoutdata['{}_OBJID'.format(prefix)] = np.arange(nobjs)
         nside = _get_gaia_nside()
-        hpnum = radec2pix(nside, outdata["GAIA_RA"], outdata["GAIA_DEC"])
+        hpnum = radec2pix(nside, outdata["{}_RA".format(prefix)],
+                          outdata["{}_DEC".format(prefix)])
         # ADM int should fail if HEALPix in the file aren't unique.
-        newoutdata['GAIA_BRICKID'] = int(np.unique(hpnum))
+        newoutdata['{}_BRICKID'.format(prefix)] = int(np.unique(hpnum))
         outdata = newoutdata
 
     # ADM return data from the Gaia file, with the header if requested.
@@ -815,7 +887,7 @@ def read_gaia_file(filename, header=False, addobjid=False):
         return outdata
 
 
-def find_gaia_files(objs, neighbors=True, radec=False):
+def find_gaia_files(objs, neighbors=True, radec=False, dr="dr2"):
     """Find full paths to Gaia healpix files for objects by RA/Dec.
 
     Parameters
@@ -829,6 +901,8 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     radec : :class:`bool`, optional, defaults to ``False``
         If ``True`` then the passed `objs` is an [RA, Dec] list instead of
         a rec array.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -844,14 +918,14 @@ def find_gaia_files(objs, neighbors=True, radec=False):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     return io.find_star_files(objs, hpxdir, nside,
                               neighbors=neighbors, radec=radec)
 
 
-def find_gaia_files_hp(nside, pixlist, neighbors=True):
+def find_gaia_files_hp(nside, pixlist, neighbors=True, dr="dr2"):
     """Find full paths to Gaia healpix files in a set of HEALPixels.
 
     Parameters
@@ -864,6 +938,8 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
         Also return files corresponding to all neighbors that touch the
         pixels in `pixlist` to prevent edge effects (e.g. a Gaia source
         is 1 arcsec outside of `pixlist` and so in an adjacent pixel).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -879,7 +955,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
     filenside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM work with pixlist as an array.
@@ -899,7 +975,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True):
     return gaiafiles
 
 
-def find_gaia_files_box(gaiabounds, neighbors=True):
+def find_gaia_files_box(gaiabounds, neighbors=True, dr="dr2"):
     """Find full paths to Gaia healpix files in an RA/Dec box.
 
     Parameters
@@ -911,6 +987,8 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
         Also return files corresponding to all neighboring pixels that touch
         the files that touch the box in order to prevent edge effects (e.g. if a Gaia
         source might be 1 arcsec outside of the box and so in an adjacent pixel)
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -930,7 +1008,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the box.
@@ -947,7 +1025,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True):
     return gaiafiles
 
 
-def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
+def find_gaia_files_beyond_gal_b(mingalb, neighbors=True, dr="dr2"):
     """Find full paths to Gaia healpix files beyond a Galactic b.
 
     Parameters
@@ -959,6 +1037,8 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
         Also return files corresponding to neighboring pixels that touch
         in order to prevent edge effects (e.g. if a Gaia source might be
         1 arcsec beyond mingalb and so in an adjacent pixel).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3".
 
     Returns
     -------
@@ -977,7 +1057,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels beyond mingalb.
@@ -994,7 +1074,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True):
     return gaiafiles
 
 
-def find_gaia_files_tiles(tiles=None, neighbors=True):
+def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
     """
     Parameters
     ----------
@@ -1005,6 +1085,8 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
         Also return all neighboring pixels that touch the files of interest
         in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
         away from a primary source and so in an adjacent pixel).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3".
 
     Returns
     -------
@@ -1025,7 +1107,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     nside = _get_gaia_nside()
 
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
 
     # ADM determine the pixels that touch the tiles.
@@ -1043,85 +1125,91 @@ def find_gaia_files_tiles(tiles=None, neighbors=True):
     return gaiafiles
 
 
-def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
-                          gaiabounds=[0., 360., -90., 90.]):
-    """Match a set of objects to Gaia healpix files and return the Gaia information.
+def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
+                          gaiabounds=[0., 360., -90., 90.], dr="edr3"):
+    """Match objects to Gaia healpix files and return Gaia information.
 
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
-        Must contain at least "RA" and "DEC".
-    matchrad : :class:`float`, optional, defaults to 1 arcsec
+        Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE
+        EPOCH OF 2015.5 and EQUINOX J2000/ICRS.
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
         The matching radius in arcseconds.
     retaingaia : :class:`float`, optional, defaults to False
-        If set, return all of the Gaia information in the "area" occupied by
-        the passed objects (whether a Gaia object matches a passed RA/Dec
-        or not.) THIS ASSUMES THAT THE PASSED OBJECTS ARE FROM A SWEEPS file
-        and that the integer values nearest the maximum and minimum passed RAs
+        If set, return all of the Gaia information in the "area" occupied
+        by `objs` (whether a Gaia object matches a passed RA/Dec or not.)
+        THIS ASSUMES THAT THE PASSED OBJECTS ARE FROM A SWEEPS file and
+        that integer values nearest the maximum and minimum passed RAs
         and Decs fairly represent the areal "edges" of that file.
     gaiabounds : :class:`list`, optional, defaults to the whole sky
-        Used in conjunction with `retaingaia` to determine over what area to
-        retrieve Gaia objects that don't match a sweeps object. Pass a 4-entry
-        list to represent an area bounded by [RAmin, RAmax, DECmin, DECmax]
+        Used with `retaingaia` to determine the area over which to
+        retrieve Gaia objects that don't match a sweeps object. Pass a
+        4-entry (corresponding to [RAmin, RAmax, DECmin, DECmax]).
+    dr : :class:`str`, optional, defaults to "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3". Specifies
+        which output data model to use.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        The matching Gaia information for each object, where the returned format and
-        columns correspond to `desitarget.gaiamatch.gaiadatamodel`
+        Gaia information for each matching object, in a format like
+        `gaiadatamodel` (for `dr=dr2`) or `edr3datamodel` (`dr=edr3`).
 
     Notes
     -----
-        - The first len(objs) objects correspond row-by-row to the passed objects.
-        - For objects that do NOT have a match in the Gaia files, the "REF_ID"
+        - The first len(`objs`) objects correspond row-by-row to `objs`.
+        - For objects that do NOT have a match in Gaia, the "REF_ID"
           column is set to -1, and all other columns are zero.
-        - If `retaingaia` is True then objects after the first len(objs) objects are
-          Gaia objects that do not have a sweeps match but that are in the area
-          bounded by `gaiabounds`
+        - If `retaingaia` is ``True`` then objects after the first
+          len(`objs`) objects are Gaia objects that do not have a sweeps
+          match but are in the area bounded by `gaiabounds`.
     """
-    # ADM I'm getting this old Cython RuntimeWarning on search_around_sky ****:
-    # RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
-    # ADM but it doesn't seem malicious, so I'm filtering. I think its caused
-    # ADM by importing a scipy compiled against an older numpy than is installed
-    # ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
-    import warnings
-
-    # ADM if retaingaia is True, retain all Gaia objects in a sweeps-like box.
+    # ADM retain all Gaia objects in a sweeps-like box.
     if retaingaia:
         ramin, ramax, decmin, decmax = gaiabounds
 
-    # ADM convert the coordinates of the input objects to a SkyCoord object.
+    # ADM convert the coordinates of the objects to a SkyCoord object.
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
     nobjs = cobjs.size
 
-    # ADM deal with the special case that only a single object was passed.
+    # ADM catch the special case that only a single object was passed.
     if nobjs == 1:
-        return match_gaia_to_primary_single(objs, matchrad=matchrad)
+        return match_gaia_to_primary_single(objs, matchrad=matchrad, dr=dr)
 
-    # ADM set up a zerod array of Gaia information for the passed objects.
-    gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
-
-    # ADM a supplemental (zero-length) array to hold Gaia objects that don't
-    # ADM match a sweeps object, in case retaingaia was set.
-    suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
+    # ADM set up the output arrays, contingent on the Gaia Data Release.
+    if dr == "edr3":
+        gaiainfo = np.zeros(nobjs, dtype=edr3datamodel.dtype)
+        suppgaiainfo = np.zeros(0, dtype=edr3datamodel.dtype)
+        prefix = "EDR3"
+    else:
+        gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
+        suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
+        prefix = "GAIA"
 
     # ADM objects without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
 
     # ADM determine which Gaia files need to be considered.
     if retaingaia:
-        gaiafiles = find_gaia_files_box(gaiabounds)
+        gaiafiles = find_gaia_files_box(gaiabounds, dr=dr)
     else:
-        gaiafiles = find_gaia_files(objs)
+        gaiafiles = find_gaia_files(objs, dr=dr)
 
     # ADM loop through the Gaia files and match to the passed objects.
-    for file in gaiafiles:
-        gaia = read_gaia_file(file)
-        cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # ADM ****here's where the warning occurs...
-            idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
+    gracol, gdeccol = "{}_RA".format(prefix), "{}_DEC".format(prefix)
+    for fn in gaiafiles:
+        gaia = read_gaia_file(fn, dr=dr)
+        # ADM rewind the coordinates in the case of Gaia EDR3, which is
+        # ADM at a reference epoch of 2016.0 not 2015.5.
+        if dr == 'edr3':
+            rarew, decrew = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
+                                          gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
+                                          epochnow=2016.0, epochpast=2015.5)
+            gaia["EDR3_RA"] = rarew
+            gaia["EDR3_DEC"] = decrew
+        cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
+        idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
         # ADM assign the Gaia info to the array that corresponds to the passed objects.
         gaiainfo[idobjs] = gaia[idgaia]
 
@@ -1135,8 +1223,8 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
             if len(noidgaia) > 0:
                 suppg = gaia[noidgaia]
                 winbounds = np.where(
-                    (suppg["GAIA_RA"] >= ramin) & (suppg["GAIA_RA"] < ramax)
-                    & (suppg["GAIA_DEC"] >= decmin) & (suppg["GAIA_DEC"] < decmax)
+                    (suppg[gracol] >= ramin) & (suppg[gracol] < ramax)
+                    & (suppg[gdeccol] >= decmin) & (suppg[gdeccol] < decmax)
                 )[0]
                 # ADM Append those Gaia objects to the suppgaiainfo array.
                 if len(winbounds) > 0:
@@ -1148,15 +1236,18 @@ def match_gaia_to_primary(objs, matchrad=1., retaingaia=False,
     return gaiainfo
 
 
-def match_gaia_to_primary_single(objs, matchrad=1.):
+def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
     """Match ONE object to Gaia "chunks" files and return the Gaia information.
 
     Parameters
     ----------
     objs : :class:`~numpy.ndarray`
         Must contain at least "RA" and "DEC". MUST BE A SINGLE ROW.
-    matchrad : :class:`float`, optional, defaults to 1 arcsec
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
         The matching radius in arcseconds.
+    dr : :class:`str`, optional, defaults to "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3". Specifies
+        which output data model to use.
 
     Returns
     -------
@@ -1169,37 +1260,42 @@ def match_gaia_to_primary_single(objs, matchrad=1.):
         - If the object does NOT have a match in the Gaia files, the "REF_ID"
           column is set to -1, and all other columns are zero
     """
-    # ADM I'm getting this old Cython RuntimeWarning on search_around_sky ****:
-    # RuntimeWarning: numpy.dtype size changed, may indicate binary incompatibility. Expected 96, got 88
-    # ADM but it doesn't seem malicious, so I'm filtering. I think its caused
-    # ADM by importing a scipy compiled against an older numpy than is installed
-    # ADM e.g. https://stackoverflow.com/questions/40845304/runtimewarning-numpy-dtype-size-changed-may-indicate-binary-incompatibility
-    import warnings
-
     # ADM convert the coordinates of the input objects to a SkyCoord object.
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
     nobjs = cobjs.size
     if nobjs > 1:
         log.error("Only matches one row but {} rows were sent".format(nobjs))
 
-    # ADM set up a zerod array of Gaia information for the passed object.
-    gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
+    # ADM set up the output arrays, contingent on the Gaia Data Release.
+    if dr == "edr3":
+        gaiainfo = np.zeros(nobjs, dtype=edr3datamodel.dtype)
+        prefix = "EDR3"
+    else:
+        gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
+        prefix = "GAIA"
 
     # ADM an object without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
 
     # ADM determine which Gaia files need to be considered.
-    gaiafiles = find_gaia_files(objs)
+    gaiafiles = find_gaia_files(objs, dr=dr)
 
     # ADM loop through the Gaia files and match to the passed object.
-    for file in gaiafiles:
-        gaia = read_gaia_file(file)
-        cgaia = SkyCoord(gaia["GAIA_RA"]*u.degree, gaia["GAIA_DEC"]*u.degree)
-        with warnings.catch_warnings():
-            warnings.simplefilter("ignore")
-            # ADM ****here's where the warning occurs...
-            sep = cobjs.separation(cgaia)
-            idgaia = np.where(sep < matchrad*u.arcsec)[0]
+    gracol, gdeccol = "{}_RA".format(prefix), "{}_DEC".format(prefix)
+    for fn in gaiafiles:
+        gaia = read_gaia_file(fn, dr=dr)
+        # ADM rewind the coordinates in the case of Gaia EDR3, which is
+        # ADM at a reference epoch of 2016.0 not 2015.5.
+        if dr == 'edr3':
+            rarew, decrew = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
+                                          gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
+                                          epochnow=2016.0, epochpast=2015.5)
+            gaia["EDR3_RA"] = rarew
+            gaia["EDR3_DEC"] = decrew
+
+        cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
+        sep = cobjs.separation(cgaia)
+        idgaia = np.where(sep < matchrad*u.arcsec)[0]
         # ADM assign the Gaia info to the array that corresponds to the passed object.
         if len(idgaia) > 0:
             gaiainfo = gaia[idgaia]
@@ -1207,27 +1303,35 @@ def match_gaia_to_primary_single(objs, matchrad=1.):
     return gaiainfo
 
 
-def write_gaia_matches(infiles, numproc=4, outdir="."):
+def write_gaia_matches(infiles, numproc=4, outdir=".", matchrad=0.2, dr="edr3",
+                       merge=False):
     """Match sweeps files to Gaia and rewrite with the Gaia columns added
 
     Parameters
     ----------
     infiles : :class:`list` or `str`
         A list of input filenames (sweep files) OR a single filename.
-        Arrays in the files must contain at least the columns "RA" and "DEC".
+        The files must contain at least the columns "RA" and "DEC".
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
     outdir : :class:`str`, optional, default to the current directory
         The directory to write the files.
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
+        The matching radius in arcseconds.
+    dr : :class:`str`, optional, defaults to "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3"
+    merge : :class:`bool`, optional, defaults to ``False``
+        If ``True``, merge the Gaia columns into the original sweeps
+        file. Otherwise, just write the Gaia columns.
 
     Returns
     -------
-    :class:`~numpy.ndarray`
-        The original sweeps files with the columns in `gaiadatamodel`
-        added (except for the columns `GAIA_RA` and `GAIA_DEC`) are
-        written to file. The filename is the same as the input
-        filename with the ".fits" replaced by "-gaia$DRmatch.fits"
-        where $DR is extracted from the $GAIA_DIR environment variable.
+    Nothing
+        But columns in `gaiadatamodel` or `edr3datamodel` that match
+        the input sweeps files are written to file (if `merge=False`)
+        or written after merging with the input sweeps columns (if
+        `merge=True`). The output filename is the input filename with
+        ".fits" replaced by "-gaia$DRmatch.fits", where $DR is `dr`.
 
     Notes
     -----
@@ -1235,7 +1339,7 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
         - The environment variable $GAIA_DIR must be set.
     """
     # ADM check that the GAIA_DIR is set and retrieve it.
-    gaiadir = get_gaia_dir()
+    gaiadir = get_gaia_dir(dr)
 
     # ADM convert a single file, if passed to a list of files.
     if isinstance(infiles, str):
@@ -1244,17 +1348,13 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
     # ADM check that files exist before proceeding.
     for filename in infiles:
         if not os.path.exists(filename):
-            raise ValueError("{} doesn't exist".format(filename))
+            msg = "{} doesn't exist".format(filename)
+            log.critical(msg)
+            raise FileNotFoundError(msg)
 
     nfiles = len(infiles)
 
-    # ADM extract a reasonable name for output files from the Gaia directory.
-    drloc = gaiadir.find("dr")
-    # ADM if we didn't find the substring "dr" go generic.
-    if drloc == -1:
-        ender = '-gaiamatch.fits'
-    else:
-        ender = '-gaia{}match.fits'.format(gaiadir[drloc:drloc+3])
+    ender = '-gaia{}match.fits'.format(dr)
 
     # ADM the critical function to run on every file.
     def _get_gaia_matches(fnwdir):
@@ -1266,20 +1366,55 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
         # ADM read in the objects.
         objs, hdr = io.read_tractor(fnwdir, header=True)
 
+        # ADM add relevant header information.
+        hdr["SWEEP"] = fnwdir
+        hdr["MATCHRAD"] = matchrad
+        hdr["GAIADR"] = dr
+        # ADM match_gaia_to_primary always rewinds the epoch to 2015.5.
+        hdr["REFEPOCH"] = 2015.5
+        depend.setdep(hdr, 'desitarget', desitarget_version)
+        depend.setdep(hdr, 'desitarget-git', gitversion())
+
         # ADM match to Gaia sources.
-        gaiainfo = match_gaia_to_primary(objs)
+        gaiainfo = match_gaia_to_primary(objs, matchrad=matchrad, dr=dr)
         log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
                  .format(len(objs), time()-start))
 
-        # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        # ADM in the imaging surveys data model.
-        gaiainfo = pop_gaia_coords(gaiainfo)
+        # ADM the extension name for the output file.
+        if merge:
+            # ADM if we are writing sweeps columns, remove GAIA_RA/DEC
+            # ADM as they aren't in the imaging surveys data model.
+            gaiainfo = pop_gaia_coords(gaiainfo)
+            # ADM for EDR3, change column names to mimic the Legacy
+            # ADM Surveys if we're updating the Legacy Surveys files.
+            # ADM nothing will happen if the EDR3 fields aren't present.
+            colmapper = {"EDR3_"+col.split("GAIA_")[-1]: col for col in
+                         gaiadatamodel.dtype.names if "REF" not in col}
+            gaiainfo = rfn.rename_fields(gaiainfo, colmapper)
+            # ADM add the Gaia column information to the sweeps array.
+            scols = set(gaiainfo.dtype.names).intersection(set(objs.dtype.names))
+            for col in scols:
+                objs[col] = gaiainfo[col]
+            # ADM write out the file, atomically.
+            fitsio.write(outfile+".tmp", objs,
+                         extname="GAIA_SWEEP", header=hdr, clobber=True)
+        else:
+            # ADM we're just writing the gaiainfo. But, include object
+            # ADM identification information (RELEASE, BRICKID, OBJID).
+            outdm = [desc for desc in objs.dtype.descr if 'RELEASE' in desc[0]
+                     or 'BRICKID' in desc[0] or 'OBJID' in desc[0]]
+            outdm += gaiainfo.dtype.descr
+            outobjs = np.empty(len(objs), dtype=outdm)
+            for col in ['RELEASE', 'BRICKID', 'OBJID']:
+                outobjs[col] = objs[col]
+            for col in gaiainfo.dtype.names:
+                outobjs[col] = gaiainfo[col]
+            # ADM write out the file, atomically.
+            fitsio.write(outfile+".tmp", outobjs,
+                         extname="GAIA_SWEEP", header=hdr, clobber=True)
+        # ADM rename the atomically written file.
+        os.rename(outfile+'.tmp', outfile)
 
-        # ADM add the Gaia column information to the sweeps array.
-        for col in gaiainfo.dtype.names:
-            objs[col] = gaiainfo[col]
-
-        fitsio.write(outfile, objs, extname='SWEEP', header=hdr, clobber=True)
         return True
 
     # ADM this is just to count sweeps files in _update_status.
@@ -1290,9 +1425,11 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
     def _update_status(result):
         """wrapper function for the critical reduction operation,
         that occurs on the main parallel process"""
-        if nfile % 50 == 0 and nfile > 0:
-            rate = nfile / (time() - t0)
-            log.info('{}/{} files; {:.1f} files/sec'.format(nfile, nfiles, rate))
+        if nfile % 20 == 0 and nfile > 0:
+            elapsed = time() - t0
+            rate = elapsed / nfile
+            log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
+                     .format(nfile, nfiles, rate, elapsed/60.))
         nfile[...] += 1    # this is an in-place modification.
         return result
 
@@ -1302,7 +1439,7 @@ def write_gaia_matches(infiles, numproc=4, outdir="."):
         with pool:
             _ = pool.map(_get_gaia_matches, infiles, reduce=_update_status)
     else:
-        for file in infiles:
-            _ = _update_status(_get_gaia_matches(file))
+        for fn in infiles:
+            _ = _update_status(_get_gaia_matches(fn))
 
     return

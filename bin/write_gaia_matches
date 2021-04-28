@@ -10,20 +10,40 @@ start = time()
 #warnings.simplefilter('error')
 
 import multiprocessing
-nproc = multiprocessing.cpu_count() // 2
+nproc = multiprocessing.cpu_count() // 5
 
 from desiutil.log import get_logger
 log = get_logger()
 
+# ADM the default matching radius in arcseconds.
+matchrad = 0.2
+# ADM the default Gaia data release.
+dr = "edr3"
+
 from argparse import ArgumentParser
-ap = ArgumentParser(description='Match sweeps files to Gaia and rewrite files with the Gaia columns added')
+ap = ArgumentParser(
+    description='Match sweeps files to Gaia and write matched files \
+    ($GAIA_DIR must be set and point to the Gaia DR2 files)'
+)
 ap.add_argument("src", 
                 help="Sweeps file or root directory with sweeps files")
 ap.add_argument("dest", 
                 help="Output directory")
 ap.add_argument("--numproc", type=int,
-                help='number of concurrent processes to use [{}]'.format(nproc),
+                help='number of concurrent processes [defaults to {}]'.format(
+                    nproc),
                 default=nproc)
+ap.add_argument("--matchrad", type=float,
+                help='matching radius [defaults to {}]'.format(matchrad),
+                default=matchrad)
+ap.add_argument("--dr",
+                help='Gaia data release [defaults to {}]'.format(dr),
+                default=dr)
+ap.add_argument("--merge", action='store_true',
+                help='merge Gaia and sweeps columns in the output files')
+ap.add_argument("--mopup", action='store_true',
+                help="Only generate files that aren't already in dest")
+
 
 ns = ap.parse_args()
 infiles = io.list_sweepfiles(ns.src)
@@ -31,9 +51,23 @@ if len(infiles) == 0:
     log.critical('no sweep files found')
     sys.exit(1)
 
+# ADM if requested, only process missing files.
+if ns.mopup:
+    # ADM the files that already appear in the dest directory.
+    donefns = io.list_sweepfiles(ns.dest)
+    log.info("{}/{} files already generated in {}".format(
+        len(donefns), len(infiles), ns.dest))
+    # ADM decode to just the edges of the already-generated files.
+    radecs = [io.decode_sweep_name(fn) for fn in donefns]
+    # ADM check if a corresponding file exists for each infile.
+    infiles = [fn for fn in infiles if io.decode_sweep_name(fn) not in radecs]
+    log.info("Generating remaining {} files".format(len(infiles)))
+
 log.info("running on {} processors".format(ns.numproc))
 
-write_gaia_matches(infiles, numproc=ns.numproc, outdir=ns.dest)
+write_gaia_matches(infiles, numproc=ns.numproc, outdir=ns.dest,
+                   matchrad=ns.matchrad, dr=ns.dr, merge=ns.merge)
 
-log.info('Wrote sweeps files matched to Gaia to {}...t={:.1f}s'.format(ns.dest, time()-start))
+log.info('Wrote sweeps files matched to Gaia to {}...t={:.1f}s'.format(
+    ns.dest, time()-start))
 

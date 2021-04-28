@@ -2537,7 +2537,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     return desi_target, bgs_target, mws_target, gaiaobjs
 
 
-def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
+def apply_cuts(objects, qso_selection='randomforest',
                tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                qso_optical_cuts=False, survey='main', resolvetargs=True,
                mask=True):
@@ -2551,9 +2551,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are
         ``'colorcuts'`` and ``'randomforest'``
-    gaiamatch : :class:`boolean`, optional, defaults to ``False``
-        If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
-        to facilitate the MWS and STD selections.
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
         for those specific target classes. A useful speed-up when testing.
@@ -2589,28 +2586,6 @@ def apply_cuts(objects, qso_selection='randomforest', gaiamatch=False,
     # - Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
-
-    # ADM add Gaia information, if requested, and if we're going to actually
-    # ADM process the target classes that need Gaia columns
-    if gaiamatch and ("MWS" in tcnames or "STD" in tcnames):
-        log.info('Matching Gaia to {} primary objects...t = {:.1f}s'
-                 .format(len(objects), time()-start))
-        gaiainfo = match_gaia_to_primary(objects)
-        log.info('Done with Gaia match for {} primary objects...t = {:.1f}s'
-                 .format(len(objects), time()-start))
-        # ADM remove the GAIA_RA, GAIA_DEC columns as they aren't
-        # ADM in the imaging surveys data model.
-        gaiainfo = pop_gaia_coords(gaiainfo)
-        # ADM if we need to match to Gaia, stick to the first Gaia data model
-        # ADM that we adopted for DR7.
-        gaiainfo = pop_gaia_columns(
-            gaiainfo,
-            ['REF_CAT', 'GAIA_PHOT_BP_RP_EXCESS_FACTOR',
-             'GAIA_ASTROMETRIC_SIGMA5D_MAX', 'GAIA_ASTROMETRIC_PARAMS_SOLVED']
-        )
-        # ADM add the Gaia column information to the primary array.
-        for col in gaiainfo.dtype.names:
-            objects[col] = gaiainfo[col]
 
     # - ensure uppercase column names if astropy Table.
     if isinstance(objects, (Table, Row)):
@@ -2678,7 +2653,7 @@ qso_selection_options = ['colorcuts', 'randomforest']
 
 
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
-                   gaiamatch=False, nside=None, pixlist=None, bundlefiles=None,
+                   gaiasub=False, nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
                    tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
                    survey='main', resolvetargs=True, backup=True,
@@ -2694,9 +2669,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are
         ``'colorcuts'`` and ``'randomforest'``.
-    gaiamatch : :class:`boolean`, optional, defaults to ``False``
-        If ``True``, match to Gaia DR2 chunks files and populate Gaia columns
-        to facilitate the MWS and STD selections.
+    gaiasub : :class:`boolean`, optional, defaults to ``False``
+        If ``True``, substitute Gaia EDR3 proper motion and parallax
+        columns over the sweeps values. If ``True``, then the GAIA_DIR
+        environment variable must be set to find the Gaia sweeps files.
     nside : :class:`int`, optional, defaults to `None`
         The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlefiles` inputs.
     pixlist : :class:`list` or `int`, optional, defaults to `None`
@@ -2856,11 +2832,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     # - functions to run on every brick/sweep file
     def _select_targets_file(filename):
         '''Returns targets in filename that pass the cuts'''
-        objects = io.read_tractor(filename)
+        objects = io.read_tractor(filename, gaiasub=gaiasub)
         desi_target, bgs_target, mws_target = apply_cuts(
-            objects, qso_selection=qso_selection, gaiamatch=gaiamatch,
-            tcnames=tcnames, survey=survey, resolvetargs=resolvetargs,
-            mask=mask
+            objects, qso_selection=qso_selection, tcnames=tcnames,
+            survey=survey, resolvetargs=resolvetargs, mask=mask
         )
 
         return _finalize_targets(objects, desi_target, bgs_target, mws_target)
