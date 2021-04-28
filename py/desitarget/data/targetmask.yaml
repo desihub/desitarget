@@ -120,15 +120,15 @@ mws_mask:
 #- ADM variable, e.g. $SECONDARY_DIR/veto.fits for VETO targets.
 scnd_mask:
     - [VETO,                    0, "Never observe, even if a primary target bit is set",
-        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', flavor: 'SPARE', downsample: 1}]
+        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', flavor: 'SPARE', downsample: 1, updatemws: False}]
     - [DR16Q,       1, "Known quasars from the SDSS DR16Q catalog",
-       {obsconditions: DARK|GRAY, filename: 'dr16q', flavor: 'SPARE', downsample: 1}]
+        {obsconditions: DARK|GRAY, filename: 'dr16q', flavor: 'SPARE', downsample: 1, updatemws: False}]
 
 # ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
-    - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO'}]
-    - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO'}]
-    - [DARK_TOO_LOP,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO'}]
-    - [DARK_TOO_HIP,      62, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO'}]
+    - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
+    - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
+    - [DARK_TOO_LOP,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
+    - [DARK_TOO_HIP,      62, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
 
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
