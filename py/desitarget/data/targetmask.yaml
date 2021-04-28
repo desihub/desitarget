@@ -5,7 +5,7 @@
 #- DESI primary survey target bit mask: dark survey + calib + 
 desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
-    - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
+    - [ELG,         1, "ELG", {obsconditions: DARK}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
 
     #- ADM QSO sub-classes
@@ -13,18 +13,18 @@ desi_mask:
 
     #- North vs. South selections
     - [LRG_NORTH,   8, "LRG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK}]
-    - [ELG_NORTH,   9, "ELG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK|GRAY}]
+    - [ELG_NORTH,   9, "ELG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK}]
     - [QSO_NORTH,   10, "QSO cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
 
     - [LRG_SOUTH,   16, "LRG cuts tuned for DECam data",      {obsconditions: DARK}]
-    - [ELG_SOUTH,   17, "ELG cuts tuned for DECam data",      {obsconditions: DARK|GRAY}]
+    - [ELG_SOUTH,   17, "ELG cuts tuned for DECam data",      {obsconditions: DARK}]
     - [QSO_SOUTH,   18, "QSO cuts tuned for DECam data",      {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",
         {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [STD_FAINT,   33, "Standard stars for dark/gray conditions", {obsconditions: DARK|GRAY}]
-    - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|GRAY|BRIGHT}]
+    - [STD_FAINT,   33, "Standard stars for dark/gray conditions", {obsconditions: DARK}]
+    - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|BRIGHT}]
     - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions",
         {obsconditions: BRIGHT}]
     - [BAD_SKY,      36, "Blank sky locations that are imperfect but still useable",
@@ -33,7 +33,7 @@ desi_mask:
         {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- Reserving some bits that we may not use
-    # - [STD_FAINT_BEST,   38, "High quality faint standard stars",  {obsconditions: DARK|GRAY}]
+    # - [STD_FAINT_BEST,   38, "High quality faint standard stars",  {obsconditions: DARK}]
     # - [STD_BRIGHT_BEST,  39, "High quality bright standard stars", {obsconditions: BRIGHT}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
@@ -75,7 +75,7 @@ mws_mask:
 
     #- Bits 0-3 (7 ids)
     - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT}]
-    - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_WD,              1, "Milky Way Survey White Dwarf",                           {obsconditions: BRIGHT|DARK}]
     - [MWS_NEARBY,          2, "Milky Way Survey volume-complete ~100pc sample",         {obsconditions: BRIGHT}]
 
     # Second layer flags additional subclasses that could apply to any
@@ -94,7 +94,7 @@ mws_mask:
     - [MWS_BROAD_SOUTH,     5, "Milky Way Survey cuts tuned for DECam",                    {obsconditions: BRIGHT}]
 
     #- 6: MWS BHBs
-    - [MWS_BHB,             6, "Milky Way Survey Blue Horizontal Branch stars", {obsconditions: BRIGHT|GRAY|DARK}]
+    - [MWS_BHB,             6, "Milky Way Survey Blue Horizontal Branch stars", {obsconditions: BRIGHT|DARK}]
 
     #- 8: Sub-classes of MWS_MAIN
     - [MWS_MAIN_BLUE,       8, "Milky Way Survey magnitude limited blue sample",              {obsconditions: BRIGHT}]
@@ -105,8 +105,8 @@ mws_mask:
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT}]
 
     # ADM Standard stars based only on Gaia.
-    - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK|GRAY}]
-    - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|GRAY|BRIGHT}]
+    - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK}]
+    - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|BRIGHT}]
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
 
     # ADM back-up targets for poor conditions and as filler.
@@ -148,7 +148,7 @@ scnd_mask:
     - [STRONG_LENS,            34, "See $SCND_DIR/docs/STRONG_LENS.txt",          {obsconditions: DARK,             filename: 'STRONG_LENS',         flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [WISE_VAR_QSO,           35, "See $SCND_DIR/docs/WISE_VAR_QSO.txt",         {obsconditions: DARK,             filename: 'WISE_VAR_QSO',        flavor: 'QSO',   updatemws: False, downsample: 1}]
     - [Z5_QSO,                 36, "See $SCND_DIR/docs/Z5_QSO.txt",               {obsconditions: DARK,             filename: 'Z5_QSO',              flavor: 'QSO',   updatemws: False, downsample: 1}]
-    - [MWS_MAIN_CLUSTER_SV,    38, "See $SCND_DIR/docs/MWS_MAIN_CLUSTER_SV.txt",  {obsconditions: DARK|GRAY|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV', flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [MWS_MAIN_CLUSTER_SV,    38, "See $SCND_DIR/docs/MWS_MAIN_CLUSTER_SV.txt",  {obsconditions: DARK|BRIGHT,      filename: 'MWS_MAIN_CLUSTER_SV', flavor: 'SPARE', updatemws: True,  downsample: 1}]
     - [BRIGHT_HPM,             40, "See $SCND_DIR/docs/BRIGHT_HPM.txt",           {obsconditions: BRIGHT,           filename: 'BRIGHT_HPM',          flavor: 'SPARE', updatemws: True,  downsample: 1}]
     - [WD_BINARIES_BRIGHT,     41, "See $SCND_DIR/docs/WD_BINARIES_BRIGHT.txt",   {obsconditions: BRIGHT,           filename: 'WD_BINARIES_BRIGHT',  flavor: 'SPARE', updatemws: True,  downsample: 1}]
     - [WD_BINARIES_DARK,       42, "See $SCND_DIR/docs/WD_BINARIES_DARK.txt",     {obsconditions: DARK,             filename: 'WD_BINARIES_DARK',    flavor: 'SPARE', updatemws: False, downsample: 1}]
@@ -168,11 +168,11 @@ scnd_mask:
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
 #- in which they are allowed to be observed.
-#- See DESI-0311 and DESI-0333 for discussion of DARK vs. GRAY
+#- See DESI-0311 and DESI-0333 for discussion of DARK vs. GRAY. GRAY is now essentially deprecated.
 obsconditions:
     - [DARK,        0, "Moon is down"]
     - [GRAY,        1, "Moon up; illum fraction<0.6 and (illum*elev)<30 deg"]
-    - [BRIGHT,      2, "Moon up and bright (not GRAY)"]
+    - [BRIGHT,      2, "Moon up and bright"]
     - [BACKUP,      3, "Very bad seeing, high extinction, or bright cloud cover"]
     - [TWILIGHT12,  4, "Between sunset/sunrise and 12 degree twilight"]
     - [TWILIGHT18,  5, "Between 12 and 18 degree twilight"]
