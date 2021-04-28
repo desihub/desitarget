@@ -30,7 +30,7 @@ ap.add_argument("skydir",
 ap.add_argument("dest",
                 help="Output supplemental sky targets directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--nskiespersqdeg", type=float,
-                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 16x margin)",
+                help="Number of sky locations to generate per sq. deg. (don't pass to read the default from desimodel.io with a 64x margin)",
                 default=None)
 ap.add_argument("--numproc", type=int,
                 help="number of concurrent processes to use (defaults to [{}])".format(nproc),
@@ -85,7 +85,7 @@ if gaiadir is None:
 # ADM if needed, determine the minimum density of sky fibers to generate.
 nskiespersqdeg = ns.nskiespersqdeg
 if nskiespersqdeg is None:
-    nskiespersqdeg = density_of_sky_fibers(margin=16)
+    nskiespersqdeg = density_of_sky_fibers(margin=64)
 log.info('Generating sky positions at a density of {}'.format(nskiespersqdeg))
 
 # ADM build the list of command line arguments as
