@@ -579,7 +579,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     # APC Default behaviour is that targets with SCND_ANY bits set will ONLY be
     # APC have initial state set based on their secondary targetmask parameters IF
     # APC they have NO primary target bits set (hence == on next line).
-    scnd_update = (targs[desicols[0]] & desi_mask['SCND_ANY']) == 0
+    scnd_update = targs[desicols[0]] == desi_mask['SCND_ANY']
     log.info('{} scnd targets will have initial state set as secondary-only'.format(scnd_update.sum()))
 
     # APC The exception to the rule above is that a subset of bits flagged with

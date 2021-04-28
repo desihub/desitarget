@@ -749,7 +749,7 @@ def calc_priority(targets, zcat, obscon, state=False):
             # APC Default behaviour is that targets with SCND_ANY bits set will
             # APC ONLY be updated based on their secondary targetmask parameters IF
             # APC they have NO primary target bits set (hence == on next line).
-            scnd_update = (targets[desi_target] & desi_mask['SCND_ANY']) == 0
+            scnd_update = targets[desi_target] == desi_mask['SCND_ANY']
             log.info('{} scnd targets to be updated as secondary-only'.format(scnd_update.sum()))
 
             # APC The exception to the rule above is that a subset of bits flagged
