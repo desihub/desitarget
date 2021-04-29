@@ -755,16 +755,16 @@ def calc_priority(targets, zcat, obscon, state=False):
             # APC The exception to the rule above is that a subset of bits flagged
             # APC with updatemws=True in the targetmask can drive updates for a
             # APC subset of primary bits corresponding to MWS targets and
-            # APC standards. We first create a whitelist bitmask of those seconday
+            # APC standards. We first create a bitmask of those permitted seconday
             # APC bits.
-            whitelist_scnd_bits = 0
+            permit_scnd_bits = 0
             for name in scnd_mask.names():
                 if scnd_mask[name].updatemws:
-                    whitelist_scnd_bits |= scnd_mask[name]
+                    permit_scnd_bits |= scnd_mask[name]
 
-            # APC Now we flag any target combinbing the whitelisted secondary bits
+            # APC Now we flag any target combinbing the permitted secondary bits
             # APC and the restricted set of primary bits.
-            whitelist_scnd = (targets[scnd_target] & whitelist_scnd_bits) != 0
+            permit_scnd = (targets[scnd_target] & permit_scnd_bits) != 0
 
             # APC Allow changes to primaries to be driven by the status of
             # APC their matched secondary bits if the DESI_TARGET bitmask has any
@@ -773,11 +773,11 @@ def calc_priority(targets, zcat, obscon, state=False):
                 desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
                 desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
                 desi_mask['STD_WD'])
-            whitelist_scnd &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
-            log.info('{} more scnd targets allowed to update MWS primaries'.format((whitelist_scnd & ~scnd_update).sum()))
+            permit_scnd &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
+            log.info('{} more scnd targets allowed to update MWS primaries'.format((permit_scnd & ~scnd_update).sum()))
 
-            # APC Updateable targets are either pure secondary or whitelisted
-            scnd_update |= whitelist_scnd
+            # APC Updateable targets are either pure secondary or explicitly permitted
+            scnd_update |= permit_scnd
             log.info('{} scnd targets to be updated in total'.format(scnd_update.sum()))
 
             if np.any(scnd_update):
@@ -874,7 +874,7 @@ def _cmx_calc_priority(targets, priority, obscon,
           handled.
 
     """
-    # Build a whitelist of targets to update
+    # Build a permitted list of targets to update
     names_to_update = ['SV0_' + label for label in ('STD_FAINT', 'STD_BRIGHT',
                                                     'BGS', 'MWS', 'WD', 'MWS_FAINT',
                                                     'MWS_CLUSTER', 'MWS_CLUSTER_VERYBRIGHT')]

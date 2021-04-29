@@ -585,15 +585,15 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     # APC The exception to the rule above is that a subset of bits flagged with
     # APC updatemws=True in the targetmask can drive initial state for a subset of
     # APC primary bits corresponding to MWS targets and standards. We first create
-    # APC a whitelist bitmask of those seconday bits.
-    whitelist_scnd_bits = 0
+    # APC a bitmask of those permitted seconday bits.
+    permit_scnd_bits = 0
     for name in scnd_mask.names():
         if scnd_mask[name].updatemws:
-            whitelist_scnd_bits |= scnd_mask[name]
+            permit_scnd_bits |= scnd_mask[name]
 
-    # APC Now we flag any target combinbing the whitelisted secondary bits
+    # APC Now we flag any target combinbing the permitted secondary bits
     # APC and the restricted set of primary bits.
-    whitelist_scnd = (targets[scnd_target] & whitelist_scnd_bits) != 0
+    permit_scnd = (targets[scnd_target] & permit_scnd_bits) != 0
 
     # APC Allow changes to primaries to be driven by the status of
     # APC their matched secondary bits if the DESI_TARGET bitmask has any
@@ -602,12 +602,12 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
         desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
         desi_mask['STD_WD'])
-    whitelist_scnd &= ((targets[desicols[0]] & ~update_from_scnd_bits) == 0)
+    permit_scnd &= ((targets[desicols[0]] & ~update_from_scnd_bits) == 0)
     log.info('{} scnd targets set initial priority, numobs, obscon of matched MWS primaries'.format(
-        (whitelist_scnd & ~scnd_update).sum()))
+        (permit_scnd & ~scnd_update).sum()))
 
-    # APC Updateable targets are either pure secondary or whitelisted
-    scnd_update |= whitelist_scnd
+    # APC Updateable targets are either pure secondary or explicitly permitted.
+    scnd_update |= permit_scnd
     log.info('{} scnd targets to be updated in total'.format(scnd_update.sum()))
 
     if np.any(scnd_update):
