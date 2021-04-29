@@ -444,7 +444,7 @@ numobs:
         LOW_Z_TIER3:            1
         BHB:                    1
         SPCV:                   1
-        DC3R2_GAMA:             1
+        DC3R2_GAMA:             4
         PSF_OUT_BRIGHT:         1
         PSF_OUT_DARK:           1
         HPM_SOUM:               1
