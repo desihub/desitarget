@@ -8,49 +8,58 @@ desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
 
-    #- ADM QSO sub-classes
+    #- ADM LRG sub-classes used in SV3 but not in the Main Survey.
+    - [LRG_LOWDENS, 3, "LRG selected using cuts that produce a lower (~600 per sq. deg.) target density", {obsconditions: DARK}]
+
+    #- ADM QSO sub-classes. Used in SV1 and SV2 but ultimately deprecated for the Main Survey.
     - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
 
-    #- North vs. South selections
-    - [LRG_NORTH,   8, "LRG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK}]
-    - [ELG_NORTH,   9, "ELG cuts tuned for Bok/Mosaic data",  {obsconditions: DARK}]
-    - [QSO_NORTH,   10, "QSO cuts tuned for Bok/Mosaic data", {obsconditions: DARK}]
+    # ADM ELG sub-classes
+    - [ELG_LOP,     5, "ELG at standard (ELG) priority",                   {obsconditions: DARK}]
+    - [ELG_HIP,     6, "ELG randomly increased to higher (LRG) priority",  {obsconditions: DARK}]
+    - [ELG_VLO,     7, "Very-low priority ELG (filler)",                   {obsconditions: DARK}]
 
-    - [LRG_SOUTH,   16, "LRG cuts tuned for DECam data",      {obsconditions: DARK}]
-    - [ELG_SOUTH,   17, "ELG cuts tuned for DECam data",      {obsconditions: DARK}]
-    - [QSO_SOUTH,   18, "QSO cuts tuned for DECam data",      {obsconditions: DARK}]
+    #- North vs. South selections
+    - [LRG_NORTH,          8, "LRG cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
+    - [ELG_NORTH,          9, "ELG cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
+    - [QSO_NORTH,         10, "QSO cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
+    - [ELG_LOP_NORTH,     11, "ELG at standard (ELG) priority tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
+    - [ELG_HIP_NORTH,     12, "ELG randomly increased to higher (LRG) priority tuned for Bok/Mosaic data", {obsconditions: DARK}]
+    - [ELG_VLO_NORTH,     13, "Very-low priority ELG (filler) tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
+    - [LRG_LOWDENS_NORTH, 14, "LRG cuts (lower density) tuned for Bok/Mosaic data",                        {obsconditions: DARK}]
+
+    - [LRG_SOUTH,         16, "LRG cuts tuned for DECam data",                                             {obsconditions: DARK}]
+    - [ELG_SOUTH,         17, "ELG cuts tuned for DECam data",                                             {obsconditions: DARK}]
+    - [QSO_SOUTH,         18, "QSO cuts tuned for DECam data",                                             {obsconditions: DARK}]
+    - [ELG_LOP_SOUTH,     19, "ELG at standard (ELG) priority tuned for DECam data",                       {obsconditions: DARK}]
+    - [ELG_HIP_SOUTH,     20, "ELG randomly increased to higher (LRG) priority tuned for DECam data",      {obsconditions: DARK}]
+    - [ELG_VLO_SOUTH,     21, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
+    - [LRG_LOWDENS_SOUTH, 22, "LRG cuts (lower density) tuned for DECam data",                             {obsconditions: DARK}]
 
     #- Calibration targets
-    - [SKY,         32, "Blank sky locations",
-        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [STD_FAINT,   33, "Standard stars for dark/gray conditions", {obsconditions: DARK}]
-    - [STD_WD,      34, "White Dwarf stars", {obsconditions: DARK|BRIGHT}]
-    - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions",
-        {obsconditions: BRIGHT}]
-    - [BAD_SKY,      36, "Blank sky locations that are imperfect but still useable",
-        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [SUPP_SKY,      37, "SKY is based on Gaia-avoidance (SKY will be set, too)",
-        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [SKY,         32, "Blank sky locations",                                       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [STD_FAINT,   33, "Standard stars for dark/gray conditions",                   {obsconditions: DARK}]
+    - [STD_WD,      34, "White Dwarf stars",                                         {obsconditions: DARK|BRIGHT}]
+    - [STD_BRIGHT,  35, "Standard stars for BRIGHT conditions",                      {obsconditions: BRIGHT}]
+    - [BAD_SKY,     36, "Blank sky locations that are imperfect but still useable",  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [SUPP_SKY,    37, "SKY is based on Gaia-avoidance (SKY will be set, too)",     {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- Reserving some bits that we may not use
-    # - [STD_FAINT_BEST,   38, "High quality faint standard stars",  {obsconditions: DARK}]
-    # - [STD_BRIGHT_BEST,  39, "High quality bright standard stars", {obsconditions: BRIGHT}]
+    # - [STD_FAINT_BEST,    38, "High quality faint standard stars",                 {obsconditions: DARK}]
+    # - [STD_BRIGHT_BEST,   39, "High quality bright standard stars",                {obsconditions: BRIGHT}]
 
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
-    - [NO_TARGET,   49, "No known target at this location",
-        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [NO_TARGET,           49, "No known target at this location",                  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- Related to bright object masking
-    - [BRIGHT_OBJECT,       50, "Known bright object to avoid", {obsconditions: APOCALYPSE}]
-    - [IN_BRIGHT_OBJECT,    51, "Too near a bright object; DO NOT OBSERVE", {obsconditions: APOCALYPSE}]
-    - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",
-            {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BRIGHT_OBJECT,       50, "Known bright object to avoid",                      {obsconditions: APOCALYPSE}]
+    - [IN_BRIGHT_OBJECT,    51, "Too near a bright object; DO NOT OBSERVE",          {obsconditions: APOCALYPSE}]
+    - [NEAR_BRIGHT_OBJECT,  52, "Near a bright object but ok to observe",            {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     #- A bit for another survey is set
-    - [BGS_ANY,             60, "Any BGS bit is set", {obsconditions: IGNORE}]
-    - [MWS_ANY,             61, "Any MWS bit is set", {obsconditions: IGNORE}]
-    - [SCND_ANY     ,       62, "Any secondary bit is set",
-        {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BGS_ANY,             60, "Any BGS bit is set",                                {obsconditions: IGNORE}]
+    - [MWS_ANY,             61, "Any MWS bit is set",                                {obsconditions: IGNORE}]
+    - [SCND_ANY,            62, "Any secondary bit is set",                          {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- Bright Galaxy Survey
 bgs_mask:
@@ -110,9 +119,9 @@ mws_mask:
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
 
     # ADM back-up targets for poor conditions and as filler.
-    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",   {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",                {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",               {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",          {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
 
 #- ADM secondary survey targets bit mask.
 #- ADM note that the 'filenames', here, should all be present in the
@@ -125,39 +134,39 @@ mws_mask:
 scnd_mask:
     - [VETO,                    0, "Never observe, even if a primary target bit is set.",
         {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', flavor: 'SPARE', downsample: 1, updatemws: False}]
-    - [UDG,                     1, "See $SCND_DIR/docs/UDG.txt",                  {obsconditions: DARK,             filename: 'UDG',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [FIRST_MALS,              2, "See $SCND_DIR/docs/FIRST_MALS.txt",           {obsconditions: DARK,             filename: 'FIRST_MALS',          flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [QSO_RED,                 5, "See $SCND_DIR/docs/QSO_RED.ipynb",            {obsconditions: DARK,             filename: 'QSO_RED',             flavor: 'QSO',   updatemws: False, downsample: 1}]
-#   - [MWS_DDOGIANTS,           9, "See $SCND_DIR",                                   {obsconditions: BRIGHT,           filename: 'MWS_DDOGIANTS',       flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [MWS_CLUS_GAL_DEEP,      10, "See $SCND_DIR/docs/MWS_CLUS_GAL_DEEP.txt",    {obsconditions: DARK,             filename: 'MWS_CLUS_GAL_DEEP',   flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_MASS_AGN,           11, "See $SCND_DIR/docs/LOW_MASS_AGN.txt",         {obsconditions: DARK,             filename: 'LOW_MASS_AGN',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [FAINT_HPM,              12, "See $SCND_DIR/docs/FAINT_HPM.txt",            {obsconditions: DARK,             filename: 'FAINT_HPM',           flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_Z_TIER1,            15, "See $SCND_DIR/docs/LOW_Z_TIER1.ipynb",        {obsconditions: DARK,             filename: 'LOW_Z_TIER1',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_Z_TIER2,            16, "See $SCND_DIR/docs/LOW_Z_TIER2.ipynb",        {obsconditions: DARK,             filename: 'LOW_Z_TIER2',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_Z_TIER3,            17, "See $SCND_DIR/docs/LOW_Z_TIER3.ipynb",        {obsconditions: DARK,             filename: 'LOW_Z_TIER3',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [BHB,                    18, "See $SCND_DIR/docs/BHB.txt",                  {obsconditions: DARK,             filename: 'BHB',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [SPCV,                   19, "See $SCND_DIR/docs/SPCV.txt",                 {obsconditions: DARK,             filename: 'SPCV',                flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",         {obsconditions: DARK,             filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.02}]
-    - [PSF_OUT_BRIGHT,         25, "See $SCND_DIR/docs/PSF_OUT_BRIGHT.txt",       {obsconditions: BRIGHT,           filename: 'PSF_OUT_BRIGHT',      flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PSF_OUT_DARK,           26, "See $SCND_DIR/docs/PSF_OUT_DARK.txt",         {obsconditions: DARK,             filename: 'PSF_OUT_DARK',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [HPM_SOUM,               27, "See $SCND_DIR/docs/HPM_SOUM.txt",             {obsconditions: DARK,             filename: 'HPM_SOUM',            flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [SN_HOSTS,               28, "See $SCND_DIR/docs/SN_HOSTS.txt",             {obsconditions: DARK,             filename: 'SN_HOSTS',            flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [GAL_CLUS_BCG,           29, "See $SCND_DIR/docs/GAL_CLUS_BCG.txt",         {obsconditions: DARK,             filename: 'GAL_CLUS_BCG',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [GAL_CLUS_2ND,           30, "See $SCND_DIR/docs/GAL_CLUS_2ND.txt",         {obsconditions: DARK,             filename: 'GAL_CLUS_2ND',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [GAL_CLUS_SAT,           31, "See $SCND_DIR/docs/GAL_CLUS_SAT.txt",         {obsconditions: DARK,             filename: 'GAL_CLUS_SAT',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [STRONG_LENS,            34, "See $SCND_DIR/docs/STRONG_LENS.txt",          {obsconditions: DARK,             filename: 'STRONG_LENS',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [WISE_VAR_QSO,           35, "See $SCND_DIR/docs/WISE_VAR_QSO.txt",         {obsconditions: DARK,             filename: 'WISE_VAR_QSO',        flavor: 'QSO',   updatemws: False, downsample: 1}]
-    - [Z5_QSO,                 36, "See $SCND_DIR/docs/Z5_QSO.txt",               {obsconditions: DARK,             filename: 'Z5_QSO',              flavor: 'QSO',   updatemws: False, downsample: 1}]
-    - [MWS_MAIN_CLUSTER_SV,    38, "See $SCND_DIR/docs/MWS_MAIN_CLUSTER_SV.txt",  {obsconditions: DARK|BRIGHT,      filename: 'MWS_MAIN_CLUSTER_SV', flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [BRIGHT_HPM,             40, "See $SCND_DIR/docs/BRIGHT_HPM.txt",           {obsconditions: BRIGHT,           filename: 'BRIGHT_HPM',          flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [WD_BINARIES_BRIGHT,     41, "See $SCND_DIR/docs/WD_BINARIES_BRIGHT.txt",   {obsconditions: BRIGHT,           filename: 'WD_BINARIES_BRIGHT',  flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [WD_BINARIES_DARK,       42, "See $SCND_DIR/docs/WD_BINARIES_DARK.txt",     {obsconditions: DARK,             filename: 'WD_BINARIES_DARK',    flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_BRIGHT_HIGH,         43, "See $SCND_DIR/docs/PV_BRIGHT_HIGH.ipynb",     {obsconditions: BRIGHT,           filename: 'PV_BRIGHT_HIGH',      flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_BRIGHT_MEDIUM,       44, "See $SCND_DIR/docs/PV_BRIGHT_MEDIUM.ipynb",   {obsconditions: BRIGHT,           filename: 'PV_BRIGHT_MEDIUM',    flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_BRIGHT_LOW,          45, "See $SCND_DIR/docs/PV_BRIGHT_LOW.ipynb",      {obsconditions: BRIGHT,           filename: 'PV_BRIGHT_LOW',       flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_DARK_HIGH,           46, "See $SCND_DIR/docs/PV_DARK_HIGH.ipynb",       {obsconditions: DARK,             filename: 'PV_DARK_HIGH',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_DARK_MEDIUM,         47, "See $SCND_DIR/docs/PV_DARK_MEDIUM.ipynb",     {obsconditions: DARK,             filename: 'PV_DARK_MEDIUM',      flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_DARK_LOW,            48, "See $SCND_DIR/docs/PV_DARK_LOW.ipynb",        {obsconditions: DARK,             filename: 'PV_DARK_LOW',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [UDG,                     1, "See $SCND_DIR/docs/UDG.txt",                 {obsconditions: DARK,        filename: 'UDG',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [FIRST_MALS,              2, "See $SCND_DIR/docs/FIRST_MALS.txt",          {obsconditions: DARK,        filename: 'FIRST_MALS',          flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [QSO_RED,                 5, "See $SCND_DIR/docs/QSO_RED.ipynb",           {obsconditions: DARK,        filename: 'QSO_RED',             flavor: 'QSO',   updatemws: False, downsample: 1}]
+#   - [MWS_DDOGIANTS,           9, "See $SCND_DIR",                              {obsconditions: BRIGHT,      filename: 'MWS_DDOGIANTS',       flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [MWS_CLUS_GAL_DEEP,      10, "See $SCND_DIR/docs/MWS_CLUS_GAL_DEEP.txt",   {obsconditions: DARK,        filename: 'MWS_CLUS_GAL_DEEP',   flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_MASS_AGN,           11, "See $SCND_DIR/docs/LOW_MASS_AGN.txt",        {obsconditions: DARK,        filename: 'LOW_MASS_AGN',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [FAINT_HPM,              12, "See $SCND_DIR/docs/FAINT_HPM.txt",           {obsconditions: DARK,        filename: 'FAINT_HPM',           flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_Z_TIER1,            15, "See $SCND_DIR/docs/LOW_Z_TIER1.ipynb",       {obsconditions: DARK,        filename: 'LOW_Z_TIER1',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_Z_TIER2,            16, "See $SCND_DIR/docs/LOW_Z_TIER2.ipynb",       {obsconditions: DARK,        filename: 'LOW_Z_TIER2',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_Z_TIER3,            17, "See $SCND_DIR/docs/LOW_Z_TIER3.ipynb",       {obsconditions: DARK,        filename: 'LOW_Z_TIER3',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [BHB,                    18, "See $SCND_DIR/docs/BHB.txt",                 {obsconditions: DARK,        filename: 'BHB',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [SPCV,                   19, "See $SCND_DIR/docs/SPCV.txt",                {obsconditions: DARK,        filename: 'SPCV',                flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",        {obsconditions: DARK,        filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.02}]
+    - [PSF_OUT_BRIGHT,         25, "See $SCND_DIR/docs/PSF_OUT_BRIGHT.txt",      {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PSF_OUT_DARK,           26, "See $SCND_DIR/docs/PSF_OUT_DARK.txt",        {obsconditions: DARK,        filename: 'PSF_OUT_DARK',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [HPM_SOUM,               27, "See $SCND_DIR/docs/HPM_SOUM.txt",            {obsconditions: DARK,        filename: 'HPM_SOUM',            flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [SN_HOSTS,               28, "See $SCND_DIR/docs/SN_HOSTS.txt",            {obsconditions: DARK,        filename: 'SN_HOSTS',            flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GAL_CLUS_BCG,           29, "See $SCND_DIR/docs/GAL_CLUS_BCG.txt",        {obsconditions: DARK,        filename: 'GAL_CLUS_BCG',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GAL_CLUS_2ND,           30, "See $SCND_DIR/docs/GAL_CLUS_2ND.txt",        {obsconditions: DARK,        filename: 'GAL_CLUS_2ND',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GAL_CLUS_SAT,           31, "See $SCND_DIR/docs/GAL_CLUS_SAT.txt",        {obsconditions: DARK,        filename: 'GAL_CLUS_SAT',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [STRONG_LENS,            34, "See $SCND_DIR/docs/STRONG_LENS.txt",         {obsconditions: DARK,        filename: 'STRONG_LENS',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [WISE_VAR_QSO,           35, "See $SCND_DIR/docs/WISE_VAR_QSO.txt",        {obsconditions: DARK,        filename: 'WISE_VAR_QSO',        flavor: 'QSO',   updatemws: False, downsample: 1}]
+    - [Z5_QSO,                 36, "See $SCND_DIR/docs/Z5_QSO.txt",              {obsconditions: DARK,        filename: 'Z5_QSO',              flavor: 'QSO',   updatemws: False, downsample: 1}]
+    - [MWS_MAIN_CLUSTER_SV,    38, "See $SCND_DIR/docs/MWS_MAIN_CLUSTER_SV.txt", {obsconditions: DARK|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV', flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [BRIGHT_HPM,             40, "See $SCND_DIR/docs/BRIGHT_HPM.txt",          {obsconditions: BRIGHT,      filename: 'BRIGHT_HPM',          flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [WD_BINARIES_BRIGHT,     41, "See $SCND_DIR/docs/WD_BINARIES_BRIGHT.txt",  {obsconditions: BRIGHT,      filename: 'WD_BINARIES_BRIGHT',  flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [WD_BINARIES_DARK,       42, "See $SCND_DIR/docs/WD_BINARIES_DARK.txt",    {obsconditions: DARK,        filename: 'WD_BINARIES_DARK',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_BRIGHT_HIGH,         43, "See $SCND_DIR/docs/PV_BRIGHT_HIGH.ipynb",    {obsconditions: BRIGHT,      filename: 'PV_BRIGHT_HIGH',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_BRIGHT_MEDIUM,       44, "See $SCND_DIR/docs/PV_BRIGHT_MEDIUM.ipynb",  {obsconditions: BRIGHT,      filename: 'PV_BRIGHT_MEDIUM',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_BRIGHT_LOW,          45, "See $SCND_DIR/docs/PV_BRIGHT_LOW.ipynb",     {obsconditions: BRIGHT,      filename: 'PV_BRIGHT_LOW',       flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_DARK_HIGH,           46, "See $SCND_DIR/docs/PV_DARK_HIGH.ipynb",      {obsconditions: DARK,        filename: 'PV_DARK_HIGH',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_DARK_MEDIUM,         47, "See $SCND_DIR/docs/PV_DARK_MEDIUM.ipynb",    {obsconditions: DARK,        filename: 'PV_DARK_MEDIUM',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_DARK_LOW,            48, "See $SCND_DIR/docs/PV_DARK_LOW.ipynb",       {obsconditions: DARK,        filename: 'PV_DARK_LOW',         flavor: 'SPARE', updatemws: False, downsample: 1}]
 
 # ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
     - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
@@ -236,25 +245,48 @@ zwarn_mask:
 #- Other states are default 1 unless specified here
 #- -1 means that the concept of priority doesn't apply to this bit
 priorities:
-    #- Dark Survey: priorities 3000 - 3999
+
+#- Dark Survey: priorities 3000 - 3999
     desi_mask:
+
 # ADM safest to set MORE_ZGOOD for ELGs/LRGs to DONE PROVIDED they have NUMOBS=1 as
 # ADM they can match QSO targets that require multiple observations and trump those
 # ADM QSOs with a higher priority. There is a unit test to check NUMOBS=1 for ELGs/LRGs.
         ELG: {UNOBS: 3000, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LRG: {UNOBS: 3200, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+
 # ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
 # ADM and Weiner et al. (0.7 < z < 2.1) to reobserve confirmed quasars where possible. The priority
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
-        # ADM don't prioritize a N/S target if it doesn't have other bits set
+
+# ADM different priority ELGs.
+        ELG_LOP: SAME_AS_ELG
+        ELG_HIP: SAME_AS_LRG
+        ELG_VLO: {UNOBS: 2999, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+
+# ADM Informational bits. Don't let them set priorities.
+        LRG_LOWDENS: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        QSO_HIZ: SAME_AS_LRG_LOWDENS
+
+# ADM don't prioritize a N/S target if it doesn't have other bits set.
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        QSO_HIZ: SAME_AS_LRG_NORTH
         ELG_NORTH: SAME_AS_LRG_NORTH
         QSO_NORTH: SAME_AS_LRG_NORTH
+        ELG_LOP_NORTH: SAME_AS_LRG_NORTH
+        ELG_HIP_NORTH: SAME_AS_LRG_NORTH
+        ELG_VLO_NORTH: SAME_AS_LRG_NORTH
+        LRG_LOWDENS_NORTH: SAME_AS_LRG_NORTH
+
         LRG_SOUTH: SAME_AS_LRG_NORTH
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
+        ELG_LOP_SOUTH: SAME_AS_LRG_NORTH
+        ELG_HIP_SOUTH: SAME_AS_LRG_NORTH
+        ELG_VLO_SOUTH: SAME_AS_LRG_NORTH
+        LRG_LOWDENS_SOUTH: SAME_AS_LRG_NORTH
+
+# ADM calibration and other non-standard targets.
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, MORE_MIDZQSO: 0}
         #- Standards and sky are treated specially; priorities don't apply
         STD_FAINT:  -1
@@ -274,15 +306,16 @@ priorities:
         MWS_ANY: -1
         SCND_ANY: -1
 
-    #- Bright Galaxy Survey: priorities 2000-2997
-    # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
-    #- reobserving successes has lower priority than MWS
+#- Bright Galaxy Survey: priorities 2000-2997
+# ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
+#- reobserving successes has lower priority than MWS
     bgs_mask:
         BGS_FAINT: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BGS_BRIGHT: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BGS_WISE: {UNOBS: 2000, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BGS_FAINT_HIP: {UNOBS: 2100, MORE_ZWARN: 2, MORE_ZGOOD: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        # ADM don't prioritize a N/S target if it doesn't have other bits set
+
+# ADM don't prioritize a N/S target if it doesn't have other bits set.
         BGS_FAINT_SOUTH: {UNOBS: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BGS_FAINT_NORTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_BRIGHT_SOUTH: SAME_AS_BGS_FAINT_SOUTH
@@ -290,15 +323,15 @@ priorities:
         BGS_WISE_SOUTH: SAME_AS_BGS_FAINT_SOUTH
         BGS_WISE_NORTH: SAME_AS_BGS_FAINT_SOUTH
 
-    #- Milky Way Survey: priorities 1000-1999
-    # ADM WDs should be prioritized above BGS at 2998
+#- Milky Way Survey: priorities 1000-1999
+# ADM WDs should be prioritized above BGS at 2998
     mws_mask: 
         MWS_BROAD:                    {UNOBS: 1400, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_WD:                       {UNOBS: 2998, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_NEARBY:                   {UNOBS: 1600, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_BHB:                      {UNOBS: 1550, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
-        # ADM don't prioritize a N/S target if it doesn't have other bits set
+# ADM don't prioritize a N/S target if it doesn't have other bits set.
         MWS_BROAD_NORTH:              {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_BROAD_SOUTH:              SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_BLUE:                {UNOBS: 1500, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -307,15 +340,18 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
+
+# ADM backup targets.
         BACKUP_BRIGHT:                {UNOBS: 9, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BACKUP_FAINT:                 {UNOBS: 8, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        # ADM Standards are special; priorities don't apply.
+
+# ADM Standards are special; priorities don't apply.
         GAIA_STD_FAINT:  -1
         GAIA_STD_WD:  -1
         GAIA_STD_BRIGHT:  -1
 
-    # ADM secondary target priorities.
+# ADM secondary target priorities.
     scnd_mask:
         VETO:                   {UNOBS:  0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         UDG:                    {UNOBS: 1900, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -360,20 +396,39 @@ priorities:
 # ADM SAME_AS_XXX means to use the NUMOBS_INIT for bitname XXX
 # ADM -1 means that the concept of NUMOBS_INIT doesn't apply to this bit
 numobs:
-    # ADM initial number of observations for targets in the main (dark time) survey
+
+# ADM initial number of observations for targets in the main (dark time) survey
     desi_mask:
         ELG: 1
         LRG: 1
         QSO: 4
-        # ADM don't observe a N/S target if it doesn't have other bits set
+
+# ADM different flavors of ELGs.
+        ELG_LOP: 1
+        ELG_HIP: 1
+        ELG_VLO: 1
+
+# ADM LRG_LOWDENS is a purely informational bit.
+        LRG_LOWDENS: 0
+
+# ADM don't observe a N/S target if it doesn't have other bits set.
         LRG_NORTH: 0
         ELG_NORTH: 0
         QSO_NORTH: 0
+        ELG_LOP_NORTH: 0
+        ELG_HIP_NORTH: 0
+        ELG_VLO_NORTH: 0
+        LRG_LOWDENS_NORTH: 0
         LRG_SOUTH: 0
         ELG_SOUTH: 0
         QSO_SOUTH: 0
+        ELG_LOP_SOUTH: 0
+        ELG_HIP_SOUTH: 0
+        ELG_VLO_SOUTH: 0
+        LRG_LOWDENS_SOUTH: 0
         BAD_SKY: 0
-        #- Standards and sky are treated specially; NUMOBS doesn't apply
+
+#- Standards and sky are treated specially; NUMOBS doesn't apply.
         STD_FAINT:  -1
         STD_WD:     -1
         SKY:        -1
@@ -382,8 +437,9 @@ numobs:
         # STD_FAINT_BEST: -1
         # STD_BRIGHT_BEST: -1
         NO_TARGET:  -1
-        #- placeholders to show we haven't forgotten these bits, but the
-        #- exact bits in the other sections define the number of observations
+
+#- placeholders to show we haven't forgotten these bits, but the
+#- exact bits in the other sections define the number of observations.
         QSO_HIZ: -1
         BRIGHT_OBJECT: -1
         IN_BRIGHT_OBJECT: -1
@@ -392,13 +448,14 @@ numobs:
         MWS_ANY: -1
         SCND_ANY: -1
 
-    # ADM initial number of observations for targets in the Bright Galaxy Survey
+# ADM initial number of observations for targets in the Bright Galaxy Survey.
     bgs_mask:
         BGS_FAINT: 1
         BGS_BRIGHT: 1
         BGS_WISE: 1
         BGS_FAINT_HIP: 1
-        # ADM don't observe a N/S target if it doesn't have other bits set
+
+# ADM don't observe a N/S target if it doesn't have other bits set.
         BGS_FAINT_SOUTH: 0
         BGS_FAINT_NORTH: 0
         BGS_BRIGHT_SOUTH: 0
@@ -406,30 +463,34 @@ numobs:
         BGS_WISE_SOUTH: 0
         BGS_WISE_NORTH: 0
 
-    # ADM initial number of observations for targets in the Bright Galaxy Survey
+# ADM initial number of observations for targets in the Bright Galaxy Survey.
     mws_mask:
         MWS_BROAD:                    1
         MWS_WD:                       1
         MWS_NEARBY:                   1
         MWS_BHB:                      1
-        # ADM don't observe a N/S target if it doesn't have other bits set
-        MWS_BROAD_NORTH:              0
-        MWS_BROAD_SOUTH:              0
         MWS_MAIN_BLUE:                1
         MWS_MAIN_BLUE_NORTH:          0
         MWS_MAIN_BLUE_SOUTH:          0
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           0
         MWS_MAIN_RED_SOUTH:           0
+
+# ADM don't observe a N/S target if it doesn't have other bits set.
+        MWS_BROAD_NORTH:              0
+        MWS_BROAD_SOUTH:              0
+
+# ADM backup targets.
         BACKUP_BRIGHT:                1
         BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
         BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
-        # ADM Standards are special; numobs doesn't apply.
+
+# ADM Standards are special; numobs doesn't apply.
         GAIA_STD_FAINT:  -1
         GAIA_STD_WD:  -1
         GAIA_STD_BRIGHT:  -1
 
-    # ADM initial number of observations for secondary targets
+# ADM initial number of observations for secondary targets
     scnd_mask:
         VETO:                   1
         UDG:                    1
