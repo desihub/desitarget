@@ -2454,7 +2454,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 )
             else:
                 msg = "Unknown qso_selection {}; valid options are {}".format(
-                    qso_selection, qso_selection_options))
+                    qso_selection, qso_selection_options)
                 log.critical(msg)
                 raise ValueError(msg)
     qso_north, qso_hiz_north = qso_classes[0]
@@ -2528,6 +2528,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
     mws_nearby = tcfalse
     mws_bhb = tcfalse
+    # ADM this denotes a bright limit for all MWS sources.
+    too_bright = MWS_too_bright(gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
