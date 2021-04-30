@@ -546,12 +546,12 @@ def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
-    elglop, elghip = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                                  w1flux=w1flux, w2flux=w2flux,
-                                  gfiberflux=gfiberflux, south=south,
-                                  primary=primary)
+    elgvlo, elg = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                               w1flux=w1flux, w2flux=w2flux,
+                               gfiberflux=gfiberflux, south=south,
+                               primary=primary)
 
-    return elglop & nomask, elghip & nomask
+    return elgvlo & nomask, elg & nomask
 
 
 def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
@@ -597,25 +597,25 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
 #    elg &= r - z < 1.6                  # red cut.
 
     # ADM cuts that are unique to the north or south. Identical for sv3
-    # ADM but keep the north/south formalism in case we use it for sv3.
+    # ADM but keep the north/south formalism in case we use it later.
     if south:
         elg &= gfib < 24.1  # faint cut.
-        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars and low-z galaxies.
+        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars, low-z galaxies.
     else:
         elg &= gfib < 24.1  # faint cut.
-        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars and low-z galaxies.
+        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars, low-z galaxies.
 
-    # ADM separate a high-priority and a regular (low-priority) sample.
-    elghip = elg.copy()
+    # ADM separate a low-priority and a regular sample.
+    elgvlo = elg.copy()
 
     # ADM low-priority OII flux cut.
-    elg &= g - r < -1.2*(r - z) + 1.6
-    elg &= g - r >= -1.2*(r - z) + 1.3
+    elgvlo &= g - r < -1.2*(r - z) + 1.6
+    elgvlo &= g - r >= -1.2*(r - z) + 1.3
 
     # ADM high-priority OII flux cut.
-    elghip &= g - r < -1.2*(r - z) + 1.3
+    elg &= g - r < -1.2*(r - z) + 1.3
 
-    return elg, elghip
+    return elgvlo, elg
 
 
 def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -2416,15 +2416,15 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
                 south=south
             )
-    elg_lop_north, elg_hip_north = elg_classes[0]
-    elg_lop_south, elg_hip_south = elg_classes[1]
+    elg_vlo_north, elg_lop_north = elg_classes[0]
+    elg_vlo_south, elg_lop_south = elg_classes[1]
 
     # ADM combine ELG target bits for an ELG target based on any imaging.
+    elg_vlo = (elg_vlo_north & photsys_north) | (elg_vlo_south & photsys_south)
     elg_lop = (elg_lop_north & photsys_north) | (elg_lop_south & photsys_south)
-    elg_hip = (elg_hip_north & photsys_north) | (elg_hip_south & photsys_south)
-    elg_north = elg_lop_north | elg_hip_north
-    elg_south = elg_lop_south | elg_hip_south
-    elg = elg_lop | elg_hip
+    elg_north = elg_vlo_north | elg_lop_north
+    elg_south = elg_vlo_south | elg_lop_south
+    elg = elg_vlo | elg_lop
 
     # ADM initially set everything to arrays of False for QSO selection.
     # ADM zeroth element stores the northern targets bits (south=False).
@@ -2500,16 +2500,28 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     tnecrep = int(1/percent)
     uniqseed = int(np.mean(zflux)*1e5) % (2**32 - 1)
     np.random.seed(uniqseed)
-    hip = None
+    is_bgs_hip = None
     if np.isscalar(bgs_faint):
         if bgs_faint:
-            nbgsf = 1
-            hip = np.random.uniform(0, 1) < percent
+            is_bgs_hip = np.random.uniform(0, 1) < percent
     else:
         w = np.where(bgs_faint)[0]
         nbgsf = len(w)
         if nbgsf > 0:
-            hip = np.random.choice(w, nbgsf//tnecrep, replace=False)
+            is_bgs_hip = np.random.choice(w, nbgsf//tnecrep, replace=False)
+
+    # ADM similarly, 10% of the ELG_LOP sources need the ELG_HIP bit set.
+    percent = 0.1
+    tnecrep = int(1/percent)
+    is_elg_hip = None
+    if np.isscalar(elg_lop):
+        if elg_lop:
+            is_elg_hip = np.random.uniform(0, 1) < percent
+    else:
+        w = np.where(elg_lop)[0]
+        nelglop = len(w)
+        if nelglop > 0:
+            is_elg_hip = np.random.choice(w, nelglop//tnecrep, replace=False)
 
     # ADM initially set everything to arrays of False for MWS selection.
     # ADM zeroth element stores the northern targets bits (south=False).
@@ -2598,24 +2610,24 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= lrg_lowdens_south * desi_mask.LRG_LOWDENS_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
+    desi_target |= elg_vlo_south * desi_mask.ELG_VLO_SOUTH
     desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
-    desi_target |= elg_hip_south * desi_mask.ELG_HIP_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= lrg_lowdens_north * desi_mask.LRG_LOWDENS_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
+    desi_target |= elg_vlo_north * desi_mask.ELG_VLO_NORTH
     desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
-    desi_target |= elg_hip_north * desi_mask.ELG_HIP_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
     desi_target |= lrg_lowdens * desi_mask.LRG_LOWDENS
     desi_target |= elg * desi_mask.ELG
+    desi_target |= elg_vlo * desi_mask.ELG_VLO
     desi_target |= elg_lop * desi_mask.ELG_LOP
-    desi_target |= elg_hip * desi_mask.ELG_HIP
     desi_target |= qso * desi_mask.QSO
     desi_target |= qsohiz * desi_mask.QSO_HIZ
 
@@ -2623,6 +2635,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= std_faint * desi_mask.STD_FAINT
     desi_target |= std_bright * desi_mask.STD_BRIGHT
     desi_target |= std_wd * desi_mask.STD_WD
+
+    # ADM set fraction of the ELG_LOP targets to ELG_HIP.
+    if is_elg_hip is not None:
+        if is_elg_hip is True:
+            desi_target |= desi_mask.ELG_HIP
+        else:
+            desi_target[is_elg_hip] |= desi_mask.ELG_HIP
 
     # BGS targets, south.
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
@@ -2640,11 +2659,11 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_wise * bgs_mask.BGS_WISE
 
     # ADM set fraction of the BGS_FAINT targets to BGS_FAINT_HIP.
-    if hip is not None:
-        if hip is True:
+    if is_bgs_hip is not None:
+        if is_bgs_hip is True:
             bgs_target |= bgs_mask.BGS_FAINT_HIP
         else:
-            bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
+            bgs_target[is_bgs_hip] |= bgs_mask.BGS_FAINT_HIP
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws_broad * mws_mask.MWS_BROAD

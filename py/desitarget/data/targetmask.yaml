@@ -24,17 +24,15 @@ desi_mask:
     - [ELG_NORTH,          9, "ELG cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
     - [QSO_NORTH,         10, "QSO cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
     - [ELG_LOP_NORTH,     11, "ELG at standard (ELG) priority tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
-    - [ELG_HIP_NORTH,     12, "ELG randomly increased to higher (LRG) priority tuned for Bok/Mosaic data", {obsconditions: DARK}]
-    - [ELG_VLO_NORTH,     13, "Very-low priority ELG (filler) tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
-    - [LRG_LOWDENS_NORTH, 14, "LRG cuts (lower density) tuned for Bok/Mosaic data",                        {obsconditions: DARK}]
+    - [ELG_VLO_NORTH,     12, "Very-low priority ELG (filler) tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
+    - [LRG_LOWDENS_NORTH, 13, "LRG cuts (lower density) tuned for Bok/Mosaic data",                        {obsconditions: DARK}]
 
     - [LRG_SOUTH,         16, "LRG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_SOUTH,         17, "ELG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [QSO_SOUTH,         18, "QSO cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_LOP_SOUTH,     19, "ELG at standard (ELG) priority tuned for DECam data",                       {obsconditions: DARK}]
-    - [ELG_HIP_SOUTH,     20, "ELG randomly increased to higher (LRG) priority tuned for DECam data",      {obsconditions: DARK}]
-    - [ELG_VLO_SOUTH,     21, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
-    - [LRG_LOWDENS_SOUTH, 22, "LRG cuts (lower density) tuned for DECam data",                             {obsconditions: DARK}]
+    - [ELG_VLO_SOUTH,     20, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
+    - [LRG_LOWDENS_SOUTH, 21, "LRG cuts (lower density) tuned for DECam data",                             {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",                                       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -66,7 +64,7 @@ bgs_mask:
     - [BGS_FAINT,           0, "BGS faint targets",                     {obsconditions: BRIGHT}]
     - [BGS_BRIGHT,          1, "BGS bright targets",                    {obsconditions: BRIGHT}]
     - [BGS_WISE,            2, "BGS wise targets",                      {obsconditions: BRIGHT}]
-    - [BGS_FAINT_HIP,       3, "BGS faint targets at bright priorty",   {obsconditions: BRIGHT}]
+    - [BGS_FAINT_HIP,       3, "BGS faint targets at bright priority",  {obsconditions: BRIGHT}]
 
     #- BGS North vs. South selections
     - [BGS_FAINT_NORTH,     8, "BGS faint cuts tuned for Bok/Mosaic",              {obsconditions: BRIGHT}]
@@ -274,7 +272,6 @@ priorities:
         ELG_NORTH: SAME_AS_LRG_NORTH
         QSO_NORTH: SAME_AS_LRG_NORTH
         ELG_LOP_NORTH: SAME_AS_LRG_NORTH
-        ELG_HIP_NORTH: SAME_AS_LRG_NORTH
         ELG_VLO_NORTH: SAME_AS_LRG_NORTH
         LRG_LOWDENS_NORTH: SAME_AS_LRG_NORTH
 
@@ -282,7 +279,6 @@ priorities:
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
         ELG_LOP_SOUTH: SAME_AS_LRG_NORTH
-        ELG_HIP_SOUTH: SAME_AS_LRG_NORTH
         ELG_VLO_SOUTH: SAME_AS_LRG_NORTH
         LRG_LOWDENS_SOUTH: SAME_AS_LRG_NORTH
 
@@ -416,14 +412,12 @@ numobs:
         ELG_NORTH: 0
         QSO_NORTH: 0
         ELG_LOP_NORTH: 0
-        ELG_HIP_NORTH: 0
         ELG_VLO_NORTH: 0
         LRG_LOWDENS_NORTH: 0
         LRG_SOUTH: 0
         ELG_SOUTH: 0
         QSO_SOUTH: 0
         ELG_LOP_SOUTH: 0
-        ELG_HIP_SOUTH: 0
         ELG_VLO_SOUTH: 0
         LRG_LOWDENS_SOUTH: 0
         BAD_SKY: 0
