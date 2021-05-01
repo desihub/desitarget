@@ -2,15 +2,11 @@
 desitarget.cuts
 ===============
 
-Target Selection for Legacy Surveys catalogue data derived from `the wiki`_.
-
-A collection of helpful (static) methods to check whether an object's
-flux passes a given selection criterion (*e.g.* LRG, ELG or QSO).
+An old copy of the Main Survey cuts (../cuts.py) that were used for commissioning (cmx).
 
 .. _`the Gaia data model`: https://gea.esac.esa.int/archive/documentation/GDR2/Gaia_archive/chap_datamodel/sec_dm_main_tables/ssec_dm_gaia_source.html
 .. _`the Legacy Surveys`: http://www.legacysurvey.org/
 .. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
-.. _`the SV3 wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SV3
 .. _`Legacy Surveys mask`: http://www.legacysurvey.org/dr8/bitmasks/
 """
 import warnings
@@ -47,42 +43,6 @@ log = get_logger()
 
 # ADM start the clock
 start = time()
-
-
-def MWS_too_bright(gaiagmag=None, zfibertotflux=None):
-    """Whether a target is too bright to include for MWS observations.
-
-    Parameters
-    ----------
-    gaiagmag : :class:`~numpy.ndarray`
-            Gaia-based g-band MAGNITUDE.
-    zfibertotflux : :class:`~numpy.ndarray`
-        Predicted fiber flux from ALL sources at object's location in 1
-        arcsecond seeing in z. NOT corrected for Galactic extinction.
-
-    Returns
-    -------
-    :class:`array_like`
-        ``True`` if and only if the object is FAINTER than the MWS
-        bright-cut limits.
-
-    Notes
-    -----
-    - Current version (04/02/21) is version 17 on `the SV3 wiki`_.
-    """
-    # ADM set up an array to store objects that is all True.
-    too_bright = np.ones_like(gaiagmag, dtype='?')
-
-    # ADM True if Gaia G is too bright.
-    # ADM remember that gaiagmag of 0 corresponds to missing sources.
-    too_bright &= (gaiagmag < 15) & (gaiagmag != 0)
-
-    # ADM or True if the Legacy Surveys zfibertot is too bright.
-    # ADM remember that zflux of 0 corresponds to missing sources.
-    zmag = 22.5-2.5*np.log10(zfibertotflux.clip(1e-7))
-    too_bright |= (zmag < 15) & (zfibertotflux != 0)
-
-    return too_bright
 
 
 def _gal_coords(ra, dec):
@@ -364,8 +324,8 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rfluxivar=None, zfluxivar=None, w1fluxivar=None,
-          gaiagmag=None, gnobs=None, rnobs=None, znobs=None, maskbits=None,
-          zfibertotflux=None, primary=None, south=True):
+          gnobs=None, rnobs=None, znobs=None, maskbits=None, primary=None,
+          south=True):
     """
     Parameters
     ----------
@@ -381,38 +341,35 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (03/31/21) is version 15 on `the SV3 wiki`_.
+    - Current version (12/07/2020) is version 232 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    lrg_quality = primary.copy()
+    lrg = primary.copy()
 
     # ADM basic quality cuts.
-    lrg_quality &= notinLRG_mask(
+    lrg &= notinLRG_mask(
         primary=primary, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-        gaiagmag=gaiagmag, maskbits=maskbits, zfibertotflux=zfibertotflux
+        maskbits=maskbits
     )
 
     # ADM color-based selection of LRGs.
-    lrg, lrg_lowdens = isLRG_colors(
+    lrg &= isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
         zfiberflux=zfiberflux, south=south, primary=primary
     )
 
-    lrg &= lrg_quality
-    lrg_lowdens &= lrg_quality
-
-    return lrg, lrg_lowdens
+    return lrg
 
 
 def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
                   zfiberflux=None, gnobs=None, rnobs=None, znobs=None,
                   rfluxivar=None, zfluxivar=None, w1fluxivar=None,
-                  gaiagmag=None, maskbits=None, zfibertotflux=None):
+                  maskbits=None):
     """See :func:`~desitarget.cuts.isLRG` for details.
 
     Returns
@@ -432,11 +389,6 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
     lrg &= (rfluxivar > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zfluxivar > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1fluxivar > 0) & (w1flux > 0)  # ADM quality in W1.
-
-    lrg &= (gaiagmag == 0) | (gaiagmag > 18)  # remove bright GAIA sources
-
-    # ADM remove stars with zfibertot < 17.5 that are missing from GAIA.
-    lrg &= zfibertotflux < 10**(-0.4*(17.5-22.5))
 
     # ADM observed in every band.
     lrg &= (gnobs > 0) & (rnobs > 0) & (znobs > 0)
@@ -459,7 +411,6 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
-    lrg_lowdens = primary.copy()  # lower density LRG selection
 
     # ADM to maintain backwards-compatibility with mocks.
     if zfiberflux is None:
@@ -473,85 +424,48 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
     zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
 
-    # Full SV3 selection
     if south:
-        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg &= zfibermag < 21.7                   # faint limit
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6    # non-stellar cut.
         lrg &= (
-            (gmag - rmag > 1.3) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.13)
-            | (rmag - w1mag > 1.8)
-            )  # low-z cuts
-        lrg &= (
-            (rmag - w1mag > (w1mag - 17.26) * 1.8)
-            & (rmag - w1mag > (w1mag - 16.36) * 1.)
-            | (rmag - w1mag > 3.29)
-            )  # double sliding cuts and high-z extension
+            ((gmag - w1mag > 2.6) & (gmag - rmag > 1.4))
+            | (rmag - w1mag > 1.8)                       # low-z cut.
+        )
+        lrg &= rmag - zmag > (zmag - 16.83) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.80) * 0.19       # double sliding cut 2.
     else:
-        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg &= zfibermag < 21.72                   # faint limit
+        lrg &= zmag - w1mag > 0.8 * (rmag-zmag) - 0.6   # non-stellar cut.
         lrg &= (
-            (gmag - rmag > 1.34) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.23)
-            | (rmag - w1mag > 1.8)
-            )  # low-z cuts
-        lrg &= (
-            (rmag - w1mag > (w1mag - 17.24) * 1.83)
-            & (rmag - w1mag > (w1mag - 16.33) * 1.)
-            | (rmag - w1mag > 3.39)
-            )  # double sliding cuts and high-z extension
+            ((gmag - w1mag > 2.67) & (gmag - rmag > 1.45))
+            | (rmag - w1mag > 1.85)                      # low-z cut.
+        )
+        lrg &= rmag - zmag > (zmag - 16.79) * 0.45       # double sliding cut 1.
+        lrg &= rmag - zmag > (zmag - 13.76) * 0.19       # double sliding cut 2.
 
-    # Selection of the lower density subset
-    if south:
-        lrg_lowdens &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg_lowdens &= zfibermag < 21.7                   # faint limit
-        lrg_lowdens &= (
-            (gmag - rmag > 1.3) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.13)
-            | (rmag - w1mag > 1.8)
-            )  # low-z cuts
-        lrg_lowdens &= (
-            (rmag - w1mag > (w1mag - 17.07) * 1.8)
-            & (rmag - w1mag > (w1mag - 16.17) * 1.)
-            | (rmag - w1mag > 3.39)
-            )  # double sliding cuts and high-z extension
-    else:
-        lrg_lowdens &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg_lowdens &= zfibermag < 21.72                   # faint limit
-        lrg_lowdens &= (
-            (gmag - rmag > 1.34) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.23)
-            | (rmag - w1mag > 1.8)
-            )  # low-z cuts
-        lrg_lowdens &= (
-            (rmag - w1mag > (w1mag - 17.05) * 1.83)
-            & (rmag - w1mag > (w1mag - 16.14) * 1.)
-            | (rmag - w1mag > 3.49)
-            )  # double sliding cuts and high-z extension
+    lrg &= zfibermag < 21.5    # faint limit.
 
-    return lrg, lrg_lowdens
-
+    return lrg
 
 
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-          gfiberflux=None, gsnr=None, rsnr=None, zsnr=None,
-          gnobs=None, rnobs=None, znobs=None,
+          gsnr=None, rsnr=None, zsnr=None, gnobs=None, rnobs=None, znobs=None,
           maskbits=None, south=True, primary=None):
     """Definition of ELG target classes. Returns a boolean array.
     (see :func:`~desitarget.cuts.set_target_bits` for parameters).
 
     Notes:
-    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
+    - Current version (12/09/20) is version 233 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
+    elg = primary.copy()
 
-    nomask = notinELG_mask(
-        maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-        gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
+    elg &= notinELG_mask(maskbits=maskbits, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                         gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary)
 
-    elgvlo, elg = isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
-                               w1flux=w1flux, w2flux=w2flux,
-                               gfiberflux=gfiberflux, south=south,
-                               primary=primary)
+    elg &= isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                        w2flux=w2flux, south=south, primary=primary)
 
-    return elgvlo & nomask, elg & nomask
+    return elg
 
 
 def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
@@ -576,7 +490,7 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
 
 
 def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, gfiberflux=None, south=True, primary=None):
+                 w2flux=None, south=True, primary=None):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
@@ -589,52 +503,41 @@ def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
-    gfib = 22.5 - 2.5*np.log10(gfiberflux.clip(1e-16))
 
     # ADM cuts shared by the northern and southern selections.
     elg &= g > 20                       # bright cut.
-    elg &= r - z > 0.15                  # blue cut.
-#    elg &= r - z < 1.6                  # red cut.
+    elg &= r - z > 0.3                  # blue cut.
+    elg &= r - z < 1.6                  # red cut.
+    elg &= g - r < -1.2*(r - z) + 1.6   # OII flux cut.
 
-    # ADM cuts that are unique to the north or south. Identical for sv3
-    # ADM but keep the north/south formalism in case we use it later.
+    # ADM cuts that are unique to the north or south.
     if south:
-        elg &= gfib < 24.1  # faint cut.
-        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars, low-z galaxies.
+        elg &= g < 23.4  # faint cut.
+        # ADM south has the FDR cut to remove stars and low-z galaxies.
+        elg &= g - r < 1.15*(r - z) - 0.15
     else:
-        elg &= gfib < 24.1  # faint cut.
-        elg &= g - r < 0.5*(r - z) + 0.1  # remove stars, low-z galaxies.
+        elg &= g < 23.5  # faint cut.
+        elg &= g - r < 1.15*(r - z) - 0.20  # remove stars and low-z galaxies.
 
-    # ADM separate a low-priority and a regular sample.
-    elgvlo = elg.copy()
-
-    # ADM low-priority OII flux cut.
-    elgvlo &= g - r < -1.2*(r - z) + 1.6
-    elgvlo &= g - r >= -1.2*(r - z) + 1.3
-
-    # ADM high-priority OII flux cut.
-    elg &= g - r < -1.2*(r - z) + 1.3
-
-    return elgvlo, elg
+    return elg
 
 
 def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                  primary=None, south=True):
-    """Select STD stars based on Legacy Surveys. Returns a boolean array.
+    """Select STD stars based on Legacy Surveys color cuts. Returns a boolean array.
 
     Args:
         gflux, rflux, zflux, w1flux, w2flux: array_like
             The flux in nano-maggies of g, r, z, w1, and w2 bands.
         primary: array_like or None
-            Set to ``True`` for objects to consider as possible STDs.
+            Set to ``True`` for objects to initially consider as possible targets.
             Defaults to everything being ``True``.
         south: boolean, defaults to ``True``
-            Use color-cuts based on photometry from the "south" (DECaLS)
-            as opposed to the "north" (MzLS+BASS).
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
-        mask : boolean array, True if the object has colors like a STD 
-        star target.
+        mask : boolean array, True if the object has colors like a STD star target
 
     Notes:
         - Current version (08/01/18) is version 121 on `the wiki`_.
@@ -674,23 +577,23 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
     Args:
         primary: array_like or None
-            Set to ``True`` for objects to consider as possible STDs.
+            Set to ``True`` for objects to initially consider as possible targets.
             Defaults to everything being ``True``.
         gaia: boolean array_like or None
             True if there is a match between this object in
             `the Legacy Surveys`_ and in Gaia.
         astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia 
+            Excess noise of the source in Gaia (as in `the Gaia data model`_).
         pmra, pmdec, parallax: array_like or None
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model).
         dupsource: array_like or None
-            Whether the source is a duplicate in Gaia.
+            Whether the source is a duplicate in Gaia (as in `the Gaia data model`_).
         paramssolved: array_like or None
-            How many parameters were solved for in Gaia.
+            How many parameters were solved for in Gaia (as in `the Gaia data model`_).
         gaiagmag, gaiabmag, gaiarmag: array_like or None
-            Gaia-based g, b and  r MAGNITUDES (not corrected for Galactic
-            extinction (same units as `the Gaia data model`_).
+            Gaia-based g, b and  r MAGNITUDES (not Galactic-extinction-corrected).
+            (same units as `the Gaia data model`_).
 
     Returns:
         mask : boolean array, True if the object passes Gaia quality cuts.
@@ -717,13 +620,17 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     std &= parallax < 1.
 
     # ADM calculate the overall proper motion magnitude
-    pm = np.sqrt(pmra**2. + pmdec**2.)
+    # ADM inexplicably I'm getting a Runtimewarning here for
+    # ADM a few values in the sqrt, so I'm catching it.
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2. + pmdec**2.)
 
     # ADM a proper motion larger than 2 mas/yr.
     std &= pm > 2.
 
-    # ADM fail if dupsource is not Boolean, as was the case for the 7.0
-    # ADM sweeps, otherwise logic checks on dupsource will be misleading.
+    # ADM fail if dupsource is not Boolean, as was the case for the 7.0 sweeps
+    # ADM otherwise logic checks on dupsource will be misleading.
     if not (dupsource.dtype.type == np.bool_):
         log.error('GAIA_DUPLICATED_SOURCE (dupsource) should be boolean!')
         raise IOError
@@ -743,25 +650,26 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
           pmra=None, pmdec=None, parallax=None, dupsource=None,
           gaiagmag=None, gaiabmag=None, gaiarmag=None, bright=False,
           usegaia=True, maskbits=None, south=True):
-    """Select STD targets using color, photometric quality cuts (PSF-like
+    """Select STD targets using color cuts and photometric quality cuts (PSF-like
     and fracflux).  See isSTD_colors() for additional info.
 
     Args:
         gflux, rflux, zflux: array_like
             The flux in nano-maggies of g, r, z bands.
         primary: array_like or None
-            ``True`` for possible targets. Defaults to ``True`` for all.
+            Set to ``True`` for objects to initially consider as possible targets.
+            Defaults to everything being ``True``.
         gfracflux, rfracflux, zfracflux: array_like
-            Profile-weighted fraction of the flux from other sources
-            divided by the total flux in g, r and z bands.
+            Profile-weighted fraction of the flux from other sources divided
+            by the total flux in g, r and z bands.
         gfracmasked, rfracmasked, zfracmasked: array_like
             Fraction of masked pixels in the g, r and z bands.
         gnobs, rnobs, znobs: array_like
-            Number of observations (in the central pixel) in g, r and z.
+            The number of observations (in the central pixel) in g, r and z.
         gfluxivar, rfluxivar, zfluxivar: array_like
             The flux inverse variances in g, r, and z bands.
         objtype: array_like or None
-            TYPE column of the catalogue to restrict to point sources.
+            The TYPE column of the catalogue to restrict to point sources.
         gaia: boolean array_like or None
             True if there is a match between this object in
             `the Legacy Surveys`_ and in Gaia.
@@ -776,20 +684,20 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
         gaiagmag, gaiabmag, gaiarmag: array_like or None
             Gaia-based g-, b- and r-band MAGNITUDES.
         bright: boolean, defaults to ``False``
-           if ``True`` apply mag cuts for "bright" conditions; otherwise,
-           for "dark" conditions. Cut is performed on `gaiagmag`.
+           if ``True`` apply magnitude cuts for "bright" conditions; otherwise,
+           choose "normal" brightness standards. Cut is performed on `gaiagmag`.
         usegaia: boolean, defaults to ``True``
-           if ``True`` then call :func:`~desitarget.cuts.isSTD_gaia` to
-           set the logic cuts. If Gaia is not available (perhaps if
-           you're using mocks) then send ``False``, in which case we use
-           the LS r-band as a proxy for Gaia G. ``False`` ignores that we
-           have already corrected for Galactic extinction (incorrectly).
+           if ``True`` then call :func:`~desitarget.cuts.isSTD_gaia` to set the
+           logic cuts. If Gaia is not available (perhaps if you're using mocks)
+           then send ``False``, in which case we use the LS r-band magnitude as
+           a proxy for the Gaia G-band magnitude (ignoring---incorrectly---that
+           we have already corrected for Galactic extinction.)
         south: boolean, defaults to ``True``
-            Use color-cuts based on photometry from the "south" (DECaLS)
-            as opposed to the "north" (MzLS+BASS).
+            Use color-cuts based on photometry from the "south" (DECaLS) as
+            opposed to the "north" (MzLS+BASS).
 
     Returns:
-        mask : boolean array, True if the object has colors like a STD.
+        mask : boolean array, True if the object has colors like a STD star.
 
     Notes:
     - Gaia-based quantities are as in `the Gaia data model`_.
@@ -800,13 +708,11 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     std = primary.copy()
 
     # ADM apply the Legacy Surveys (optical) magnitude and color cuts.
-    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
-                        south=south)
+    std &= isSTD_colors(primary=primary, zflux=zflux, rflux=rflux, gflux=gflux, south=south)
 
     # ADM apply the Gaia quality cuts.
     if usegaia:
-        std &= isSTD_gaia(primary=primary, gaia=gaia,
-                          astrometricexcessnoise=astrometricexcessnoise,
+        std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=astrometricexcessnoise,
                           pmra=pmra, pmdec=pmdec, parallax=parallax,
                           dupsource=dupsource, paramssolved=paramssolved,
                           gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
@@ -864,11 +770,11 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Returns:
         mask1 : array_like.
-            ``True`` if the object is a ``MWS_BROAD`` target.
+            ``True`` if and only if the object is a ``MWS_BROAD`` target.
         mask2 : array_like.
-            ``True`` if the object is a ``MWS_MAIN_RED`` target.
+            ``True`` if and only if the object is a ``MWS_MAIN_RED`` target.
         mask3 : array_like.
-            ``True`` if the object is a ``MWS_MAIN_BLUE`` target.
+            ``True`` if and only if the object is a ``MWS_MAIN_BLUE`` target.
 
     Notes:
     - Current version (02/18/21) is version 246 on `the wiki`_.
@@ -901,7 +807,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
                        rfracmasked=None, rnobs=None, rflux=None, maskbits=None,
                        gaiadupsource=None, primary=None):
-    """Standard set of masking-based cuts used by MWS target classes
+    """Standard set of masking-based cuts used by MWS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
     """
     if primary is None:
@@ -947,14 +853,18 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     mws &= obs_rflux > 10**((22.5-20.0)/2.5)
 
     # ADM calculate the overall proper motion magnitude
-    pm = np.sqrt(pmra**2. + pmdec**2.)
+    # ADM inexplicably I'm getting a Runtimewarning here for
+    # ADM a few values in the sqrt, so I'm catching it
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2. + pmdec**2.)
 
     # ADM make a copy of the main bits for a red/blue split
     red = mws.copy()
     blue = mws.copy()
 
     # ADM MWS-BLUE is g-r < 0.7
-    blue &= rflux < gflux * 10**(0.7/2.5)  # (g-r)<0.7
+    blue &= rflux < gflux * 10**(0.7/2.5)                      # (g-r)<0.7
 
     # ADM Turn off any NaNs for astrometric quantities to suppress
     # ADM warnings. Won't target these, using cuts on paramssolved
@@ -964,7 +874,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     parallax[ii], pm[ii] = 0., 0.
 
     # ADM MWS-RED and MWS-BROAD have g-r >= 0.7
-    red &= rflux >= gflux * 10**(0.7/2.5)  # (g-r)>=0.7
+    red &= rflux >= gflux * 10**(0.7/2.5)                      # (g-r)>=0.7
     broad = red.copy()
 
     # ADM MWS-RED also has parallax < max(3parallax_err,1)mas
@@ -1005,7 +915,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     mws = primary.copy()
 
     # ADM do not target any objects for which entries are NaN
-    # ADM and turn off the NaNs for those entries.
+    # ADM and turn off the NaNs for those entries
     nans = np.isnan(gaiagmag) | np.isnan(parallax)
     w = np.where(nans)[0]
     if len(w) > 0:
@@ -1016,17 +926,17 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         log.info('{}/{} NaNs in file...t = {:.1f}s'
                  .format(len(w), len(mws), time()-start))
 
-    # ADM apply the selection for all MWS-NEARBY targets.
-    # ADM must be a Legacy Surveys object that matches a Gaia source.
+    # ADM apply the selection for all MWS-NEARBY targets
+    # ADM must be a Legacy Surveys object that matches a Gaia source
     mws &= gaia
-    # ADM Gaia G mag of less than 20.
+    # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
-    # APC Gaia G mag of more than 16.
+    # APC Gaia G mag of more than 16
     mws &= gaiagmag > 16.
     # ADM all astrometric parameters are measured.
     mws &= paramssolved == 31
-    # ADM parallax cut corresponding to 100pc.
-    mws &= (parallax + parallaxerr) > 10.   # NB: "+" is correct.
+    # ADM parallax cut corresponding to 100pc
+    mws &= (parallax + parallaxerr) > 10.   # NB: "+" is correct
 
     return mws
 
@@ -1038,7 +948,7 @@ def isMWS_bhb(primary=None, objtype=None,
               gnobs=None, rnobs=None, znobs=None,
               gfracmasked=None, rfracmasked=None, zfracmasked=None,
               parallax=None, parallaxerr=None):
-    """Set bits for BHB Milky Way Survey targets.
+    """Set bits for BHB Milky Way Survey targets
 
     Parameters
     ----------
@@ -1051,7 +961,7 @@ def isMWS_bhb(primary=None, objtype=None,
 
     Notes
     -----
-    - Criteria supplied by Sergey Koposov.
+    - Criteria supplied by Sergey Koposov
     - gflux, rflux, zflux, w1flux have been corrected for extinction
       (unlike other MWS selections, which use obs_flux).
     - Current version (02/18/21) is version 246 on `the wiki`_.
@@ -1062,13 +972,11 @@ def isMWS_bhb(primary=None, objtype=None,
 
     # ADM do not target any objects for which entries are NaN
     # ADM and turn off the NaNs for those entries
-    nans = (np.isnan(gflux) | np.isnan(rflux) | np.isnan(zflux) |
-            np.isnan(w1flux) | np.isnan(parallax) | np.isnan(gaiagmag))
+    nans = np.isnan(gflux) | np.isnan(rflux) | np.isnan(zflux) | np.isnan(w1flux) | np.isnan(parallax) | np.isnan(gaiagmag)
     w = np.where(nans)[0]
     if len(w) > 0:
         # ADM make copies as we are reassigning values
-        rflux, gflux, zflux = rflux.copy(), gflux.copy(), zflux.copy()
-        w1flux = w1flux.copy()
+        rflux, gflux, zflux, w1flux = rflux.copy(), gflux.copy(), zflux.copy(), w1flux.copy()
         parallax = parallax.copy()
         gaigmag = gaiagmag.copy()
         rflux[w], gflux[w], zflux[w], w1flux[w] = 0., 0., 0., 0.
@@ -1088,42 +996,40 @@ def isMWS_bhb(primary=None, objtype=None,
     # ADM don't target MWS-like targets in Legacy Surveys mask regions.
     mws &= imaging_mask(maskbits, mwsmask=True)
 
-    # APC must be a Legacy Surveys object that matches a Gaia source.
+    # APC must be a Legacy Surveys object that matches a Gaia source
     mws &= gaia
-    # APC type must be PSF.
+    # APC type must be PSF
     mws &= _psflike(objtype)
-    # APC no sources brighter than Gaia G = 10.
+    # APC no sources brighter than Gaia G = 10
     mws &= gaiagmag > 10.
-    # APC exclude nearby sources by parallax.
+    # APC exclude nearby sources by parallax
     mws &= parallax <= 0.1 + 3*parallaxerr
 
     mws &= (gfracmasked < 0.5) & (gflux > 0) & (gnobs > 0)
     mws &= (rfracmasked < 0.5) & (rflux > 0) & (rnobs > 0)
     mws &= (zfracmasked < 0.5) & (zflux > 0) & (znobs > 0)
 
-    # APC no gaia duplicated sources.
+    # APC no gaia duplicated sources
     mws &= ~gaiadupsource
-    # APC gaia astrometric excess noise < 3.
+    # APC gaia astrometric excess noise < 3
     mws &= gaiaaen < 3.0
 
-    # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02.
+    # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02
     mws &= (gmr >= -0.35) & (gmr <= -0.02)
 
-    # Coefficients from Sergey Koposov.
-    bhb_sel = rmz - (1.07163*gmr**5 - 1.42272*gmr**4 + 0.69476*gmr**3
-                     - 0.12911*gmr**2 + 0.66993*gmr - 0.11368)
+    # Coefficients from Sergey Koposov
+    bhb_sel = rmz - (1.07163*gmr**5 - 1.42272*gmr**4 + 0.69476*gmr**3 - 0.12911*gmr**2 + 0.66993*gmr - 0.11368)
     mws &= (bhb_sel >= -0.05) & (bhb_sel <= 0.05)
 
-    # APC back out WISE error = 1/sqrt(ivar) from SNR = flux*sqrt(ivar).
+    # APC back out the WISE error = 1/sqrt(ivar) from the SNR = flux*sqrt(ivar)
     w1fluxerr = w1flux/(w1snr.clip(1e-7))
     w1mag_faint = 22.5 - 2.5 * np.log10((w1flux-3*w1fluxerr).clip(1e-7))
 
-    # APC WISE cut (Sergey Koposov).
+    # APC WISE cut (Sergey Koposov)
     mws &= rmag - 2.3*gmr - w1mag_faint < -1.5
 
-    # APC Legacy magnitude limits.
+    # APC Legacy magnitude limits
     mws &= (rmag >= 16.) & (rmag <= 20.)
-
     return mws
 
 
@@ -1201,7 +1107,9 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     # ADM Finite proper motion to reject quasars
     # ADM Inexplicably I'm getting a Runtimewarning here for
     # ADM a few values in the sqrt, so I'm catching it
-    pm = np.sqrt(pmra**2. + pmdec**2.)
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        pm = np.sqrt(pmra**2. + pmdec**2.)
     mws &= pm > 2.
 
     # ADM As of DR7, photbprpexcessfactor and astrometricsigma5dmax are not in the
@@ -1262,7 +1170,7 @@ def isMWSSTAR_colors(gflux=None, rflux=None, zflux=None,
 
 
 def _check_BGS_targtype(targtype):
-    """Fail if `targtype` is not one 'bright', 'faint' or 'wise'.
+    """Fail if `targtype` is not one of the strings 'bright', 'faint' or 'wise'.
     """
     targposs = ['faint', 'bright', 'wise']
 
@@ -1273,7 +1181,7 @@ def _check_BGS_targtype(targtype):
 
 
 def _check_BGS_targtype_sv(targtype):
-    """check `targtype` ('bright', 'faint', 'faint_ext', 'lowq', 'fibmag').
+    """Fail if `targtype` is not one of the strings 'bright', 'faint', 'faint_ext', 'lowq' or 'fibmag'.
     """
     targposs = ['faint', 'bright', 'faint_ext', 'lowq', 'fibmag']
 
@@ -1283,28 +1191,28 @@ def _check_BGS_targtype_sv(targtype):
         raise ValueError(msg)
 
 
-def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=None,
-          w1flux=None, w2flux=None, gnobs=None, rnobs=None, znobs=None,
-          gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None,
-          Grr=None, refcat=None, w1snr=None, w2snr=None, gaiagmag=None,
-          objtype=None, primary=None, south=True, targtype=None):
+def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+          gnobs=None, rnobs=None, znobs=None, gfracmasked=None, rfracmasked=None, zfracmasked=None,
+          gfracflux=None, rfracflux=None, zfracflux=None, gfracin=None, rfracin=None, zfracin=None,
+          gfluxivar=None, rfluxivar=None, zfluxivar=None, maskbits=None, Grr=None, refcat=None,
+          w1snr=None, gaiagmag=None, objtype=None, primary=None, south=True, targtype=None):
     """Definition of BGS target classes. Returns a boolean array.
 
     Args
     ----
     targtype: str, optional, defaults to ``faint``
-        Pass ``bright`` for the ``BGS_BRIGHT`` selection.
-        or ``faint`` for the ``BGS_FAINT`` selection
-        or ``wise`` for the ``BGS_WISE`` (AGN-like) selection.
+        Pass ``bright`` to use colors appropriate to the ``BGS_BRIGHT`` selection
+        or ``faint`` to use colors appropriate to the ``BGS_FAINT`` selection
+        or ``wise`` to use colors appropriate to the ``BGS_WISE`` selection.
 
     Returns
     -------
     :class:`array_like`
-        ``True`` if the object is a BGS target of type ``targtype``.
+        ``True`` if and only if the object is a BGS target of type ``targtype``.
 
     Notes
     -----
-    - Current version (03/29/21) is version 13 on `the SV3 wiki`_.
+    - Current version (10/24/18) is version 143 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
@@ -1314,40 +1222,29 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=Non
         primary = np.ones_like(rflux, dtype='?')
     bgs = primary.copy()
 
-    if targtype == 'wise':
-        bgs &= isBGS_wise(
-            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
-            rfibertotflux=rfibertotflux, w1flux=w1flux, w2flux=w2flux,
-            refcat=refcat, maskbits=maskbits,
-            w1snr=w1snr, w2snr=w2snr, Grr=Grr, gaiagmag=gaiagmag,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            gnobs=gnobs, rnobs=rnobs, znobs=znobs, south=south,
-            targtype=targtype, objtype=objtype, primary=primary
-        )
-    else:
-        bgs &= notinBGS_mask(
-            gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
-            gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
-            Grr=Grr, gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype
-        )
-        bgs &= isBGS_colors(
-            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
-            rfibertotflux=rfibertotflux, w1flux=w1flux, maskbits=maskbits,
-            south=south, targtype=targtype, primary=primary
-        )
-        bgs |= isBGS_sga(
-            rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
-            rfibertotflux=rfibertotflux, w1flux=w1flux, refcat=refcat,
-            maskbits=maskbits, south=south, targtype=targtype
-        )
+    bgs &= notinBGS_mask(gnobs=gnobs, rnobs=rnobs, znobs=znobs, primary=primary,
+                         gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                         gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                         gfracin=gfracin, rfracin=rfracin, zfracin=zfracin, w1snr=w1snr,
+                         gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar, Grr=Grr,
+                         gaiagmag=gaiagmag, maskbits=maskbits, targtype=targtype)
+
+    bgs &= isBGS_colors(rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                        w2flux=w2flux, south=south, targtype=targtype, primary=primary)
+
+    bgs |= isBGS_lslga(gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, refcat=refcat,
+                       maskbits=maskbits, south=south, targtype=targtype)
 
     return bgs
 
 
 def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
+                  gfracmasked=None, rfracmasked=None, zfracmasked=None,
+                  gfracflux=None, rfracflux=None, zfracflux=None,
+                  gfracin=None, rfracin=None, zfracin=None, w1snr=None,
                   gfluxivar=None, rfluxivar=None, zfluxivar=None, Grr=None,
                   gaiagmag=None, maskbits=None, targtype=None):
-    """Standard masking cuts used by all BGS target selection classes
+    """Standard set of masking cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
@@ -1357,24 +1254,29 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
     bgs = primary.copy()
 
     bgs &= (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1)
+    bgs &= (gfracmasked < 0.4) & (rfracmasked < 0.4) & (zfracmasked < 0.4)
+    bgs &= (gfracflux < 5.0) & (rfracflux < 5.0) & (zfracflux < 5.0)
+    bgs &= (gfracin > 0.3) & (rfracin > 0.3) & (zfracin > 0.3)
     bgs &= (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0)
 
     # ADM geometric masking cuts from the Legacy Surveys.
-    # BRIGHT & CLUSTER for BGS
-    bgs &= imaging_mask(maskbits, bgsmask=True)
+    bgs &= imaging_mask(maskbits)
 
     if targtype == 'bright':
         bgs &= ((Grr > 0.6) | (gaiagmag == 0))
     elif targtype == 'faint':
         bgs &= ((Grr > 0.6) | (gaiagmag == 0))
+    elif targtype == 'wise':
+        bgs &= Grr < 0.4
+        bgs &= Grr > -1
+        bgs &= w1snr > 5
 
     return bgs
 
 
-def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None,
-                 w1flux=None, rfibertotflux=None, maskbits=None,
-                 south=True, targtype=None, primary=None):
-    """Standard color-based cuts used by all BGS target selection classes
+def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
+                 w2flux=None, south=True, targtype=None, primary=None):
+    """Standard set of color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
@@ -1403,132 +1305,39 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None,
     g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
     r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
     z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
-    w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
     rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
 
     # Fibre Magnitude Cut (FMC) -- This is a low surface brightness cut
     # with the aim of increase the redshift success rate.
     fmc |= ((rfib < (2.9 + 1.2 + 1.0) + r) & (r < 17.8))
     fmc |= ((rfib < 22.9) & (r < 20.0) & (r > 17.8))
-    # ?????????????????????????????????????????????????????
-    # Remove next line for the Main Survey?????????????????
-    # ?????????????????????????????????????????????????????
     fmc |= ((rfib < 2.9 + r) & (r > 20))
 
     bgs &= fmc
 
-    # BASS r-mag offset with DECaLS.
-    offset = 0.04
-
-    # D. Schlegel - ChangHoon H. color selection to get a high redshift
-    # success rate.
-    if south:
-        schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
-        rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
-    else:
-        schlegel_color = (z - w1) - 3/2.5 * (g - (r-offset)) + 1.2
-        rfibcol = (rfib < 20.75+offset) | ((rfib < 21.5+offset) &
-                                           (schlegel_color > 0.))
-
     if targtype == 'bright':
-        if south:
-            bgs &= rflux > 10**((22.5-19.5)/2.5)
-            bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
-        else:
-            bgs &= rflux > 10**((22.5-(19.5+offset))/2.5)
-            bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
+        bgs &= rflux > 10**((22.5-19.5)/2.5)
     elif targtype == 'faint':
-        if south:
-            bgs &= rflux > 10**((22.5-20.3)/2.5)
-            bgs &= rflux <= 10**((22.5-19.5)/2.5)
-            bgs &= (rfibcol)
-        else:
-            bgs &= rflux > 10**((22.5-(20.3))/2.5)
-            bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
-            bgs &= (rfibcol)
+        bgs &= rflux > 10**((22.5-20.0)/2.5)
+        bgs &= rflux <= 10**((22.5-19.5)/2.5)
+    elif targtype == 'wise':
+        bgs &= rflux > 10**((22.5-20.0)/2.5)
+        bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
 
     return bgs
 
 
-def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
-               rfibertotflux=None, w2flux=None, refcat=None, maskbits=None,
-               w1snr=None, w2snr=None, Grr=None, gaiagmag=None,
-               gfluxivar=None, rfluxivar=None, zfluxivar=None,
-               gnobs=None, rnobs=None, znobs=None, south=True, targtype=None,
-               objtype=None, primary=None):
-    """Standard color-based cuts used by all BGS target selection classes
+def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
+                maskbits=None, south=True, targtype=None):
+    """Module to recover the LSLGA objects in all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
-    _check_BGS_targtype(targtype)
-
-    # ADM to maintain backwards-compatibility with mocks.
-    if rfiberflux is None:
-        log.warning('Setting rfiberflux to rflux!!!')
-        rfiberflux = rflux.copy()
-
-    if primary is None:
-        primary = np.ones_like(rflux, dtype='?')
-    bgs = primary.copy()
-
-    g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
-    r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
-    z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
-    w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
-    w2 = 22.5 - 2.5*np.log10(w2flux.clip(1e-16))
-    rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
-    rfibtot = 22.5 - 2.5*np.log10(rfibertotflux.clip(1e-16))
-
-    agnw2 = primary.copy()
-    agnw2 = (z - w2 - (g - r) > -0.5) &   \
-            (w2snr > 10) &\
-            ((maskbits & 2**(9)) == 0) &  \
-            (w2flux > 0)
-
-    quality = primary.copy()
-    quality = (rflux > 0) & (gflux > 0) & (zflux > 0) &                   \
-              (gfluxivar > 0) & (rfluxivar > 0) & (zfluxivar > 0) &       \
-              (gnobs >= 1) & (rnobs >= 1) & (znobs >= 1) &                \
-              (imaging_mask(maskbits, bgsmask=True)) &                    \
-              ((gaiagmag == 0) | ((gaiagmag != 0) & (gaiagmag > 16))) &   \
-              (r < 20.3) & (r > 16) &                                     \
-              (rfib < 22) & (rfibtot > 15) &                              \
-              (((rfib < 21.5) & (r > 19.5)) | (r < 19.5)) &               \
-              (((_psflike(objtype)) & (r < 17.5)) | (~_psflike(objtype)))
-
-    stars = primary.copy()
-    stars = ((gaiagmag != 0) & (Grr < 0.6)) | ((gaiagmag == 0) &
-                                               (_psflike(objtype)))
-
-    additional = primary.copy()
-    additional = ((w1 - w2) > -0.2) &          \
-                 (z - w1 - (g - r) > -0.7) &   \
-                 (w1snr > 10)
-
-    agn_ext = primary.copy()
-    agn_ext = (agnw2) & (additional)
-
-    AGN = primary.copy()
-    AGN = (agn_ext) & (quality) & ~((stars) & (~agn_ext))
-    AGN &= (Grr < 0.6) & (gaiagmag != 0)
-
-    return AGN
-
-
-def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
-              rfibertotflux=None, rfiberflux=None,
-              maskbits=None, south=True, targtype=None):
-    """Module to recover the SGA objects in all BGS target classes
-    (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
-    """
-
     _check_BGS_targtype(targtype)
 
     bgs = np.zeros_like(rflux, dtype='?')
 
-    # the SGA galaxies.
-    LX = np.zeros_like(rflux, dtype='?')
+    # the LSLGA galaxies.
+    LX = bgs.copy()
     # ADM Could check on "L2" for DR8, need to check on "LX" post-DR8.
     if refcat is not None:
         rc1d = np.atleast_1d(refcat)
@@ -1541,49 +1350,18 @@ def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
         else:
             LX = np.array(LX, dtype=bool)
 
-    # Make sure to include all the SGA galaxies.
     bgs |= LX
     # ADM geometric masking cuts from the Legacy Surveys.
-    # Remove SGA in BRIGHT and CLUSTER.
     bgs &= imaging_mask(maskbits, bgsmask=True)
 
-    g = 22.5 - 2.5*np.log10(gflux.clip(1e-16))
-    r = 22.5 - 2.5*np.log10(rflux.clip(1e-16))
-    z = 22.5 - 2.5*np.log10(zflux.clip(1e-16))
-    w1 = 22.5 - 2.5*np.log10(w1flux.clip(1e-16))
-    rfib = 22.5 - 2.5*np.log10(rfiberflux.clip(1e-16))
-
-    # BASS r-mag offset with DECaLS.
-    offset = 0.04
-
-    # D. Schlegel - ChangHoon H. color selection to get a high redshift
-    # success rate.
-    if south:
-        schlegel_color = (z - w1) - 3/2.5 * (g - r) + 1.2
-        rfibcol = (rfib < 20.75) | ((rfib < 21.5) & (schlegel_color > 0.))
-    else:
-        schlegel_color = (z - w1) - 3/2.5 * (g - (r-offset)) + 1.2
-        rfibcol = (rfib < 20.75+offset) | ((rfib < 21.5+offset)
-                                           & (schlegel_color > 0.))
-
     if targtype == 'bright':
-        if south:
-            bgs &= rflux > 10**((22.5-19.5)/2.5)
-            bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
-        else:
-            bgs &= rflux > 10**((22.5-(19.5+offset))/2.5)
-            bgs &= rflux <= 10**((22.5-12.0)/2.5)
-            bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
+        bgs &= rflux > 10**((22.5-19.5)/2.5)
     elif targtype == 'faint':
-        if south:
-            bgs &= rflux > 10**((22.5-20.3)/2.5)
-            bgs &= rflux <= 10**((22.5-19.5)/2.5)
-            bgs &= (rfibcol)
-        else:
-            bgs &= rflux > 10**((22.5-(20.3))/2.5)
-            bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
-            bgs &= (rfibcol)
+        bgs &= rflux > 10**((22.5-20.0)/2.5)
+        bgs &= rflux <= 10**((22.5-19.5)/2.5)
+    elif targtype == 'wise':
+        bgs &= rflux > 10**((22.5-20.0)/2.5)
+        bgs &= w1flux*gflux > (zflux*rflux)*10**(-0.2)
 
     return bgs
 
@@ -1592,20 +1370,20 @@ def isQSO_cuts(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                w1snr=None, w2snr=None, deltaChi2=None, maskbits=None,
                gnobs=None, rnobs=None, znobs=None,
                release=None, objtype=None, primary=None, optical=False, south=True):
-    """QSO targets from color cuts. Returns a boolean array.
+    """Definition of QSO target classes from color cuts. Returns a boolean array.
 
     Parameters
     ----------
     optical : :class:`boolean`, defaults to ``False``
         Apply just optical color-cuts.
     south : :class:`boolean`, defaults to ``True``
-        Use cuts for Northern imaging (BASS/MzLS) if ``south=False``,
-        otherwise use cuts for Southern imaging (DECaLS).
+        Use cuts appropriate to the Northern imaging surveys (BASS/MzLS) if ``south=False``,
+        otherwise use cuts appropriate to the Southern imaging survey (DECaLS).
 
     Returns
     -------
     :class:`array_like`
-        ``True`` for objects passing quasar color/morphology/logic cuts.
+        ``True`` for objects that pass the quasar color/morphology/logic cuts.
 
     Notes
     -----
@@ -1668,16 +1446,15 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     if not optical:
         if south:
-            qso &= w2flux > w1flux * 10**(-0.4/2.5)              # (W1-W2)>-0.4
+            qso &= w2flux > w1flux * 10**(-0.4/2.5)                   # (W1-W2)>-0.4
         else:
-            qso &= w2flux > w1flux * 10**(-0.3/2.5)              # (W1-W2)>-0.3
-        # (grz-W)>(g-z)-1.0
-        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)
+            qso &= w2flux > w1flux * 10**(-0.3/2.5)                   # (W1-W2)>-0.3
+        qso &= wflux * gflux > zflux * grzflux * 10**(-1.0/2.5)   # (grz-W)>(g-z)-1.0
 
     # Harder cut on stellar contamination
     mainseq = rflux > gflux * 10**(0.20/2.5)  # g-r>0.2
 
-    # Clip to avoid warnings for -ve numbers raised to fractional powers.
+    # Clip to avoid warnings from negative numbers raised to fractional powers.
     rflux = rflux.clip(0)
     zflux = zflux.clip(0)
     mainseq &= rflux**(1+1.53) > gflux * zflux**1.53 * 10**((-0.100+0.20)/2.5)
@@ -1692,8 +1469,7 @@ def isQSO_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
                        w1flux=None, w2flux=None, objtype=None, release=None,
                        gnobs=None, rnobs=None, znobs=None, deltaChi2=None,
-                       primary=None, ra=None, dec=None, south=True,
-                       return_probs=False):
+                       primary=None, ra=None, dec=None, south=True, return_probs=False):
     """Define QSO targets from a Random Forest. Returns a boolean array.
 
     Parameters
@@ -1721,10 +1497,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     Notes
     -----
-    - Current version (03/27/21) is version 8 on `the SV3 wiki`_.
+    - Current version (20/11/20) is version 173 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
-    # ADM Primary (True for any initially possible target).
+    # ADM Primary (True for anything to initially consider as a possible target).
     if primary is None:
         primary = np.ones_like(gflux, dtype=bool)
 
@@ -1735,28 +1511,17 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     release = np.atleast_1d(release)
 
     # Build variables for random forest
-    # Number of attributes describing each object to be classified.
-    nFeatures = 11
+    nFeatures = 11   # Number of attributes describing each object to be classified by the rf
     nbEntries = rflux.size
     if not south:
         gflux, rflux, zflux = shift_photo_north(gflux, rflux, zflux)
 
-    colors, r, photOK = _getColors(nbEntries, nFeatures,
-                                   gflux, rflux, zflux, w1flux, w2flux)
+    colors, r, photOK = _getColors(nbEntries, nFeatures, gflux, rflux, zflux, w1flux, w2flux)
     r = np.atleast_1d(r)
 
-    # For the last version of QSO selection we add cuts on W1 and W2!
-    limitInf = 1.e-04
-    w1flux, w2flux = w1flux.clip(limitInf), w2flux.clip(limitInf)
-    W1 = np.atleast_1d(np.where(w1flux > limitInf,
-                                22.5-2.5*np.log10(w1flux), 0.))
-    W2 = np.atleast_1d(np.where(w2flux > limitInf,
-                                22.5-2.5*np.log10(w2flux), 0.))
-    W1_cut, W2_cut = 22.3, 22.3
-
-    # Preselection to speed up the process.
-    rMax = 23.0   # r < 23.0
-    rMin = 16.5   # r > 16.5
+    # Preselection to speed up the process
+    rMax = 22.7   # r < 22.7
+    rMin = 17.5   # r > 17.5
     preSelection = (r < rMax) & (r > rMin) & photOK & primary
 
     # ADM targets have to be observed in every band.
@@ -1767,7 +1532,10 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     if deltaChi2 is not None:
         deltaChi2 = np.atleast_1d(deltaChi2)
         preSelection[release < 5000] &= deltaChi2[release < 5000] > 30.
-
+    # ADM Reject objects in masks.
+    # ADM BRIGHT BAILOUT GALAXY CLUSTER (1, 10, 12, 13) bits not set.
+    # ALLMASK_G	| ALLMASK_R | ALLMASK_Z (5, 6, 7) bits not set.
+    # Now only 1, 12, 13
     if maskbits is not None:
         # ADM default mask bits from the Legacy Surveys not set.
         preSelection &= imaging_mask(maskbits)
@@ -1785,67 +1553,65 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
         from desitarget.myRF import myRF
 
-        # Data reduction to preselected objects.
+        # Data reduction to preselected objects
         colorsReduced = colors[preSelection]
         releaseReduced = release[preSelection]
         r_Reduced = r[preSelection]
-        W1_Reduced, W2_Reduced = W1[preSelection], W2[preSelection]
         colorsIndex = np.arange(0, nbEntries, dtype=np.int64)
         colorsReducedIndex = colorsIndex[preSelection]
 
-        # Path to random forest files.
+        # Path to random forest files
         pathToRF = resource_filename('desitarget', 'data')
-        # rf filenames.
+        # rf filenames
         rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
         rf_DR7_fileName = pathToRF + '/rf_model_dr7.npz'
         rf_DR7_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'
         rf_DR8_fileName = pathToRF + '/rf_model_dr8.npz'
         rf_DR8_HighZ_fileName = pathToRF + '/rf_model_dr8_HighZ.npz'
-        rf_DR9_fileName = pathToRF + '/rf_model_dr9_final.npz'
+        rf_DR9_fileName = pathToRF + '/rf_model_dr9.npz'
+        rf_DR9_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
 
         tmpReleaseOK = releaseReduced < 5000
         if np.any(tmpReleaseOK):
-            # rf initialization - colors data duplicated within "myRF".
+            # rf initialization - colors data duplicated within "myRF"
             rf_DR3 = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                           numberOfTrees=200, version=1)
-            # rf loading.
+            # rf loading
             rf_DR3.loadForest(rf_DR3_fileName)
-            # Compute rf probabilities.
+            # Compute rf probabilities
             tmp_rf_proba = rf_DR3.predict_proba()
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            # Compute optimized proba cut.
+            # Compute optimized proba cut
             pcut = np.where(tmp_r_Reduced > 20.0,
                             0.95 - (tmp_r_Reduced - 20.0) * 0.08, 0.95)
-            # Add rf proba test result to "qso" mask.
+            # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba >= pcut
             # ADM no high-z selection for DR3.
             qsohiz &= False
 
         tmpReleaseOK = (releaseReduced >= 5000) & (releaseReduced < 8000)
         if np.any(tmpReleaseOK):
-            # rf initialization - colors data duplicated within "myRF".
+            # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                       numberOfTrees=500, version=2)
             rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                             numberOfTrees=500, version=2)
-            # rf loading.
+            # rf loading
             rf.loadForest(rf_DR7_fileName)
             rf_HighZ.loadForest(rf_DR7_HighZ_fileName)
-            # Compute rf probabilities.
+            # Compute rf probabilities
             tmp_rf_proba = rf.predict_proba()
             tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
-            # Compute optimized proba cut.
+            # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             pcut = np.where(tmp_r_Reduced > 20.8,
                             0.83 - (tmp_r_Reduced - 20.8) * 0.025, 0.83)
-            pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (
-                tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
-            pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (
-                tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
+            pcut[tmp_r_Reduced > 21.5] = 0.8125 - 0.15 * (tmp_r_Reduced[tmp_r_Reduced > 21.5] - 21.5)
+            pcut[tmp_r_Reduced > 22.3] = 0.6925 - 0.70 * (tmp_r_Reduced[tmp_r_Reduced > 22.3] - 22.3)
             pcut_HighZ = np.where(tmp_r_Reduced > 20.5,
                                   0.55 - (tmp_r_Reduced - 20.5) * 0.025, 0.55)
 
-            # Add rf proba test result to "qso" mask.
+            # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
             # ADM populate a mask specific to the "HighZ" selection.
@@ -1854,23 +1620,23 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
         tmpReleaseOK = (releaseReduced >= 8000) & (releaseReduced < 9000)
         if np.any(tmpReleaseOK):
-            # rf initialization - colors data duplicated within "myRF".
+            # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                       numberOfTrees=500, version=2)
             rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                             numberOfTrees=500, version=2)
-            # rf loading.
+            # rf loading
             rf.loadForest(rf_DR8_fileName)
             rf_HighZ.loadForest(rf_DR8_HighZ_fileName)
-            # Compute rf probabilities.
+            # Compute rf probabilities
             tmp_rf_proba = rf.predict_proba()
             tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
-            # Compute optimized proba cut.
+            # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
             pcut = 0.88 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
             pcut_HighZ = 0.55
 
-            # Add rf proba test result to "qso" mask.
+            # Add rf proba test result to "qso" mask
             qso[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
             # ADM populate a mask specific to the "HighZ" selection.
@@ -1883,48 +1649,47 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
         tmpReleaseOK = releaseReduced >= 9000
         if np.any(tmpReleaseOK):
-            # rf initialization - colors data duplicated within "myRF".
+            # rf initialization - colors data duplicated within "myRF"
             rf = myRF(colorsReduced[tmpReleaseOK], pathToRF,
                       numberOfTrees=500, version=2)
-            # rf loading.
+            rf_HighZ = myRF(colorsReduced[tmpReleaseOK], pathToRF,
+                            numberOfTrees=500, version=2)
+            # rf loading
             rf.loadForest(rf_DR9_fileName)
-            # Compute rf probabilities.
+            rf_HighZ.loadForest(rf_DR9_HighZ_fileName)
+            # Compute rf probabilities
             tmp_rf_proba = rf.predict_proba()
-            # Compute optimized proba cut.
+            tmp_rf_HighZ_proba = rf_HighZ.predict_proba()
+            # Compute optimized proba cut
             tmp_r_Reduced = r_Reduced[tmpReleaseOK]
-            tmp_W1_Reduced = W1_Reduced[tmpReleaseOK]
-            tmp_W2_Reduced = W2_Reduced[tmpReleaseOK]
-
-            # NO SECOND RF! Structure kept but doesn't impact selection.
-            tmp_rf_HighZ_proba, pcut_HighZ = np.zeros(tmp_r_Reduced.size), 1.1
-
             if not south:
                 # threshold selection for North footprint.
-                pcut = 0.88 - 0.04*np.tanh(tmp_r_Reduced - 20.5)
+                pcut = 0.857 - 0.03*np.tanh(tmp_r_Reduced - 20.5)
+                pcut_HighZ = 0.7
             else:
                 pcut = np.ones(tmp_rf_proba.size)
-                is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &    \
-                         (rnobs[preSelection][tmpReleaseOK] > 4) &    \
-                         (znobs[preSelection][tmpReleaseOK] > 4) &    \
-                         ((ra[preSelection][tmpReleaseOK] >= 320) |
-                          (ra[preSelection][tmpReleaseOK] <= 100)) &  \
+                pcut_HighZ = np.ones(tmp_rf_HighZ_proba.size)
+                is_des = (gnobs[preSelection][tmpReleaseOK] > 4) &\
+                         (rnobs[preSelection][tmpReleaseOK] > 4) &\
+                         (znobs[preSelection][tmpReleaseOK] > 4) &\
+                         ((ra[preSelection][tmpReleaseOK] >= 320) | (ra[preSelection][tmpReleaseOK] <= 100)) &\
                          (dec[preSelection][tmpReleaseOK] <= 10)
                 # threshold selection for DES footprint.
-                pcut[is_des] = 0.7 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut[is_des] = 0.75 - 0.05*np.tanh(tmp_r_Reduced[is_des] - 20.5)
+                pcut_HighZ[is_des] = 0.50
                 # threshold selection for South footprint.
-                pcut[~is_des] = 0.84 - 0.04*np.tanh(
-                    tmp_r_Reduced[~is_des] - 20.5)
+                pcut[~is_des] = 0.85 - 0.04*np.tanh(tmp_r_Reduced[~is_des] - 20.5)
+                pcut_HighZ[~is_des] = 0.65
 
             # Add rf proba test result to "qso" mask
-            qso[colorsReducedIndex[tmpReleaseOK]] =                   \
-                (tmp_rf_proba >= pcut) & (tmp_W1_Reduced <= W1_cut) & \
-                (tmp_W2_Reduced <= W2_cut)
-            # (NO IMPACT) ADM mask specific to the "HighZ" selection.
+            qso[colorsReducedIndex[tmpReleaseOK]] = \
+                (tmp_rf_proba >= pcut) | (tmp_rf_HighZ_proba >= pcut_HighZ)
+            # ADM populate a mask specific to the "HighZ" selection.
             qsohiz[colorsReducedIndex[tmpReleaseOK]] = \
                 (tmp_rf_HighZ_proba >= pcut_HighZ)
             # ADM store the probabilities in case they need returned.
             pqso[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_proba
-            # (NO IMPACT) ADM mask specific to the "HighZ" selection.
+            # ADM populate a mask specific to the "HighZ" selection.
             pqsohiz[colorsReducedIndex[tmpReleaseOK]] = tmp_rf_HighZ_proba
 
     # In case of call for a single object passed to the function with
@@ -1943,39 +1708,35 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
 def _psflike(psftype):
     """ If the object is PSF """
-    # ADM explicitly checking for NoneType. In the past we have had bugs
-    # ADM where we forgot to pass objtype=objtype in, e.g., isSTD.
+    # ADM explicitly checking for NoneType. I can't see why we'd ever want to
+    # ADM run this test on empty information. In the past we have had bugs where
+    # ADM we forgot to pass objtype=objtype in, e.g., isSTD
     if psftype is None:
-        msg = "NoneType submitted to _psfflike function"
-        log.critical(msg)
-        raise ValueError(msg)
+        raise ValueError("NoneType submitted to _psfflike function")
 
     psftype = np.asarray(psftype)
     # ADM in Python3 these string literals become byte-like
     # ADM so to retain Python2 compatibility we need to check
-    # ADM against both bytes and unicode.
-    # ADM Also 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh).
+    # ADM against both bytes and unicode
+    # ADM, also 'PSF' for astropy.io.fits; 'PSF ' for fitsio (sigh)
     psflike = ((psftype == 'PSF') | (psftype == b'PSF') |
                (psftype == 'PSF ') | (psftype == b'PSF '))
-
     return psflike
 
 
 def _isonnorthphotsys(photsys):
     """ If the object is from the northen photometric system """
-    # ADM explicitly checking for NoneType. In the past we have had bugs
-    # ADM where we forgot to populate variables before passing them.
+    # ADM explicitly checking for NoneType. I can't see why we'd ever want to
+    # ADM run this test on empty information. In the past we have had bugs where
+    # ADM we forgot to populate variables before passing them
     if photsys is None:
-        msg = "NoneType submitted to _isonnorthphotsys function"
-        log.critical(msg)
-        raise ValueError(msg)
+        raise ValueError("NoneType submitted to _isonnorthphotsys function")
 
     psftype = np.asarray(photsys)
     # ADM in Python3 these string literals become byte-like
     # ADM so to retain Python2 compatibility we need to check
-    # ADM against both bytes and unicode.
+    # ADM against both bytes and unicode
     northern = ((photsys == 'N') | (photsys == b'N'))
-
     return northern
 
 
@@ -2013,14 +1774,13 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
 
 
 def _is_row(table):
-    """Return True/False if this is a table row instead of a full table.
+    """Return True/False if this is a row of a table instead of a full table.
 
-    supports numpy.ndarray, astropy.io.fits.FITS_rec, astropy.table.Table
+    supports numpy.ndarray, astropy.io.fits.FITS_rec, and astropy.table.Table
     """
     import astropy.io.fits.fitsrec
     import astropy.table.row
-    if isinstance(table, (astropy.io.fits.fitsrec.FITS_record,
-                          astropy.table.row.Row)) or \
+    if isinstance(table, (astropy.io.fits.fitsrec.FITS_record, astropy.table.row.Row)) or \
        np.isscalar(table):
         return True
     else:
@@ -2050,15 +1810,28 @@ def _prepare_optical_wise(objects, mask=True):
         default behavior is to always mask using `MASKBITS`.
     """
     # ADM flag whether we're using northen (BASS/MZLS) or
-    # ADM southern (DECaLS) photometry.
+    # ADM southern (DECaLS) photometry
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
     photsys_south = ~photsys_north
     # ADM catch case where single object or row is passed.
     if isinstance(photsys_north, bool):
         photsys_south = not(photsys_north)
+    # ADM rewrite the fluxes to shift anything on the northern Legacy Surveys
+    # ADM system to approximate the southern system
+    # ADM turn off shifting the northern photometry to match the southern
+    # ADM photometry. The consensus at the May, 2018 DESI collaboration meeting
+    # ADM in Tucson was not to do this.
+#    wnorth = np.where(photsys_north)
+#    if len(wnorth[0]) > 0:
+#        gshift, rshift, zshift = shift_photo_north(objects["FLUX_G"][wnorth],
+#                                                   objects["FLUX_R"][wnorth],
+#                                                   objects["FLUX_Z"][wnorth])
+#        objects["FLUX_G"][wnorth] = gshift
+#        objects["FLUX_R"][wnorth] = rshift
+#        objects["FLUX_Z"][wnorth] = zshift
 
-    # ADM the observed r-band flux (used for F standards and MWS, below).
-    # ADM make copies of values that we may reassign due to NaNs.
+    # ADM the observed r-band flux (used for F standards and MWS, below)
+    # ADM make copies of values that we may reassign due to NaNs
     obs_rflux = objects['FLUX_R']
     # ADM don't de-extinct the FIBERTOTFLUXES as they're mainly used to
     # ADM limit bright-end observations to prevent fiber cross-talk.
@@ -2066,7 +1839,7 @@ def _prepare_optical_wise(objects, mask=True):
     rfibertotflux = objects['FIBERTOTFLUX_R']
     zfibertotflux = objects['FIBERTOTFLUX_Z']
 
-    # - undo Milky Way extinction.
+    # - undo Milky Way extinction
     flux = unextinct_fluxes(objects)
 
     gflux = flux['GFLUX']
@@ -2126,8 +1899,8 @@ def _prepare_optical_wise(objects, mask=True):
     dchisq = objects['DCHISQ']
     deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
 
-    # ADM remove any NaNs from DCHISQ values, make them unselectable.
-    # SJB support py3.8 + np1.18 for both scalars and vectors.
+    # ADM remove handful of NaN values from DCHISQ values and make them unselectable.
+    # SJB support py3.8 + np1.18 for both scalars and vectors
     if np.isscalar(deltaChi2):
         if np.isnan(deltaChi2):
             deltaChi2 = -1e6
@@ -2164,12 +1937,11 @@ def _prepare_gaia(objects, colnames=None):
     pmraivar = objects['PMRA_IVAR']
     parallax = objects['PARALLAX']
     parallaxivar = objects['PARALLAX_IVAR']
-    # ADM derive parallax/parallax_error, set to 0 where error is bad.
-    parallaxovererror = np.where(parallaxivar > 0.,
-                                 parallax*np.sqrt(parallaxivar), 0.)
+    # ADM derive the parallax/parallax_error, but set to 0 where the error is bad
+    parallaxovererror = np.where(parallaxivar > 0., parallax*np.sqrt(parallaxivar), 0.)
 
-    # We also need the parallax uncertainty, for MWS_NEARBY targets.
-    parallaxerr = np.zeros_like(parallax) - 1e8  # make large and -ve.
+    # We also need the parallax uncertainty, to select MWS_NEARBY targets.
+    parallaxerr = np.zeros_like(parallax) - 1e8  # make large and negative
     notzero = parallaxivar > 0
     if np.sum(notzero) > 0:
         parallaxerr[notzero] = 1 / np.sqrt(parallaxivar[notzero])
@@ -2177,7 +1949,7 @@ def _prepare_gaia(objects, colnames=None):
     gaiabmag = objects['GAIA_PHOT_BP_MEAN_MAG']
     gaiarmag = objects['GAIA_PHOT_RP_MEAN_MAG']
     gaiaaen = objects['GAIA_ASTROMETRIC_EXCESS_NOISE']
-    # ADM a mild hack, as GAIA_DUPLICATED_SOURCE was 0/1 at some point.
+    # ADM a mild hack, as GAIA_DUPLICATED_SOURCE was a 0/1 integer at some point.
     gaiadupsource = objects['GAIA_DUPLICATED_SOURCE']
     if issubclass(gaiadupsource.dtype.type, np.integer):
         if len(set(np.atleast_1d(gaiadupsource)) - set([0, 1])) == 0:
@@ -2205,14 +1977,14 @@ def _prepare_gaia(objects, colnames=None):
         gaiaparamssolved = np.zeros_like(gaia) + 31
         w = np.where(np.isnan(pmra) | (pmraivar == 0))[0]
         if len(w) > 0:
-            # ADM we need to check the case of a single row being passed.
+            # ADM we need to check the case of a single row being passed
             if _is_row(gaiaparamssolved):
                 gaiaparamsolved = 3
             else:
                 gaiaparamssolved[w] = 3
 
     # ADM Add these columns if they exist, or set them to none.
-    # ADM (They weren't in the Tractor files prior to DR8).
+    # ADM They aren't in the Tractor files as of DR7.
     gaiabprpfactor = None
     gaiasigma5dmax = None
     if 'GAIA_PHOT_BP_RP_EXCESS_FACTOR' in colnames:
@@ -2220,12 +1992,12 @@ def _prepare_gaia(objects, colnames=None):
     if 'GAIA_ASTROMETRIC_SIGMA5D_MAX' in colnames:
         gaiasigma5dmax = objects['GAIA_ASTROMETRIC_SIGMA5D_MAX']
 
-    # ADM Milky Way Selection requires Galactic b.
+    # ADM Milky Way Selection requires Galactic b
     _, galb = _gal_coords(objects["RA"], objects["DEC"])
 
-    return (gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr,
-            gaiagmag, gaiabmag, gaiarmag, gaiaaen, gaiadupsource, Grr,
-            gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb)
+    return (gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag,
+            gaiabmag, gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved,
+            gaiabprpfactor, gaiasigma5dmax, galb)
 
 
 def unextinct_fluxes(objects):
@@ -2234,17 +2006,16 @@ def unextinct_fluxes(objects):
     Args:
         objects: array or Table with columns FLUX_G, FLUX_R, FLUX_Z,
             MW_TRANSMISSION_G, MW_TRANSMISSION_R, MW_TRANSMISSION_Z,
-            FLUX_W1, FLUX_W2, MW_TRANSMISSION_W1, MW_TRANSMISSION_W2.
+            FLUX_W1, FLUX_W2, MW_TRANSMISSION_W1, MW_TRANSMISSION_W2
 
     Returns:
-        array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX.
+        array or Table with columns GFLUX, RFLUX, ZFLUX, W1FLUX, W2FLUX
 
-    Output type is the same as the input type.
+    Output type is Table if input is Table, otherwise numpy structured array
     """
     dtype = [('GFLUX', 'f4'), ('RFLUX', 'f4'), ('ZFLUX', 'f4'),
              ('W1FLUX', 'f4'), ('W2FLUX', 'f4'),
              ('GFIBERFLUX', 'f4'), ('RFIBERFLUX', 'f4'), ('ZFIBERFLUX', 'f4')]
-
     if _is_row(objects):
         result = np.zeros(1, dtype=dtype)[0]
     else:
@@ -2373,8 +2144,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
-    # ADM if resolvetargs is set, limit to only sending north/south
-    # ADM objects through north/south cuts.
+    # ADM if resolvetargs is set, limit to only sending north/south objects
+    # ADM through north/south cuts.
     south_cuts = [False, True]
     if resolvetargs:
         # ADM if only southern objects were sent this will be [True], if
@@ -2384,9 +2155,9 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM default for target classes we WON'T process is all False.
     tcfalse = primary & False
 
-    # ADM initially set everything to arrays of False for LRG selection.
-    # ADM zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
+    # ADM initially set everything to arrays of False for the LRG selection
+    # ADM the zeroth element stores the northern targets bits (south=False).
+    lrg_classes = [tcfalse, tcfalse]
     if "LRG" in tcnames:
         for south in south_cuts:
             lrg_classes[int(south)] = isLRG(
@@ -2394,48 +2165,39 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-                gaiagmag=gaiagmag, zfibertotflux=zfibertotflux,
                 maskbits=maskbits, south=south
             )
-    lrg_north, lrg_lowdens_north = lrg_classes[0]
-    lrg_south, lrg_lowdens_south = lrg_classes[1]
+    lrg_north, lrg_south = lrg_classes
 
     # ADM combine LRG target bits for an LRG target based on any imaging.
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
-    lrg_lowdens = ((lrg_lowdens_north & photsys_north) |
-                   (lrg_lowdens_south & photsys_south))
 
-    # ADM initially set everything to arrays of False for ELG selection.
-    # ADM zeroth element stores the northern targets bits (south=False).
-    elg_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
+    # ADM initially set everything to arrays of False for the ELG selection
+    # ADM the zeroth element stores the northern targets bits (south=False).
+    elg_classes = [tcfalse, tcfalse]
     if "ELG" in tcnames:
         for south in south_cuts:
             elg_classes[int(south)] = isELG(
                 primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
-                gfiberflux=gfiberflux, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+                gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                 gnobs=gnobs, rnobs=rnobs, znobs=znobs, maskbits=maskbits,
                 south=south
             )
-    elg_vlo_north, elg_lop_north = elg_classes[0]
-    elg_vlo_south, elg_lop_south = elg_classes[1]
+    elg_north, elg_south = elg_classes
 
     # ADM combine ELG target bits for an ELG target based on any imaging.
-    elg_vlo = (elg_vlo_north & photsys_north) | (elg_vlo_south & photsys_south)
-    elg_lop = (elg_lop_north & photsys_north) | (elg_lop_south & photsys_south)
-    elg_north = elg_vlo_north | elg_lop_north
-    elg_south = elg_vlo_south | elg_lop_south
-    elg = elg_vlo | elg_lop
+    elg = (elg_north & photsys_north) | (elg_south & photsys_south)
 
-    # ADM initially set everything to arrays of False for QSO selection.
-    # ADM zeroth element stores the northern targets bits (south=False).
+    # ADM initially set everything to arrays of False for the QSO selection
+    # ADM the zeroth element stores the northern targets bits (south=False).
     qso_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
     if "QSO" in tcnames:
         for south in south_cuts:
             if qso_selection == 'colorcuts':
-                # ADM find QSO targets in the north and south separately.
-                # ADM [0] here needed as isQSO_cuts only returns one bit
-                # ADM and the other bit (the "high-z" bit from the Random
-                # ADM Forest) needs to be set to all "False".
+                # ADM determine quasar targets in the north and the south separately
+                # ADM the [0] here is critical as isQSO_cuts only returns one bit
+                # ADM and the other bit (which is the "high-z" bit from the Random
+                # ADM Forest needs to be set to all "False".
                 qso_classes[int(south)][0] = isQSO_cuts(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux,
@@ -2445,7 +2207,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     optical=qso_optical_cuts, south=south
                 )
             elif qso_selection == 'randomforest':
-                # ADM find QSO targets in the north and south separately.
+                # ADM determine quasar targets in the north and the south separately
                 qso_classes[int(south)] = isQSO_randomforest(
                     primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
                     w1flux=w1flux, w2flux=w2flux, deltaChi2=deltaChi2,
@@ -2453,10 +2215,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     objtype=objtype, release=release, ra=ra, dec=dec, south=south
                 )
             else:
-                msg = "Unknown qso_selection {}; valid options are {}".format(
-                    qso_selection, qso_selection_options)
-                log.critical(msg)
-                raise ValueError(msg)
+                raise ValueError('Unknown qso_selection {}; valid options are {}'.format(
+                    qso_selection, qso_selection_options))
     qso_north, qso_hiz_north = qso_classes[0]
     qso_south, qso_hiz_south = qso_classes[1]
 
@@ -2464,22 +2224,24 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)
     qsohiz = (qso_hiz_north & photsys_north) | (qso_hiz_south & photsys_south)
 
-    # ADM initially set everything to arrays of False for BGS selection.
-    # ADM zeroth element stores the northern targets bits (south=False).
+    # ADM initially set everything to arrays of False for the BGS selection
+    # ADM the zeroth element stores the northern targets bits (south=False).
     bgs_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
-    # ADM set the BGS bits.
+    # ADM set the BGS bits
     if "BGS" in tcnames:
         for south in south_cuts:
             bgs_store = []
             for targtype in ["bright", "faint", "wise"]:
                 bgs_store.append(
                     isBGS(
-                        rfiberflux=rfiberflux, rfibertotflux=rfibertotflux, gflux=gflux,
-                        rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux, gnobs=gnobs,
-                        rnobs=rnobs, znobs=znobs, gfluxivar=gfluxivar, rfluxivar=rfluxivar,
-                        zfluxivar=zfluxivar, maskbits=maskbits, Grr=Grr, refcat=refcat,
-                        w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag, objtype=objtype,
-                        primary=primary, south=south, targtype=targtype
+                        rfiberflux=rfiberflux, gflux=gflux, rflux=rflux, zflux=zflux,
+                        w1flux=w1flux, w2flux=w2flux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                        gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                        gfracflux=gfracflux, rfracflux=rfracflux, zfracflux=zfracflux,
+                        gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
+                        gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
+                        maskbits=maskbits, Grr=Grr, refcat=refcat, w1snr=w1snr, gaiagmag=gaiagmag,
+                        objtype=objtype, primary=primary, south=south, targtype=targtype
                     )
                 )
             bgs_classes[int(south)] = bgs_store
@@ -2491,63 +2253,45 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_faint = (bgs_faint_north & photsys_north) | (bgs_faint_south & photsys_south)
     bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
 
-    # ADM 20% of the BGS_FAINT sources need the BGS_FAINT_HIP bit set.
-    # ADM form a seed using zflux in case we parallelized by HEALPixel.
+    # ADM 10% of the BGS_FAINT sources need the BGS_FAINT_HIP bit set.
+    # ADM form a seed using RA/Dec in case we parallelized by HEALPixel.
     # SJB seeds must be within 0 - 2**32-1
     # SJB np1.18 scalar vs. vector support, but note that HIP won't be
     #     set identically for vector vs. calling scalar N times.
-    percent = 0.2
-    tnecrep = int(1/percent)
     uniqseed = int(np.mean(zflux)*1e5) % (2**32 - 1)
     np.random.seed(uniqseed)
-    is_bgs_hip = None
+    hip = None
     if np.isscalar(bgs_faint):
         if bgs_faint:
-            is_bgs_hip = np.random.uniform(0, 1) < percent
+            nbgsf = 1
+            hip = np.random.uniform(0, 1) < 0.1
     else:
         w = np.where(bgs_faint)[0]
         nbgsf = len(w)
         if nbgsf > 0:
-            is_bgs_hip = np.random.choice(w, nbgsf//tnecrep, replace=False)
+            hip = np.random.choice(w, nbgsf//10, replace=False)
 
-    # ADM similarly, 10% of the ELG_LOP sources need the ELG_HIP bit set.
-    percent = 0.1
-    tnecrep = int(1/percent)
-    is_elg_hip = None
-    if np.isscalar(elg_lop):
-        if elg_lop:
-            is_elg_hip = np.random.uniform(0, 1) < percent
-    else:
-        w = np.where(elg_lop)[0]
-        nelglop = len(w)
-        if nelglop > 0:
-            is_elg_hip = np.random.choice(w, nelglop//tnecrep, replace=False)
-
-    # ADM initially set everything to arrays of False for MWS selection.
-    # ADM zeroth element stores the northern targets bits (south=False).
+    # ADM initially set everything to arrays of False for the MWS selection
+    # ADM the zeroth element stores the northern targets bits (south=False).
     mws_classes = [[tcfalse, tcfalse, tcfalse], [tcfalse, tcfalse, tcfalse]]
     mws_nearby = tcfalse
     mws_bhb = tcfalse
-    # ADM this denotes a bright limit for all MWS sources.
-    too_bright = MWS_too_bright(gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
     if "MWS" in tcnames:
         mws_nearby = isMWS_nearby(
             gaia=gaia, gaiagmag=gaiagmag, parallax=parallax,
             parallaxerr=parallaxerr, paramssolved=gaiaparamssolved
         )
-        # ADM impose bright limits for all MWS_NEARBY targets.
-        mws_nearby &= ~too_bright
 
         mws_bhb = isMWS_bhb(
-            primary=primary, objtype=objtype, gaia=gaia, gaiaaen=gaiaaen,
-            gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
-            gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w1snr=w1snr,
-            gnobs=gnobs, rnobs=rnobs, znobs=znobs, gfracmasked=gfracmasked,
-            rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-            parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
-        )
-        # ADM impose bright limits for all MWS_BHB targets.
-        mws_bhb &= ~too_bright
+                    primary=primary,
+                    objtype=objtype,
+                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
+                    gflux=gflux, rflux=rflux, zflux=zflux,
+                    w1flux=w1flux, w1snr=w1snr,
+                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                    gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
+             )
 
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
@@ -2559,9 +2303,6 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
                     paramssolved=gaiaparamssolved, primary=primary, south=south
             )
-            # ADM impose bright limits for all MWS_MAIN targets.
-            mws_classes[int(south)] &= ~too_bright
-
     mws_broad_n, mws_red_n, mws_blue_n = mws_classes[0]
     mws_broad_s, mws_red_s, mws_blue_s = mws_classes[1]
 
@@ -2576,15 +2317,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
             photbprpexcessfactor=gaiabprpfactor, astrometricsigma5dmax=gaiasigma5dmax,
             gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag
         )
-        # ADM impose bright limits for all MWS_WD targets.
-        mws_wd &= ~too_bright
 
     # ADM initially set everything to False for the standards.
     std_faint, std_bright, std_wd = tcfalse, tcfalse, tcfalse
     if "STD" in tcnames:
         # ADM run the MWS_MAIN target types for both faint and bright.
-        # ADM Make sure to pass all needed columns! Once,t we stopped
-        # ADM passing objtype, which meant no standards were returned!
+        # ADM Make sure to pass all of the needed columns! At one point we stopped
+        # ADM passing objtype, which meant no standards were being returned.
         std_classes = []
         for bright in [False, True]:
             std_classes.append(
@@ -2610,26 +2349,17 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
-    desi_target |= lrg_lowdens_south * desi_mask.LRG_LOWDENS_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
-    desi_target |= elg_vlo_south * desi_mask.ELG_VLO_SOUTH
-    desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
-    desi_target |= lrg_lowdens_north * desi_mask.LRG_LOWDENS_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
-    desi_target |= elg_vlo_north * desi_mask.ELG_VLO_NORTH
-    desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
     # Construct the targetflag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
-    desi_target |= lrg_lowdens * desi_mask.LRG_LOWDENS
     desi_target |= elg * desi_mask.ELG
-    desi_target |= elg_vlo * desi_mask.ELG_VLO
-    desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= qso * desi_mask.QSO
     desi_target |= qsohiz * desi_mask.QSO_HIZ
 
@@ -2638,34 +2368,29 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= std_bright * desi_mask.STD_BRIGHT
     desi_target |= std_wd * desi_mask.STD_WD
 
-    # ADM set fraction of the ELG_LOP targets to ELG_HIP.
-    if is_elg_hip is not None:
-        if is_elg_hip is True:
-            desi_target |= desi_mask.ELG_HIP
-        else:
-            desi_target[is_elg_hip] |= desi_mask.ELG_HIP
-
     # BGS targets, south.
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
     bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
-    bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
+    # ADM turn off BGS_WISE until we're sure we'll use it.
+    # bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
 
     # BGS targets, north.
     bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
     bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
-    bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
+    # ADM turn off BGS_WISE until we're sure we'll use it.
+    # bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
 
     # BGS targets, combined.
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
     bgs_target |= bgs_faint * bgs_mask.BGS_FAINT
-    bgs_target |= bgs_wise * bgs_mask.BGS_WISE
-
-    # ADM set fraction of the BGS_FAINT targets to BGS_FAINT_HIP.
-    if is_bgs_hip is not None:
-        if is_bgs_hip is True:
+    # ADM turn off BGS_WISE until we're sure we'll use it.
+    # bgs_target |= bgs_wise * bgs_mask.BGS_WISE
+    # ADM set 10% of the BGS_FAINT targets to BGS_FAINT_HIP.
+    if hip is not None:
+        if hip is True:
             bgs_target |= bgs_mask.BGS_FAINT_HIP
         else:
-            bgs_target[is_bgs_hip] |= bgs_mask.BGS_FAINT_HIP
+            bgs_target[hip] |= bgs_mask.BGS_FAINT_HIP
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws_broad * mws_mask.MWS_BROAD
@@ -2701,8 +2426,8 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
     survey : :class:`str`, defaults to ``'main'``
-        Which target masks yaml file and target selection cuts to use.
-        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        Specifies which target masks yaml file and target selection cuts
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
     nside : :class:`int`, optional, defaults to `None`
         (NESTED) HEALPix nside used with `pixlist` and `bundlefiles`.
@@ -2743,8 +2468,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
         from desitarget.targetmask import desi_mask, mws_mask
     elif survey[:2] == 'sv':
         try:
-            targcuts = import_module("desitarget.{}.{}_cuts".format(survey,
-                                                                    survey))
+            targcuts = import_module("desitarget.{}.{}_cuts".format(survey, survey))
             targmask = import_module("desitarget.{}.{}_targetmask".format(
                 survey, survey))
         except ModuleNotFoundError:
@@ -2773,9 +2497,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     ra = gaiaobjs["RA"]
     dec = gaiaobjs["DEC"]
     ebv = gaiaobjs["EBV"]
-    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, \
-        gaiabmag, gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, \
-        gaiabprpfactor, gaiasigma5dmax, galb = _prepare_gaia(gaiaobjs)
+    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
+        gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,      \
+        gaiasigma5dmax, galb = _prepare_gaia(gaiaobjs)
 
     # ADM determine if an object is a BACKUP target.
     primary = np.ones_like(gaiaobjs, dtype=bool)
@@ -2821,26 +2545,26 @@ def apply_cuts(objects, qso_selection='randomforest',
     objects : :class:`~numpy.ndarray` or `str`
         numpy structured array with UPPERCASE columns needed for
         target selection, OR a string tractor/sweep filename.
-    qso_selection : :class:`str`, optional, default is ``'randomforest'``
+    qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are
         ``'colorcuts'`` and ``'randomforest'``
     tcnames : :class:`list`, defaults to running all target classes
-        A list of strings, e.g. ['QSO','LRG']. If passed, process targets
-        only for those specific classes. A useful speed-up when testing.
+        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
+        for those specific target classes. A useful speed-up when testing.
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
     qso_optical_cuts : :class:`boolean` defaults to ``False``
         Apply just optical color-cuts when selecting QSOs with
         ``qso_selection="colorcuts"``.
     survey : :class:`str`, defaults to ``'main'``
-        Which target masks yaml file and target selection cuts to use.
-        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        Specifies which target masks yaml file and target selection cuts
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
-        If ``True``, if `objects` consists of all northern (southern)
-        sources then only apply the northern (southern) cuts.
+        If ``True``, if `objects` consists of all northern (southern) sources
+        then only apply the northern (southern) cuts.
     mask : :class:`boolean`, optional, defaults to ``True``
-        Send ``False`` to turn off any masking cuts based on the
-        `MASKBITS` column. Default is to always mask using `MASKBITS`.
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
 
     Returns
     -------
@@ -2850,12 +2574,13 @@ def apply_cuts(objects, qso_selection='randomforest',
 
     Notes
     -----
-    - If ``objects`` is an astropy Table with lowercase column names,
-      they will be converted to UPPERCASE in-place, thus modifying the
-      input table. To avoid this, pass in ``objects.copy()`` instead.
+    - If ``objects`` is an astropy Table with lowercase column names, this
+      converts them to UPPERCASE in-place, thus modifying the input table.
+      To avoid this, pass in ``objects.copy()`` instead.
     - See :mod:`desitarget.targetmask` for the definition of each bit.
+
     """
-    # - Check if objects is a filename instead of the actual data.
+    # - Check if objects is a filename instead of the actual data
     if isinstance(objects, str):
         objects = io.read_tractor(objects)
 
@@ -2865,25 +2590,24 @@ def apply_cuts(objects, qso_selection='randomforest',
             if not col.name.isupper():
                 col.name = col.name.upper()
 
-    # ADM as we need the column names.
+    # ADM As we need the column names
     colnames = _get_colnames(objects)
 
     # ADM process the Legacy Surveys columns for Target Selection.
-    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,               \
-        w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                     \
-        gfibertotflux, rfibertotflux, zfibertotflux,                            \
-        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar, \
-        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                   \
-        gfracmasked, rfracmasked, zfracmasked,                                  \
-        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                \
-        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =   \
+    photsys_north, photsys_south, obs_rflux, gflux, rflux, zflux,                     \
+        w1flux, w2flux, gfiberflux, rfiberflux, zfiberflux,                           \
+        gfibertotflux, rfibertotflux, zfibertotflux,                                  \
+        objtype, release, ra, dec, gfluxivar, rfluxivar, zfluxivar, w1fluxivar,       \
+        gnobs, rnobs, znobs, gfracflux, rfracflux, zfracflux,                         \
+        gfracmasked, rfracmasked, zfracmasked,                                        \
+        gfracin, rfracin, zfracin, gallmask, rallmask, zallmask,                      \
+        gsnr, rsnr, zsnr, w1snr, w2snr, dchisq, deltaChi2, maskbits, refcat =         \
         _prepare_optical_wise(objects, mask=mask)
 
     # Process the Gaia inputs for target selection.
-    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag,      \
-        gaiabmag, gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved,      \
-        gaiabprpfactor, gaiasigma5dmax, galb =                                  \
-        _prepare_gaia(objects, colnames=colnames)
+    gaia, pmra, pmdec, parallax, parallaxovererror, parallaxerr, gaiagmag, gaiabmag,  \
+        gaiarmag, gaiaaen, gaiadupsource, Grr, gaiaparamssolved, gaiabprpfactor,      \
+        gaiasigma5dmax, galb = _prepare_gaia(objects, colnames=colnames)
 
     # ADM initially, every object passes the cuts (is True).
     # ADM need to guard against the case of a single row being passed.
@@ -2936,10 +2660,10 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     Parameters
     ----------
     infiles : :class:`list` or `str`
-        List of input filenames (tractor or sweep) OR a single filename.
+        A list of input filenames (tractor or sweep files) OR a single filename.
     numproc : :class:`int`, optional, defaults to 4
         The number of parallel processes to use.
-    qso_selection : :class:`str`, optional, default is ``'randomforest'``
+    qso_selection : :class:`str`, optional, defaults to ``'randomforest'``
         The algorithm to use for QSO selection; valid options are
         ``'colorcuts'`` and ``'randomforest'``.
     gaiasub : :class:`boolean`, optional, defaults to ``False``
@@ -2947,65 +2671,65 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         columns over the sweeps values. If ``True``, then the GAIA_DIR
         environment variable must be set to find the Gaia sweeps files.
     nside : :class:`int`, optional, defaults to `None`
-        (NESTED) HEALPixel nside used with `pixlist` and `bundlefiles`.
+        The (NESTED) HEALPixel nside to be used with the `pixlist` and `bundlefiles` inputs.
     pixlist : :class:`list` or `int`, optional, defaults to `None`
-        Only return targets in (NESTED) HEALpixels at `nside`. Also
-        useful for parallelizing as input files will only be processed
-        if they touch a pixel in the passed list.
+        Only return targets in a set of (NESTED) HEALpixels at the supplied `nside`.
+        Also useful for parallelizing as input files will only be processed if they
+        touch a pixel in the passed list.
     bundlefiles : :class:`int`, defaults to `None`
-        If not `None`, then instead of selecting targets, print a slurm
-        script that balances the input file distribution at `bundlefiles`
-        files per node. So, e.g., if `bundlefiles` is 100 commands would
-        be printed with `pixlist` values to pass to the code to pack at
+        If not `None`, then instead of selecting targets, print, to screen, the slurm
+        script that will approximately balance the input file distribution at `bundlefiles`
+        files per node. So, for instance, if `bundlefiles` is 100 then commands would be
+        returned with the correct `pixlist` values set to pass to the code to pack at
         about 100 files per node across all of the passed `infiles`.
     extra : :class:`str`, optional
         Extra command line flags to be passed to the executable lines in
         the output slurm script. Used in conjunction with `bundlefiles`.
     radecbox : :class:`list`, defaults to `None`
-        4-entry coordinate list [ramin, ramax, decmin, decmax].
-        Only targets inside this "box" region will be processed.
+        4-entry list of coordinates [ramin, ramax, decmin, decmax] forming the edges
+        of a box in RA/Dec (degrees). Only targets in this box region will be processed.
     radecrad : :class:`list`, defaults to `None`
-        3-entry coordinate list [ra, dec, radius] for RA/Dec/radius in
-        degrees. Only targets in this "circle" region will be processed.
+        3-entry list of coordinates [ra, dec, radius] forming a "circle" on the sky. For
+        RA/Dec/radius in degrees. Only targets in this circle region will be processed.
     mask : :class:`boolean`, optional, defaults to ``True``
-        Send ``False`` to turn off any masking cuts based on `MASKBITS`.
-        The default behavior is to always mask using `MASKBITS`.
+        Send ``False`` to turn off any masking cuts based on the `MASKBITS` column. The
+        default behavior is to always mask using `MASKBITS`.
     tcnames : :class:`list`, defaults to running all target classes
-        List of strings, e.g. ['QSO','LRG']. If passed, process targets
-        only for those specific classes. A useful speed-up when testing.
+        A list of strings, e.g. ['QSO','LRG']. If passed, process targeting only
+        for those specific target classes. A useful speed-up when testing.
         Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
     survey : :class:`str`, defaults to ``'main'``
-        Which target masks yaml file and target selection cuts to use.
-        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        Specifies which target masks yaml file and target selection cuts
+        to use. Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
     resolvetargs : :class:`boolean`, optional, defaults to ``True``
-        If ``True``, resolve targets into northern targets in northern
-        regions and southern targets in southern regions.
+        If ``True``, resolve targets into northern targets in northern regions
+        and southern targets in southern regions.
     backup : :class:`boolean`, optional, defaults to ``True``
         If ``True``, also run the Gaia-only BACKUP_BRIGHT/FAINT targets.
     return_infiles : :class:`boolean`, optional, defaults to ``False``
-        If ``True``, return the filenamess from `infiles` that were
-        processed. Useful when running with `pixlist`, `radecbox` or
-        `radecrad` to see which files were actually required.
+        If ``True``, also return the actual files from `infile` processed.
+        Useful when running with `pixlist`, `radecbox` or `radecrad` to
+        see which files were actually required.
     test : :class:`bool`, optional, defaults to ``False``
-        If ``True``, then we're running unit tests and don't have to
-        find and read every possible Gaia file when calling
+        If ``True``, then we're running unit tests and don't have to find
+        and read every possible Gaia file when calling
         :func:`~desitarget.cuts.apply_cuts_gaia`.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         The subset of input targets which pass the cuts, including extra
-        columns for ``DESI_TARGET``, ``BGS_TARGET``, and ``MWS_TARGET``
-        target selection bitmasks.
+        columns for ``DESI_TARGET``, ``BGS_TARGET``, and ``MWS_TARGET`` target
+        selection bitmasks.
     :class:`list`, only returned if `return_infiles` is ``True``
         A list of the input files that actually needed to be processed.
 
     Notes
     -----
         - if numproc==1, use serial code instead of parallel.
-        - only one of `pixlist`, `radecbox`, `radecrad` should be passed.
-          They all denote regions on the sky, using different formalisms.
+        - only one of pixlist, radecbox, radecrad should be passed. They are all
+          intended to denote regions on the sky, using different formalisms.
     """
     from desiutil.log import get_logger
     log = get_logger()
@@ -3034,7 +2758,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     if radecbox is not None:
         nside = pixarea2nside(box_area(radecbox))
         pixlist = hp_in_box(nside, radecbox)
-        log.info("Run targets in box inside [RAmin, RAmax, Decmin, Decmax]={}"
+        log.info("Run targets in box bounded by [RAmin, RAmax, Decmin, Decmax]={}"
                  .format(radecbox))
 
     # ADM if radecrad was sent, determine which pixels touch the box.
@@ -3044,8 +2768,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         log.info("Run targets in cap bounded by [centerRA, centerDec, radius]={}"
                  .format(radecrad))
 
-    # ADM if the pixlist or bundlefiles option was sent, we'll need to
-    # ADM know which HEALPixels touch each file.
+    # ADM if the pixlist or bundlefiles option was sent, we'll need to know
+    # ADM which HEALPixels touch each file.
     if pixlist is not None:
         filesperpixel, _, _ = sweep_files_touch_hp(
             nside, pixlist, infiles)
@@ -3063,7 +2787,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             return None, None
         return None
 
-    # ADM restrict input files to a set of HEALPixels, if requested.
+    # ADM restrict to only input files in a set of HEALPixels, if requested.
     if pixlist is not None:
         # ADM a hack to ensure we have the correct targeting data model
         # ADM outside of the Legacy Surveys footprint.
@@ -3082,7 +2806,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
 
     def _finalize_targets(objects, desi_target, bgs_target, mws_target,
                           gaiadr=None):
-        # - desi_target includes BGS_ANY and MWS_ANY, so we can filter
+        # - desi_target includes BGS_ANY and MWS_ANY, so we can filter just
         # - on desi_target != 0
         keep = (desi_target != 0)
         objects = objects[keep]
@@ -3129,15 +2853,14 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             log.info('{}/{} files; {:.1f} secs/file; {:.1f} total mins elapsed'
                      .format(nbrick, len(infiles), rate, elapsed/60.))
 
-        nbrick[...] += 1    # this is an in-place modification.
+        nbrick[...] += 1    # this is an in-place modification
         return result
 
-    # - Parallel process input files.
+    # - Parallel process input files
     if numproc > 1:
         pool = sharedmem.MapReduce(np=numproc)
         with pool:
-            targets = pool.map(_select_targets_file, infiles,
-                               reduce=_update_status)
+            targets = pool.map(_select_targets_file, infiles, reduce=_update_status)
     else:
         targets = list()
         for x in infiles:
@@ -3182,9 +2905,28 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
             # ADM Gaia-only target always have PHOTSYS="G".
             gaiatargets["PHOTSYS"] = "G"
 
-            # ADM merge any Legacy Surveys targets with Gaia targets.
+            # ADM remove duplicates. Order is key here, as np.unique
+            # ADM keeps the first occurence, and we want to retain sweeps
+            # ADM information as much as possible.
+            # ADM
+            # ADM around about v0.51.0 of the code the executive decision
+            # ADM was made that it was better to retain duplicates so
+            # ADM that the "Backup" survey would have all available
+            # ADM Gaia-only sources. This means that the same target can
+            # ADM appear twice, once as a Gaia-only target (with
+            # ADM Gaia-based TARGETID and once as a Legacy Surveys target
+            # ADM (with LS-based TARGETID). Such duplicates can be
+            # ADM resolved on Gaia SOURCE_ID (which we call REF_ID).
             if len(infiles) > 0:
                 targets = np.concatenate([targets, gaiatargets])
+#                alltargs = np.concatenate([targets, gaiatargets])
+#                # ADM Retain all non-Gaia sources, which have REF_ID of
+#                # ADM -1 or 0 and thus are all duplicates on REF_ID.
+#                ii = alltargs["REF_ID"] > 0
+#                targs = alltargs[ii]
+#                _, ind = np.unique(targs["REF_ID"], return_index=True)
+#                targs = targs[ind]
+#                targets = np.concatenate([targs, alltargs[~ii]])
             else:
                 targets = gaiatargets
 
