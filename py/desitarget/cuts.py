@@ -528,7 +528,6 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     return lrg, lrg_lowdens
 
 
-
 def isELG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           gfiberflux=None, gsnr=None, rsnr=None, zsnr=None,
           gnobs=None, rnobs=None, znobs=None,
@@ -633,7 +632,7 @@ def isSTD_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             as opposed to the "north" (MzLS+BASS).
 
     Returns:
-        mask : boolean array, True if the object has colors like a STD 
+        mask : boolean array, True if the object has colors like a STD
         star target.
 
     Notes:
@@ -680,7 +679,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
             True if there is a match between this object in
             `the Legacy Surveys`_ and in Gaia.
         astrometricexcessnoise: array_like or None
-            Excess noise of the source in Gaia 
+            Excess noise of the source in Gaia
         pmra, pmdec, parallax: array_like or None
             Gaia-based proper motion in RA and Dec and parallax
             (same units as the Gaia data model).

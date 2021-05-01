@@ -178,14 +178,14 @@ class TestCuts(unittest.TestCase):
                                         w1flux=w1flux, w2flux=w2flux)
             self.assertTrue(np.all(lrg1 == lrg2))
 
-        elg1, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gfiberflux=gfiberflux, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                          maskbits=maskbits, primary=primary)
-        elg2, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gfiberflux=gfiberflux, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                          maskbits=maskbits, primary=None)
+        elg1, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, gsnr=gsnr,
+                             gfiberflux=gfiberflux, rsnr=rsnr, zsnr=zsnr,
+                             gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                             maskbits=maskbits, primary=primary)
+        elg2, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, gsnr=gsnr,
+                             gfiberflux=gfiberflux, rsnr=rsnr, zsnr=zsnr,
+                             gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                             maskbits=maskbits, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 
         elg1, _ = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,

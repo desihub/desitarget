@@ -3326,7 +3326,8 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         # ADM HEALPixels that touch the box for that nside.
         pixlist = hp_in_box(nside, radecbox)
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist,
+        targets = read_targets_in_hp(
+            hpdirname, nside, pixlist,
             columns=columnscopy, header=header, downsample=downsample,
             mtl=mtl, unique=unique, isodate=isodate, initial=initial)
     # ADM ...otherwise just read in the targets.
