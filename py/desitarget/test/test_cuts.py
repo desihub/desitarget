@@ -321,7 +321,6 @@ class TestCuts(unittest.TestCase):
             results = cuts.select_targets(targetfile, numproc=1, backup=False,
                                           tcnames=tc, qso_selection='blatfoo')
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_bgs_target_types(self):
         """Test that incorrect BGS target types are caught
         """
@@ -331,7 +330,6 @@ class TestCuts(unittest.TestCase):
         with self.assertRaises(ValueError):
             dum = cuts.notinBGS_mask(targtype='blatfoo')
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_missing_files(self):
         """Test the code will die gracefully if input files are missing
         """
