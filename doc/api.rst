@@ -17,6 +17,9 @@ desitarget API
 .. automodule:: desitarget.cmx.cmx_targetmask
     :members:
 
+.. automodule:: desitarget.cmx.ms_cuts
+    :members:
+
 .. automodule:: desitarget.cuts
     :members:
 
@@ -36,6 +39,9 @@ desitarget API
     :members:
 
 .. automodule:: desitarget.io
+    :members:
+
+.. automodule:: desitarget.lyazcat
     :members:
 
 .. automodule:: desitarget.mock
