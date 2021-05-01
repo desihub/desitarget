@@ -83,7 +83,6 @@ class TestCuts(unittest.TestCase):
         bgs_any2 = (bgs != 0)
         self.assertTrue(np.all(bgs_any1 == bgs_any2))
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_cuts_noprimary(self):
         """Test cuts work with or without "primary"
         """
