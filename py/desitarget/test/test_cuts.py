@@ -269,14 +269,12 @@ class TestCuts(unittest.TestCase):
         targets = fits.getdata(self.tractorfiles[0])
         self._test_table_row(targets)
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_astropy_table(self):
         """Test astropy tables I/O library
         """
         targets = Table.read(self.tractorfiles[0])
         self._test_table_row(targets)
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_numpy_ndarray(self):
         """Test fitsio I/O library
         """
