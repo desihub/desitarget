@@ -281,7 +281,6 @@ class TestCuts(unittest.TestCase):
         targets = fitsio.read(self.tractorfiles[0], upper=True)
         self._test_table_row(targets)
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_select_targets(self):
         """Test select targets works with either data or filenames
         """
@@ -306,7 +305,6 @@ class TestCuts(unittest.TestCase):
 
                 self.assertTrue(np.all(t1[col][notNaN] == t2[col][notNaN]))
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_qso_selection_options(self):
         """Test the QSO selection options are passed correctly
         """
