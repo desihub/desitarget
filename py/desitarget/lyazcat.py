@@ -1,6 +1,6 @@
 """
 desitarget.lyazcat
-==============
+==================
 
 Post-redrock ML processing for LyA Quasar object identification.
 """
