@@ -2475,7 +2475,7 @@ def write_mtl_tile_file(filename, data):
     return len(data), filename
 
 
-def read_mtl_ledger(filename, unique=True, isodate=None):
+def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -2493,6 +2493,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None):
         :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
         to entries strictly BEFORE `isodate` before being extracted.
         If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides the `unique`
+        and `isodate` kwargs.
 
     Returns
     -------
@@ -2551,10 +2556,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None):
             ii = mtl["TIMESTAMP"] < isodate.encode()
             mtl = mtl[ii]
 
-    if unique:
+    if unique or initial:
         # ADM the reverse is because np.unique retains the FIRST unique
         # ADM entry and we want the LAST unique entry.
-        mtl = np.flip(mtl)
+        if not initial:
+            mtl = np.flip(mtl)
         _, ii = np.unique(mtl["TARGETID"], return_index=True)
         return mtl[ii]
     else:
