@@ -41,9 +41,8 @@ desitarget API
 .. automodule:: desitarget.io
     :members:
 
-.. Turn off lyazcat for now. We don't have the necessary dependencies (quasarnp, etc.)
-.. .. automodule:: desitarget.lyazcat
-..    :members:
+.. automodule:: desitarget.lyazcat
+    :members:
 
 .. automodule:: desitarget.mock
     :members:
