@@ -239,7 +239,6 @@ class TestCuts(unittest.TestCase):
         fstd2 = cuts.isSTD_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
         self.assertTrue(np.all(fstd1 == fstd2))
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def _test_table_row(self, targets):
         """Test cuts work with tables from several I/O libraries
         """
@@ -264,7 +263,6 @@ class TestCuts(unittest.TestCase):
         self.assertTrue(isinstance(bgs, numbers.Integral), 'BGS_TARGET mask not an int')
         self.assertTrue(isinstance(mws, numbers.Integral), 'MWS_TARGET mask not an int')
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_astropy_fits(self):
         """Test astropy.fits I/O library
         """
