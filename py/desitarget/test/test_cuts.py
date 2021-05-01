@@ -336,7 +336,6 @@ class TestCuts(unittest.TestCase):
         with self.assertRaises(ValueError):
             targets = cuts.select_targets(['blat.foo1234', ], numproc=1)
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_parallel_select(self):
         """Test multiprocessing parallelization works
         """
