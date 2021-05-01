@@ -66,7 +66,6 @@ class TestCuts(unittest.TestCase):
             self.assertIn(col, t2.dtype.names)
             self.assertTrue(np.all(t1[col] == t2[col]))
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_cuts_basic(self):
         """Test cuts work with either data or filenames
         """
