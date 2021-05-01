@@ -5,8 +5,8 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
-* Whitelist secondary bits that can drive updates to MWS primary targets [`PR
-  #716`_]:
+* Explicitly permit secondary bits that can drive updates to MWS primary
+  targets by adding an updatemws flag to targetmask entries [`PR #716`_].
 
 .. _`PR #716`: https://github.com/desihub/desitarget/pull/716
 
