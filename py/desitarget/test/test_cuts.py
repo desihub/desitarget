@@ -106,8 +106,12 @@ class TestCuts(unittest.TestCase):
         zflux = flux['ZFLUX']
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
-        zfiberflux = flux['ZFIBERFLUX']
+        gfiberflux = flux['GFIBERFLUX']
         rfiberflux = flux['RFIBERFLUX']
+        zfiberflux = flux['ZFIBERFLUX']
+
+        rfibertotflux = targets['FIBERTOTFLUX_R']
+        zfibertotflux = targets['FIBERTOTFLUX_Z']
 
         gfluxivar = targets['FLUX_IVAR_G']
         rfluxivar = targets['FLUX_IVAR_R']
@@ -122,6 +126,7 @@ class TestCuts(unittest.TestCase):
 
         dchisq = targets['DCHISQ']
         deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
+        objtype = targets["TYPE"]
 
         gnobs, rnobs, znobs = targets['NOBS_G'], targets['NOBS_R'], targets['NOBS_Z']
         gallmask = targets['ALLMASK_G']
@@ -148,41 +153,45 @@ class TestCuts(unittest.TestCase):
 
         # ADM check for both defined fiberflux and fiberflux of None.
         for ff in zfiberflux, None:
-            lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
-                              zflux=zflux, w1flux=w1flux, zfiberflux=ff,
-                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits, rfluxivar=rfluxivar,
-                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar)
-            lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux,
-                              w1flux=w1flux, zfiberflux=ff,
-                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits, rfluxivar=rfluxivar,
-                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar)
+            lrg1, _ = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
+                                 zflux=zflux, w1flux=w1flux, zfiberflux=ff,
+                                 gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                                 maskbits=maskbits, rfluxivar=rfluxivar,
+                                 zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
+                                 gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
+            lrg2, _ = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux,
+                                 zflux=zflux, w1flux=w1flux, zfiberflux=ff,
+                                 gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                                 maskbits=maskbits, rfluxivar=rfluxivar,
+                                 zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
+                                 gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
 
             self.assertTrue(np.all(lrg1 == lrg2))
 
-            # ADM also check that the color selections alone work. This tripped us up once
-            # ADM with the mocks part of the code calling a non-existent LRG colors function.
-            lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux, rflux=rflux,
-                                     zflux=zflux, zfiberflux=ff,
-                                     w1flux=w1flux, w2flux=w2flux)
-            lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux,
-                                     zflux=zflux, zfiberflux=ff,
-                                     w1flux=w1flux, w2flux=w2flux)
+            # ADM check color selections alone work. Tripped us up once
+            # ADM when the mocks called a missing isLRG_colors function.
+            lrg1, _ = cuts.isLRG_colors(primary=primary, gflux=gflux,
+                                        rflux=rflux, zflux=zflux, zfiberflux=ff,
+                                        w1flux=w1flux, w2flux=w2flux)
+            lrg2, _ = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux,
+                                        zflux=zflux, zfiberflux=ff,
+                                        w1flux=w1flux, w2flux=w2flux)
             self.assertTrue(np.all(lrg1 == lrg2))
 
-        elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+        elg1, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
+                          gfiberflux=gfiberflux, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                           gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                           maskbits=maskbits, primary=primary)
-        elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
+        elg2, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
+                          gfiberflux=gfiberflux, gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
                           gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                           maskbits=maskbits, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 
-        elg1 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
-        elg2 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
+        elg1, _ = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                                    gfiberflux=gfiberflux, primary=primary)
+        elg2, _ = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                                    gfiberflux=gfiberflux, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 
         # ADM check for both defined fiberflux and fiberflux of None.
@@ -193,16 +202,13 @@ class TestCuts(unittest.TestCase):
                     bgs.append(
                         cuts.isBGS(
                             rfiberflux=ff, gflux=gflux, rflux=rflux,
+                            rfibertotflux=rfibertotflux,
                             zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                             gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                            gfracmasked=gfracmasked, rfracmasked=rfracmasked,
-                            zfracmasked=zfracmasked, gfracflux=gfracflux,
-                            rfracflux=rfracflux, zfracflux=zfracflux,
-                            gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
                             gfluxivar=gfluxivar, rfluxivar=rfluxivar,
                             zfluxivar=zfluxivar, maskbits=maskbits,
-                            Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
-                            primary=prim, targtype=targtype)
+                            Grr=Grr, w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag,
+                            objtype=objtype, primary=prim, targtype=targtype)
                     )
                 self.assertTrue(np.all(bgs[0] == bgs[1]))
 

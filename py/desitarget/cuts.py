@@ -1309,6 +1309,11 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=Non
     """
     _check_BGS_targtype(targtype)
 
+    # ADM to maintain backwards-compatibility with mocks.
+    if rfiberflux is None:
+        log.warning('Setting rfiberflux to rflux!!!')
+        rfiberflux = rflux.copy()
+
     # ------ Bright Galaxy Survey
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
