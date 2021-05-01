@@ -759,8 +759,9 @@ def calc_priority(targets, zcat, obscon, state=False):
             # APC bits.
             permit_scnd_bits = 0
             for name in scnd_mask.names():
-                if scnd_mask[name].updatemws:
-                    permit_scnd_bits |= scnd_mask[name]
+                if hasattr(scnd_mask[name], 'updatemws'):
+                    if scnd_mask[name].updatemws:
+                        permit_scnd_bits |= scnd_mask[name]
 
             # APC Now we flag any target combinbing the permitted secondary bits
             # APC and the restricted set of primary bits.
