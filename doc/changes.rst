@@ -13,6 +13,8 @@ desitarget Change Log
    * Remove any individual references to a ``GRAY`` program for bits.
    * Increase the default density of sky fibers by a factor of 4.
    * Add a kwarg to restore the initial ledger state when reading MTLs.
+   * Speed up the unit test for selecting targets in caps/boxes/pixels.
+   * Fix a bug where WD standards weren't being selected in BACKUP tiles.
 * Update LyA QSO zcats with MgII absorption redshifts [`PR #717`_].
 * Add EDR3 options to code that writes Gaia-matched sweeps [`PR #715`_].
    * Also add ``gaiasub`` functionality when selecting targets.
