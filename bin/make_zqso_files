@@ -85,9 +85,6 @@ if args.add_squeze:
 else:
     sq_model = None
 
-# EBL For temporary testing purposes:
-args.output_dir = os.path.join(os.getenv('CSCRATCH'), 'lya_test', args.tile)
-
 if args.petal == -1:
     for pnum in range(10):
         create_zcat(args.tile, args.night, pnum,

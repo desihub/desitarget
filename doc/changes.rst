@@ -16,14 +16,17 @@ desitarget Change Log
    * Speed up the unit test for selecting targets in caps/boxes/pixels.
    * Fix a bug where WD standards weren't being selected in BACKUP tiles.
 * Update LyA QSO zcats with MgII absorption redshifts [`PR #717`_].
+* Explicitly permit secondary bits that can drive updates to MWS primary
+  targets by adding an updatemws flag to targetmask entries [`PR #716`_].
 * Add EDR3 options to code that writes Gaia-matched sweeps [`PR #715`_].
-   * Also add ``gaiasub`` functionality when selecting targets.
-   * Swaps EDR3 proper motions/parallaxes for values in sweeps files.
+   * Also add ``gaiasub`` option when selecting targets, which is used
+     to swap EDR3 proper motions/parallaxes for values in sweeps files.
 * New function and bin script to make QSO redshift catalogs [`PR #714`_].
    * Incorporates functionality from QuasarNET and SQUEzE.
 
 .. _`PR #714`: https://github.com/desihub/desitarget/pull/714
 .. _`PR #715`: https://github.com/desihub/desitarget/pull/715
+.. _`PR #716`: https://github.com/desihub/desitarget/pull/716
 .. _`PR #717`: https://github.com/desihub/desitarget/pull/717
 .. _`PR #718`: https://github.com/desihub/desitarget/pull/718
 
