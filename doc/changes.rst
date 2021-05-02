@@ -5,7 +5,9 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
-* No changes yet.
+* Add `MWS-FAINT` target class for main survey [`PR #719`_].
+
+.. _`PR #719`: https://github.com/desihub/desitarget/pull/719
 
 0.57.2 (2021-04-18)
 -------------------
