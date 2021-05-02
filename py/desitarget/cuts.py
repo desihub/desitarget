@@ -806,7 +806,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         paramssolved=paramssolved, primary=mws, south=south
     )
 
-   faint = isMWS_faint(
+    faint = isMWS_faint(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux, w2flux=w2flux,
         pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxerr=parallaxerr,
         obs_rflux=obs_rflux, objtype=objtype, gaiagmag=gaiagmag,
