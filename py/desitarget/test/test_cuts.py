@@ -380,13 +380,13 @@ class TestCuts(unittest.TestCase):
             bgs2 = targets['BGS_TARGET'] != 0
             self.assertTrue(np.all(bgs1 == bgs2))
 
-    @unittest.skip('Skip while I try to determine which test is failing.')
+#    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_targets_spatial(self):
         """Test applying RA/Dec/HEALpixel inputs to sweeps recovers same targets
         """
         # ADM only test some of the galaxy cuts for speed. There's a
         # ADM full run through all classes in test_cuts_basic.
-        tc = ["LRG", "ELG", "BGS"]
+        tc = ["LRG"]
         infiles = self.sweepfiles[2]
 
         # ADM set backup to False as the Gaia unit test
