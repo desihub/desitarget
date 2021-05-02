@@ -9,40 +9,14 @@ An old copy of the Main Survey cuts (../cuts.py) that were used for commissionin
 .. _`the wiki`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/TargetSelection
 .. _`Legacy Surveys mask`: http://www.legacysurvey.org/dr8/bitmasks/
 """
-import warnings
-from time import time
-import os.path
 
-import numbers
-import sys
-
-import fitsio
 import numpy as np
-import healpy as hp
 from pkg_resources import resource_filename
-import numpy.lib.recfunctions as rfn
-from importlib import import_module
-
-import astropy.units as u
-from astropy.coordinates import SkyCoord
-from astropy.table import Table, Row
-
-from desitarget import io
-from desitarget.internal import sharedmem
-from desitarget.gaiamatch import match_gaia_to_primary, find_gaia_files_hp
-from desitarget.gaiamatch import pop_gaia_coords, pop_gaia_columns, unextinct_gaia_mags
-from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy, gaia_psflike
-from desitarget.targets import finalize, resolve
-from desitarget.geomask import bundle_bricks, pixarea2nside, sweep_files_touch_hp
-from desitarget.geomask import box_area, hp_in_box, is_in_box, is_in_hp
-from desitarget.geomask import cap_area, hp_in_cap, is_in_cap, imaging_mask
+from desitarget.geomask import imaging_mask
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
 log = get_logger()
-
-# ADM start the clock
-start = time()
 
 
 def shift_photo_north(gflux=None, rflux=None, zflux=None):

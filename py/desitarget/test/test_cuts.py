@@ -380,7 +380,6 @@ class TestCuts(unittest.TestCase):
             bgs2 = targets['BGS_TARGET'] != 0
             self.assertTrue(np.all(bgs1 == bgs2))
 
-#    @unittest.skip('Skip while I try to determine which test is failing.')
     def test_targets_spatial(self):
         """Test applying RA/Dec/HEALpixel inputs to sweeps recovers same targets
         """
