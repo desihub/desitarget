@@ -227,7 +227,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         pmra=pmra, pmdec=pmdec, parallax=parallax,
         parallaxovererror=parallaxovererror, photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax, gaiagmag=gaiagmag,
-        gaiabmag=gaiabmag, gaiarmag=gaiarmag
+        gaiabmag=gaiabmag, gaiarmag=gaiarmag, paramssolved=gaiaparamssolved
         )
 
     # ADM apply the Gaia quality cuts for standards.
