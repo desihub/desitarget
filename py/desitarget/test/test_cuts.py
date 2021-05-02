@@ -386,7 +386,7 @@ class TestCuts(unittest.TestCase):
         """
         # ADM only test some of the galaxy cuts for speed. There's a
         # ADM full run through all classes in test_cuts_basic.
-        tc = ["LRG"]
+        tc = ["BGS", "ELG", "LRG"]
         infiles = self.sweepfiles[2]
 
         # ADM set backup to False as the Gaia unit test
@@ -395,22 +395,24 @@ class TestCuts(unittest.TestCase):
                                       backup=False)
 
         # ADM test the RA/Dec box input.
-        radecbox = [np.min(targets["RA"])-0.01, np.max(targets["RA"])+0.01,
-                    np.min(targets["DEC"])-0.01, np.max(targets["DEC"]+0.01)]
+        # ADM Large pixels (~20o/nside=2/4) for speed and less memory.
+        radecbox = [np.min(targets["RA"])-10, np.max(targets["RA"])+10,
+                    np.min(targets["DEC"])-10, np.max(targets["DEC"]+10)]
         t1 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
                                  radecbox=radecbox, backup=False)
 
         # ADM test the RA/Dec/radius cap input.
         centra, centdec = 0.5*(radecbox[0]+radecbox[1]), 0.5*(radecbox[2]+radecbox[3])
-        # ADM 20 degrees should be a large enough radius for the sweeps.
+        # ADM Large pixels (~20o/nside=2/4) for speed and less memory.
         maxrad = 20.
         radecrad = centra, centdec, maxrad
         t2 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
                                  radecrad=radecrad, backup=False)
 
         # ADM test the pixel input.
-        nside = pixarea2nside(box_area(radecbox))
-        pixlist = hp_in_box(nside, radecbox)
+        # ADM Use large pixels for speed and to use less memory.
+        nside = 2
+        pixlist = hp_in_box(2, radecbox)
         t3 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
                                  nside=nside, pixlist=pixlist, backup=False)
 
