@@ -2,7 +2,7 @@
 #- After some initial development experimentation we will freeze the bit
 #- definitions, but we should expect this version (Nov 2015) to change.
 
-#- DESI primary survey target bit mask: dark survey + calib + 
+#- DESI primary survey target bit mask: dark survey + calib +
 desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
     - [ELG,         1, "ELG", {obsconditions: DARK|GRAY}]
@@ -71,7 +71,7 @@ bgs_mask:
 mws_mask:
 
     # First layer defines main samples -- these are expected to have distinct
-    # input catalogues. 
+    # input catalogues.
 
     #- Bits 0-3 (7 ids)
     - [MWS_BROAD,           0, "Milky Way Survey magnitude limited bulk sample",         {obsconditions: BRIGHT}]
@@ -83,7 +83,7 @@ mws_mask:
     # distinct groups for the purpose of assigning priorities and observing
     # conditions.
 
-    # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS 
+    # e.g. MWS_MAIN & MWS_LOW_GAL_B & MWS_MAIN_FAINT & MWS_PLX & MWS_REOBS
 
     # => A main sample star at low galactic latitude, faint enough to be
     # considered filler but with parallax factored into the subpriority and
@@ -103,6 +103,7 @@ mws_mask:
     - [MWS_MAIN_RED,        11, "Milky Way Survey magnitude limited red sample",              {obsconditions: BRIGHT}]
     - [MWS_MAIN_RED_NORTH,  12, "MWS magnitude limited red sample tuned for Bok/Mosaic",      {obsconditions: BRIGHT}]
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT}]
+    - [MWS_FAINT,           14, "Milky Way Survey faint extension",                           {obsconditions: BRIGHT}]
 
     # ADM Standard stars based only on Gaia.
     - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK|GRAY}]
@@ -258,7 +259,7 @@ priorities:
 
     #- Milky Way Survey: priorities 1000-1999
     # ADM WDs should be prioritized above BGS at 2998
-    mws_mask: 
+    mws_mask:
         MWS_BROAD:                    {UNOBS: 1400, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_WD:                       {UNOBS: 2998, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_NEARBY:                   {UNOBS: 1600, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -273,6 +274,7 @@ priorities:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           SAME_AS_MWS_BROAD_NORTH
         MWS_MAIN_RED_SOUTH:           SAME_AS_MWS_BROAD_NORTH
+        MWS_FAINT:                    {UNOBS: 1300, MORE_ZWARN: 2, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BACKUP_BRIGHT:                {UNOBS: 9, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BACKUP_FAINT:                 {UNOBS: 8, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BACKUP_VERY_FAINT:            {UNOBS: 7, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -357,6 +359,7 @@ numobs:
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
         MWS_MAIN_RED_NORTH:           0
         MWS_MAIN_RED_SOUTH:           0
+        MWS_FAINT:                    1
         BACKUP_BRIGHT:                1
         BACKUP_FAINT:                 SAME_AS_BACKUP_BRIGHT
         BACKUP_VERY_FAINT:            SAME_AS_BACKUP_BRIGHT
