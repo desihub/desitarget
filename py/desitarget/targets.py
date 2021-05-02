@@ -759,9 +759,15 @@ def calc_priority(targets, zcat, obscon, state=False):
             # APC bits.
             permit_scnd_bits = 0
             for name in scnd_mask.names():
-                if hasattr(scnd_mask[name], 'updatemws'):
-                    if scnd_mask[name].updatemws:
-                        permit_scnd_bits |= scnd_mask[name]
+                if survey == 'main':
+                    # updatemws only defined for main survey targetmask.
+                    if hasattr(scnd_mask[name], 'updatemws'):
+                        if scnd_mask[name].updatemws:
+                            permit_scnd_bits |= scnd_mask[name]
+                else:
+                    # Before updatemws was introduced, all scnd bits
+                    # were permitted to update MWS targets.
+                    permit_scnd_bits |= scnd_mask[name]
 
             # APC Now we flag any target combinbing the permitted secondary bits
             # APC and the restricted set of primary bits.

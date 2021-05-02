@@ -585,12 +585,18 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     # APC The exception to the rule above is that a subset of bits flagged with
     # APC updatemws=True in the targetmask can drive initial state for a subset of
     # APC primary bits corresponding to MWS targets and standards. We first create
-    # APC a bitmask of those permitted seconday bits.
+    # APC a bitmask of those permitted seconday biits.
     permit_scnd_bits = 0
     for name in scnd_mask.names():
-        if hasattr(scnd_mask[name], 'updatemws'):
-            if scnd_mask[name].updatemws:
-                permit_scnd_bits |= scnd_mask[name]
+        if survey == 'main':
+            # updatemws only defined for main survey targetmask.
+            if hasattr(scnd_mask[name], 'updatemws'):
+                if scnd_mask[name].updatemws:
+                    permit_scnd_bits |= scnd_mask[name]
+        else:
+            # Before updatemws was introduced, all scnd bits
+            # were permitted to update MWS targets.
+            permit_scnd_bits |= scnd_mask[name]
 
     # APC Now we flag any target combinbing the permitted secondary bits
     # APC and the restricted set of primary bits.
