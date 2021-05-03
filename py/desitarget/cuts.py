@@ -970,7 +970,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM main targets are point-like based on DECaLS morphology
     # ADM and GAIA_ASTROMETRIC_NOISE.
     mws &= _psflike(objtype)
-    mws &= gaiaaen < 3.0
+    mws &= gaiaaen < 2.0
 
     # ADM main targets are 16 <= r < 19
     mws &= rflux > 10**((22.5-19.0)/2.5)
@@ -1136,8 +1136,8 @@ def isMWS_bhb(primary=None, objtype=None,
 
     # APC no gaia duplicated sources.
     mws &= ~gaiadupsource
-    # APC gaia astrometric excess noise < 3.
-    mws &= gaiaaen < 3.0
+    # APC gaia astrometric excess noise < 2.
+    mws &= gaiaaen < 2.0
 
     # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02.
     mws &= (gmr >= -0.35) & (gmr <= -0.02)
