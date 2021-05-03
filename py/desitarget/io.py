@@ -2475,7 +2475,7 @@ def write_mtl_tile_file(filename, data):
     return len(data), filename
 
 
-def read_mtl_ledger(filename, unique=True, isodate=None):
+def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -2493,6 +2493,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None):
         :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
         to entries strictly BEFORE `isodate` before being extracted.
         If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides the `unique`
+        and `isodate` kwargs.
 
     Returns
     -------
@@ -2551,10 +2556,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None):
             ii = mtl["TIMESTAMP"] < isodate.encode()
             mtl = mtl[ii]
 
-    if unique:
+    if unique or initial:
         # ADM the reverse is because np.unique retains the FIRST unique
         # ADM entry and we want the LAST unique entry.
-        mtl = np.flip(mtl)
+        if not initial:
+            mtl = np.flip(mtl)
         _, ii = np.unique(mtl["TARGETID"], return_index=True)
         return mtl[ii]
     else:
@@ -2741,8 +2747,8 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False):
     return fileform
 
 
-def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
-                   returnfn=False):
+def read_mtl_in_hp(hpdirname, nside, pixlist,
+                   unique=True, isodate=None, returnfn=False, initial=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -2761,13 +2767,18 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         the last occurrence of the target in the ledger is the one that
         is retained. If ``False`` then read the entire ledger.
     isodate : :class:`str`, defaults to ``None``
-        Only used if `mtl` is ``True`` An ISO date, such as returned by
+        An ISO date, such as the date that is returned by the function
         :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
         to entries strictly BEFORE `isodate` before being extracted.
         If ``None`` is passed then no date restrictions are applied.
     returnfn : :class:`bool`, optional, defaults to ``False``
         If ``True`` then also return a dictionary of the filename
         that had to be read in each pixel to retrieve the MTL(s).
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides the `unique`
+        and `isodate` kwargs.
 
     Returns
     -------
@@ -2800,7 +2811,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         for pix in filepixlist:
             fn = fileform.format(pix)
             try:
-                targs = read_mtl_ledger(fn, unique=unique, isodate=isodate)
+                targs = read_mtl_ledger(
+                    fn, unique=unique, isodate=isodate, initial=initial)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -2819,7 +2831,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
-        mtl = read_mtl_ledger(hpdirname, unique=unique, isodate=isodate)
+        mtl = read_mtl_ledger(hpdirname,
+                              unique=unique, isodate=isodate, initial=initial)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)
@@ -2832,7 +2845,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False,
-                       mtl=False, unique=True, isodate=None):
+                       mtl=False, unique=True, isodate=None, initial=False):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -2854,8 +2867,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
     quick : :class:`bool`, optional, defaults to ``False``
         If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
         That version of the code assumes that `hpdirname` is a directory,
-        which contains files that follow a strict data model. ``True``
-        overrides `mtl`/`unique`/`isodate`/`downsample`/`verbose`.
+        with files that follow a strict data model. ``True`` overrides
+        `mtl`/`unique`/`isodate`/`downsample`/`verbose`/`initial`.
     downsample : :class:`int`, optional, defaults to `None`
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
@@ -2874,6 +2887,11 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
         to entries strictly BEFORE `isodate` before being extracted.
         If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides the `unique`
+        and `isodate` kwargs. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -2897,7 +2915,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
 
     if mtl:
         return read_mtl_in_hp(hpdirname, nside, pixlist,
-                              unique=unique, isodate=isodate)
+                              unique=unique, isodate=isodate, initial=initial)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -3112,7 +3130,8 @@ def read_targets_in_quick(hpdirname, shape=None,
 
 
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
-                          quick=False, mtl=False, unique=True, isodate=None):
+                          quick=False, mtl=False,
+                          unique=True, isodate=None, initial=False):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
     Parameters
@@ -3133,8 +3152,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
     quick : :class:`bool`, optional, defaults to ``False``
         If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
         That version of the code assumes that `hpdirname` is a directory,
-        which contains files that follow a strict data model. Passing
-        quick=``True`` overrides the `mtl`/`unique`/`isodate` inputs.
+        of files that follow a strict data model. Passing quick=``True``
+        overrides the `mtl`/`unique`/`isodate`/`initial` inputs.
     mtl : :class:`bool`, optional, defaults to ``False``
         If ``True`` then read an MTL ledger file/directory instead
         of a target file/directory. If ``True`` then the `columns`
@@ -3147,6 +3166,11 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
         to entries strictly BEFORE `isodate` before being extracted.
         If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides the `unique`
+        and `isodate` kwargs. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -3195,9 +3219,11 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         pixlist = tiles2pix(nside, tiles=tiles)
 
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist,
-                                     columns=columnscopy, header=header,
-                                     mtl=mtl, unique=unique, isodate=isodate)
+        targets = read_targets_in_hp(
+            hpdirname, nside, pixlist,
+            columns=columnscopy, header=header,
+            mtl=mtl, unique=unique, isodate=isodate, initial=initial)
+
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
@@ -3222,7 +3248,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                         columns=None, header=False, quick=False, downsample=None,
-                        mtl=False, unique=True, isodate=None):
+                        mtl=False, unique=True, isodate=None, initial=False):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -3244,7 +3270,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
         That version of the code assumes that `hpdirname` is a directory,
         which contains files that follow a strict data model. ``True``
-        overrides the `mtl`, `unique` and `isodate` inputs.
+        overrides the `mtl`, `unique`, `isodate` and `initial` inputs.
     downsample : :class:`int`, optional, defaults to `None`
         If not `None`, downsample targets by (roughly) this value, e.g.
         for `downsample=10` a set of 900 targets would have ~90 random
@@ -3261,6 +3287,11 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
         to entries strictly BEFORE `isodate` before being extracted.
         If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides the `unique`
+        and `isodate` kwargs. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -3295,10 +3326,10 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         # ADM HEALPixels that touch the box for that nside.
         pixlist = hp_in_box(nside, radecbox)
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
-                                     columns=columnscopy, header=header,
-                                     downsample=downsample, unique=unique,
-                                     isodate=isodate)
+        targets = read_targets_in_hp(
+            hpdirname, nside, pixlist,
+            columns=columnscopy, header=header, downsample=downsample,
+            mtl=mtl, unique=unique, isodate=isodate, initial=initial)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
@@ -3322,7 +3353,8 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
 
 
 def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
-                        quick=False, mtl=False, unique=True, isodate=None):
+                        quick=False, mtl=False,
+                        unique=True, isodate=None, initial=False):
     """Read in targets in an RA, Dec, radius cap.
 
     Parameters
@@ -3344,7 +3376,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
         If ``True``, call :func:`desitarget.io.read_targets_in_quick()`.
         That version of the code assumes that `hpdirname` is a directory,
         which contains files that follow a strict data model. ``True``
-        overrides the `mtl`, `unique` and `isodate` inputs.
+        overrides the `mtl`, `unique`, `isodate` and `initial` inputs.
     mtl : :class:`bool`, optional, defaults to ``False``
         If ``True`` then read an MTL ledger file/directory instead
         of a target file/directory. If ``True`` then the `columns`
@@ -3357,6 +3389,11 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
         :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
         to entries strictly BEFORE `isodate` before being extracted.
         If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides the `unique`
+        and `isodate` kwargs. Only used if `mtl` is ``True``.
 
     Returns
     -------
@@ -3388,9 +3425,10 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
         pixlist = hp_in_cap(nside, radecrad)
 
         # ADM read in targets in these HEALPixels.
-        targets = read_targets_in_hp(hpdirname, nside, pixlist, mtl=mtl,
-                                     columns=columnscopy, header=header,
-                                     unique=unique, isodate=isodate)
+        targets = read_targets_in_hp(
+            hpdirname, nside, pixlist,
+            mtl=mtl, columns=columnscopy, header=header,
+            unique=unique, isodate=isodate, initial=initial)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,

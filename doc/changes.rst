@@ -6,17 +6,35 @@ desitarget Change Log
 -------------------
 
 * Add `MWS-FAINT` target class for main survey [`PR #719`_].
+* Prepare the Main Survey cuts and bit-masks [`PR #718`_]. Includes:
+   * Transfer the SV3 cuts and extra SV3 bits into the Main Survey files.
+   * Include the full slate of secondary target bits for the Main Survey.
+   * Add formalism to up the priority of some ELGs to the LRG priority.
+   * Include a new "filler" ELG class (``ELG_VLO``).
+   * Remove any individual references to a ``GRAY`` program for bits.
+   * Increase the default density of sky fibers by a factor of 4.
+   * Add a kwarg to restore the initial ledger state when reading MTLs.
+   * Speed up the unit test for selecting targets in caps/boxes/pixels.
+   * Fix a bug where WD standards weren't being selected in BACKUP tiles.
+* Update LyA QSO zcats with MgII absorption redshifts [`PR #717`_].
+* Explicitly permit secondary bits that can drive updates to MWS primary
+  targets by adding an updatemws flag to targetmask entries [`PR #716`_].
+* Add EDR3 options to code that writes Gaia-matched sweeps [`PR #715`_].
+   * Also add ``gaiasub`` option when selecting targets, which is used
+     to swap EDR3 proper motions/parallaxes for values in sweeps files.
+* New function and bin script to make QSO redshift catalogs [`PR #714`_].
+   * Incorporates functionality from QuasarNET and SQUEzE.
 
+.. _`PR #714`: https://github.com/desihub/desitarget/pull/714
+.. _`PR #715`: https://github.com/desihub/desitarget/pull/715
+.. _`PR #716`: https://github.com/desihub/desitarget/pull/716
+.. _`PR #717`: https://github.com/desihub/desitarget/pull/717
+.. _`PR #718`: https://github.com/desihub/desitarget/pull/718
 .. _`PR #719`: https://github.com/desihub/desitarget/pull/719
 
 0.57.2 (2021-04-18)
 -------------------
 
-* Add EDR3 options to code that writes Gaia-matched sweeps [`PR #715`_].
-   * Also add ``gaiasub`` functionality when selecting targets.
-   * Swaps EDR3 proper motions/parallaxes for values in sweeps files.
-* New function and bin script to make a redshift catalog [`PR #714`_]
-   * Incorporates functionality from QuasarNET and SQUEzE.
 * Update data model of MTL ledgers for the Main Survey [`PR #712`_]:
    * Express the ``TIMESTAMP`` in strict ISO format.
    * Ensure ``TARGET_STATE`` is a long enough string for all states.
@@ -33,8 +51,6 @@ desitarget Change Log
 .. _`PR #710`: https://github.com/desihub/desitarget/pull/710
 .. _`PR #711`: https://github.com/desihub/desitarget/pull/711
 .. _`PR #712`: https://github.com/desihub/desitarget/pull/712
-.. _`PR #714`: https://github.com/desihub/desitarget/pull/714
-.. _`PR #715`: https://github.com/desihub/desitarget/pull/715
 
 0.57.1 (2021-04-07)
 -------------------

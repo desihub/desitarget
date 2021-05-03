@@ -114,9 +114,9 @@ sv3_mws_mask:
     - [MWS_MAIN_RED_SOUTH,  13, "MWS magnitude limited red sample tuned for DECam",           {obsconditions: BRIGHT}]
 
     # ADM Standard stars based only on Gaia.
-    - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK|GRAY}]
-    - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|GRAY|BRIGHT}]
-    - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT}]
+    - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK|GRAY|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     # ADM back-up targets for poor conditions and as filler.
     - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",   {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]

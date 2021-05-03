@@ -139,7 +139,8 @@ napoleon_include_private_with_doc = True
 autodoc_mock_imports = []
 for missing in ('astropy', 'desimodel', 'desisim', 'desispec', 'desiutil',
                 'fitsio', 'healpy', 'joblib', 'matplotlib', 'numpy', 'photutils',
-                'scipy', 'sklearn', 'speclite', 'yaml'):
+                'scipy', 'sklearn', 'speclite', 'yaml',
+                'quasarnp', 'squeze', 'prospect'):
     try:
         foo = import_module(missing)
     except ImportError:
