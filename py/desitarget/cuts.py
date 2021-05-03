@@ -981,7 +981,7 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # ACP and all astrometric parameters are measured.
     faint_red &= parallax < np.maximum(3*parallaxerr, 1)
     faint_red &= pm < 3.
-    red &= paramssolved == 31
+    faint_red &= paramssolved == 31
 
     # APC There is no equivalent of MWS-MAIN-BROAD for the faint extension, any
     # APC stars failing the astrometry cuts or without the Gaia parameters are
