@@ -5,6 +5,8 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* Add `MWS-FAINT-RED` and `MWS-FAINT-BLUE` target classes for main survey
+  [`PR #719`_].
 * Prepare the Main Survey cuts and bit-masks [`PR #718`_]. Includes:
    * Transfer the SV3 cuts and extra SV3 bits into the Main Survey files.
    * Include the full slate of secondary target bits for the Main Survey.
@@ -29,6 +31,7 @@ desitarget Change Log
 .. _`PR #716`: https://github.com/desihub/desitarget/pull/716
 .. _`PR #717`: https://github.com/desihub/desitarget/pull/717
 .. _`PR #718`: https://github.com/desihub/desitarget/pull/718
+.. _`PR #719`: https://github.com/desihub/desitarget/pull/719
 
 0.57.2 (2021-04-18)
 -------------------

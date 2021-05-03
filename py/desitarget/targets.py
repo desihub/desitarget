@@ -761,9 +761,8 @@ def calc_priority(targets, zcat, obscon, state=False):
             for name in scnd_mask.names():
                 if survey == 'main':
                     # updatemws only defined for main survey targetmask.
-                    if hasattr(scnd_mask[name], 'updatemws'):
-                        if scnd_mask[name].updatemws:
-                            permit_scnd_bits |= scnd_mask[name]
+                    if scnd_mask[name].updatemws:
+                        permit_scnd_bits |= scnd_mask[name]
                 else:
                     # Before updatemws was introduced, all scnd bits
                     # were permitted to update MWS targets.

@@ -154,6 +154,11 @@ class TestPriorities(unittest.TestCase):
                          'NORTH' not in name and 'SOUTH' not in name and
                          'BACKUP' not in name and 'STD' not in name]
 
+            if 'MWS_FAINT_BLUE' in mws_names:
+                mws_names.remove('MWS_FAINT_BLUE')
+            if 'MWS_FAINT_RED' in mws_names:
+                mws_names.remove('MWS_FAINT_RED')
+
             lowest_mws_priority_unobs = [mws_mask[n].priorities['UNOBS']
                                          for n in mws_names]
 
