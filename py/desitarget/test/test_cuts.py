@@ -106,8 +106,12 @@ class TestCuts(unittest.TestCase):
         zflux = flux['ZFLUX']
         w1flux = flux['W1FLUX']
         w2flux = flux['W2FLUX']
-        zfiberflux = flux['ZFIBERFLUX']
+        gfiberflux = flux['GFIBERFLUX']
         rfiberflux = flux['RFIBERFLUX']
+        zfiberflux = flux['ZFIBERFLUX']
+
+        rfibertotflux = targets['FIBERTOTFLUX_R']
+        zfibertotflux = targets['FIBERTOTFLUX_Z']
 
         gfluxivar = targets['FLUX_IVAR_G']
         rfluxivar = targets['FLUX_IVAR_R']
@@ -122,6 +126,7 @@ class TestCuts(unittest.TestCase):
 
         dchisq = targets['DCHISQ']
         deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
+        objtype = targets["TYPE"]
 
         gnobs, rnobs, znobs = targets['NOBS_G'], targets['NOBS_R'], targets['NOBS_Z']
         gallmask = targets['ALLMASK_G']
@@ -148,41 +153,45 @@ class TestCuts(unittest.TestCase):
 
         # ADM check for both defined fiberflux and fiberflux of None.
         for ff in zfiberflux, None:
-            lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
-                              zflux=zflux, w1flux=w1flux, zfiberflux=ff,
-                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits, rfluxivar=rfluxivar,
-                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar)
-            lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux, zflux=zflux,
-                              w1flux=w1flux, zfiberflux=ff,
-                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits, rfluxivar=rfluxivar,
-                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar)
+            lrg1, _ = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
+                                 zflux=zflux, w1flux=w1flux, zfiberflux=ff,
+                                 gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                                 maskbits=maskbits, rfluxivar=rfluxivar,
+                                 zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
+                                 gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
+            lrg2, _ = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux,
+                                 zflux=zflux, w1flux=w1flux, zfiberflux=ff,
+                                 gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                                 maskbits=maskbits, rfluxivar=rfluxivar,
+                                 zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
+                                 gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
 
             self.assertTrue(np.all(lrg1 == lrg2))
 
-            # ADM also check that the color selections alone work. This tripped us up once
-            # ADM with the mocks part of the code calling a non-existent LRG colors function.
-            lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux, rflux=rflux,
-                                     zflux=zflux, zfiberflux=ff,
-                                     w1flux=w1flux, w2flux=w2flux)
-            lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux,
-                                     zflux=zflux, zfiberflux=ff,
-                                     w1flux=w1flux, w2flux=w2flux)
+            # ADM check color selections alone work. Tripped us up once
+            # ADM when the mocks called a missing isLRG_colors function.
+            lrg1, _ = cuts.isLRG_colors(primary=primary, gflux=gflux,
+                                        rflux=rflux, zflux=zflux, zfiberflux=ff,
+                                        w1flux=w1flux, w2flux=w2flux)
+            lrg2, _ = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux,
+                                        zflux=zflux, zfiberflux=ff,
+                                        w1flux=w1flux, w2flux=w2flux)
             self.assertTrue(np.all(lrg1 == lrg2))
 
-        elg1 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                          maskbits=maskbits, primary=primary)
-        elg2 = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux,
-                          gsnr=gsnr, rsnr=rsnr, zsnr=zsnr,
-                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                          maskbits=maskbits, primary=None)
+        elg1, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, gsnr=gsnr,
+                             gfiberflux=gfiberflux, rsnr=rsnr, zsnr=zsnr,
+                             gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                             maskbits=maskbits, primary=primary)
+        elg2, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, gsnr=gsnr,
+                             gfiberflux=gfiberflux, rsnr=rsnr, zsnr=zsnr,
+                             gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                             maskbits=maskbits, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 
-        elg1 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=primary)
-        elg2 = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux, primary=None)
+        elg1, _ = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                                    gfiberflux=gfiberflux, primary=primary)
+        elg2, _ = cuts.isELG_colors(gflux=gflux, rflux=rflux, zflux=zflux,
+                                    gfiberflux=gfiberflux, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 
         # ADM check for both defined fiberflux and fiberflux of None.
@@ -193,16 +202,13 @@ class TestCuts(unittest.TestCase):
                     bgs.append(
                         cuts.isBGS(
                             rfiberflux=ff, gflux=gflux, rflux=rflux,
+                            rfibertotflux=rfibertotflux,
                             zflux=zflux, w1flux=w1flux, w2flux=w2flux,
                             gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                            gfracmasked=gfracmasked, rfracmasked=rfracmasked,
-                            zfracmasked=zfracmasked, gfracflux=gfracflux,
-                            rfracflux=rfracflux, zfracflux=zfracflux,
-                            gfracin=gfracin, rfracin=rfracin, zfracin=zfracin,
                             gfluxivar=gfluxivar, rfluxivar=rfluxivar,
                             zfluxivar=zfluxivar, maskbits=maskbits,
-                            Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
-                            primary=prim, targtype=targtype)
+                            Grr=Grr, w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag,
+                            objtype=objtype, primary=prim, targtype=targtype)
                     )
                 self.assertTrue(np.all(bgs[0] == bgs[1]))
 
@@ -379,7 +385,7 @@ class TestCuts(unittest.TestCase):
         """
         # ADM only test some of the galaxy cuts for speed. There's a
         # ADM full run through all classes in test_cuts_basic.
-        tc = ["LRG", "ELG", "BGS"]
+        tc = ["BGS", "ELG", "LRG"]
         infiles = self.sweepfiles[2]
 
         # ADM set backup to False as the Gaia unit test
@@ -388,22 +394,24 @@ class TestCuts(unittest.TestCase):
                                       backup=False)
 
         # ADM test the RA/Dec box input.
-        radecbox = [np.min(targets["RA"])-0.01, np.max(targets["RA"])+0.01,
-                    np.min(targets["DEC"])-0.01, np.max(targets["DEC"]+0.01)]
+        # ADM Large pixels (~20o/nside=2/4) for speed and less memory.
+        radecbox = [np.min(targets["RA"])-10, np.max(targets["RA"])+10,
+                    np.min(targets["DEC"])-10, np.max(targets["DEC"]+10)]
         t1 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
                                  radecbox=radecbox, backup=False)
 
         # ADM test the RA/Dec/radius cap input.
         centra, centdec = 0.5*(radecbox[0]+radecbox[1]), 0.5*(radecbox[2]+radecbox[3])
-        # ADM 20 degrees should be a large enough radius for the sweeps.
+        # ADM Large pixels (~20o/nside=2/4) for speed and less memory.
         maxrad = 20.
         radecrad = centra, centdec, maxrad
         t2 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
                                  radecrad=radecrad, backup=False)
 
         # ADM test the pixel input.
-        nside = pixarea2nside(box_area(radecbox))
-        pixlist = hp_in_box(nside, radecbox)
+        # ADM Use large pixels for speed and to use less memory.
+        nside = 2
+        pixlist = hp_in_box(2, radecbox)
         t3 = cuts.select_targets(infiles, numproc=1, tcnames=tc,
                                  nside=nside, pixlist=pixlist, backup=False)
 

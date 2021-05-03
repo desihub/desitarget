@@ -49,7 +49,7 @@ class TestMTL(unittest.TestCase):
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
         # ADM determine the initial PRIORITY and NUMOBS.
-        pinit, ninit = initial_priority_numobs(self.targets, obscon="DARK|GRAY")
+        pinit, ninit = initial_priority_numobs(self.targets, obscon="DARK")
         self.targets["PRIORITY_INIT"] = pinit
         self.targets["NUMOBS_INIT"] = ninit
 
@@ -97,7 +97,7 @@ class TestMTL(unittest.TestCase):
         for prefix in ["", "CMX_", "SV1_"]:
             t = self.reset_targets(prefix)
             t = self.update_data_model(t)
-            mtl = make_mtl(t, "BRIGHT|GRAY|DARK", trimcols=True)
+            mtl = make_mtl(t, "BRIGHT|DARK", trimcols=True)
             mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
             _, _, survey = main_cmx_or_sv(mtldm)
             mtldm = survey_data_model(mtldm, survey=survey)
@@ -112,14 +112,10 @@ class TestMTL(unittest.TestCase):
         for prefix in ["", "SV1_"]:
             t = self.reset_targets(prefix)
             t = self.update_data_model(t)
-            mtl = make_mtl(t, "GRAY|DARK")
+            mtl = make_mtl(t, "DARK")
             mtl.sort(keys='TARGETID')
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 1, 4, 4, 4, 1]))
             self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
-            # - Check that ELGs can be observed in gray conditions but not others
-            iselg = (self.types == 'ELG')
-            self.assertTrue(np.all((mtl['OBSCONDITIONS'][iselg] & obsconditions.GRAY) != 0))
-            self.assertTrue(np.all((mtl['OBSCONDITIONS'][~iselg] & obsconditions.GRAY) == 0))
 
     def test_zcat(self):
         """Test priorities, numobs and obsconditions are set correctly after zcat.
@@ -129,7 +125,7 @@ class TestMTL(unittest.TestCase):
             t = self.reset_targets(prefix)
             t = self.update_data_model(t)
             zcat = self.update_data_model(self.zcat.copy())
-            mtl = make_mtl(t, "DARK|GRAY", zcat=zcat, trim=False)
+            mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
             mtl.sort(keys='TARGETID')
             pp = self.post_prio.copy()
             nom = [0, 0, 0, 3, 3, 1]
@@ -141,7 +137,7 @@ class TestMTL(unittest.TestCase):
             # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
             t[prefix+'DESI_TARGET'][0] = Mx.BAD_SKY
             zcat = self.update_data_model(self.zcat.copy())
-            mtl = make_mtl(t, "DARK|GRAY", zcat=zcat, trim=False)
+            mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
             mtl.sort(keys='TARGETID')
             self.assertEqual(mtl['PRIORITY'][0], 0)
 
@@ -176,12 +172,12 @@ class TestMTL(unittest.TestCase):
         qzcat["Z"] = 0.5
 
         # ADM set their initial conditions to be that of a QSO.
-        pinit, ninit = initial_priority_numobs(qtargets, obscon="DARK|GRAY")
+        pinit, ninit = initial_priority_numobs(qtargets, obscon="DARK")
         qtargets["PRIORITY_INIT"] = pinit
         qtargets["NUMOBS_INIT"] = ninit
 
         # ADM run through MTL.
-        mtl = make_mtl(qtargets, obscon="DARK|GRAY", zcat=qzcat)
+        mtl = make_mtl(qtargets, obscon="DARK", zcat=qzcat)
 
         # ADM all confirmed tracer quasars should have NUMOBS_MORE=0.
         self.assertTrue(np.all(qzcat["NUMOBS_MORE"] == 0))

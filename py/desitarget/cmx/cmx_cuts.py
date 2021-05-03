@@ -38,10 +38,10 @@ from desitarget.gaiamatch import gaia_dr_from_ref_cat, is_in_Galaxy
 from desitarget.gaiamatch import find_gaia_files_hp
 
 # ADM Main Survey functions, used for mini-SV.
-from desitarget.cuts import isLRG as isLRG_MS
-from desitarget.cuts import isELG as isELG_MS
-from desitarget.cuts import isQSO_randomforest as isQSO_MS
-from desitarget.cuts import isBGS as isBGS_MS
+from desitarget.cmx.ms_cuts import isLRG as isLRG_MS
+from desitarget.cmx.ms_cuts import isELG as isELG_MS
+from desitarget.cmx.ms_cuts import isQSO_randomforest as isQSO_MS
+from desitarget.cmx.ms_cuts import isBGS as isBGS_MS
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger

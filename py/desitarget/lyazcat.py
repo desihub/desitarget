@@ -1,6 +1,6 @@
 """
 desitarget.lyazcat
-==============
+==================
 
 Post-redrock ML processing for LyA Quasar object identification.
 """
@@ -53,12 +53,12 @@ n1_cols = np.array(['Z_QN', 'Z_QN_CONF', 'IS_QSO_QN', 'Z_SQ', 'Z_SQ_CONF',
 
 def tmark(istring):
     """A function to mark the time an operation starts or ends.
-    
+
     Parameters
     ----------
     istring : :class:'str'
         The input string to print to the terminal.
-        
+
     Notes
     -----
     - A string with the date and time in ISO 8061 standard followed
@@ -66,17 +66,17 @@ def tmark(istring):
     """
     t0 = time.time()
     t_start = time.strftime('%Y-%m-%d | %H:%M:%S')
-    log.info('\n{}: {}'.format(istring,t_start))
+    log.info('\n{}: {}'.format(istring, t_start))
 
-    
+
 def make_new_zcat(zbestname):
     """Make the initial zcat array with redrock data.
-    
+
     Parameters
     ----------
     zbestname : :class:`str`
         Full filename and path for the zbest file to process.
-        
+
     Returns
     -------
     :class:`~numpy.array` or 'bool'
@@ -98,7 +98,7 @@ def make_new_zcat(zbestname):
     except (FileNotFoundError, OSError):
         return False
 
-    
+
 def get_qn_model_fname(qnmodel_fname=None):
     """Convenience function to grab the $QN_MODEL_FILE environment variable.
 
@@ -127,13 +127,13 @@ def get_qn_model_fname(qnmodel_fname=None):
 
 def load_qn_model(model_filename):
     """Convenience function to load the QuasarNP model and line lists.
-    
+
     Parameters
     ----------
     model_filename : :class:'str'
         The filename and path of the QuasarNP model. Either input by user or defaults
         to get_qn_model_fname().
-    
+
     Returns
     -------
     :class:'~numpy.array'
@@ -146,13 +146,13 @@ def load_qn_model(model_filename):
     lines = ['LYA', 'CIV(1548)', 'CIII(1909)', 'MgII(2796)', 'Hbeta', 'Halpha']
     lines_bal = ['CIV(1548)']
     model = load_model(model_filename)
-    
+
     return model, lines, lines_bal
 
 
 def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
     """Apply the QuasarNP model to the input zcat and add data to columns.
-    
+
     Parameters
     ----------
     zcat : :class:'~numpy.array'
@@ -168,18 +168,18 @@ def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
     qnp_lines_bal : :class:'list'
         A list containing the names of the emission lines to check
         for BAL troughs.
-        
+
     Returns
     -------
     :class:'~numpy.array'
         The zcat array with QuasarNP data included in the columns:
-        
+
         * Z_QN        - The best QuasarNP redshift for the object
         * Z_QN_CONF   - The confidence of Z_QN
         * IS_QSO_QN   - A binary flag indicated object is a quasar
     """
     tmark('    Adding QuasarNP data')
-    
+
     data, w = load_desi_coadd(coaddname)
     data = data[:, :, None]
     p = qnp_model.predict(data)
@@ -227,30 +227,30 @@ def get_sq_model_fname(sqmodel_fname=None):
 
 def load_sq_model(model_filename):
     """Convenience function for loading the SQUEzE model file.
-    
+
     Parameters
     ----------
     model_filename : :class:'str'
         The filename and path of the SQUEzE model file. Either input by user
         or defaults to get_sq_model_fname().
-    
+
     Returns
     -------
     :class:'~numpy.array'
         A numpy array of the SQUEzE model.
-    
+
     Notes
     -----
     - The input model file needs to be in the json file format.
     """
     model = Model.from_json(load_json(model_filename))
-    
+
     return model
 
 
 def add_sq_data(zcat, coaddname, squeze_model):
     """Apply the SQUEzE model to the input zcat and add data to columns.
-    
+
     Parameters
     ----------
     zcat : :class:'~numpy.array'
@@ -260,12 +260,12 @@ def add_sq_data(zcat, coaddname, squeze_model):
         in make_new_zcat()
     squeze_model : :class:'numpy.array'
         The loaded SQUEzE model file
-        
+
     Returns
     -------
     :class:'~numpy.array'
         The zcat array with SQUEzE data included in the columns:
-        
+
         * Z_SQ        - The best redshift from SQUEzE for each object.
         * Z_SQ_CONF   - The confidence value of this redshift.
     """
@@ -298,12 +298,12 @@ def add_sq_data(zcat, coaddname, squeze_model):
             wave[band] = desi_spectra.wave[band]
             ivar[band] = desi_spectra.ivar[band][pos]
             mask[band] = desi_spectra.mask[band][pos]
-            
+
         # EBL Format each spectrum for the model application
         spectrum = DesiSpectrum(flux, wave, ivar, mask, metadata, single_exposure)
         # EBL Append the spectrum to the Spectra object
         squeze_spectra.append(spectrum)
-    
+
     # EBL Initialize candidate object. This takes a while with no feedback
     # so we want a time output for benchmarking purposes.
     tmark('      Initializing candidates')
@@ -319,7 +319,7 @@ def add_sq_data(zcat, coaddname, squeze_model):
     tmark('      Merging SQUEzE data with zcat')
     data_frame = candidates.candidates()
     data_frame = data_frame[~data_frame['DUPLICATED']][sq_cols_keep]
-    # EBL Strip the pandas data frame structure and put it into a numpy 
+    # EBL Strip the pandas data frame structure and put it into a numpy
     # structured array first.
     sqdata_arr = np.zeros(len(data_frame), dtype=[('TARGETID', 'int64'),
                                                   ('Z_SQ', 'float64'),
@@ -328,7 +328,7 @@ def add_sq_data(zcat, coaddname, squeze_model):
     sqdata_arr['Z_SQ'] = data_frame['Z_TRY'].values
     sqdata_arr['Z_SQ_CONF'] = data_frame['PROB'].values
     # EBL SQUEzE will reorder the objects, so match on TARGETID.
-    zcat_args, sqdata_args = match(zcat['TARGETID'],sqdata_arr['TARGETID'])
+    zcat_args, sqdata_args = match(zcat['TARGETID'], sqdata_arr['TARGETID'])
     zcat['Z_SQ'][zcat_args] = sqdata_arr['Z_SQ'][sqdata_args]
     zcat['Z_SQ_CONF'][zcat_args] = sqdata_arr['Z_SQ_CONF'][sqdata_args]
 
@@ -337,7 +337,7 @@ def add_sq_data(zcat, coaddname, squeze_model):
 
 def add_abs_data(zcat, coaddname):
     """Add the MgII absorption line finder data to the input zcat array.
-    
+
     Parameters
     ----------
     zcat : :class:'~numpy.array'
@@ -345,12 +345,12 @@ def add_abs_data(zcat, coaddname):
     coaddname : class:'str'
         The name of the coadd file corresponding to the zbest file used
         in make_new_zcat()
-        
+
     Returns
     -------
     :class:'~numpy.array'
         The zcat array with MgII Absorption data included in the columns:
-        
+
         * Z_ABS        - The highest redshift of MgII absorption
         * Z_ABS_CONF   - The confidence value for this redshift.
     
@@ -513,19 +513,19 @@ def add_abs_data(zcat, coaddname):
 
 def zcomb_selector(zcat, proc_flag=False):
     """Compare results from redrock, QuasarNP, SQUEzE, and MgII data.
-    
+
     Parameters
     ----------
     zcat : :class:'~numpy.array'
         The structured array that was created by make_new_zcat()
     proc_flag : :class:'bool'
         Turn on extra comparison procedure.
-        
+
     Returns
     -------
     :class:'~numpy.array'
         The zcat array with SQUEzE data included in the columns:
-        
+
         * Z_COMB        - The best models-combined redshift for each object.
         * Z_COMB_PROB   - The combined probability value of that redshift.
     """
@@ -537,7 +537,7 @@ def zcomb_selector(zcat, proc_flag=False):
 
 def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_flag=False):
     """Writes the zcat structured array out as a FITS file.
-    
+
     Parameters
     ----------
     zcat : :class:'~numpy.array'
@@ -552,7 +552,7 @@ def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_f
         Flag if SQUEzE data (or not) was added to the zcat file.
     abs_flag : :class:'bool'
         Flag if MgII Absorption data (or not) was added to the zcat file.
-        
+
     Returns
     -------
     :class:'str'
@@ -560,15 +560,15 @@ def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_f
     """
     tmark('    Creating file...')
     full_outputname = os.path.join(outputdir, outputname)
-    
+
     prim_hdu = fits.PrimaryHDU()
     prim_hdu.header['QN_ADDED'] = str(qn_flag)
     prim_hdu.header['SQ_ADDED'] = str(sq_flag)
     prim_hdu.header['AB_ADDED'] = str(abs_flag)
-    
+
     data_hdu = fits.BinTableHDU.from_columns(zcat, name='ZCATALOG')
     data_out = fits.HDUList([prim_hdu, data_hdu])
-    
+
     data_out.writeto(full_outputname)
 
     return full_outputname
@@ -578,7 +578,7 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
                 qnp_model=None, qnp_lines=None, qnp_lines_bal=None,
                 sq_flag=False, squeze_model=None, abs_flag=False):
     """This will create a single zqso file from a set of user inputs.
-    
+
     Parameters
     ----------
     tile : :class:'str'
@@ -606,7 +606,7 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
         The numpy array for the SQUEzE model file.
     abs_flag : :class:'bool', optional
         Flag to add MgII Absorption data (or not) to the zcat file.
-    
+
     Notes
     -----
     - Writes a FITS catalog that incorporates redrock, QuasarNP, SQUEzE, and MgII
@@ -617,30 +617,30 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
     # EBL Create the filepath for the input tile/night combination
     tiledir = os.path.join(zcatdir, tile)
     ymdir = os.path.join(tiledir, night)
-        
+
     # EBL Create the filename tag that appends to zbest-*, coadd-*, and zqso-*
     # files.
     filename_tag = f'{petal_num}-{tile}-thru{night}.fits'
     zbestname = f'zbest-{filename_tag}'
     coaddname = f'coadd-{filename_tag}'
     outputname = f'zqso-{filename_tag}'
-    
+
     zcat = make_new_zcat(os.path.join(ymdir, zbestname))
     if isinstance(zcat, bool):
-        print('  !!!! Petal Number does not have a corresponding zbest file !!!!')
+        log.info('  !!!! Petal Number does not have a corresponding zbest file !!!!')
     else:
-        if qn_flag :
+        if qn_flag:
             zcat = add_qn_data(zcat, os.path.join(ymdir, coaddname),
                                qnp_model, qnp_lines, qnp_lines_bal)
         if sq_flag:
             zcat = add_sq_data(zcat, os.path.join(ymdir, coaddname), squeze_model)
         if abs_flag:
             zcat = add_abs_data(zcat, os.path.join(ymdir, coaddname))
-        
+
         fzcat = zcomb_selector(zcat)
-    
+
         full_outputname = zcat_writer(fzcat, outputdir, outputname, qn_flag,
                                       sq_flag, abs_flag)
-    
+
         tmark('    --{} written out correctly.'.format(full_outputname))
-        print('='*79)
+        log.info('='*79)
