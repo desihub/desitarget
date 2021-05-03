@@ -5,7 +5,8 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
-* Add `MWS-FAINT` target class for main survey [`PR #719`_].
+* Add `MWS-FAINT-RED` and `MWS-FAINT-BLUE` target classes for main survey
+  [`PR #719`_].
 * Prepare the Main Survey cuts and bit-masks [`PR #718`_]. Includes:
    * Transfer the SV3 cuts and extra SV3 bits into the Main Survey files.
    * Include the full slate of secondary target bits for the Main Survey.
