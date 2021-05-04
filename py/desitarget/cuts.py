@@ -706,7 +706,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
     # ADM no obvious issues with the astrometry solution.
     std &= astrometricexcessnoise < 1
-    std &= paramssolved == 31
+    std &= paramssolved >= 31
 
     # ADM finite proper motions.
     std &= np.isfinite(pmra)
@@ -947,7 +947,7 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # APC main targets are point-like based on DECaLS morphology
     # APC and GAIA_ASTROMETRIC_NOISE.
     faint &= _psflike(objtype)
-    faint &= gaiaaen < 3.0
+    faint &= gaiaaen < 2.0
 
     # APC faint targets are 19 <= r < 20
     faint &= rflux > 10**((22.5-20.0)/2.5)
@@ -969,7 +969,7 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # ADM Turn off any NaNs for astrometric quantities to suppress
     # ADM warnings. Won't target these, using cuts on paramssolved
     # ADM (or will explicitly target them based on paramsssolved).
-    ii = paramssolved != 31
+    ii = paramssolved < 31
     parallax = parallax.copy()
     parallax[ii] = 0.
 
@@ -979,9 +979,9 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # APC MWS-FAINT-RED also has parallax < max(3parallax_err,1) mas
     # APC and proper motion < 3 (lower than MAIN-MAIN-RED)
     # ACP and all astrometric parameters are measured.
-    faint_red &= parallax < np.maximum(3*parallaxerr, 1)
+    faint_red &= parallax < (3*parallaxerr + 0.3)
     faint_red &= pm < 3.
-    faint_red &= paramssolved == 31
+    faint_red &= paramssolved >= 31
 
     # APC There is no equivalent of MWS-MAIN-BROAD for the faint extension, any
     # APC stars failing the astrometry cuts or without the Gaia parameters are
@@ -1004,7 +1004,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM main targets are point-like based on DECaLS morphology
     # ADM and GAIA_ASTROMETRIC_NOISE.
     mws &= _psflike(objtype)
-    mws &= gaiaaen < 3.0
+    mws &= gaiaaen < 2.0
 
     # ADM main targets are 16 <= r < 19
     mws &= rflux > 10**((22.5-19.0)/2.5)
@@ -1026,7 +1026,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM Turn off any NaNs for astrometric quantities to suppress
     # ADM warnings. Won't target these, using cuts on paramssolved
     # ADM (or will explicitly target them based on paramsssolved).
-    ii = paramssolved != 31
+    ii = paramssolved < 31
     parallax = parallax.copy()
     parallax[ii], pm[ii] = 0., 0.
 
@@ -1037,16 +1037,16 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM MWS-RED also has parallax < max(3parallax_err,1)mas
     # ADM and proper motion < 7
     # ADM and all astrometric parameters are measured.
-    red &= parallax < np.maximum(3*parallaxerr, 1)
+    red &= parallax < (3*parallaxerr + 0.3)
     red &= pm < 7.
-    red &= paramssolved == 31
+    red &= paramssolved >= 31
 
     # ADM MWS-BROAD has parallax > max(3parallax_err,1)mas
     # ADM OR proper motion > 7.
     # ADM OR astrometric parameters not measured.
-    broad &= ((parallax >= np.maximum(3*parallaxerr, 1)) |
+    broad &= ((parallax >= (3*parallaxerr + 0.3)) |
               (pm >= 7.)
-              | (paramssolved != 31))
+              | (paramssolved < 31))
 
     return broad, red, blue
 
@@ -1091,7 +1091,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # APC Gaia G mag of more than 16.
     mws &= gaiagmag > 16.
     # ADM all astrometric parameters are measured.
-    mws &= paramssolved == 31
+    mws &= paramssolved >= 31
     # ADM parallax cut corresponding to 100pc.
     mws &= (parallax + parallaxerr) > 10.   # NB: "+" is correct.
 
@@ -1242,7 +1242,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     mws &= gaia
 
     # ADM and all astrometric parameters are measured.
-    mws &= paramssolved == 31
+    mws &= paramssolved >= 31
 
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.
