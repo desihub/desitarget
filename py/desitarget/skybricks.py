@@ -62,9 +62,9 @@ class Skybricks(object):
         '''
         import fitsio
         from astropy.wcs import WCS
-        from fiberassign.utils import Logger
+        from desiutil.log import get_logger
+        log = get_logger()
 
-        log = Logger.get()
         # skybricks are 1 x 1 deg.
         brickrad = (1. * np.sqrt(2.) / 2.)
         searchrad = 1.01 * (tileradius + brickrad)
@@ -73,7 +73,10 @@ class Skybricks(object):
         searchrad = np.deg2rad(searchrad)
         tilexyz = _radec2xyz([tilera], [tiledec])
         sky_inds = self.skykd.query_ball_point(tilexyz[0,:], searchrad)
-        good_sky = np.zeros(len(ras), bool)
+        # handle non-array iterables (eg lists) as inputs
+        ras = np.array(ras)
+        decs = np.array(decs)
+        good_sky = np.zeros(ras.shape, bool)
         # Check possibly-overlapping skybricks.
         for i in sky_inds:
             # Do any of the query points overlap in the brick's RA,DEC unique-area bounding-box?
@@ -101,7 +104,7 @@ class Skybricks(object):
             w.wcs.crval = [hdr['CRVAL1'], hdr['CRVAL2']]
             w.wcs.cd = [[hdr['CD1_1'], hdr['CD1_2']],
                         [hdr['CD2_1'], hdr['CD2_2']]]
-            x,y = w.wcs_world2pix(ras[I], decs[I], 0)
+            x,y = w.wcs_world2pix(ras.flat[I], decs.flat[I], 0)
             x = np.round(x).astype(int)
             y = np.round(y).astype(int)
             # we have margins that should ensure this...
@@ -109,7 +112,7 @@ class Skybricks(object):
                 raise RuntimeError('Skybrick %s: locations project outside the brick bounds' % (self.skybricks['BRICKNAME'][i]))
 
             # FIXME -- look at surrounding pixels too??
-            good_sky[I] = (skymap[y, x] == 0)
+            good_sky.flat[I] = (skymap[y, x] == 0)
         return good_sky
 
 def _radec2kd(ra, dec):
