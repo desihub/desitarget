@@ -25,6 +25,8 @@ desitarget Change Log
      to swap EDR3 proper motions/parallaxes for values in sweeps files.
 * New function and bin script to make QSO redshift catalogs [`PR #714`_].
    * Incorporates functionality from QuasarNET and SQUEzE.
+* Add ``desispec.skybricks`` to lookup whether ra,dec locations are blank sky
+  [`PR #722`_].
 
 .. _`PR #714`: https://github.com/desihub/desitarget/pull/714
 .. _`PR #715`: https://github.com/desihub/desitarget/pull/715
@@ -32,6 +34,7 @@ desitarget Change Log
 .. _`PR #717`: https://github.com/desihub/desitarget/pull/717
 .. _`PR #718`: https://github.com/desihub/desitarget/pull/718
 .. _`PR #719`: https://github.com/desihub/desitarget/pull/719
+.. _`PR #722`: https://github.com/desihub/desitarget/pull/722
 
 0.57.2 (2021-04-18)
 -------------------

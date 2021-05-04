@@ -77,6 +77,9 @@ desitarget API
 .. automodule:: desitarget.secondary
     :members:
 
+.. automodule:: desitarget.skybricks
+    :members:
+
 .. automodule:: desitarget.skyfibers
     :members:
 
