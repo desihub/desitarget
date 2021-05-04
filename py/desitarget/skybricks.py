@@ -111,3 +111,22 @@ class Skybricks(object):
             # FIXME -- look at surrounding pixels too??
             good_sky[I] = (skymap[y, x] == 0)
         return good_sky
+
+def _radec2kd(ra, dec):
+    """
+    Creates a scipy KDTree from the given *ra*, *dec* arrays (in deg).
+    """
+    from scipy.spatial import KDTree
+    xyz = _radec2xyz(ra, dec)
+    return KDTree(xyz)
+
+def _radec2xyz(ra, dec):
+    """
+    Converts arrays from *ra*, *dec* (in deg) to XYZ unit-sphere
+    coordinates.
+    """
+    rr = np.deg2rad(ra)
+    dd = np.deg2rad(dec)
+    return np.vstack((np.cos(rr) * np.cos(dd),
+                      np.sin(rr) * np.cos(dd),
+                      np.sin(dd))).T
