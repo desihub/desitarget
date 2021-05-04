@@ -25,7 +25,7 @@ desitarget Change Log
      to swap EDR3 proper motions/parallaxes for values in sweeps files.
 * New function and bin script to make QSO redshift catalogs [`PR #714`_].
    * Incorporates functionality from QuasarNET and SQUEzE.
-* Update the baseline LRG selection [`PR #723`_]. Changes from SV3 includes:
+* Update the baseline LRG selection [`PR #723`_]. Changes from SV3 include:
     * Change the zfiber faint limit from 21.7 to 21.6
     * Change the low-z limit from z>0.3 to z>0.4
     * Change the overall density from 800/sq.deg. to 600/sq.deg.
