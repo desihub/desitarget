@@ -190,6 +190,47 @@ def decode_targetid(targetid):
 
     return outputs
 
+def create_targetid(ra, dec):
+    """
+    Create negative 64-bit TARGETID from (ra,dec) unique to ~1.2 milliarcsec
+
+    Parameters
+    ----------
+    ra : :class:`float` or :class:`~numpy.ndarray`
+        Right Ascension in degrees 0 <= ra <= 360
+    dec : :class:`float` or :class:`~numpy.ndarray`
+        Declination in degrees -90 <= dec <= 90
+
+    Returns
+    -------
+    :class:`~numpy.int64` or :class:`~numpy.ndarray`
+        negative TARGETID derived from (ra,dec)
+    """
+    #- Check input dimensionality
+    scalar_input = np.isscalar(ra)
+    if np.isscalar(ra) != np.isscalar(dec):
+        raise TypeError('ra and dec must both be scalars or both be arrays')
+
+    #- Convert to arrays to enable things like .astype(int)
+    ra = np.atleast_1d(ra)
+    dec = np.atleast_1d(dec)
+
+    assert np.all( (0.0 <= ra) & (ra <= 360.0) )
+    assert np.all( (-90.0 <= dec) & (dec <= 90.0) )
+
+    #- encode ra in bits 30-59 and dec in bits 0-29
+    nbits = 30
+    ra_bits = ((2**nbits - 1) * (ra/360.0)).astype(int) << nbits
+    dec_bits = ((2**nbits - 1) * ((dec+90.0)/180.0)).astype(int)
+    targetid = ra_bits + dec_bits
+
+    #- return value has dimensionality of inputs
+    #- subtract 1 so that create_targetid(0,-90) is -1 instead of 0
+    if scalar_input:
+        return -targetid[0] - 1
+    else:
+        return -targetid - 1
+
 
 def switch_main_cmx_or_sv(revamp, archetype):
     """change the data model of a set of targets to match another.
