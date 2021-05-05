@@ -979,7 +979,7 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # APC MWS-FAINT-RED also has parallax < max(3parallax_err,1) mas
     # APC and proper motion < 3 (lower than MAIN-MAIN-RED)
     # ACP and all astrometric parameters are measured.
-    faint_red &= parallax < (3*parallaxerr + 0.3)
+    faint_red &= parallax < (3 * parallaxerr + 0.3)
     faint_red &= pm < 3.
     faint_red &= paramssolved >= 31
 
@@ -1034,18 +1034,20 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     red &= rflux >= gflux * 10**(0.7/2.5)  # (g-r)>=0.7
     broad = red.copy()
 
-    # ADM MWS-RED also has parallax < max(3parallax_err,1)mas
-    # ADM and proper motion < 7
+    # ADM MWS-RED also has parallax < (3parallax_err+0.3)mas
+    # ADM and proper motion < 5 * sqrt(rflux/r_19) 
     # ADM and all astrometric parameters are measured.
-    red &= parallax < (3*parallaxerr + 0.3)
-    red &= pm < 7.
+    pmmax = 5 * np.sqrt(rflux/(10**((22.5-19)/2.5)))
+    plxmax = 3 * parallaxerr + 0.3
+    red &= parallax < plxmax
+    red &= pm < pmmax
     red &= paramssolved >= 31
 
-    # ADM MWS-BROAD has parallax > max(3parallax_err,1)mas
-    # ADM OR proper motion > 7.
+    # ADM MWS-BROAD has parallax > (3parallax_err+0.3)mas
+    # ADM OR proper motion > max value
     # ADM OR astrometric parameters not measured.
-    broad &= ((parallax >= (3*parallaxerr + 0.3)) |
-              (pm >= 7.)
+    broad &= ((parallax >= plxmax) |
+              (pm >= pmmax)
               | (paramssolved < 31))
 
     return broad, red, blue
