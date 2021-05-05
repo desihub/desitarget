@@ -5,6 +5,12 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* Update the baseline LRG selection [`PR #723`_]. Changes from SV3 include:
+    * Change the zfiber faint limit from 21.7 to 21.6.
+    * Change the low-z limit from z>0.3 to z>0.4.
+    * Change the overall density from 800/sq.deg. to 600/sq.deg.
+    * Remove the LRG_LOWDENS target bit.
+* Add ``desispec.skybricks`` to lookup if ras,decs are blank sky [`PR #722`_].
 * Add `MWS-FAINT-RED` and `MWS-FAINT-BLUE` target classes for main survey
   [`PR #719`_].
 * Prepare the Main Survey cuts and bit-masks [`PR #718`_]. Includes:
@@ -25,8 +31,7 @@ desitarget Change Log
      to swap EDR3 proper motions/parallaxes for values in sweeps files.
 * New function and bin script to make QSO redshift catalogs [`PR #714`_].
    * Incorporates functionality from QuasarNET and SQUEzE.
-* Add ``desispec.skybricks`` to lookup whether ra,dec locations are blank sky
-  [`PR #722`_].
+
 
 .. _`PR #714`: https://github.com/desihub/desitarget/pull/714
 .. _`PR #715`: https://github.com/desihub/desitarget/pull/715
@@ -35,6 +40,7 @@ desitarget Change Log
 .. _`PR #718`: https://github.com/desihub/desitarget/pull/718
 .. _`PR #719`: https://github.com/desihub/desitarget/pull/719
 .. _`PR #722`: https://github.com/desihub/desitarget/pull/722
+.. _`PR #723`: https://github.com/desihub/desitarget/pull/723
 
 0.57.2 (2021-04-18)
 -------------------
