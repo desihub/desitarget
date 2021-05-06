@@ -182,7 +182,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                parallax=None, parallaxovererror=None, ebv=None, gaiabprpfactor=None,
                gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiadupsource=None, gaiaparamssolved=None,
-               primary=None, test=False, nside=2):
+               primary=None, test=False, nside=2, dr="dr2"):
     """Standards based solely on Gaia data.
 
     Parameters
@@ -195,6 +195,8 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     nside : :class:`int`, optional, defaults to 2
         (NESTED) HEALPix nside, if targets are being parallelized.
         The default of 2 should be benign for serial processing.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3".
 
     Returns
     -------
@@ -237,7 +239,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
     # ADM restrict to point sources.
-    ispsf = gaia_psflike(gaiaaen, gaiagmag)
+    ispsf = gaia_psflike(gaiaaen, gaiagmag, dr=dr)
     std &= ispsf
 
     # ADM de-extinct the magnitudes before applying color cuts.
@@ -2787,6 +2789,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     if survey == 'main':
         import desitarget.cuts as targcuts
         from desitarget.targetmask import desi_mask, mws_mask
+
+        # APC Use Gaia EDR3 in main survey
+        dr = "edr3"
     elif survey[:2] == 'sv':
         try:
             targcuts = import_module("desitarget.{}.{}_cuts".format(survey,
@@ -2799,6 +2804,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
             log.critical(msg)
             raise ModuleNotFoundError(msg)
         desi_mask, mws_mask = targmask.desi_mask, targmask.mws_mask
+
+        # We used DR2 in SV
+        dr = "dr2"
     else:
         msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
         log.critical(msg)
@@ -2837,7 +2845,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
         gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
         gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
-        primary=primary, nside=nside, test=test)
+        primary=primary, nside=nside, test=test, dr=dr)
 
     # ADM Construct the target flag bits.
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
