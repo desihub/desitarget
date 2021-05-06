@@ -1479,11 +1479,11 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None,
             bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
     elif targtype == 'faint':
         if south:
-            bgs &= rflux > 10**((22.5-20.3)/2.5)
+            bgs &= rflux > 10**((22.5-20.175)/2.5)
             bgs &= rflux <= 10**((22.5-19.5)/2.5)
             bgs &= (rfibcol)
         else:
-            bgs &= rflux > 10**((22.5-(20.3))/2.5)
+            bgs &= rflux > 10**((22.5-(20.220))/2.5)
             bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
             bgs &= (rfibcol)
 
@@ -1615,11 +1615,11 @@ def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
             bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
     elif targtype == 'faint':
         if south:
-            bgs &= rflux > 10**((22.5-20.3)/2.5)
+            bgs &= rflux > 10**((22.5-20.175)/2.5)
             bgs &= rflux <= 10**((22.5-19.5)/2.5)
             bgs &= (rfibcol)
         else:
-            bgs &= rflux > 10**((22.5-(20.3))/2.5)
+            bgs &= rflux > 10**((22.5-(20.220))/2.5)
             bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
             bgs &= (rfibcol)
 
