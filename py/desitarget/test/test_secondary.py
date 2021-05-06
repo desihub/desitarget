@@ -45,7 +45,7 @@ class TestSECONDARY(unittest.TestCase):
             # ADM ...if we've already defined the updatemws property...
             if "updatemws" in dir(Mx[Mx[0]]):
                 for bitname in Mx.names():
-                    self.assertTrue(isinstance(Mx[bitname].updatemws,bool))
+                    self.assertTrue(isinstance(Mx[bitname].updatemws, bool))
 
     def test_downsample(self):
         """Test that secondary masks all have downsample defined and <= 1.

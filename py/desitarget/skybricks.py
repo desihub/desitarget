@@ -10,11 +10,12 @@ put a sky fiber.
 import os
 import numpy as np
 
+
 class Skybricks(object):
     '''
     This class handles dynamic lookup of whether a given (RA,Dec)
     should make a good location for a sky fiber.
-    '''    
+    '''
     def __init__(self, skybricks_dir=None):
         '''
         Create a Skybricks object, reading metadata.
@@ -72,7 +73,7 @@ class Skybricks(object):
         # unit-sphere distance, but that's the safe direction.
         searchrad = np.deg2rad(searchrad)
         tilexyz = _radec2xyz([tilera], [tiledec])
-        sky_inds = self.skykd.query_ball_point(tilexyz[0,:], searchrad)
+        sky_inds = self.skykd.query_ball_point(tilexyz[0, :], searchrad)
         # handle non-array iterables (eg lists) as inputs
         ras = np.array(ras)
         decs = np.array(decs)
@@ -81,10 +82,10 @@ class Skybricks(object):
         for i in sky_inds:
             # Do any of the query points overlap in the brick's RA,DEC unique-area bounding-box?
             I = np.flatnonzero(
-                (ras  >= self.skybricks['RA1'][i]) *
-                (ras  <  self.skybricks['RA2'][i]) *
+                (ras >= self.skybricks['RA1'][i]) *
+                (ras < self.skybricks['RA2'][i]) *
                 (decs >= self.skybricks['DEC1'][i]) *
-                (decs <  self.skybricks['DEC2'][i]))
+                (decs < self.skybricks['DEC2'][i]))
             log.debug('Skybricks: %i locations overlap skybrick %s' % (len(I), self.skybricks['BRICKNAME'][i]))
             if len(I) == 0:
                 continue
@@ -95,8 +96,8 @@ class Skybricks(object):
             if not os.path.exists(fn):
                 log.warning('Missing "skybrick" file: %s' % fn)
                 continue
-            skymap,hdr = fitsio.read(fn, header=True)
-            H,W = skymap.shape
+            skymap, hdr = fitsio.read(fn, header=True)
+            H, W = skymap.shape
             # create WCS object
             w = WCS(naxis=2)
             w.wcs.ctype = [hdr['CTYPE1'], hdr['CTYPE2']]
@@ -104,16 +105,17 @@ class Skybricks(object):
             w.wcs.crval = [hdr['CRVAL1'], hdr['CRVAL2']]
             w.wcs.cd = [[hdr['CD1_1'], hdr['CD1_2']],
                         [hdr['CD2_1'], hdr['CD2_2']]]
-            x,y = w.wcs_world2pix(ras.flat[I], decs.flat[I], 0)
+            x, y = w.wcs_world2pix(ras.flat[I], decs.flat[I], 0)
             x = np.round(x).astype(int)
             y = np.round(y).astype(int)
             # we have margins that should ensure this...
-            if not (np.all(x >= 0) and np.all(x <  W) and np.all(y >= 0) and np.all(y <  H)):
+            if not (np.all(x >= 0) and np.all(x < W) and np.all(y >= 0) and np.all(y < H)):
                 raise RuntimeError('Skybrick %s: locations project outside the brick bounds' % (self.skybricks['BRICKNAME'][i]))
 
             # FIXME -- look at surrounding pixels too??
             good_sky.flat[I] = (skymap[y, x] == 0)
         return good_sky
+
 
 def _radec2kd(ra, dec):
     """
@@ -122,6 +124,7 @@ def _radec2kd(ra, dec):
     from scipy.spatial import KDTree
     xyz = _radec2xyz(ra, dec)
     return KDTree(xyz)
+
 
 def _radec2xyz(ra, dec):
     """

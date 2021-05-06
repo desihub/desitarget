@@ -353,7 +353,7 @@ def add_abs_data(zcat, coaddname):
 
         * Z_ABS        - The highest redshift of MgII absorption
         * Z_ABS_CONF   - The confidence value for this redshift.
-    
+
     Notes
     -----
     - The original function was written by Lucas Napolitano (LGN) and
@@ -365,7 +365,7 @@ def add_abs_data(zcat, coaddname):
     first_line_wave = 2796.3543
     second_line_wave = 2803.5315
     rf_line_sep = second_line_wave - first_line_wave
-    
+
     # LGN Define hyperparameters
     rf_err_margain = 0.50
     kernel_smooth = 2
@@ -374,10 +374,10 @@ def add_abs_data(zcat, coaddname):
     snr_threshold = 3.0
     qi_min = 0.01
     sim_fudge = 0.94
-    
+
     # LGN Intialize output array.
     out_arr = []
-    
+
     # LGN Read the coadd file and find targetid.
     specobj = read_spectra(coaddname)
     redrockfile = coaddname.replace('coadd', 'redrock').replace('.fits', '.h5')
@@ -419,25 +419,25 @@ def add_abs_data(zcat, coaddname):
             x_spc, y_flx, y_err = coadd_brz_cameras(wave_arr, flux_arr,
                                                     noise_arr)
 
-        # LGN Apply a gaussian smoothing kernel using hyperparameters 
+        # LGN Apply a gaussian smoothing kernel using hyperparameters
         # defined above.
         smooth_yflx = convolve(y_flx, kernel)
         # LGN Estimate the continuum using median filter.
         continuum = medfilt(y_flx, med_filt_size)
-        
-        # LGN Run the doublet finder.        
+
+        # LGN Run the doublet finder.
         residual = continuum - y_flx
-        
+
         # LGN Generate groups of data with positive residuals.
         # LGN/EBL: The following is from a stackoverlow thread:
         #     https://stackoverflow.com/questions/3149440/python-splitting-list-based-on-missing-numbers-in-a-sequence
         groups = []
-        for k, g in groupby(enumerate(np.where(residual>0)[0]), lambda x: x[0] - x[1]):
+        for k, g in groupby(enumerate(np.where(residual > 0)[0]), lambda x: x[0] - x[1]):
             groups.append(list(map(itemgetter(1), g)))
-        
+
         # LGN Intialize the absorbtion line list.
         absorb_lines = []
-            
+
         for group in groups:
             # LGN Skip groups of 1 or 2 data vals, these aren't worthwhile
             #    peaks and cause fitting issues.
@@ -451,15 +451,15 @@ def add_abs_data(zcat, coaddname):
                 model = models.Gaussian1D(amplitude=np.nanmax(residual[group]),
                                           mean=np.average(x_spc[group]))
                 fm = fitter(model=model, x=x_spc[group], y=residual[group])
-                #LGN Unpack the model fit data
+                # LGN Unpack the model fit data.
                 amp, cen, stddev = fm.parameters
-                
+
                 absorb_lines.append([amp, cen, stddev, snr])
 
         # LGN Extract the highest z feature and associated quality index (QI)
         hz = 0
         hz_qi = 0
-        # LGN This is particuarly poorly implemented, using range(len) so 
+        # LGN This is particuarly poorly implemented, using range(len) so
         # I can slice to higher redshift lines only more easily.
         for counter in range(len(absorb_lines)):
             line1 = absorb_lines[counter]
@@ -475,21 +475,21 @@ def add_abs_data(zcat, coaddname):
             err_margain = rf_err_margain * (1 + ztemp)
             # LGN for all lines at higher redshifts.
             for line2 in absorb_lines[counter+1:]:
-                # LGN calculate error from expected line seperation 
+                # LGN calculate error from expected line seperation
                 # given the redshift of the first line.
                 sep_err = np.abs(line2[1] - line1[1] - line_sep)
                 # LGN Keep if within error margains.
                 if sep_err < err_margain:
                     # LGN Calculate the QI.
                     # LGN S/N similarity of lines. sim_fudge is defined
-                    #    in the hyperparameters above and 
+                    #    in the hyperparameters above and
                     #    adjusts for the first line being larger,
                     #    kind of a fudge, won't lie.
                     snr_sim = sim_fudge * line1[3] * line2[3]**(-1.0)
                     # LGN Rescale to peak at lines having exact same S/N.
                     if snr_sim > 1:
                         snr_sim = snr_sim**(-1.0)
-                    # LGN seperation accuracy 
+                    # LGN seperation accuracy
                     #   Is '1' if expected seperation = actual seperation.
                     #   Decreases to 0 outside this.
                     sep_acc = (1 - sep_err) * err_margain**(-1.0)
@@ -498,10 +498,9 @@ def add_abs_data(zcat, coaddname):
                         hz = ztemp
                         hz_qi = qi
 
-                
         out_arr.append([targetid, hz, hz_qi])
-    
-    # EBL Add the redshift and quality index for each targetid to the 
+
+    # EBL Add the redshift and quality index for each targetid to the
     # zcat file passed to the function.
     out_arr = np.array(out_arr)
     zcat_args, abs_args = match(zcat['TARGETID'], out_arr[0])

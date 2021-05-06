@@ -8,9 +8,6 @@ desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
 
-    #- ADM LRG sub-classes used in SV3 but not in the Main Survey.
-    - [LRG_LOWDENS, 3, "LRG selected using cuts that produce a lower (~600 per sq. deg.) target density", {obsconditions: DARK}]
-
     #- ADM QSO sub-classes. Used in SV1 and SV2 but ultimately deprecated for the Main Survey.
     - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
 
@@ -25,14 +22,12 @@ desi_mask:
     - [QSO_NORTH,         10, "QSO cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
     - [ELG_LOP_NORTH,     11, "ELG at standard (ELG) priority tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
     - [ELG_VLO_NORTH,     12, "Very-low priority ELG (filler) tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
-    - [LRG_LOWDENS_NORTH, 13, "LRG cuts (lower density) tuned for Bok/Mosaic data",                        {obsconditions: DARK}]
 
     - [LRG_SOUTH,         16, "LRG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_SOUTH,         17, "ELG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [QSO_SOUTH,         18, "QSO cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_LOP_SOUTH,     19, "ELG at standard (ELG) priority tuned for DECam data",                       {obsconditions: DARK}]
     - [ELG_VLO_SOUTH,     20, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
-    - [LRG_LOWDENS_SOUTH, 21, "LRG cuts (lower density) tuned for DECam data",                             {obsconditions: DARK}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",                                       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -270,8 +265,7 @@ priorities:
         ELG_VLO: {UNOBS: 2999, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM Informational bits. Don't let them set priorities.
-        LRG_LOWDENS: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        QSO_HIZ: SAME_AS_LRG_LOWDENS
+        QSO_HIZ: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM don't prioritize a N/S target if it doesn't have other bits set.
         LRG_NORTH: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -279,14 +273,12 @@ priorities:
         QSO_NORTH: SAME_AS_LRG_NORTH
         ELG_LOP_NORTH: SAME_AS_LRG_NORTH
         ELG_VLO_NORTH: SAME_AS_LRG_NORTH
-        LRG_LOWDENS_NORTH: SAME_AS_LRG_NORTH
 
         LRG_SOUTH: SAME_AS_LRG_NORTH
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
         ELG_LOP_SOUTH: SAME_AS_LRG_NORTH
         ELG_VLO_SOUTH: SAME_AS_LRG_NORTH
-        LRG_LOWDENS_SOUTH: SAME_AS_LRG_NORTH
 
 # ADM calibration and other non-standard targets.
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, MORE_MIDZQSO: 0}
@@ -417,22 +409,17 @@ numobs:
         ELG_HIP: 1
         ELG_VLO: 1
 
-# ADM LRG_LOWDENS is a purely informational bit.
-        LRG_LOWDENS: 0
-
 # ADM don't observe a N/S target if it doesn't have other bits set.
         LRG_NORTH: 0
         ELG_NORTH: 0
         QSO_NORTH: 0
         ELG_LOP_NORTH: 0
         ELG_VLO_NORTH: 0
-        LRG_LOWDENS_NORTH: 0
         LRG_SOUTH: 0
         ELG_SOUTH: 0
         QSO_SOUTH: 0
         ELG_LOP_SOUTH: 0
         ELG_VLO_SOUTH: 0
-        LRG_LOWDENS_SOUTH: 0
         BAD_SKY: 0
 
 #- Standards and sky are treated specially; NUMOBS doesn't apply.
