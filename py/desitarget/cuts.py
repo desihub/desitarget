@@ -2839,13 +2839,25 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
 
     # ADM determine if a target is a Gaia-only standard.
     primary = np.ones_like(gaiaobjs, dtype=bool)
-    std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
-        ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
-        parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
-        gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
-        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
-        gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
-        primary=primary, nside=nside, test=test, dr=dr)
+
+    if survey == 'main':
+        # APC in this case have a dr option for isGAIA_STD
+        std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
+            ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
+            parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
+            gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+            gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
+            primary=primary, nside=nside, test=test, dr=dr)
+    else:
+        # SV versions of isGAIA_STD don't have a dr option
+        std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
+            ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
+            parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
+            gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
+            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+            gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
+            primary=primary, nside=nside, test=test)
 
     # ADM Construct the target flag bits.
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
