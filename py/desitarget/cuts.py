@@ -85,6 +85,41 @@ def MWS_too_bright(gaiagmag=None, zfibertotflux=None):
     return too_bright
 
 
+def random_fraction_of_trues(fraction, bool_array):
+    """Return True for a random subset of array entries that are True.
+
+    Parameters
+    ----------
+    fraction : :class:`float`
+        The fraction of the True entries to retain as True. Should be
+        between 0 and 1.
+    bool_array : :class:`array_like` or `bool`
+        A boolean array, or scalar.
+
+    Returns
+    -------
+    :class:`array_like`
+        The original `bool_array`, with a random `fraction` of ``True``
+        entries retained as ``True`` and the others set to ``False``.
+        If a scalar is passed, then a scalar is returned.
+    """
+    # ADM check that the input fraction was between 0 and 1.
+    if not 0 <= fraction <= 1:
+        msg = "fraction must be between 0 and 1, not {}".format(fraction)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    if np.isscalar(bool_array):
+        # ADM catch the corner case that a scalar was passed.
+        chosen = np.random.uniform(0, 1) < fraction
+    else:
+        # ADM create a random array with the correct fraction of Trues.
+        chosen = np.random.random(len(bool_array)) < fraction
+
+    # ADM return True for the subset in bool_array that was chosen.
+    return bool_array & chosen
+
+
 def _gal_coords(ra, dec):
     """Shift RA, Dec to Galactic coordinates.
 
@@ -2461,6 +2496,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     elg_south = elg_vlo_south | elg_lop_south
     elg = elg_vlo | elg_lop
 
+    # ADM form a seed using zflux in case we parallelized by HEALPixel.
+    # SJB seeds must be within 0 - 2**32-1
+    uniqseed = int(np.mean(zflux)*1e5) % (2**32 - 1)
+    np.random.seed(uniqseed)
+    # ADM 10% of ELG_LOP and ELG_VLO targets need ELG_HIP set.
+    elg_hip = random_fraction_of_trues(0.1, elg_lop)
+    elg_hip |= random_fraction_of_trues(0.1, elg_vlo)
+
     # ADM initially set everything to arrays of False for QSO selection.
     # ADM zeroth element stores the northern targets bits (south=False).
     qso_classes = [[tcfalse, tcfalse], [tcfalse, tcfalse]]
@@ -2527,36 +2570,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_wise = (bgs_wise_north & photsys_north) | (bgs_wise_south & photsys_south)
 
     # ADM 20% of the BGS_FAINT sources need the BGS_FAINT_HIP bit set.
-    # ADM form a seed using zflux in case we parallelized by HEALPixel.
-    # SJB seeds must be within 0 - 2**32-1
-    # SJB np1.18 scalar vs. vector support, but note that HIP won't be
-    #     set identically for vector vs. calling scalar N times.
-    percent = 0.2
-    tnecrep = int(1/percent)
-    uniqseed = int(np.mean(zflux)*1e5) % (2**32 - 1)
-    np.random.seed(uniqseed)
-    is_bgs_hip = None
-    if np.isscalar(bgs_faint):
-        if bgs_faint:
-            is_bgs_hip = np.random.uniform(0, 1) < percent
-    else:
-        w = np.where(bgs_faint)[0]
-        nbgsf = len(w)
-        if nbgsf > 0:
-            is_bgs_hip = np.random.choice(w, nbgsf//tnecrep, replace=False)
-
-    # ADM similarly, 10% of the ELG_LOP sources need the ELG_HIP bit set.
-    percent = 0.1
-    tnecrep = int(1/percent)
-    is_elg_hip = None
-    if np.isscalar(elg_lop):
-        if elg_lop:
-            is_elg_hip = np.random.uniform(0, 1) < percent
-    else:
-        w = np.where(elg_lop)[0]
-        nelglop = len(w)
-        if nelglop > 0:
-            is_elg_hip = np.random.choice(w, nelglop//tnecrep, replace=False)
+    # ADM note that the random seed is set after the ELG selection.
+    bgs_faint_hip = random_fraction_of_trues(0.2, bgs_faint)
 
     # ADM initially set everything to arrays of False for the MWS selection
     # ADM the zeroth element stores the northern targets bits (south=False).
@@ -2669,17 +2684,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= qso * desi_mask.QSO
     desi_target |= qsohiz * desi_mask.QSO_HIZ
 
+    # ADM set fraction of the ELG_LOP/ELG_VLO targets to ELG_HIP.
+    desi_target |= elg_hip * desi_mask.ELG_HIP
+
     # ADM Standards.
     desi_target |= std_faint * desi_mask.STD_FAINT
     desi_target |= std_bright * desi_mask.STD_BRIGHT
     desi_target |= std_wd * desi_mask.STD_WD
-
-    # ADM set fraction of the ELG_LOP targets to ELG_HIP.
-    if is_elg_hip is not None:
-        if is_elg_hip is True:
-            desi_target |= desi_mask.ELG_HIP
-        else:
-            desi_target[is_elg_hip] |= desi_mask.ELG_HIP
 
     # BGS targets, south.
     bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
@@ -2697,11 +2708,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     bgs_target |= bgs_wise * bgs_mask.BGS_WISE
 
     # ADM set fraction of the BGS_FAINT targets to BGS_FAINT_HIP.
-    if is_bgs_hip is not None:
-        if is_bgs_hip is True:
-            bgs_target |= bgs_mask.BGS_FAINT_HIP
-        else:
-            bgs_target[is_bgs_hip] |= bgs_mask.BGS_FAINT_HIP
+    bgs_target |= bgs_faint_hip * bgs_mask.BGS_FAINT_HIP
 
     # ADM MWS main, nearby, and WD.
     mws_target = mws_broad * mws_mask.MWS_BROAD
