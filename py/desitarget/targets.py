@@ -190,7 +190,7 @@ def decode_targetid(targetid):
 
     return outputs
 
-def create_targetid(ra, dec):
+def encode_negative_targetid(ra, dec, group=1):
     """
     Create negative 64-bit TARGETID from (ra,dec) unique to ~1.2 milliarcsec
 
@@ -200,16 +200,28 @@ def create_targetid(ra, dec):
         Right Ascension in degrees 0 <= ra <= 360
     dec : :class:`float` or :class:`~numpy.ndarray`
         Declination in degrees -90 <= dec <= 90
+    group : int, optional (default 1)
+        group number 1-15 to encode
 
     Returns
     -------
     :class:`~numpy.int64` or :class:`~numpy.ndarray`
         negative TARGETID derived from (ra,dec)
     """
+    #- Hardcode number of bits
+    nbits_ra = 30
+    nbits_dec = 29
+    nbits_group = 4
+
     #- Check input dimensionality
     scalar_input = np.isscalar(ra)
     if np.isscalar(ra) != np.isscalar(dec):
         raise TypeError('ra and dec must both be scalars or both be arrays')
+
+    if not (1 <= group <= 15):
+        raise ValueError(f'group {group} must be within 1-15')
+
+    group = np.int8(group)
 
     #- Convert to arrays to enable things like .astype(int)
     ra = np.atleast_1d(ra)
@@ -219,17 +231,41 @@ def create_targetid(ra, dec):
     assert np.all( (-90.0 <= dec) & (dec <= 90.0) )
 
     #- encode ra in bits 30-59 and dec in bits 0-29
-    nbits = 30
-    ra_bits = ((2**nbits - 1) * (ra/360.0)).astype(int) << nbits
-    dec_bits = ((2**nbits - 1) * ((dec+90.0)/180.0)).astype(int)
-    targetid = ra_bits + dec_bits
+    ra_bits = ((2**nbits_ra - 1) * (ra/360.0)).astype(int)
+    dec_bits = ((2**nbits_dec - 1) * ((dec+90.0)/180.0)).astype(int)
+    group_bitshift = nbits_dec + nbits_ra
+    ra_bitshift = nbits_dec
+    targetid = -((group<<group_bitshift) + (ra_bits<<ra_bitshift) + dec_bits)
 
     #- return value has dimensionality of inputs
-    #- subtract 1 so that create_targetid(0,-90) is -1 instead of 0
     if scalar_input:
-        return -targetid[0] - 1
+        return targetid[0]
     else:
-        return -targetid - 1
+        return targetid
+
+def decode_negative_targetid(targetid):
+    """
+    TODO: document
+    """
+    #- Hardcode number of bits
+    nbits_ra = 30
+    nbits_dec = 29
+    nbits_group = 4
+
+    dec_mask = 2**nbits_dec - 1
+    ra_mask = 2**nbits_ra - 1
+    group_mask = 2**nbits_group - 1
+    group_bitshift = nbits_dec + nbits_ra
+    ra_bitshift = nbits_dec
+
+    dec_bits = (-targetid) & dec_mask
+    ra_bits = ((-targetid) >> ra_bitshift) & ra_mask
+    group = ((-targetid) >> group_bitshift) & group_mask
+
+    ra = ra_bits / (2**nbits_ra - 1) * 360.0
+    dec = dec_bits / (2**nbits_dec - 1) * 180.0 - 90.0
+
+    return ra, dec, group
 
 
 def switch_main_cmx_or_sv(revamp, archetype):
