@@ -5,6 +5,7 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* BGS update. New faint limits to r< 20.175 in DECaLS and to r<20.22 for BASS/MzLS in order to get a target density of ~1400 [`PR #725`_].
 * Add utility functions ``decode/encode_negative_targetid(ra,dec,group)``
   unique to at least 2 milliarcsec [`PR #724`_].
 * Update the baseline LRG selection [`PR #723`_]. Changes from SV3 include:
@@ -43,6 +44,7 @@ desitarget Change Log
 .. _`PR #722`: https://github.com/desihub/desitarget/pull/722
 .. _`PR #723`: https://github.com/desihub/desitarget/pull/723
 .. _`PR #724`: https://github.com/desihub/desitarget/pull/724
+.. _`PR #725`: https://github.com/desihub/desitarget/pull/725
 
 0.57.2 (2021-04-18)
 -------------------
