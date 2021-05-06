@@ -13,7 +13,9 @@ desitarget Change Log
 * Add ``desispec.skybricks`` to lookup if ras,decs are blank sky [`PR #722`_].
 * Update MWS cuts to Gaia EDR3 [`PR #720`_]. Includes:
    * AEN stellarity cut now 2 (previously 3).
-   * Parallax floor now 0.5 mas (previously 1 mas).
+   * Parallax floor now 0.3 mas (previously 1 mas).
+   * RED/BROAD proper motion split now a function of magnitude.
+   * ASTROMETRIC_PARAMSS_SOVLED checks account for range of values in EDR3.
 * Add `MWS-FAINT-RED` and `MWS-FAINT-BLUE` target classes for main survey
   [`PR #719`_].
 * Prepare the Main Survey cuts and bit-masks [`PR #718`_]. Includes:
