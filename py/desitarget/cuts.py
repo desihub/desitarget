@@ -1337,7 +1337,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=Non
 
     Notes
     -----
-    - Current version (03/29/21) is version 13 on `the SV3 wiki`_.
+    - Current version (05/06/21) is version 258 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
