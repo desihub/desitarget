@@ -840,7 +840,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             ``True`` if the object is a ``MWS_FAINT_BLUE`` target.
 
     Notes:
-    - Current version (05/04/21) is version 253 on `the wiki`_.
+    - Current version (05/04/21) is version 256 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
