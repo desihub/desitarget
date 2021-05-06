@@ -5,6 +5,9 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* Update MWS cuts to Gaia EDR3 [`PR #720`_]. Includes:
+   * AEN stellarity cut now 2 (previously 3).
+   * Parallax floor now 0.5 mas (previously 1 mas).
 * Prepare the Main Survey cuts and bit-masks [`PR #718`_]. Includes:
    * Transfer the SV3 cuts and extra SV3 bits into the Main Survey files.
    * Include the full slate of secondary target bits for the Main Survey.
@@ -29,6 +32,7 @@ desitarget Change Log
 .. _`PR #716`: https://github.com/desihub/desitarget/pull/716
 .. _`PR #717`: https://github.com/desihub/desitarget/pull/717
 .. _`PR #718`: https://github.com/desihub/desitarget/pull/718
+.. _`PR #720`: https://github.com/desihub/desitarget/pull/720
 
 0.57.2 (2021-04-18)
 -------------------
