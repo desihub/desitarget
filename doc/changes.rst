@@ -8,6 +8,8 @@ desitarget Change Log
 * Update the ELG/LRG code for the Main Survey [`PR #726`_]. Includes:
     * Deprecate the ``LRG_LOWDENS`` targeting bit. It was never used.
     * Upweight 10% of the "filler" ELG sample to the LRG priority.
+* New BGS faint limits to obtain a target density of ~1400 [`PR #725`_].
+    * new limits are r< 20.175 for DECaLS and r<20.22 for BASS/MzLS.
 * Add utility functions ``decode/encode_negative_targetid(ra,dec,group)``
   unique to at least 2 milliarcsec [`PR #724`_].
 * Update the baseline LRG selection [`PR #723`_]. Changes from SV3 include:
@@ -46,6 +48,7 @@ desitarget Change Log
 .. _`PR #722`: https://github.com/desihub/desitarget/pull/722
 .. _`PR #723`: https://github.com/desihub/desitarget/pull/723
 .. _`PR #724`: https://github.com/desihub/desitarget/pull/724
+.. _`PR #725`: https://github.com/desihub/desitarget/pull/725
 .. _`PR #726`: https://github.com/desihub/desitarget/pull/726
 
 0.57.2 (2021-04-18)
