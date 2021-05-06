@@ -513,18 +513,18 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg &= (gmag - w1mag > 2.9) | (rmag - w1mag > 1.8)  # low-z cuts
         lrg &= (
             ((rmag - w1mag > (w1mag - 17.14) * 1.8)
-            & (rmag - w1mag > (w1mag - 16.33) * 1.))
+             & (rmag - w1mag > (w1mag - 16.33) * 1.))
             | (rmag - w1mag > 3.33)
-            )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg &= zfibermag < 21.61                   # faint limit
         lrg &= (gmag - w1mag > 2.97) | (rmag - w1mag > 1.8)  # low-z cuts
         lrg &= (
             ((rmag - w1mag > (w1mag - 17.13) * 1.83)
-            & (rmag - w1mag > (w1mag - 16.31) * 1.))
+             & (rmag - w1mag > (w1mag - 16.31) * 1.))
             | (rmag - w1mag > 3.4)
-            )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension
 
     return lrg
 
@@ -933,11 +933,12 @@ def notinMWS_main_mask(gaia=None, gfracmasked=None, gnobs=None, gflux=None,
 
     return mws
 
+
 def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
-                      pmra=None, pmdec=None, parallax=None, parallaxerr=None,
-                      obs_rflux=None, objtype=None, paramssolved=None,
-                      gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None,
-                      primary=None, south=True):
+                       pmra=None, pmdec=None, parallax=None, parallaxerr=None,
+                       obs_rflux=None, objtype=None, paramssolved=None,
+                       gaiagmag=None, gaiabmag=None, gaiarmag=None, gaiaaen=None,
+                       primary=None, south=True):
     """Set of cuts to define a fainter extension to the MWS main sample.
     (see, e.g., :func:`~desitarget.cuts.isMWS_main` for parameters).
     """
@@ -989,6 +990,7 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # APC discarded.
 
     return faint_red, faint_blue
+
 
 def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                       pmra=None, pmdec=None, parallax=None, parallaxerr=None,
