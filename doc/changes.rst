@@ -5,6 +5,9 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* Update the ELG/LRG code for the Main Survey [`PR #726`_]. Includes:
+    * Deprecate the ``LRG_LOWDENS`` targeting bit. It was never used.
+    * Upweight 10% of the "filler" ELG sample to the LRG priority.
 * Update the baseline LRG selection [`PR #723`_]. Changes from SV3 include:
     * Change the zfiber faint limit from 21.7 to 21.6.
     * Change the low-z limit from z>0.3 to z>0.4.
@@ -32,7 +35,6 @@ desitarget Change Log
 * New function and bin script to make QSO redshift catalogs [`PR #714`_].
    * Incorporates functionality from QuasarNET and SQUEzE.
 
-
 .. _`PR #714`: https://github.com/desihub/desitarget/pull/714
 .. _`PR #715`: https://github.com/desihub/desitarget/pull/715
 .. _`PR #716`: https://github.com/desihub/desitarget/pull/716
@@ -41,6 +43,7 @@ desitarget Change Log
 .. _`PR #719`: https://github.com/desihub/desitarget/pull/719
 .. _`PR #722`: https://github.com/desihub/desitarget/pull/722
 .. _`PR #723`: https://github.com/desihub/desitarget/pull/723
+.. _`PR #726`: https://github.com/desihub/desitarget/pull/726
 
 0.57.2 (2021-04-18)
 -------------------
