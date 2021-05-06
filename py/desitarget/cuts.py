@@ -1337,7 +1337,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=Non
 
     Notes
     -----
-    - Current version (03/29/21) is version 13 on `the SV3 wiki`_.
+    - Current version (05/06/21) is version 258 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
@@ -1479,11 +1479,11 @@ def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None,
             bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
     elif targtype == 'faint':
         if south:
-            bgs &= rflux > 10**((22.5-20.3)/2.5)
+            bgs &= rflux > 10**((22.5-20.175)/2.5)
             bgs &= rflux <= 10**((22.5-19.5)/2.5)
             bgs &= (rfibcol)
         else:
-            bgs &= rflux > 10**((22.5-(20.3))/2.5)
+            bgs &= rflux > 10**((22.5-(20.220))/2.5)
             bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
             bgs &= (rfibcol)
 
@@ -1615,11 +1615,11 @@ def isBGS_sga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
             bgs &= rfibertotflux <= 10**((22.5-15.0)/2.5)
     elif targtype == 'faint':
         if south:
-            bgs &= rflux > 10**((22.5-20.3)/2.5)
+            bgs &= rflux > 10**((22.5-20.175)/2.5)
             bgs &= rflux <= 10**((22.5-19.5)/2.5)
             bgs &= (rfibcol)
         else:
-            bgs &= rflux > 10**((22.5-(20.3))/2.5)
+            bgs &= rflux > 10**((22.5-(20.220))/2.5)
             bgs &= rflux <= 10**((22.5-(19.5+offset))/2.5)
             bgs &= (rfibcol)
 
