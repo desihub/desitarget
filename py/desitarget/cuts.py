@@ -942,16 +942,16 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # ADM MWS-FAINT-RED has g-r >= 0.7
     faint_red &= rflux >= gflux * 10**(0.7/2.5)  # (g-r)>=0.7
 
-    # APC MWS-FAINT-RED also has parallax < max(3parallax_err,1) mas
-    # APC and proper motion < 3 (lower than MAIN-MAIN-RED)
+    # APC MWS-FAINT-RED has samle plx cut as MAIN-RED
+    # APC and proper motion < 3 (lower than MAIN-RED)
     # ACP and all astrometric parameters are measured.
     faint_red &= parallax < (3 * parallaxerr + 0.3)
     faint_red &= pm < 3.
     faint_red &= paramssolved >= 31
 
-    # APC There is no equivalent of MWS-MAIN-BROAD for the faint extension, any
-    # APC stars failing the astrometry cuts or without the Gaia parameters are
-    # APC discarded.
+    # APC There is no equivalent of MWS-MAIN-BROAD for the faint sample.
+    # APC stars failing the astrometry cuts or without the Gaia parameters
+    # APC are discarded.
 
     return faint_red, faint_blue
 
@@ -1001,7 +1001,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     broad = red.copy()
 
     # ADM MWS-RED also has parallax < (3parallax_err+0.3)mas
-    # ADM and proper motion < 5 * sqrt(rflux/r_19) 
+    # ADM and proper motion < 5 * sqrt(rflux/r_19)
     # ADM and all astrometric parameters are measured.
     pmmax = 5 * np.sqrt(rflux/(10**((22.5-19)/2.5)))
     plxmax = 3 * parallaxerr + 0.3
