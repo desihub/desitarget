@@ -17,7 +17,7 @@ desitarget Change Log
     * new limits are r< 20.175 for DECaLS and r<20.22 for BASS/MzLS.
 * Add utility functions ``decode/encode_negative_targetid(ra,dec,group)``
   unique to at least 2 milliarcsec [`PR #724`_].
-* Update the baseline LRG selection [`PR #723`_]. Changes from SV3 include:
+* Update the baseline LRG selection [`PR #723`_] and [`PR #728`_]. Changes from SV3 include:
     * Change the zfiber faint limit from 21.7 to 21.6.
     * Change the low-z limit from z>0.3 to z>0.4.
     * Change the overall density from 800/sq.deg. to 600/sq.deg.
@@ -56,6 +56,7 @@ desitarget Change Log
 .. _`PR #725`: https://github.com/desihub/desitarget/pull/725
 .. _`PR #726`: https://github.com/desihub/desitarget/pull/726
 .. _`PR #727`: https://github.com/desihub/desitarget/pull/727
+.. _`PR #728`: https://github.com/desihub/desitarget/pull/728
 
 0.57.2 (2021-04-18)
 -------------------
