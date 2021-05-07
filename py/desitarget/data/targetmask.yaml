@@ -1,7 +1,3 @@
-#- THESE BIT DEFINITIONS WILL ALMOST CERTAINLY CHANGE
-#- After some initial development experimentation we will freeze the bit
-#- definitions, but we should expect this version (Nov 2015) to change.
-
 #- DESI primary survey target bit mask: dark survey + calib +
 desi_mask:
     - [LRG,         0, "LRG", {obsconditions: DARK}]
@@ -145,7 +141,8 @@ scnd_mask:
     - [LOW_Z_TIER3,            17, "See $SCND_DIR/docs/LOW_Z_TIER3.ipynb",       {obsconditions: DARK,        filename: 'LOW_Z_TIER3',         flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [BHB,                    18, "See $SCND_DIR/docs/BHB.txt",                 {obsconditions: DARK,        filename: 'BHB',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [SPCV,                   19, "See $SCND_DIR/docs/SPCV.txt",                {obsconditions: DARK,        filename: 'SPCV',                flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",        {obsconditions: DARK,        filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.02}]
+# ADM DC3R2_GAMA was done as a dedicated program instead.
+#    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",        {obsconditions: DARK,        filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.02}]
     - [PSF_OUT_BRIGHT,         25, "See $SCND_DIR/docs/PSF_OUT_BRIGHT.txt",      {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT',      flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [PSF_OUT_DARK,           26, "See $SCND_DIR/docs/PSF_OUT_DARK.txt",        {obsconditions: DARK,        filename: 'PSF_OUT_DARK',        flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [HPM_SOUM,               27, "See $SCND_DIR/docs/HPM_SOUM.txt",            {obsconditions: DARK,        filename: 'HPM_SOUM',            flavor: 'SPARE', updatemws: False, downsample: 1}]
@@ -166,6 +163,13 @@ scnd_mask:
     - [PV_DARK_HIGH,           46, "See $SCND_DIR/docs/PV_DARK_HIGH.ipynb",      {obsconditions: DARK,        filename: 'PV_DARK_HIGH',        flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [PV_DARK_MEDIUM,         47, "See $SCND_DIR/docs/PV_DARK_MEDIUM.ipynb",    {obsconditions: DARK,        filename: 'PV_DARK_MEDIUM',      flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [PV_DARK_LOW,            48, "See $SCND_DIR/docs/PV_DARK_LOW.ipynb",       {obsconditions: DARK,        filename: 'PV_DARK_LOW',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GC_BRIGHT,              49, "See $SCND_DIR/docs/GC_BRIGHT.txt",           {obsconditions: BRIGHT,      filename: 'GC_BRIGHT',           flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [GC_DARK,                50, "See $SCND_DIR/docs/GC_DARK.txt",             {obsconditions: DARK,        filename: 'GC_DARK',             flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_BRIGHT_HI,          51, "See $SCND_DIR/docs/DWF_BRIGHT_HI.txt",       {obsconditions: BRIGHT,      filename: 'DWF_BRIGHT_HI',       flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_BRIGHT_LO,          52, "See $SCND_DIR/docs/DWF_BRIGHT_LO.txt",       {obsconditions: BRIGHT,      filename: 'DWF_BRIGHT_LO',       flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_DARK_HI,            53, "See $SCND_DIR/docs/DWF_DARK_HI.txt",         {obsconditions: DARK,        filename: 'DWF_DARK_HI',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_DARK_LO,            54, "See $SCND_DIR/docs/DWF_DARK_LO.txt",         {obsconditions: DARK,        filename: 'DWF_DARK_LO',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
+
 
 # ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
     - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
@@ -367,7 +371,7 @@ priorities:
         LOW_Z_TIER3:            {UNOBS: 60, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BHB:                    {UNOBS: 1950, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         SPCV:                   SAME_AS_LOW_MASS_AGN
-        DC3R2_GAMA:             {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+#        DC3R2_GAMA:             {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PSF_OUT_BRIGHT:         {UNOBS: 90, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PSF_OUT_DARK:           SAME_AS_PSF_OUT_BRIGHT
         HPM_SOUM:               SAME_AS_LOW_MASS_AGN
@@ -388,6 +392,12 @@ priorities:
         PV_DARK_HIGH:           {UNOBS: 1700, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PV_DARK_MEDIUM:         {UNOBS: 1010, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PV_DARK_LOW:            {UNOBS: 1005, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        GC_BRIGHT:              {UNOBS: 1980, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        GC_DARK:                SAME_AS_GC_BRIGHT
+        DWF_BRIGHT_HI:          {UNOBS: 1990, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, MORE_ZGOOD: 1970, MORE_ZWARN: 1970}
+        DWF_BRIGHT_LO:          {UNOBS: 1980, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, MORE_ZGOOD: 1960, MORE_ZWARN: 1960}
+        DWF_DARK_HI:            SAME_AS_DWF_BRIGHT_HI
+        DWF_DARK_LO:            SAME_AS_DWF_BRIGHT_LO
         BRIGHT_TOO_LOP:         {UNOBS: 1000, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BRIGHT_TOO_HIP:         {UNOBS: 9999, DONE:    2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
@@ -506,7 +516,7 @@ numobs:
         LOW_Z_TIER3:            1
         BHB:                    1
         SPCV:                   1
-        DC3R2_GAMA:             4
+#        DC3R2_GAMA:             4
         PSF_OUT_BRIGHT:         1
         PSF_OUT_DARK:           1
         HPM_SOUM:               1
@@ -531,3 +541,9 @@ numobs:
         BRIGHT_TOO_HIP:         1
         DARK_TOO_LOP:           1
         DARK_TOO_HIP:           1
+        GC_BRIGHT:              1
+        GC_DARK:                1
+        DWF_BRIGHT_HI:          100
+        DWF_BRIGHT_LO:          100
+        DWF_DARK_HI:            100
+        DWF_DARK_LO:            100
