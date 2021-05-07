@@ -182,7 +182,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                parallax=None, parallaxovererror=None, ebv=None, gaiabprpfactor=None,
                gaiasigma5dmax=None, gaiagmag=None, gaiabmag=None, gaiarmag=None,
                gaiadupsource=None, gaiaparamssolved=None,
-               primary=None, test=False, nside=2, dr="dr2"):
+               primary=None, test=False, nside=2):
     """Standards based solely on Gaia data.
 
     Parameters
@@ -195,8 +195,6 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     nside : :class:`int`, optional, defaults to 2
         (NESTED) HEALPix nside, if targets are being parallelized.
         The default of 2 should be benign for serial processing.
-    dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3".
 
     Returns
     -------
@@ -239,7 +237,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
                       gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag)
 
     # ADM restrict to point sources.
-    ispsf = gaia_psflike(gaiaaen, gaiagmag, dr=dr)
+    ispsf = gaia_psflike(gaiaaen, gaiagmag)
     std &= ispsf
 
     # ADM de-extinct the magnitudes before applying color cuts.
@@ -2833,7 +2831,6 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
 
     # ADM determine if a target is a Gaia-only standard.
     primary = np.ones_like(gaiaobjs, dtype=bool)
-
     std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
         ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
         parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
