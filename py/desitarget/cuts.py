@@ -2411,7 +2411,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                     qso_selection, qso_selection_options)
                 log.critical(msg)
                 raise ValueError(msg)
-    qso_north, qso_south= qso_classes
+    qso_north, qso_south = qso_classes
 
     # ADM combine QSO targeting bits for a QSO selected in any imaging.
     qso = (qso_north & photsys_north) | (qso_south & photsys_south)

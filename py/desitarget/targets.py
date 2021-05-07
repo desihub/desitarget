@@ -190,6 +190,7 @@ def decode_targetid(targetid):
 
     return outputs
 
+
 def encode_negative_targetid(ra, dec, group=1):
     """
     Create negative 64-bit TARGETID from (ra,dec) unique to ~1.2 milliarcsec
@@ -208,12 +209,12 @@ def encode_negative_targetid(ra, dec, group=1):
     :class:`~numpy.int64` or :class:`~numpy.ndarray`
         negative TARGETID derived from (ra,dec)
     """
-    #- Hardcode number of bits
+    # Hardcode number of bits.
     nbits_ra = 30
     nbits_dec = 29
     nbits_group = 4
 
-    #- Check input dimensionality
+    # Check input dimensionality.
     scalar_input = np.isscalar(ra)
     if np.isscalar(ra) != np.isscalar(dec):
         raise TypeError('ra and dec must both be scalars or both be arrays')
@@ -223,31 +224,32 @@ def encode_negative_targetid(ra, dec, group=1):
 
     group = np.int8(group)
 
-    #- Convert to arrays to enable things like .astype(int)
+    # Convert to arrays to enable things like .astype(int).
     ra = np.atleast_1d(ra)
     dec = np.atleast_1d(dec)
 
-    assert np.all( (0.0 <= ra) & (ra <= 360.0) )
-    assert np.all( (-90.0 <= dec) & (dec <= 90.0) )
+    assert np.all((0.0 <= ra) & (ra <= 360.0))
+    assert np.all((-90.0 <= dec) & (dec <= 90.0))
 
-    #- encode ra in bits 30-59 and dec in bits 0-29
+    # encode ra in bits 30-59 and dec in bits 0-29.
     ra_bits = ((2**nbits_ra - 1) * (ra/360.0)).astype(int)
     dec_bits = ((2**nbits_dec - 1) * ((dec+90.0)/180.0)).astype(int)
     group_bitshift = nbits_dec + nbits_ra
     ra_bitshift = nbits_dec
-    targetid = -((group<<group_bitshift) + (ra_bits<<ra_bitshift) + dec_bits)
+    targetid = -((group << group_bitshift) + (ra_bits << ra_bitshift) + dec_bits)
 
-    #- return value has dimensionality of inputs
+    # return value has dimensionality of inputs.
     if scalar_input:
         return targetid[0]
     else:
         return targetid
 
+
 def decode_negative_targetid(targetid):
     """
     TODO: document
     """
-    #- Hardcode number of bits
+    # Hardcode number of bits.
     nbits_ra = 30
     nbits_dec = 29
     nbits_group = 4
