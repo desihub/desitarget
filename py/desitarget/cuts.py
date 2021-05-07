@@ -707,7 +707,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
 
     # ADM no obvious issues with the astrometry solution.
     std &= astrometricexcessnoise < 1
-    std &= paramssolved == 31
+    std &= paramssolved >= 31
 
     # ADM finite proper motions.
     std &= np.isfinite(pmra)
@@ -875,7 +875,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             ``True`` if the object is a ``MWS_FAINT_BLUE`` target.
 
     Notes:
-    - Current version (05/04/21) is version 253 on `the wiki`_.
+    - Current version (05/04/21) is version 256 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaia, dtype='?')
@@ -949,7 +949,7 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # APC main targets are point-like based on DECaLS morphology
     # APC and GAIA_ASTROMETRIC_NOISE.
     faint &= _psflike(objtype)
-    faint &= gaiaaen < 3.0
+    faint &= gaiaaen < 2.0
 
     # APC faint targets are 19 <= r < 20
     faint &= rflux > 10**((22.5-20.0)/2.5)
@@ -971,23 +971,23 @@ def isMWS_faint_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=N
     # ADM Turn off any NaNs for astrometric quantities to suppress
     # ADM warnings. Won't target these, using cuts on paramssolved
     # ADM (or will explicitly target them based on paramsssolved).
-    ii = paramssolved != 31
+    ii = paramssolved < 31
     parallax = parallax.copy()
     parallax[ii] = 0.
 
     # ADM MWS-FAINT-RED has g-r >= 0.7
     faint_red &= rflux >= gflux * 10**(0.7/2.5)  # (g-r)>=0.7
 
-    # APC MWS-FAINT-RED also has parallax < max(3parallax_err,1) mas
-    # APC and proper motion < 3 (lower than MAIN-MAIN-RED)
+    # APC MWS-FAINT-RED has samle plx cut as MAIN-RED
+    # APC and proper motion < 3 (lower than MAIN-RED)
     # ACP and all astrometric parameters are measured.
-    faint_red &= parallax < np.maximum(3*parallaxerr, 1)
+    faint_red &= parallax < (3 * parallaxerr + 0.3)
     faint_red &= pm < 3.
-    faint_red &= paramssolved == 31
+    faint_red &= paramssolved >= 31
 
-    # APC There is no equivalent of MWS-MAIN-BROAD for the faint extension, any
-    # APC stars failing the astrometry cuts or without the Gaia parameters are
-    # APC discarded.
+    # APC There is no equivalent of MWS-MAIN-BROAD for the faint sample.
+    # APC stars failing the astrometry cuts or without the Gaia parameters
+    # APC are discarded.
 
     return faint_red, faint_blue
 
@@ -1007,7 +1007,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM main targets are point-like based on DECaLS morphology
     # ADM and GAIA_ASTROMETRIC_NOISE.
     mws &= _psflike(objtype)
-    mws &= gaiaaen < 3.0
+    mws &= gaiaaen < 2.0
 
     # ADM main targets are 16 <= r < 19
     mws &= rflux > 10**((22.5-19.0)/2.5)
@@ -1029,7 +1029,7 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     # ADM Turn off any NaNs for astrometric quantities to suppress
     # ADM warnings. Won't target these, using cuts on paramssolved
     # ADM (or will explicitly target them based on paramsssolved).
-    ii = paramssolved != 31
+    ii = paramssolved < 31
     parallax = parallax.copy()
     parallax[ii], pm[ii] = 0., 0.
 
@@ -1037,19 +1037,21 @@ def isMWS_main_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=No
     red &= rflux >= gflux * 10**(0.7/2.5)  # (g-r)>=0.7
     broad = red.copy()
 
-    # ADM MWS-RED also has parallax < max(3parallax_err,1)mas
-    # ADM and proper motion < 7
+    # ADM MWS-RED also has parallax < (3parallax_err+0.3)mas
+    # ADM and proper motion < 5 * sqrt(rflux/r_19)
     # ADM and all astrometric parameters are measured.
-    red &= parallax < np.maximum(3*parallaxerr, 1)
-    red &= pm < 7.
-    red &= paramssolved == 31
+    pmmax = 5 * np.sqrt(rflux/(10**((22.5-19)/2.5)))
+    plxmax = 3 * parallaxerr + 0.3
+    red &= parallax < plxmax
+    red &= pm < pmmax
+    red &= paramssolved >= 31
 
-    # ADM MWS-BROAD has parallax > max(3parallax_err,1)mas
-    # ADM OR proper motion > 7.
+    # ADM MWS-BROAD has parallax > (3parallax_err+0.3)mas
+    # ADM OR proper motion > max value
     # ADM OR astrometric parameters not measured.
-    broad &= ((parallax >= np.maximum(3*parallaxerr, 1)) |
-              (pm >= 7.)
-              | (paramssolved != 31))
+    broad &= ((parallax >= plxmax) |
+              (pm >= pmmax)
+              | (paramssolved < 31))
 
     return broad, red, blue
 
@@ -1094,7 +1096,7 @@ def isMWS_nearby(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # APC Gaia G mag of more than 16.
     mws &= gaiagmag > 16.
     # ADM all astrometric parameters are measured.
-    mws &= paramssolved == 31
+    mws &= paramssolved >= 31
     # ADM parallax cut corresponding to 100pc.
     mws &= (parallax + parallaxerr) > 10.   # NB: "+" is correct.
 
@@ -1173,8 +1175,8 @@ def isMWS_bhb(primary=None, objtype=None,
 
     # APC no gaia duplicated sources.
     mws &= ~gaiadupsource
-    # APC gaia astrometric excess noise < 3.
-    mws &= gaiaaen < 3.0
+    # APC gaia astrometric excess noise < 2.
+    mws &= gaiaaen < 2.0
 
     # APC BHB extinction-corrected color range -0.35 <= gmr <= -0.02.
     mws &= (gmr >= -0.35) & (gmr <= -0.02)
@@ -1245,7 +1247,7 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
     mws &= gaia
 
     # ADM and all astrometric parameters are measured.
-    mws &= paramssolved == 31
+    mws &= paramssolved >= 31
 
     # ADM Gaia G mag of less than 20
     mws &= gaiagmag < 20.

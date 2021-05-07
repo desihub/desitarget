@@ -164,7 +164,7 @@ def get_gaia_nside_brick(bricksize=0.25):
     return pixarea2nside(bricksize*bricksize)
 
 
-def gaia_psflike(aen, g):
+def gaia_psflike(aen, g, dr="dr2"):
     """Whether an objects is PSF-like based on Gaia quantities.
 
     Parameters
@@ -173,6 +173,8 @@ def gaia_psflike(aen, g):
         Gaia Astrometric Excess Noise.
     g : :class:`array_like` or :class`float`
         Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -184,10 +186,23 @@ def gaia_psflike(aen, g):
     -----
         - Input quantities are the same as in `the Gaia data model`_.
     """
-    psflike = np.logical_or(
-        (g <= 19.) * (aen < 10.**0.5),
-        (g >= 19.) * (aen < 10.**(0.5 + 0.2*(g - 19.)))
-    )
+    # ADM allowed Data Releases for input.
+    droptions = ["dr2", "edr3"]
+    if dr not in droptions:
+        msg = "input dr must be one of {}".format(droptions)
+        log.critical(msg)
+        raise IOError(msg)
+
+    if dr == "dr2":
+        psflike = np.logical_or(
+            (g <= 19.) * (aen < 10.**0.5),
+            (g >= 19.) * (aen < 10.**(0.5 + 0.2*(g - 19.)))
+        )
+    elif dr == "edr3":
+        psflike = np.logical_or(
+            (g <= 19.) * (aen < 10.**0.3),
+            (g >= 19.) * (aen < 10.**(0.3 + 0.2*(g - 19.)))
+        )
 
     return psflike
 
@@ -222,8 +237,12 @@ def sub_gaia_edr3(filename, objs=None):
 
     # ADM read the gaia sweep.
     cols = ["PARALLAX", "PARALLAX_IVAR",
-            "PMRA", "PMRA_IVAR", "PMDEC", "PMDEC_IVAR"]
-    gaiacols = ["EDR3_{}".format(col) for col in cols]
+            "PMRA", "PMRA_IVAR", "PMDEC", "PMDEC_IVAR",
+            "GAIA_DUPLICATED_SOURCE",
+            "GAIA_ASTROMETRIC_PARAMS_SOLVED",
+            "GAIA_ASTROMETRIC_SIGMA5D_MAX",
+            "GAIA_ASTROMETRIC_EXCESS_NOISE"]
+    gaiacols = [col.replace("GAIA", "EDR3") if "GAIA" in col else "EDR3_{}".format(col) for col in cols]
     gswobjs = fitsio.read(gsweepfn, "GAIA_SWEEP", columns=gaiacols)
 
     # ADM if "objs" wasn't sent, read in the sweeps file.
