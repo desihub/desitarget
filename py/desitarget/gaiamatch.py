@@ -238,9 +238,11 @@ def sub_gaia_edr3(filename, objs=None):
     # ADM read the gaia sweep.
     cols = ["PARALLAX", "PARALLAX_IVAR",
             "PMRA", "PMRA_IVAR", "PMDEC", "PMDEC_IVAR",
-            "ASTROMETRIC_PARAMS_SOLVED",
-            "ASTROMETRIC_EXCESS_NOISE"]
-    gaiacols = ["EDR3_{}".format(col) for col in cols]
+            "GAIA_DUPLICATED_SOURCE",
+            "GAIA_ASTROMETRIC_PARAMS_SOLVED",
+            "GAIA_ASTROMETRIC_SIGMA5D_MAX",
+            "GAIA_ASTROMETRIC_EXCESS_NOISE"]
+    gaiacols = [col.replace("GAIA", "EDR3") if "GAIA" in col else "EDR3_{}".format(col) for col in cols]
     gswobjs = fitsio.read(gsweepfn, "GAIA_SWEEP", columns=gaiacols)
 
     # ADM if "objs" wasn't sent, read in the sweeps file.
