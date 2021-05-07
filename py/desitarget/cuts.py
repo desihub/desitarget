@@ -2789,9 +2789,6 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     if survey == 'main':
         import desitarget.cuts as targcuts
         from desitarget.targetmask import desi_mask, mws_mask
-
-        # APC Use Gaia EDR3 in main survey
-        dr = "edr3"
     elif survey[:2] == 'sv':
         try:
             targcuts = import_module("desitarget.{}.{}_cuts".format(survey,
@@ -2804,9 +2801,6 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
             log.critical(msg)
             raise ModuleNotFoundError(msg)
         desi_mask, mws_mask = targmask.desi_mask, targmask.mws_mask
-
-        # We used DR2 in SV
-        dr = "dr2"
     else:
         msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
         log.critical(msg)
@@ -2840,24 +2834,13 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     # ADM determine if a target is a Gaia-only standard.
     primary = np.ones_like(gaiaobjs, dtype=bool)
 
-    if survey == 'main':
-        # APC in this case have a dr option for isGAIA_STD
-        std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
-            ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
-            parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
-            gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
-            gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
-            primary=primary, nside=nside, test=test, dr=dr)
-    else:
-        # SV versions of isGAIA_STD don't have a dr option
-        std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
-            ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
-            parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
-            gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
-            gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
-            gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
-            primary=primary, nside=nside, test=test)
+    std_faint, std_bright, std_wd = targcuts.isGAIA_STD(
+        ra=ra, dec=dec, galb=galb, gaiaaen=gaiaaen, pmra=pmra, pmdec=pmdec,
+        parallax=parallax, parallaxovererror=parallaxovererror, ebv=ebv,
+        gaiabprpfactor=gaiabprpfactor, gaiasigma5dmax=gaiasigma5dmax,
+        gaiagmag=gaiagmag, gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+        gaiadupsource=gaiadupsource, gaiaparamssolved=gaiaparamssolved,
+        primary=primary, nside=nside, test=test)
 
     # ADM Construct the target flag bits.
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
