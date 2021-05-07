@@ -1773,9 +1773,9 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         If ``False``, shift photometry to the Northern (BASS/MzLS)
         imaging system.
     return_probs : :class:`boolean`, defaults to ``False``
-        If ``True``, return the QSO/high-z QSO probabilities in addition
-        to the QSO target booleans. Only coded up for DR8 or later of the
-        Legacy Surveys. Will return arrays of zeros for earlier DRs.
+        If ``True``, return QSO probabilities in addition to the target
+        boolean. Only coded up for DR8 or later of the Legacy Surveys
+        imaging. Will return arrays of zeros for earlier Data Releases.
 
     Returns
     -------

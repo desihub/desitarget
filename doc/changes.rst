@@ -5,6 +5,7 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* Update `PR #723`_ to fix a transcription bug [`PR #728`_].
 * Clean up the QSO code for the Main Survey [`PR #727`_]. Includes:
     * Remove QSO selection code for data releases prior to DR9.
     * Remove code that selects high-redshift quasars (``QSO_HIZ``).
@@ -17,19 +18,18 @@ desitarget Change Log
     * new limits are r< 20.175 for DECaLS and r<20.22 for BASS/MzLS.
 * Add utility functions ``decode/encode_negative_targetid(ra,dec,group)``
   unique to at least 2 milliarcsec [`PR #724`_].
-* Update the baseline LRG selection [`PR #723`_] and [`PR #728`_]. Changes from SV3 include:
+* Update baseline LRG selection [`PR #723`_]. Changes from SV3 include:
     * Change the zfiber faint limit from 21.7 to 21.6.
     * Change the low-z limit from z>0.3 to z>0.4.
     * Change the overall density from 800/sq.deg. to 600/sq.deg.
     * Remove the LRG_LOWDENS target bit.
-* Add ``desispec.skybricks`` to lookup if ras,decs are blank sky [`PR #722`_].
+* Add ``desispec.skybricks`` to lookup ra,dec sky locations [`PR #722`_].
 * Update MWS cuts to Gaia EDR3 [`PR #720`_]. Includes:
    * AEN stellarity cut now 2 (previously 3).
    * Parallax floor now 0.3 mas (previously 1 mas).
    * RED/BROAD proper motion split now a function of magnitude.
-   * ASTROMETRIC_PARAMSS_SOVLED checks account for range of values in EDR3.
-* Add `MWS-FAINT-RED` and `MWS-FAINT-BLUE` target classes for main survey
-  [`PR #719`_].
+   * ASTROMETRIC_PARAMS_SOLVED checks account for value in EDR3.
+* Add `MWS-FAINT-RED`, `MWS-FAINT-BLUE` Main Survey classes [`PR #719`_].
 * Prepare the Main Survey cuts and bit-masks [`PR #718`_]. Includes:
    * Transfer the SV3 cuts and extra SV3 bits into the Main Survey files.
    * Include the full slate of secondary target bits for the Main Survey.

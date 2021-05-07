@@ -8,7 +8,7 @@ desi_mask:
     - [ELG,         1, "ELG", {obsconditions: DARK}]
     - [QSO,         2, "QSO", {obsconditions: DARK}]
 
-    #- ADM QSO sub-classes. Used in SV1 and SV2 but ultimately deprecated for the Main Survey.
+    #- ADM QSO sub-classes. Used in SV but ultimately deprecated for the Main Survey.
     - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
 
     # ADM ELG sub-classes
