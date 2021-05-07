@@ -260,9 +260,9 @@ priorities:
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
 # ADM different priority ELGs.
-        ELG_LOP: SAME_AS_ELG
+        ELG_LOP: {UNOBS: 3100, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         ELG_HIP: SAME_AS_LRG
-        ELG_VLO: {UNOBS: 2999, MORE_ZGOOD: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        ELG_VLO: SAME_AS_ELG
 
 # ADM Informational bits. Don't let them set priorities.
         QSO_HIZ: {UNOBS: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
