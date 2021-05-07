@@ -125,7 +125,6 @@ class TestCuts(unittest.TestCase):
         w2snr = targets['FLUX_W2'] * np.sqrt(targets['FLUX_IVAR_W2'])
 
         dchisq = targets['DCHISQ']
-        deltaChi2 = dchisq[..., 0] - dchisq[..., 1]
         objtype = targets["TYPE"]
 
         gnobs, rnobs, znobs = targets['NOBS_G'], targets['NOBS_R'], targets['NOBS_Z']
@@ -219,15 +218,13 @@ class TestCuts(unittest.TestCase):
         qso1 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux,
                                w1flux=w1flux, w2flux=w2flux,
                                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                               deltaChi2=deltaChi2, maskbits=maskbits,
-                               w1snr=w1snr, w2snr=w2snr, objtype=psftype, primary=primary,
-                               release=release)
+                               maskbits=maskbits, w1snr=w1snr, w2snr=w2snr,
+                               objtype=psftype, primary=primary)
         qso2 = cuts.isQSO_cuts(gflux=gflux, rflux=rflux, zflux=zflux,
                                w1flux=w1flux, w2flux=w2flux,
                                gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                               deltaChi2=deltaChi2, maskbits=maskbits,
-                               w1snr=w1snr, w2snr=w2snr, objtype=None, primary=None,
-                               release=release)
+                               maskbits=maskbits, w1snr=w1snr, w2snr=w2snr,
+                               objtype=None, primary=None)
         self.assertTrue(np.all(qso1 == qso2))
         # ADM also check that the color selections alone work. This tripped us up once
         # ADM with the mocks part of the code calling a non-existent LRG colors function.

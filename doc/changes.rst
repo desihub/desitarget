@@ -5,6 +5,11 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* Clean up the QSO code for the Main Survey [`PR #727`_]. Includes:
+    * Remove QSO selection code for data releases prior to DR9.
+    * Remove code that selects high-redshift quasars (``QSO_HIZ``).
+    * Also, change the initial priorities for some of the ELG classes:
+        * ``ELG_VLO`` is now 3000, ``ELG_LOP`` is now 3100.
 * Update the ELG/LRG code for the Main Survey [`PR #726`_]. Includes:
     * Deprecate the ``LRG_LOWDENS`` targeting bit. It was never used.
     * Upweight 10% of the "filler" ELG sample to the LRG priority.
@@ -50,6 +55,7 @@ desitarget Change Log
 .. _`PR #724`: https://github.com/desihub/desitarget/pull/724
 .. _`PR #725`: https://github.com/desihub/desitarget/pull/725
 .. _`PR #726`: https://github.com/desihub/desitarget/pull/726
+.. _`PR #727`: https://github.com/desihub/desitarget/pull/727
 
 0.57.2 (2021-04-18)
 -------------------
