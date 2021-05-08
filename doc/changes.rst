@@ -5,6 +5,9 @@ desitarget Change Log
 0.57.3 (unreleased)
 -------------------
 
+* Update Main Survey bit-mask information [`PR #729`_]. Includes:
+    * Add new secondary targets (Globular Clusters and Dwarfs).
+    * Update priorities and numobs for each bit.
 * Update `PR #723`_ to fix a transcription bug [`PR #728`_].
 * Clean up the QSO code for the Main Survey [`PR #727`_]. Includes:
     * Remove QSO selection code for data releases prior to DR9.
@@ -63,6 +66,7 @@ desitarget Change Log
 .. _`PR #726`: https://github.com/desihub/desitarget/pull/726
 .. _`PR #727`: https://github.com/desihub/desitarget/pull/727
 .. _`PR #728`: https://github.com/desihub/desitarget/pull/728
+.. _`PR #729`: https://github.com/desihub/desitarget/pull/729
 
 0.57.2 (2021-04-18)
 -------------------
