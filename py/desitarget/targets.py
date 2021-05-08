@@ -594,14 +594,14 @@ def calc_numobs_more(targets, zcat, obscon):
 
         # ADM We will have to be more careful if some DARK layer targets
         # ADM other than QSOs request more than one observation.
-        check = {bit: desi_mask[bit].numobs for bit in desi_mask.names() if
-                 'DARK' in desi_mask[bit].obsconditions and 'QSO' not in bit
-                 and desi_mask[bit].numobs > 1}
-        if len(check) > 1:
-            msg = "logic not programmed for main survey dark-time targets other"
-            msg += " than QSOs having NUMOBS_INIT > 1: {}".format(check)
-            log.critical(msg)
-            raise ValueError(msg)
+#        check = {bit: desi_mask[bit].numobs for bit in desi_mask.names() if
+#                 'DARK' in desi_mask[bit].obsconditions and 'QSO' not in bit
+#                 and desi_mask[bit].numobs > 1}
+#        if len(check) > 1:
+#            msg = "logic not programmed for main survey dark-time targets other"
+#            msg += " than QSOs having NUMOBS_INIT > 1: {}".format(check)
+#            log.critical(msg)
+#            raise ValueError(msg)
 
     return numobs_more
 
