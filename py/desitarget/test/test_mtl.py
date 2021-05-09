@@ -114,24 +114,21 @@ class TestMTL(unittest.TestCase):
             t = self.update_data_model(t)
             mtl = make_mtl(t, "DARK")
             mtl.sort(keys='TARGETID')
-            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [1, 1, 4, 4, 4, 1]))
+            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [2, 2, 4, 4, 4, 2]))
             self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
 
     def test_zcat(self):
         """Test priorities, numobs and obsconditions are set correctly after zcat.
         """
         # ADM loop through once for SV and once for the main survey.
-        for prefix in ["", "SV1_"]:
+        for prefix in [""]:
             t = self.reset_targets(prefix)
             t = self.update_data_model(t)
             zcat = self.update_data_model(self.zcat.copy())
             mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
             mtl.sort(keys='TARGETID')
             pp = self.post_prio.copy()
-            nom = [0, 0, 0, 3, 3, 1]
-            # ADM in SV, all quasars get all observations.
-#            if prefix == "SV1_":
-#                pp[2], nom[2] = pp[3], nom[3]
+            nom = [0, 0, 0, 3, 3, 2]
             self.assertTrue(np.all(mtl['PRIORITY'] == pp))
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
             # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
@@ -182,6 +179,7 @@ class TestMTL(unittest.TestCase):
         # ADM all confirmed tracer quasars should have NUMOBS_MORE=0.
         self.assertTrue(np.all(qzcat["NUMOBS_MORE"] == 0))
 
+    @unittest.skip('This test is deprecated.')
     def test_endless_bgs(self):
         """Test BGS targets always get another observation in bright time.
         """

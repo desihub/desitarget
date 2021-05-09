@@ -86,7 +86,7 @@ ns = ap.parse_args()
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
 for nskey in ["tcnames", "noresolve", "nomaskbits", "writeall",
-              "nosecondary", "nobackup", "nochecksum", "scnddir"]:
+              "nosecondary", "nobackup", "nochecksum", "gaiasub", "scnddir"]:
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)

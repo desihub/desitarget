@@ -565,12 +565,13 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         targs["SCND_TARGET"][mtargs[~singular][i]] |= scxtargs["SCND_TARGET"][mscx[~singular][i]]
     # ADM also assign the SCND_ANY bit to the primary targets.
     desicols, desimasks, _ = main_cmx_or_sv(targs, scnd=True)
-    desi_mask = desimasks[0]
+    desi_mask, scnd_mask = desimasks[0], desimasks[3]
+    desi_target, scnd_target = desicols[0], desicols[3]
 
-    targs[desicols[0]][umtargs] |= desi_mask.SCND_ANY
+    targs[desi_target][umtargs] |= desi_mask.SCND_ANY
 
     # ADM rename the SCND_TARGET column, in case this is an SV file.
-    targs = rfn.rename_fields(targs, {'SCND_TARGET': desicols[3]})
+    targs = rfn.rename_fields(targs, {'SCND_TARGET': scnd_target})
 
     # APC Secondary target bits only affect PRIORITY, NUMOBS and
     # APC obsconditions for specific DESI_TARGET bits
@@ -579,16 +580,17 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     # APC Default behaviour is that targets with SCND_ANY bits set will ONLY be
     # APC have initial state set based on their secondary targetmask parameters IF
     # APC they have NO primary target bits set (hence == on next line).
-    scnd_update = targs[desicols[0]] == desi_mask['SCND_ANY']
-    log.info('{} scnd targets will have initial state set as secondary-only'.format(scnd_update.sum()))
+    scnd_update = targs[desi_target] == desi_mask['SCND_ANY']
+    log.info('{} scnd targets will have initial state set as secondary-only'
+             .format(scnd_update.sum()))
 
     # APC The exception to the rule above is that a subset of bits flagged with
     # APC updatemws=True in the targetmask can drive initial state for a subset of
     # APC primary bits corresponding to MWS targets and standards. We first create
-    # APC a bitmask of those permitted seconday biits.
+    # APC a bitmask of those permitted secondary bits.
     permit_scnd_bits = 0
     for name in scnd_mask.names():
-        if survey == 'main':
+        if surv == 'main':
             # updatemws only defined for main survey targetmask.
             if scnd_mask[name].updatemws:
                 permit_scnd_bits |= scnd_mask[name]
@@ -597,9 +599,9 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
             # were permitted to update MWS targets.
             permit_scnd_bits |= scnd_mask[name]
 
-    # APC Now we flag any target combinbing the permitted secondary bits
+    # APC Now we flag any target combining the permitted secondary bits
     # APC and the restricted set of primary bits.
-    permit_scnd = (targets[scnd_target] & permit_scnd_bits) != 0
+    permit_scnd = (targs[scnd_target] & permit_scnd_bits) != 0
 
     # APC Allow changes to primaries to be driven by the status of
     # APC their matched secondary bits if the DESI_TARGET bitmask has any
@@ -608,7 +610,7 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
         desi_mask['SCND_ANY'] | desi_mask['MWS_ANY'] |
         desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
         desi_mask['STD_WD'])
-    permit_scnd &= ((targets[desicols[0]] & ~update_from_scnd_bits) == 0)
+    permit_scnd &= ((targs[desi_target] & ~update_from_scnd_bits) == 0)
     log.info('{} scnd targets set initial priority, numobs, obscon of matched MWS primaries'.format(
         (permit_scnd & ~scnd_update).sum()))
 

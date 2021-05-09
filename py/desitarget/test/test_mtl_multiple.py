@@ -103,7 +103,7 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.post_numobs_more))
 
     def test_numobs(self):
-        """Check that LRGs and ELGs only request one observation.
+        """Check LRGs and ELGs only request one observation at high priority.
         """
         # ADM How sources are prioritized is set purely by Z and ZWARN.
         # ADM So, we need to check that LRGs and ELGs only request one
@@ -112,9 +112,17 @@ class TestMTL(unittest.TestCase):
         # ADM dual targets that are both, say ELGs and QSOs, the 4 QSO
         # ADM observations could then adopt the high ELG priorities
         # ADM rather than the low MORE_MIDZQSO priorities. Basically, we
-        # ADM need more careful logic if numobs > 1 for galaxies.
+        # ADM need careful logic if numobs > 1 for galaxies.
+        msg = "{}s are requesting too many observations"
+        msg += " or have MORE_ZWARN or MORE_ZGOOD > DONE"
         for bitname in "LRG", "ELG":
-            self.assertEqual(Mx[bitname].numobs, 1)
+            more_zgood = Mx[bitname].priorities["MORE_ZGOOD"]
+            more_zwarn = Mx[bitname].priorities["MORE_ZWARN"]
+            done = Mx[bitname].priorities["DONE"]
+            toomany = Mx[bitname].priorities["MORE_ZGOOD"] > 1
+            toohigh = more_zgood > done
+            toohigh |= more_zwarn > done
+            self.assertFalse(toomany & toohigh, msg.format(bitname))
 
 
 if __name__ == '__main__':
