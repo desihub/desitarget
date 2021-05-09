@@ -141,7 +141,7 @@ scnd_mask:
     - [LOW_Z_TIER3,            17, "See $SCND_DIR/docs/LOW_Z_TIER3.ipynb",       {obsconditions: DARK,        filename: 'LOW_Z_TIER3',         flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [BHB,                    18, "See $SCND_DIR/docs/BHB.txt",                 {obsconditions: DARK,        filename: 'BHB',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [SPCV,                   19, "See $SCND_DIR/docs/SPCV.txt",                {obsconditions: DARK,        filename: 'SPCV',                flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",        {obsconditions: DARK,        filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.01}]
+    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",        {obsconditions: DARK,        filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.085}]
     - [PSF_OUT_BRIGHT,         25, "See $SCND_DIR/docs/PSF_OUT_BRIGHT.txt",      {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT',      flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [PSF_OUT_DARK,           26, "See $SCND_DIR/docs/PSF_OUT_DARK.txt",        {obsconditions: DARK,        filename: 'PSF_OUT_DARK',        flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [HPM_SOUM,               27, "See $SCND_DIR/docs/HPM_SOUM.txt",            {obsconditions: DARK,        filename: 'HPM_SOUM',            flavor: 'SPARE', updatemws: False, downsample: 1}]
