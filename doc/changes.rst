@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-0.57.3 (unreleased)
+0.58.1 (unreleased)
+-------------------
+
+* No changes yet.
+
+0.58.0 (2021-05-09)
 -------------------
 
 * Update Main Survey bit-mask information [`PR #729`_]. Includes:
