@@ -8,6 +8,7 @@ desitarget Change Log
 * Update Main Survey bit-mask information [`PR #729`_]. Includes:
     * Add new secondary targets (Globular Clusters and Dwarfs).
     * Update priorities and numobs for each bit.
+    * Debug code that sets which secondaries can override MWS targets.
 * Update `PR #723`_ to fix a transcription bug [`PR #728`_].
 * Clean up the QSO code for the Main Survey [`PR #727`_]. Includes:
     * Remove QSO selection code for data releases prior to DR9.
