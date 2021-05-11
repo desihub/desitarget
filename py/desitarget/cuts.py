@@ -416,7 +416,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     Notes
     -----
-    - Current version (05/04/21) is version 254 on `the wiki`_.
+    - Current version (05/07/21) is version 260 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     # ADM LRG targets.
@@ -1376,7 +1376,7 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=Non
 
     Notes
     -----
-    - Current version (05/06/21) is version 258 on `the wiki`_.
+    - Current version (05/11/21) is version 264 on `the wiki`_.
     - See :func:`~desitarget.cuts.set_target_bits` for other parameters.
     """
     _check_BGS_targtype(targtype)
