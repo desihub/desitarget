@@ -320,13 +320,13 @@ priorities:
 #- Milky Way Survey: priorities 1000-1999
 # ADM WDs should be prioritized above BGS at 2998
     mws_mask: 
-        MWS_BROAD:                    {UNOBS: 1400, MORE_ZGOOD: 400, MORE_ZWARN: 400, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_WD:                       {UNOBS: 2998, MORE_ZGOOD: 900, MORE_ZWARN: 900, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_NEARBY:                   {UNOBS: 1600, MORE_ZGOOD: 600, MORE_ZWARN: 600, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_BHB:                      {UNOBS: 1550, MORE_ZGOOD: 550, MORE_ZWARN: 550, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_MAIN_BLUE:                {UNOBS: 1500, MORE_ZGOOD: 500, MORE_ZWARN: 500, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_BROAD:                    {UNOBS: 1400, MORE_ZGOOD: 50,   MORE_ZWARN: 50,   DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_WD:                       {UNOBS: 2998, MORE_ZGOOD: 50,   MORE_ZWARN: 50,   DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_NEARBY:                   {UNOBS: 1600, MORE_ZGOOD: 50,   MORE_ZWARN: 50,   DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_BHB:                      {UNOBS: 1550, MORE_ZGOOD: 1540, MORE_ZWARN: 1540, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_MAIN_BLUE:                {UNOBS: 1500, MORE_ZGOOD: 50,   MORE_ZWARN: 50,   DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_MAIN_RED:                 SAME_AS_MWS_MAIN_BLUE
-        MWS_FAINT_BLUE:               {UNOBS: 1300, MORE_ZGOOD: 300, MORE_ZWARN: 300, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_FAINT_BLUE:               {UNOBS: 50,   MORE_ZGOOD: 50,   MORE_ZWARN: 50,   DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_FAINT_RED:                SAME_AS_MWS_FAINT_BLUE 
 
 # ADM don't prioritize a N/S target if it doesn't have other bits set.
@@ -394,7 +394,7 @@ priorities:
         DWF_DARK_HI:            SAME_AS_DWF_BRIGHT_HI
         DWF_DARK_LO:            SAME_AS_DWF_BRIGHT_LO
         BRIGHT_TOO_LOP:         {UNOBS: 950,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        BRIGHT_TOO_HIP:         {UNOBS: 9999, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BRIGHT_TOO_HIP:         {UNOBS: 9500, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
         DARK_TOO_HIP:           SAME_AS_BRIGHT_TOO_HIP
 
@@ -538,7 +538,7 @@ numobs:
         DARK_TOO_HIP:           1
         GC_BRIGHT:              1
         GC_DARK:                1
-        DWF_BRIGHT_HI:          100
-        DWF_BRIGHT_LO:          100
-        DWF_DARK_HI:            100
-        DWF_DARK_LO:            100
+        DWF_BRIGHT_HI:          10
+        DWF_BRIGHT_LO:          10
+        DWF_DARK_HI:            10
+        DWF_DARK_LO:            10
