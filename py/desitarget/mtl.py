@@ -49,7 +49,7 @@ mtldatamodel = np.array([], dtype=[
 
 # ADM columns to add to the mtl/zcat data models for the Main Survey.
 msaddcols = np.array([], dtype=[
-    ('DELTACHI2', '>f8')
+    ('ZS', 'U2'), ('ZINFO', 'U8'), ('DELTACHI2', '>f8'),
     ])
 
 zcatdatamodel = np.array([], dtype=[
@@ -395,11 +395,16 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ztargets['Z'] = -1 * np.ones(n, dtype=np.float32)
         ztargets['ZWARN'] = -1 * np.ones(n, dtype=np.int32)
         # ADM a catch all for added zcat columns.
-        xtracols = ['ZTILEID']
+        xtradescr = [dt for dt in mtldatamodel.dtype.descr if dt[0] == "ZTILEID"]
         if survey == 'main':
-            xtracols += list(msaddcols.dtype.names)
-        for xtracol in xtracols:
-            ztargets[xtracol] = -1 * np.ones(n, dtype=np.int32)
+            xtradescr += msaddcols.dtype.descr
+        for xctuple in xtradescr:
+            xtracol, dt = xctuple
+            # ADM default to "_" instead of -1 for strings.
+            if isinstance(np.empty(1, dtype=dt).item(), str):
+                ztargets[xtracol] = np.full(n, "-", dtype=dt)
+            else:
+                ztargets[xtracol] = np.full(n, -1, dtype=dt)
         # ADM if zcat wasn't passed, there is a one-to-one correspondence
         # ADM between the targets and the zcat.
         zmatcher = np.arange(n)
@@ -490,14 +495,19 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         mtl[col][zmatcher] = ztargets[col]
     # ADM add ZTILEID, other columns, if passed, otherwise we're likely
     # ADM to be working with non-ledger-based mocks and can let it slide.
-    xtracols = ['ZTILEID']
-    if survey == "main":
-        xtracols += list(msaddcols.dtype.names)
-    for xtracol in xtracols:
+    xtradescr = [dt for dt in mtldatamodel.dtype.descr if dt[0] == "ZTILEID"]
+    if survey == 'main':
+        xtradescr += msaddcols.dtype.descr
+    for xctuple in xtradescr:
+        xtracol, dt = xctuple
         if xtracol in ztargets.dtype.names:
             mtl[xtracol][zmatcher] = ztargets[xtracol]
         else:
-            mtl[xtracol] = -1
+            # ADM default to "_" instead of -1 for strings.
+            if isinstance(np.empty(1, dtype=dt).item(), str):
+                mtl[xtracol] = "-"
+            else:
+                mtl[xtracol] = -1
 
     # Filter out any targets marked as done.
     if trim:
