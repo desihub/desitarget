@@ -39,7 +39,7 @@ class TestMTL(unittest.TestCase):
         Amx = np.array([Mx[t].mask for t in self.type_A])
         Bmx = np.array([Mx[t].mask for t in self.type_B])
         self.targets['DESI_TARGET'] = Amx | Bmx
-        for col in ['BGS_TARGET', 'MWS_TARGET', 'SUBPRIORITY']:
+        for col in ['BGS_TARGET', 'MWS_TARGET', 'SCND_TARGET', 'SUBPRIORITY']:
             self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
 
         n = len(self.targets)
@@ -63,13 +63,13 @@ class TestMTL(unittest.TestCase):
         # priorities and numobs more after measuring redshifts.
         self.post_prio = [0 for t in self.type_A]
         self.post_numobs_more = [0 for t in self.type_A]
-        self.post_prio[0] = Mx['QSO'].priorities['DONE']  # low-z QSO, DONE.
+        self.post_prio[0] = Mx['QSO'].priorities['MORE_MIDZQSO']  # low-z QSO, DONE.
         self.post_prio[1] = Mx['QSO'].priorities['MORE_MIDZQSO']  # mid-z QSO, reobserve at low priority.
         self.post_prio[2] = Mx['QSO'].priorities['MORE_ZWARN']  # QSO, ZWARNING, reobserve.
         self.post_prio[3] = Mx['QSO'].priorities['MORE_ZGOOD']  # high-z QSO, reobserve at high priority.
         self.post_prio[4] = Mx['QSO'].priorities['MORE_MIDZQSO']  # mid-z QSO or galaxy, reobserve at low priority.
 
-        self.post_numobs_more[0] = 0
+        self.post_numobs_more[0] = 1
         self.post_numobs_more[1] = 3
         self.post_numobs_more[2] = 3
         self.post_numobs_more[3] = 3
@@ -78,7 +78,7 @@ class TestMTL(unittest.TestCase):
     def test_mtl(self):
         """Test output from MTL has the correct column names.
         """
-        mtl = make_mtl(self.targets, "GRAY|DARK", trimcols=True)
+        mtl = make_mtl(self.targets, "DARK", trimcols=True)
         mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
         _, _, survey = main_cmx_or_sv(mtldm)
         mtldm = survey_data_model(mtldm, survey=survey)
@@ -89,7 +89,7 @@ class TestMTL(unittest.TestCase):
     def test_numobs(self):
         """Test priorities, numobs and obsconditions are set correctly with no zcat.
         """
-        mtl = make_mtl(self.targets, "GRAY|DARK")
+        mtl = make_mtl(self.targets, "DARK")
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [4, 4, 4, 4, 4]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
@@ -97,7 +97,7 @@ class TestMTL(unittest.TestCase):
     def test_zcat(self):
         """Test priorities, numobs and obsconditions are set correctly after zcat.
         """
-        mtl = make_mtl(self.targets, "DARK|GRAY", zcat=self.zcat, trim=False)
+        mtl = make_mtl(self.targets, "DARK", zcat=self.zcat, trim=False)
         mtl.sort(keys='TARGETID')
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.post_numobs_more))

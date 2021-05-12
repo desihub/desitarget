@@ -552,9 +552,8 @@ def calc_numobs_more(targets, zcat, obscon):
         - Will automatically detect if the passed targets are main
           survey, commissioning or SV and behave accordingly.
         - Most targets are updated to NUMOBS_MORE = NUMOBS_INIT-NUMOBS.
-          Special cases for the main survey include BGS targets which
-          always get NUMOBS_MORE of 1 in bright time and "tracer" primary
-          targets at z < midzcut, which always get just one observation.
+          Special case for the main survey is QSOs below the midz, which
+          get 1 extra observation.
     """
     # ADM check input arrays are sorted to match row-by-row on TARGETID.
     assert np.all(targets["TARGETID"] == zcat["TARGETID"])
@@ -571,37 +570,19 @@ def calc_numobs_more(targets, zcat, obscon):
     # ADM main case, just decrement by NUMOBS.
     numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
 
-    if survey != 'cmx' and survey != 'sv3':
-        # ADM BGS targets are observed during the BRIGHT survey, regardless
-        # ADM of how often they've previously been observed.
-        # ADM This behavios is turned off for SV3.
-        if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
-            ii = targets[desi_target] & desi_mask.BGS_ANY > 0
-            numobs_more[ii] = 1
-
     if survey == 'main':
-        # ADM If a DARK layer target is confirmed to have a good redshift
-        # ADM at z < midzcut it always needs just one total observation.
-        # ADM (midzcut is defined at the top of this module). Turn off
-        # ADM for secondaries.
+        # ADM apply special QSO behavior, but only in dark time.
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
-            # ADM standalone secondaries set JUST SCND_ANY in DESI_TARGET.
-            ii = targets[desi_target] != desi_mask.SCND_ANY
+            # ADM If a QSO target is confirmed to have a redshift at
+            # ADM z < midzcut it will need to drop by 2 total observations
+            # ADM (midzcut is defined at the top of this module).
+            ii = targets[desi_target] & desi_mask.QSO != 0
+            for scxname in scnd_mask.names():
+                if scnd_mask[scxname].flavor == "QSO":
+                    ii |= targets[scnd_target] & scnd_mask[scxname] != 0
             ii &= (zcat['ZWARN'] == 0)
             ii &= (zcat['Z'] < midzcut)
-            ii &= (zcat['NUMOBS'] > 0)
-            numobs_more[ii] = 0
-
-        # ADM We will have to be more careful if some DARK layer targets
-        # ADM other than QSOs request more than one observation.
-#        check = {bit: desi_mask[bit].numobs for bit in desi_mask.names() if
-#                 'DARK' in desi_mask[bit].obsconditions and 'QSO' not in bit
-#                 and desi_mask[bit].numobs > 1}
-#        if len(check) > 1:
-#            msg = "logic not programmed for main survey dark-time targets other"
-#            msg += " than QSOs having NUMOBS_INIT > 1: {}".format(check)
-#            log.critical(msg)
-#            raise ValueError(msg)
+            numobs_more[ii] = np.maximum(0, numobs_more[ii] - 2)
 
     return numobs_more
 
@@ -701,11 +682,8 @@ def calc_priority(targets, zcat, obscon, state=False):
                     ii = (targets[desi_target] & desi_mask[name]) != 0
                     target_state[ii] = "CALIB"
 
-            # ADM 'LRG' is the guiding column in SV and the main survey
-            # ADM (once, it was 'LRG_1PASS' and 'LRG_2PASS' in the MS).
-            # names = ('ELG', 'LRG_1PASS', 'LRG_2PASS')
-            names = ('ELG', 'LRG')
-            # ADM for sv3 the ELG guiding columns are ELG and ELG_HIP.
+            names = ('ELG_VLO', 'ELG_LOP', 'ELG_HIP', 'LRG')
+            # ADM for sv3 the ELG guiding columns were ELG and ELG_HIP.
             if survey == 'sv3':
                 names = ('ELG_LOP', 'ELG_HIP', 'LRG')
             for name in names:
@@ -730,6 +708,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                         priority[ii & sbool] = np.where(
                             priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
+
             # QSO could be Lyman-alpha or Tracer.
             name = 'QSO'
             # ADM only update priorities for passed observing conditions.
@@ -738,11 +717,15 @@ def calc_priority(targets, zcat, obscon, state=False):
                 ii = (targets[desi_target] & desi_mask[name]) != 0
                 # ADM LyA QSOs require more observations.
                 # ADM (zcut is defined at the top of this module).
-                good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
+                good_hiz = zgood & (zcat['Z'] >= zcut)
                 # ADM Mid-z QSOs require more observations at low
                 # ADM priority as requested by some secondary programs.
-                good_midz = (zgood & (zcat['Z'] >= midzcut) &
-                             (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+                if survey == "sv3":
+                    good_midz = zgood & (zcat['Z'] >= midzcut) & (zcat['Z'] < zcut)
+                # ADM for the Main Survey EVERY QSO that isn't a LyA QSO
+                # drops to the MIDZ priority until it's done.
+                else:
+                    good_midz = zgood & (zcat['Z'] < zcut)
 
                 for sbool, sname in zip(
                         [unobs, done, good_hiz, good_midz,
@@ -783,7 +766,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             zwd = bgs_mask[name].priorities["ZWARN_DECREMENT"]
                             Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                         # ADM update states BEFORE changing priorities.
-                        ts = "{}|{}".format("BGS", sname)
+                        ts = "{}|{}".format(name, sname)
                         target_state[ii & sbool] = np.where(
                             priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                         priority[ii & sbool] = np.where(
@@ -814,7 +797,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                                 zwd = mws_mask[name].priorities["ZWARN_DECREMENT"]
                                 Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                             # ADM update states BEFORE changing priorities.
-                            ts = "{}|{}".format("MWS", sname)
+                            ts = "{}|{}".format(name, sname)
                             target_state[ii & sbool] = np.where(
                                 priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                             priority[ii & sbool] = np.where(
@@ -829,7 +812,8 @@ def calc_priority(targets, zcat, obscon, state=False):
             # APC ONLY be updated based on their secondary targetmask parameters IF
             # APC they have NO primary target bits set (hence == on next line).
             scnd_update = targets[desi_target] == desi_mask['SCND_ANY']
-            log.info('{} scnd targets to be updated as secondary-only'.format(scnd_update.sum()))
+            log.info('{} scnd targets to be updated as secondary-only'.format(
+                scnd_update.sum()))
 
             # APC The exception to the rule above is that a subset of bits flagged
             # APC with updatemws=True in the targetmask can drive updates for a
@@ -847,7 +831,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                     # were permitted to update MWS targets.
                     permit_scnd_bits |= scnd_mask[name]
 
-            # APC Now we flag any target combinbing the permitted secondary bits
+            # APC Now we flag any target combining the permitted secondary bits
             # APC and the restricted set of primary bits.
             permit_scnd = (targets[scnd_target] & permit_scnd_bits) != 0
 
@@ -859,11 +843,13 @@ def calc_priority(targets, zcat, obscon, state=False):
                 desi_mask['STD_BRIGHT'] | desi_mask['STD_FAINT'] |
                 desi_mask['STD_WD'])
             permit_scnd &= ((targets[desi_target] & ~update_from_scnd_bits) == 0)
-            log.info('{} more scnd targets allowed to update MWS primaries'.format((permit_scnd & ~scnd_update).sum()))
+            log.info('{} more scnd targets allowed to update MWS primaries'.format(
+                (permit_scnd & ~scnd_update).sum()))
 
             # APC Updateable targets are either pure secondary or explicitly permitted
             scnd_update |= permit_scnd
-            log.info('{} scnd targets to be updated in total'.format(scnd_update.sum()))
+            log.info('{} scnd targets to be updated in total'.format(
+                scnd_update.sum()))
 
             if np.any(scnd_update):
                 for name in scnd_mask.names():
@@ -874,11 +860,15 @@ def calc_priority(targets, zcat, obscon, state=False):
                         ii &= scnd_update
                         # ADM LyA QSOs require more observations.
                         # ADM (zcut is defined at the top of this module).
-                        good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
+                        good_hiz = zgood & (zcat['Z'] >= zcut)
                         # ADM Mid-z QSOs require more observations at low
                         # ADM priority as requested by some secondary programs.
-                        good_midz = (zgood & (zcat['Z'] >= midzcut) &
-                                     (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+                        if survey == "sv3":
+                            good_midz = zgood & (zcat['Z'] >= midzcut) & (zcat['Z'] < zcut)
+                        # ADM for the Main Survey EVERY QSO that isn't a LyA QSO
+                        # drops to the MIDZ priority until it's done.
+                        else:
+                            good_midz = zgood & (zcat['Z'] < zcut)
                         # ADM secondary QSOs need processed like primary QSOs.
                         if scnd_mask[name].flavor == "QSO":
                             sbools = [unobs, done, good_hiz, good_midz,
@@ -897,7 +887,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             #    zwd = scnd_mask[name].priorities["ZWARN_DECREMENT"]
                             #    Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                             # ADM update states BEFORE changing priorities.
-                            ts = "{}|{}".format("SCND", sname)
+                            ts = "{}|{}".format(name, sname)
                             target_state[ii & sbool] = np.where(
                                 priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                             priority[ii & sbool] = np.where(
