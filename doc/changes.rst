@@ -5,7 +5,24 @@ desitarget Change Log
 0.58.1 (unreleased)
 -------------------
 
-* No changes yet.
+* Near-final Main Survey MTL logic for repeats [`PR #730`_]. Includes:
+    * All MWS targets are observed twice before dropping to DONE.
+        * The repeat is at an interstitial, relatively low priority.
+        * Except MWS_BHB, which is repeated at relatively high priority.
+    * All QSO targets are observed twice before dropping to DONE.
+        * The repeat is at an interstitial, relatively low priority.
+        * Except z > 1.6 quasars, which receive 4 observations:
+            * QSOs at z > 2.1 are repeated at high priority.
+            * QSOs at 1.6 < z < 2.1 repeated at relatively low priority.
+        * Same logic is applied for secondaries that have flavor QSO.
+    * All other primaries are observed once before dropping to DONE.
+    * Expand ``TARGET_STATE`` to include full bit-names for all targets.
+        * Previously, BGS, MWS, secondary only had "BGS", "MWS", "SCND".
+    * Add some extra informational redshift columns in the ledgers:
+        * ``ZS`` intended to hold RR for redrock, QN for QuasarNET, etc.
+        * ``ZINFO`` intended as a catch-all for algorithmic updates.
+
+.. _`PR #730`: https://github.com/desihub/desitarget/pull/730
 
 0.58.0 (2021-05-09)
 -------------------

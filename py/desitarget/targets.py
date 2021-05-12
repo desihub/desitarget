@@ -578,7 +578,7 @@ def calc_numobs_more(targets, zcat, obscon):
             # ADM (midzcut is defined at the top of this module).
             ii = targets[desi_target] & desi_mask.QSO != 0
             for scxname in scnd_mask.names():
-                if scnd_mask[scxname].flavor=="QSO":
+                if scnd_mask[scxname].flavor == "QSO":
                     ii |= targets[scnd_target] & scnd_mask[scxname] != 0
             ii &= (zcat['ZWARN'] == 0)
             ii &= (zcat['Z'] < midzcut)
