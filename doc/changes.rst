@@ -2,8 +2,13 @@
 desitarget Change Log
 =====================
 
-0.58.1 (unreleased)
--------------------
+1.0.1 (unreleased)
+------------------
+
+* No changes yet.
+
+1.0.0 (2021-05-12)
+------------------
 
 * Near-final Main Survey MTL logic for repeats [`PR #731`_]. Includes:
     * All MWS targets are observed twice before dropping to DONE.
