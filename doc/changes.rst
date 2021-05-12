@@ -5,7 +5,7 @@ desitarget Change Log
 0.58.1 (unreleased)
 -------------------
 
-* Near-final Main Survey MTL logic for repeats [`PR #730`_]. Includes:
+* Near-final Main Survey MTL logic for repeats [`PR #731`_]. Includes:
     * All MWS targets are observed twice before dropping to DONE.
         * The repeat is at an interstitial, relatively low priority.
         * Except MWS_BHB, which is repeated at relatively high priority.
@@ -22,7 +22,7 @@ desitarget Change Log
         * ``ZS`` intended to hold RR for redrock, QN for QuasarNET, etc.
         * ``ZINFO`` intended as a catch-all for algorithmic updates.
 
-.. _`PR #730`: https://github.com/desihub/desitarget/pull/730
+.. _`PR #731`: https://github.com/desihub/desitarget/pull/731
 
 0.58.0 (2021-05-09)
 -------------------
