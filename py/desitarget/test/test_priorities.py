@@ -7,7 +7,8 @@ import numpy as np
 
 from astropy.table import Table
 
-from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, obsmask
+from desitarget.targetmask import desi_mask, bgs_mask, mws_mask, scnd_mask
+from desitarget.targetmask import obsmask
 from desitarget.targets import calc_priority, main_cmx_or_sv
 from desitarget.targets import initial_priority_numobs
 from desitarget.mtl import make_mtl, mtldatamodel, survey_data_model
@@ -279,15 +280,17 @@ class TestPriorities(unittest.TestCase):
         msg = "Length of TARGET_STATE string insufficient to hold: {}"
 
         # ADM loop through the bit-names.
-        for bn in desi_mask.names():
-            if "SKY" not in bn:
-                # ADM loop through defined priority states.
-                for pn in desi_mask[bn].priorities:
-                    if desi_mask[bn].priorities[pn] > 0:
-                        # ADM the length of each target state string.
-                        ts = "|".join([bn, pn])
-                        # ADM check the length is sufficient.
-                        self.assertGreaterEqual(tslen, len(ts), msg.format(ts))
+        for Mx in desi_mask, bgs_mask, mws_mask, scnd_mask:
+            for bn in Mx.names():
+                if "SKY" not in bn:
+                    # ADM loop through defined priority states.
+                    for pn in Mx[bn].priorities:
+                        if Mx[bn].priorities[pn] > 0:
+                            # ADM the length of each target state string.
+                            ts = "|".join([bn, pn])
+                            # ADM check the length is sufficient.
+                            self.assertGreaterEqual(
+                                tslen, len(ts), msg.format(ts))
 
     def test_cmx_priorities(self):
         """Test that priority calculation can handle commissioning files.

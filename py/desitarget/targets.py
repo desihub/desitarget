@@ -764,7 +764,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             zwd = bgs_mask[name].priorities["ZWARN_DECREMENT"]
                             Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                         # ADM update states BEFORE changing priorities.
-                        ts = "{}|{}".format("BGS", sname)
+                        ts = "{}|{}".format(name, sname)
                         target_state[ii & sbool] = np.where(
                             priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                         priority[ii & sbool] = np.where(
@@ -795,7 +795,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                                 zwd = mws_mask[name].priorities["ZWARN_DECREMENT"]
                                 Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                             # ADM update states BEFORE changing priorities.
-                            ts = "{}|{}".format("MWS", sname)
+                            ts = "{}|{}".format(name, sname)
                             target_state[ii & sbool] = np.where(
                                 priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                             priority[ii & sbool] = np.where(
@@ -885,7 +885,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             #    zwd = scnd_mask[name].priorities["ZWARN_DECREMENT"]
                             #    Mxp -= zwd * zcat[ii & sbool]["NUMOBS"]
                             # ADM update states BEFORE changing priorities.
-                            ts = "{}|{}".format("SCND", sname)
+                            ts = "{}|{}".format(name, sname)
                             target_state[ii & sbool] = np.where(
                                 priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                             priority[ii & sbool] = np.where(

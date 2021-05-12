@@ -43,7 +43,7 @@ mtldatamodel = np.array([], dtype=[
     ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
-    ('TIMESTAMP', 'U25'), ('VERSION', 'U14'), ('TARGET_STATE', 'U18'),
+    ('TIMESTAMP', 'U25'), ('VERSION', 'U14'), ('TARGET_STATE', 'U30'),
     ('ZTILEID', '>i4')
     ])
 
