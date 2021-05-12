@@ -21,7 +21,10 @@ desitarget Change Log
     * Add some extra informational redshift columns in the ledgers:
         * ``ZS`` intended to hold RR for redrock, QN for QuasarNET, etc.
         * ``ZINFO`` intended as a catch-all for algorithmic updates.
+* Update desitarget.skybricks to support skybricks/v3 [`PR #730`_].
+    * The v3 format uses fits.fz files instead of .fits.gz.
 
+.. _`PR #730`: https://github.com/desihub/desitarget/pull/730
 .. _`PR #731`: https://github.com/desihub/desitarget/pull/731
 
 0.58.0 (2021-05-09)
