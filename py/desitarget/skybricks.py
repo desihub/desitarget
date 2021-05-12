@@ -90,12 +90,17 @@ class Skybricks(object):
             if len(I) == 0:
                 continue
 
-            # Read skybrick file
-            fn = os.path.join(self.skybricks_dir,
-                              'sky-%s.fits.gz' % self.skybricks['BRICKNAME'][i])
-            if not os.path.exists(fn):
-                log.warning('Missing "skybrick" file: %s' % fn)
+            # Read skybrick file, looking for fits.fz then fits.gz
+            for ext in ['fz', 'gz']:
+                fn = os.path.join(self.skybricks_dir,
+                        'sky-{}.fits.{}'.format(
+                            self.skybricks['BRICKNAME'][i], ext))
+                if os.path.exists(fn):
+                    break
+            else:
+                log.warning('Missing "skybrick" file: %s/.fz' % fn)
                 continue
+
             skymap, hdr = fitsio.read(fn, header=True)
             H, W = skymap.shape
             # create WCS object
