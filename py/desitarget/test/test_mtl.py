@@ -30,12 +30,12 @@ class TestMTL(unittest.TestCase):
 
     def setUp(self):
         self.targets = Table()
-        self.types = np.array(['ELG', 'LRG', 'QSO', 'QSO', 'QSO', 'ELG'])
+        self.types = np.array(['ELG_LOP', 'LRG', 'QSO', 'QSO', 'QSO', 'ELG_LOP'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
         self.post_prio = [Mx[t].priorities['UNOBS'] for t in self.types]
-        self.post_prio[0] = Mx['ELG'].priorities['DONE']  # ELG
+        self.post_prio[0] = Mx['ELG_LOP'].priorities['DONE']  # ELG
         self.post_prio[1] = Mx['LRG'].priorities['DONE']  # LRG...all one-pass
-        self.post_prio[2] = Mx['QSO'].priorities['DONE']  # lowz QSO
+        self.post_prio[2] = Mx['QSO'].priorities['MORE_MIDZQSO']  # lowz QSO
         self.post_prio[3] = Mx['QSO'].priorities['MORE_MIDZQSO']  # midz QSO
         self.post_prio[4] = Mx['QSO'].priorities['MORE_ZGOOD']  # highz QSO
         nt = len(self.types)
@@ -43,7 +43,7 @@ class TestMTL(unittest.TestCase):
         for col in ["RA", "DEC", "PARALLAX", "PMRA", "PMDEC", "REF_EPOCH"]:
             self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
-        for col in ['BGS_TARGET', 'MWS_TARGET', 'SUBPRIORITY']:
+        for col in ['BGS_TARGET', 'MWS_TARGET', 'SCND_TARGET', 'SUBPRIORITY']:
             self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         n = len(self.targets)
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
@@ -77,7 +77,7 @@ class TestMTL(unittest.TestCase):
         """Add prefix to TARGET columns"""
 
         t = self.targets.copy()
-        main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET']
+        main_names = ['DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET', "SCND_TARGET"]
 
         if prefix == 'CMX_':
             # ADM restructure the table to look like a commissioning table.
@@ -93,10 +93,10 @@ class TestMTL(unittest.TestCase):
     def test_mtl(self):
         """Test output from MTL has the correct column names.
         """
-        # ADM loop through once each for the main survey, commissioning and SV.
-        for prefix in ["", "CMX_", "SV1_"]:
+        for prefix in ["", "CMX_", "SV3_"]:
             t = self.reset_targets(prefix)
             t = self.update_data_model(t)
+            col, Mx, survey = main_cmx_or_sv(t)
             mtl = make_mtl(t, "BRIGHT|DARK", trimcols=True)
             mtldm = switch_main_cmx_or_sv(mtldatamodel, mtl)
             _, _, survey = main_cmx_or_sv(mtldm)
@@ -106,56 +106,52 @@ class TestMTL(unittest.TestCase):
             self.assertEqual(refnames, mtlnames)
 
     def test_numobs(self):
-        """Test priorities, numobs and obsconditions are set correctly with no zcat.
+        """Test priorities, numobs, obscon, set correctly with no zcat.
         """
-        # ADM loop through once for SV and once for the main survey.
-        for prefix in ["", "SV1_"]:
-            t = self.reset_targets(prefix)
-            t = self.update_data_model(t)
-            mtl = make_mtl(t, "DARK")
-            mtl.sort(keys='TARGETID')
-            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [2, 2, 4, 4, 4, 2]))
-            self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
+        t = self.reset_targets("")
+        t = self.update_data_model(t)
+        mtl = make_mtl(t, "DARK")
+        mtl.sort(keys='TARGETID')
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [2, 2, 4, 4, 4, 2]))
+        self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
 
     def test_zcat(self):
-        """Test priorities, numobs and obsconditions are set correctly after zcat.
+        """Test priorities, numobs, obscon, set correctly after zcat.
         """
-        # ADM loop through once for SV and once for the main survey.
-        for prefix in [""]:
-            t = self.reset_targets(prefix)
-            t = self.update_data_model(t)
-            zcat = self.update_data_model(self.zcat.copy())
-            mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
-            mtl.sort(keys='TARGETID')
-            pp = self.post_prio.copy()
-            nom = [0, 0, 0, 3, 3, 2]
-            self.assertTrue(np.all(mtl['PRIORITY'] == pp))
-            self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
-            # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
-            t[prefix+'DESI_TARGET'][0] = Mx.BAD_SKY
-            zcat = self.update_data_model(self.zcat.copy())
-            mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
-            mtl.sort(keys='TARGETID')
-            self.assertEqual(mtl['PRIORITY'][0], 0)
+        t = self.reset_targets("")
+        t = self.update_data_model(t)
+        zcat = self.update_data_model(self.zcat.copy())
+        mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
+        mtl.sort(keys='TARGETID')
+        pp = self.post_prio.copy()
+        nom = [0, 0, 1, 3, 3, 2]
+        self.assertTrue(np.all(mtl['PRIORITY'] == pp))
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
+        # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
+        t['DESI_TARGET'][0] = Mx.BAD_SKY
+        zcat = self.update_data_model(self.zcat.copy())
+        mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
+        mtl.sort(keys='TARGETID')
+        self.assertEqual(mtl['PRIORITY'][0], 0)
 
     def test_mtl_io(self):
         """Test MTL correctly handles masked NUMOBS quantities.
         """
         # ADM loop through once for SV and once for the main survey.
-        for prefix in ["", "SV1_"]:
-            t = self.reset_targets(prefix)
-            t = self.update_data_model(t)
-            zcat = self.update_data_model(self.zcat.copy())
-            mtl = make_mtl(t, "BRIGHT", zcat=zcat, trim=True)
-            testfile = 'test-aszqweladfqwezceas.fits'
-            mtl.write(testfile, overwrite=True)
-            x = mtl.read(testfile)
-            os.remove(testfile)
-            if x.masked:
-                self.assertTrue(np.all(mtl['NUMOBS_MORE'].mask == x['NUMOBS_MORE'].mask))
+        t = self.reset_targets("")
+        t = self.update_data_model(t)
+        zcat = self.update_data_model(self.zcat.copy())
+        mtl = make_mtl(t, "BRIGHT", zcat=zcat, trim=True)
+        testfile = 'test-aszqweladfqwezceas.fits'
+        mtl.write(testfile, overwrite=True)
+        x = mtl.read(testfile)
+        os.remove(testfile)
+        if x.masked:
+            self.assertTrue(np.all(
+                mtl['NUMOBS_MORE'].mask == x['NUMOBS_MORE'].mask))
 
     def test_merged_qso(self):
-        """Test QSO tracers that are also other target types get 1 observation.
+        """Test QSO tracers merged with other targets get 2 observations.
         """
         # ADM there are other tests of this kind in test_multiple_mtl.py.
 
@@ -176,8 +172,8 @@ class TestMTL(unittest.TestCase):
         # ADM run through MTL.
         mtl = make_mtl(qtargets, obscon="DARK", zcat=qzcat)
 
-        # ADM all confirmed tracer quasars should have NUMOBS_MORE=0.
-        self.assertTrue(np.all(qzcat["NUMOBS_MORE"] == 0))
+        # ADM all confirmed tracer quasars should have NUMOBS_MORE=1.
+        self.assertTrue(np.all(qzcat["NUMOBS_MORE"] == 1))
 
     @unittest.skip('This test is deprecated.')
     def test_endless_bgs(self):
