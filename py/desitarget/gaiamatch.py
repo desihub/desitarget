@@ -242,16 +242,20 @@ def sub_gaia_edr3(filename, objs=None):
             "GAIA_ASTROMETRIC_PARAMS_SOLVED",
             "GAIA_ASTROMETRIC_SIGMA5D_MAX",
             "GAIA_ASTROMETRIC_EXCESS_NOISE"]
-    gaiacols = [col.replace("GAIA", "EDR3") if "GAIA" in col else "EDR3_{}".format(col) for col in cols]
-    gswobjs = fitsio.read(gsweepfn, "GAIA_SWEEP", columns=gaiacols)
+    gaiacols = [col.replace("GAIA", "EDR3") if "GAIA" in col
+                else "EDR3_{}".format(col) for col in cols]
+    gswobjs, gswhdr = fitsio.read(gsweepfn, "GAIA_SWEEP",
+                                  columns=gaiacols, header=True)
 
     # ADM if "objs" wasn't sent, read in the sweeps file.
     if objs is None:
         objs = fitsio.read(filename, "SWEEP")
 
-    # ADM substitute the proper motion/parallax columns.
+    # ADM substitute the appropriate columns.
     for col, gaiacol in zip(cols, gaiacols):
         objs[col] = gswobjs[gaiacol]
+    # ADM may also need to update the REF_EPOCH.
+    objs["REF_EPOCH"] = gswhdr["REFEPOCH"]
 
     return objs
 

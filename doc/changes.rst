@@ -21,6 +21,8 @@ desitarget Change Log
     * Add some extra informational redshift columns in the ledgers:
         * ``ZS`` intended to hold RR for redrock, QN for QuasarNET, etc.
         * ``ZINFO`` intended as a catch-all for algorithmic updates.
+    * Also fix a bug when substituting Gaia EDR3 values into the sweeps.
+        * ``REF_EPOCH`` wasn't being written.
 * Update desitarget.skybricks to support skybricks/v3 [`PR #730`_].
     * The v3 format uses fits.fz files instead of .fits.gz.
 
