@@ -552,9 +552,8 @@ def calc_numobs_more(targets, zcat, obscon):
         - Will automatically detect if the passed targets are main
           survey, commissioning or SV and behave accordingly.
         - Most targets are updated to NUMOBS_MORE = NUMOBS_INIT-NUMOBS.
-          Special cases for the main survey include BGS targets which
-          always get NUMOBS_MORE of 1 in bright time and "tracer" primary
-          targets at z < midzcut, which always get just one observation.
+          Special case for the main survey is QSOs below the midz, which
+          get 1 extra observation.
     """
     # ADM check input arrays are sorted to match row-by-row on TARGETID.
     assert np.all(targets["TARGETID"] == zcat["TARGETID"])
@@ -571,37 +570,17 @@ def calc_numobs_more(targets, zcat, obscon):
     # ADM main case, just decrement by NUMOBS.
     numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
 
-    if survey != 'cmx' and survey != 'sv3':
-        # ADM BGS targets are observed during the BRIGHT survey, regardless
-        # ADM of how often they've previously been observed.
-        # ADM This behavios is turned off for SV3.
-        if (obsconditions.mask(obscon) & obsconditions.mask("BRIGHT")) != 0:
-            ii = targets[desi_target] & desi_mask.BGS_ANY > 0
-            numobs_more[ii] = 1
-
     if survey == 'main':
-        # ADM If a DARK layer target is confirmed to have a good redshift
-        # ADM at z < midzcut it always needs just one total observation.
-        # ADM (midzcut is defined at the top of this module). Turn off
-        # ADM for secondaries.
-        if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
-            # ADM standalone secondaries set JUST SCND_ANY in DESI_TARGET.
-            ii = targets[desi_target] != desi_mask.SCND_ANY
-            ii &= (zcat['ZWARN'] == 0)
-            ii &= (zcat['Z'] < midzcut)
-            ii &= (zcat['NUMOBS'] > 0)
-            numobs_more[ii] = 0
-
-        # ADM We will have to be more careful if some DARK layer targets
-        # ADM other than QSOs request more than one observation.
-#        check = {bit: desi_mask[bit].numobs for bit in desi_mask.names() if
-#                 'DARK' in desi_mask[bit].obsconditions and 'QSO' not in bit
-#                 and desi_mask[bit].numobs > 1}
-#        if len(check) > 1:
-#            msg = "logic not programmed for main survey dark-time targets other"
-#            msg += " than QSOs having NUMOBS_INIT > 1: {}".format(check)
-#            log.critical(msg)
-#            raise ValueError(msg)
+        # ADM If a QSO target is confirmed to have a redshift at
+        # ADM z < midzcut it will need to drop by 2 total observations
+        # ADM (midzcut is defined at the top of this module).
+        ii = targets[desi_target] & desi_mask.QSO != 0
+        for scxname in scnd_mask.names():
+            if scnd_mask[scxname].flavor=="QSO":
+                ii |= targets[scnd_target] & scnd_mask[scxname] != 0
+        ii &= (zcat['ZWARN'] == 0)
+        ii &= (zcat['Z'] < midzcut)
+        numobs_more[ii] = np.maximum(0, numobs_more[ii] - 2)
 
     return numobs_more
 
@@ -727,6 +706,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
                         priority[ii & sbool] = np.where(
                             priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
+
             # QSO could be Lyman-alpha or Tracer.
             name = 'QSO'
             # ADM only update priorities for passed observing conditions.
@@ -735,11 +715,15 @@ def calc_priority(targets, zcat, obscon, state=False):
                 ii = (targets[desi_target] & desi_mask[name]) != 0
                 # ADM LyA QSOs require more observations.
                 # ADM (zcut is defined at the top of this module).
-                good_hiz = zgood & (zcat['Z'] >= zcut) & (zcat['ZWARN'] == 0)
+                good_hiz = zgood & (zcat['Z'] >= zcut)
                 # ADM Mid-z QSOs require more observations at low
                 # ADM priority as requested by some secondary programs.
-                good_midz = (zgood & (zcat['Z'] >= midzcut) &
-                             (zcat['Z'] < zcut) & (zcat['ZWARN'] == 0))
+                if survey == "sv3":
+                    good_midz = zgood & (zcat['Z'] >= midzcut) & (zcat['Z'] < zcut)
+                # ADM for the Main Survey EVERY QSO that isn't a LyA QSO
+                # drops to the MIDZ priority until it's done.
+                else:
+                    good_midz = zgood & (zcat['Z'] < zcut)
 
                 for sbool, sname in zip(
                         [unobs, done, good_hiz, good_midz,

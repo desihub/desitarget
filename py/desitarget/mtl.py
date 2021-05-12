@@ -1109,7 +1109,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
     for col in set(zcat.dtype.names) - set(['RA', 'DEC', 'NUMOBS', 'ZTILEID']):
         zcat[col] = zs[col]
 
-    # ADM Finally, flag the ZWARN bit if DELTACHI2 is too low.
+    # ADM Finally, flag the ZWARN bit if DELTACHI2 is too low (for sv3).
     if survey == "sv3":
         from desitarget.sv3.sv3_targetmask import desi_mask
         desi_target = fms[zid]["SV3_DESI_TARGET"]
