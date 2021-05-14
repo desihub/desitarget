@@ -2,10 +2,18 @@
 desitarget Change Log
 =====================
 
-1.0.1 (unreleased)
+1.0.2 (unreleased)
 ------------------
 
 * No changes yet.
+
+1.0.1 (2021-05-14)
+------------------
+
+* Add $SKYBRICKS_DIR to module config; make more portable by using $DESI_ROOT
+  [`PR #732`_].
+
+.. _`PR #732`: https://github.com/desihub/desitarget/pull/732
 
 1.0.0 (2021-05-12)
 ------------------
