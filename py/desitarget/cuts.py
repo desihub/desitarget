@@ -889,6 +889,9 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
                               rflux=rflux, gaiadupsource=gaiadupsource,
                               primary=primary, maskbits=maskbits)
 
+    # APC Copy cuts up to this point for later use in faint selection
+    mws_faint = mws.copy()
+
     # ADM pass the mws that pass cuts as primary, to restrict to the
     # ADM sources that weren't in a mask/logic cut.
     mws, red, blue = isMWS_main_colors(
@@ -904,7 +907,7 @@ def isMWS_main(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         pmra=pmra, pmdec=pmdec, parallax=parallax, parallaxerr=parallaxerr,
         obs_rflux=obs_rflux, objtype=objtype, gaiagmag=gaiagmag,
         gaiabmag=gaiabmag, gaiarmag=gaiarmag, gaiaaen=gaiaaen,
-        paramssolved=paramssolved, primary=mws, south=south
+        paramssolved=paramssolved, primary=mws_faint, south=south
     )
 
     return mws, red, blue, faint_red, faint_blue
