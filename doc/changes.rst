@@ -12,8 +12,10 @@ desitarget Change Log
 
 * Add $SKYBRICKS_DIR to module config; make more portable by using $DESI_ROOT
   [`PR #732`_].
+* Fix bug leading to zero MWS_FAINT targets [`PR #733`_].
 
 .. _`PR #732`: https://github.com/desihub/desitarget/pull/732
+.. _`PR #733`: https://github.com/desihub/desitarget/pull/733
 
 1.0.0 (2021-05-12)
 ------------------
