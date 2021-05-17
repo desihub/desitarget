@@ -458,7 +458,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
                   obscon=None, mockdata=None, supp=False, extra=None,
-                  infiles=None, checkbright=False):
+                  infiles=None, checkbright=False, subpriority=True):
     """Write target catalogues.
 
     Parameters
@@ -517,6 +517,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     checkbright : :class:`bool`, optional, defaults to ``False``
         If ``True`` then log a warning about targets that are being
         written to file and that could be too bright.
+    subpriority : :class:`bool`, optional, defaults to ``True``
+        If ``True`` and a `SUBPRIORITY` column is in the input `data`,
+        then `SUBPRIORITY` is overwritten by a random float in the range
+        0 to 1, using seed 616.
 
     Returns
     -------
@@ -524,6 +528,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         The number of targets that were written to file.
     :class:`str`
         The name of the file to which targets were written.
+
+    Notes
+    -----
+    - Various columns and header keywords are updated when writing, so
+      take care. For instance, pass `subpriority=False` unless you really
+      want to update the `SUBPRIORITY` column.
     """
     # ADM create header.
     hdr = fitsio.FITSHDR()
@@ -609,9 +619,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                             comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names and mockdata is None:
-        np.random.seed(616)
+    if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
+        subpseed = 616
+        np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(ntargs)
+        hdr["SUBPSEED"] = subpseed
 
     # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
     hdr["SURVEY"] = survey
@@ -888,7 +900,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
-                    drint='X'):
+                    drint='X', subpriority=True):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -915,6 +927,10 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         "dark" appended to the lowest DIRECTORY in the input `filename`.
     drint : :class:`int`, optional, defaults to `X`
         The data release ("dr"`drint`"-") in the output filename.
+    subpriority : :class:`bool`, optional, defaults to ``True``
+        If ``True`` and a `SUBPRIORITY` column is in the input `data`,
+        then `SUBPRIORITY` is overwritten by a random float in the range
+        0 to 1, using seed 616.
 
     Returns
     -------
@@ -926,7 +942,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
     Notes
     -----
-    Two sets of files are written:
+    - Two sets of files are written:
         - The file of secondary targets that do not match a primary
           target is written to `targdir`. Such secondary targets
           are determined from having "PRIM_MATCH"=``False`` in `data`.
@@ -936,6 +952,9 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
           the "outdata" subdirectory of `scxdir`.
+    - Various columns and header keywords are updated when writing, so
+      take care. For instance, pass `subpriority=False` unless you really
+      want to update the `SUBPRIORITY` column.
     """
     # ADM grab the scxdir, it it wasn't passed.
     from desitarget.secondary import _get_scxdir
@@ -962,10 +981,12 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     depend.setdep(hdr, 'scnd-desitarget-git', gitversion())
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names:
+    if "SUBPRIORITY" in data.dtype.names and subpriority:
         ntargs = len(data)
-        np.random.seed(616)
+        subpseed = 616
+        np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(ntargs)
+        hdr["SUBPSEED"] = subpseed
 
     # ADM remove the supplemental columns.
     from desitarget.secondary import suppdatamodel
@@ -1048,7 +1069,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
 def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
-                nsidefile=None, hpxlist=None, extra=None, mock=False):
+                nsidefile=None, hpxlist=None, extra=None, mock=False,
+                subpriority=True):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -1087,6 +1109,11 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         values to the output header.
     mock : :class:`bool`, optional, defaults to ``False``.
         If ``True`` then construct the file path for mock sky target catalogs.
+    subpriority : :class:`bool`, optional, defaults to ``True``
+        If ``True`` and a `SUBPRIORITY` column is in the input `data`,
+        then `SUBPRIORITY` is overwritten by a random float in the range
+        0 to 1, using seed 616 if `supp` is ``False`` and 626 if `supp`
+        is ``True``.
 
     Returns
     -------
@@ -1094,6 +1121,12 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         The number of skies that were written to file.
     :class:`str`
         The name of the file to which skies were written.
+
+    Notes
+    -----
+    - Various columns and header keywords are updated when writing, so
+      take care. For instance, pass `subpriority=False` unless you really
+      want to update the `SUBPRIORITY` column.
     """
     nskies = len(data)
 
@@ -1149,13 +1182,15 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         hdr['HPXNEST'] = True
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names:
+    if "SUBPRIORITY" in data.dtype.names and subpriority:
         # ADM ensure different SUBPRIORITIES for supp/standard files.
         if supp:
-            np.random.seed(626)
+            subpseed = 626
         else:
-            np.random.seed(616)
+            subpseed = 616
+        np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(nskies)
+        hdr["SUBPSEED"] = subpseed
 
     # ADM add the extra dictionary to the header.
     if extra is not None:
