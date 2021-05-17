@@ -520,7 +520,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY` is overwritten by a random float in the range
-        0 to 1, using seed 616.
+        0 to 1, using either seed 716, or seed 716 + the first value in
+        `hpxlist`, if `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -620,7 +621,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
-        subpseed = 616
+        subpseed = 716
+        if hpxlist is not None:
+            subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(ntargs)
         hdr["SUBPSEED"] = subpseed
@@ -930,7 +933,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY` is overwritten by a random float in the range
-        0 to 1, using seed 616.
+        0 to 1, using either seed 717, or seed 717 + the first value in
+        `hpxlist`, if `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -983,7 +987,9 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         ntargs = len(data)
-        subpseed = 616
+        subpseed = 717
+        if hpxlist is not None:
+            subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(ntargs)
         hdr["SUBPSEED"] = subpseed
@@ -1108,12 +1114,16 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
     mock : :class:`bool`, optional, defaults to ``False``.
-        If ``True`` then construct the file path for mock sky target catalogs.
+        If ``True`` then construct the file path for mock sky
+        target catalogs.
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY` is overwritten by a random float in the range
-        0 to 1, using seed 616 if `supp` is ``False`` and 626 if `supp`
-        is ``True``.
+        0 to 1, using either (a) if `supp` is ``False``: seed 718, or
+        seed 718 + the first value in `hpxlist`, if `hpxlist` is passed
+        and not ``None`` or (b) if `supp` is ``True`` seed 719 or seed
+        719 + hp.nside2npix(1024) + the first value in `hpxlist`, if
+        `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -1127,6 +1137,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     - Various columns and header keywords are updated when writing, so
       take care. For instance, pass `subpriority=False` unless you really
       want to update the `SUBPRIORITY` column.
+    - Because of the way random seeds are constructed for SUBPRIORITY, we require nsidefile to be less than 1024
     """
     nskies = len(data)
 
@@ -1185,9 +1196,18 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         # ADM ensure different SUBPRIORITIES for supp/standard files.
         if supp:
-            subpseed = 626
+            subpseed = hp.nside2npix(1024) + 719
         else:
-            subpseed = 616
+            subpseed = 718
+        if hpxlist is not None:
+            subpseed += int(hpxlist[0])
+            # ADM the way we construct different random seeds for the
+            # ADM skies and supplemental skies requires nsidefile < 1024.
+            if int(nsidefile) > 1024:
+                msg = "nsidefile is {}".format(nsidefile)
+                msg += " limit is <= 1024 to retain randomness of SUBPRIORITY"
+                log.error(msg)
+                raise ValueError(msg)
         np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(nskies)
         hdr["SUBPSEED"] = subpseed
