@@ -258,10 +258,11 @@ def sub_gaia_edr3(filename, objs=None, suball=False):
     gswobjs, gswhdr = fitsio.read(gsweepfn, "GAIA_SWEEP", header=True)
 
     # ADM substitute the appropriate columns.
+    g3 = gswobjs["REF_CAT"] == 'G3'
     for col, gaiacol in zip(cols, gaiacols):
-        objs[col] = gswobjs[gaiacol]
+        objs[col][g3] = gswobjs[gaiacol][g3]
     # ADM may also need to update the REF_EPOCH.
-    objs["REF_EPOCH"] = gswhdr["REFEPOCH"]
+    objs["REF_EPOCH"][g3] = gswhdr["REFEPOCH"]
 
     # ADM if substituting everything, add vital 'PHOT_G_N_OBS' column.
     if suball:
@@ -269,7 +270,7 @@ def sub_gaia_edr3(filename, objs=None, suball=False):
         objsout = np.empty(len(objs), dtype=dt)
         for col in objs.dtype.names:
             objsout[col] = objs[col]
-        objsout['PHOT_G_N_OBS'] = gswobjs['EDR3_PHOT_G_N_OBS']
+        objsout['PHOT_G_N_OBS'][g3] = gswobjs['EDR3_PHOT_G_N_OBS'][g3]
         return objsout
 
     return objs
