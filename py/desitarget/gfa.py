@@ -642,6 +642,10 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         gfas = np.concatenate(gfas)
         # ADM resolve any duplicates between imaging data releases.
         gfas = resolve(gfas)
+        # ADM there may be a few objects removed from Gaia DR2 in EDR3.
+        if dr != "dr2":
+            ii = (gfas["REF_CAT"] != b"G2") & (gfas["REF_CAT"] != "G2")
+            gfas = gfas[ii]
 
     # ADM retrieve Gaia objects in the DESI footprint or passed tiles.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
