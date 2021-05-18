@@ -20,7 +20,8 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
-from desitarget.gaiamatch import find_gaia_files_hp, _get_gaia_nside, gaia_psflike
+from desitarget.gaiamatch import find_gaia_files_hp
+from desitarget.gaiamatch import _get_gaia_nside, gaia_psflike, sub_gaia_edr3
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
@@ -52,6 +53,9 @@ gfadatamodel = np.array([], dtype=[
     ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('URAT_ID', '>i8'), ('URAT_SEP', '>f4')
 ])
 
+# ADM if we're using Gaia EDR3, there's an extra column.
+edr3addons = np.array([], dtype=[('PHOT_G_N_OBS', '>i4')])
+
 
 def gaia_morph(gaia):
     """Retrieve morphological type for Gaia sources.
@@ -82,7 +86,7 @@ def gaia_morph(gaia):
     return morph
 
 
-def gaia_gfas_from_sweep(filename, maglim=18.):
+def gaia_gfas_from_sweep(filename, maglim=18., dr="dr2"):
     """Create a set of GFAs for one sweep file.
 
     Parameters
@@ -91,6 +95,8 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
         A string corresponding to the full path to a sweep file name.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -99,6 +105,9 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
     """
     # ADM read in the objects.
     objects = fitsio.read(filename)
+    # ADM if Gaia EDR3 was requested, update the Gaia columns.
+    if dr == "edr3":
+        objects = sub_gaia_edr3(filename, objs=objects, suball=True)
 
     # ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     # ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
@@ -107,7 +116,6 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
           (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
           (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)))
     objects = objects[ii]
-    nobjs = len(objects)
 
     # ADM only retain objects with Gaia matches.
     # ADM It's fine to propagate an empty array if there are no matches
@@ -120,14 +128,18 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
                                release=objects['RELEASE'])
 
     # ADM format everything according to the data model.
-    gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
+    dt = gfadatamodel.dtype.descr
+    # ADM if we're using Gaia EDR3 there's an extra column.
+    if dr == "edr3":
+        dt += edr3addons.dtype.descr
+    gfas = np.zeros(len(objects), dtype=dt)
     # ADM make sure all columns initially have "ridiculous" numbers.
     gfas[...] = -99.
     gfas["REF_CAT"] = ""
     gfas["REF_EPOCH"] = 2015.5
     # ADM remove the TARGETID, BRICK_OBJID, REF_CAT, REF_EPOCH columns
     # ADM and populate them later as they require special treatment.
-    cols = list(gfadatamodel.dtype.names)
+    cols = list(gfas.dtype.names)
     for col in ["TARGETID", "BRICK_OBJID", "REF_CAT", "REF_EPOCH",
                 "URAT_ID", "URAT_SEP"]:
         cols.remove(col)
