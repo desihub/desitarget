@@ -577,9 +577,11 @@ def calc_numobs_more(targets, zcat, obscon):
             # ADM z < midzcut it will need to drop by 2 total observations
             # ADM (midzcut is defined at the top of this module).
             ii = targets[desi_target] & desi_mask.QSO != 0
-            for scxname in scnd_mask.names():
-                if scnd_mask[scxname].flavor == "QSO":
-                    ii |= targets[scnd_target] & scnd_mask[scxname] != 0
+            # ADM the mocks may not include the secondary targets.
+            if scnd_target in targets.dtype.names:
+                for scxname in scnd_mask.names():
+                    if scnd_mask[scxname].flavor == "QSO":
+                        ii |= targets[scnd_target] & scnd_mask[scxname] != 0
             ii &= (zcat['ZWARN'] == 0)
             ii &= (zcat['Z'] < midzcut)
             numobs_more[ii] = np.maximum(0, numobs_more[ii] - 2)
