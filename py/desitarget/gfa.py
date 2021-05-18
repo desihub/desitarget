@@ -75,6 +75,9 @@ def gaia_morph(gaia, dr="dr2"):
         and is set to either "GPSF" or "GGAL" based on a
         morphological cut with Gaia.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM determine which objects are Gaia point sources.
     g = gaia['GAIA_PHOT_G_MEAN_MAG']
     aen = gaia['GAIA_ASTROMETRIC_EXCESS_NOISE']
@@ -105,6 +108,9 @@ def gaia_gfas_from_sweep(filename, maglim=18., dr="dr2"):
     :class:`~numpy.ndarray`
         GFA objects from Gaia, formatted according to `desitarget.gfa.gfadatamodel`.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM read in the objects.
     objects = fitsio.read(filename)
     # ADM if Gaia EDR3 was requested, update the Gaia columns.
@@ -217,6 +223,9 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
        - A "Gaia healpix file" here is as made by, e.g.
          :func:`~desitarget.gaiamatch.gaia_fits_to_healpix()`
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM read in the Gaia file.
     objs = read_gaia_file(infile, addobjid=addobjid, dr=dr)
 
@@ -347,6 +356,9 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     -----
        - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM to guard against no files being found.
     if pixlist is None:
         dummyfile = find_gaia_files_hp(_get_gaia_nside(), [0],
@@ -560,6 +572,9 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         - If numproc > 4, then numproc=4 is enforced for (just those)
           parts of the code that are I/O limited.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM the code can have memory issues for nside=2 with large numproc.
     if nside is not None and nside < 4 and numproc > 8:
         msg = 'Memory may be an issue near Plane for nside < 4 and numproc > 8'
