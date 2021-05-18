@@ -638,6 +638,11 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
                  .format(np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
         for col in "PMRA", "PMDEC", "URAT_ID", "URAT_SEP":
             gfas[col][ii] = urat[col]
+        # ADM there are a couple of cases where Tycho has zero REF_EPOCH.
+        # When these match to URAT, it's likely a mismatch.
+        nore = gfas["REF_EPOCH"] == 0
+        gfas["PMRA"][ii & nore] = 0.
+        gfas["PMDEC"][ii & nore] = 0.
 
     # ADM restrict to only GFAs in a set of HEALPixels, if requested.
     if pixlist is not None:

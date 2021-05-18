@@ -1137,7 +1137,8 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     - Various columns and header keywords are updated when writing, so
       take care. For instance, pass `subpriority=False` unless you really
       want to update the `SUBPRIORITY` column.
-    - Because of the way random seeds are constructed for SUBPRIORITY, we require nsidefile to be less than 1024
+    - Because of the way random seeds are constructed for SUBPRIORITY, we
+      require `nsidefile` to be less than 1024.
     """
     nskies = len(data)
 
