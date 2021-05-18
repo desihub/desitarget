@@ -99,6 +99,23 @@ edr3datamodel = np.array([], dtype=[
 ])
 
 
+def check_gaia_survey(dr):
+    """Convenience function to check allowed Gaia Data Releases
+
+    Parameters
+    ----------
+    dr : :class:`str`
+        Name of a Gaia data release. Options are "dr2", "edr3". If one of
+        those options isn't passed, a ValueError is raised.
+    """
+    # ADM allowed Data Releases for input.
+    droptions = ["dr2", "edr3"]
+    if dr not in droptions:
+        msg = "input dr must be one of {}".format(droptions)
+        log.critical(msg)
+        raise ValueError(msg)
+
+
 def get_gaia_dir(dr="dr2"):
     """Convenience function to grab the Gaia environment variable.
 
@@ -112,12 +129,8 @@ def get_gaia_dir(dr="dr2"):
     :class:`str`
         The directory stored in the $GAIA_DIR environment variable.
     """
-    # ADM allowed Data Releases for input.
-    droptions = ["dr2", "edr3"]
-    if dr not in droptions:
-        msg = "input dr must be one of {}".format(droptions)
-        log.critical(msg)
-        raise IOError(msg)
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
 
     # ADM check that the $GAIA_DIR environment variable is set.
     gaiadir = os.environ.get('GAIA_DIR')
@@ -186,12 +199,8 @@ def gaia_psflike(aen, g, dr="dr2"):
     -----
         - Input quantities are the same as in `the Gaia data model`_.
     """
-    # ADM allowed Data Releases for input.
-    droptions = ["dr2", "edr3"]
-    if dr not in droptions:
-        msg = "input dr must be one of {}".format(droptions)
-        log.critical(msg)
-        raise IOError(msg)
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
 
     if dr == "dr2":
         psflike = np.logical_or(
@@ -266,11 +275,11 @@ def sub_gaia_edr3(filename, objs=None, suball=False):
 
     # ADM if substituting everything, add vital 'PHOT_G_N_OBS' column.
     if suball:
-        dt = objs.dtype.descr + [('PHOT_G_N_OBS', '>i4')]
+        dt = objs.dtype.descr + [('GAIA_PHOT_G_N_OBS', '>i4')]
         objsout = np.empty(len(objs), dtype=dt)
         for col in objs.dtype.names:
             objsout[col] = objs[col]
-        objsout['PHOT_G_N_OBS'][g3] = gswobjs['EDR3_PHOT_G_N_OBS'][g3]
+        objsout['GAIA_PHOT_G_N_OBS'][g3] = gswobjs['EDR3_PHOT_G_N_OBS'][g3]
         return objsout
 
     return objs
