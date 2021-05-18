@@ -357,18 +357,19 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         dummyfile = find_gaia_files_hp(nside, pixlist[0],
                                        neighbors=False, dr=dr)[0]
     dummygfas = np.array([], gaia_in_file(
-        dummyfile, addparams=addparams, test=test).dtype, dr=dr)
+        dummyfile, addparams=addparams, test=test, dr=dr).dtype)
 
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
-        infilesbox = find_gaia_files_box([0, 360, mindec, 90])
-        infilesgalb = find_gaia_files_beyond_gal_b(mingalb)
+        infilesbox = find_gaia_files_box([0, 360, mindec, 90], dr=dr)
+        infilesgalb = find_gaia_files_beyond_gal_b(mingalb, dr=dr)
         infiles = list(set(infilesbox).intersection(set(infilesgalb)))
         if pixlist is not None:
-            infileshp = find_gaia_files_hp(nside, pixlist, neighbors=False)
+            infileshp = find_gaia_files_hp(nside, pixlist,
+                                           neighbors=False, dr=dr)
             infiles = list(set(infiles).intersection(set(infileshp)))
     else:
-        infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False)
+        infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False, dr=dr)
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -376,7 +377,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         '''wrapper on gaia_in_file() given a file name'''
         return gaia_in_file(fn, maglim=maglim, mindec=mindec, mingalb=mingalb,
                             nside=nside, pixlist=pixlist, test=test,
-                            addobjid=addobjid, addparams=addparams)
+                            addobjid=addobjid, addparams=addparams, dr=dr)
 
     # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
