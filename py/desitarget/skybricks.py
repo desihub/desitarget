@@ -93,8 +93,8 @@ class Skybricks(object):
             # Read skybrick file, looking for fits.fz then fits.gz
             for ext in ['fz', 'gz']:
                 fn = os.path.join(self.skybricks_dir,
-                        'sky-{}.fits.{}'.format(
-                            self.skybricks['BRICKNAME'][i], ext))
+                                  'sky-{}.fits.{}'.format(
+                                      self.skybricks['BRICKNAME'][i], ext))
                 if os.path.exists(fn):
                     break
             else:

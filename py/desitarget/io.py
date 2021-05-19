@@ -2531,7 +2531,8 @@ def write_mtl_tile_file(filename, data):
     return len(data), filename
 
 
-def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
+def read_mtl_ledger(filename, unique=True, isodate=None,
+                    initial=False, leq=False):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -2552,8 +2553,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
 
     Returns
     -------
@@ -2606,11 +2610,20 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
         # ADM try a couple of choices to guard against byte-type versus
         # string-type errors.
         try:
-            ii = mtl["TIMESTAMP"] < isodate
-            mtl = mtl[ii]
+            # ADM if `leq` is passed, restrict to before or on isodate...
+            if leq:
+                ii = mtl["TIMESTAMP"] <= isodate
+            # ADM ...otherwise, restrict to strictly before isodate.
+            else:
+                ii = mtl["TIMESTAMP"] < isodate
         except TypeError:
-            ii = mtl["TIMESTAMP"] < isodate.encode()
-            mtl = mtl[ii]
+            # ADM if `leq` is passed, restrict to before or on isodate...
+            if leq:
+                ii = mtl["TIMESTAMP"] <= isodate.encode()
+            # ADM ...otherwise, restrict to strictly before isodate.
+            else:
+                ii = mtl["TIMESTAMP"] < isodate.encode()
+        mtl = mtl[ii]
 
     if unique or initial:
         # ADM the reverse is because np.unique retains the FIRST unique
@@ -2803,8 +2816,8 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False):
     return fileform
 
 
-def read_mtl_in_hp(hpdirname, nside, pixlist,
-                   unique=True, isodate=None, returnfn=False, initial=False):
+def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
+                   returnfn=False, initial=False, leq=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -2833,8 +2846,11 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
 
     Returns
     -------
@@ -2868,7 +2884,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
             fn = fileform.format(pix)
             try:
                 targs = read_mtl_ledger(
-                    fn, unique=unique, isodate=isodate, initial=initial)
+                    fn, unique=unique, isodate=isodate, initial=initial, leq=leq)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -2887,8 +2903,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
-        mtl = read_mtl_ledger(hpdirname,
-                              unique=unique, isodate=isodate, initial=initial)
+        mtl = read_mtl_ledger(
+            hpdirname, unique=unique, isodate=isodate, initial=initial, leq=leq)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)
@@ -2900,8 +2916,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
 
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
-                       quick=False, downsample=None, verbose=False,
-                       mtl=False, unique=True, isodate=None, initial=False):
+                       quick=False, downsample=None, verbose=False, mtl=False,
+                       unique=True, isodate=None, initial=False, leq=False):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -2946,8 +2962,13 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -2970,8 +2991,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
             pixlist=pixlist, columns=columns, header=header)
 
     if mtl:
-        return read_mtl_in_hp(hpdirname, nside, pixlist,
-                              unique=unique, isodate=isodate, initial=initial)
+        return read_mtl_in_hp(
+            hpdirname, nside, pixlist,
+            unique=unique, isodate=isodate, initial=initial, leq=leq)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -3187,7 +3209,7 @@ def read_targets_in_quick(hpdirname, shape=None,
 
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                           quick=False, mtl=False,
-                          unique=True, isodate=None, initial=False):
+                          unique=True, isodate=None, initial=False, leq=False):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
     Parameters
@@ -3225,8 +3247,13 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -3278,7 +3305,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist,
             columns=columnscopy, header=header,
-            mtl=mtl, unique=unique, isodate=isodate, initial=initial)
+            mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq)
 
     # ADM ...otherwise just read in the targets.
     else:
@@ -3304,7 +3331,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                         columns=None, header=False, quick=False, downsample=None,
-                        mtl=False, unique=True, isodate=None, initial=False):
+                        mtl=False, unique=True, isodate=None,
+                        initial=False, leq=False):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -3346,8 +3374,13 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -3385,7 +3418,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist,
             columns=columnscopy, header=header, downsample=downsample,
-            mtl=mtl, unique=unique, isodate=isodate, initial=initial)
+            mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
@@ -3410,7 +3443,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
 
 def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
                         quick=False, mtl=False,
-                        unique=True, isodate=None, initial=False):
+                        unique=True, isodate=None, initial=False, leq=False):
     """Read in targets in an RA, Dec, radius cap.
 
     Parameters
@@ -3448,8 +3481,13 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -3484,7 +3522,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist,
             mtl=mtl, columns=columnscopy, header=header,
-            unique=unique, isodate=isodate, initial=initial)
+            unique=unique, isodate=isodate, initial=initial, leq=leq)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
