@@ -25,7 +25,7 @@ from desitarget.gaiamatch import _get_gaia_nside, gaia_psflike, sub_gaia_edr3
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
-from desitarget.geomask import bundle_bricks, sweep_files_touch_hp
+from desitarget.geomask import bundle_bricks, sweep_files_touch_hp, rewind_coords
 from desitarget.randoms import get_dust
 
 from desiutil import brick
@@ -231,10 +231,17 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
 
     # ADM need to change the data model to Gaia DR2 for Gaia EDR3.
     if dr == "edr3":
+        # ADM first, rewind the coordinates from 2016.0 to 2015.5.
+        rarew, decrew = rewind_coords(objs["EDR3_RA"], objs["EDR3_DEC"],
+                                      objs["EDR3_PMRA"], objs["EDR3_PMDEC"],
+                                      epochnow=2016.0, epochpast=2015.5)
+        objs["EDR3_RA"] = rarew
+        objs["EDR3_DEC"] = decrew
         gaiacols = [col.replace("EDR3", "GAIA") for col in objs.dtype.names]
         objs.dtype.names = [col.replace("GAIA_", "") if
                             "PARALLAX" in col or "PMRA" in col or "PMDEC" in col
                             else col for col in gaiacols]
+
     # ADM rename GAIA_RA/DEC to RA/DEC, as that's what's used for GFAs.
     for radec in ["RA", "DEC"]:
         objs.dtype.names = [radec if col == "GAIA_"+radec else col
