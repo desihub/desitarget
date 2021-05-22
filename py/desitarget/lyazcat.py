@@ -12,7 +12,9 @@ import time
 
 from desitarget.geomask import match
 from desitarget.internal import sharedmem
+from desitarget.io import write_with_units
 from desispec.io import read_spectra
+from desiutil.depend import add_dependencies
 
 from quasarnp.io import load_model
 from quasarnp.io import load_desi_coadd
@@ -560,15 +562,17 @@ def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_f
     tmark('    Creating file...')
     full_outputname = os.path.join(outputdir, outputname)
 
-    prim_hdu = fits.PrimaryHDU()
-    prim_hdu.header['QN_ADDED'] = str(qn_flag)
-    prim_hdu.header['SQ_ADDED'] = str(sq_flag)
-    prim_hdu.header['AB_ADDED'] = str(abs_flag)
+    # ADM add the standard DESI dependencies to the header.
+    hdr = {}
+    add_dependencies(hdr)
 
-    data_hdu = fits.BinTableHDU.from_columns(zcat, name='ZCATALOG')
-    data_out = fits.HDUList([prim_hdu, data_hdu])
+    # ADM add the specific lyazcat dependencies
+    hdr['QN_ADDED'] = qn_flag
+    hdr['SQ_ADDED'] = sq_flag
+    hdr['AB_ADDED'] = abs_flag
 
-    data_out.writeto(full_outputname)
+    # ADM write out the data to the full file name.
+    write_with_units(full_outputname, zcat, extname='QSOZCAT', header=hdr)
 
     return full_outputname
 
@@ -617,8 +621,8 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
     tiledir = os.path.join(zcatdir, tile)
     ymdir = os.path.join(tiledir, night)
 
-    # EBL Create the filename tag that appends to zbest-*, coadd-*, and zqso-*
-    # files.
+    # EBL Create the filename tag that appends to zbest-*, coadd-*,
+    # and zqso-* files.
     filename_tag = f'{petal_num}-{tile}-thru{night}.fits'
     zbestname = f'zbest-{filename_tag}'
     coaddname = f'coadd-{filename_tag}'
