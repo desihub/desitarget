@@ -562,8 +562,8 @@ def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_f
     tmark('    Creating file...')
     full_outputname = os.path.join(outputdir, outputname)
 
-    # ADM add the standard DESI dependencies to the header.
-    hdr = {}
+    # ADM create the header and add the standard DESI dependencies.
+    hdr = fitsio.FITSHDR()
     add_dependencies(hdr)
 
     # ADM add the specific lyazcat dependencies
