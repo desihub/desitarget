@@ -14,6 +14,9 @@ zcat_dir = get_zcat_dir()
 qnmodel_fname = get_qn_model_fname()
 sqmodel_fname = get_sq_model_fname()
 
+# ADM by default we're working with tiles/cumulative.
+sub_dir = os.path.join('tiles', 'cumulative')
+
 # EBL Handy tileid/nightid combos for testing
 #    -  1, 20210406, Note: missing petal 7, good test for skipping bad petal.
 #    - 84, 20210410
@@ -42,8 +45,12 @@ arp.add_argument('-i', '--input_dir',
                  Defaults to {}'.format(zcat_dir))
 arp.add_argument('-o', '--output_dir',
                  metavar='ZCAT_DIR', default=zcat_dir,
-                 help='The root output directory for the zqso file(s). \
+                 help='The root output directory for zqso files.       \
                  Defaults to {}'.format(zcat_dir))
+arp.add_argument('-sd', '--sub_dir',
+                 default=sub_dir,
+                 help='The sub-directories that house zbest files.     \
+                 Defaults to {}'.format(sub_dir))
 arp.add_argument('-q', '--add_quasarnp',
                  action='store_true',
                  help='Add QuasarNP data to zqso file.')
@@ -82,8 +89,8 @@ else:
 
 # ADM as written we need to add tiles/cumulative to the directory
 # ADM structure at this stage.
-input_dir = os.path.join(args.input_dir, 'tiles', 'cumulative')
-output_dir = os.path.join(args.output_dir, 'tiles', 'cumulative')
+input_dir = os.path.join(args.input_dir, args.sub_dir)
+output_dir = os.path.join(args.output_dir, args.sub_dir)
 # ADM create the necessary output directories, if they don't exist.
 os.makedirs(output_dir, exist_ok=True)
 

@@ -84,20 +84,22 @@ def make_new_zcat(zbestname):
     :class:`~numpy.array` or 'bool'
         A zcat in the official format (`zcatdatamodel`) compiled from
         the `tile', 'night', and 'petal_num', in `zcatdir`. If the zbest
-        file for that petal doesn't exist, returns False.
+        file for that petal doesn't exist, returns ``False``.
     """
     tmark('    Making redrock zcat')
+
     try:
         zs = fits.open(zbestname)['ZBEST'].data
         # EBL write out the zcat as a file with the correct data model.
-        zcat = np.zeros(len(zs), dtype={'names': zcatdatamodel_names, 'formats': zcatdatamodel_formats})
+        zcat = np.zeros(len(zs), dtype={'names': zcatdatamodel_names,
+                                        'formats': zcatdatamodel_formats})
         for col in zcols_copy:
             zcat[col] = zs[col]
         for col in n1_cols:
             zcat[col][:] = -1
-
         return zcat
-    except (FileNotFoundError, OSError):
+
+    except FileNotFoundError:
         return False
 
 
@@ -563,7 +565,7 @@ def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_f
     full_outputname = os.path.join(outputdir, outputname)
 
     # ADM create the header and add the standard DESI dependencies.
-    hdr = fitsio.FITSHDR()
+    hdr = {}
     add_dependencies(hdr)
 
     # ADM add the specific lyazcat dependencies
@@ -623,14 +625,23 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
 
     # EBL Create the filename tag that appends to zbest-*, coadd-*,
     # and zqso-* files.
-    filename_tag = f'{petal_num}-{tile}-thru{night}.fits'
+    filename_tag = f'{petal_num}-{tile}-{night}.fits'
+    # ADM try a couple of generic options for the file names.
+    if not os.path.isfile(os.path.join(ymdir, f'zbest-{filename_tag}')):
+        filename_tag = f'{petal_num}-{tile}-thru{night}.fits'
+
     zbestname = f'zbest-{filename_tag}'
     coaddname = f'coadd-{filename_tag}'
     outputname = f'zqso-{filename_tag}'
 
-    zcat = make_new_zcat(os.path.join(ymdir, zbestname))
+    fn = os.path.join(ymdir, zbestname)
+    zcat = make_new_zcat(fn)
     if isinstance(zcat, bool):
-        log.info('  !!!! Petal Number does not have a corresponding zbest file !!!!')
+        log.info('Petal Number has no corresponding zbest file: {}'.format(fn))
+        if not os.path.isdir(ymdir):
+            msg = "Directory doesn't exist: {}".format(ymdir)
+            log.error(msg)
+            raise FileNotFoundError(msg)
     else:
         if qn_flag:
             zcat = add_qn_data(zcat, os.path.join(ymdir, coaddname),
