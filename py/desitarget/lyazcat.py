@@ -538,7 +538,8 @@ def zcomb_selector(zcat, proc_flag=False):
     return zcat
 
 
-def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_flag=False):
+def zcat_writer(zcat, outputdir, outputname,
+                qn_flag=False, sq_flag=False, abs_flag=False):
     """Writes the zcat structured array out as a FITS file.
 
     Parameters
@@ -561,7 +562,12 @@ def zcat_writer(zcat, outputdir, outputname, qn_flag=False, sq_flag=False, abs_f
     :class:'str'
         The filename, with path, of the FITS file written out.
     """
-    tmark('    Creating file...')
+    tmark('    Creating output file...')
+
+    # ADM create the necessary output directory, if it doesn't exist.
+    os.makedirs(outputdir, exist_ok=True)
+
+    # ADM construct the fill filename.
     full_outputname = os.path.join(outputdir, outputname)
 
     # ADM create the header and add the standard DESI dependencies.
@@ -596,7 +602,8 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
     zcatdir : :class:'str'
         The location for the daily redrock output.
     outputdir : :class:'str'
-        The filepath to write out the zcat file.
+        The root output directory used to construct the tile/night
+        directory to which to write out the zcat file.
     qn_flag : :class:'bool', optional
         Flag to add QuasarNP data (or not) to the zcat file.
     qnp_model : :class:'h5 array', optional
@@ -622,6 +629,9 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
     # EBL Create the filepath for the input tile/night combination
     tiledir = os.path.join(zcatdir, tile)
     ymdir = os.path.join(tiledir, night)
+
+    # ADM Create the corresponding output directory.
+    outputdir = os.path.join(outputdir, tile, night)
 
     # EBL Create the filename tag that appends to zbest-*, coadd-*,
     # and zqso-* files.

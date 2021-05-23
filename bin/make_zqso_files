@@ -6,6 +6,10 @@ from desitarget.lyazcat import get_qn_model_fname, load_qn_model
 from desitarget.lyazcat import get_sq_model_fname, load_sq_model
 from desitarget.lyazcat import create_zcat, tmark
 
+# ADM set up the DESI default logger.
+from desiutil.log import get_logger
+log = get_logger()
+
 # EBL get the directory where zbest and coadd files are stored.
 zcat_dir = get_zcat_dir()
 
@@ -31,25 +35,28 @@ from argparse import ArgumentParser
 
 arp = ArgumentParser(description='Create a zqso file for tile/night combinations.')
 arp.add_argument('tile',
-                 help='TILEID of the tile to process.')
+                 help='TILEID(s) of tiles to process. Pass a comma-separated    \
+                 list (e.g. 1 for TILE 1 or "1,84,85" for TILEs 1, 84, 85)')
 arp.add_argument('night',
-                 help='NIGHTID of the tile to process in YYYYMMDD.')
+                 help='NIGHTID(s) of tiles to process in YYYYMMDD. Pass a comma \
+                 -separated list (e.g. 20210406 or "20210406,20210410,20210412")\
+                 which must correspond to the TILEIDs')
 arp.add_argument('-p', '--petal', 
                  default="0,1,2,3,4,5,6,7,8,9",
-                 help='Petals to run. Pass comma-separated integers    \
-                 (e.g. "1" for petal 1, "3,5,8" for petals 3, 5 and 8) \
+                 help='Petals to run. Pass comma-separated integers             \
+                 (e.g. "1" for petal 1, "3,5,8" for petals 3, 5 and 8)          \
                  Defaults to 0,1,2,3,4,5,6,7,8,9 (all petals)')
 arp.add_argument('-i', '--input_dir',
                  metavar='ZCAT_DIR', default=zcat_dir,
-                 help='The root input directory for DESI spectra.      \
+                 help='The root input directory for DESI spectra.               \
                  Defaults to {}'.format(zcat_dir))
 arp.add_argument('-o', '--output_dir',
                  metavar='ZCAT_DIR', default=zcat_dir,
-                 help='The root output directory for zqso files.       \
+                 help='The root output directory for zqso files.                \
                  Defaults to {}'.format(zcat_dir))
 arp.add_argument('-sd', '--sub_dir',
                  default=sub_dir,
-                 help='The sub-directories that house zbest files.     \
+                 help='The sub-directories that house zbest files.              \
                  Defaults to {}'.format(sub_dir))
 arp.add_argument('-q', '--add_quasarnp',
                  action='store_true',
@@ -63,12 +70,12 @@ arp.add_argument('-m', '--add_mgii',
 arp.add_argument('-n', '--qn_model',
                  metavar='QN_MODEL_FILE',
                  default=qnmodel_fname,
-                 help='The full path and filename for the QuasarNP model \
+                 help='The full path and filename for the QuasarNP model        \
                  file. Defaults to {}'.format(qnmodel_fname))
 arp.add_argument('-e', '--sqz_model',
                  metavar='SQ_MODEL_FILE',
                  default=sqmodel_fname,
-                 help='The full path and filename for the SQUEzE model \
+                 help='The full path and filename for the SQUEzE model          \
                  file. Defaults to {}'.format(sqmodel_fname))
 args = arp.parse_args()
 
@@ -87,19 +94,21 @@ if args.add_squeze:
 else:
     sq_model = None
 
-# ADM as written we need to add tiles/cumulative to the directory
-# ADM structure at this stage.
+# ADM add, e.g., tiles/cumulative to the directory structure.
 input_dir = os.path.join(args.input_dir, args.sub_dir)
 output_dir = os.path.join(args.output_dir, args.sub_dir)
-# ADM create the necessary output directories, if they don't exist.
-os.makedirs(output_dir, exist_ok=True)
 
-petals = [ p for p in args.petal.split(',') ]
+tiles = [t for t in args.tile.split(',')]
+nights = [n for n in args.night.split(',')]
+petals = [p for p in args.petal.split(',')]
 
-for pnum in petals:
-    create_zcat(args.tile, args.night, pnum,
-                zcatdir=input_dir, outputdir=output_dir,
-                qn_flag=args.add_quasarnp, qnp_model=qnp_model,
-                qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
-                sq_flag=args.add_squeze, squeze_model=sq_model,
-                abs_flag=args.add_mgii)
+for tile, night in zip(tiles, nights):
+    for pnum in petals:
+        log.info("processing TILEID={}, NIGHTID={}, petal={}".format(
+            tile, night, pnum))
+        create_zcat(tile, night, pnum,
+                    zcatdir=input_dir, outputdir=output_dir,
+                    qn_flag=args.add_quasarnp, qnp_model=qnp_model,
+                    qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
+                    sq_flag=args.add_squeze, squeze_model=sq_model,
+                    abs_flag=args.add_mgii)
