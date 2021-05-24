@@ -626,6 +626,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         if hpxlist is not None:
             subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
+        # SB only set subpriorities that aren't already set, but keep original
+        # full random sequence order
+        ii = data["SUBPRIORITY"] <= 0.0
+        data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
         data["SUBPRIORITY"] = np.random.random(ntargs)
         hdr["SUBPSEED"] = subpseed
 
@@ -994,7 +998,10 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         if hpxlist is not None:
             subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
-        data["SUBPRIORITY"] = np.random.random(ntargs)
+        # SB only set subpriorities that aren't already set, but keep original
+        # full random sequence order
+        ii = data["SUBPRIORITY"] <= 0.0
+        data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
         hdr["SUBPSEED"] = subpseed
 
     # ADM remove the supplemental columns.
@@ -1216,7 +1223,8 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 log.error(msg)
                 raise ValueError(msg)
         np.random.seed(subpseed)
-        data["SUBPRIORITY"] = np.random.random(nskies)
+        ii = data["SUBPRIORITY"] <= 0.0
+        data["SUBPRIORITY"][ii] = np.random.random(nskies)[ii]
         hdr["SUBPSEED"] = subpseed
 
     # ADM add the extra dictionary to the header.

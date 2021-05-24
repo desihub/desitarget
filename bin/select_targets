@@ -12,6 +12,7 @@ from desitarget.cuts import select_targets, qso_selection_options
 from desitarget.brightmask import mask_targets
 from desitarget.QA import _parse_tcnames
 from desitarget.targets import decode_targetid
+from desitarget.subpriority import override_subpriority
 
 from time import time
 start = time()
@@ -79,6 +80,8 @@ ap.add_argument("-noc", "--nochecksum", action='store_true',
                 help='Do NOT add the list of input files and their checksums to the output target file as the second ("INFILES") extension')
 ap.add_argument("-check", "--checkbright", action='store_true',
                 help='If passed, then log a warning about targets that could be too bright when writing output files')
+ap.add_argument("--override-subpriority", type=str,
+                help='Optional file with TARGETID:SUBPRIORITY override')
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
@@ -160,6 +163,15 @@ if ns.bundlefiles is None:
         shatab = None
     else:
         shatab = get_checksums(infn, verbose=True)
+
+    # SB apply optional subpriority override; modifies targets in-place
+    if ns.override_subpriority:
+        subpriorities = fitsio.read(ns.override_subpriority, 'SUBPRIORITY')
+        ii = override_subpriority(targets, subpriorities)
+        if len(ii) > 0:
+            log.info(f"Overriding {len(ii)} SUBPRIORITY from {ns.override_subpriority}")
+        else:
+            log.warning(f"No matching targets to override SUBPRIORITY from {ns.override_subpriority}")
 
     # ADM only run secondary functions if --nosecondary was not passed.
     scndout = None
