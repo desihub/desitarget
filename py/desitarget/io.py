@@ -611,7 +611,10 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None:
         np.random.seed(616)
-        data["SUBPRIORITY"] = np.random.random(ntargs)
+        # SB only set subpriorities that aren't already set, but keep original
+        # full random sequence order
+        ii = data["SUBPRIORITY"] > 0.0
+        data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
 
     # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
     hdr["SURVEY"] = survey
@@ -965,7 +968,10 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     if "SUBPRIORITY" in data.dtype.names:
         ntargs = len(data)
         np.random.seed(616)
-        data["SUBPRIORITY"] = np.random.random(ntargs)
+        # SB only set subpriorities that aren't already set, but keep original
+        # full random sequence order
+        ii = data["SUBPRIORITY"] > 0.0
+        data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
 
     # ADM remove the supplemental columns.
     from desitarget.secondary import suppdatamodel
@@ -1155,7 +1161,11 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
             np.random.seed(626)
         else:
             np.random.seed(616)
-        data["SUBPRIORITY"] = np.random.random(nskies)
+
+        # SB only set subpriorities that aren't already set, but keep original
+        # full random sequence order
+        ii = data["SUBPRIORITY"] > 0.0
+        data["SUBPRIORITY"][ii] = np.random.random(nskies)[ii]
 
     # ADM add the extra dictionary to the header.
     if extra is not None:
