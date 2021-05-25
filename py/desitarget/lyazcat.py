@@ -39,19 +39,13 @@ from astropy.convolution import convolve
 from desiutil.log import get_logger
 log = get_logger()
 
-zcatdatamodel_names = np.array(['TARGETID', 'Z', 'ZWARN', 'DELTACHI2',
-                                'Z_COMB', 'Z_COMB_PROB', 'Z_QN', 'Z_QN_CONF',
-                                'IS_QSO_QN', 'Z_SQ', 'Z_SQ_CONF', 'Z_ABS',
-                                'Z_ABS_CONF'])
-
-zcatdatamodel_formats = np.array(['>i8', '>f8', '>i8', '>f8',
-                                  '>f8', '>f8', '>f8', '>f8',
-                                  '>i2', '>f8', '>f8', '>f8',
-                                  '>f8'])
-zcols_copy = np.array(['TARGETID', 'Z', 'ZWARN', 'DELTACHI2'])
-n1_cols = np.array(['Z_QN', 'Z_QN_CONF', 'IS_QSO_QN', 'Z_SQ', 'Z_SQ_CONF',
-                    'Z_ABS', 'Z_ABS_CONF'])
-
+# ADM data models for the various afterburners.
+zcatdatamodel = [('TARGETID', '>i8'), ('Z', '>f8'),
+                 ('ZWARN', '>i8'), ('DELTACHI2', '>f8')]
+qndm = [('Z_QN', '>f8'), ('Z_QN_CONF', '>f8'), ('IS_QSO_QN', '>i2')]
+sqdm = [('Z_SQ', '>f8'), ('Z_SQ_CONF', '>f8')]
+absdm = [('Z_ABS', '>f8'), ('Z_ABS_CONF', '>f8')]
+combdm = [('Z_COMB', '>f8'), ('Z_COMB_PROB', '>f8')]
 
 def tmark(istring):
     """A function to mark the time an operation starts or ends.
@@ -71,13 +65,22 @@ def tmark(istring):
     log.info('\n{}: {}'.format(istring, t_start))
 
 
-def make_new_zcat(zbestname):
+def make_new_zcat(zbestname, qn_flag=False, sq_flag=False, abs_flag=False,
+                  zcomb_flag=False):
     """Make the initial zcat array with redrock data.
 
     Parameters
     ----------
     zbestname : :class:`str`
         Full filename and path for the zbest file to process.
+    qn_flag : :class:'bool', optional
+        Flag to add QuasarNP data (or not) to the zcat file.
+    sq_flag : :class:'bool', optional
+        Flag to add SQUEzE data (or not) to the zcat file.
+    abs_flag : :class:'bool', optional
+        Flag to add MgII Absorption data (or not) to the zcat file.
+    zcomb_flag : :class:'bool', optional
+        Flag if a combined redshift (or not) was added to the zcat file.
 
     Returns
     -------
@@ -90,13 +93,20 @@ def make_new_zcat(zbestname):
 
     try:
         zs = fits.open(zbestname)['ZBEST'].data
-        # EBL write out the zcat as a file with the correct data model.
-        zcat = np.zeros(len(zs), dtype={'names': zcatdatamodel_names,
-                                        'formats': zcatdatamodel_formats})
-        for col in zcols_copy:
+
+        # ADM output file is based on which afterburners were specified.
+        dt = zcatdatamodel.copy()
+        for flag, dm in zip([qn_flag, sq_flag, abs_flag, zcomb_flag],
+                            [qndm, sqdm, absdm, combdm]):
+            if flag:
+                dt += dm
+
+        zcat = np.full(len(zs), -1, dtype=dt)
+
+        # ADM add the columns from the original zbest file.
+        for col in np.array([], dtype=zcatdatamodel).dtype.names:
             zcat[col] = zs[col]
-        for col in n1_cols:
-            zcat[col][:] = -1
+
         return zcat
 
     except FileNotFoundError:
@@ -652,7 +662,7 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
 
     zbestfn = os.path.join(ymdir, zbestname)
     coaddfn = os.path.join(ymdir, coaddname)
-    zcat = make_new_zcat(zbestfn)
+    zcat = make_new_zcat(zbestfn, qn_flag, sq_flag, abs_flag, zcomb_flag)
     if isinstance(zcat, bool):
         log.info('Petal Number has no corresponding zbest file: {}'.format(zbestfn))
         if not os.path.isdir(ymdir):
