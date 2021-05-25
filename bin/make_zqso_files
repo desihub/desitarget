@@ -58,9 +58,9 @@ arp.add_argument('-sd', '--sub_dir',
                  default=sub_dir,
                  help='The sub-directories that house zbest files.              \
                  Defaults to {}'.format(sub_dir))
-arp.add_argument('-q', '--add_quasarnp',
+arp.add_argument('-noq', '--no_quasarnp',
                  action='store_true',
-                 help='Add QuasarNP data to zqso file.')
+                 help='QuasarNP is added by default. Send this to NOT add it.')
 arp.add_argument('-s', '--add_squeze',
                  action='store_true',
                  help='Add SQUEzE data to zqso file.')
@@ -82,8 +82,11 @@ arp.add_argument('-e', '--sqz_model',
                  file. Defaults to {}'.format(sqmodel_fname))
 args = arp.parse_args()
 
+add_quasarnp = not(args.no_quasarnp)
+print(add_quasarnp)
+
 # EBL Load the QuasarNP model file if QuasarNP is activated.
-if args.add_quasarnp:
+if add_quasarnp:
     tmark('    Loading QuasarNP Model file')
     qnp_model, qnp_lines, qnp_lines_bal = load_qn_model(args.qn_model)
     tmark('      QNP model file loaded')
@@ -111,7 +114,7 @@ for tile, night in zip(tiles, nights):
             tile, night, pnum))
         create_zcat(tile, night, pnum,
                     zcatdir=input_dir, outputdir=output_dir,
-                    qn_flag=args.add_quasarnp, qnp_model=qnp_model,
+                    qn_flag=add_quasarnp, qnp_model=qnp_model,
                     qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
                     sq_flag=args.add_squeze, squeze_model=sq_model,
                     abs_flag=args.add_mgii, zcomb_flag=args.add_zcomb)
