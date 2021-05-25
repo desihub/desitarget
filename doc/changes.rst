@@ -5,7 +5,9 @@ desitarget Change Log
 1.0.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Refactor data model and I/O for the QSO redshift catalogs [`PR #737`_].
+
+.. _`PR #737`: https://github.com/desihub/desitarget/pull/737
 
 1.0.1 (2021-05-14)
 ------------------
