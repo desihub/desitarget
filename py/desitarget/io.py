@@ -613,7 +613,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         np.random.seed(616)
         # SB only set subpriorities that aren't already set, but keep original
         # full random sequence order
-        ii = data["SUBPRIORITY"] > 0.0
+        ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
 
     # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
@@ -970,7 +970,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         np.random.seed(616)
         # SB only set subpriorities that aren't already set, but keep original
         # full random sequence order
-        ii = data["SUBPRIORITY"] > 0.0
+        ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
 
     # ADM remove the supplemental columns.
@@ -1164,7 +1164,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
 
         # SB only set subpriorities that aren't already set, but keep original
         # full random sequence order
-        ii = data["SUBPRIORITY"] > 0.0
+        ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(nskies)[ii]
 
     # ADM add the extra dictionary to the header.
