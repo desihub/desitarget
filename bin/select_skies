@@ -13,6 +13,7 @@ from desitarget.subpriority import override_subpriority
 
 import numpy as np
 import healpy as hp
+import fitsio
 from glob import glob
 
 #import warnings
@@ -68,8 +69,8 @@ ap.add_argument("--nomasking", action='store_true',
 ap.add_argument("--maskdir",
                 help="Name of the specific directory (or file) containing the bright star mask (defaults to the most recent directory in $MASK_DIR)",
                 default=None)
-ap.add_argument("--override-subpriority", type=str,
-                help='Optional file with TARGETID:SUBPRIORITY override')
+ap.add_argument("--sky-subpriorities", type=str,
+                help='Optional file with sky TARGETID:SUBPRIORITY override')
 
 ns = ap.parse_args()
 do_mask = not(ns.nomasking)
@@ -175,13 +176,13 @@ else:
                                   [do_mask, mdcomp])}
 
     # SB apply optional subpriority override; modifies skies in-place
-    if ns.override_subpriority:
-        subpriorities = fitsio.read(ns.override_subpriority, 'SUBPRIORITY')
+    if ns.sky_subpriorities:
+        subpriorities = fitsio.read(ns.sky_subpriorities, 'SUBPRIORITY')
         ii = override_subpriority(skies, subpriorities)
         if len(ii) > 0:
-            log.info(f"Overriding {len(ii)} SUBPRIORITY from {ns.override_subpriority}")
+            log.info(f"Overriding {len(ii)} SUBPRIORITY from {ns.sky_subpriorities}")
         else:
-            log.warning(f"No matching targets to override SUBPRIORITY from {ns.override_subpriority}")
+            log.warning(f"No matching targets to override SUBPRIORITY from {ns.sky_subpriorities}")
 
 
     # ADM this correctly records the apertures in the output file header
