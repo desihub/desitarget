@@ -644,22 +644,22 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
     coaddname = f'coadd-{filename_tag}'
     outputname = f'zqso-{filename_tag}'
 
-    fn = os.path.join(ymdir, zbestname)
-    zcat = make_new_zcat(fn)
+    zbestfn = os.path.join(ymdir, zbestname)
+    coaddfn = os.path.join(ymdir, coaddname)
+    zcat = make_new_zcat(zbestfn)
     if isinstance(zcat, bool):
-        log.info('Petal Number has no corresponding zbest file: {}'.format(fn))
+        log.info('Petal Number has no corresponding zbest file: {}'.format(zbestfn))
         if not os.path.isdir(ymdir):
             msg = "Directory doesn't exist: {}".format(ymdir)
             log.error(msg)
             raise FileNotFoundError(msg)
     else:
         if qn_flag:
-            zcat = add_qn_data(zcat, os.path.join(ymdir, coaddname),
-                               qnp_model, qnp_lines, qnp_lines_bal)
+            zcat = add_qn_data(zcat, coaddfn, qnp_model, qnp_lines, qnp_lines_bal)
         if sq_flag:
-            zcat = add_sq_data(zcat, os.path.join(ymdir, coaddname), squeze_model)
+            zcat = add_sq_data(zcat, coaddfn, squeze_model)
         if abs_flag:
-            zcat = add_abs_data(zcat, os.path.join(ymdir, coaddname))
+            zcat = add_abs_data(zcat, coaddfn)
 
         fzcat = zcomb_selector(zcat)
 
