@@ -70,12 +70,12 @@ arp.add_argument('-m', '--add_mgii',
 arp.add_argument('-zc', '--add_zcomb',
                  action='store_true',
                  help='Add combined redshift information.')
-arp.add_argument('-n', '--qn_model',
+arp.add_argument('-n', '--qn_model_file',
                  metavar='QN_MODEL_FILE',
                  default=qnmodel_fname,
                  help='The full path and filename for the QuasarNP model        \
                  file. Defaults to {}'.format(qnmodel_fname))
-arp.add_argument('-e', '--sqz_model',
+arp.add_argument('-e', '--sq_model_file',
                  metavar='SQ_MODEL_FILE',
                  default=sqmodel_fname,
                  help='The full path and filename for the SQUEzE model          \
@@ -83,19 +83,18 @@ arp.add_argument('-e', '--sqz_model',
 args = arp.parse_args()
 
 add_quasarnp = not(args.no_quasarnp)
-print(add_quasarnp)
 
 # EBL Load the QuasarNP model file if QuasarNP is activated.
 if add_quasarnp:
-    tmark('    Loading QuasarNP Model file')
-    qnp_model, qnp_lines, qnp_lines_bal = load_qn_model(args.qn_model)
+    tmark('    Loading QuasarNP Model file and lines of interest')
+    qnp_model, qnp_lines, qnp_lines_bal = load_qn_model(args.qn_model_file)
     tmark('      QNP model file loaded')
 else:
     qnp_model, qnp_lines, qnp_lines_bal = None, None, None
 
 if args.add_squeze:
     tmark('    Loading SQUEzE Model file')
-    sq_model = load_sq_model(args.sqz_model)
+    sq_model = load_sq_model(args.sq_model_file)
     tmark('      Model file loaded')
 else:
     sq_model = None
@@ -112,9 +111,11 @@ for tile, night in zip(tiles, nights):
     for pnum in petals:
         log.info("processing TILEID={}, NIGHTID={}, petal={}".format(
             tile, night, pnum))
-        create_zcat(tile, night, pnum,
-                    zcatdir=input_dir, outputdir=output_dir,
-                    qn_flag=add_quasarnp, qnp_model=qnp_model,
-                    qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
-                    sq_flag=args.add_squeze, squeze_model=sq_model,
-                    abs_flag=args.add_mgii, zcomb_flag=args.add_zcomb)
+        create_zcat(
+            tile, night, pnum,
+            zcatdir=input_dir, outputdir=output_dir, qn_flag=add_quasarnp,
+            qnp_model=qnp_model, qnp_model_file=args.qn_model_file,
+            qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
+            sq_flag=args.add_squeze, squeze_model=sq_model,
+            squeze_model_file=args.sq_model_file, abs_flag=args.add_mgii,
+            zcomb_flag=args.add_zcomb)

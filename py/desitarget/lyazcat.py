@@ -73,18 +73,18 @@ def make_new_zcat(zbestname, qn_flag=False, sq_flag=False, abs_flag=False,
     ----------
     zbestname : :class:`str`
         Full filename and path for the zbest file to process.
-    qn_flag : :class:'bool', optional
+    qn_flag : :class:`bool'` optional
         Flag to add QuasarNP data (or not) to the zcat file.
-    sq_flag : :class:'bool', optional
+    sq_flag : :class:`bool`, optional
         Flag to add SQUEzE data (or not) to the zcat file.
-    abs_flag : :class:'bool', optional
+    abs_flag : :class:`bool`, optional
         Flag to add MgII Absorption data (or not) to the zcat file.
-    zcomb_flag : :class:'bool', optional
+    zcomb_flag : :class:`bool`, optional
         Flag if a combined redshift (or not) was added to the zcat file.
 
     Returns
     -------
-    :class:`~numpy.array` or 'bool'
+    :class:`~numpy.array` or `bool`
         A zcat in the official format (`zcatdatamodel`) compiled from
         the `tile', 'night', and 'petal_num', in `zcatdir`. If the zbest
         file for that petal doesn't exist, returns ``False``.
@@ -144,17 +144,17 @@ def load_qn_model(model_filename):
 
     Parameters
     ----------
-    model_filename : :class:'str'
+    model_filename : :class:`str`
         The filename and path of the QuasarNP model. Either input by user or defaults
         to get_qn_model_fname().
 
     Returns
     -------
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         The QuasarNP model file loaded as an array.
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         An array of the emission line names to be used for quasarnp.process_preds().
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         An array of the BAL emission line names to be used by quasarnp.process_preds().
     """
     lines = ['LYA', 'CIV(1548)', 'CIII(1909)', 'MgII(2796)', 'Hbeta', 'Halpha']
@@ -169,23 +169,23 @@ def add_qn_data(zcat, coaddname, qnp_model, qnp_lines, qnp_lines_bal):
 
     Parameters
     ----------
-    zcat : :class:'~numpy.array'
+    zcat : :class:`~numpy.array`
         The structured array that was created by make_new_zcat()
-    coaddname : :class:'str'
+    coaddname : :class:`str`
         The name of the coadd file corresponding to the zbest file used
         in make_new_zcat()
-    qnp_model : :class:'h5.array'
+    qnp_model : :class:`h5.array`
         The array containing the pre-trained QuasarNP model.
-    qnp_lines : :class:'list'
+    qnp_lines : :class:`list`
         A list containing the names of the emission lines that
         quasarnp.process_preds() should use.
-    qnp_lines_bal : :class:'list'
+    qnp_lines_bal : :class:`list`
         A list containing the names of the emission lines to check
         for BAL troughs.
 
     Returns
     -------
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         The zcat array with QuasarNP data included in the columns:
 
         * Z_QN        - The best QuasarNP redshift for the object
@@ -244,13 +244,13 @@ def load_sq_model(model_filename):
 
     Parameters
     ----------
-    model_filename : :class:'str'
+    model_filename : :class:`str`
         The filename and path of the SQUEzE model file. Either input by user
         or defaults to get_sq_model_fname().
 
     Returns
     -------
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         A numpy array of the SQUEzE model.
 
     Notes
@@ -267,17 +267,17 @@ def add_sq_data(zcat, coaddname, squeze_model):
 
     Parameters
     ----------
-    zcat : :class:'~numpy.array'
+    zcat : :class:`~numpy.array`
         The structured array that was created by make_new_zcat()
-    coaddname : class:'str'
+    coaddname : class:`str`
         The name of the coadd file corresponding to the zbest file used
         in make_new_zcat()
-    squeze_model : :class:'numpy.array'
+    squeze_model : :class:`numpy.array`
         The loaded SQUEzE model file
 
     Returns
     -------
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         The zcat array with SQUEzE data included in the columns:
 
         * Z_SQ        - The best redshift from SQUEzE for each object.
@@ -291,7 +291,7 @@ def add_sq_data(zcat, coaddname, squeze_model):
     tmark('      Reading spectra')
     desi_spectra = read_spectra(coaddname)
     # EBL Initialize squeze Spectra class
-    squeze_spectra = Spectra()
+    squeze_spectra = Spectra([])
     # EBL Get TARGETIDs
     targetid = np.unique(desi_spectra.fibermap['TARGETID'])
     # EBL Loop over TARGETIDs to build the Spectra objects
@@ -354,15 +354,15 @@ def add_abs_data(zcat, coaddname):
 
     Parameters
     ----------
-    zcat : :class:'~numpy.array'
+    zcat : :class:'~numpy.array`
         The structured array that was created by make_new_zcat()
-    coaddname : class:'str'
+    coaddname : class:`str`
         The name of the coadd file corresponding to the zbest file used
         in make_new_zcat()
 
     Returns
     -------
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         The zcat array with MgII Absorption data included in the columns:
 
         * Z_ABS        - The highest redshift of MgII absorption
@@ -529,14 +529,14 @@ def zcomb_selector(zcat, proc_flag=False):
 
     Parameters
     ----------
-    zcat : :class:'~numpy.array'
+    zcat : :class:`~numpy.array`
         The structured array that was created by make_new_zcat()
-    proc_flag : :class:'bool'
+    proc_flag : :class:`bool`
         Turn on extra comparison procedure.
 
     Returns
     -------
-    :class:'~numpy.array'
+    :class:`~numpy.array`
         The zcat array with SQUEzE data included in the columns:
 
         * Z_COMB        - The best models-combined redshift for each object.
@@ -549,29 +549,36 @@ def zcomb_selector(zcat, proc_flag=False):
 
 
 def zcat_writer(zcat, outputdir, outputname,
-                qn_flag=False, sq_flag=False, abs_flag=False, zcomb_flag=False):
+                qn_flag=False, sq_flag=False, abs_flag=False, zcomb_flag=False,
+                qnp_model_file=None, squeze_model_file=None):
     """Writes the zcat structured array out as a FITS file.
 
     Parameters
     ----------
-    zcat : :class:'~numpy.array'
+    zcat : :class:`~numpy.array`
         The structured array that was created by make_new_zcat()
-    outputdir : :class:'str'
+    outputdir : :class:`str`
         The directory where the zcat file will be written.
-    outputname : :class:'str'
+    outputname : :class:`str`
         The filename of the zqso output file.
-    qn_flag : :class:'bool'
+    qn_flag : :class:`bool`
         Flag if QuasarNP data (or not) was added to the zcat file.
-    sq_flag : :class:'bool'
+    sq_flag : :class:`bool`
         Flag if SQUEzE data (or not) was added to the zcat file.
-    abs_flag : :class:'bool'
+    abs_flag : :class:`bool`
         Flag if MgII Absorption data (or not) was added to the zcat file.
-    abs_flag : :class:'bool'
+    zcomb_flag : :class:`bool`
         Flag if a combined redshift (or not) was added to the zcat file.
+    qnp_model_file : :class:`str`, optional
+        File from which the QuasarNP model was loaded. Written to the
+        output header.
+    squeze_model_file : :class:`str`, optional
+        File from which the SQUEzE model was loaded. Written to the
+        output header.
 
     Returns
     -------
-    :class:'str'
+    :class:`str`
         The filename, with path, of the FITS file written out.
     """
     tmark('    Creating output file...')
@@ -591,6 +598,10 @@ def zcat_writer(zcat, outputdir, outputname,
     hdr['SQ_ADDED'] = sq_flag
     hdr['AB_ADDED'] = abs_flag
     hdr['ZC_ADDED'] = zcomb_flag
+    if qn_flag:
+        hdr['QNMODFIL'] = qnp_model_file
+    if sq_flag:
+        hdr['SQMODFIL'] = squeze_model_file
 
     # ADM write out the data to the full file name.
     write_with_units(full_outputname, zcat, extname='QSOZCAT', header=hdr)
@@ -598,41 +609,49 @@ def zcat_writer(zcat, outputdir, outputname,
     return full_outputname
 
 
-def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
-                qnp_model=None, qnp_lines=None, qnp_lines_bal=None,
-                sq_flag=False, squeze_model=None, abs_flag=False,
-                zcomb_flag=False):
+def create_zcat(tile, night, petal_num, zcatdir, outputdir,
+                qn_flag=False, qnp_model=None, qnp_model_file=None,
+                qnp_lines=None, qnp_lines_bal=None,
+                sq_flag=False, squeze_model=None, squeze_model_file=None,
+                abs_flag=False, zcomb_flag=False):
     """This will create a single zqso file from a set of user inputs.
 
     Parameters
     ----------
-    tile : :class:'str'
+    tile : :class:`str`
         The TILEID of the tile to process.
-    night : :class:'str'
+    night : :class:`str`
         The date associated with the observation of the 'tile' used.
         * Must be in YYYYMMDD format
-    petal_num : :class:'int'
+    petal_num : :class:`int`
         If 'all_petals' isn't used, the single petal to create a zcat for.
-    zcatdir : :class:'str'
+    zcatdir : :class:`str`
         The location for the daily redrock output.
-    outputdir : :class:'str'
+    outputdir : :class:`str`
         The root output directory used to construct the tile/night
         directory to which to write out the zcat file.
-    qn_flag : :class:'bool', optional
+    qn_flag : :class:`bool`, optional
         Flag to add QuasarNP data (or not) to the zcat file.
-    qnp_model : :class:'h5 array', optional
+    qnp_model : :class:`h5 array`, optional
         The QuasarNP model file to be used for line predictions.
-    qnp_lines : :class:'list', optional
+    qnp_model_file : :class:`str`, optional
+        File from which to load the QuasarNP model (`qnp_model`),
+        `qnp_lines` and `qnp_lines_bal` if `qnp_model` is ``None``. Also
+        written to the output header of the zqso file.
+    qnp_lines : :class:`list`, optional
         The list of lines to use in the QuasarNP model to test against.
-    qnp_lines : :class:'list', optional
+    qnp_lines_bal : :class:`list`, optional
         The list of BAL lines to use for QuasarNP to identify BALs.
-    sq_flag : :class:'bool', optional
+    sq_flag : :class:`bool`, optional
         Flag to add SQUEzE data (or not) to the zcat file.
-    squeze_model : :class:'numpy.array', optional
+    squeze_model : :class:`numpy.array`, optional
         The numpy array for the SQUEzE model file.
-    abs_flag : :class:'bool', optional
+    squeze_model_file : :class:`str`, optional
+        File from which to load the SQUEzE model if `squeze_model` is
+        ``None``. Also written to the output header of the zqso file.
+    abs_flag : :class:`bool`, optional
         Flag to add MgII Absorption data (or not) to the zcat file.
-    zcomb_flag : :class:'bool', optional
+    zcomb_flag : :class:`bool`, optional
         Flag if a combined redshift (or not) was added to the zcat file.
 
     Notes
@@ -642,6 +661,16 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
       same directory of the zbest and coadd files unless a different
       output directory is passed.
     """
+    # ADM load the model files, if needed.
+    if qn_flag and qnp_model is None:
+        tmark('    Loading QuasarNP Model file and lines of interest')
+        qnp_model, qnp_lines, qnp_lines_bal = load_qn_model(qnp_model_file)
+        tmark('      QNP model file loaded')
+    if sq_flag and squeze_model is None:
+        tmark('    Loading SQUEzE Model file')
+        sq_model = load_sq_model(squeze_model_file)
+        tmark('      Model file loaded')
+
     # EBL Create the filepath for the input tile/night combination
     tiledir = os.path.join(zcatdir, tile)
     ymdir = os.path.join(tiledir, night)
@@ -681,7 +710,8 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
             zcat = zcomb_selector(zcat)
 
         full_outputname = zcat_writer(zcat, outputdir, outputname, qn_flag,
-                                      sq_flag, abs_flag, zcomb_flag)
+                                      sq_flag, abs_flag, zcomb_flag,
+                                      qnp_model_file, squeze_model_file)
 
         tmark('    --{} written out correctly.'.format(full_outputname))
         log.info('='*79)
