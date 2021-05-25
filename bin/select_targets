@@ -80,8 +80,10 @@ ap.add_argument("-noc", "--nochecksum", action='store_true',
                 help='Do NOT add the list of input files and their checksums to the output target file as the second ("INFILES") extension')
 ap.add_argument("-check", "--checkbright", action='store_true',
                 help='If passed, then log a warning about targets that could be too bright when writing output files')
-ap.add_argument("--override-subpriority", type=str,
-                help='Optional file with TARGETID:SUBPRIORITY override')
+ap.add_argument("--dark-subpriorities", type=str,
+                help='Optional file with dark TARGETID:SUBPRIORITY overrides')
+ap.add_argument("--bright-subpriorities", type=str,
+                help='Optional file with bright TARGETID:SUBPRIORITY overrides')
 
 ns = ap.parse_args()
 # ADM build the list of command line arguments as
@@ -164,15 +166,6 @@ if ns.bundlefiles is None:
     else:
         shatab = get_checksums(infn, verbose=True)
 
-    # SB apply optional subpriority override; modifies targets in-place
-    if ns.override_subpriority:
-        subpriorities = fitsio.read(ns.override_subpriority, 'SUBPRIORITY')
-        ii = override_subpriority(targets, subpriorities)
-        if len(ii) > 0:
-            log.info(f"Overriding {len(ii)} SUBPRIORITY from {ns.override_subpriority}")
-        else:
-            log.warning(f"No matching targets to override SUBPRIORITY from {ns.override_subpriority}")
-
     # ADM only run secondary functions if --nosecondary was not passed.
     scndout = None
     if not ns.nosecondary and len(targets) > 0:
@@ -224,7 +217,27 @@ if ns.bundlefiles is None:
         obscons.append(None)
         iis.append(~isgaia)
         supps.append(False)
+
+    # SB subpriority override logic assumes that io.write_targets will set
+    # subpriorities; if they have already been set, crash early so that we
+    # can fix the logic
+    if np.any(targets['SUBPRIORITY'] > 0.0):
+        log.critical('SUBPRIORITY already set; fix override logic below')
+        sys.exit(1)
+
     for obscon, ii, supp in zip(obscons, iis, supps):
+
+        # SB apply optional subpriority override; modifies targets in-place
+        targets['SUBPRIORITY'] = 0.0  # SB reset any previous overrides
+        if obscon == 'BRIGHT' and ns.bright_subpriorities:
+            subpriorities = fitsio.read(ns.bright_subpriorities, 'SUBPRIORITY')
+            overrideidx = override_subpriority(targets, subpriorities)
+            log.info(f'Overriding {len(overrideidx)} {obscon} subpriorities')
+        elif obscon == 'DARK' and ns.dark_subpriorities:
+            subpriorities = fitsio.read(ns.dark_subpriorities, 'SUBPRIORITY')
+            overrideidx = override_subpriority(targets, subpriorities)
+            log.info(f'Overriding {len(overrideidx)} {obscon} subpriorities')
+
         ntargs, outfile = io.write_targets(
             ns.dest, targets[ii], resolve=not(ns.noresolve), nside=nside,
             maskbits=not(ns.nomaskbits), indir=ns.sweepdir, indir2=ns.sweepdir2,
