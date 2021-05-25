@@ -99,6 +99,23 @@ edr3datamodel = np.array([], dtype=[
 ])
 
 
+def check_gaia_survey(dr):
+    """Convenience function to check allowed Gaia Data Releases
+
+    Parameters
+    ----------
+    dr : :class:`str`
+        Name of a Gaia data release. Options are "dr2", "edr3". If one of
+        those options isn't passed, a ValueError is raised.
+    """
+    # ADM allowed Data Releases for input.
+    droptions = ["dr2", "edr3"]
+    if dr not in droptions:
+        msg = "input dr must be one of {}".format(droptions)
+        log.critical(msg)
+        raise ValueError(msg)
+
+
 def get_gaia_dir(dr="dr2"):
     """Convenience function to grab the Gaia environment variable.
 
@@ -112,12 +129,8 @@ def get_gaia_dir(dr="dr2"):
     :class:`str`
         The directory stored in the $GAIA_DIR environment variable.
     """
-    # ADM allowed Data Releases for input.
-    droptions = ["dr2", "edr3"]
-    if dr not in droptions:
-        msg = "input dr must be one of {}".format(droptions)
-        log.critical(msg)
-        raise IOError(msg)
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
 
     # ADM check that the $GAIA_DIR environment variable is set.
     gaiadir = os.environ.get('GAIA_DIR')
@@ -186,12 +199,8 @@ def gaia_psflike(aen, g, dr="dr2"):
     -----
         - Input quantities are the same as in `the Gaia data model`_.
     """
-    # ADM allowed Data Releases for input.
-    droptions = ["dr2", "edr3"]
-    if dr not in droptions:
-        msg = "input dr must be one of {}".format(droptions)
-        log.critical(msg)
-        raise IOError(msg)
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
 
     if dr == "dr2":
         psflike = np.logical_or(
@@ -207,8 +216,8 @@ def gaia_psflike(aen, g, dr="dr2"):
     return psflike
 
 
-def sub_gaia_edr3(filename, objs=None):
-    """Substitute Gaia EDR3 parallax and proper motions into DR9 sweeps.
+def sub_gaia_edr3(filename, objs=None, suball=False):
+    """Substitute Gaia EDR3 "astrometric" columns into DR9 sweeps.
 
     Parameters
     ----------
@@ -217,6 +226,9 @@ def sub_gaia_edr3(filename, objs=None):
         `legacysurvey/dr9/south/sweep/9.0/sweep-210p015-220p020.fits`.
     objs : :class:`array_like`, optional, defaults to ``None``
         The contents of `filename`. If ``None``, read from `filename`.
+    suball : :class:`bool`, optional, defaults to ``False``
+        If ``True`` substitute all of the Gaia EDR3 columns, not
+        just the "astrometric" set used for targeting.
 
     Returns
     -------
@@ -230,32 +242,45 @@ def sub_gaia_edr3(filename, objs=None):
     - The GAIA_DIR environment variable must be set.
     - The input `objs` will be altered (it it is not ``None``).
     """
+    # ADM if "objs" wasn't sent, read in the sweeps file.
+    if objs is None:
+        objs = fitsio.read(filename, "SWEEP")
+
     # ADM construct the GAIA sweep file location.
     ender = filename.split("dr9/")[-1].replace(".fits", '-gaiaedr3match.fits')
     gd = get_gaia_dir("edr3")
     gsweepfn = os.path.join(gd, "sweeps", ender)
 
     # ADM read the gaia sweep.
-    cols = ["PARALLAX", "PARALLAX_IVAR",
-            "PMRA", "PMRA_IVAR", "PMDEC", "PMDEC_IVAR",
-            "GAIA_DUPLICATED_SOURCE",
-            "GAIA_ASTROMETRIC_PARAMS_SOLVED",
-            "GAIA_ASTROMETRIC_SIGMA5D_MAX",
-            "GAIA_ASTROMETRIC_EXCESS_NOISE"]
-    gaiacols = [col.replace("GAIA", "EDR3") if "GAIA" in col
+    if suball:
+        cols = [col for col in objs.dtype.names if
+                col in gaiadatamodel.dtype.names]
+    else:
+        cols = ["PARALLAX", "PARALLAX_IVAR",
+                "PMRA", "PMRA_IVAR", "PMDEC", "PMDEC_IVAR",
+                "GAIA_DUPLICATED_SOURCE",
+                "GAIA_ASTROMETRIC_PARAMS_SOLVED",
+                "GAIA_ASTROMETRIC_SIGMA5D_MAX",
+                "GAIA_ASTROMETRIC_EXCESS_NOISE"]
+    gaiacols = [col.replace("GAIA", "EDR3") if "GAIA" in col or "REF" in col
                 else "EDR3_{}".format(col) for col in cols]
-    gswobjs, gswhdr = fitsio.read(gsweepfn, "GAIA_SWEEP",
-                                  columns=gaiacols, header=True)
-
-    # ADM if "objs" wasn't sent, read in the sweeps file.
-    if objs is None:
-        objs = fitsio.read(filename, "SWEEP")
+    gswobjs, gswhdr = fitsio.read(gsweepfn, "GAIA_SWEEP", header=True)
 
     # ADM substitute the appropriate columns.
+    g3 = gswobjs["REF_CAT"] == 'G3'
     for col, gaiacol in zip(cols, gaiacols):
-        objs[col] = gswobjs[gaiacol]
+        objs[col][g3] = gswobjs[gaiacol][g3]
     # ADM may also need to update the REF_EPOCH.
-    objs["REF_EPOCH"] = gswhdr["REFEPOCH"]
+    objs["REF_EPOCH"][g3] = gswhdr["REFEPOCH"]
+
+    # ADM if substituting everything, add vital 'PHOT_G_N_OBS' column.
+    if suball:
+        dt = objs.dtype.descr + [('GAIA_PHOT_G_N_OBS', '>i4')]
+        objsout = np.empty(len(objs), dtype=dt)
+        for col in objs.dtype.names:
+            objsout[col] = objs[col]
+        objsout['GAIA_PHOT_G_N_OBS'][g3] = gswobjs['EDR3_PHOT_G_N_OBS'][g3]
+        return objsout
 
     return objs
 

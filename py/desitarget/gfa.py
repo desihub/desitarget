@@ -20,11 +20,12 @@ import desitarget.io
 from desitarget.internal import sharedmem
 from desitarget.gaiamatch import read_gaia_file, find_gaia_files_beyond_gal_b
 from desitarget.gaiamatch import find_gaia_files_tiles, find_gaia_files_box
-from desitarget.gaiamatch import find_gaia_files_hp, _get_gaia_nside, gaia_psflike
+from desitarget.gaiamatch import find_gaia_files_hp, check_gaia_survey
+from desitarget.gaiamatch import _get_gaia_nside, gaia_psflike, sub_gaia_edr3
 from desitarget.uratmatch import match_to_urat
 from desitarget.targets import encode_targetid, resolve
 from desitarget.geomask import is_in_gal_box, is_in_box, is_in_hp
-from desitarget.geomask import bundle_bricks, sweep_files_touch_hp
+from desitarget.geomask import bundle_bricks, sweep_files_touch_hp, rewind_coords
 from desitarget.randoms import get_dust
 
 from desiutil import brick
@@ -52,8 +53,11 @@ gfadatamodel = np.array([], dtype=[
     ('GAIA_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('URAT_ID', '>i8'), ('URAT_SEP', '>f4')
 ])
 
+# ADM if we're using Gaia EDR3, there's an extra column.
+edr3addons = np.array([], dtype=[('GAIA_PHOT_G_N_OBS', '>i4')])
 
-def gaia_morph(gaia):
+
+def gaia_morph(gaia, dr="dr2"):
     """Retrieve morphological type for Gaia sources.
 
     Parameters
@@ -61,6 +65,8 @@ def gaia_morph(gaia):
     gaia: :class:`~numpy.ndarray`
         Numpy structured array containing at least the columns,
         `GAIA_PHOT_G_MEAN_MAG` and `GAIA_ASTROMETRIC_EXCESS_NOISE`.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -69,10 +75,13 @@ def gaia_morph(gaia):
         and is set to either "GPSF" or "GGAL" based on a
         morphological cut with Gaia.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM determine which objects are Gaia point sources.
     g = gaia['GAIA_PHOT_G_MEAN_MAG']
     aen = gaia['GAIA_ASTROMETRIC_EXCESS_NOISE']
-    psf = gaia_psflike(aen, g)
+    psf = gaia_psflike(aen, g, dr=dr)
 
     # ADM populate morphological information.
     morph = np.zeros(len(gaia), dtype=gfadatamodel["TYPE"].dtype)
@@ -82,7 +91,7 @@ def gaia_morph(gaia):
     return morph
 
 
-def gaia_gfas_from_sweep(filename, maglim=18.):
+def gaia_gfas_from_sweep(filename, maglim=18., dr="dr2"):
     """Create a set of GFAs for one sweep file.
 
     Parameters
@@ -91,14 +100,22 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
         A string corresponding to the full path to a sweep file name.
     maglim : :class:`float`, optional, defaults to 18
         Magnitude limit for GFAs in Gaia G-band.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
     :class:`~numpy.ndarray`
         GFA objects from Gaia, formatted according to `desitarget.gfa.gfadatamodel`.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM read in the objects.
     objects = fitsio.read(filename)
+    # ADM if Gaia EDR3 was requested, update the Gaia columns.
+    if dr == "edr3":
+        objects = sub_gaia_edr3(filename, objs=objects, suball=True)
 
     # ADM As a mild speed up, only consider sweeps objects brighter than 3 mags
     # ADM fainter than the passed Gaia magnitude limit. Note that Gaia G-band
@@ -107,7 +124,6 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
           (objects["FLUX_R"] > 10**((22.5-(maglim+3))/2.5)) |
           (objects["FLUX_Z"] > 10**((22.5-(maglim+3))/2.5)))
     objects = objects[ii]
-    nobjs = len(objects)
 
     # ADM only retain objects with Gaia matches.
     # ADM It's fine to propagate an empty array if there are no matches
@@ -120,14 +136,18 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
                                release=objects['RELEASE'])
 
     # ADM format everything according to the data model.
-    gfas = np.zeros(len(objects), dtype=gfadatamodel.dtype)
+    dt = gfadatamodel.dtype.descr
+    # ADM if we're using Gaia EDR3 there's an extra column.
+    if dr == "edr3":
+        dt += edr3addons.dtype.descr
+    gfas = np.zeros(len(objects), dtype=dt)
     # ADM make sure all columns initially have "ridiculous" numbers.
     gfas[...] = -99.
     gfas["REF_CAT"] = ""
     gfas["REF_EPOCH"] = 2015.5
     # ADM remove the TARGETID, BRICK_OBJID, REF_CAT, REF_EPOCH columns
     # ADM and populate them later as they require special treatment.
-    cols = list(gfadatamodel.dtype.names)
+    cols = list(gfas.dtype.names)
     for col in ["TARGETID", "BRICK_OBJID", "REF_CAT", "REF_EPOCH",
                 "URAT_ID", "URAT_SEP"]:
         cols.remove(col)
@@ -159,7 +179,8 @@ def gaia_gfas_from_sweep(filename, maglim=18.):
 
 
 def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
-                 pixlist=None, addobjid=False, addparams=False, test=False):
+                 pixlist=None, addobjid=False, addparams=False,
+                 test=False, dr="dr2"):
     """Retrieve the Gaia objects from a HEALPixel-split Gaia file.
 
     Parameters
@@ -188,6 +209,8 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
     test : :class:`bool`, optional, defaults to ``False``
         If ``True``, then we're running unit tests and don't have to
         find the dust maps.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -200,18 +223,39 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
        - A "Gaia healpix file" here is as made by, e.g.
          :func:`~desitarget.gaiamatch.gaia_fits_to_healpix()`
     """
-    # ADM read in the Gaia file and limit to the passed magnitude.
-    objs = read_gaia_file(infile, addobjid=addobjid)
-    ii = objs['GAIA_PHOT_G_MEAN_MAG'] < maglim
-    objs = objs[ii]
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
+    # ADM read in the Gaia file.
+    objs = read_gaia_file(infile, addobjid=addobjid, dr=dr)
+
+    # ADM need to change the data model to Gaia DR2 for Gaia EDR3.
+    if dr == "edr3":
+        # ADM first, rewind the coordinates from 2016.0 to 2015.5.
+        rarew, decrew = rewind_coords(objs["EDR3_RA"], objs["EDR3_DEC"],
+                                      objs["EDR3_PMRA"], objs["EDR3_PMDEC"],
+                                      epochnow=2016.0, epochpast=2015.5)
+        objs["EDR3_RA"] = rarew
+        objs["EDR3_DEC"] = decrew
+        gaiacols = [col.replace("EDR3", "GAIA") for col in objs.dtype.names]
+        objs.dtype.names = [col.replace("GAIA_", "") if
+                            "PARALLAX" in col or "PMRA" in col or "PMDEC" in col
+                            else col for col in gaiacols]
 
     # ADM rename GAIA_RA/DEC to RA/DEC, as that's what's used for GFAs.
     for radec in ["RA", "DEC"]:
         objs.dtype.names = [radec if col == "GAIA_"+radec else col
                             for col in objs.dtype.names]
 
+    # ADM limit to the passed magnitude.
+    ii = objs['GAIA_PHOT_G_MEAN_MAG'] < maglim
+    objs = objs[ii]
+
     # ADM initiate the GFA data model.
     dt = gfadatamodel.dtype.descr
+    # ADM if we're using Gaia EDR3 there's an extra column.
+    if dr == "edr3":
+        dt += edr3addons.dtype.descr
     if addobjid:
         for tup in ('GAIA_BRICKID', '>i4'), ('GAIA_OBJID', '>i4'):
             dt.append(tup)
@@ -242,7 +286,7 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
         gfas[col] = objs[col]
 
     # ADM update the Gaia morphological type.
-    gfas["TYPE"] = gaia_morph(gfas)
+    gfas["TYPE"] = gaia_morph(gfas, dr=dr)
 
     # ADM populate the BRICKID columns.
     gfas["BRICKID"] = bricks.brickid(gfas["RA"], gfas["DEC"])
@@ -273,7 +317,7 @@ def gaia_in_file(infile, maglim=18, mindec=-30., mingalb=10., nside=None,
 def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
                       tiles=None, mindec=-30, mingalb=10, nside=None,
                       pixlist=None, addobjid=False, addparams=False,
-                      test=False):
+                      test=False, dr="dr2"):
     """An array of all Gaia objects in the DESI tiling footprint
 
     Parameters
@@ -306,6 +350,8 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     test : :class:`bool`, optional, defaults to ``False``
         If ``True``, then we're running unit tests and don't have to
         find the dust maps.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -317,28 +363,32 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
     -----
        - The environment variables $GAIA_DIR and $DESIMODEL must be set.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM to guard against no files being found.
     if pixlist is None:
         dummyfile = find_gaia_files_hp(_get_gaia_nside(), [0],
-                                       neighbors=False)[0]
+                                       neighbors=False, dr=dr)[0]
     else:
         # ADM this is critical for, e.g., unit tests for which the
         # ADM Gaia "00000" pixel file might not exist.
         dummyfile = find_gaia_files_hp(nside, pixlist[0],
-                                       neighbors=False)[0]
+                                       neighbors=False, dr=dr)[0]
     dummygfas = np.array([], gaia_in_file(
-        dummyfile, addparams=addparams, test=test).dtype)
+        dummyfile, addparams=addparams, test=test, dr=dr).dtype)
 
     # ADM grab paths to Gaia files in the sky or the DESI footprint.
     if allsky:
-        infilesbox = find_gaia_files_box([0, 360, mindec, 90])
-        infilesgalb = find_gaia_files_beyond_gal_b(mingalb)
+        infilesbox = find_gaia_files_box([0, 360, mindec, 90], dr=dr)
+        infilesgalb = find_gaia_files_beyond_gal_b(mingalb, dr=dr)
         infiles = list(set(infilesbox).intersection(set(infilesgalb)))
         if pixlist is not None:
-            infileshp = find_gaia_files_hp(nside, pixlist, neighbors=False)
+            infileshp = find_gaia_files_hp(nside, pixlist,
+                                           neighbors=False, dr=dr)
             infiles = list(set(infiles).intersection(set(infileshp)))
     else:
-        infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False)
+        infiles = find_gaia_files_tiles(tiles=tiles, neighbors=False, dr=dr)
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -346,7 +396,7 @@ def all_gaia_in_tiles(maglim=18, numproc=4, allsky=False,
         '''wrapper on gaia_in_file() given a file name'''
         return gaia_in_file(fn, maglim=maglim, mindec=mindec, mingalb=mingalb,
                             nside=nside, pixlist=pixlist, test=test,
-                            addobjid=addobjid, addparams=addparams)
+                            addobjid=addobjid, addparams=addparams, dr=dr)
 
     # ADM this is just to count sweeps files in _update_status.
     nfile = np.zeros((), dtype='i8')
@@ -478,7 +528,7 @@ def add_urat_pms(objs, numproc=4):
 
 def select_gfas(infiles, maglim=18, numproc=4, nside=None,
                 pixlist=None, bundlefiles=None, extra=None,
-                mindec=-30, mingalb=10, addurat=True):
+                mindec=-30, mingalb=10, addurat=True, dr="dr2"):
     """Create a set of GFA locations using Gaia and matching to sweeps.
 
     Parameters
@@ -513,6 +563,8 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         catalog where Gaia is missing proper motions. Requires that
         the :envvar:`URAT_DIR` is set and points to data downloaded and
         formatted by, e.g., :func:`~desitarget.uratmatch.make_urat_files`.
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3"
 
     Returns
     -------
@@ -527,6 +579,9 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         - If numproc > 4, then numproc=4 is enforced for (just those)
           parts of the code that are I/O limited.
     """
+    # ADM check for valid Gaia DR.
+    check_gaia_survey(dr)
+
     # ADM the code can have memory issues for nside=2 with large numproc.
     if nside is not None and nside < 4 and numproc > 8:
         msg = 'Memory may be an issue near Plane for nside < 4 and numproc > 8'
@@ -579,7 +634,7 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
     # ADM the critical function to run on every file.
     def _get_gfas(fn):
         '''wrapper on gaia_gfas_from_sweep() given a file name'''
-        return gaia_gfas_from_sweep(fn, maglim=maglim)
+        return gaia_gfas_from_sweep(fn, maglim=maglim, dr=dr)
 
     # ADM this is just to count sweeps files in _update_status.
     t0 = time()
@@ -609,13 +664,17 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
         gfas = np.concatenate(gfas)
         # ADM resolve any duplicates between imaging data releases.
         gfas = resolve(gfas)
+        # ADM there may be a few objects removed from Gaia DR2 in EDR3.
+        if dr != "dr2":
+            ii = (gfas["REF_CAT"] != b"G2") & (gfas["REF_CAT"] != "G2")
+            gfas = gfas[ii]
 
     # ADM retrieve Gaia objects in the DESI footprint or passed tiles.
     log.info('Retrieving additional Gaia objects...t = {:.1f} mins'
              .format((time()-t0)/60))
     gaia = all_gaia_in_tiles(maglim=maglim, numproc=numproc4, allsky=True,
                              mindec=mindec, mingalb=mingalb,
-                             nside=nside, pixlist=pixlist)
+                             nside=nside, pixlist=pixlist, dr=dr)
 
     # ADM remove any duplicates. Order is important here, as np.unique
     # ADM keeps the first occurence, and we want to retain sweeps
@@ -638,6 +697,11 @@ def select_gfas(infiles, maglim=18, numproc=4, nside=None,
                  .format(np.sum(urat["URAT_ID"] != -1), (time()-t0)/60))
         for col in "PMRA", "PMDEC", "URAT_ID", "URAT_SEP":
             gfas[col][ii] = urat[col]
+        # ADM there are a couple of cases where Tycho has zero REF_EPOCH.
+        # When these match to URAT, it's likely a mismatch.
+        nore = gfas["REF_EPOCH"] == 0
+        gfas["PMRA"][ii & nore] = 0.
+        gfas["PMDEC"][ii & nore] = 0.
 
     # ADM restrict to only GFAs in a set of HEALPixels, if requested.
     if pixlist is not None:
