@@ -67,6 +67,9 @@ arp.add_argument('-s', '--add_squeze',
 arp.add_argument('-m', '--add_mgii',
                  action='store_true',
                  help='Add MgII absorption data to zqso file.')
+arp.add_argument('-zc', '--add_zcomb',
+                 action='store_true',
+                 help='Add combined redshift information.')
 arp.add_argument('-n', '--qn_model',
                  metavar='QN_MODEL_FILE',
                  default=qnmodel_fname,
@@ -111,4 +114,4 @@ for tile, night in zip(tiles, nights):
                     qn_flag=args.add_quasarnp, qnp_model=qnp_model,
                     qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
                     sq_flag=args.add_squeze, squeze_model=sq_model,
-                    abs_flag=args.add_mgii)
+                    abs_flag=args.add_mgii, zcomb_flag=args.add_zcomb)

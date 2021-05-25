@@ -539,7 +539,7 @@ def zcomb_selector(zcat, proc_flag=False):
 
 
 def zcat_writer(zcat, outputdir, outputname,
-                qn_flag=False, sq_flag=False, abs_flag=False):
+                qn_flag=False, sq_flag=False, abs_flag=False, zcomb_flag=False):
     """Writes the zcat structured array out as a FITS file.
 
     Parameters
@@ -556,6 +556,8 @@ def zcat_writer(zcat, outputdir, outputname,
         Flag if SQUEzE data (or not) was added to the zcat file.
     abs_flag : :class:'bool'
         Flag if MgII Absorption data (or not) was added to the zcat file.
+    abs_flag : :class:'bool'
+        Flag if a combined redshift (or not) was added to the zcat file.
 
     Returns
     -------
@@ -578,6 +580,7 @@ def zcat_writer(zcat, outputdir, outputname,
     hdr['QN_ADDED'] = qn_flag
     hdr['SQ_ADDED'] = sq_flag
     hdr['AB_ADDED'] = abs_flag
+    hdr['ZC_ADDED'] = zcomb_flag
 
     # ADM write out the data to the full file name.
     write_with_units(full_outputname, zcat, extname='QSOZCAT', header=hdr)
@@ -587,7 +590,8 @@ def zcat_writer(zcat, outputdir, outputname,
 
 def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
                 qnp_model=None, qnp_lines=None, qnp_lines_bal=None,
-                sq_flag=False, squeze_model=None, abs_flag=False):
+                sq_flag=False, squeze_model=None, abs_flag=False,
+                zcomb_flag=False):
     """This will create a single zqso file from a set of user inputs.
 
     Parameters
@@ -618,13 +622,15 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
         The numpy array for the SQUEzE model file.
     abs_flag : :class:'bool', optional
         Flag to add MgII Absorption data (or not) to the zcat file.
+    zcomb_flag : :class:'bool', optional
+        Flag if a combined redshift (or not) was added to the zcat file.
 
     Notes
     -----
-    - Writes a FITS catalog that incorporates redrock, QuasarNP, SQUEzE, and MgII
-      absorption redshifts and confidence values. This will write to the same
-      directory of the zbest and coadd files unless a different output directory is
-      passed.
+    - Writes a FITS catalog that incorporates redrock, and a range of
+      afterburner redshifts and confidence values. This will write to the
+      same directory of the zbest and coadd files unless a different
+      output directory is passed.
     """
     # EBL Create the filepath for the input tile/night combination
     tiledir = os.path.join(zcatdir, tile)
@@ -661,10 +667,11 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir, qn_flag=False,
         if abs_flag:
             zcat = add_abs_data(zcat, coaddfn)
 
-        fzcat = zcomb_selector(zcat)
+        if zcomb_flag:
+            zcat = zcomb_selector(zcat)
 
-        full_outputname = zcat_writer(fzcat, outputdir, outputname, qn_flag,
-                                      sq_flag, abs_flag)
+        full_outputname = zcat_writer(zcat, outputdir, outputname, qn_flag,
+                                      sq_flag, abs_flag, zcomb_flag)
 
         tmark('    --{} written out correctly.'.format(full_outputname))
         log.info('='*79)
