@@ -153,7 +153,6 @@ targets, infn = select_targets(
     resolvetargs=not(ns.noresolve), mask=not(ns.nomaskbits), return_infiles=True
 )
 
-
 if ns.bundlefiles is None:
     # ADM Set the list of infiles actually processed by select_targets() to
     # ADM None if we DON'T want to write their checksums to the output file.
