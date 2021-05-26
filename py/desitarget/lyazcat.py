@@ -609,7 +609,7 @@ def zcat_writer(zcat, outputdir, outputname,
     return full_outputname
 
 
-def create_zcat(tile, night, petal_num, zcatdir, outputdir,
+def create_zcat(zcatdir, outputdir, tile=None, night=None, petal_num=None,
                 qn_flag=False, qnp_model=None, qnp_model_file=None,
                 qnp_lines=None, qnp_lines_bal=None,
                 sq_flag=False, squeze_model=None, squeze_model_file=None,
@@ -618,6 +618,21 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir,
 
     Parameters
     ----------
+    zcatdir : :class:`str`
+        If any of `tile`, `night` or `petal_num` are ``None``:
+            The name of a redrock `zbest` file.
+        If none of `tile`, `night` and `petal_num` are ``None``:
+            The root directory from which to read `zbest` and `coadd`
+            spectro files. The full directory is constructed as
+            `zcatdir` + `tile` + `night`, with files
+             zbest-`petal_num`*`night`.fits and coadd-`petal_num`*`night`.fits
+    outputdir : :class:`str`
+        If any of `tile`, `night` or `petal_num` are ``None``:
+            The name of an output file.
+        If none of `tile`, `night` and `petal_num` are ``None``:
+            The output directory to which to write the output file.
+            The full directory is constructed as `outputdir` + `tile` +
+            `night`, with file zqso-`petal_num`*`night`.fits.
     tile : :class:`str`
         The TILEID of the tile to process.
     night : :class:`str`
@@ -625,11 +640,6 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir,
         * Must be in YYYYMMDD format
     petal_num : :class:`int`
         If 'all_petals' isn't used, the single petal to create a zcat for.
-    zcatdir : :class:`str`
-        The location for the daily redrock output.
-    outputdir : :class:`str`
-        The root output directory used to construct the tile/night
-        directory to which to write out the zcat file.
     qn_flag : :class:`bool`, optional
         Flag to add QuasarNP data (or not) to the zcat file.
     qnp_model : :class:`h5 array`, optional
@@ -671,26 +681,33 @@ def create_zcat(tile, night, petal_num, zcatdir, outputdir,
         sq_model = load_sq_model(squeze_model_file)
         tmark('      Model file loaded')
 
+    # ADM simply read/write files if tile/night/petal_num not specified.
+    if tile is None or night is None or petal_num is None:
+        zbestfn = zcatdir
+        coaddfn = zbestfn.replace("zbest", "coadd")
+        outputdir, outputname = os.path.split(outputdir)
     # EBL Create the filepath for the input tile/night combination
-    tiledir = os.path.join(zcatdir, tile)
-    ymdir = os.path.join(tiledir, night)
+    else:
+        tiledir = os.path.join(zcatdir, tile)
+        ymdir = os.path.join(tiledir, night)
 
-    # ADM Create the corresponding output directory.
-    outputdir = os.path.join(outputdir, tile, night)
+        # ADM Create the corresponding output directory.
+        outputdir = os.path.join(outputdir, tile, night)
 
-    # EBL Create the filename tag that appends to zbest-*, coadd-*,
-    # and zqso-* files.
-    filename_tag = f'{petal_num}-{tile}-{night}.fits'
-    # ADM try a couple of generic options for the file names.
-    if not os.path.isfile(os.path.join(ymdir, f'zbest-{filename_tag}')):
-        filename_tag = f'{petal_num}-{tile}-thru{night}.fits'
+        # EBL Create the filename tag that appends to zbest-*, coadd-*,
+        # and zqso-* files.
+        filename_tag = f'{petal_num}-{tile}-{night}.fits'
+        # ADM try a couple of generic options for the file names.
+        if not os.path.isfile(os.path.join(ymdir, f'zbest-{filename_tag}')):
+            filename_tag = f'{petal_num}-{tile}-thru{night}.fits'
 
-    zbestname = f'zbest-{filename_tag}'
-    coaddname = f'coadd-{filename_tag}'
-    outputname = f'zqso-{filename_tag}'
+        zbestname = f'zbest-{filename_tag}'
+        coaddname = f'coadd-{filename_tag}'
+        outputname = f'zqso-{filename_tag}'
 
-    zbestfn = os.path.join(ymdir, zbestname)
-    coaddfn = os.path.join(ymdir, coaddname)
+        zbestfn = os.path.join(ymdir, zbestname)
+        coaddfn = os.path.join(ymdir, coaddname)
+
     zcat = make_new_zcat(zbestfn, qn_flag, sq_flag, abs_flag, zcomb_flag)
     if isinstance(zcat, bool):
         log.info('Petal Number has no corresponding zbest file: {}'.format(zbestfn))
