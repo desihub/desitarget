@@ -11,18 +11,27 @@ desitarget Change Log
     * Always run QuasarNP (QN) by default.
     * Update which redrock columns are populated in the output files.
     * Only include output columns for afterburners that are run.
+* Add option to use Gaia EDR3 when selecting GFAs [`PR #734`_]. Also:
+    * Initialize ``SUBPRIORITY`` with better random seeds.
+         * This is crucial when parallelizing across HEALPixels.
+    * Document that the ``io.write_`` routines alter ``SUBPRIORITY``.
+         * Plus, add a keyword to turn that overwriting behavior off.
+    * Add ``leq`` kwarg when reading ledgers with a specific `isodate`.
+         * Allows ledger entries to be read BEFORE or ON that date.
+         * Supplements the default of reading STRICTLY BEFORE that date.
+* Fix bug leading to zero MWS_FAINT targets [`PR #733`_].
 
+.. _`PR #733`: https://github.com/desihub/desitarget/pull/733
+.. _`PR #734`: https://github.com/desihub/desitarget/pull/734
 .. _`PR #737`: https://github.com/desihub/desitarget/pull/737
 
 1.0.1 (2021-05-14)
 ------------------
 
-* Add $SKYBRICKS_DIR to module config; make more portable by using $DESI_ROOT
-  [`PR #732`_].
-* Fix bug leading to zero MWS_FAINT targets [`PR #733`_].
+* Add $SKYBRICKS_DIR to module config [`PR #732`_].
+    * Also, make more portable by using $DESI_ROOT.
 
 .. _`PR #732`: https://github.com/desihub/desitarget/pull/732
-.. _`PR #733`: https://github.com/desihub/desitarget/pull/733
 
 1.0.0 (2021-05-12)
 ------------------

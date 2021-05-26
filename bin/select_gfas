@@ -23,6 +23,9 @@ ap.add_argument("surveydir",
                 help="Base directory for a Legacy Surveys Data Release (e.g. '/global/project/projectdirs/cosmo/data/legacysurvey/dr6/' at NERSC)")
 ap.add_argument("dest",
                 help="Output GFA targets directory (the file name is built on-the-fly from other inputs)")
+ap.add_argument("--gaiadr",
+                help="Gaia Data Release on which to base GFAs. Options are dr2 or edr3. Defaults to dr2.",
+                default="dr2")
 ap.add_argument('-m', '--maglim', type=float,
                 help="Magnitude limit on GFA targets in Gaia G-band (defaults to [21])",
                 default=21)
@@ -56,7 +59,7 @@ ns = ap.parse_args()
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "maglim", "mindec", "mingalb", "nourat":
+for nskey in "maglim", "mindec", "mingalb", "nourat", "gaiadr":
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)
@@ -89,13 +92,15 @@ if pixlist is not None:
 
 gfas = select_gfas(infiles, maglim=ns.maglim, numproc=ns.numproc, nside=ns.nside,
                    pixlist=pixlist, bundlefiles=ns.bundlefiles, extra=extra,
-                   mindec=ns.mindec, mingalb=ns.mingalb, addurat=not(ns.nourat))
+                   mindec=ns.mindec, mingalb=ns.mingalb, addurat=not(ns.nourat),
+                   dr=ns.gaiadr)
 
 # ADM only proceed if we're not writing a slurm script.
 if ns.bundlefiles is None:
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["maglim", "mindec", "mingalb"],
-                                  [ns.maglim, ns.mindec, ns.mingalb])}
+    extra = {k: v for k, v in zip(
+        ["maglim", "mindec", "mingalb", "nourat", "gaiadr"],
+        [ns.maglim, ns.mindec, ns.mingalb, ns.nourat, ns.gaiadr])}
 
     log.info('Writing GFAs to file...t = {:.1f} mins'.format((time()-t0)/60.))
     ngfas, outfile = io.write_gfas(ns.dest, gfas, indir=ns.surveydir,

@@ -458,7 +458,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
                   obscon=None, mockdata=None, supp=False, extra=None,
-                  infiles=None, checkbright=False):
+                  infiles=None, checkbright=False, subpriority=True):
     """Write target catalogues.
 
     Parameters
@@ -517,6 +517,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     checkbright : :class:`bool`, optional, defaults to ``False``
         If ``True`` then log a warning about targets that are being
         written to file and that could be too bright.
+    subpriority : :class:`bool`, optional, defaults to ``True``
+        If ``True`` and a `SUBPRIORITY` column is in the input `data`,
+        then `SUBPRIORITY` is overwritten by a random float in the range
+        0 to 1, using either seed 716, or seed 716 + the first value in
+        `hpxlist`, if `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -524,6 +529,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         The number of targets that were written to file.
     :class:`str`
         The name of the file to which targets were written.
+
+    Notes
+    -----
+    - Various columns and header keywords are updated when writing, so
+      take care. For instance, pass `subpriority=False` unless you really
+      want to update the `SUBPRIORITY` column.
     """
     # ADM create the header and add the DESI dependencies.
     hdr = fitsio.FITSHDR()
@@ -610,9 +621,13 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                             comment="HEALPix nested (not ring) ordering"))
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names and mockdata is None:
-        np.random.seed(616)
+    if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
+        subpseed = 716
+        if hpxlist is not None:
+            subpseed += int(hpxlist[0])
+        np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(ntargs)
+        hdr["SUBPSEED"] = subpseed
 
     # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
     hdr["SURVEY"] = survey
@@ -889,7 +904,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
-                    drint='X'):
+                    drint='X', subpriority=True):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -916,6 +931,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         "dark" appended to the lowest DIRECTORY in the input `filename`.
     drint : :class:`int`, optional, defaults to `X`
         The data release ("dr"`drint`"-") in the output filename.
+    subpriority : :class:`bool`, optional, defaults to ``True``
+        If ``True`` and a `SUBPRIORITY` column is in the input `data`,
+        then `SUBPRIORITY` is overwritten by a random float in the range
+        0 to 1, using either seed 717, or seed 717 + the first value in
+        `hpxlist`, if `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -927,7 +947,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
     Notes
     -----
-    Two sets of files are written:
+    - Two sets of files are written:
         - The file of secondary targets that do not match a primary
           target is written to `targdir`. Such secondary targets
           are determined from having "PRIM_MATCH"=``False`` in `data`.
@@ -937,6 +957,9 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         - Each secondary target that, presumably, was initially drawn
           from the "indata" subdirectory of `scxdir` is written to
           the "outdata" subdirectory of `scxdir`.
+    - Various columns and header keywords are updated when writing, so
+      take care. For instance, pass `subpriority=False` unless you really
+      want to update the `SUBPRIORITY` column.
     """
     # ADM grab the scxdir, it it wasn't passed.
     from desitarget.secondary import _get_scxdir
@@ -965,10 +988,14 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     depend.setdep(hdr, 'scnd-desitarget-git', gitversion())
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names:
+    if "SUBPRIORITY" in data.dtype.names and subpriority:
         ntargs = len(data)
-        np.random.seed(616)
+        subpseed = 717
+        if hpxlist is not None:
+            subpseed += int(hpxlist[0])
+        np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(ntargs)
+        hdr["SUBPSEED"] = subpseed
 
     # ADM remove the supplemental columns.
     from desitarget.secondary import suppdatamodel
@@ -1051,7 +1078,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
 def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
-                nsidefile=None, hpxlist=None, extra=None, mock=False):
+                nsidefile=None, hpxlist=None, extra=None, mock=False,
+                subpriority=True):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -1089,7 +1117,16 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
     mock : :class:`bool`, optional, defaults to ``False``.
-        If ``True`` then construct the file path for mock sky target catalogs.
+        If ``True`` then construct the file path for mock sky
+        target catalogs.
+    subpriority : :class:`bool`, optional, defaults to ``True``
+        If ``True`` and a `SUBPRIORITY` column is in the input `data`,
+        then `SUBPRIORITY` is overwritten by a random float in the range
+        0 to 1, using either (a) if `supp` is ``False``: seed 718, or
+        seed 718 + the first value in `hpxlist`, if `hpxlist` is passed
+        and not ``None`` or (b) if `supp` is ``True`` seed 719 or seed
+        719 + hp.nside2npix(1024) + the first value in `hpxlist`, if
+        `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -1097,6 +1134,14 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         The number of skies that were written to file.
     :class:`str`
         The name of the file to which skies were written.
+
+    Notes
+    -----
+    - Various columns and header keywords are updated when writing, so
+      take care. For instance, pass `subpriority=False` unless you really
+      want to update the `SUBPRIORITY` column.
+    - Because of the way random seeds are constructed for SUBPRIORITY, we
+      require `nsidefile` to be less than 1024.
     """
     nskies = len(data)
 
@@ -1155,13 +1200,24 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         hdr['HPXNEST'] = True
 
     # ADM populate SUBPRIORITY with a reproducible random float.
-    if "SUBPRIORITY" in data.dtype.names:
+    if "SUBPRIORITY" in data.dtype.names and subpriority:
         # ADM ensure different SUBPRIORITIES for supp/standard files.
         if supp:
-            np.random.seed(626)
+            subpseed = hp.nside2npix(1024) + 719
         else:
-            np.random.seed(616)
+            subpseed = 718
+        if hpxlist is not None:
+            subpseed += int(hpxlist[0])
+            # ADM the way we construct different random seeds for the
+            # ADM skies and supplemental skies requires nsidefile < 1024.
+            if int(nsidefile) > 1024:
+                msg = "nsidefile is {}".format(nsidefile)
+                msg += " limit is <= 1024 to retain randomness of SUBPRIORITY"
+                log.error(msg)
+                raise ValueError(msg)
+        np.random.seed(subpseed)
         data["SUBPRIORITY"] = np.random.random(nskies)
+        hdr["SUBPSEED"] = subpseed
 
     # ADM add the extra dictionary to the header.
     if extra is not None:
@@ -2490,7 +2546,8 @@ def write_mtl_tile_file(filename, data):
     return len(data), filename
 
 
-def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
+def read_mtl_ledger(filename, unique=True, isodate=None,
+                    initial=False, leq=False):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -2511,8 +2568,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
 
     Returns
     -------
@@ -2565,11 +2625,20 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False):
         # ADM try a couple of choices to guard against byte-type versus
         # string-type errors.
         try:
-            ii = mtl["TIMESTAMP"] < isodate
-            mtl = mtl[ii]
+            # ADM if `leq` is passed, restrict to before or on isodate...
+            if leq:
+                ii = mtl["TIMESTAMP"] <= isodate
+            # ADM ...otherwise, restrict to strictly before isodate.
+            else:
+                ii = mtl["TIMESTAMP"] < isodate
         except TypeError:
-            ii = mtl["TIMESTAMP"] < isodate.encode()
-            mtl = mtl[ii]
+            # ADM if `leq` is passed, restrict to before or on isodate...
+            if leq:
+                ii = mtl["TIMESTAMP"] <= isodate.encode()
+            # ADM ...otherwise, restrict to strictly before isodate.
+            else:
+                ii = mtl["TIMESTAMP"] < isodate.encode()
+        mtl = mtl[ii]
 
     if unique or initial:
         # ADM the reverse is because np.unique retains the FIRST unique
@@ -2762,8 +2831,8 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False):
     return fileform
 
 
-def read_mtl_in_hp(hpdirname, nside, pixlist,
-                   unique=True, isodate=None, returnfn=False, initial=False):
+def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
+                   returnfn=False, initial=False, leq=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -2792,8 +2861,11 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
 
     Returns
     -------
@@ -2827,7 +2899,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
             fn = fileform.format(pix)
             try:
                 targs = read_mtl_ledger(
-                    fn, unique=unique, isodate=isodate, initial=initial)
+                    fn, unique=unique, isodate=isodate, initial=initial, leq=leq)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -2846,8 +2918,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
-        mtl = read_mtl_ledger(hpdirname,
-                              unique=unique, isodate=isodate, initial=initial)
+        mtl = read_mtl_ledger(
+            hpdirname, unique=unique, isodate=isodate, initial=initial, leq=leq)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)
@@ -2859,8 +2931,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist,
 
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
-                       quick=False, downsample=None, verbose=False,
-                       mtl=False, unique=True, isodate=None, initial=False):
+                       quick=False, downsample=None, verbose=False, mtl=False,
+                       unique=True, isodate=None, initial=False, leq=False):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -2905,8 +2977,13 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -2929,8 +3006,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
             pixlist=pixlist, columns=columns, header=header)
 
     if mtl:
-        return read_mtl_in_hp(hpdirname, nside, pixlist,
-                              unique=unique, isodate=isodate, initial=initial)
+        return read_mtl_in_hp(
+            hpdirname, nside, pixlist,
+            unique=unique, isodate=isodate, initial=initial, leq=leq)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -3146,7 +3224,7 @@ def read_targets_in_quick(hpdirname, shape=None,
 
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                           quick=False, mtl=False,
-                          unique=True, isodate=None, initial=False):
+                          unique=True, isodate=None, initial=False, leq=False):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
     Parameters
@@ -3184,8 +3262,13 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -3237,7 +3320,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist,
             columns=columnscopy, header=header,
-            mtl=mtl, unique=unique, isodate=isodate, initial=initial)
+            mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq)
 
     # ADM ...otherwise just read in the targets.
     else:
@@ -3263,7 +3346,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                         columns=None, header=False, quick=False, downsample=None,
-                        mtl=False, unique=True, isodate=None, initial=False):
+                        mtl=False, unique=True, isodate=None,
+                        initial=False, leq=False):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -3305,8 +3389,13 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -3344,7 +3433,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist,
             columns=columnscopy, header=header, downsample=downsample,
-            mtl=mtl, unique=unique, isodate=isodate, initial=initial)
+            mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
@@ -3369,7 +3458,7 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
 
 def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
                         quick=False, mtl=False,
-                        unique=True, isodate=None, initial=False):
+                        unique=True, isodate=None, initial=False, leq=False):
     """Read in targets in an RA, Dec, radius cap.
 
     Parameters
@@ -3407,8 +3496,13 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
     initial : :class:`bool`, optional, defaults to ``False``
         If ``True`` then only read targets with unique `TARGETID`, where
         the FIRST occurrence of the target in the ledger is retained.
-        i.e. read the initial state of the ledger. Overrides the `unique`
-        and `isodate` kwargs. Only used if `mtl` is ``True``.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+        Only used if `mtl` is ``True``.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed. Only used if
+        `mtl` is ``True``.
 
     Returns
     -------
@@ -3443,7 +3537,7 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist,
             mtl=mtl, columns=columnscopy, header=header,
-            unique=unique, isodate=isodate, initial=initial)
+            unique=unique, isodate=isodate, initial=initial, leq=leq)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
