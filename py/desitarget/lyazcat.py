@@ -47,6 +47,7 @@ sqdm = [('Z_SQ', '>f8'), ('Z_SQ_CONF', '>f8')]
 absdm = [('Z_ABS', '>f8'), ('Z_ABS_CONF', '>f8')]
 combdm = [('Z_COMB', '>f8'), ('Z_COMB_PROB', '>f8')]
 
+
 def tmark(istring):
     """A function to mark the time an operation starts or ends.
 
@@ -625,7 +626,7 @@ def create_zcat(zcatdir, outputdir, tile=None, night=None, petal_num=None,
             The root directory from which to read `zbest` and `coadd`
             spectro files. The full directory is constructed as
             `zcatdir` + `tile` + `night`, with files
-             zbest-`petal_num`*`night`.fits and coadd-`petal_num`*`night`.fits
+            zbest-/coadd-`petal_num`*`night`.fits.
     outputdir : :class:`str`
         If any of `tile`, `night` or `petal_num` are ``None``:
             The name of an output file.
