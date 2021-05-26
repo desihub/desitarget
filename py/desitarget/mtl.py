@@ -99,6 +99,41 @@ def survey_data_model(dm, survey='main'):
         raise ValueError(msg)
 
 
+def check_timestamp(timestamp):
+    """Check whether a timestamp is in a valid datetime format.
+
+    Parameters
+    ----------
+    date : :class:`str`
+        A string that should be a valid datetime string with a timezone.
+
+    Returns
+    -------
+    :class:`str`
+        The input `date` string.
+
+    Notes
+    -----
+    - Triggers an exception if the string is not a valid datetime string
+      or if the timezone was not included in the string.
+    """
+    from dateutil.parser import parse
+
+    try:
+        check = parse(timestamp)
+    except ValueError:
+        msg = "{} is not a valid timestamp!!!".format(timestamp)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    if check.tzinfo is None:
+        msg = "{} does not include timezone information!!!".format(timestamp)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return timestamp
+
+
 def get_utc_date(survey="sv3"):
     """Convenience function to grab the UTC date.
 
@@ -536,9 +571,9 @@ def is_pure_mws_faint(targets):
     Parameters
     ----------
     targets : :class:`~numpy.array`
-        Targets made by, e.g. `desitarget.cuts.select_targets()`. Must
-        contain at least the columns `MWS_TARGET` and `DESI_TARGET`, or
-        the equivalent SV columns.
+        Targets made by, e.g. `desitarget.cuts.select_targets()`, or a
+        similar structure. Must contain at least the columns `MWS_TARGET`
+        and `DESI_TARGET`, or the equivalent SV columns.
 
     Returns
     -------
@@ -578,7 +613,8 @@ def is_pure_mws_faint(targets):
 
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
-                      indirname=None, verbose=True, scnd=False):
+                      indirname=None, verbose=True, scnd=False,
+                      timestamp=None, exemptmf=False):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -605,6 +641,17 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         If ``True`` then log target and file information.
     scnd : :class:`bool`, defaults to ``False``
         If ``True`` then this is a ledger of secondary targets.
+    timestamp : :class:`str`, optional
+        A timestamp to use in place of that assigned by `make_mtl`.
+    exemptmf : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then exempt any target that is:
+            - only `MWS_ANY` in the desi_target bitmask and
+            - only includes target classes that contain the string
+              "MWS_FAINT" in the mws_target bitmask
+        from accepting `timestamp`. These targets will instead revert to
+        a TIMESTAMP corresponding to when the code was run. This is to
+        fix a bug where "MWS_FAINT_*" targets were not initially included
+        in the (1.0.0) target files for the Main Survey.
 
     Returns
     -------
@@ -618,6 +665,17 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
     # ADM execute MTL.
     mtl = make_mtl(targets, obscon, trimcols=True)
+
+    # ADM if requested, substitute a bespoke timestamp.
+    if timestamp is not None:
+        # ADM check the timestamp is valid.
+        check_timestamp(timestamp)
+        origts = mtl["TIMESTAMP"]
+        mtl["TIMESTAMP"] = timestamp
+        # ADM don't use the bespoke timestamp for MWS_FAINT targets.
+        if exemptmf:
+            ii = is_pure_mws_faint(mtl)
+            mtl[ii]["TIMESTAMP"] = origts[ii]
 
     # ADM the HEALPixel within which each target in the MTL lies.
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
@@ -667,7 +725,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     numproc : :class:`int`, optional, defaults to 1 for serial
         Number of processes to parallelize across.
     timestamp : :class:`str`, optional
-        A timestamp to use in place of that assigned by `make_mtl`
+        A timestamp to use in place of that assigned by `make_mtl`.
     exemptmf : :class:`bool`, optional, defaults to ``False``
         If ``True`` then exempt any target that is:
             - only `MWS_ANY` in the desi_target bitmask and
@@ -763,7 +821,8 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
-            indirname=hpdirname, verbose=False, scnd=scnd)
+            indirname=hpdirname, verbose=False, scnd=scnd,
+            timestamp=timestamp, exemptmf=exemptmf)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')
