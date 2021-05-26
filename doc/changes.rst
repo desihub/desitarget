@@ -5,6 +5,7 @@ desitarget Change Log
 1.0.2 (unreleased)
 ------------------
 
+* Ensure fixed order of input files for reproducible outputs [`PR #738`_].
 * Refactor data model and I/O for the QSO zcats [`PR #737`_]. Includes:
     * New directory structures.
     * Allow filenames to be passed instead of TILE/NIGHT combinations.
@@ -24,6 +25,7 @@ desitarget Change Log
 .. _`PR #733`: https://github.com/desihub/desitarget/pull/733
 .. _`PR #734`: https://github.com/desihub/desitarget/pull/734
 .. _`PR #737`: https://github.com/desihub/desitarget/pull/737
+.. _`PR #738`: https://github.com/desihub/desitarget/pull/738
 
 1.0.1 (2021-05-14)
 ------------------
