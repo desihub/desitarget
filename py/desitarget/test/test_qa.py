@@ -51,7 +51,7 @@ class TestQA(unittest.TestCase):
         # ADM Remove the output files.
         # SJB only in testdir, just in case something else did a chdir
         os.chdir(self.testdir)
-        for filelist in [glob("*png"), glob("*html"), glob("*dat")]:
+        for filelist in [sorted(glob("*png")), sorted(glob("*html")), sorted(glob("*dat"))]:
             for filename in filelist:
                 if os.path.exists(filename):
                     os.remove(filename)

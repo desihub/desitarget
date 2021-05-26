@@ -29,7 +29,7 @@ class TestSKYFIBERS(unittest.TestCase):
         self.survey = LegacySurveyData(self.sd)
 
         # ADM determine which bricks we can access in the test directory.
-        brickdirs = glob("{}/coadd/*/*".format(self.survey.survey_dir))
+        brickdirs = sorted(glob("{}/coadd/*/*".format(self.survey.survey_dir)))
         bricknames = [basename(brickdir) for brickdir in brickdirs]
         # ADM just test with one brick.
         self.brickname = bricknames[0]

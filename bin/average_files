@@ -20,7 +20,7 @@ ap.add_argument("outfile",
 
 ns = ap.parse_args()
 
-fns = glob(ns.infilestring)
+fns = sorted(glob(ns.infilestring))
 
 nfns = len(fns)
 objs, hdr = fitsio.read(fns[0], header=True)

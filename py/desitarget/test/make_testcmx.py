@@ -11,7 +11,7 @@ if __name__ == "__main__":
     start = time()
 
     cmxdir = os.getenv("CMX_DIR")
-    fns = glob(os.path.join(cmxdir, "*fits"))
+    fns = sorted(glob(os.path.join(cmxdir, "*fits")))
     for fn in fns:
         print("reading {}".format(fn))
         objs = fitsio.read(fn)

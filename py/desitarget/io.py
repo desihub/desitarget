@@ -1678,7 +1678,7 @@ def list_targetfiles(root):
     # ADM catch case where a file was sent instead of a directory.
     if os.path.isfile(root):
         return [root]
-    allfns = glob(os.path.join(root, '*target*fits'))
+    allfns = sorted(glob(os.path.join(root, '*target*fits')))
     fns, nfns = np.unique(allfns, return_counts=True)
     if np.any(nfns > 1):
         badfns = fns[nfns > 1]
@@ -2024,7 +2024,7 @@ def get_checksums(infiles, verbose=False, check_existing=True):
     checkdict = {}
     for ld in ldir:
         # ADM look for a shasum file.
-        shalist = glob(os.path.join(ld, "*.sha256sum"))
+        shalist = sorted(glob(os.path.join(ld, "*.sha256sum")))
         if len(shalist) > 0 and check_existing:
             shafn = shalist[0]
             if verbose:
@@ -2203,7 +2203,7 @@ def check_hp_target_dir(hpdirname):
     # ADM numbers and NSIDEs.
     nside = []
     pixlist = []
-    fns = glob(os.path.join(hpdirname, "*fits"))
+    fns = sorted(glob(os.path.join(hpdirname, "*fits")))
     pixdict = {}
     for fn in fns:
         hdr = read_targets_header(fn)

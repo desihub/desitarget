@@ -44,7 +44,7 @@ if not os.path.exists(ns.priminfodir):
     raise ValueError(msg)
 
 # ADM read survey type from the header of the first file in priminfodir.
-fns = glob(os.path.join(ns.priminfodir, "*fits"))
+fns = sorted(glob(os.path.join(ns.priminfodir, "*fits")))
 hdr = fitsio.read_header(fns[0], 'SCND_TARG')
 surv = hdr["SURVEY"].rstrip()
 

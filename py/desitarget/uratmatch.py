@@ -238,7 +238,7 @@ def urat_csv_to_fits(numproc=5):
         os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
-    infiles = glob("{}/*csv*".format(csvdir))
+    infiles = sorted(glob("{}/*csv*".format(csvdir)))
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.

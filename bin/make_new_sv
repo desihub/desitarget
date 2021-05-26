@@ -22,7 +22,7 @@ _ = ap.parse_args()
 svroot = resource_filename('desitarget', 'sv')
 
 # ADM retrieve the highest current sv directory.
-fns = glob(svroot+'*')
+fns = sorted(glob(svroot+'*'))
 svlist = [int(fn[-1]) for fn in fns if os.path.isdir(fn)]
 maxsv = np.max(svlist)
 

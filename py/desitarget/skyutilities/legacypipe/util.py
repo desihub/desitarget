@@ -241,22 +241,22 @@ class LegacySurveyData(object):
             if self.version in ['dr1','dr2']:
                 return swaplist([os.path.join(basedir, 'decals-ccds.fits.gz')])
             else:
-                return swaplist(
-                    glob(os.path.join(truebasedir, 'survey-ccds-*.fits.gz')))
+                return swaplist(sorted(
+                    glob(os.path.join(truebasedir, 'survey-ccds-*.fits.gz'))))
 
         elif filetype == 'ccd-kds':
-            return swaplist(
-                glob(os.path.join(truebasedir, 'survey-ccds-*.kd.fits')))
+            return swaplist(sorted(
+                glob(os.path.join(truebasedir, 'survey-ccds-*.kd.fits'))))
 
         elif filetype == 'tycho2':
             return swap(os.path.join(basedir, 'tycho2.fits.gz'))
 
         elif filetype == 'annotated-ccds':
             if self.version == 'dr2':
-                return swaplist(
-                    glob(os.path.join(basedir, 'decals-ccds-annotated.fits')))
-            return swaplist(
-                glob(os.path.join(truebasedir, 'ccds-annotated-*.fits.gz')))
+                return swaplist(sorted(
+                    glob(os.path.join(basedir, 'decals-ccds-annotated.fits'))))
+            return swaplist(sorted(
+                glob(os.path.join(truebasedir, 'ccds-annotated-*.fits.gz'))))
 
         elif filetype == 'tractor':
             return swap(os.path.join(basedir, 'tractor', brickpre,

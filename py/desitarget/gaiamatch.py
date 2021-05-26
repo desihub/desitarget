@@ -536,7 +536,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
-    infiles = glob("{}/GaiaSource*csv*".format(csvdir))
+    infiles = sorted(glob("{}/GaiaSource*csv*".format(csvdir)))
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.

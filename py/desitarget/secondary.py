@@ -395,7 +395,7 @@ def add_primary_info(scxtargs, priminfodir):
     log.info("Begin matching primaries in {} to secondaries...t={:.1f}s"
              .format(priminfodir, time()-start))
     # ADM read all of the files from the priminfodir.
-    primfns = glob(os.path.join(priminfodir, "*fits"))
+    primfns = sorted(glob(os.path.join(priminfodir, "*fits")))
     # ADM if there are no files, there were no primary matches
     # ADM and we can just return.
     if len(primfns) == 0:
@@ -978,7 +978,7 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
         raise ValueError(msg)
 
     # ADM read in the SURVEY from the first file in priminfodir.
-    fns = glob(os.path.join(priminfodir, "*fits"))
+    fns = sorted(glob(os.path.join(priminfodir, "*fits")))
     hdr = fitsio.read_header(fns[0], 'SCND_TARG')
     survey = hdr["SURVEY"].rstrip()
 

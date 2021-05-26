@@ -46,7 +46,7 @@ class TestSV(unittest.TestCase):
         """Test SV cuts work.
         """
         # ADM find all svX sub-directories in the desitarget directory.
-        fns = glob(resource_filename('desitarget', 'sv*'))
+        fns = sorted(glob(resource_filename('desitarget', 'sv*')))
         svlist = [os.path.basename(fn) for fn in fns if os.path.isdir(fn)]
 
         for survey in svlist:
