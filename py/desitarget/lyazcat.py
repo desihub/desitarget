@@ -20,11 +20,6 @@ from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
 from quasarnp.io import load_model
 from quasarnp.io import load_desi_coadd
 from quasarnp.utils import process_preds
-from squeze.model import Model
-from squeze.common_functions import load_json
-from squeze.candidates import Candidates
-from squeze.desi_spectrum import DesiSpectrum
-from squeze.spectra import Spectra
 
 from prospect.mycoaddcam import coadd_brz_cameras
 from operator import itemgetter
@@ -298,6 +293,8 @@ def load_sq_model(model_filename):
     -----
     - The input model file needs to be in the json file format.
     """
+    from squeze.common_functions import load_json
+    from squeze.model import Model
     model = Model.from_json(load_json(model_filename))
 
     return model
@@ -325,6 +322,11 @@ def add_sq_data(zcat, coaddname, squeze_model):
         * Z_SQ_CONF   - The confidence value of this redshift.
     """
     tmark('    Adding SQUEzE data')
+
+    from squeze.candidates import Candidates
+    from squeze.desi_spectrum import DesiSpectrum
+    from squeze.spectra import Spectra
+
     mdata = ['TARGETID']
     single_exposure = False
     sq_cols_keep = ['PROB', 'Z_TRY', 'TARGETID']
