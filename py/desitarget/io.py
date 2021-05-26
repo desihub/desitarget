@@ -536,8 +536,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
       take care. For instance, pass `subpriority=False` unless you really
       want to update the `SUBPRIORITY` column.
     """
-    # ADM create header.
+    # ADM create the header and add the DESI dependencies.
     hdr = fitsio.FITSHDR()
+    depend.add_dependencies(hdr)
 
     # ADM limit to just BRIGHT or DARK targets, if requested.
     # ADM Ignore the filename output, we'll build that on-the-fly.
@@ -969,6 +970,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     hdr = primhdr
     if primhdr is None:
         hdr = fitsio.FITSHDR()
+    # ADM add the DESI dependencies to the header.
+    depend.add_dependencies(hdr)
     # ADM add the SCNDDIR to the file header.
     hdr["SCNDDIR"] = scxdir
 
@@ -1161,6 +1164,9 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
 
     # - Create header to include versions, etc.
     hdr = fitsio.FITSHDR()
+    # ADM add the DESI dependencies to the header.
+    depend.add_dependencies(hdr)
+    # ADM add other dependencies.
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     depend.setdep(hdr, 'photcat', drstring)
@@ -1298,6 +1304,9 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
 
     # ADM create header to include versions, etc.
     hdr = fitsio.FITSHDR()
+    # ADM add the DESI dependencies.
+    depend.add_dependencies(hdr)
+    # ADM add other dependencies.
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     hdr["DR"] = drint
@@ -1403,6 +1412,9 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     # ADM passed, then use it, if not then create a new header.
     if hdr is None:
         hdr = fitsio.FITSHDR()
+    # ADM add the DESI dependencies.
+    depend.add_dependencies(hdr)
+    # ADM add some other dependencies.
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
 
@@ -1526,6 +1538,9 @@ def write_masks(maskdir, data,
     """
     # ADM create header to include versions, etc.
     hdr = fitsio.FITSHDR()
+    # ADM add the DESI dependencies to the header.
+    depend.add_dependencies(hdr)
+    # ADM add other information to the header.
     depend.setdep(hdr, 'desitarget', desitarget_version)
     depend.setdep(hdr, 'desitarget-git', gitversion())
     # ADM add the magnitude and epoch to the header.

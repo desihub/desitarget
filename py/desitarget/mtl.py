@@ -1079,7 +1079,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
     zs = np.concatenate(allzs)
     fms = np.concatenate(allfms)
 
-    # ADM remove -ve TARGETIDs which should correspond to bad fibers.
+    # ADM remove -ve TARGETIDs which should correspond to sky fibers.
     zs = zs[zs["TARGETID"] >= 0]
     fms = fms[fms["TARGETID"] >= 0]
 
