@@ -38,11 +38,12 @@ ap.add_argument('--healpixels',
                 nside, which is [{}]".format(mtlnside),
                 default=None)
 ap.add_argument('--timestamp',
-                help="Override the TIMESTAMP created by make_mtl, and use
-                this time instead",
+                help="Override the TIMESTAMP created by make_mtl, and use this  \
+                time instead",
                 default=None)
 ap.add_argument('--exemptmf',
-                help="Exempt pure-MWS_FAINT targets from the TIMESTAMP override",
+                help="Exempt targets that are purely MWS_FAINT targets from the \
+                TIMESTAMP override",
                 action='store_true')
 
 ns = ap.parse_args()

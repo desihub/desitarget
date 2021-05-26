@@ -659,6 +659,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
     each HEALPixel in `pixlist`.
     """
     t0 = time()
+    # ADM a dictionary to hold header keywords for the ouput file.
+    hdr = {}
 
     # ADM in case an integer was passed.
     pixlist = np.atleast_1d(pixlist)
@@ -668,14 +670,16 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
     # ADM if requested, substitute a bespoke timestamp.
     if timestamp is not None:
+        hdr["TIMESTAMP"] = timestamp
+        hdr["EXEMPTMF"] = exemptmf
         # ADM check the timestamp is valid.
-        check_timestamp(timestamp)
-        origts = mtl["TIMESTAMP"]
+        _ = check_timestamp(timestamp)
+        origts = mtl["TIMESTAMP"].copy()
         mtl["TIMESTAMP"] = timestamp
         # ADM don't use the bespoke timestamp for MWS_FAINT targets.
         if exemptmf:
             ii = is_pure_mws_faint(mtl)
-            mtl[ii]["TIMESTAMP"] = origts[ii]
+            mtl["TIMESTAMP"][ii] = origts[ii]
 
     # ADM the HEALPixel within which each target in the MTL lies.
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
@@ -690,7 +694,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
             nt, fn = io.write_mtl(
                 outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
                 survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix,
-                scnd=scnd)
+                scnd=scnd, extra=hdr)
             if verbose:
                 log.info('{} targets written to {}...t={:.1f}s'.format(
                     nt, fn, time()-t0))
