@@ -7,14 +7,15 @@ Post-redrock ML processing for LyA Quasar object identification.
 
 import os
 import numpy as np
-from astropy.io import fits
 import time
+import fitsio
 
-from desitarget.geomask import match
+from desitarget.geomask import match, match_to
 from desitarget.internal import sharedmem
 from desitarget.io import write_with_units
 from desispec.io import read_spectra
 from desiutil.depend import add_dependencies
+from desitarget.targets import main_cmx_or_sv, switch_main_cmx_or_sv
 
 from quasarnp.io import load_model
 from quasarnp.io import load_desi_coadd
@@ -40,8 +41,12 @@ from desiutil.log import get_logger
 log = get_logger()
 
 # ADM data models for the various afterburners.
-zcatdatamodel = [('TARGETID', '>i8'), ('Z', '>f8'),
-                 ('ZWARN', '>i8'), ('DELTACHI2', '>f8')]
+zcatdatamodel = np.array([], [('RA', '>f8'), ('DEC', '>f8'), ('TARGETID', '>i8'),
+                              ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'),
+                              ('MWS_TARGET', '>i8'), ('SCND_TARGET', '>i8'),
+                              ('Z', '>f8'), ('ZWARN', '>i8'),
+                              ('SPECTYPE', '<U6'), ('DELTACHI2', '>f8'),
+                              ('NUMOBS', '>i8'), ('ZTILEID', '>i4')])
 qndm = [('Z_QN', '>f8'), ('Z_QN_CONF', '>f8'), ('IS_QSO_QN', '>i2')]
 sqdm = [('Z_SQ', '>f8'), ('Z_SQ_CONF', '>f8')]
 absdm = [('Z_ABS', '>f8'), ('Z_ABS_CONF', '>f8')]
@@ -92,26 +97,61 @@ def make_new_zcat(zbestname, qn_flag=False, sq_flag=False, abs_flag=False,
     """
     tmark('    Making redrock zcat')
 
+    # ADM read in the zbest and fibermap extensions for the RR
+    # ADM redshift catalog, if they exist.
     try:
-        zs = fits.open(zbestname)['ZBEST'].data
-
-        # ADM output file is based on which afterburners were specified.
-        dt = zcatdatamodel.copy()
-        for flag, dm in zip([qn_flag, sq_flag, abs_flag, zcomb_flag],
-                            [qndm, sqdm, absdm, combdm]):
-            if flag:
-                dt += dm
-
-        zcat = np.full(len(zs), -1, dtype=dt)
-
-        # ADM add the columns from the original zbest file.
-        for col in np.array([], dtype=zcatdatamodel).dtype.names:
-            zcat[col] = zs[col]
-
-        return zcat
-
-    except FileNotFoundError:
+        zs = fitsio.read(zbestname, "ZBEST")
+        fms = fitsio.read(zbestname, "FIBERMAP")
+    except (FileNotFoundError, OSError):
         return False
+
+    # ADM recover the information for unique targets based on the
+    # ADM first entry for each TARGETID.
+    _, ii = np.unique(fms['TARGETID'], return_index=True)
+    fms = fms[ii]
+
+    # ADM check for some glitches.
+    if len(zs) != len(set(zs["TARGETID"])):
+        msg = "a target is duplicated in file {}!!!".format(zbestname)
+        log.critical(msg)
+        raise ValueError(msg)
+    # ADM check for some glitches.
+    if len(zs) != len(fms):
+        msg = "TARGETID mismatch for extensions in file {}!!!".format(zbestname)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM Strictly match the targets in the z catalog and fibermap.
+    zid = match_to(fms["TARGETID"], zs["TARGETID"])
+
+    # ADM set up the output zqso file, which differs depending on which
+    # ADM afterburners were specified.
+    dtswitched = switch_main_cmx_or_sv(zcatdatamodel, fms)
+    dt = dtswitched.dtype.descr
+    for flag, dm in zip([qn_flag, sq_flag, abs_flag, zcomb_flag],
+                        [qndm, sqdm, absdm, combdm]):
+        if flag:
+            dt += dm
+    zcat = np.full(len(zs), -1, dtype=dt)
+
+    # ADM add the columns from the original zbest file.
+    zcat["RA"] = fms[zid]["TARGET_RA"]
+    zcat["DEC"] = fms[zid]["TARGET_DEC"]
+    zcat["ZTILEID"] = fms[zid]["TILEID"]
+    zcat["NUMOBS"] = zs["NUMTILE"]
+
+    # ADM also add the appropriate bit-columns.
+    Mxcols, _, _, = main_cmx_or_sv(fms, scnd=True)
+    for col in Mxcols:
+        zcat[col] = fms[zid][col]
+
+    # ADM write out the unwritten columns.
+    allcols = set(dtswitched.dtype.names)
+    usedcols = set(['RA', 'DEC', 'NUMOBS', 'ZTILEID'] + Mxcols)
+    for col in allcols - usedcols:
+        zcat[col] = zs[col]
+
+    return zcat
 
 
 def get_qn_model_fname(qnmodel_fname=None):
