@@ -11,6 +11,7 @@ import fitsio
 from desiutil.log import get_logger
 
 from desitarget.targetmask import desi_mask
+from desitarget.geomask import match
 
 def override_subpriority(targets, override):
     """
@@ -27,19 +28,11 @@ def override_subpriority(targets, override):
     Rows in ``targets`` that aren't in ``override`` are unchanged.
     Rows in ``override`` that aren't in ``targets`` are ignored.
     """
-    log = get_logger()
-    ii = np.where(np.isin(targets['TARGETID'], override['TARGETID']))[0]
-    n = len(ii)
-    if n > 0:
-        subprio_dict = dict()
-        for tid, subprio in zip(override['TARGETID'], override['SUBPRIORITY']):
-            subprio_dict[tid] = subprio
+    ii_targ, ii_over = match(targets['TARGETID'], override['TARGETID'])
+    if len(ii_targ) > 0:
+        targets['SUBPRIORITY'][ii_targ] = override['SUBPRIORITY'][ii_over]
 
-        for i in ii:
-            tid = targets['TARGETID'][i]
-            targets['SUBPRIORITY'][i] = subprio_dict[tid]
-
-    return ii
+    return np.sort(ii_targ)
 
 
 def get_fiberassign_subpriorities(fiberassignfiles):
