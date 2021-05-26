@@ -519,9 +519,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         written to file and that could be too bright.
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
-        then `SUBPRIORITY` is overwritten by a random float in the range
-        0 to 1, using either seed 716, or seed 716 + the first value in
-        `hpxlist`, if `hpxlist` is passed and not ``None``.
+        then `SUBPRIORITY==0.0` entries are overwritten by a random float
+        in the range 0 to 1, using either seed 716, or seed 716 + the first
+        value in `hpxlist`, if `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -630,7 +630,6 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         # full random sequence order
         ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
-        data["SUBPRIORITY"] = np.random.random(ntargs)
         hdr["SUBPSEED"] = subpseed
 
     # ADM add the type of survey (main, commissioning; or "cmx", sv) to the header.
@@ -937,9 +936,9 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         The data release ("dr"`drint`"-") in the output filename.
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
-        then `SUBPRIORITY` is overwritten by a random float in the range
-        0 to 1, using either seed 717, or seed 717 + the first value in
-        `hpxlist`, if `hpxlist` is passed and not ``None``.
+        then `SUBPRIORITY==0.0` entries are overwritten by a random float
+        in the range 0 to 1, using either seed 717, or seed 717 + the first
+        value in `hpxlist`, if `hpxlist` is passed and not ``None``.
 
     Returns
     -------
@@ -1128,8 +1127,8 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         target catalogs.
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
-        then `SUBPRIORITY` is overwritten by a random float in the range
-        0 to 1, using either (a) if `supp` is ``False``: seed 718, or
+        then `SUBPRIORITY==0.0` entries are overwritten by a random float in
+        the range 0 to 1, using either (a) if `supp` is ``False``: seed 718, or
         seed 718 + the first value in `hpxlist`, if `hpxlist` is passed
         and not ``None`` or (b) if `supp` is ``True`` seed 719 or seed
         719 + hp.nside2npix(1024) + the first value in `hpxlist`, if
