@@ -529,6 +529,54 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     return mtl
 
 
+def is_pure_mws_faint(targets):
+    """
+    Determine which of a set of targets are purely MWS_FAINT_* targets.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.array`
+        Targets made by, e.g. `desitarget.cuts.select_targets()`. Must
+        contain at least the columns `MWS_TARGET` and `DESI_TARGET`, or
+        the equivalent SV columns.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        Boolean array that is ``True`` for pure-MWS_FAINT targets.
+
+    Notes
+    -----
+    - Useful for fixing a bug where "MWS_FAINT_*" targets were not
+      initially included in the (1.0.0) target files for the Main Survey.
+    """
+    # ADM which flavor of targets are we working with.
+    cols, Mx, _ = main_cmx_or_sv(targets)
+    desi_mask, _, mws_mask = Mx
+    desi_target_col, _, mws_target_col = cols
+
+    # ADM "MWS_FAINT_" targets can be RED/BLUE/NORTH/SOUTH, so we need
+    # ADM to look up all combination of just MWS_FAINT_ bits.
+    pure_mf_bits = []
+    for bitvals in set(targets[mws_target_col]):
+        mf = np.all(["MWS_FAINT" in names for names in mws_mask.names(bitvals)])
+        if mf:
+            pure_mf_bits.append(bitvals)
+
+    # ADM a boolean array to store which targets are pure-MWS_FAINT.
+    is_pure_mws_faint = np.zeros_like(targets, dtype='?')
+
+    # ADM loop through the relevant bit-combinations and find which
+    # ADM targets correspond to the MWS_FAINT bit constructions.
+    for bitvals in pure_mf_bits:
+        is_pure_mws_faint |= targets[mws_target_col] == bitvals
+
+    # ADM to be pure-MWS, the DESI_TARGET column needs to be MWS_ANY.
+    is_pure_mws_faint &= targets[desi_target_col] == desi_mask["MWS_ANY"]
+
+    return is_pure_mws_faint
+
+
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False):
     """
@@ -592,7 +640,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
     return
 
 
-def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
+def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
+                numproc=1, timestamp=None, exemptmf=False):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -617,6 +666,17 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
         governs the sub-directory to which the ledger is written.
     numproc : :class:`int`, optional, defaults to 1 for serial
         Number of processes to parallelize across.
+    timestamp : :class:`str`, optional
+        A timestamp to use in place of that assigned by `make_mtl`
+    exemptmf : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then exempt any target that is:
+            - only `MWS_ANY` in the desi_target bitmask and
+            - only includes target classes that contain the string
+              "MWS_FAINT" in the mws_target bitmask
+        from accepting `timestamp`. These targets will instead revert to
+        a TIMESTAMP corresponding to when the code was run. This is to
+        fix a bug where "MWS_FAINT_*" targets were not initially included
+        in the (1.0.0) target files for the Main Survey.
 
     Returns
     -------
