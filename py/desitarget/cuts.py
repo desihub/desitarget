@@ -2997,7 +2997,8 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
         # ADM a hack to ensure we have the correct targeting data model
         # ADM outside of the Legacy Surveys footprint.
         dummy = infiles[0]
-        infiles = list(set(np.hstack([filesperpixel[pix] for pix in pixlist])))
+        infiles = list(np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
+
         if len(infiles) == 0:
             log.info('ZERO sweep files in passed pixel list!!!')
             log.info('Run with dummy sweep file to write Gaia-only objects...')

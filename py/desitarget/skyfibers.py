@@ -105,14 +105,14 @@ def get_brick_info(drdirs, counts=False, allbricks=False):
     for dd in drdirs:
         # ADM in the simplest case, read in the survey bricks file, which lists
         # ADM the bricks of interest for this DR.
-        sbfile = glob(dd+'/*bricks-dr*')
+        sbfile = sorted(glob(dd+'/*bricks-dr*'))
         if len(sbfile) > 0:
             brickinfo = fitsio.read(sbfile[0], upper=True)
             # ADM fitsio reads things in as bytes, so convert to unicode.
             bricknames.append(brickinfo['BRICKNAME'].astype('U'))
         else:
             # ADM hack for test bricks where we don't generate the bricks file.
-            fns = glob(os.path.join(dd, 'tractor', '*', '*fits'))
+            fns = sorted(glob(os.path.join(dd, 'tractor', '*', '*fits')))
             bricknames.append([io.brickname_from_filename(fn)
                                for fn in fns])
 
@@ -797,7 +797,7 @@ def repartition_skies(skydirname, numproc=1):
     # ADM make the "unpartioned" directory if it doesn't exist.
     os.makedirs(os.path.join(skydirname, "unpartitioned"), exist_ok=True)
     # ADM loop over the files in the sky directory and build the info.
-    skyfiles = glob(os.path.join(skydirname, '*fits'))
+    skyfiles = sorted(glob(os.path.join(skydirname, '*fits')))
     for skyfile in skyfiles:
         # ADM rename the sky file so as not to overwrite.
         sfnewname = os.path.join(os.path.dirname(skyfile), "unpartitioned",

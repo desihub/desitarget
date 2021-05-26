@@ -37,7 +37,7 @@ class TestBRIGHTMASK(unittest.TestCase):
 
         # ADM allowed HEALPixels in the Tycho directory.
         pixnum = []
-        fns = glob(os.path.join(os.environ["TYCHO_DIR"], 'healpix', '*fits'))
+        fns = sorted(glob(os.path.join(os.environ["TYCHO_DIR"], 'healpix', '*fits')))
         for fn in fns:
             data, hdr = fitsio.read(fn, "TYCHOHPX", header=True)
             nside = hdr["HPXNSIDE"]
@@ -146,7 +146,7 @@ class TestBRIGHTMASK(unittest.TestCase):
         self.assertEqual(mxdir, mxd)
 
         # ADM check all of the files were made in the correct place.
-        fns = glob(os.path.join(mxdir, "masks-hp*fits"))
+        fns = sorted(glob(os.path.join(mxdir, "masks-hp*fits")))
         self.assertEqual(len(fns), len(self.pixnum)+1)
 
         # ADM check the extra kwargs were written to the header.

@@ -1061,7 +1061,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
         ymdir = os.path.join(tiledir, tile["ZDATE"])
         # ADM and retrieve the redshifts.
-        zbestfns = glob(os.path.join(ymdir, "zbest*"))
+        zbestfns = sorted(glob(os.path.join(ymdir, "zbest*")))
         for zbestfn in zbestfns:
             zz = fitsio.read(zbestfn, "ZBEST")
             allzs.append(zz)
