@@ -6,11 +6,11 @@ desitarget Change Log
 ------------------
 
 * Refactor data model and I/O for the QSO zcats [`PR #737`_]. Includes:
-  * New directory structures.
-  * Allow filenames to be passed instead of TILE/NIGHT combinations.
-  * Always run QuasarNP (QN) by default.
-  * Update which redrock columns are populated in the output files.
-  * Only include output columns for afterburners that are run.
+    * New directory structures.
+    * Allow filenames to be passed instead of TILE/NIGHT combinations.
+    * Always run QuasarNP (QN) by default.
+    * Update which redrock columns are populated in the output files.
+    * Only include output columns for afterburners that are run.
 
 .. _`PR #737`: https://github.com/desihub/desitarget/pull/737
 
