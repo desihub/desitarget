@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-
 """
 Get what subpriority was used by fiberassign
 """
@@ -37,7 +35,13 @@ def override_subpriority(targets, override):
 
 def get_fiberassign_subpriorities(fiberassignfiles):
     """
-    TODO: document
+    Return table of TARGETID, SUBPRIORITY used in input fiberassign files
+
+    Args:
+        fiberassignfiles: list of input fiberassign files
+
+    Returns: dict[dark|bright|sky] = ndarray with columns TARGETID, SUBPRIORITY
+    for targets matching that observing condition (or sky targets)
     """
     log = get_logger()
 
@@ -122,7 +126,7 @@ if __name__ == "__main__":
             help='Input fiberassign files with TARGETS HDU')
     p.add_argument('-o', '--outdir', required=True,
             help='Output directory to keep dark/bright/sky TARGETID SUBPRIORITY tables')
-    
+
     args = p.parse_args()
     log = get_logger()
 

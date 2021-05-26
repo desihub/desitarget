@@ -628,7 +628,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         np.random.seed(subpseed)
         # SB only set subpriorities that aren't already set, but keep original
         # full random sequence order
-        ii = data["SUBPRIORITY"] <= 0.0
+        ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
         data["SUBPRIORITY"] = np.random.random(ntargs)
         hdr["SUBPSEED"] = subpseed
@@ -1000,7 +1000,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         np.random.seed(subpseed)
         # SB only set subpriorities that aren't already set, but keep original
         # full random sequence order
-        ii = data["SUBPRIORITY"] <= 0.0
+        ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
         hdr["SUBPSEED"] = subpseed
 
@@ -1223,7 +1223,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 log.error(msg)
                 raise ValueError(msg)
         np.random.seed(subpseed)
-        ii = data["SUBPRIORITY"] <= 0.0
+        ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(nskies)[ii]
         hdr["SUBPSEED"] = subpseed
 
