@@ -596,14 +596,11 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
     exemptmf : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then exempt any target that is:
-            - only `MWS_ANY` in the desi_target bitmask and
-            - only includes target classes that contain the string
-              "MWS_FAINT" in the mws_target bitmask
-        from accepting `timestamp`. These targets will instead revert to
-        a TIMESTAMP corresponding to when the code was run. This is to
-        fix a bug where "MWS_FAINT_*" targets were not initially included
-        in the (1.0.0) target files for the Main Survey.
+        If ``True`` then exempt any target that has a `TARGET_STATE`
+        driven by `MWS_FAINT_*` classes from accepting `timestamp`. These
+        targets will instead revert to a TIMESTAMP corresponding to when
+        the code was run. This is to fix a bug where "MWS_FAINT" targets
+        were not included in the (1.0.0) Main Survey target files.
 
     Returns
     -------
@@ -683,14 +680,11 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
     exemptmf : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then exempt any target that is:
-            - only `MWS_ANY` in the desi_target bitmask and
-            - only includes target classes that contain the string
-              "MWS_FAINT" in the mws_target bitmask
-        from accepting `timestamp`. These targets will instead revert to
-        a TIMESTAMP corresponding to when the code was run. This is to
-        fix a bug where "MWS_FAINT_*" targets were not initially included
-        in the (1.0.0) target files for the Main Survey.
+        If ``True`` then exempt any target that has a `TARGET_STATE`
+        driven by `MWS_FAINT_*` classes from accepting `timestamp`. These
+        targets will instead revert to a TIMESTAMP corresponding to when
+        the code was run. This is to fix a bug where "MWS_FAINT" targets
+        were not included in the (1.0.0) Main Survey target files.
 
     Returns
     -------
