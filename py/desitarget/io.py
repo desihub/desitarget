@@ -458,6 +458,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
                   obscon=None, mockdata=None, supp=False, extra=None,
+                  extradeps=None,
                   infiles=None, checkbright=False, subpriority=True):
     """Write target catalogues.
 
@@ -508,6 +509,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    extradeps : :class:`dict`, optional
+        If not None, add extra DEPNAMnn/DEPVERnn keywords to output header
     infiles : :class:`list` or `~numpy.ndarray`, optional
         If passed (and not None), write a second extension "INFILES" that
         contains the files in `infiles` and their SHA-256 checksums. If
@@ -609,6 +612,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         depend.setdep(hdr, 'qso-selection', 'unknown')
     else:
         depend.setdep(hdr, 'qso-selection', qso_selection)
+
+    # SB add extra dependencies if requested
+    if extradeps is not None:
+        for key, value in extradeps.items():
+            depend.setdep(hdr, key, value)
 
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
@@ -1081,8 +1089,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
 
 def write_skies(targdir, data, indir=None, indir2=None, supp=False,
                 apertures_arcsec=None, nskiespersqdeg=None, nside=None,
-                nsidefile=None, hpxlist=None, extra=None, mock=False,
-                subpriority=True):
+                nsidefile=None, hpxlist=None, extra=None, extradeps=None,
+                mock=False, subpriority=True):
     """Write a target catalogue of sky locations.
 
     Parameters
@@ -1119,6 +1127,8 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    extradeps : :class:`dict`, optional
+        If not None, add extra DEPNAMnn/DEPVERnn keywords to output header
     mock : :class:`bool`, optional, defaults to ``False``.
         If ``True`` then construct the file path for mock sky
         target catalogs.
@@ -1178,6 +1188,11 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         depend.setdep(hdr, 'input-data-release', indir)
     if indir2 is not None:
         depend.setdep(hdr, 'input-data-release-2', indir2)
+
+    # SB add extra dependencies if requested
+    if extradeps is not None:
+        for key, value in extradeps.items():
+            depend.setdep(hdr, key, value)
 
     if apertures_arcsec is not None:
         for i, ap in enumerate(apertures_arcsec):
