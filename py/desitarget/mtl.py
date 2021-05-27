@@ -564,57 +564,6 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     return mtl
 
 
-def is_pure_mws_faint(targets):
-    """
-    Determine which of a set of targets are purely MWS_FAINT_* targets.
-
-    Parameters
-    ----------
-    targets : :class:`~numpy.array`
-        Targets made by, e.g. `desitarget.cuts.select_targets()`, or a
-        similar structure. Must contain at least the columns `MWS_TARGET`
-        and `DESI_TARGET`, or the equivalent SV columns.
-
-    Returns
-    -------
-    :class:`~numpy.array`
-        Boolean array that is ``True`` for pure-MWS_FAINT targets.
-
-    Notes
-    -----
-    - Useful for fixing a bug where "MWS_FAINT_*" targets were not
-      initially included in the (1.0.0) target files for the Main Survey.
-    """
-    # ADM which flavor of targets are we working with.
-    cols, Mx, _ = main_cmx_or_sv(targets)
-    desi_mask, _, mws_mask = Mx
-    desi_target_col, _, mws_target_col = cols
-
-    # ADM "MWS_FAINT_" targets can be RED/BLUE/NORTH/SOUTH, so we need
-    # ADM to look up all combination of just MWS_FAINT_ bits.
-    pure_mf_bits = []
-    for bitvals in set(targets[mws_target_col]):
-        # ADM at a minimum, the bit combination must have MWS_FAINT_ set...
-        mf = np.any(["MWS_FAINT" in names for names in mws_mask.names(bitvals)])
-        # ADM ...but it must ONLY have combinations of MWS_FAINT_ set.
-        mf &= np.all(["MWS_FAINT" in names for names in mws_mask.names(bitvals)])
-        if mf:
-            pure_mf_bits.append(bitvals)
-
-    # ADM a boolean array to store which targets are pure-MWS_FAINT.
-    is_pure_mws_faint = np.zeros_like(targets, dtype='?')
-
-    # ADM loop through the relevant bit-combinations and find which
-    # ADM targets correspond to the MWS_FAINT bit constructions.
-    for bitvals in pure_mf_bits:
-        is_pure_mws_faint |= targets[mws_target_col] == bitvals
-
-    # ADM to be pure-MWS in bright-time, BGS_ANY can't be set.
-    is_pure_mws_faint &= (targets[desi_target_col] & desi_mask["BGS_ANY"] == 0)
-
-    return is_pure_mws_faint
-
-
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
                       timestamp=None, exemptmf=False):
@@ -681,7 +630,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         mtl["TIMESTAMP"] = timestamp
         # ADM don't use the bespoke timestamp for MWS_FAINT targets.
         if exemptmf:
-            ii = is_pure_mws_faint(mtl)
+            ii = np.array(["MWS_FAINT" in ts for ts in mtl["TARGET_STATE"]])
             mtl["TIMESTAMP"][ii] = origts[ii]
 
     # ADM the HEALPixel within which each target in the MTL lies.
