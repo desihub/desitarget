@@ -49,7 +49,7 @@ mtldatamodel = np.array([], dtype=[
 
 # ADM columns to add to the mtl/zcat data models for the Main Survey.
 msaddcols = np.array([], dtype=[
-    ('ZS', 'U2'), ('ZINFO', 'U8'), ('DELTACHI2', '>f8'),
+    ('Z_QN', '>f8'), ('DELTACHI2', '>f8'),
     ])
 
 zcatdatamodel = np.array([], dtype=[
@@ -97,6 +97,41 @@ def survey_data_model(dm, survey='main'):
         msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
         log.critical(msg)
         raise ValueError(msg)
+
+
+def check_timestamp(timestamp):
+    """Check whether a timestamp is in a valid datetime format.
+
+    Parameters
+    ----------
+    date : :class:`str`
+        A string that should be a valid datetime string with a timezone.
+
+    Returns
+    -------
+    :class:`str`
+        The input `date` string.
+
+    Notes
+    -----
+    - Triggers an exception if the string is not a valid datetime string
+      or if the timezone was not included in the string.
+    """
+    from dateutil.parser import parse
+
+    try:
+        check = parse(timestamp)
+    except ValueError:
+        msg = "{} is not a valid timestamp!!!".format(timestamp)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    if check.tzinfo is None:
+        msg = "{} does not include timezone information!!!".format(timestamp)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    return timestamp
 
 
 def get_utc_date(survey="sv3"):
@@ -530,7 +565,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
-                      indirname=None, verbose=True, scnd=False):
+                      indirname=None, verbose=True, scnd=False,
+                      timestamp=None, exemptmf=False):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -557,6 +593,14 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         If ``True`` then log target and file information.
     scnd : :class:`bool`, defaults to ``False``
         If ``True`` then this is a ledger of secondary targets.
+    timestamp : :class:`str`, optional
+        A timestamp to use in place of that assigned by `make_mtl`.
+    exemptmf : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then exempt any target that has a `TARGET_STATE`
+        driven by `MWS_FAINT_*` classes from accepting `timestamp`. These
+        targets will instead revert to a TIMESTAMP corresponding to when
+        the code was run. This is to fix a bug where "MWS_FAINT" targets
+        were not included in the (1.0.0) Main Survey target files.
 
     Returns
     -------
@@ -564,12 +608,32 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
     each HEALPixel in `pixlist`.
     """
     t0 = time()
+    # ADM a dictionary to hold header keywords for the ouput file.
+    hdr = {}
 
     # ADM in case an integer was passed.
     pixlist = np.atleast_1d(pixlist)
 
     # ADM execute MTL.
     mtl = make_mtl(targets, obscon, trimcols=True)
+
+    # ADM if requested, substitute a bespoke timestamp.
+    if timestamp is not None:
+        hdr["TSFORCED"] = timestamp
+        hdr["EXEMPTMF"] = exemptmf
+        # ADM check the timestamp is valid.
+        _ = check_timestamp(timestamp)
+        origts = mtl["TIMESTAMP"].copy()
+        mtl["TIMESTAMP"] = timestamp
+        # ADM don't use the bespoke timestamp for MWS_FAINT_* targets.
+        if exemptmf:
+            # ADM do not update the timestamp for targets for which
+            # ADM MWS_FAINT_* is controlling the priority. As MWS_FAINT_*
+            # ADM targets are the lowest-priority UNOBSERVED targets,
+            # ADM this is equivalent to not updating the timestamp for
+            # ADM targets that are purely MWS_FAINT.
+            ii = np.array(["MWS_FAINT" in ts for ts in mtl["TARGET_STATE"]])
+            mtl["TIMESTAMP"][ii] = origts[ii]
 
     # ADM the HEALPixel within which each target in the MTL lies.
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
@@ -584,7 +648,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
             nt, fn = io.write_mtl(
                 outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
                 survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix,
-                scnd=scnd)
+                scnd=scnd, extra=hdr)
             if verbose:
                 log.info('{} targets written to {}...t={:.1f}s'.format(
                     nt, fn, time()-t0))
@@ -592,7 +656,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
     return
 
 
-def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
+def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
+                numproc=1, timestamp=None, exemptmf=False):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -617,6 +682,14 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
         governs the sub-directory to which the ledger is written.
     numproc : :class:`int`, optional, defaults to 1 for serial
         Number of processes to parallelize across.
+    timestamp : :class:`str`, optional
+        A timestamp to use in place of that assigned by `make_mtl`.
+    exemptmf : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then exempt any target that has a `TARGET_STATE`
+        driven by `MWS_FAINT_*` classes from accepting `timestamp`. These
+        targets will instead revert to a TIMESTAMP corresponding to when
+        the code was run. This is to fix a bug where "MWS_FAINT" targets
+        were not included in the (1.0.0) Main Survey target files.
 
     Returns
     -------
@@ -703,7 +776,8 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1):
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
-            indirname=hpdirname, verbose=False, scnd=scnd)
+            indirname=hpdirname, verbose=False, scnd=scnd,
+            timestamp=timestamp, exemptmf=exemptmf)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')
