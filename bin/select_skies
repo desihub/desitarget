@@ -184,7 +184,6 @@ else:
         else:
             log.warning(f"No matching targets to override SUBPRIORITY from {ns.sky_subpriorities}")
 
-
     # ADM this correctly records the apertures in the output file header
     # ADM as well as adding HEALPixel information.
     nskies, outfile = io.write_skies(ns.dest, skies, indir=ns.surveydir,
