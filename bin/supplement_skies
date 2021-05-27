@@ -4,6 +4,7 @@ from desitarget.skyfibers import supplement_skies, density_of_sky_fibers
 from desitarget import io
 from desitarget.geomask import bundle_bricks, shares_hp, pixarea2nside
 from desitarget.brightmask import mask_targets, get_recent_mask_dir
+from desitarget.subpriority import override_subpriority
 
 import os, sys
 import numpy as np
@@ -62,6 +63,8 @@ ap.add_argument("--nomasking", action='store_true',
 ap.add_argument("--maskdir",
                 help="Name of the specific directory (or file) containing the bright star mask (defaults to the most recent directory in $MASK_DIR)",
                 default=None)
+ap.add_argument("--sky-subpriorities", type=str,
+                help='Optional file with sky TARGETID:SUBPRIORITY override')
 
 ns = ap.parse_args()
 do_mask = not(ns.nomasking)
@@ -150,6 +153,15 @@ if ns.bundlefiles is None:
     extra = {k: v for k, v in zip(
         ["radius", "mindec", "mingalb", "masked", "maskdir"],
         [ns.radius, ns.mindec, ns.mingalb, do_mask, mdcomp])}
+
+        # SB apply optional subpriority override; modifies skies in-place
+    if ns.sky_subpriorities:
+        subpriorities = fitsio.read(ns.sky_subpriorities, 'SUBPRIORITY')
+        ii = override_subpriority(supp_skies, subpriorities)
+        if len(ii) > 0:
+            log.info(f"Overriding {len(ii)} SUBPRIORITY from {ns.sky_subpriorities}")
+        else:
+            log.warning(f"No matching targets to override SUBPRIORITY from {ns.sky_subpriorities}")
 
     nskies, outfile = io.write_skies(ns.dest, supp_skies, supp=True, indir=gaiadir,
                                      nside=nside, nskiespersqdeg=nskiespersqdeg,

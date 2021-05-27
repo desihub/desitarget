@@ -14,7 +14,7 @@ class TestGEOMASK(unittest.TestCase):
 
     @classmethod
     def setUp(self):
-        drdir = '/global/project/projectdirs/cosmo/work/legacysurvey/dr8b/'
+        drdir = '/blat/foo'  # doesn't have to exist, just for paths
         self.surveydir = os.path.join(drdir, 'decam')
         self.surveydir2 = os.path.join(drdir, '90prime-mosaic')
 
@@ -29,6 +29,33 @@ class TestGEOMASK(unittest.TestCase):
         foo = geomask.bundle_bricks(1, 1, 1,
                                     surveydirs=[self.surveydir, self.surveydir2])
         self.assertTrue(foo is None)
+
+    def test_match(self):
+        a = np.array([1,2,3,4])
+        b = np.array([4,3])
+        iia, iib = geomask.match(a, b)
+
+        #- returned indices match
+        self.assertTrue(np.all(a[iia] == b[iib]))
+
+        #- ... and are complete
+        ainb = np.isin(a, b)
+        bina = np.isin(b, a)
+        self.assertTrue(np.all( np.isin(a[ainb], a[iia]) ) )
+        self.assertTrue(np.all( np.isin(b[bina], b[iib]) ) )
+
+        #- Check corner cases
+        a = np.array([1,2,3,4])
+        b = np.array([5,6])
+        iia, iib = geomask.match(a, b)
+        self.assertEqual(len(iia), 0)
+        self.assertEqual(len(iib), 0)
+
+        a = np.array([1,2,3,4])
+        b = np.array([4,3,2,1])
+        iia, iib = geomask.match(a, b)
+        self.assertTrue(np.all(a[iia] == b[iib]))
+        self.assertTrue(len(iia), len(a))
 
 
 if __name__ == '__main__':
