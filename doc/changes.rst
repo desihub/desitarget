@@ -4,7 +4,12 @@ desitarget Change Log
 
 1.0.2 (unreleased)
 ------------------
-
+* Allow initial ledgers to use a preordained timestamp [`PR #739`_].
+    * ``MWS_FAINT`` targets can be exempted from this timestamp.
+    * Also change data model for initial ledgers:
+        * ``ZS`` and ``ZINFO`` are replaced by ``Z_QN``
+	* This is not backwards-compatible to version `1.0.0`
+    * Fix `PR #734`_ bug where ``hpxlist`` was used in `write_secondary`.
 * Ensure fixed order of input files for reproducible outputs [`PR #738`_].
 * Refactor data model and I/O for the QSO zcats [`PR #737`_]. Includes:
     * New directory structures.
@@ -26,6 +31,7 @@ desitarget Change Log
 .. _`PR #734`: https://github.com/desihub/desitarget/pull/734
 .. _`PR #737`: https://github.com/desihub/desitarget/pull/737
 .. _`PR #738`: https://github.com/desihub/desitarget/pull/738
+.. _`PR #739`: https://github.com/desihub/desitarget/pull/739
 
 1.0.1 (2021-05-14)
 ------------------

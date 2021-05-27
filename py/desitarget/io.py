@@ -937,8 +937,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
-        in the range 0 to 1, using either seed 717, or seed 717 + the first
-        value in `hpxlist`, if `hpxlist` is passed and not ``None``.
+        in the range 0 to 1, using seed 717.
 
     Returns
     -------
@@ -994,8 +993,6 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         ntargs = len(data)
         subpseed = 717
-        if hpxlist is not None:
-            subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
         # SB only set subpriorities that aren't already set, but keep original
         # full random sequence order

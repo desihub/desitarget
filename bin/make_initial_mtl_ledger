@@ -37,6 +37,14 @@ ap.add_argument('--healpixels',
                 write the ledger for targets in these pixels, at the default    \
                 nside, which is [{}]".format(mtlnside),
                 default=None)
+ap.add_argument('--timestamp',
+                help="Override the TIMESTAMP created by make_mtl, and use this  \
+                time instead",
+                default=None)
+ap.add_argument('--exemptmf',
+                help="Exempt targets that are purely MWS_FAINT targets from the \
+                TIMESTAMP override",
+                action='store_true')
 
 ns = ap.parse_args()
 
@@ -45,4 +53,5 @@ pixlist = ns.healpixels
 if pixlist is not None:
     pixlist = [int(pix) for pix in pixlist.split(',')]
 
-make_ledger(ns.targdir, ns.dest, pixlist=pixlist, obscon=ns.obscon, numproc=ns.numproc)
+make_ledger(ns.targdir, ns.dest, pixlist=pixlist, obscon=ns.obscon,
+            numproc=ns.numproc, timestamp=ns.timestamp, exemptmf=ns.exemptmf)
