@@ -1093,6 +1093,83 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     return newtiles
 
 
+def make_zcat(zcatdir, tiles, obscon, survey):
+    """Make a catalog of redshifts used to inform the MTL loop.
+
+    Parameters
+    ----------
+    zcatdir : :class:`str`
+        Full path to the "daily" directory that hosts redshift catalogs.
+    tiles : :class:`~numpy.array`
+        Numpy array of tiles to be processed. Must contain at least:
+        * TILEID - unique tile identifier.
+        * ZDATE - final night processed to complete the tile (YYYYMMDD).
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. `desitarget.targetmask.obsconditions`), e.g. "DARK".
+        Governs how ZWARN is updated using `DELTACHI2`.
+    survey : :class:`str`, optional, defaults to "main"
+        Used to update `ZWARN` using `DELTACHI2` for a given survey type.
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        A zcat in the official format (`zcatdatamodel`) compiled from
+        the `tiles` in `zcatdir`.
+
+    Notes
+    -----
+    - For surveys prior to "main" this is just a wrapper on
+      make_zcat_rr_backstop().
+    """
+    if survey != "main":
+        return make_zcat_rr_backstop(zcatdir, tiles, obscon, survey)
+
+    # ADM the root directory in the data model.
+    rootdir = os.path.join(zcatdir, "tiles", "cumulative")
+
+    # ADM for each tile, read in the spectroscopic and targeting info.
+    allzs = []
+    for tile in tiles:
+        # ADM build the correct directory structure.
+        tiledir = os.path.join(rootdir, str(tile["TILEID"]))
+        ymdir = os.path.join(tiledir, tile["ZDATE"])
+        # ADM and retrieve the zqso/lyazcat catalog.
+        qsozcatfns = sorted(glob(os.path.join(ymdir, "zqso*")))
+        for qsozcatfn in qsozcatfns:
+            zz = fitsio.read(qsozcatfn, "QSOZCAT")
+            allzs.append(zz)
+            # ADM check the correct TILEID was written in the fibermap.
+            if set(zz["ZTILEID"]) != set([tile["TILEID"]]):
+                msg = "Directory and fibermap don't match for tile".format(tile)
+                log.critical(msg)
+                raise ValueError(msg)
+    zs = np.concatenate(allzs)
+
+    # ADM remove -ve TARGETIDs which should correspond to sky fibers.
+    zs = zs[zs["TARGETID"] >= 0]
+
+    # ADM check the TARGETIDs are unique. If they aren't the likely
+    # ADM explanation is that overlapping tiles (which could include
+    # ADM duplicate targets) are being processed.
+    if len(zs) != len(set(zs["TARGETID"])):
+        msg = "a target is duplicated!!! You are likely trying to process "
+        msg += "overlapping tiles when one of these tiles should already have "
+        msg += "been processed and locked in mtl-done-tiles.ecsv"
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM write out the zcat as a file with the correct data model.
+    dm = survey_data_model(zcatdatamodel, survey=survey)
+    qsozcat = Table(np.zeros(len(zs), dtype=dm.dtype))
+    for col in qsozcat.dtype.names:
+        qsozcat[col] = zs[col]
+
+    return qsozcat
+
+
 def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
     """Make a simple zcat using only redrock outputs.
 
@@ -1278,7 +1355,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM create the zcat: This will likely change, but for now let's
     # ADM just use redrock.
-    zcat = make_zcat_rr_backstop(zcatdir, tiles, obscon, survey)
+    zcat = make_zcat(zcatdir, tiles, obscon, survey)
 
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include

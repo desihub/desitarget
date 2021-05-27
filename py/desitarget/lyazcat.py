@@ -41,7 +41,7 @@ zcatdatamodel = np.array([], [('RA', '>f8'), ('DEC', '>f8'), ('TARGETID', '>i8')
                               ('MWS_TARGET', '>i8'), ('SCND_TARGET', '>i8'),
                               ('Z', '>f8'), ('ZWARN', '>i8'),
                               ('SPECTYPE', '<U6'), ('DELTACHI2', '>f8'),
-                              ('NUMOBS', '>i8'), ('ZTILEID', '>i4')])
+                              ('NUMOBS', '>i4'), ('ZTILEID', '>i4')])
 qndm = [('Z_QN', '>f8'), ('Z_QN_CONF', '>f8'), ('IS_QSO_QN', '>i2')]
 sqdm = [('Z_SQ', '>f8'), ('Z_SQ_CONF', '>f8')]
 absdm = [('Z_ABS', '>f8'), ('Z_ABS_CONF', '>f8')]
