@@ -594,7 +594,10 @@ def is_pure_mws_faint(targets):
     # ADM to look up all combination of just MWS_FAINT_ bits.
     pure_mf_bits = []
     for bitvals in set(targets[mws_target_col]):
-        mf = np.all(["MWS_FAINT" in names for names in mws_mask.names(bitvals)])
+        # ADM at a minimum, the bit combination must have MWS_FAINT_ set...
+        mf = np.any(["MWS_FAINT" in names for names in mws_mask.names(bitvals)])
+        # ADM ...but it must ONLY have combinations of MWS_FAINT_ set.
+        mf &= np.all(["MWS_FAINT" in names for names in mws_mask.names(bitvals)])
         if mf:
             pure_mf_bits.append(bitvals)
 
@@ -606,8 +609,8 @@ def is_pure_mws_faint(targets):
     for bitvals in pure_mf_bits:
         is_pure_mws_faint |= targets[mws_target_col] == bitvals
 
-    # ADM to be pure-MWS, the DESI_TARGET column needs to be MWS_ANY.
-    is_pure_mws_faint &= targets[desi_target_col] == desi_mask["MWS_ANY"]
+    # ADM to be pure-MWS in bright-time, BGS_ANY can't be set.
+    is_pure_mws_faint &= (targets[desi_target_col] & desi_mask["BGS_ANY"] == 0)
 
     return is_pure_mws_faint
 
