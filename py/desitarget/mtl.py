@@ -625,8 +625,13 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         _ = check_timestamp(timestamp)
         origts = mtl["TIMESTAMP"].copy()
         mtl["TIMESTAMP"] = timestamp
-        # ADM don't use the bespoke timestamp for MWS_FAINT targets.
+        # ADM don't use the bespoke timestamp for MWS_FAINT_* targets.
         if exemptmf:
+            # ADM do not update the timestamp for targets for which
+            # ADM MWS_FAINT_* is controlling the priority. As MWS_FAINT_*
+            # ADM targets are the lowest-priority UNOBSERVED targets,
+            # ADM this is equivalent to not updating the timestamp for
+            # ADM targets that are purely MWS_FAINT.
             ii = np.array(["MWS_FAINT" in ts for ts in mtl["TARGET_STATE"]])
             mtl["TIMESTAMP"][ii] = origts[ii]
 
