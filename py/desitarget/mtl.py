@@ -49,7 +49,7 @@ mtldatamodel = np.array([], dtype=[
 
 # ADM columns to add to the mtl/zcat data models for the Main Survey.
 msaddcols = np.array([], dtype=[
-    ('ZS', 'U2'), ('ZINFO', 'U8'), ('DELTACHI2', '>f8'),
+    ('Z_QN', '>f8'), ('DELTACHI2', '>f8'),
     ])
 
 zcatdatamodel = np.array([], dtype=[
