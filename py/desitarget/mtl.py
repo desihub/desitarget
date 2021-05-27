@@ -619,7 +619,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
     # ADM if requested, substitute a bespoke timestamp.
     if timestamp is not None:
-        hdr["TIMESTAMP"] = timestamp
+        hdr["TSFORCED"] = timestamp
         hdr["EXEMPTMF"] = exemptmf
         # ADM check the timestamp is valid.
         _ = check_timestamp(timestamp)
