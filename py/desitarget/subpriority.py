@@ -26,12 +26,29 @@ def override_subpriority(targets, override):
     Rows in ``targets`` that aren't in ``override`` are unchanged.
     Rows in ``override`` that aren't in ``targets`` are ignored.
     """
-    ii_targ, ii_over = match(targets['TARGETID'], override['TARGETID'])
-    if len(ii_targ) > 0:
-        targets['SUBPRIORITY'][ii_targ] = override['SUBPRIORITY'][ii_over]
+    # SB Use geomask.match if input targets are unique,
+    # SB otherwise use slower code that supports duplicates (e.g. secondaries)
+    if len(np.unique(targets['TARGETID'])) == len(targets['TARGETID']):
+        ii_targ, ii_over = match(targets['TARGETID'], override['TARGETID'])
+        if len(ii_targ) > 0:
+            targets['SUBPRIORITY'][ii_targ] = override['SUBPRIORITY'][ii_over]
+        return np.sort(ii_targ)
+    else:
+        ii = np.where(np.isin(targets['TARGETID'], override['TARGETID']))[0]
+        n = len(ii)
+        if n > 0:
+            # SB create TARGETID->SUBPRIORITY dict only for TARGETID in targets
+            subprio_dict = dict()
+            jj = np.where(np.isin(override['TARGETID'], targets['TARGETID']))[0]
+            for tid, subprio in zip(
+                    override['TARGETID'][jj], override['SUBPRIORITY'][jj]):
+                subprio_dict[tid] = subprio
 
-    return np.sort(ii_targ)
+            for i in ii:
+                tid = targets['TARGETID'][i]
+                targets['SUBPRIORITY'][i] = subprio_dict[tid]
 
+        return ii
 
 def get_fiberassign_subpriorities(fiberassignfiles):
     """
