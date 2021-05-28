@@ -5,7 +5,7 @@ desitarget Change Log
 1.1.0 (unreleased)
 ------------------
 
-* Enable optional subpriority overrides [`PR #740`_].
+* Enable optional subpriority overrides [`PR #740`_, `PR #741`_].
 * Allow initial ledgers to use a preordained timestamp [`PR #739`_].
     * ``MWS_FAINT`` targets can be exempted from this timestamp.
     * Also change data model for initial ledgers:
@@ -35,6 +35,7 @@ desitarget Change Log
 .. _`PR #738`: https://github.com/desihub/desitarget/pull/738
 .. _`PR #739`: https://github.com/desihub/desitarget/pull/739
 .. _`PR #740`: https://github.com/desihub/desitarget/pull/740
+.. _`PR #741`: https://github.com/desihub/desitarget/pull/741
 
 1.0.1 (2021-05-14)
 ------------------
