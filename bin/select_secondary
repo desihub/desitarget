@@ -5,6 +5,7 @@ import numpy as np
 from desitarget.secondary import select_secondary, _get_scxdir
 from desitarget.brightmask import is_in_bright_mask, get_recent_mask_dir
 from desitarget import io
+from desitarget.subpriority import override_subpriority
 import os
 from glob import glob
 from time import time
