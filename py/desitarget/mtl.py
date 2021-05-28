@@ -1108,7 +1108,7 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. `desitarget.targetmask.obsconditions`), e.g. "DARK".
         Governs how ZWARN is updated using `DELTACHI2` when `survey` is
-        "sv3" (in :func:`~desitarget.mtl.make_zcat_rr_backstop()).
+        "sv3" (in :func:`~desitarget.mtl.make_zcat_rr_backstop()`).
     survey : :class:`str`, optional, defaults to "main"
         Used to update `ZWARN` using `DELTACHI2` for a given survey type.
         Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
@@ -1123,7 +1123,7 @@ def make_zcat(zcatdir, tiles, obscon, survey):
     Notes
     -----
     - For surveys prior to "main" this is just a wrapper on
-      make_zcat_rr_backstop().
+      :func:`~desitarget.mtl.make_zcat_rr_backstop()`.
     """
     if survey != "main":
         return make_zcat_rr_backstop(zcatdir, tiles, obscon, survey)
