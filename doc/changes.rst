@@ -10,7 +10,8 @@ desitarget Change Log
     * Read the zcats from the zqso files instead of making a "backstop".
     * Add ``IS_QSO_QN`` column to the initial ledgers.
         Again, this is not backwards-compatible to version `1.0.0`.
-* Enable optional subpriority overrides [`PR #740`_].
+* Support reading mtl 1.0.0 format with different columns [`PR #742`_].
+* Enable optional subpriority overrides [`PR #740`_, `PR #741`_].
 * Allow initial ledgers to use a preordained timestamp [`PR #739`_].
     * ``MWS_FAINT`` targets can be exempted from this timestamp.
     * Also change data model for initial ledgers:
@@ -40,6 +41,8 @@ desitarget Change Log
 .. _`PR #738`: https://github.com/desihub/desitarget/pull/738
 .. _`PR #739`: https://github.com/desihub/desitarget/pull/739
 .. _`PR #740`: https://github.com/desihub/desitarget/pull/740
+.. _`PR #741`: https://github.com/desihub/desitarget/pull/741
+.. _`PR #742`: https://github.com/desihub/desitarget/pull/742
 .. _`PR #744`: https://github.com/desihub/desitarget/pull/744
 
 1.0.1 (2021-05-14)

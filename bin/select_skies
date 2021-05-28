@@ -69,7 +69,7 @@ ap.add_argument("--nomasking", action='store_true',
 ap.add_argument("--maskdir",
                 help="Name of the specific directory (or file) containing the bright star mask (defaults to the most recent directory in $MASK_DIR)",
                 default=None)
-ap.add_argument("--sky-subpriorities", type=str,
+ap.add_argument("--sky-subpriorities", "--sky_subpriorities", type=str,
                 help='Optional file with sky TARGETID:SUBPRIORITY override')
 
 ns = ap.parse_args()
@@ -78,7 +78,8 @@ do_mask = not(ns.nomasking)
 # ADM bundlefiles potentially needs to know about them.
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
-for nskey in "nskiespersqdeg", "bands", "apertures", "nomasking", "maskdir":
+for nskey in ["nskiespersqdeg", "bands", "apertures", "nomasking", "maskdir",
+              "sky_subpriorities"]:
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)
@@ -172,8 +173,14 @@ else:
         mdcomp = "/".join(md[md.index("masks"):])
 
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["masked", "maskdir"],
-                                  [do_mask, mdcomp])}
+    extra = {
+        "masked": do_mask,
+        "maskdir": mdcomp,
+        "cmdline": ' '.join(sys.argv),
+        }
+    extradeps = {
+        "sky-subpriorities-override": str(ns.sky_subpriorities),
+        }
 
     # SB apply optional subpriority override; modifies skies in-place
     if ns.sky_subpriorities:
@@ -189,6 +196,7 @@ else:
     nskies, outfile = io.write_skies(ns.dest, skies, indir=ns.surveydir,
                                      indir2=ns.surveydir2, nside=nside,
                                      apertures_arcsec=apertures, extra=extra,
+                                     extradeps=extradeps,
                                      nskiespersqdeg=nskiespersqdeg,
                                      nsidefile=ns.nside, hpxlist=pixlist)
 

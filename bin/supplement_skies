@@ -63,7 +63,7 @@ ap.add_argument("--nomasking", action='store_true',
 ap.add_argument("--maskdir",
                 help="Name of the specific directory (or file) containing the bright star mask (defaults to the most recent directory in $MASK_DIR)",
                 default=None)
-ap.add_argument("--sky-subpriorities", type=str,
+ap.add_argument("--sky-subpriorities", "--sky_subpriorities", type=str,
                 help='Optional file with sky TARGETID:SUBPRIORITY override')
 
 ns = ap.parse_args()
@@ -97,7 +97,8 @@ extra = " --numproc {}".format(ns.numproc)
 extra += " --nskiespersqdeg {}".format(nskiespersqdeg)
 extra += " --gaiadir {}".format(gaiadir)
 nsdict = vars(ns)
-for nskey in "mindec", "mingalb", "radius", "nomasking", "maskdir":
+for nskey in ["mindec", "mingalb", "radius", "nomasking", "maskdir",
+              "sky_subpriorities"]:
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)
@@ -154,6 +155,18 @@ if ns.bundlefiles is None:
         ["radius", "mindec", "mingalb", "masked", "maskdir"],
         [ns.radius, ns.mindec, ns.mingalb, do_mask, mdcomp])}
 
+    extra = {
+        "radius": ns.radius,
+        "mindec": ns.mindec,
+        "mingalb": ns.mingalb,
+        "masked": do_mask,
+        "maskdir": mdcomp,
+        "cmdline": ' '.join(sys.argv),
+        }
+    extradeps = {
+        "sky-subpriorities-override": str(ns.sky_subpriorities),
+        }
+
         # SB apply optional subpriority override; modifies skies in-place
     if ns.sky_subpriorities:
         subpriorities = fitsio.read(ns.sky_subpriorities, 'SUBPRIORITY')
@@ -165,8 +178,8 @@ if ns.bundlefiles is None:
 
     nskies, outfile = io.write_skies(ns.dest, supp_skies, supp=True, indir=gaiadir,
                                      nside=nside, nskiespersqdeg=nskiespersqdeg,
-                                     extra=extra, nsidefile=ns.nside,
-                                     hpxlist=pixlist)
+                                     extra=extra, extradeps=extradeps,
+                                     nsidefile=ns.nside, hpxlist=pixlist)
 
     log.info('{} supplemental skies written to {}'.format(nskies, outfile))
 else:
