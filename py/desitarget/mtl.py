@@ -49,7 +49,7 @@ mtldatamodel = np.array([], dtype=[
 
 # ADM columns to add to the mtl/zcat data models for the Main Survey.
 msaddcols = np.array([], dtype=[
-    ('Z_QN', '>f8'), ('DELTACHI2', '>f8'),
+    ('Z_QN', '>f8'), ('IS_QSO_QN', '>i2'), ('DELTACHI2', '>f8'),
     ])
 
 zcatdatamodel = np.array([], dtype=[
@@ -482,7 +482,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # NUMOBS_MORE should also be 0.
     # ## mtl['NUMOBS_MORE'] = ztargets['NUMOBS_MORE']
     ii = (priority <= 2)
-    log.info('{:d} of {:d} targets have priority zero, setting N_obs=0.'.format(
+    log.info('{:d} of {:d} targets have priority <=2, setting N_obs=0.'.format(
         np.sum(ii), n))
     ztargets['NUMOBS_MORE'][ii] = 0
 
@@ -1107,7 +1107,8 @@ def make_zcat(zcatdir, tiles, obscon, survey):
     obscon : :class:`str`
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. `desitarget.targetmask.obsconditions`), e.g. "DARK".
-        Governs how ZWARN is updated using `DELTACHI2`.
+        Governs how ZWARN is updated using `DELTACHI2` when `survey` is
+        "sv3" (in :func:`~desitarget.mtl.make_zcat_rr_backstop()).
     survey : :class:`str`, optional, defaults to "main"
         Used to update `ZWARN` using `DELTACHI2` for a given survey type.
         Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
