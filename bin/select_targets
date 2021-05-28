@@ -80,9 +80,9 @@ ap.add_argument("-noc", "--nochecksum", action='store_true',
                 help='Do NOT add the list of input files and their checksums to the output target file as the second ("INFILES") extension')
 ap.add_argument("-check", "--checkbright", action='store_true',
                 help='If passed, then log a warning about targets that could be too bright when writing output files')
-ap.add_argument("--dark-subpriorities", type=str,
+ap.add_argument("--dark-subpriorities", "--dark_subpriorities", type=str,
                 help='Optional file with dark TARGETID:SUBPRIORITY overrides')
-ap.add_argument("--bright-subpriorities", type=str,
+ap.add_argument("--bright-subpriorities", "--bright_subpriorities", type=str,
                 help='Optional file with bright TARGETID:SUBPRIORITY overrides')
 
 ns = ap.parse_args()
@@ -91,7 +91,8 @@ ns = ap.parse_args()
 extra = " --numproc {}".format(ns.numproc)
 nsdict = vars(ns)
 for nskey in ["tcnames", "noresolve", "nomaskbits", "writeall",
-              "nosecondary", "nobackup", "nochecksum", "gaiasub", "scnddir"]:
+              "nosecondary", "nobackup", "nochecksum", "gaiasub", "scnddir",
+              "dark_subpriorities", "bright_subpriorities"]:
     if isinstance(nsdict[nskey], bool):
         if nsdict[nskey]:
             extra += " --{}".format(nskey)
@@ -200,8 +201,15 @@ if ns.bundlefiles is None:
         targets = mask_targets(targets, inmaskfile=ns.mask, nside=nside)
 
     # ADM extra header keywords for the output fits file.
-    extra = {k: v for k, v in zip(["tcnames", "gaiasub"],
-                                  [ns.tcnames, ns.gaiasub])}
+    extra = {
+        "tcnames": ns.tcnames,
+        "gaiasub": ns.gaiasub,
+        "cmdline": ' '.join(sys.argv),  #- just in case...
+        }
+    extradeps = {
+        "bright-subpriorities-override": str(ns.bright_subpriorities),
+        "dark-subpriorities-override": str(ns.dark_subpriorities),
+        }
 
     # ADM differentiate the Gaia-only and Legacy Surveys targets.
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
@@ -243,6 +251,7 @@ if ns.bundlefiles is None:
             maskbits=not(ns.nomaskbits), indir=ns.sweepdir, indir2=ns.sweepdir2,
             obscon=obscon, scndout=scndout, survey="main", nsidefile=ns.nside,
             hpxlist=pixlist, supp=supp, qso_selection=ns.qsoselection,
-            extra=extra, infiles=shatab, checkbright=ns.checkbright
+            extra=extra, extradeps=extradeps,
+            infiles=shatab, checkbright=ns.checkbright
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))

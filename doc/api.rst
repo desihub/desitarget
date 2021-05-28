@@ -98,6 +98,9 @@ desitarget API
 .. automodule:: desitarget.skyutilities.legacypipe.util
     :members:
 
+.. automodule:: desitarget.subpriority
+    :members:
+
 .. automodule:: desitarget.sv1
     :members:
 
