@@ -2807,7 +2807,7 @@ def read_ecsv_header(filename):
         # ADM retrieve just the key, val pairs. Also remove white space.
         keyvals = d.split("{")[-1].strip("}").replace(" ", "").split(",")
         for keyval in keyvals:
-            key, val = keyval.split(":")
+            key, val = keyval.split(":", maxsplit=1)
             hdr[key] = val
 
     return hdr

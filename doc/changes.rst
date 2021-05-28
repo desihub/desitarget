@@ -5,6 +5,11 @@ desitarget Change Log
 1.1.0 (unreleased)
 ------------------
 
+* Set up the end-to-end MTL Main Survey loop [`PR #744`_]. Includes:
+    * mtl-done-tiles file ``TIMESTAMP`` is later than any ledger entry.
+    * Read the zcats from the zqso files instead of making a "backstop".
+    * Add ``IS_QSO_QN`` column to the initial ledgers.
+        Again, this is not backwards-compatible to version `1.0.0`.
 * override_subpriority support duplicate input TARGETID from secondaries
   [`PR #743`_].
 * Support reading mtl 1.0.0 format with different columns [`PR #742`_].
@@ -41,6 +46,7 @@ desitarget Change Log
 .. _`PR #741`: https://github.com/desihub/desitarget/pull/741
 .. _`PR #742`: https://github.com/desihub/desitarget/pull/742
 .. _`PR #743`: https://github.com/desihub/desitarget/pull/743
+.. _`PR #744`: https://github.com/desihub/desitarget/pull/744
 
 1.0.1 (2021-05-14)
 ------------------
