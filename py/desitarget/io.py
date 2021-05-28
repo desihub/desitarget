@@ -2613,6 +2613,12 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
                     iname, iform = [i+1 for i, stringy in enumerate(l) if
                                     "name" in stringy or "datatype" in stringy]
                     name, form = l[iname][:-1], l[iform][:-1]
+
+                    # SB for backwards compatibility with mtl 1.0.0 format,
+                    # SB which doesn't have Z_QN and has placeholder ZS,ZINFO
+                    if name not in mtldm.dtype.names:
+                        continue
+
                     names.append(name)
                     if 'string' in form:
                         forms.append(mtldm[name].dtype.str)
@@ -2630,7 +2636,7 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         prelim = Table.read(filename, comment='#', format='ascii.basic',
                             guess=False)
         mtl = np.zeros(len(prelim), dtype=dt)
-        for col in prelim.columns:
+        for col in mtl.dtype.names:
             mtl[col] = prelim[col]
     elif ".fits" in filename:
         mtl = fitsio.read(filename, extension="MTL")
