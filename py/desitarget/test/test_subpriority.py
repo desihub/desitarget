@@ -41,6 +41,30 @@ class TestSubpriority(unittest.TestCase):
             else:
                 self.assertEqual(targets['SUBPRIORITY'][i], orig_subpriority[i])
 
+    def test_override_duplicates(self):
+        """Test subpriority override with duplicate input TARGETIDs"""
+        targets = Table()
+        targets['TARGETID'] = [1,2,3,2,1,5]
+        n = len(targets['TARGETID'])
+        orig_subpriority = np.random.random(n)
+        targets['SUBPRIORITY'] = orig_subpriority.copy()
+
+        override = Table()
+        override['TARGETID'] = np.array([3,2,20])
+        override['SUBPRIORITY'] = np.array([10.0, 20.0, 30.0])
+
+        desitarget.subpriority.override_subpriority(targets, override)
+
+        #- Check that we overrode correctly; don't juse geomask.match
+        #- to avoid circularity of code and test
+        for i, tid in enumerate(targets['TARGETID']):
+            in_override = np.where(override['TARGETID'] == tid)[0]
+            if len(in_override) > 0:
+                j = in_override[0]
+                self.assertEqual(targets['SUBPRIORITY'][i], override['SUBPRIORITY'][j])
+            else:
+                self.assertEqual(targets['SUBPRIORITY'][i], orig_subpriority[i])
+
 
 if __name__ == '__main__':
     unittest.main()
