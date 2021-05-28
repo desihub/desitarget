@@ -15,7 +15,7 @@ import sys
 from astropy.table import Table
 from astropy.io import ascii
 import fitsio
-from time import time
+from time import time, sleep
 from datetime import datetime, timezone
 from glob import glob, iglob
 
@@ -1354,8 +1354,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     if len(tiles) == 0:
         return hpdirname, mtltilefn, ztilefn, tiles
 
-    # ADM create the zcat: This will likely change, but for now let's
-    # ADM just use redrock.
+    # ADM create the catalog of updated redshifts.
     zcat = make_zcat(zcatdir, tiles, obscon, survey)
 
     # ADM insist that for an MTL loop with real observations, the zcat
@@ -1379,6 +1378,12 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     # ADM update the appropriate ledger.
     update_ledger(hpdirname, zcat, obscon=obscon,
                   numobs_from_ledger=numobs_from_ledger)
+
+    # ADM for the main survey "holding pen" method, ensure the TIMESTAMP
+    # ADM in the mtl-done-tiles file is always later than in the ledgers.
+    if survey == "main":
+        sleep(1)
+        tiles["TIMESTAMP"] = get_utc_date(survey=survey)
 
     # ADM write the processed tiles to the MTL tile file.
     io.write_mtl_tile_file(mtltilefn, tiles)
