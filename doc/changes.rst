@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-1.1.0 (unreleased)
+1.1.1 (unreleased)
+------------------
+
+* No changes yet.
+
+1.1.0 (2021-05-29)
 ------------------
 
 * Don't allow ``MWS_FAINT`` classes to affect secondaries [`PR #746`_].
