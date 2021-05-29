@@ -545,6 +545,32 @@ def match_secondary(primtargs, scxdir, scndout, sep=1.,
     log.info('Matching primary and secondary targets for {} at {}"...t={:.1f}s'
              .format(scndout, sep, time()-start))
     mtargs, mscx = radec_match_to(targs, scxtargs[inhp], sep=sep)
+
+    # ADM we need special handling of MWS_FAINT sources. These were
+    # ADM introduced after the start of the Main Survey so should never
+    # ADM be allowed to merge with secondaries.
+    if surv == 'main':
+        desi_mask, _, mws_mask = mx[:3]
+        # ADM find the indexes of pure MWS_FAINT targets, which are
+        # ADM combinations like [MWS_FAINT_BLUE, MWS_FAINT_BLUE_NORTH],
+        # ADM [MWS_FAINT_RED, MWS_FAINT_RED_NORTH], etc.
+        is_mws_faint = np.zeros(len(targs), dtype="?")
+        for color in "BLUE", "RED":
+            for hemi in "NORTH", "SOUTH":
+                mwf_bits = (mws_mask["MWS_FAINT_{}".format(color)] |
+                            mws_mask["MWS_FAINT_{}_{}".format(color, hemi)])
+                is_mws_faint |= targs["MWS_TARGET"] == mwf_bits
+        # ADM pure mws_faint have no other bits set in DESI_TARGET.
+        is_mws_faint &= targs["DESI_TARGET"] == desi_mask["MWS_ANY"]
+        # ADM recast the boolean as indices.
+        mws_faint = np.where(is_mws_faint)[0]
+        # ADM find indices of matches (mtargs) that are also MWS_FAINT.
+        # ADM "invert" as we want True where mtargs is NOT MWS_FAINT.
+        ii = np.isin(mtargs, mws_faint, invert=True)
+        # ADM update the matchs to ignore MWS_FAINT.
+        mtargs = mtargs[ii]
+        mscx = mscx[ii]
+
     # ADM recast the indices to the full set of secondary targets,
     # ADM instead of just those that were in the relevant HEALPixels.
     mscx = np.where(inhp)[0][mscx]
