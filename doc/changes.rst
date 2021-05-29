@@ -48,6 +48,7 @@ desitarget Change Log
 .. _`PR #742`: https://github.com/desihub/desitarget/pull/742
 .. _`PR #743`: https://github.com/desihub/desitarget/pull/743
 .. _`PR #744`: https://github.com/desihub/desitarget/pull/744
+.. _`PR #746`: https://github.com/desihub/desitarget/pull/746
 
 1.0.1 (2021-05-14)
 ------------------
