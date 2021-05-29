@@ -5,6 +5,7 @@ desitarget Change Log
 1.1.0 (unreleased)
 ------------------
 
+* Don't allow ``MWS_FAINT`` classes to affect secondaries [`PR #746`_].
 * Set up the end-to-end MTL Main Survey loop [`PR #744`_]. Includes:
     * mtl-done-tiles file ``TIMESTAMP`` is later than any ledger entry.
     * Read the zcats from the zqso files instead of making a "backstop".
