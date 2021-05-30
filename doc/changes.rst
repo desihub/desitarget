@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-1.1.1 (unreleased)
+1.1.2 (unreleased)
+------------------
+
+* No changes yet.
+
+1.1.1 (2021-05-29)
 ------------------
 
 * Turn off the ``MWS_FAINT`` target classes [`PR #748`_]. Includes:
