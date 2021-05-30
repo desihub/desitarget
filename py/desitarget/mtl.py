@@ -566,7 +566,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
-                      timestamp=None, exemptmf=False):
+                      timestamp=None):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -595,12 +595,6 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         If ``True`` then this is a ledger of secondary targets.
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
-    exemptmf : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then exempt any target that has a `TARGET_STATE`
-        driven by `MWS_FAINT_*` classes from accepting `timestamp`. These
-        targets will instead revert to a TIMESTAMP corresponding to when
-        the code was run. This is to fix a bug where "MWS_FAINT" targets
-        were not included in the (1.0.0) Main Survey target files.
 
     Returns
     -------
@@ -619,21 +613,10 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
     # ADM if requested, substitute a bespoke timestamp.
     if timestamp is not None:
-        hdr["TSFORCED"] = timestamp
-        hdr["EXEMPTMF"] = exemptmf
         # ADM check the timestamp is valid.
         _ = check_timestamp(timestamp)
-        origts = mtl["TIMESTAMP"].copy()
+        hdr["TSFORCED"] = timestamp
         mtl["TIMESTAMP"] = timestamp
-        # ADM don't use the bespoke timestamp for MWS_FAINT_* targets.
-        if exemptmf:
-            # ADM do not update the timestamp for targets for which
-            # ADM MWS_FAINT_* is controlling the priority. As MWS_FAINT_*
-            # ADM targets are the lowest-priority UNOBSERVED targets,
-            # ADM this is equivalent to not updating the timestamp for
-            # ADM targets that are purely MWS_FAINT.
-            ii = np.array(["MWS_FAINT" in ts for ts in mtl["TARGET_STATE"]])
-            mtl["TIMESTAMP"][ii] = origts[ii]
 
     # ADM the HEALPixel within which each target in the MTL lies.
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
@@ -657,7 +640,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
 
 def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
-                numproc=1, timestamp=None, exemptmf=False):
+                numproc=1, timestamp=None):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -684,12 +667,6 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         Number of processes to parallelize across.
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
-    exemptmf : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then exempt any target that has a `TARGET_STATE`
-        driven by `MWS_FAINT_*` classes from accepting `timestamp`. These
-        targets will instead revert to a TIMESTAMP corresponding to when
-        the code was run. This is to fix a bug where "MWS_FAINT" targets
-        were not included in the (1.0.0) Main Survey target files.
 
     Returns
     -------
@@ -777,7 +754,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
             indirname=hpdirname, verbose=False, scnd=scnd,
-            timestamp=timestamp, exemptmf=exemptmf)
+            timestamp=timestamp)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')

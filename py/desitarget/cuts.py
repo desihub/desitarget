@@ -2606,13 +2606,13 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_target |= mws_red_n * mws_mask.MWS_MAIN_RED_NORTH
     mws_target |= mws_red_s * mws_mask.MWS_MAIN_RED_SOUTH
 
-    # Add MWS FAINT blue/red split
-    mws_target |= mws_faint_blue * mws_mask.MWS_FAINT_BLUE
-    mws_target |= mws_faint_blue_n * mws_mask.MWS_FAINT_BLUE_NORTH
-    mws_target |= mws_faint_blue_s * mws_mask.MWS_FAINT_BLUE_SOUTH
-    mws_target |= mws_faint_red * mws_mask.MWS_FAINT_RED
-    mws_target |= mws_faint_red_n * mws_mask.MWS_FAINT_RED_NORTH
-    mws_target |= mws_faint_red_s * mws_mask.MWS_FAINT_RED_SOUTH
+    # Add MWS FAINT blue/red split. Only ever set in v1.1 of desitarget.
+#    mws_target |= mws_faint_blue * mws_mask.MWS_FAINT_BLUE
+#    mws_target |= mws_faint_blue_n * mws_mask.MWS_FAINT_BLUE_NORTH
+#    mws_target |= mws_faint_blue_s * mws_mask.MWS_FAINT_BLUE_SOUTH
+#    mws_target |= mws_faint_red * mws_mask.MWS_FAINT_RED
+#    mws_target |= mws_faint_red_n * mws_mask.MWS_FAINT_RED_NORTH
+#    mws_target |= mws_faint_red_s * mws_mask.MWS_FAINT_RED_SOUTH
 
     # Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
