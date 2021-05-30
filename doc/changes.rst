@@ -5,7 +5,12 @@ desitarget Change Log
 1.1.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Turn off the ``MWS_FAINT`` target classes [`PR #748`_]. Includes:
+    * Don't set any of the ``MWS_FAINT`` target bits.
+    * No need to exempt ``MWS_FAINT`` from forced ledger TIMESTAMPs.
+    * Remove special logic for merging ``MWS_FAINT`` with secondaries.
+
+.. _`PR #748`: https://github.com/desihub/desitarget/pull/748
 
 1.1.0 (2021-05-29)
 ------------------
