@@ -576,14 +576,19 @@ def calc_numobs_more(targets, zcat, obscon):
             # ADM If a QSO target is confirmed to have a redshift at
             # ADM z < midzcut it will need to drop by 2 total observations
             # ADM (midzcut is defined at the top of this module).
-            ii = targets[desi_target] & desi_mask.QSO != 0
+            isqso = targets[desi_target] & desi_mask.QSO != 0
             # ADM the mocks may not include the secondary targets.
             if scnd_target in targets.dtype.names:
                 for scxname in scnd_mask.names():
                     if scnd_mask[scxname].flavor == "QSO":
-                        ii |= targets[scnd_target] & scnd_mask[scxname] != 0
-            ii &= (zcat['ZWARN'] == 0)
-            ii &= (zcat['Z'] < midzcut)
+                        isqso |= targets[scnd_target] & scnd_mask[scxname] != 0
+            # ADM the definition used for "not-LyA" in calc_priority.
+            midz = (zcat['Z'] < zcut) & ((zcat['Z_QN'] < zcut)
+                                         | (zcat["IS_QSO_QN"] != 1))
+            # ADM the likely low-z sources get fewer (2) observations.
+            loz = ((zcat['Z'] < midzcut) | (zcat['Z_QN'] < midzcut) |
+                   (zcat["IS_QSO_QN"] != 1))
+            ii = isqso & midz & loz
             numobs_more[ii] = np.maximum(0, numobs_more[ii] - 2)
 
     return numobs_more
@@ -717,24 +722,52 @@ def calc_priority(targets, zcat, obscon, state=False):
             pricon = obsconditions.mask(desi_mask[name].obsconditions)
             if (obsconditions.mask(obscon) & pricon) != 0:
                 ii = (targets[desi_target] & desi_mask[name]) != 0
+
                 # ADM LyA QSOs require more observations.
                 # ADM (zcut is defined at the top of this module).
-                good_hiz = zgood & (zcat['Z'] >= zcut)
-                # ADM Mid-z QSOs require more observations at low
-                # ADM priority as requested by some secondary programs.
-                if survey == "sv3":
-                    good_midz = zgood & (zcat['Z'] >= midzcut) & (zcat['Z'] < zcut)
-                # ADM for the Main Survey EVERY QSO that isn't a LyA QSO
-                # drops to the MIDZ priority until it's done.
-                else:
-                    good_midz = zgood & (zcat['Z'] < zcut)
+                # ADM Main Survey decisions are made using QN/Redrock.
+                if survey == "main":
+                    good_hiz = (zcat['Z'] >= zcut) | ((zcat['Z_QN'] >= zcut) &
+                                                      (zcat["IS_QSO_QN"] == 1))
+                    # ADM all non-LyA-QSOs need more low-priority passes
+                    # ADM in the Main Survey. The mid-z QSOs get 4 passes
+                    # ADM at this lower priority, as requested by some
+                    # ADM secondaries, which is set in calc_numobs_more.
+                    good_midz = (zcat['Z'] < zcut) & ((zcat['Z_QN'] < zcut) |
+                                                      (zcat["IS_QSO_QN"] != 1))
+                    # ADM good_hiz & good_midz should never occur in
+                    # ADM the Main Survey as they're complements.
+                    assert not np.any(good_hiz & good_midz)
+                    # ADM flip to the done state if we've reached it.
+                    good_hiz &= ~done
+                    good_midz &= ~done
 
-                for sbool, sname in zip(
-                        [unobs, done, good_hiz, good_midz,
-                         ~good_hiz & ~good_midz, zwarn],
-                        ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
-                         "DONE", "MORE_ZWARN"]
-                ):
+                    # ADM Main Survey QSOs have no zwarn priority state.
+                    sbools = [unobs, done, good_hiz, good_midz,
+                              ~good_hiz & ~good_midz]
+                    snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                              "DONE"]
+
+                # In SV decisions were made without QN.
+                elif survey == "sv3":
+                    good_hiz = zgood & (zcat['Z'] >= zcut)
+                    # ADM SV3 specified mid-z QSOs required more passes.
+                    good_midz = zgood & (zcat['Z'] >= midzcut) & (zcat['Z'] < zcut)
+                    # ADM in SV3 we had a zwarn priority state for QSOs.
+                    sbools = [unobs, done, good_hiz, good_midz,
+                              ~good_hiz & ~good_midz, zwarn]
+                    snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                              "DONE", "MORE_ZWARN"]
+
+                else:
+                    good_hiz = zgood & (zcat['Z'] >= zcut)
+                    good_midz = zgood & (zcat['Z'] < zcut)
+                    sbools = [unobs, done, good_hiz, good_midz,
+                              ~good_hiz & ~good_midz, zwarn]
+                    snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                              "DONE", "MORE_ZWARN"]
+
+                for sbool, sname in zip(sbools, snames):
                     # ADM update priorities and target states.
                     Mxp = desi_mask[name].priorities[sname]
                     # ADM tiered system in SV3. Decrement MORE_ZWARN
