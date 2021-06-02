@@ -602,8 +602,10 @@ def calc_priority(targets, zcat, obscon, state=False):
     ----------
     targets : :class:`~numpy.ndarray`
         numpy structured array or astropy Table of targets. Must include
-        the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`
-        (or their SV/cmx equivalents) and `TARGETID`.
+        the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` (or their
+        SV/cmx equivalents) and `TARGETID`. For Main Survey files, must
+        also contain `PRIORITY` if this isn't the first time through MTL,
+        which is used to "lock-in" the state of Lyman-Alpha quasars.
     zcat : :class:`~numpy.ndarray`
         numpy structured array or Table of redshift info. Must include
         `Z`, `ZWARN`, `NUMOBS` and `TARGETID` and BE SORTED ON TARGETID
@@ -665,6 +667,12 @@ def calc_priority(targets, zcat, obscon, state=False):
         done = ~unobs & (nmore == 0)
         zgood = ~unobs & (nmore > 0) & (zcat['ZWARN'] == 0)
         zwarn = ~unobs & (nmore > 0) & (zcat['ZWARN'] != 0)
+        # ADM used to "lock-in" the state of LyA QSOs...
+        lya = targets["PRIORITY"] == desi_mask["QSO"].priorities["MORE_ZGOOD"]
+        # ADM ...once they're observed...
+        lya &= ~unobs
+        # ADM ... and until they're done.
+        lya &= ~done
 
     # zgood, zwarn, done, and unobs should be mutually exclusive and cover all
     # targets.
@@ -742,11 +750,12 @@ def calc_priority(targets, zcat, obscon, state=False):
                     good_hiz &= ~done
                     good_midz &= ~done
 
-                    # ADM Main Survey QSOs have no zwarn priority state.
+                    # ADM Main Survey QSOs have no zwarn priority state
+                    # ADM but do have a Lyman-alpha (lya) "locked-in" state.
                     sbools = [unobs, done, good_hiz, good_midz,
-                              ~good_hiz & ~good_midz]
+                              ~good_hiz & ~good_midz, lya]
                     snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
-                              "DONE"]
+                              "DONE", "MORE_ZGOOD"]
 
                 # In SV decisions were made without QN.
                 elif survey == "sv3":
