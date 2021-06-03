@@ -393,8 +393,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
         if num_extra > 0:
-            log.info("Ignoring {} zcat entries that aren't in the input "
-                     "target list (i.e. likely skies)".format(num_extra))
+            log.info("Ignoring {} z entries that aren't in the input target list"
+                     " (e.g. likely skies, secondaries-when-running-primary, "
+                     "primaries-when-running-secondary, etc.)".format(num_extra))
             zcat = zcat[ok]
         # ADM also ignore anything with NODATA set in ZWARN.
         nodata = zcat["ZWARN"] & zwarn_mask["NODATA"] != 0
@@ -798,7 +799,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
         ``Z``, ``ZWARN``, ``ZTILEID``, and ``msaddcols`` at the top of
         the code for the Main Survey.
-    targets : :class:`~numpy.array` or `~astropy.table.Table`, optional, defaults to ``None``
+    targets : :class:`~numpy.array` or `~astropy.table.Table`, optional
         A numpy rec array or astropy Table with at least the columns
         ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
         and ``PRIORITY_INIT``. If ``None``, then assume the `zcat`

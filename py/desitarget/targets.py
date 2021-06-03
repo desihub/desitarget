@@ -757,7 +757,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                     snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
                               "DONE", "MORE_ZGOOD"]
 
-                # In SV decisions were made without QN.
+                # ADM In SV decisions were made without QN.
                 elif survey == "sv3":
                     good_hiz = zgood & (zcat['Z'] >= zcut)
                     # ADM SV3 specified mid-z QSOs required more passes.
@@ -902,26 +902,53 @@ def calc_priority(targets, zcat, obscon, state=False):
                     if (obsconditions.mask(obscon) & pricon) != 0:
                         ii = (targets[scnd_target] & scnd_mask[name]) != 0
                         ii &= scnd_update
-                        # ADM LyA QSOs require more observations.
+
+                        # ADM scnd LyA QSOs may require more observations.
                         # ADM (zcut is defined at the top of this module).
-                        good_hiz = zgood & (zcat['Z'] >= zcut)
-                        # ADM Mid-z QSOs require more observations at low
-                        # ADM priority as requested by some secondary programs.
-                        if survey == "sv3":
+                        # ADM Main Survey decisions are made using QN/Redrock.
+                        if survey == "main":
+                            good_hiz = (zcat['Z'] >= zcut) | ((zcat['Z_QN'] >= zcut) &
+                                                              (zcat["IS_QSO_QN"] == 1))
+                            # ADM all non-LyA-QSOs need more low-priority passes
+                            # ADM in the Main Survey. The mid-z QSOs get 4 passes
+                            # ADM at this lower priority, as requested by some
+                            # ADM secondaries, which is set in calc_numobs_more.
+                            good_midz = (zcat['Z'] < zcut) & ((zcat['Z_QN'] < zcut) |
+                                                              (zcat["IS_QSO_QN"] != 1))
+                            # ADM good_hiz & good_midz should never occur in
+                            # ADM the Main Survey as they're complements.
+                            assert not np.any(good_hiz & good_midz)
+                            # ADM flip to the done state if we've reached it.
+                            good_hiz &= ~done
+                            good_midz &= ~done
+
+                        # ADM In SV decisions were made without QN.
+                        elif survey == "sv3":
+                            good_hiz = zgood & (zcat['Z'] >= zcut)
+                            # ADM SV3 specified mid-z QSOs required more passes.
                             good_midz = zgood & (zcat['Z'] >= midzcut) & (zcat['Z'] < zcut)
-                        # ADM for the Main Survey EVERY QSO that isn't a LyA QSO
-                        # drops to the MIDZ priority until it's done.
                         else:
+                            good_hiz = zgood & (zcat['Z'] >= zcut)
                             good_midz = zgood & (zcat['Z'] < zcut)
+
                         # ADM secondary QSOs need processed like primary QSOs.
                         if scnd_mask[name].flavor == "QSO":
-                            sbools = [unobs, done, good_hiz, good_midz,
-                                      ~good_hiz & ~good_midz, zwarn]
-                            snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
-                                      "DONE", "MORE_ZWARN"]
+                            if survey == "main":
+                                # ADM Main Survey QSOs have no zwarn priority state
+                                # ADM but do have a Lyman-alpha (lya) "locked-in" state.
+                                sbools = [unobs, done, good_hiz, good_midz,
+                                          ~good_hiz & ~good_midz, lya]
+                                snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                                          "DONE", "MORE_ZGOOD"]
+                            else:
+                                sbools = [unobs, done, good_hiz, good_midz,
+                                          ~good_hiz & ~good_midz, zwarn]
+                                snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_MIDZQSO",
+                                          "DONE", "MORE_ZWARN"]
                         else:
                             sbools = [unobs, done, zgood, zwarn]
                             snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+
                         for sbool, sname in zip(sbools, snames):
                             # ADM update priorities and target states.
                             Mxp = scnd_mask[name].priorities[sname]
