@@ -5,9 +5,9 @@ desitarget Change Log
 1.1.2 (unreleased)
 ------------------
 
-* Add final QSO decision logic to full Main Survey MTL loop [`PR #750`_].
+* Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
 
-.. _`PR #750`: https://github.com/desihub/desitarget/pull/750
+.. _`PR #751`: https://github.com/desihub/desitarget/pull/751
 
 1.1.1 (2021-05-29)
 ------------------
