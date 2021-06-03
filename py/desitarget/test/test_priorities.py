@@ -181,6 +181,13 @@ class TestPriorities(unittest.TestCase):
         t = self.targets
         z = self.zcat
 
+        # ADM the data model is slightly different for the Main Survey.
+        truedm = survey_data_model(z, survey="main")
+        addedcols = list(set(truedm.dtype.names) - set(z.dtype.names))
+        for col in addedcols:
+            t[col] = -1
+            z[col] = -1
+
         t['DESI_TARGET'][0] = desi_mask.ELG
         t['DESI_TARGET'][1] = desi_mask.ELG | desi_mask.NEAR_BRIGHT_OBJECT
         t['DESI_TARGET'][2] = desi_mask.ELG | desi_mask.IN_BRIGHT_OBJECT
