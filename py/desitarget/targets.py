@@ -665,6 +665,7 @@ def calc_priority(targets, zcat, obscon, state=False):
         done = np.zeros(len(targets), dtype=bool)
         zgood = np.zeros(len(targets), dtype=bool)
         zwarn = np.zeros(len(targets), dtype=bool)
+        lya = np.zeros(len(targets), dtype=bool)
     else:
         nmore = zcat["NUMOBS_MORE"]
         assert np.all(nmore >= 0)

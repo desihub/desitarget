@@ -58,7 +58,7 @@ class TestPriorities(unittest.TestCase):
         # ADM retain an unaltered copy of z.
         zcat = z.copy()
 
-        # - No targeting bits set is priority=0
+        # - No targeting bits set if priority=0
         self.assertTrue(np.all(calc_priority(t, z, "BRIGHT") == 0))
 
         # ADM test QSO > LRG > ELG for main survey and SV.
@@ -176,8 +176,11 @@ class TestPriorities(unittest.TestCase):
         self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
 
     def test_bright_mask(self):
+        """Test that bright-object masking priorities are correctly set.
+        """
         t = self.targets
         z = self.zcat
+
         t['DESI_TARGET'][0] = desi_mask.ELG
         t['DESI_TARGET'][1] = desi_mask.ELG | desi_mask.NEAR_BRIGHT_OBJECT
         t['DESI_TARGET'][2] = desi_mask.ELG | desi_mask.IN_BRIGHT_OBJECT
