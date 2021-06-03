@@ -43,7 +43,8 @@ class TestMTL(unittest.TestCase):
         for col in ["RA", "DEC", "PARALLAX", "PMRA", "PMDEC", "REF_EPOCH"]:
             self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         self.targets['DESI_TARGET'] = [Mx[t].mask for t in self.types]
-        for col in ['BGS_TARGET', 'MWS_TARGET', 'SCND_TARGET', 'SUBPRIORITY']:
+        for col in ['BGS_TARGET', 'MWS_TARGET', 'SCND_TARGET',
+                    'SUBPRIORITY', "PRIORITY"]:
             self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         n = len(self.targets)
         self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
@@ -68,6 +69,9 @@ class TestMTL(unittest.TestCase):
         _, _, survey = main_cmx_or_sv(cat)
         truedm = survey_data_model(cat, survey=survey)
         addedcols = list(set(truedm.dtype.names) - set(cat.dtype.names))
+        # ADM because we set columns like Z_QN and IS_QSO_QN to -1, midz
+        # ADM QSOs will have 1 more observation in these unit tests (LyA
+        # ADM QSOs will have 3 as the criterion is OR redrock Z > 2.1).
         for col in addedcols:
             cat[col] = [-1] * len(cat)
 
@@ -124,7 +128,7 @@ class TestMTL(unittest.TestCase):
         mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
         mtl.sort(keys='TARGETID')
         pp = self.post_prio.copy()
-        nom = [0, 0, 1, 3, 3, 2]
+        nom = [0, 0, 1, 1, 3, 2]
         self.assertTrue(np.all(mtl['PRIORITY'] == pp))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
         # - change one target to a SAFE (BADSKY) target and confirm priority=0 not 1
