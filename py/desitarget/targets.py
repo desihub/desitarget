@@ -671,12 +671,13 @@ def calc_priority(targets, zcat, obscon, state=False):
         done = ~unobs & (nmore == 0)
         zgood = ~unobs & (nmore > 0) & (zcat['ZWARN'] == 0)
         zwarn = ~unobs & (nmore > 0) & (zcat['ZWARN'] != 0)
-        # ADM used to "lock in" the state of LyA QSOs...
-        lya = targets["PRIORITY"] == desi_mask["QSO"].priorities["MORE_ZGOOD"]
-        # ADM ...once they're observed...
-        lya &= ~unobs
-        # ADM ... and until they're done.
-        lya &= ~done
+        if survey == 'main':
+            # ADM used to "lock in" the state of LyA QSOs...
+            lya = targets["PRIORITY"] == desi_mask["QSO"].priorities["MORE_ZGOOD"]
+            # ADM ...once they're observed...
+            lya &= ~unobs
+            # ADM ... and until they're done.
+            lya &= ~done
 
     # zgood, zwarn, done, and unobs should be mutually exclusive and cover all
     # targets.
