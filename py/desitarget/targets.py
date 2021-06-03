@@ -529,8 +529,10 @@ def calc_numobs_more(targets, zcat, obscon):
     ----------
     targets : :class:`~numpy.ndarray`
         numpy structured array or astropy Table of targets. Must include
-        the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET`
-        (or their SV/cmx equivalents) `TARGETID` and `NUMOBS_INIT`.
+        the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` (or their
+        SV/cmx equivalents) `TARGETID` and `NUMOBS_INIT`. For Main Survey
+        targets, must also contain `PRIORITY` if this isn't the first
+        time through MTL (used to "lock in" the state of Ly-Alpha QSOs).
     zcat : :class:`~numpy.ndarray`
         numpy structured array or Table of redshift info. Must include
         `Z`, `ZWARN`, `NUMOBS` and `TARGETID` and BE SORTED ON TARGETID
@@ -573,10 +575,12 @@ def calc_numobs_more(targets, zcat, obscon):
     if survey == 'main':
         # ADM apply special QSO behavior, but only in dark time.
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
-            # ADM If a QSO target is confirmed to have a redshift at
-            # ADM z < midzcut it will need to drop by 2 total observations
+            # ADM A QSO target that is confirmed to have a redshift at
+            # ADM z < midzcut will need to drop by 2 total observations
             # ADM (midzcut is defined at the top of this module).
             isqso = targets[desi_target] & desi_mask.QSO != 0
+            # ADM "lock in" the numobs state for existing Ly-Alpha QSOs.
+            lya = targets["PRIORITY"] == desi_mask["QSO"].priorities["MORE_ZGOOD"]
             # ADM the mocks may not include the secondary targets.
             if scnd_target in targets.dtype.names:
                 for scxname in scnd_mask.names():
@@ -588,7 +592,7 @@ def calc_numobs_more(targets, zcat, obscon):
             # ADM the likely low-z sources get fewer (2) observations.
             loz = ((zcat['Z'] < midzcut) | (zcat['Z_QN'] < midzcut) |
                    (zcat["IS_QSO_QN"] != 1))
-            ii = isqso & midz & loz
+            ii = isqso & midz & loz & ~lya
             numobs_more[ii] = np.maximum(0, numobs_more[ii] - 2)
 
     return numobs_more
@@ -603,9 +607,9 @@ def calc_priority(targets, zcat, obscon, state=False):
     targets : :class:`~numpy.ndarray`
         numpy structured array or astropy Table of targets. Must include
         the columns `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` (or their
-        SV/cmx equivalents) and `TARGETID`. For Main Survey files, must
+        SV/cmx equivalents) and `TARGETID`. For Main Survey targets, must
         also contain `PRIORITY` if this isn't the first time through MTL,
-        which is used to "lock-in" the state of Lyman-Alpha quasars.
+        which is used to "lock in" the state of Lyman-Alpha quasars.
     zcat : :class:`~numpy.ndarray`
         numpy structured array or Table of redshift info. Must include
         `Z`, `ZWARN`, `NUMOBS` and `TARGETID` and BE SORTED ON TARGETID
@@ -667,7 +671,7 @@ def calc_priority(targets, zcat, obscon, state=False):
         done = ~unobs & (nmore == 0)
         zgood = ~unobs & (nmore > 0) & (zcat['ZWARN'] == 0)
         zwarn = ~unobs & (nmore > 0) & (zcat['ZWARN'] != 0)
-        # ADM used to "lock-in" the state of LyA QSOs...
+        # ADM used to "lock in" the state of LyA QSOs...
         lya = targets["PRIORITY"] == desi_mask["QSO"].priorities["MORE_ZGOOD"]
         # ADM ...once they're observed...
         lya &= ~unobs
