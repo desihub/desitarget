@@ -31,28 +31,28 @@ class TestGEOMASK(unittest.TestCase):
         self.assertTrue(foo is None)
 
     def test_match(self):
-        a = np.array([1,2,3,4])
-        b = np.array([4,3])
+        a = np.array([1, 2, 3, 4])
+        b = np.array([4, 3])
         iia, iib = geomask.match(a, b)
 
-        #- returned indices match
+        # - returned indices match
         self.assertTrue(np.all(a[iia] == b[iib]))
 
-        #- ... and are complete
+        # - ... and are complete
         ainb = np.isin(a, b)
         bina = np.isin(b, a)
-        self.assertTrue(np.all( np.isin(a[ainb], a[iia]) ) )
-        self.assertTrue(np.all( np.isin(b[bina], b[iib]) ) )
+        self.assertTrue(np.all(np.isin(a[ainb], a[iia])))
+        self.assertTrue(np.all(np.isin(b[bina], b[iib])))
 
-        #- Check corner cases
-        a = np.array([1,2,3,4])
-        b = np.array([5,6])
+        # - Check corner cases
+        a = np.array([1, 2, 3, 4])
+        b = np.array([5, 6])
         iia, iib = geomask.match(a, b)
         self.assertEqual(len(iia), 0)
         self.assertEqual(len(iib), 0)
 
-        a = np.array([1,2,3,4])
-        b = np.array([4,3,2,1])
+        a = np.array([1, 2, 3, 4])
+        b = np.array([4, 3, 2, 1])
         iia, iib = geomask.match(a, b)
         self.assertTrue(np.all(a[iia] == b[iib]))
         self.assertTrue(len(iia), len(a))

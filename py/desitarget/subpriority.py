@@ -11,6 +11,7 @@ from desiutil.log import get_logger
 from desitarget.targetmask import desi_mask
 from desitarget.geomask import match
 
+
 def override_subpriority(targets, override):
     """
     Override SUBPRIORITY column in targets for those in override table
@@ -50,6 +51,7 @@ def override_subpriority(targets, override):
 
         return ii
 
+
 def get_fiberassign_subpriorities(fiberassignfiles):
     """
     Return table of TARGETID, SUBPRIORITY used in input fiberassign files
@@ -62,13 +64,13 @@ def get_fiberassign_subpriorities(fiberassignfiles):
     """
     log = get_logger()
 
-    #- allow duplicate inputs, but don't process multiple tiles
+    # - allow duplicate inputs, but don't process multiple tiles
     processed = set()
 
     subprio_tables = dict(dark=list(), bright=list(), sky=list())
 
     for filename in fiberassignfiles:
-        #- Have we already processed this file (e.g. from an earlier expid)?
+        # - Have we already processed this file (e.g. from an earlier expid)?
         basename = os.path.basename(filename)
         if basename in processed:
             continue
@@ -98,7 +100,7 @@ def get_fiberassign_subpriorities(fiberassignfiles):
             log.info(f'Reading {filename}')
             sp = fx['TARGETS'].read(columns=['TARGETID', 'SUBPRIORITY', 'DESI_TARGET'])
 
-        #- Separate skies from non-skies
+        # - Separate skies from non-skies
         skymask = desi_mask.mask('SKY|SUPP_SKY|BAD_SKY')
         iisky = (sp['DESI_TARGET'] & skymask) != 0
 
@@ -109,13 +111,13 @@ def get_fiberassign_subpriorities(fiberassignfiles):
     for program in subprio_tables.keys():
         subprio_tables[program] = np.hstack(subprio_tables[program])
 
-    #- QA checks on basic assumptions about uniqueness
+    # - QA checks on basic assumptions about uniqueness
     log.info('Checking assumptions about TARGETID:SUBPRIORITY uniqueness')
     for program in ['dark', 'bright', 'sky']:
         subprio = subprio_tables[program]
         tid, sortedidx = np.unique(subprio['TARGETID'], return_index=True)
 
-        #- sky can appear multiple times, but with same SUBPRIORITY
+        # - sky can appear multiple times, but with same SUBPRIORITY
         if program == 'sky':
             subpriodict = dict()
             for targetid, sp in zip(
@@ -125,7 +127,7 @@ def get_fiberassign_subpriorities(fiberassignfiles):
                         log.error(f'{program} TARGETID {targetid} has multiple subpriorities')
                 else:
                     subpriodict[targetid] = sp
-        #- but other programs should have each TARGETID exactly once
+        # - but other programs should have each TARGETID exactly once
         else:
             if len(tid) != len(subprio):
                 log.error(f'Some {program} TARGETIDs appear multiple times')
@@ -135,14 +137,15 @@ def get_fiberassign_subpriorities(fiberassignfiles):
 
     return subprio_tables
 
+
 if __name__ == "__main__":
     import argparse
 
     p = argparse.ArgumentParser()
     p.add_argument('-i', '--infiles', nargs='+', required=True,
-            help='Input fiberassign files with TARGETS HDU')
+                   help='Input fiberassign files with TARGETS HDU')
     p.add_argument('-o', '--outdir', required=True,
-            help='Output directory to keep dark/bright/sky TARGETID SUBPRIORITY tables')
+                   help='Output directory to keep dark/bright/sky TARGETID SUBPRIORITY tables')
 
     args = p.parse_args()
     log = get_logger()
@@ -168,6 +171,3 @@ if __name__ == "__main__":
         outfile = os.path.join(args.outdir, f'subpriorities-{program}.fits')
         fitsio.write(outfile, subprio, extname='SUBPRIORITY', header=hdr, clobber=True)
         log.info(f'Wrote {outfile}')
-
-
-
