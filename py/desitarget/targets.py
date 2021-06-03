@@ -572,8 +572,9 @@ def calc_numobs_more(targets, zcat, obscon):
     # ADM main case, just decrement by NUMOBS.
     numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
 
-    if survey == 'main':
-        # ADM apply special QSO behavior, but only in dark time.
+    # ADM apply special QSO behavior, but only in dark time and after
+    # ADM some observations have occurred.
+    if survey == 'main' and np.any(zcat["NUMOBS"] > 0):
         if (obsconditions.mask(obscon) & obsconditions.mask("DARK")) != 0:
             # ADM A QSO target that is confirmed to have a redshift at
             # ADM z < midzcut will need to drop by 2 total observations

@@ -106,7 +106,7 @@ class TestMTL(unittest.TestCase):
             self.assertEqual(refnames, mtlnames)
 
     def test_numobs(self):
-        """Test priorities, numobs, obscon, set correctly with no zcat.
+        """Test priorities, numobs, set correctly with no zcat.
         """
         t = self.reset_targets("")
         t = self.update_data_model(t)
