@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
 import os
+import sys
+import traceback
 from desitarget.mtl import get_zcat_dir
 from desitarget.lyazcat import get_qn_model_fname, load_qn_model
 from desitarget.lyazcat import get_sq_model_fname, load_sq_model
@@ -136,14 +138,24 @@ else:
     nights = [n for n in args.night.split(',')]
     petals = [p for p in args.petal.split(',')]
 
+    numerr = 0
     for tile, night in zip(tiles, nights):
         for pnum in petals:
             log.info("processing TILEID={}, NIGHTID={}, petal={}".format(
                 tile, night, pnum))
-            create_zcat(input_dir, output_dir, tile=tile,
+            try:
+                create_zcat(input_dir, output_dir, tile=tile,
                         night=night, petal_num=pnum, qn_flag=add_quasarnp,
                         qnp_model=qnp_model, qnp_model_file=args.qn_model_file,
                         qnp_lines=qnp_lines, qnp_lines_bal=qnp_lines_bal,
                         sq_flag=args.add_squeze, squeze_model=sq_model,
                         squeze_model_file=args.sq_model_file,
                         abs_flag=args.add_mgii, zcomb_flag=args.add_zcomb)
+            except Exception as err:
+                numerr += 1
+                exc_type, exc_value, exc_traceback = sys.exc_info()
+                lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
+                print(''.join(lines))
+                log.error(f'Tile {tile} night {night} petal {pnum} failed; continuing')
+
+    sys.exit(numerr)
