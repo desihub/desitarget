@@ -97,7 +97,9 @@ def make_new_zcat(zbestname, qn_flag=False, sq_flag=False, abs_flag=False,
     try:
         zs = fitsio.read(zbestname, "ZBEST")
         fms = fitsio.read(zbestname, "FIBERMAP")
+        log.info(f'Read {zbestname}')
     except (FileNotFoundError, OSError):
+        log.error(f'Missing {zbestname}')
         return False
 
     # ADM recover the information for unique targets based on the
@@ -138,7 +140,16 @@ def make_new_zcat(zbestname, qn_flag=False, sq_flag=False, abs_flag=False,
     # ADM also add the appropriate bit-columns.
     Mxcols, _, _, = main_cmx_or_sv(fms, scnd=True)
     for col in Mxcols:
-        zcat[col] = fms[zid][col]
+        if col in fms.dtype.names:
+            zcat[col] = fms[zid][col]
+        # SB fail on missing required columns ...
+        elif col in zcatdatamodel.dtype.names:
+            msg = f'Input fibermap missing {col}, which is required by zqso datamodel'
+            log.critical(msg)
+            raise ValueError(msg)
+        # SB ... but only log error about unexpectedly missing optional columns
+        else:
+            log.error(f'Input fibermap missing optional {col}; leaving it blank')
 
     # ADM write out the unwritten columns.
     allcols = set(dtswitched.dtype.names)
@@ -635,6 +646,7 @@ def zcat_writer(zcat, outputdir, outputname,
     # ADM create the header and add the standard DESI dependencies.
     hdr = {}
     add_dependencies(hdr)
+    add_dependencies(hdr, module_names=['quasarnp',])
 
     # ADM add the specific lyazcat dependencies
     hdr['QN_ADDED'] = qn_flag
