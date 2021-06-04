@@ -210,7 +210,7 @@ class TestMTL(unittest.TestCase):
     def test_lya_lock_in(self):
         """Test LyA QSOs remain LyA QSOs, even when the zcat changes.
         """
-	# ADM set up the MTL as for test_zcat.
+        # ADM set up the MTL as for test_zcat.
         t = self.reset_targets("")
         t = self.update_data_model(t)
         zcat = self.update_data_model(self.zcat.copy())
