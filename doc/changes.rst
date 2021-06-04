@@ -5,7 +5,10 @@ desitarget Change Log
 1.1.2 (unreleased)
 ------------------
 
-* No changes yet.
+* ``make_zqso_files`` more robust to problems on individual tile,night,petal
+  while still processing the others [`PR #752`_].
+
+.. _`PR #752`: https://github.com/desihub/desitarget/pull/752
 
 1.1.1 (2021-05-29)
 ------------------
