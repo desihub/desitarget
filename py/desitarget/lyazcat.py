@@ -142,8 +142,14 @@ def make_new_zcat(zbestname, qn_flag=False, sq_flag=False, abs_flag=False,
     for col in Mxcols:
         if col in fms.dtype.names:
             zcat[col] = fms[zid][col]
+        # SB fail on missing required columns ...
+        elif col in zcatdatamodel.dtype.names:
+            msg = f'Input fibermap missing {col}, which is required by zqso datamodel'
+            log.critical(msg)
+            raise ValueError(msg)
+        # SB ... but only log error about unexpectedly missing optional columns
         else:
-            log.error(f'Input fibermap missing {col}; leaving it blank')
+            log.error(f'Input fibermap missing optional {col}; leaving it blank')
 
     # ADM write out the unwritten columns.
     allcols = set(dtswitched.dtype.names)
