@@ -24,7 +24,6 @@ class TestPriorities(unittest.TestCase):
             ('Z', np.float32),
             ('ZWARN', np.float32),
             ('NUMOBS', np.float32),
-            ('SPECTYPE', np.str),
             ('ZTILEID', np.int32)
         ]
 
