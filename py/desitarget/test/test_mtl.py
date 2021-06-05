@@ -200,7 +200,8 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
 
         # ADM repeat until QSOs should be done, check everything IS done.
-        for i in range(Mx["QSO"].numobs - 2):
+        passes = int(np.unique(zcat["NUMOBS"]))
+        for i in range(Mx["QSO"].numobs - passes):
             zcat["NUMOBS"] += 1
             mtl = make_mtl(mtl, "DARK", zcat=zcat, trim=False)
         pp = self.post_prio_done
@@ -218,6 +219,7 @@ class TestMTL(unittest.TestCase):
         mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
 
         # ADM record the location of the mid-z and LyA QSO in the MTL.
+        iilowzmtl = mtl['Z'] == self.lowz
         iimidzmtl = mtl['Z'] == self.midz
         iilyazmtl = mtl['Z'] == self.lyaz
 
@@ -225,27 +227,32 @@ class TestMTL(unittest.TestCase):
         zcat["NUMOBS"] += 1
 
         # ADM now update the zcat so the mid-z QSO is LyA and vice-versa.
+        # ADM also update a tracer QSO to be LyA.
         modzcat = zcat.copy()
         if not np.all(modzcat["Z"] == modzcat["Z_QN"]):
             msg = "Z_QN should always equal Z for this test!!!"
             log.error(msg)
             raise ValueError(msg)
-        iilyaz = modzcat["Z"] == self.lyaz
+        iilowz = modzcat["Z"] == self.lowz
         iimidz = modzcat["Z"] == self.midz
+        iilyaz = modzcat["Z"] == self.lyaz
         for zcol in "Z", "Z_QN":
-            modzcat[zcol][iilyaz] = self.midz
+            modzcat[zcol][iilowz] = self.lyaz
             modzcat[zcol][iimidz] = self.lyaz
+            modzcat[zcol][iilyaz] = self.midz
 
         # ADM run MTL.
         mtl = make_mtl(mtl, "DARK", zcat=modzcat, trim=False)
 
         # ADM the result should leave the LyA QSO unchanged (it's "locked
-        # ADM in"), but promote the mid-z QSO to being a LyA quasar.
+        # ADM in"), but promote the mid-z/tracer QSOs to being LyA QSOs.
         pp = np.array(self.post_prio_duo)
+        pp[iilowzmtl] = pp[iilyazmtl]
         pp[iimidzmtl] = pp[iilyazmtl]
-
-        # ADM numbers of observations should remain unchanged.
-        nom = self.post_nom_duo
+        # ADM numbers of observations should follow suit.
+        nom = np.array(self.post_nom_duo)
+        nom[iilowzmtl] = nom[iilyazmtl]
+        nom[iimidzmtl] = nom[iilyazmtl]
 
         self.assertTrue(np.all(mtl['PRIORITY'] == pp))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
@@ -253,18 +260,31 @@ class TestMTL(unittest.TestCase):
         # ADM add an observation.
         modzcat["NUMOBS"] += 1
 
-        # ADM now reverse the process, returning the mid-z QSO to the
-        # ADM mid-z redshift and the LyA QSO to the Ly-A redshift.
+        # ADM reverse things, returning the mid-z/tracer QSOs to their
+        # ADM original redshifts and the LyA QSO to the Ly-A redshift.
         for zcol in "Z", "Z_QN":
-            modzcat[zcol][iilyaz] = self.lyaz
+            modzcat[zcol][iilowz] = self.lowz
             modzcat[zcol][iimidz] = self.midz
+            modzcat[zcol][iilyaz] = self.lyaz
 
         # ADM run MTL.
         mtl = make_mtl(mtl, "DARK", zcat=modzcat, trim=False)
 
-        # ADM the once-and-future mid-z QSO should remain "locked in" as
-        # ADM a LyA quasar. So, the priorities should be unchanged.
+        # ADM the reverted mid-z/tracer QSOs should remain "locked in" as
+        # ADM LyA quasars. So, their priorities should remain unchanged
+        # ADM until they're DONE.
         self.assertTrue(np.all(mtl['PRIORITY'] == pp))
+
+        # ADM repeat MTL until the QSOs should be DONE. Everything should
+        # ADM be DONE as usual, regardless of previous redshift changes.
+        passes = int(np.unique(modzcat["NUMOBS"]))
+        for i in range(Mx["QSO"].numobs - passes):
+            modzcat["NUMOBS"] += 1
+            mtl = make_mtl(mtl, "DARK", zcat=modzcat, trim=False)
+        pp = self.post_prio_done
+        nom = self.post_nom_done
+        self.assertTrue(np.all(mtl['PRIORITY'] == pp))
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
 
     def test_midz_no_lock_in(self):
         """Test true mid-z QSOs revert to tracers when redshifts change.
