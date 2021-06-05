@@ -31,7 +31,7 @@ class TestMTL(unittest.TestCase):
     def setUp(self):
         self.lyaz = zcut + 0.4  # ADM an appropriate redshift for a LyA QSO.
         self.midz = 0.5*(midzcut + zcut)  # ADM a redshift for a true mid-z QSO.
-        self.lowz = 0.5 # ADM an appropriate redshift for a tracer QSO.
+        self.lowz = 0.5  # ADM an appropriate redshift for a tracer QSO.
         self.targets = Table()
         self.types = np.array(['ELG_LOP', 'LRG', 'QSO', 'QSO', 'QSO', 'ELG_LOP'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
