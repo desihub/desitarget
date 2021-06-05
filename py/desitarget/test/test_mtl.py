@@ -235,7 +235,7 @@ class TestMTL(unittest.TestCase):
             modzcat[zcol][iilyaz] = self.midz
             modzcat[zcol][iimidz] = self.lyaz
 
-        # ADM run the MTL.
+        # ADM run MTL.
         mtl = make_mtl(mtl, "DARK", zcat=modzcat, trim=False)
 
         # ADM the result should leave the LyA QSO unchanged (it's "locked
@@ -248,6 +248,22 @@ class TestMTL(unittest.TestCase):
 
         self.assertTrue(np.all(mtl['PRIORITY'] == pp))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
+
+        # ADM add an observation.
+        zcat["NUMOBS"] += 1
+
+        # ADM now reverse the process, returning the mid-z QSO to the
+        # ADM mid-z redshift and the LyA QSO to the Ly-A redshift.
+        for zcol in "Z", "Z_QN":
+            modzcat[zcol][iilyaz] = self.lyaz
+            modzcat[zcol][iimidz] = self.midz
+
+        # ADM run MTL.
+        mtl = make_mtl(mtl, "DARK", zcat=modzcat, trim=False)
+
+        # ADM the once-and-future mid-z QSO should remain "locked in" as
+        # ADM a LyA quasar. So, the priorities should be unchanged.
+        self.assertTrue(np.all(mtl['PRIORITY'] == pp))
 
     def test_mtl_io(self):
         """Test MTL correctly handles masked NUMOBS quantities.
