@@ -35,6 +35,7 @@ class TestMTL(unittest.TestCase):
         self.targets = Table()
         self.types = np.array(['ELG_LOP', 'LRG', 'QSO', 'QSO', 'QSO', 'ELG_LOP'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
+        self.nom = [Mx[t].numobs for t in self.types]  # ADM the initial values of NUMOBS_MORE.
 
         # ADM checked-by-hand priorities and numbers of observations.
         # ADM priorities after one pass through MTL.
@@ -89,7 +90,6 @@ class TestMTL(unittest.TestCase):
                     'SUBPRIORITY', "PRIORITY"]:
             self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
         n = len(self.targets)
-        self.targets['ZFLUX'] = 10**((22.5-np.linspace(20, 22, n))/2.5)
         self.targets['TARGETID'] = list(range(n))
         # ADM determine the initial PRIORITY and NUMOBS.
         pinit, ninit = initial_priority_numobs(self.targets, obscon="DARK")
@@ -160,7 +160,7 @@ class TestMTL(unittest.TestCase):
         t = self.reset_targets("")
         t = self.update_data_model(t)
         mtl = make_mtl(t, "DARK")
-        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == [2, 2, 4, 4, 4, 2]))
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.nom))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.priorities))
 
     def test_zcat(self):
