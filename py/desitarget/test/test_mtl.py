@@ -29,8 +29,9 @@ from desitarget.targets import switch_main_cmx_or_sv, zcut, midzcut
 class TestMTL(unittest.TestCase):
 
     def setUp(self):
-        self.lyaz = zcut + 0.4  # ADM a redshift for a LyA QSO.
+        self.lyaz = zcut + 0.4  # ADM an appropriate redshift for a LyA QSO.
         self.midz = 0.5*(midzcut + zcut)  # ADM a redshift for a true mid-z QSO.
+        self.lowz = 0.5 # ADM an appropriate redshift for a tracer QSO.
         self.targets = Table()
         self.types = np.array(['ELG_LOP', 'LRG', 'QSO', 'QSO', 'QSO', 'ELG_LOP'])
         self.priorities = [Mx[t].priorities['UNOBS'] for t in self.types]
@@ -100,7 +101,7 @@ class TestMTL(unittest.TestCase):
         self.zcat['TARGETID'] = self.targets['TARGETID'][-2::-1]
         # ADM in update_data_model, below, we set QN redshifts ('Z_QN')
         # ADM to mimic redrock redshifts ('Z').
-        self.zcat['Z'] = [self.lyaz, self.midz, 0.5, 0.5, 1.0]
+        self.zcat['Z'] = [self.lyaz, self.midz, self.lowz, 0.6, 1.0]
         self.zcat['ZWARN'] = [0, 0, 0, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1, 1]
         self.zcat['ZTILEID'] = [-1, -1, -1, -1, -1]
@@ -240,7 +241,7 @@ class TestMTL(unittest.TestCase):
 
         # ADM the result should leave the LyA QSO unchanged (it's "locked
         # ADM in"), but promote the mid-z QSO to being a LyA quasar.
-        pp = np.array(self.post_prio_duo.copy())
+        pp = np.array(self.post_prio_duo)
         pp[iimidzmtl] = pp[iilyazmtl]
 
         # ADM numbers of observations should remain unchanged.
@@ -250,7 +251,7 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
 
         # ADM add an observation.
-        zcat["NUMOBS"] += 1
+        modzcat["NUMOBS"] += 1
 
         # ADM now reverse the process, returning the mid-z QSO to the
         # ADM mid-z redshift and the LyA QSO to the Ly-A redshift.
@@ -264,6 +265,40 @@ class TestMTL(unittest.TestCase):
         # ADM the once-and-future mid-z QSO should remain "locked in" as
         # ADM a LyA quasar. So, the priorities should be unchanged.
         self.assertTrue(np.all(mtl['PRIORITY'] == pp))
+
+    def test_midz_no_lock_in(self):
+        """Test true mid-z QSOs revert to tracers when redshifts change.
+        """
+        # ADM set up the MTL as for test_zcat.
+        t = self.reset_targets("")
+        t = self.update_data_model(t)
+        zcat = self.update_data_model(self.zcat.copy())
+        mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
+
+        # ADM grab the location of the mid-z QSO and a tracer in the MTL.
+        iimidzmtl = mtl['Z'] == self.midz
+        iilowzmtl = mtl['Z'] == self.lowz
+
+        # ADM add an observation.
+        zcat["NUMOBS"] += 1
+
+        # ADM now update the zcat so the mid-z QSO is a low-z QSO.
+        modzcat = zcat.copy()
+        iimidz = modzcat["Z"] == self.midz
+        for zcol in "Z", "Z_QN":
+            modzcat[zcol][iimidz] = self.lowz
+
+        # ADM run MTL.
+        mtl = make_mtl(mtl, "DARK", zcat=modzcat, trim=False)
+
+        # ADM the mid-z QSO should now look exactly like a tracer.
+        pp = np.array(self.post_prio_duo)
+        nom = np.array(self.post_nom_duo)
+        pp[iimidzmtl] = pp[iilowzmtl]
+        nom[iimidzmtl] = nom[iilowzmtl]
+
+        self.assertTrue(np.all(mtl['PRIORITY'] == pp))
+        self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
 
     def test_mtl_io(self):
         """Test MTL correctly handles masked NUMOBS quantities.
