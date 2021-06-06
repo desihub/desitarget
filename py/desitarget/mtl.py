@@ -1116,7 +1116,7 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
         ymdir = os.path.join(tiledir, tile["ZDATE"])
         # ADM and retrieve the zqso/lyazcat catalog.
-        qsozcatfns = sorted(glob(os.path.join(ymdir, "zqso*")))
+        qsozcatfns = sorted(glob(os.path.join(ymdir, "zqso*fits")))
         for qsozcatfn in qsozcatfns:
             zz = fitsio.read(qsozcatfn, "QSOZCAT")
             allzs.append(zz)
