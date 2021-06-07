@@ -5,11 +5,14 @@ desitarget Change Log
 1.1.2 (unreleased)
 ------------------
 
+* ``make_zqso_files`` more robust to individual tile,night,petal problems
+  while still processing the others [`PR #752`_].
 * Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
 * Make creation of zqso catalogs robust to missing columns [`PR #750`_].
 
 .. _`PR #750`: https://github.com/desihub/desitarget/pull/750
 .. _`PR #751`: https://github.com/desihub/desitarget/pull/751
+.. _`PR #752`: https://github.com/desihub/desitarget/pull/752
 
 1.1.1 (2021-05-29)
 ------------------
