@@ -357,11 +357,11 @@ class TestMTL(unittest.TestCase):
         qtargets["PRIORITY_INIT"] = pinit
         qtargets["NUMOBS_INIT"] = ninit
 
-        # ADM run through MTL.
-        mtl = make_mtl(qtargets, obscon="DARK", zcat=qzcat)
+        # ADM run through MTL, only return entries updated by the zcat.
+        mtl = make_mtl(qtargets, obscon="DARK", zcat=qzcat, trimtozcat=True)
 
         # ADM all confirmed tracer quasars should have NUMOBS_MORE=1.
-        self.assertTrue(np.all(qzcat["NUMOBS_MORE"] == 1))
+        self.assertTrue(np.all(mtl["NUMOBS_MORE"] == 1))
 
     @unittest.skip('This test is deprecated.')
     def test_endless_bgs(self):
@@ -381,11 +381,12 @@ class TestMTL(unittest.TestCase):
         # ADM create a copy of the zcat.
         bgszcat = self.update_data_model(self.zcat.copy())
 
-        # ADM run through MTL.
-        mtl = make_mtl(bgstargets, obscon="BRIGHT", zcat=bgszcat)
+        # ADM run through MTL, only return entries updated by the zcat.
+        mtl = make_mtl(bgstargets, obscon="BRIGHT", zcat=bgszcat,
+                       trimtozcat=True)
 
         # ADM all BGS targets should always have NUMOBS_MORE=1.
-        self.assertTrue(np.all(bgszcat["NUMOBS_MORE"] == 1))
+        self.assertTrue(np.all(mtl["NUMOBS_MORE"] == 1))
 
     @unittest.skipIf(norr, 'redrock not installed; skip ZWARN consistency check')
     def test_zwarn_in_sync(self):
