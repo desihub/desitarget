@@ -303,8 +303,14 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     ----------
     targets : :class:`~numpy.array` or `~astropy.table.Table`
         A numpy rec array or astropy Table with at least the columns
-        ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
-        or the corresponding columns for SV or commissioning.
+        `TARGETID`, `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` (or the
+        corresponding columns for SV or commissioning) `NUMOBS_INIT` and
+        `PRIORITY_INIT`. `targets` must also contain `PRIORITY` if `zcat`
+        is not ``None`` (i.e. if this isn't the first time through MTL
+        and/or if `targets` is itself an mtl array). `PRIORITY` is needed
+        to "lock in" the state of Ly-Alpha QSOs. `targets` may also
+        contain `SCND_TARGET` (or the corresponding columns for SV) if
+        secondary targets are under consideration.
     obscon : :class:`str`
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
@@ -348,6 +354,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     Notes
     -----
     - Sources in the zcat with `ZWARN` of `NODATA` are always ignored.
+    - The input `zcat` WILL BE MODIFIED. So, if a desire is that `zcat`
+      remains unaltered, make sure to copy `zcat` before passing it.
     """
     start = time()
     # ADM set up the default logger.
