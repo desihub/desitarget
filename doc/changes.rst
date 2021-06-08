@@ -5,14 +5,20 @@ desitarget Change Log
 1.1.2 (unreleased)
 ------------------
 
+* Speed-ups and bug-fixes for I/O [`PR #753`_]. Includes:
+    * Read all types of MTL ledgers, including SV3 and Main Survey 1.0.0.
+        * Addresses `issue #749`_.
+    * Implement faster version of `io.read_targets_in_tiles()`.
 * ``make_zqso_files`` more robust to individual tile,night,petal problems
   while still processing the others [`PR #752`_].
 * Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
 * Make creation of zqso catalogs robust to missing columns [`PR #750`_].
 
+.. _`issue #749`: https://github.com/desihub/desitarget/issues/749
 .. _`PR #750`: https://github.com/desihub/desitarget/pull/750
 .. _`PR #751`: https://github.com/desihub/desitarget/pull/751
 .. _`PR #752`: https://github.com/desihub/desitarget/pull/752
+.. _`PR #753`: https://github.com/desihub/desitarget/pull/753
 
 1.1.1 (2021-05-29)
 ------------------

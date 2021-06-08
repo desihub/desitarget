@@ -3155,7 +3155,7 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
     fn = next(fns)
     # ADM grab the FILENSID, HPXNSIDE from one of the files.
     hdr = fitsio.read_header(fn, 1)
-    filenside, hpxnside =  hdr["FILENSID"], hdr["HPXNSIDE"]
+    filenside, hpxnside = hdr["FILENSID"], hdr["HPXNSIDE"]
     # ADM "standard" format formatter for a file:
     formatter = fn.split("hp-")[0]+"hp-{}.fits"
 
@@ -3201,7 +3201,7 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
 
     # AR reading + concatenating.
     targets = [fitsio.read(fn, rows=ii, columns=columns) for
-             fn, ii in zip(fns, iis)]
+               fn, ii in zip(fns, iis)]
 
     # ADM if targets is empty, return no targets.
     if len(targets) == 0:
@@ -3209,7 +3209,7 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
         fns = iglob(os.path.join(hpdirname, "*fits"))
         fn = next(fns)
         # ADM grab the data model.
-        targets, hdr  = fitsio.read(fn, columns=columns, rows=0, header=True)
+        targets, hdr = fitsio.read(fn, columns=columns, rows=0, header=True)
         # ADM return a zero-length array with the correct data model.
         targets = np.zeros(0, dtype=targets.dtype)
     else:
@@ -3432,7 +3432,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                                          columns=columns, header=header)
         else:
             return read_targets_in_tiles_quick(hpdirname, tiles=tiles,
-                                         columns=columns, header=header)
+                                               columns=columns, header=header)
 
     # ADM check that the DESIMODEL environment variable is set.
     if os.environ.get('DESIMODEL') is None:
