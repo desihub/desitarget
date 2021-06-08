@@ -303,8 +303,14 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     ----------
     targets : :class:`~numpy.array` or `~astropy.table.Table`
         A numpy rec array or astropy Table with at least the columns
-        ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``, ``PRIORITY_INIT``.
-        or the corresponding columns for SV or commissioning.
+        `TARGETID`, `DESI_TARGET`, `BGS_TARGET`, `MWS_TARGET` (or the
+        corresponding columns for SV or commissioning) `NUMOBS_INIT` and
+        `PRIORITY_INIT`. `targets` must also contain `PRIORITY` if `zcat`
+        is not ``None`` (i.e. if this isn't the first time through MTL
+        and/or if `targets` is itself an mtl array). `PRIORITY` is needed
+        to "lock in" the state of Ly-Alpha QSOs. `targets` may also
+        contain `SCND_TARGET` (or the corresponding columns for SV) if
+        secondary targets are under consideration.
     obscon : :class:`str`
         A combination of strings that are in the desitarget bitmask yaml
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
@@ -348,6 +354,8 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     Notes
     -----
     - Sources in the zcat with `ZWARN` of `NODATA` are always ignored.
+    - The input `zcat` WILL BE MODIFIED. So, if a desire is that `zcat`
+      remains unaltered, make sure to copy `zcat` before passing it.
     """
     start = time()
     # ADM set up the default logger.
@@ -393,8 +401,9 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
         if num_extra > 0:
-            log.info("Ignoring {} zcat entries that aren't in the input "
-                     "target list (i.e. likely skies)".format(num_extra))
+            log.info("Ignoring {} z entries that aren't in the input target list"
+                     " (e.g. likely skies, secondaries-when-running-primary, "
+                     "primaries-when-running-secondary, etc.)".format(num_extra))
             zcat = zcat[ok]
         # ADM also ignore anything with NODATA set in ZWARN.
         nodata = zcat["ZWARN"] & zwarn_mask["NODATA"] != 0
@@ -798,7 +807,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         Redshift catalog table with columns ``TARGETID``, ``NUMOBS``,
         ``Z``, ``ZWARN``, ``ZTILEID``, and ``msaddcols`` at the top of
         the code for the Main Survey.
-    targets : :class:`~numpy.array` or `~astropy.table.Table`, optional, defaults to ``None``
+    targets : :class:`~numpy.array` or `~astropy.table.Table`, optional
         A numpy rec array or astropy Table with at least the columns
         ``RA``, ``DEC``, ``TARGETID``, ``DESI_TARGET``, ``NUMOBS_INIT``,
         and ``PRIORITY_INIT``. If ``None``, then assume the `zcat`
@@ -1115,7 +1124,7 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
         ymdir = os.path.join(tiledir, tile["ZDATE"])
         # ADM and retrieve the zqso/lyazcat catalog.
-        qsozcatfns = sorted(glob(os.path.join(ymdir, "zqso*")))
+        qsozcatfns = sorted(glob(os.path.join(ymdir, "zqso*fits")))
         for qsozcatfn in qsozcatfns:
             zz = fitsio.read(qsozcatfn, "QSOZCAT")
             allzs.append(zz)

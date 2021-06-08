@@ -15,6 +15,7 @@ from desitarget import io
 from desitarget.targetmask import obsconditions
 from desitarget import __version__
 
+
 class TestIO(unittest.TestCase):
 
     @classmethod
@@ -137,7 +138,7 @@ class TestIO(unittest.TestCase):
         from astropy.table import Table
 
         targets = Table()
-        targets['TARGETID'] = [1,2,3,4,5,6]
+        targets['TARGETID'] = [1, 2, 3, 4, 5, 6]
         D = obsconditions.DARK
         G = obsconditions.GRAY
         B = obsconditions.BRIGHT
@@ -145,22 +146,22 @@ class TestIO(unittest.TestCase):
         iidark = targets['OBSCONDITIONS'] == obsconditions.DARK
         iibright = targets['OBSCONDITIONS'] == obsconditions.BRIGHT
 
-        #- some RA,DEC within nested nside=8 healpix 123
-        targets['RA'] = np.random.uniform(105,106,len(targets))
-        targets['DEC'] = np.random.uniform(72,73,len(targets))
+        # - some RA,DEC within nested nside=8 healpix 123
+        targets['RA'] = np.random.uniform(105, 106, len(targets))
+        targets['DEC'] = np.random.uniform(72, 73, len(targets))
         nside = 8
         hpix = 123
 
-        #- Set some but not all SUBPRIORITY
+        # - Set some but not all SUBPRIORITY
         targets['SUBPRIORITY'] = np.zeros(len(targets))
         targets['SUBPRIORITY'][0::2] = 2.0
 
         targets = np.asarray(targets)
 
         io.write_targets(self.testdir, targets, obscon='DARK',
-                nsidefile=nside, hpxlist=[hpix,])
+                         nsidefile=nside, hpxlist=[hpix, ])
         io.write_targets(self.testdir, targets, obscon='BRIGHT',
-                nsidefile=nside, hpxlist=[hpix,])
+                         nsidefile=nside, hpxlist=[hpix, ])
 
         darkfile = f'{self.testdir}/drX/{__version__}/targets/main/resolve/dark/targets-dark-hp-{hpix}.fits'
         brightfile = f'{self.testdir}/drX/{__version__}/targets/main/resolve/bright/targets-bright-hp-{hpix}.fits'
@@ -168,22 +169,21 @@ class TestIO(unittest.TestCase):
         self.assertTrue(os.path.exists(darkfile))
         self.assertTrue(os.path.exists(brightfile))
 
-        #- Each dark,bright file should only have the targets for that obscon
-        #- and should only override the zero SUBPRIORITY
+        # - Each dark,bright file should only have the targets for that obscon
+        # - and should only override the zero SUBPRIORITY
         dt = Table.read(darkfile)
         self.assertEqual(len(dt), 2)
         self.assertTrue(np.all(dt['TARGETID'] == targets['TARGETID'][iidark]))
-        self.assertTrue(np.all(dt['SUBPRIORITY']>0.0))
+        self.assertTrue(np.all(dt['SUBPRIORITY'] > 0.0))
         self.assertEqual(dt['SUBPRIORITY'][0], 2.0)
         self.assertNotEqual(dt['SUBPRIORITY'][1], 0.0)
 
         bt = Table.read(brightfile)
         self.assertEqual(len(bt), 2)
         self.assertTrue(np.all(bt['TARGETID'] == targets['TARGETID'][iibright]))
-        self.assertTrue(np.all(bt['SUBPRIORITY']>0.0))
+        self.assertTrue(np.all(bt['SUBPRIORITY'] > 0.0))
         self.assertEqual(bt['SUBPRIORITY'][0], 2.0)
         self.assertNotEqual(bt['SUBPRIORITY'][1], 0.0)
-
 
 
 if __name__ == '__main__':

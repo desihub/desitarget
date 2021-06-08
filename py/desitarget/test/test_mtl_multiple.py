@@ -39,7 +39,8 @@ class TestMTL(unittest.TestCase):
         Amx = np.array([Mx[t].mask for t in self.type_A])
         Bmx = np.array([Mx[t].mask for t in self.type_B])
         self.targets['DESI_TARGET'] = Amx | Bmx
-        for col in ['BGS_TARGET', 'MWS_TARGET', 'SCND_TARGET', 'SUBPRIORITY']:
+        for col in ['BGS_TARGET', 'MWS_TARGET', 'SCND_TARGET',
+                    'SUBPRIORITY', 'PRIORITY']:
             self.targets[col] = np.zeros(nt, dtype=mtldatamodel[col].dtype)
 
         n = len(self.targets)
@@ -53,27 +54,30 @@ class TestMTL(unittest.TestCase):
         self.zcat = Table()
         self.zcat['TARGETID'] = self.targets['TARGETID'][::-1]
         self.zcat['Z'] = [1.61, 2.5, 1.2, 1.7, 0.5]
+        self.zcat['Z_QN'] = [1.61, 2.5, 1.2, 1.7, 0.5]
+        self.zcat['IS_QSO_QN'] = [0, 1, 1, 1, 1]
         self.zcat['ZWARN'] = [0, 0, 1, 0, 0]
         self.zcat['NUMOBS'] = [1, 1, 1, 1, 1]
         self.zcat['SPECTYPE'] = ['GALAXY', 'QSO', 'QSO', 'QSO', 'QSO']
         self.zcat['ZTILEID'] = [-1, -1, -1, -1, -1]
         for col in msaddcols.dtype.names:
-            self.zcat[col] = [-1, -1, -1, -1, -1]
+            if "QN" not in col:
+                self.zcat[col] = [-1, -1, -1, -1, -1]
 
         # priorities and numobs more after measuring redshifts.
         self.post_prio = [0 for t in self.type_A]
         self.post_numobs_more = [0 for t in self.type_A]
-        self.post_prio[0] = Mx['QSO'].priorities['MORE_MIDZQSO']  # low-z QSO, DONE.
-        self.post_prio[1] = Mx['QSO'].priorities['MORE_MIDZQSO']  # mid-z QSO, reobserve at low priority.
-        self.post_prio[2] = Mx['QSO'].priorities['MORE_ZWARN']  # QSO, ZWARNING, reobserve.
-        self.post_prio[3] = Mx['QSO'].priorities['MORE_ZGOOD']  # high-z QSO, reobserve at high priority.
-        self.post_prio[4] = Mx['QSO'].priorities['MORE_MIDZQSO']  # mid-z QSO or galaxy, reobserve at low priority.
+        self.post_prio[0] = Mx['QSO'].priorities['MORE_MIDZQSO']  # low-z QSO, reobserve once at low priority.
+        self.post_prio[1] = Mx['QSO'].priorities['MORE_MIDZQSO']  # mid-z QSO, reobserve thrice at low priority.
+        self.post_prio[2] = Mx['QSO'].priorities['MORE_MIDZQSO']  # low-z QSO, reobserve once at low priority.
+        self.post_prio[3] = Mx['QSO'].priorities['MORE_ZGOOD']    # high-z QSO, reobserve thrice at high priority.
+        self.post_prio[4] = Mx['QSO'].priorities['MORE_MIDZQSO']  # uncertain mid-z QSO or galaxy, reobserve once at low priority.
 
-        self.post_numobs_more[0] = 1
-        self.post_numobs_more[1] = 3
-        self.post_numobs_more[2] = 3
-        self.post_numobs_more[3] = 3
-        self.post_numobs_more[4] = 3
+        self.post_numobs_more[0] = 1  # lowz/tracer QSO.
+        self.post_numobs_more[1] = 3  # mid-z QSO confirmed by both redrock and QN.
+        self.post_numobs_more[2] = 1  # lowz/tracer QSO.
+        self.post_numobs_more[3] = 3  # LyA QSO confirmed by both redrock and QN.
+        self.post_numobs_more[4] = 1  # mid-z QSO confirmed by redrock but not QN (based on IS_QSO_QN=0).
 
     def test_mtl(self):
         """Test output from MTL has the correct column names.
@@ -105,7 +109,7 @@ class TestMTL(unittest.TestCase):
     def test_numobs(self):
         """Check LRGs and ELGs only request one observation at high priority.
         """
-        # ADM How sources are prioritized is set purely by Z and ZWARN.
+        # ADM How sources are prioritized ignores redrock SPECTYPE.
         # ADM So, we need to check that LRGs and ELGs only request one
         # ADM observation. If they request more than 1, then presumably
         # ADM they will have values of MORE_ZGOOD that exceed DONE. For
