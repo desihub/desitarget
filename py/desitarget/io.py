@@ -3168,7 +3168,10 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
     hpxpixs = tiles2pix(hpxnside, tiles=tiles)
 
     # AR list of filenames.
-    fns = [formatter.format(filepix) for filepix in filepixs]
+    # ADM checking that the files actually exist.
+    fns = [formatter.format(filepix) for filepix in filepixs
+           if os.path.isfile(formatter.format(filepix))]
+
     log.info(
         "{:.1f}s\twill read files with filepixs={} (filenside={})".format(
             time() - start, filepixs, filenside
