@@ -2604,6 +2604,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         from desitarget.mtl import mtldatamodel, survey_data_model
         # ADM allow for the full set of possible columns.
         mtldm = survey_data_model(mtldatamodel, survey="main")
+        # ADM need to include two columns that were briefly included as
+        # ADM part of the ledgers in version 1.0.0 of desitarget.
+        fulldescr = mtldm.dtype.descr + [('ZS', 'U2'), ('ZINFO', 'U8')]
+        mtldm = np.array([], dtype=fulldescr)
+        #        mtldm = ('ZS', 'U2'), ('ZINFO', 'U8')
         # ADM the data model can differ depending on survey type.
         names, forms = [], []
         with open(filename) as f:
