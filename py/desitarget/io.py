@@ -2604,7 +2604,7 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         from desitarget.mtl import mtldatamodel, survey_data_model
         # ADM allow for the full set of possible columns.
         mtldm = survey_data_model(mtldatamodel, survey="main")
-        # ADM need to include two columns that were briefly included as
+        # ADM need to include two columns that were briefly added as
         # ADM part of the ledgers in version 1.0.0 of desitarget.
         fulldescr = mtldm.dtype.descr + [('ZS', 'U2'), ('ZINFO', 'U8')]
         mtldm = np.array([], dtype=fulldescr)
@@ -3104,6 +3104,119 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
     return targets
 
 
+def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
+                                header=False):
+    """Read targets in tiles, assuming a "standard" data model.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to a directory containing targets that
+        have been partitioned by HEALPixel (e.g. as made by
+        `select_targets` with the `bundle_files` option).
+    tiles : :class:`~numpy.ndarray`, optional
+        Array of tiles in the desimodel format, or ``None`` for all tiles
+        from :func:`desimodel.io.load_tiles`.
+    columns : :class:`list`, optional
+        Only read in these target columns.
+    header : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then return the header of either the `hpdirname`
+        file, or the first file read from the `hpdirname` directory.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of targets in the passed tiles.
+
+    Notes
+    -----
+        - If `header` is ``True``, then a second output (the file
+          header is returned).
+        - $DESIMODEL must be set if `tiles=None`.
+        - Assumes that the data model has these characteristics:
+            - one HEALPixel per file.
+            - no extraneous FITS files in the directory.
+            - every file is formatted to finish "hp-{}.fits".
+            - every file has the same, correct FILENSID in its header.
+            - the data, and related header, are in FITS extension 1.
+            - every file contains the 'HPXPIXEL' column at the nside
+              stored in the file header as "HPXNSIDE".
+        - If you aren't sure if the data model you have will work, or if
+          running this code triggers an exception, instead try running the
+          relevant "slow" function with quick=``False`` as a check, e.g.
+          :func:`desitarget.io.read_targets_in_tiles()`. The output
+          TARGETIDs from this function and that approach should be
+          identical, although the output may be ordered differently.
+        - Based on a suggestion from Anand Raichoor.
+    """
+    start = time()
+    # ADM generator for the FITS files in the passed directory.
+    fns = iglob(os.path.join(hpdirname, "*fits"))
+    fn = next(fns)
+    # ADM grab the FILENSID, HPXNSIDE from one of the files.
+    hdr = fitsio.read_header(fn, 1)
+    filenside, hpxnside =  hdr["FILENSID"], hdr["HPXNSIDE"]
+    # ADM "standard" format formatter for a file:
+    formatter = fn.split("hp-")[0]+"hp-{}.fits"
+
+    # ADM closest nside to DESI tile area of ~7 deg.
+    nside = pixarea2nside(7.)
+    # ADM determine the pixels that touch the tiles.
+    pixlist = tiles2pix(nside, tiles=tiles)
+    # ADM also determine the pixels that touch the tiles at the HPXNSIDE.
+    filepixs = nside2nside(nside, filenside, pixlist)
+    hpxpixs = tiles2pix(hpxnside, tiles=tiles)
+
+    # AR list of filenames.
+    fns = [formatter.format(filepix) for filepix in filepixs]
+    log.info(
+        "{:.1f}s\twill read files with filepixs={} (filenside={})".format(
+            time() - start, filepixs, filenside
+        )
+    )
+    # AR first getting the indexes of objects with an HPXPIXEL value
+    # AR overlapping the tile.
+    hpxpixelss = [fitsio.read(fn, columns=["HPXPIXEL"])["HPXPIXEL"]
+                  for fn in fns]
+    iis = [np.where(np.in1d(hpxpixels, hpxpixs))[0] for hpxpixels in hpxpixelss]
+    log.info(
+        "{:.1f}s\tkeeping {} objects with HPXPIXEL in {} (hpxnside={})".format(
+            time() - start, np.sum([len(ii) for ii in iis]), hpxpixs, hpxnside
+        )
+    )
+
+    # AR then taking the subsample exactly in the tile.
+    radecs = [fitsio.read(fn, rows=ii, columns=["RA", "DEC"])
+              for fn, ii in zip(fns, iis)]
+    iis = [ii[is_point_in_desi(tiles, radec["RA"], radec["DEC"])]
+           for radec, ii in zip(radecs, iis)]
+    log.info(
+        "{:.1f}s\tkeeping {} objects after cutting with is_point_in_desi".format(
+            time() - start, np.sum([len(ii) for ii in iis])
+        )
+    )
+
+    # AR reading + concatenating.
+    targets = [fitsio.read(fn, rows=ii, columns=columns) for
+             fn, ii in zip(fns, iis)]
+
+    # ADM if targets is empty, return no targets.
+    if len(targets) == 0:
+        # ADM generator for the FITS files in the passed directory.
+        fns = iglob(os.path.join(hpdirname, "*fits"))
+        fn = next(fns)
+        # ADM grab the data model.
+        targets, hdr  = fitsio.read(fn, columns=columns, rows=0, header=True)
+        # ADM return a zero-length array with the correct data model.
+        targets = np.zeros(0, dtype=targets.dtype)
+    else:
+        targets = np.concatenate(targets)
+
+    if header:
+        return targets, hdr
+    return targets
+
+
 def read_targets_in_quick(hpdirname, shape=None,
                           tiles=None,
                           nside=None, pixlist=None,
@@ -3247,7 +3360,7 @@ def read_targets_in_quick(hpdirname, shape=None,
 
 
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
-                          quick=False, mtl=False,
+                          quick=False, mtl=False, oldstyle=False,
                           unique=True, isodate=None, initial=False, leq=False):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
@@ -3275,6 +3388,10 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         If ``True`` then read an MTL ledger file/directory instead
         of a target file/directory. If ``True`` then the `columns`
         and `header` kwargs are ignored and the full ledger is returned.
+    oldstyle : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then use older (likely slower) code. This option is
+        retained for tests, but we'll likely deprecate it after testing.
+        It only applies if `quick`=``True``
     unique : :class:`bool`, optional, defaults to ``True``
         If ``True`` then only read targets with unique `TARGETID` from
         MTL ledgers. Only used if `mtl` is ``True``.
@@ -3307,8 +3424,12 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
     """
     # ADM if quick is True, use the quick-code.
     if quick:
-        return read_targets_in_quick(hpdirname, shape='tiles', tiles=tiles,
-                                     columns=columns, header=header)
+        if oldstyle:
+            return read_targets_in_quick(hpdirname, shape='tiles', tiles=tiles,
+                                         columns=columns, header=header)
+        else:
+            return read_targets_in_tiles_quick(hpdirname, tiles=tiles,
+                                         columns=columns, header=header)
 
     # ADM check that the DESIMODEL environment variable is set.
     if os.environ.get('DESIMODEL') is None:
