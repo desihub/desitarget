@@ -8,7 +8,10 @@ desitarget Change Log
 * Speed-ups and bug-fixes for I/O [`PR #753`_]. Includes:
     * Read all types of MTL ledgers, including SV3 and Main Survey 1.0.0.
         * Addresses `issue #749`_.
-    * Implement faster version of `io.read_targets_in_tiles()`.
+    * Implement faster version of :func:`io.read_targets_in_tiles()`.
+        * Speed-ups are in new :func:`io.read_targets_in_tiles_quick()`.
+    * Implement faster version of :func:`mtl.inflate_ledger()`.
+        * Speed-ups are in new :func:`mtl.match_ledger_to_targets()`.
 * ``make_zqso_files`` more robust to individual tile,night,petal problems
   while still processing the others [`PR #752`_].
 * Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
