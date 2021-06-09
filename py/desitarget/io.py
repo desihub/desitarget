@@ -3105,7 +3105,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
 
 
 def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
-                                header=False):
+                                header=False, verbose=False):
     """Read targets in tiles, assuming a "standard" data model.
 
     Parameters
@@ -3122,6 +3122,8 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
     header : :class:`bool`, optional, defaults to ``False``
         If ``True`` then return the header of either the `hpdirname`
         file, or the first file read from the `hpdirname` directory.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log informational messages.
 
     Returns
     -------
@@ -3172,32 +3174,35 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
     fns = [formatter.format(filepix) for filepix in filepixs
            if os.path.isfile(formatter.format(filepix))]
 
-    log.info(
-        "{:.1f}s\twill read files with filepixs={} (filenside={})".format(
-            time() - start, filepixs, filenside
+    if verbose:
+        log.info(
+            "{:.1f}s\twill read files with filepixs={} (filenside={})".format(
+                time()-start, filepixs, filenside
+            )
         )
-    )
     # AR first getting the indexes of objects with an HPXPIXEL value
     # AR overlapping the tile.
     hpxpixelss = [fitsio.read(fn, columns=["HPXPIXEL"])["HPXPIXEL"]
                   for fn in fns]
     iis = [np.where(np.in1d(hpxpixels, hpxpixs))[0] for hpxpixels in hpxpixelss]
-    log.info(
-        "{:.1f}s\tkeeping {} objects with HPXPIXEL in {} (hpxnside={})".format(
-            time() - start, np.sum([len(ii) for ii in iis]), hpxpixs, hpxnside
+    if verbose:
+        log.info(
+            "{:.1f}s\tkeep {} objects with HPXPIXEL in {} (hpxnside={})".format(
+                time()-start, np.sum([len(ii) for ii in iis]), hpxpixs, hpxnside
+            )
         )
-    )
 
     # AR then taking the subsample exactly in the tile.
     radecs = [fitsio.read(fn, rows=ii, columns=["RA", "DEC"])
               for fn, ii in zip(fns, iis)]
     iis = [ii[is_point_in_desi(tiles, radec["RA"], radec["DEC"])]
            for radec, ii in zip(radecs, iis)]
-    log.info(
-        "{:.1f}s\tkeeping {} objects after cutting with is_point_in_desi".format(
-            time() - start, np.sum([len(ii) for ii in iis])
+    if verbose:
+        log.info(
+            "{:.1f}s\tkeep {} objects after cuts with is_point_in_desi".format(
+                time()-start, np.sum([len(ii) for ii in iis])
+            )
         )
-    )
 
     # AR reading + concatenating.
     targets = [fitsio.read(fn, rows=ii, columns=columns) for
@@ -3363,7 +3368,7 @@ def read_targets_in_quick(hpdirname, shape=None,
 
 
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
-                          quick=False, mtl=False, oldstyle=False,
+                          quick=False, mtl=False, oldstyle=False, verbose=False,
                           unique=True, isodate=None, initial=False, leq=False):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
@@ -3395,6 +3400,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         If ``True`` then use older (likely slower) code. This option is
         retained for tests, but we'll likely deprecate it after testing.
         It only applies if `quick`=``True``
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then log informational messages.
     unique : :class:`bool`, optional, defaults to ``True``
         If ``True`` then only read targets with unique `TARGETID` from
         MTL ledgers. Only used if `mtl` is ``True``.
@@ -3431,8 +3438,9 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
             return read_targets_in_quick(hpdirname, shape='tiles', tiles=tiles,
                                          columns=columns, header=header)
         else:
-            return read_targets_in_tiles_quick(hpdirname, tiles=tiles,
-                                               columns=columns, header=header)
+            return read_targets_in_tiles_quick(hpdirname,
+                                               tiles=tiles, columns=columns,
+                                               header=header, verbose=verbose)
 
     # ADM check that the DESIMODEL environment variable is set.
     if os.environ.get('DESIMODEL') is None:
