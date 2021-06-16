@@ -5,7 +5,7 @@ desitarget Change Log
 1.2.0 (unreleased)
 ------------------
 
-* Add new ZWARN bits BAD_SPECQA and BAD_PETALQA [`PR `#754`_].
+* Add new ZWARN bits BAD_SPECQA and BAD_PETALQA [`PR #754`_].
 * ``make_zqso_files`` more robust to individual tile,night,petal problems
   while still processing the others [`PR #752`_].
 * Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
