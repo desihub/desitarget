@@ -2,9 +2,10 @@
 desitarget Change Log
 =====================
 
-1.1.2 (unreleased)
+1.2.0 (unreleased)
 ------------------
 
+* Add new ZWARN bits BAD_SPECQA and BAD_PETALQA [`PR `#754`_].
 * ``make_zqso_files`` more robust to individual tile,night,petal problems
   while still processing the others [`PR #752`_].
 * Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
@@ -13,6 +14,7 @@ desitarget Change Log
 .. _`PR #750`: https://github.com/desihub/desitarget/pull/750
 .. _`PR #751`: https://github.com/desihub/desitarget/pull/751
 .. _`PR #752`: https://github.com/desihub/desitarget/pull/752
+.. _`PR #754`: https://github.com/desihub/desitarget/pull/754
 
 1.1.1 (2021-05-29)
 ------------------
