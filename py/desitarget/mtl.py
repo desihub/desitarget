@@ -413,7 +413,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
                 num_nod))
             zcat = zcat[~nodata]
         # SB ignore targets that failed QA: ZWARN bits BAD_SPECQA|BAD_PETALQA
-        badqa = zcat["ZWARN"] & zwarn_mask["BAD_SPECQA|BAD_PETALQA"] != 0
+        badqa = zcat["ZWARN"] & zwarn_mask.mask("BAD_SPECQA|BAD_PETALQA") != 0
         num_badqa = np.sum(badqa)
         if num_badqa > 0:
             log.info(f"Ignoring a further {num_badqa} zcat entries with BAD_SPECQA or BAD_PETALQA set")
