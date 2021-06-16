@@ -412,9 +412,15 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             log.info("Ignoring a further {} zcat entries with NODATA set".format(
                 num_nod))
             zcat = zcat[~nodata]
+        # SB ignore targets that failed QA: ZWARN bits BAD_SPECQA|BAD_PETALQA
+        badqa = zcat["ZWARN"] & zwarn_mask["BAD_SPECQA|BAD_PETALQA"] != 0
+        num_badqa = np.sum(badqa)
+        if num_badqa > 0:
+            log.info(f"Ignoring a further {num_badqa} zcat entries with BAD_SPECQA or BAD_PETALQA set")
+            zcat = zcat[~badqa]
         # ADM simulations (I think) and some unit tests expect zcat to
         # ADM be modified by make_mtl().
-        if num_extra > 0 or num_nod > 0:
+        if num_extra > 0 or num_nod > 0 or num_badqa > 0:
             msg = "The size of the zcat has changed, so it won't be modified!"
             log.warning(msg)
 
@@ -1123,10 +1129,10 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         # ADM build the correct directory structure.
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
         ymdir = os.path.join(tiledir, tile["ZDATE"])
-        # ADM and retrieve the zqso/lyazcat catalog.
-        qsozcatfns = sorted(glob(os.path.join(ymdir, "zqso*fits")))
+        # ADM and retrieve the zmtl catalog (orig name zqso/lyazcat)
+        qsozcatfns = sorted(glob(os.path.join(ymdir, "zmtl*fits")))
         for qsozcatfn in qsozcatfns:
-            zz = fitsio.read(qsozcatfn, "QSOZCAT")
+            zz = fitsio.read(qsozcatfn, "ZMTL")
             allzs.append(zz)
             # ADM check the correct TILEID was written in the fibermap.
             if set(zz["ZTILEID"]) != set([tile["TILEID"]]):
