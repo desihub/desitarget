@@ -223,6 +223,7 @@ targetid_mask:
 # ADM ZWARN mask (bits that can be set to warn that a redshift is bad).
 # ADM inherited from https://github.com/desihub/redrock/blob/master/py/redrock/zwarning.py
 zwarn_mask:
+    # SB bits 0-15 set by redrock
     - [SKY,                0, "sky fiber"]
     - [LITTLE_COVERAGE,    1, "too little wavelength coverage"]
     - [SMALL_DELTA_CHI2,   2, "chi-squared of best fit is too close to that of second best"]
@@ -234,8 +235,11 @@ zwarn_mask:
     - [BAD_TARGET,         8, "catastrophically bad targeting data"]
     - [NODATA,             9, "No data for this fiber, e.g. because spectrograph was broken during this exposure (ivar=0 for all pixels)"]
     - [BAD_MINFIT,        10, "Bad parabola fit to the chi2 minimum"]
+    # SB bits 16-24 available for DESI to set post-redrock
     - [LOW_DEL_CHI2,      16, "DELTACHI2 is lower than 25 for a DESI SV3 target"]
     - [LOW_DEL_CHI2_BGS,  17, "DELTACHI2 is lower than 40 for a DESI SV3 BGS target in bright time"]
+    - [BAD_SPECQA,        18, "QA rejected due to spectrum-level problems"]
+    - [BAD_PETALQA,       19, "QA rejected due to petal-level problems"]
 
 #- Priorities for each target bit
 #- Numerically larger priorities are higher priority to be observed first.
