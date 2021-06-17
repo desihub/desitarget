@@ -1341,8 +1341,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     :class:`str`
         The name of the MTL tile file that was updated.
     :class:`str`
-        The name of the ZTILE file that was used to link TILEIDs to
-        observing conditions and to determine if tiles were "done".
+        Name of ZTILE file used to link TILEIDs to observing conditions
+        to determine if tiles were "done" (that they had zdone=True).
     :class:`~numpy.array`
         Information for the tiles that were processed.
 
