@@ -1211,6 +1211,11 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
             allzs.append(zz)
             # ADM read in all of the exposures in the fibermap.
             fm = fitsio.read(zbestfn, "FIBERMAP")
+            # ADM in the transition between SV3 and the Main Survey, the
+            # ADM fibermap data model changed. New columns may need to be
+            # ADM removed to concatenate old- and new-style fibermaps.
+            if "PLATE_RA" in fm.dtype.names:
+                fm = rfn.drop_fields(fm, ["PLATE_RA", "PLATE_DEC"])
             # ADM recover the information for unique targets based on the
             # ADM first entry for each TARGETID.
             _, ii = np.unique(fm['TARGETID'], return_index=True)
