@@ -1375,11 +1375,18 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
     zcatdir = get_zcat_dir(zcatdir)
-    # ADM And contruct the associated ZTILE filename.
-    ztilefn = os.path.join(zcatdir, get_ztile_file_name(survey=survey))
 
     # ADM grab an array of tiles that are yet to be processed.
     tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey)
+
+    # ADM contruct the ZTILE filename, for logging purposes.
+    ztilefn = get_ztile_file_name(survey=survey)
+    # ADM directory structure is different for SV and the Main Survey.
+    if survey[:2] == 'sv':
+        ztilefn = os.path.join(zcatdir, ztilefn)
+    elif survey == 'main':
+        opsdir = os.path.dirname(mtltilefn).replace("mtl", "ops")
+        ztilefn = os.path.join(opsdir, ztilefn)
 
     # ADM stop if there are no tiles to process.
     if len(tiles) == 0:
