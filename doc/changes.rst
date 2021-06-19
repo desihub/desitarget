@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-1.2.0 (unreleased)
+1.2.1 (unreleased)
+------------------
+
+* No changes yet.
+
+1.2.0 (2021-06-19)
 ------------------
 
 * Update the data model for Main Survey MTL [`PR #755`_]. Includes:
