@@ -5,16 +5,27 @@ desitarget Change Log
 1.2.0 (unreleased)
 ------------------
 
+* Update the data model for Main Survey MTL [`PR #755`_]. Includes:
+    * Read all types of MTL ledgers, including SV3 and Main Survey 1.0.0.
+        * Addresses `issue #749`_.
+        * Also part of `PR #753`_ but I needed it to make progress.
+    * Change the location of the "ZTILE" (zdone=True/False) file:
+        * For sv it was $ZCAT_DIR/tiles.csv
+        * For main it will be $MTL_DIR/../ops/tiles-specstatus.ecsv
+    * A workaround to process SV3 files that have Main-like fibermaps.
 * Add new ZWARN bits BAD_SPECQA and BAD_PETALQA [`PR #754`_].
 * ``make_zqso_files`` more robust to individual tile,night,petal problems
   while still processing the others [`PR #752`_].
 * Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
 * Make creation of zqso catalogs robust to missing columns [`PR #750`_].
 
+.. _`issue #749`: https://github.com/desihub/desitarget/issues/749
 .. _`PR #750`: https://github.com/desihub/desitarget/pull/750
 .. _`PR #751`: https://github.com/desihub/desitarget/pull/751
 .. _`PR #752`: https://github.com/desihub/desitarget/pull/752
+.. _`PR #753`: https://github.com/desihub/desitarget/pull/753
 .. _`PR #754`: https://github.com/desihub/desitarget/pull/754
+.. _`PR #755`: https://github.com/desihub/desitarget/pull/755
 
 1.1.1 (2021-05-29)
 ------------------

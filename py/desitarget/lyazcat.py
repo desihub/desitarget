@@ -646,7 +646,7 @@ def zcat_writer(zcat, outputdir, outputname,
     # ADM create the header and add the standard DESI dependencies.
     hdr = {}
     add_dependencies(hdr)
-    add_dependencies(hdr, module_names=['quasarnp',])
+    add_dependencies(hdr, module_names=['quasarnp', ])
 
     # ADM add the specific lyazcat dependencies
     hdr['QN_ADDED'] = qn_flag
