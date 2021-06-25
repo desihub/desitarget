@@ -5,7 +5,14 @@ desitarget Change Log
 1.2.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Speed-ups and bug-fixes for I/O [`PR #753`_]. Includes:
+    * Read all types of MTL ledgers, including SV3 and Main Survey 1.0.0.
+        * Addresses `issue #749`_.
+        * Also in `PR #755`_ as I needed it to make progress in that PR.
+    * Implement faster version of :func:`io.read_targets_in_tiles()`.
+        * Speed-ups are in new :func:`io.read_targets_in_tiles_quick()`.
+    * Implement faster version of :func:`mtl.inflate_ledger()`.
+        * Speed-ups are in new :func:`mtl.match_ledger_to_targets()`.
 
 1.2.0 (2021-06-19)
 ------------------

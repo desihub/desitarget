@@ -12,7 +12,7 @@ import numpy as np
 import healpy as hp
 import numpy.lib.recfunctions as rfn
 import sys
-from astropy.table import Table
+from astropy.table import Table, hstack
 from astropy.io import ascii
 import fitsio
 from time import time, sleep
@@ -912,9 +912,71 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
     return
 
 
+def match_ledger_to_targets(mtl, targets):
+    """Add a full set of target columns to an MTL array.
+
+    Parameters
+    ----------
+    mtl : :class:`~numpy.array` or `~astropy.table.Table`
+        A Merged Target List in array or Table form. Must contain the
+        column "TARGETID".
+    targets : :class:`str`
+        An array of DESI targets, as made by, e.g., `select_targets`.
+        Must contain the column "TARGETID".
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        The passed MTL array with all target columns added.
+
+    Notes
+    -----
+    - See also :func:`~desitarget.mtl.inflate_ledger()`.
+    - All TARGETIDs in the `mtl` must be present in `targets`, otherwise
+      an exception is thrown.
+    - Speed-ups to inflate_ledger() suggested by Anand Raichoor.
+    """
+    # ADM match the mtl back to the targets on TARGETID.
+    ii = match_to(targets["TARGETID"], mtl["TARGETID"])
+
+    # ADM sanity check that everything in the mtl is in the targets.
+    if len(ii) != len(mtl):
+        msg = "MTL contains {} objects, but only {} match targets".format(
+            len(mtl), len(ii))
+        log.error(msg)
+        raise IOError(msg)
+
+    # ADM extract just the targets that match the mtl.
+    targets = targets[ii]
+
+    # AR now turning to Table, and removing TARGETID.
+    t = Table(targets)
+    t.remove_column("TARGETID")
+
+    # ADM warn about duplicate columns.
+    dupcols = set(t.columns).intersection(set(mtl.dtype.names))
+    if len(dupcols) > 0:
+        msg = "{} columns will be duplicated in output array.".format(dupcols)
+        msg += " Target columns are denoted by _1 and mtl columns by _2."
+        log.warning(msg)
+
+    # AR starting with the added columns to preserve the same column
+    # AR ordering as in inflate_ledger().
+    done = Table(mtl)
+    # AR putting TARGETID first, for the same reason.
+    keys = ["TARGETID"] + [key for key in done.dtype.names if key != "TARGETID"]
+    done = done[keys]
+
+    # AR and stacking horizontally.
+    done = hstack([t, done])
+    done = done.as_array()
+
+    return done
+
+
 def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
                    quick=False):
-    """Add a fuller set of target columns to an MTL.
+    """Add a fuller set of target columns to an MTL array.
 
     Parameters
     ----------
@@ -937,7 +999,12 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
         `columns` is set to ``None``.
     quick : :class:`bool`, optional, defaults to ``False``
         If ``True``, assume the fidelity of the data model. This is much
-        faster but makes fewer error checks.
+        faster but makes fewer error checks. If `quick` is ``True`` then
+        `strictcols` is ignored and any columns shared by `mtl` and the
+        target files in `hpdirname` are BOTH returned using the astropy
+        Table convention. e.g., if "RA" is in both the target files and
+        `mtl`, the returned array will have "RA_1" for the added column
+        from the target files and "RA_2" for the original `mtl` column.
 
     Returns
     -------
@@ -946,11 +1013,16 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
 
     Notes
     -----
+    - For most uses, you WILL want to pass `quick`=``True``.
     - Will run more quickly if the targets in `mtl` are clustered.
-    - TARGETID is always returned, even if it isn't in `columns`.
-    - Any column in `mtl` that is also in `columns` will be OVERWRITTEN.
-      So, be careful not to pass `columns=None` if you only intend to
-      ADD columns to `mtl` rather than also SUBSTITUTING some columns.
+    - "TARGETID" is ALWAYS returned, even if it isn't in `columns`,
+      unless `strictcols`==``True``.
+    - All TARGETIDs in the `mtl` must be present in the `hpdirname`,
+      directory, otherwise an exception is thrown.
+    - If `quick`=``False`` then any column in `mtl` that is also in
+      `columns` will be OVERWRITTEN. So (for `quick`=``False``), be
+      careful not to pass `columns=None` if you only intend to ADD
+      columns to `mtl` rather than also SUBSTITUTING some columns.
     """
     # ADM if a table was passed convert it to a numpy array.
     if isinstance(mtl, Table):
@@ -986,31 +1058,41 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
     if header:
         targs, hdr = targs
 
-    # ADM match the mtl back to the targets on TARGETID.
-    ii = match_to(targs["TARGETID"], mtl["TARGETID"])
-    # ADM extract just the targets that match the mtl.
-    targs = targs[ii]
+    if quick:
+        # ADM the quick code ignores column parsing/the strictcols input.
+        done = match_ledger_to_targets(mtl, targs)
+    else:
+        # ADM match the mtl back to the targets on TARGETID.
+        ii = match_to(targs["TARGETID"], mtl["TARGETID"])
 
-    # ADM create an array to contain the fuller set of target columns.
-    # ADM start with the data model for the target columns.
-    dt = targs.dtype.descr
-    # ADM add the unique columns from the mtl.
-    xtracols = [nam for nam in mtl.dtype.names if nam not in targs.dtype.names]
-    for col in xtracols:
-        dt.append((col, mtl[col].dtype.str))
-    # ADM remove columns from the data model that weren't requested.
-    if columns is not None and strictcols:
-        dt = [(name, form) for name, form in dt if name in origcols]
-    # ADM create the output array.
-    done = np.empty(len(mtl), dtype=dt)
-    # ADM populate the output array with the fuller target columns.
-    for col in targs.dtype.names:
-        if col in done.dtype.names:
-            done[col] = targs[col]
-    # ADM populate the output array with the unique MTL columns.
-    for col in xtracols:
-        if col in done.dtype.names:
-            done[col] = mtl[col]
+        # ADM sanity check that everything in the mtl is in the targets.
+        if len(ii) != len(mtl):
+            msg = "MTL contains {} objects, but only {} match targets".format(
+                len(mtl), len(ii))
+
+        # ADM extract just the targets that match the mtl.
+        targs = targs[ii]
+
+        # ADM create an array to contain the fuller set of target columns.
+        # ADM start with the data model for the target columns.
+        dt = targs.dtype.descr
+        # ADM add the unique columns from the mtl.
+        xtracols = [nam for nam in mtl.dtype.names if nam not in targs.dtype.names]
+        for col in xtracols:
+            dt.append((col, mtl[col].dtype.str))
+        # ADM remove columns from the data model that weren't requested.
+        if columns is not None and strictcols:
+            dt = [(name, form) for name, form in dt if name in origcols]
+        # ADM create the output array.
+        done = np.empty(len(mtl), dtype=dt)
+        # ADM populate the output array with the fuller target columns.
+        for col in targs.dtype.names:
+            if col in done.dtype.names:
+                done[col] = targs[col]
+        # ADM populate the output array with the unique MTL columns.
+        for col in xtracols:
+            if col in done.dtype.names:
+                done[col] = mtl[col]
 
     if header:
         return done, hdr
