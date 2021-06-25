@@ -2,16 +2,30 @@
 desitarget Change Log
 =====================
 
-1.1.2 (unreleased)
+1.2.1 (unreleased)
 ------------------
 
 * Speed-ups and bug-fixes for I/O [`PR #753`_]. Includes:
     * Read all types of MTL ledgers, including SV3 and Main Survey 1.0.0.
         * Addresses `issue #749`_.
+        * Also in `PR #755`_ as I needed it to make progress in that PR.
     * Implement faster version of :func:`io.read_targets_in_tiles()`.
         * Speed-ups are in new :func:`io.read_targets_in_tiles_quick()`.
     * Implement faster version of :func:`mtl.inflate_ledger()`.
         * Speed-ups are in new :func:`mtl.match_ledger_to_targets()`.
+
+1.2.0 (2021-06-19)
+------------------
+
+* Update the data model for Main Survey MTL [`PR #755`_]. Includes:
+    * Read all types of MTL ledgers, including SV3 and Main Survey 1.0.0.
+        * Addresses `issue #749`_.
+        * Also part of `PR #753`_ but I needed it to make progress.
+    * Change the location of the "ZTILE" (zdone=True/False) file:
+        * For sv it was $ZCAT_DIR/tiles.csv
+        * For main it will be $MTL_DIR/../ops/tiles-specstatus.ecsv
+    * A workaround to process SV3 files that have Main-like fibermaps.
+* Add new ZWARN bits BAD_SPECQA and BAD_PETALQA [`PR #754`_].
 * ``make_zqso_files`` more robust to individual tile,night,petal problems
   while still processing the others [`PR #752`_].
 * Add final QSO decision logic to full Main Survey MTL loop [`PR #751`_].
@@ -22,6 +36,8 @@ desitarget Change Log
 .. _`PR #751`: https://github.com/desihub/desitarget/pull/751
 .. _`PR #752`: https://github.com/desihub/desitarget/pull/752
 .. _`PR #753`: https://github.com/desihub/desitarget/pull/753
+.. _`PR #754`: https://github.com/desihub/desitarget/pull/754
+.. _`PR #755`: https://github.com/desihub/desitarget/pull/755
 
 1.1.1 (2021-05-29)
 ------------------

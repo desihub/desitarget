@@ -2608,7 +2608,6 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         # ADM part of the ledgers in version 1.0.0 of desitarget.
         fulldescr = mtldm.dtype.descr + [('ZS', 'U2'), ('ZINFO', 'U8')]
         mtldm = np.array([], dtype=fulldescr)
-        #        mtldm = ('ZS', 'U2'), ('ZINFO', 'U8')
         # ADM the data model can differ depending on survey type.
         names, forms = [], []
         with open(filename) as f:

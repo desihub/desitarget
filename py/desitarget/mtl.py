@@ -252,15 +252,27 @@ def get_mtl_tile_file_name(secondary=False):
     return fn
 
 
-def get_ztile_file_name():
+def get_ztile_file_name(survey='main'):
     """Convenience function to grab the name of the ZTILE file.
+
+    survey : :class:`str`, optional, defaults to "main"
+        To look up the correct ZTILE filename. Options are ``'main'`` and
+        ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and
+        different iterations of SV, respectively.
 
     Returns
     -------
     :class:`str`
         The name of the ZTILE file.
     """
-    fn = "tiles.csv"
+    if survey[:2] == 'sv':
+        fn = "tiles.csv"
+    elif survey == 'main':
+        fn = "tiles-specstatus.ecsv"
+    else:
+        msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
 
     return fn
 
@@ -412,9 +424,15 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             log.info("Ignoring a further {} zcat entries with NODATA set".format(
                 num_nod))
             zcat = zcat[~nodata]
+        # SB ignore targets that failed QA: ZWARN bits BAD_SPECQA|BAD_PETALQA
+        badqa = zcat["ZWARN"] & zwarn_mask.mask("BAD_SPECQA|BAD_PETALQA") != 0
+        num_badqa = np.sum(badqa)
+        if num_badqa > 0:
+            log.info(f"Ignoring a further {num_badqa} zcat entries with BAD_SPECQA or BAD_PETALQA set")
+            zcat = zcat[~badqa]
         # ADM simulations (I think) and some unit tests expect zcat to
         # ADM be modified by make_mtl().
-        if num_extra > 0 or num_nod > 0:
+        if num_extra > 0 or num_nod > 0 or num_badqa > 0:
             msg = "The size of the zcat has changed, so it won't be modified!"
             log.warning(msg)
 
@@ -1087,7 +1105,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     Parameters
     ----------
     zcatdir : :class:`str`
-        Full path to the "daily" directory that hosts redshift catalogs.
+        Full path to the directory that hosts redshift catalogs.
     mtltilefn : :class:`str`
         Full path to the file of tiles that have been processed by MTL.
     obscon : :class:`str`
@@ -1104,9 +1122,27 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     :class:`~numpy.array`
         An array of tiles that have not yet been processed and written to
         the mtl tile file.
+
+    Notes
+    -----
+    - If `survey` is `'main'` the code assumes the file with zdone for
+      spectro tiles is `mtltilefn`/../../ops/tiles-specstatus.ecsv
+      (i.e. it is in the ops directory parallel to the mtl directory).
+      If `survey` is `'svX'` the code assumes it is `zcatdir`/tiles.csv.
     """
     # ADM read in the ZTILE file.
-    ztilefn = os.path.join(zcatdir, get_ztile_file_name())
+    ztilefn = get_ztile_file_name(survey=survey)
+    # ADM directory structure is different for SV and the Main Survey.
+    if survey[:2] == 'sv':
+        ztilefn = os.path.join(zcatdir, ztilefn)
+    elif survey == 'main':
+        opsdir = os.path.dirname(mtltilefn).replace("mtl", "ops")
+        ztilefn = os.path.join(opsdir, ztilefn)
+    else:
+        msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
+        log.critical(msg)
+        raise ValueError(msg)
+
     tilelookup = Table.read(ztilefn)
 
     # ADM the ZDONE column is a string, convert to a Boolean.
@@ -1205,10 +1241,10 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         # ADM build the correct directory structure.
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
         ymdir = os.path.join(tiledir, tile["ZDATE"])
-        # ADM and retrieve the zqso/lyazcat catalog.
-        qsozcatfns = sorted(glob(os.path.join(ymdir, "zqso*fits")))
+        # ADM and retrieve the zmtl catalog (orig name zqso/lyazcat)
+        qsozcatfns = sorted(glob(os.path.join(ymdir, "zmtl*fits")))
         for qsozcatfn in qsozcatfns:
-            zz = fitsio.read(qsozcatfn, "QSOZCAT")
+            zz = fitsio.read(qsozcatfn, "ZMTL")
             allzs.append(zz)
             # ADM check the correct TILEID was written in the fibermap.
             if set(zz["ZTILEID"]) != set([tile["TILEID"]]):
@@ -1287,6 +1323,11 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
             allzs.append(zz)
             # ADM read in all of the exposures in the fibermap.
             fm = fitsio.read(zbestfn, "FIBERMAP")
+            # ADM in the transition between SV3 and the Main Survey, the
+            # ADM fibermap data model changed. New columns may need to be
+            # ADM removed to concatenate old- and new-style fibermaps.
+            if "PLATE_RA" in fm.dtype.names:
+                fm = rfn.drop_fields(fm, ["PLATE_RA", "PLATE_DEC"])
             # ADM recover the information for unique targets based on the
             # ADM first entry for each TARGETID.
             _, ii = np.unique(fm['TARGETID'], return_index=True)
@@ -1360,9 +1401,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
     zcatdir : :class:`str`, optional, defaults to ``None``
-        Full path to the "daily" directory that hosts redshift catalogs.
-        If this is ``None``, look up the redshift catalog directory from
-        the $ZCAT_DIR environment variable.
+        Full path to the directory that hosts redshift catalogs. If this
+        is ``None``, look up the redshift catalog directory from the
+        $ZCAT_DIR environment variable.
     mtldir : :class:`str`, optional, defaults to ``None``
         Full path to the directory that hosts the MTL ledgers and the MTL
         tile file. If ``None``, then look up the MTL directory from the
@@ -1382,8 +1423,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     :class:`str`
         The name of the MTL tile file that was updated.
     :class:`str`
-        The name of the ZTILE file that was used to link TILEIDs to
-        observing conditions and to determine if tiles were "done".
+        Name of ZTILE file used to link TILEIDs to observing conditions
+        to determine if tiles were "done" (that they had zdone=True).
     :class:`~numpy.array`
         Information for the tiles that were processed.
 
@@ -1391,6 +1432,10 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     -----
     - Assumes all of the relevant ledgers have already been made by,
       e.g., :func:`~desitarget.mtl.make_ledger()`.
+    - If `survey` is `'main'` the code assumes the file with the zdone
+      status for spectro tiles is `mtldir`/../ops/tiles-specstatus.ecsv
+      (i.e. it is in the ops directory parallel to the mtl directory).
+      If `survey` is `'svX'` the code assumes it is `zcatdir`/tiles.csv.
     """
     # ADM first grab all of the relevant files.
     # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
@@ -1412,11 +1457,18 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
     zcatdir = get_zcat_dir(zcatdir)
-    # ADM And contruct the associated ZTILE filename.
-    ztilefn = os.path.join(zcatdir, get_ztile_file_name())
 
     # ADM grab an array of tiles that are yet to be processed.
     tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey)
+
+    # ADM contruct the ZTILE filename, for logging purposes.
+    ztilefn = get_ztile_file_name(survey=survey)
+    # ADM directory structure is different for SV and the Main Survey.
+    if survey[:2] == 'sv':
+        ztilefn = os.path.join(zcatdir, ztilefn)
+    elif survey == 'main':
+        opsdir = os.path.dirname(mtltilefn).replace("mtl", "ops")
+        ztilefn = os.path.join(opsdir, ztilefn)
 
     # ADM stop if there are no tiles to process.
     if len(tiles) == 0:
