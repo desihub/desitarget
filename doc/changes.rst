@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-1.2.1 (unreleased)
+1.2.2 (unreleased)
+------------------
+
+* No changes yet.
+
+1.2.1 (2021-07-08)
 ------------------
 
 * Speed-ups and bug-fixes for I/O [`PR #753`_]. Includes:
