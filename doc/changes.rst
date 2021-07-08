@@ -2,10 +2,18 @@
 desitarget Change Log
 =====================
 
-1.2.2 (unreleased)
+1.2.3 (unreleased)
 ------------------
 
 * No changes yet.
+
+1.2.2 (2021-07-08)
+------------------
+
+* No code changes. We tagged 1.2.2 due to a glitch while tagging 1.2.1.
+    * 1.2.1 exists on GitHub, but not for local developer updates.
+    * Do NOT use 1.2.1 for any purpose.
+    * ALWAYS use 1.2.2 instead.
 
 1.2.1 (2021-07-08)
 ------------------
