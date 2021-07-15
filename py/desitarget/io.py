@@ -2603,7 +2603,16 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         # ADM (this snippet is much quicker than a Table read).
         from desitarget.mtl import mtldatamodel, survey_data_model
         # ADM allow for the full set of possible columns.
-        mtldm = survey_data_model(mtldatamodel, survey="main")
+        # JL allow for survey to not be "main"
+        print('updated')
+        if 'sv3' in filename.lower():
+            mtldm = survey_data_model(mtldatamodel, survey="sv3")
+        elif 'sv2' in filename.lower():
+            mtldm = survey_data_model(mtldatamodel, survey="sv2")
+        elif 'cmx' in filename.lower():
+            mtldm = survey_data_model(mtldatamodel, survey="cmx")
+        else:
+            mtldm = survey_data_model(mtldatamodel, survey="main")
         # ADM need to include two columns that were briefly added as
         # ADM part of the ledgers in version 1.0.0 of desitarget.
         fulldescr = mtldm.dtype.descr + [('ZS', 'U2'), ('ZINFO', 'U8')]
