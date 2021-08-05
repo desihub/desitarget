@@ -506,7 +506,6 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     w1mag = 22.5 - 2.5 * np.log10(w1flux.clip(1e-7))
     zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
 
-    # Full SV3 selection
     if south:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg &= zfibermag < 21.6                   # faint limit
