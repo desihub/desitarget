@@ -5,7 +5,9 @@ desitarget Change Log
 1.2.3 (unreleased)
 ------------------
 
-* No changes yet.
+* Add a ``TIMESTAMP`` to the Main Survey ToO Ledgers [`PR #761`_].
+
+.. _`PR #761`: https://github.com/desihub/desitarget/pull/761
 
 1.2.2 (2021-07-08)
 ------------------
