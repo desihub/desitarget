@@ -14,6 +14,7 @@ from astropy.table import Table
 from desiutil.log import get_logger
 
 from desitarget import io
+from desitarget.mtl import get_utc_date
 # ADM the data model for ToO, similar to that of secondary targets...
 from desitarget.secondary import indatamodel
 from desitarget.secondary import outdatamodel
@@ -27,7 +28,7 @@ indatamodel = np.array([], dtype=indtype + [
     ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8'), ('TOOID', '>i4')])
 outdatamodel = np.array([], dtype=outdtype + [
     ('CHECKER', '>U7'), ('TOO_TYPE', '>U5'),
-    ('TOO_PRIO', '>U2'), ('OCLAYER', '>U6'),
+    ('TOO_PRIO', '>U2'), ('OCLAYER', '>U6'), ('TIMESTAMP', 'U25'),
     ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8'), ('TOOID', '>i4')])
 
 # ADM when using basic or csv ascii writes, specifying the formats of
@@ -447,6 +448,9 @@ def finalize_too(inledger, survey="main"):
     # ADM assign a SUBPRIORITY.
     np.random.seed(616)
     outdata["SUBPRIORITY"] = np.random.random(ntoo)
+
+    # ADM finally, add a processing timestamp.
+    outdata["TIMESTAMP"] = get_utc_date(survey="main")
 
     return outdata
 
