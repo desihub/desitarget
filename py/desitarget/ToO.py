@@ -14,6 +14,7 @@ from astropy.table import Table
 from desiutil.log import get_logger
 
 from desitarget import io
+from desitarget.mtl import get_utc_date
 # ADM the data model for ToO, similar to that of secondary targets...
 from desitarget.secondary import indatamodel
 from desitarget.secondary import outdatamodel
@@ -29,6 +30,8 @@ outdatamodel = np.array([], dtype=outdtype + [
     ('CHECKER', '>U7'), ('TOO_TYPE', '>U5'),
     ('TOO_PRIO', '>U2'), ('OCLAYER', '>U6'),
     ('MJD_BEGIN', '>f8'), ('MJD_END', '>f8'), ('TOOID', '>i4')])
+# ADM columns to only include in the output for Main Survey files.
+msaddcols = np.array([], dtype=[('TIMESTAMP', 'U25')])
 
 # ADM when using basic or csv ascii writes, specifying the formats of
 # ADM float32 columns can make things easier on the eye.
@@ -400,8 +403,13 @@ def finalize_too(inledger, survey="main"):
         A Table of targets generated from the ToO ledger, with the
         necessary columns added for fiberassign to run.
     """
+    # ADM add extra columns that are just for the Main Survey.
+    dt = outdatamodel.dtype.descr
+    if survey == 'main':
+        dt += msaddcols.dtype.descr
+
     # ADM create the output data table.
-    outdata = Table(np.zeros(len(inledger), dtype=outdatamodel.dtype))
+    outdata = Table(np.zeros(len(inledger), dtype=dt))
     # ADM change column names to reflect the survey.
     if survey[:2] == "sv":
         bitcols = [col for col in outdata.dtype.names if "_TARGET" in col]
@@ -447,6 +455,11 @@ def finalize_too(inledger, survey="main"):
     # ADM assign a SUBPRIORITY.
     np.random.seed(616)
     outdata["SUBPRIORITY"] = np.random.random(ntoo)
+
+    # ADM finally, add a processing timestamp.
+    # ADM I only remembered to do this starting with the Main Survey.
+    if survey == 'main':
+        outdata["TIMESTAMP"] = get_utc_date(survey="main")
 
     return outdata
 
