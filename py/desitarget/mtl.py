@@ -908,10 +908,18 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
         ii = objs["TARGETID"] == tid
         if colsub is not None:
             for col in colsub:
+                if col not in ledger.colnames:
+                    msg = "column {} from colsub not in ledger!!!".format(col)
+                    log.error(msg)
+                    raise ValueError(msg)
                 entry[col] = objs[ii][colsub[col]]
         # ADM overwrite ledger entries, where requested.
         if valsub is not None:
             for col, val in valsub.items():
+                if col not in ledger.colnames:
+                    msg = "column {} from valsub not in ledger!!!".format(col)
+                    log.error(msg)
+                    raise ValueError(msg)
                 entry[col] = val
         # ADM finally write out the override ledger entry, after first
         # ADM checking if the file exists.
