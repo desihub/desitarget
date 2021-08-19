@@ -833,8 +833,9 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
         corresponding column in `overfn` (for the appropriate TARGETID).
     valsub : :class:`dict`, optional
         If passed, each key should correspond to the name of a ledger
-        column and each value should correspond to a single number. The
-        "value" will be overwritten into the "key" column of the ledger.
+        column and each value to a single number or string. The "value"
+        will be overwritten into the "key" column of the ledger. Takes
+        precedence over colsub.
     mtldir : :class:`str`, optional, defaults to ``None``
         Full path to the directory that hosts the MTL ledgers and the MTL
         tile file. If ``None``, then look up the MTL directory from the
@@ -844,8 +845,8 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
         for passed `obscon`.
     numoverride : :class:`int`, optional, defaults to 999
         The override ledger is read every time the MTL loop is run. This
-        is the number of times to override the standard results from the
-        MTL loop. Defaults to 1000, i.e. essentially "always override."
+        is the number of times to override the standard results in the
+        MTL loop. Defaults to 999, i.e. essentially "always override."
 
     Returns
     -------
@@ -927,12 +928,13 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
             f = open(outfn, "a")
             ascii.write(entry, f, format='no_header', formats=mtlformatdict)
             f.close()
+            checkfn = outfn
         else:
             _, checkfn = io.write_mtl(
                 mtldir, entry.as_array(), indir=infn, ecsv=True, survey="main",
                 obscon=obscon, nsidefile=nside, hpxlist=pix, scnd=secondary,
                 override=True)
-            log.info('Wrote target {} to {}'.format(tid, checkfn))
+        log.info('Wrote target {} from {} to {}'.format(tid, overfn, checkfn))
 
     return outdir
 

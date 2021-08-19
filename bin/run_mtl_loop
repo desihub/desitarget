@@ -22,7 +22,7 @@ ap.add_argument('--zcatdir',
                 default=None)
 ap.add_argument('--mtldir',
                 help="Full path to the directory that hosts the MTL ledgers.    \
-                Default is to use the $ZCAT_DIR environment variable",
+                Default is to use the $MTL_DIR environment variable",
                 default=None)
 ap.add_argument("-n", "--numobsfromzcat", action='store_true',
                 help="If passed, the zcat includes a meaningful NUMOBS.         \

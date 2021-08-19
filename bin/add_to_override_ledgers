@@ -1,0 +1,52 @@
+#!/usr/bin/env python
+
+from desitarget.mtl import ledger_overrides
+from desiutil.log import get_logger
+import json
+log = get_logger()
+
+# ADM default number of times to override ledger entry.
+numoverride = 999
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Add entries to the ledgers used to override the standard MTL ledgers')
+ap.add_argument("overfn",
+                help="Full path to the filename that contains the override      \
+                information. Must contain at least RA, DEC, TARGETID and be in  \
+                a format that can be read by astropy.table.Table.read().")
+ap.add_argument("obscon",
+                help="String matching ONE obscondition in the desitarget yaml   \
+                bitmask file (i.e. in `desitarget.targetmask.obsconditions`).   \
+                Used to construct the directory to find Main Survey ledgers.")
+ap.add_argument("-c", "--colsub",
+                help="If passed, each key should correspond to the name of a    \
+                ledger column and each value to a column name in `overfn`. The  \
+                ledger columns are overwritten by the corresponding column in   \
+                `overfn` (for each TARGETID). FORMAT AS A DICTIONARY IN SINGLE  \
+                QUOTES WITH KEYS IN DOUBLE QUOTES, e.g. '{\"blat\": 1}' or      \
+                '{\"blat\": \"foo\"}'.",
+                default=None, type=json.loads)
+ap.add_argument("-v", "--valsub",
+                help="If passed, each key should correspond to the name of a    \
+                ledger column and each value to a single number or string. The  \
+                'value' will be overwritte into the 'key' column of the ledger. \
+                USE DICTIONARY FORMAT (as above). Takes precedence over colsub.",
+                default=None, type=json.loads)
+ap.add_argument('--mtldir',
+                help="Full path to the directory that hosts the MTL ledgers.    \
+                Default is to use the $MTL_DIR environment variable",
+                default=None)
+ap.add_argument("-s", "--secondary", action='store_true',
+                help="Process secondary targets instead of primaries")
+ap.add_argument("-n", "--numoverride",
+                help="The override ledger is read each time the MTL loop is run.\
+                This is the number of times to override the standard results in \
+                the MTL loop. Defaults to {}".format(numoverride),
+                default=numoverride)
+ns = ap.parse_args()
+
+outdir = ledger_overrides(
+    ns.overfn, ns.obscon, colsub=ns.colsub, valsub=ns.valsub,
+    mtldir=ns.mtldir, secondary=ns.secondary, numoverride=ns.numoverride)
+
+log.info("Augmented override ledgers in {}".format(outdir))
