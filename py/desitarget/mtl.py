@@ -811,8 +811,8 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     return
 
 
-def ledger_overrides(overfn, obscon, colsub=None, mtldir=None, secondary=False,
-                     numoverride=999):
+def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
+                     mtldir=None, secondary=False, numoverride=999):
     """
     Create (or append to) a ledger to override the standard ledgers.
 
@@ -822,15 +822,19 @@ def ledger_overrides(overfn, obscon, colsub=None, mtldir=None, secondary=False,
         Full path to the filename that contains the override information.
         Must contain at least `RA`, `DEC`, `TARGETID` and be in a format
         that can be read automatically by astropy.table.Table.read().
-    colsub : :class:`dict`
-        If passed, each key should correspond to the name of a ledger
-        column and each value should correspond to the name of a column
-        in `overfn`. The ledger columns are overwritten by the
-        corresponding column in `overfn` (for the appropriate TARGETID).
     obscon : :class:`str`
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
         Used to construct the directory to find the Main Survey ledgers.
+    colsub : :class:`dict`, optional
+        If passed, each key should correspond to the name of a ledger
+        column and each value should correspond to the name of a column
+        in `overfn`. The ledger columns are overwritten by the
+        corresponding column in `overfn` (for the appropriate TARGETID).
+    valsub : :class:`dict`, optional
+        If passed, each key should correspond to the name of a ledger
+        column and each value should correspond to a single number. The
+        "value" will be overwritten into the "key" column of the ledger.
     mtldir : :class:`str`, optional, defaults to ``None``
         Full path to the directory that hosts the MTL ledgers and the MTL
         tile file. If ``None``, then look up the MTL directory from the
@@ -905,6 +909,10 @@ def ledger_overrides(overfn, obscon, colsub=None, mtldir=None, secondary=False,
         if colsub is not None:
             for col in colsub:
                 entry[col] = objs[ii][colsub[col]]
+        # ADM overwrite ledger entries, where requested.
+        if valsub is not None:
+            for col, val in valsub.items():
+                entry[col] = val
         # ADM finally write out the override ledger entry, after first
         # ADM checking if the file exists.
         if os.path.exists(outfn):
