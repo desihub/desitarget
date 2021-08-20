@@ -811,6 +811,63 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     return
 
 
+def process_overrides(obscon, hpx, mtldir=None, secondary=False):
+    """
+    Create (or append to) a ledger to override the standard ledgers.
+
+    Parameters
+    ----------
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Used to construct the directory to find the Main Survey ledgers.
+    hpx : :class:`int`
+        HEALPixel. Used to construct the filename of the override ledger.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    secondary : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then process secondary targets instead of primaries
+        for passed `obscon`.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        MTL entries from override ledger with NUMOVERRIDE column removed
+        and TIMESTAMP updated to now.
+
+    Notes
+    -----
+    - Rewrites entries to the override ledger with NUMOVERRIDE updated to
+      be NUMOVERRIDE - 1. And TIMESTAMP updated to now.
+    """
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM construct the relevant filename for this ledger.
+    resolve = True
+    if secondary:
+        resolve = None
+
+    fn = io.find_target_files(
+        mtldir, flavor="mtl", survey="main", hp=hpx, resolve=resolve,
+        obscon=obscon, override=True, ender="ecsv")
+
+    mtl = Table(io.read_mtl_ledger(fn))
+    mtl["NUMOVERRIDE"] -= 1
+    mtl["TIMESTAMP"] = get_utc_date(survey="main")
+
+    # ADM append the updated mtl entry to the override ledger.
+    f = open(fn, "a")
+    ascii.write(mtl, f, format='no_header', formats=mtlformatdict)
+    f.close()
+
+    # ADM return the entry without the NUMOVERRIDE column.
+    del mtl["NUMOVERRIDE"]
+    return mtl
+
+
 def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
                      mtldir=None, secondary=False, numoverride=999):
     """
