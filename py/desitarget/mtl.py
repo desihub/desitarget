@@ -837,7 +837,7 @@ def process_overrides(ledgerfn):
     mtl["TIMESTAMP"] = get_utc_date(survey="main")
 
     # ADM append the updated mtl entry to the override ledger.
-    f = open(fn, "a")
+    f = open(ledgerfn, "a")
     ascii.write(mtl, f, format='no_header', formats=mtlformatdict)
     f.close()
 
@@ -1065,10 +1065,10 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
 
         # ADM if an override ledger exists, update it and recover its
         # ADM relevant MTL entries.
-        overmtl = process_overrides(overfn)
-
-        # ADM add any override entries TO THE END OF THE LEDGER.
-        mtlpix = vstack(mtlpix, overmtl)
+        if os.path.exists(overfn):
+            overmtl = process_overrides(overfn)
+            # ADM add any override entries TO THE END OF THE LEDGER.
+            mtlpix = vstack([mtlpix, overmtl])
 
         # ADM if we're working with .ecsv, simply append to the ledger.
         if ender == 'ecsv':
