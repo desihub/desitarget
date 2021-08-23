@@ -2320,7 +2320,7 @@ def _get_targ_dir():
 def find_target_files(targdir, dr='X', flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
                       mock=False, nohp=False, seed=None, region=None, epoch=None,
-                      maglim=None, override=None, ender="fits"):
+                      maglim=None, override=False, ender="fits"):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -2824,7 +2824,7 @@ def read_ecsv_header(filename):
     return hdr
 
 
-def find_mtl_file_format_from_header(hpdirname, returnoc=False):
+def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     """Construct an MTL filename just from the header in the file
 
     Parameters
@@ -2837,6 +2837,9 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False):
     returnoc : :class:`bool`, optional, defaults to ``False``
         If ``True`` then also return the OBSCON header keyword
         for files in this directory.
+    override : :class:`bool`, optional, defaults to ``False``
+        If ``True``, return the file form for an override ledger instead
+        of a standard MTL ledger.
 
     Returns
     -------
@@ -2858,10 +2861,14 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False):
     ender = get_mtl_ledger_format()
 
     # ADM construct the full directory path.
-    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}",
-                               survey=surv, ender=ender, obscon=oc)
+    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}", survey=surv,
+                               ender=ender, obscon=oc, override=override)
+
     # ADM return the filename.
     fileform = os.path.join(hpdirname, os.path.basename(hugefn))
+    if override:
+        fileform = os.path.join(hpdirname, "override", os.path.basename(hugefn))
+
     if returnoc:
         return fileform, oc
     return fileform

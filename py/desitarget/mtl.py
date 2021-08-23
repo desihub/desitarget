@@ -12,7 +12,7 @@ import numpy as np
 import healpy as hp
 import numpy.lib.recfunctions as rfn
 import sys
-from astropy.table import Table, hstack
+from astropy.table import Table, hstack, vstack
 from astropy.io import ascii
 import fitsio
 from time import time, sleep
@@ -811,25 +811,14 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     return
 
 
-def process_overrides(obscon, hpx, mtldir=None, secondary=False):
+def process_overrides(ledgerfn):
     """
-    Create (or append to) a ledger to override the standard ledgers.
+    Recover MTL entries from override ledgers and update those ledgers.
 
     Parameters
     ----------
-    obscon : :class:`str`
-        A string matching ONE obscondition in the desitarget bitmask yaml
-        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
-        Used to construct the directory to find the Main Survey ledgers.
-    hpx : :class:`int`
-        HEALPixel. Used to construct the filename of the override ledger.
-    mtldir : :class:`str`, optional, defaults to ``None``
-        Full path to the directory that hosts the MTL ledgers and the MTL
-        tile file. If ``None``, then look up the MTL directory from the
-        $MTL_DIR environment variable.
-    secondary : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then process secondary targets instead of primaries
-        for passed `obscon`.
+    ledgerfn : :class:`str`
+        Name of the override ledger to process.
 
     Returns
     -------
@@ -840,21 +829,10 @@ def process_overrides(obscon, hpx, mtldir=None, secondary=False):
     Notes
     -----
     - Rewrites entries to the override ledger with NUMOVERRIDE updated to
-      be NUMOVERRIDE - 1. And TIMESTAMP updated to now.
+      be NUMOVERRIDE - 1 and TIMESTAMP updated to now.
     """
-    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
-    mtldir = get_mtl_dir(mtldir)
-
-    # ADM construct the relevant filename for this ledger.
-    resolve = True
-    if secondary:
-        resolve = None
-
-    fn = io.find_target_files(
-        mtldir, flavor="mtl", survey="main", hp=hpx, resolve=resolve,
-        obscon=obscon, override=True, ender="ecsv")
-
-    mtl = Table(io.read_mtl_ledger(fn))
+    # ADM read in the relevant entries in the override ledger.
+    mtl = Table(io.read_mtl_ledger(ledgerfn))
     mtl["NUMOVERRIDE"] -= 1
     mtl["TIMESTAMP"] = get_utc_date(survey="main")
 
@@ -1032,6 +1010,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
     # ADM find the general format for the ledger files in `hpdirname`.
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
+    # ADM this is the format for any associated override ledgers.
+    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
 
     # ADM check the obscondition is as expected.
     if obscon != oc:
@@ -1075,12 +1055,20 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         ii = pixnum == pix
         mtlpix = mtl[ii]
 
-        # ADM sorting on TARGETID is important for
-        # ADM io.read_mtl_ledger(unique=True)
+        # ADM sorting on TARGETID is neater (although not strictly
+        # ADM necessary when using io.read_mtl_ledger(unique=True)).
         mtlpix = mtlpix[np.argsort(mtlpix["TARGETID"])]
 
-        # ADM the correct filename for this pixel number.
+        # ADM the correct filenames for this pixel number.
         fn = fileform.format(pix)
+        overfn = overrideff.format(pix)
+
+        # ADM if an override ledger exists, update it and recover its
+        # ADM relevant MTL entries.
+        overmtl = process_overrides(overfn)
+
+        # ADM add any override entries TO THE END OF THE LEDGER.
+        mtlpix = vstack(mtlpix, overmtl)
 
         # ADM if we're working with .ecsv, simply append to the ledger.
         if ender == 'ecsv':
@@ -1680,7 +1668,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     msg += " (the zcats also contain {} skies with +ve TARGETIDs)".format(nsky)
     log.info(msg)
 
-    # ADM update the appropriate ledger.
+    # ADM update the appropriate ledgers.
     update_ledger(hpdirname, zcat, obscon=obscon,
                   numobs_from_ledger=numobs_from_ledger)
 
