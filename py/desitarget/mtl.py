@@ -811,6 +811,32 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     return
 
 
+def standard_override_columns(mtl):
+    """
+    Add some standard column entries to an mtl Table.
+
+    Parameters
+    ----------
+    mtl : :class:`~astropy.table.Table``
+        An astropy Table. Must contain the columns TIMESTAMP,
+        TARGET_STATE, VERSION and ZTILEID.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        The input table with IMESTAMP updated to now, the second part of
+        TARGET_STATE updated to be OVERRIDE, the git VERSION updated, and
+        ZTILEID set to -1.
+    """
+    mtl["TIMESTAMP"] = get_utc_date(survey="main")
+    newts = ["{}|OVERRIDE".format(t.split("|")[0]) for t in mtl["TARGET_STATE"]]
+    mtl["TARGET_STATE"] = np.array(newts)
+    mtl["VERSION"] = dt_version
+    mtl["ZTILEID"] = -1
+
+    return mtl
+
+
 def process_overrides(ledgerfn):
     """
     Recover MTL entries from override ledgers and update those ledgers.
@@ -830,18 +856,18 @@ def process_overrides(ledgerfn):
     Notes
     -----
     - Rewrites entries to the override ledger with NUMOVERRIDE updated to
-      be NUMOVERRIDE - 1, TIMESTAMP updated to now, and the second part
-      of TARGET_STATE updated to OVERRIDE, and the git VERSION updated.
+      be NUMOVERRIDE - 1, TIMESTAMP updated to now, the second part of
+      TARGET_STATE updated to OVERRIDE, the git VERSION updated, and the
+      ZTILEID updated to -1.
     """
     # ADM read in the relevant entries in the override ledger.
     mtl = Table(io.read_mtl_ledger(ledgerfn))
 
-    # ADM update column entries to add to the override ledger.
+    # ADM indicate that we've already overrode once.
     mtl["NUMOVERRIDE"] -= 1
-    mtl["TIMESTAMP"] = get_utc_date(survey="main")
-    newts = ["{}|OVERRIDE".format(t.split("|")[0]) for t in mtl["TARGET_STATE"]]
-    mtl["TARGET_STATE"] = np.array(newts)
-    mtl["VERSION"] = dt_version
+
+    # ADM update the standard information for override ledgers.
+    mtl = standard_override_columns(mtl)
 
     # ADM append the updated mtl entry to the override ledger.
     f = open(ledgerfn, "a")
@@ -894,6 +920,13 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
     -------
     :class:`str`
         The directory containing the ledgers that were updated.
+
+    Notes
+    -----
+    - Regardless of the inputs, the TIMESTAMP in the output override
+      ledger is always updated to now, the second part of TARGET_STATE is
+      always updated to OVERRIDE, the git VERSION is always updated and
+      the ZTILEID is always set to -1.
     """
     # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
     mtldir = get_mtl_dir(mtldir)
@@ -945,8 +978,7 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
             msg = "TARGETID {} from {} not in file {}!".format(tid, overfn, infn)
             log.warning(msg)
         entry = ledger[ii]
-        # ADM add the number of times to override to the ledger entry.
-        entry["NUMOVERRIDE"] = numoverride
+
         # ADM substitute the column entries, where requested.
         ii = objs["TARGETID"] == tid
         if colsub is not None:
@@ -964,6 +996,12 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
                     log.error(msg)
                     raise ValueError(msg)
                 entry[col] = val
+
+        # ADM add the number of times to override to the ledger entry.
+        entry["NUMOVERRIDE"] = numoverride
+        # ADM add some other standardized column information.
+        mtl = standard_override_columns(mtl)
+
         # ADM finally write out the override ledger entry, after first
         # ADM checking if the file exists.
         if os.path.exists(outfn):
