@@ -823,18 +823,25 @@ def process_overrides(ledgerfn):
     Returns
     -------
     :class:`~astropy.table.Table`
-        MTL entries from override ledger with NUMOVERRIDE column removed
-        and TIMESTAMP updated to now.
+        MTL entries from override ledger with NUMOVERRIDE column removed,
+        TIMESTAMP updated to now, the second part of TARGET_STATE
+        updated to be OVERRIDE, and the git VERSION updated.
 
     Notes
     -----
     - Rewrites entries to the override ledger with NUMOVERRIDE updated to
-      be NUMOVERRIDE - 1 and TIMESTAMP updated to now.
+      be NUMOVERRIDE - 1, TIMESTAMP updated to now, and the second part
+      of TARGET_STATE updated to OVERRIDE, and the git VERSION updated.
     """
     # ADM read in the relevant entries in the override ledger.
     mtl = Table(io.read_mtl_ledger(ledgerfn))
+
+    # ADM update column entries to add to the override ledger.
     mtl["NUMOVERRIDE"] -= 1
     mtl["TIMESTAMP"] = get_utc_date(survey="main")
+    newts = ["{}|OVERRIDE".format(t.split("|")[0]) for t in mtl["TARGET_STATE"]]
+    mtl["TARGET_STATE"] = np.array(newts)
+    mtl["VERSION"] = dt_version
 
     # ADM append the updated mtl entry to the override ledger.
     f = open(ledgerfn, "a")
