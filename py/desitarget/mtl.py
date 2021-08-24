@@ -1039,17 +1039,19 @@ def force_overrides(hpdirname, pixlist):
         The directory containing the ledgers that were updated.
     """
     # ADM find the general format for the ledger files in `hpdirname`.
-    fileform, oc = io.find_mtl_file_format_from_header(hpdirname)
+    fileform = io.find_mtl_file_format_from_header(hpdirname)
     # ADM this is the format for any associated override ledgers.
     overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
 
-    # ADM before making updates, check suggested override ledgers exist.
+    # ADM before making updates, check all suggested ledgers exist.
     for pix in pixlist:
         overfn = overrideff.format(pix)
-        if not os.path.exists(overfn):
-            msg = "no override ledger at: ".format(overfn)
-            log.error(msg)
-            raise OSError
+        fn = fileform.format(pix)
+        for f in overfn, fn:
+            if not os.path.exists(f):
+                msg = "no ledger exists at: {}".format(f)
+                log.error(msg)
+                raise OSError
 
     for pix in pixlist:
         # ADM the correct filenames for this pixel number.
