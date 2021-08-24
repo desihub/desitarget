@@ -1000,7 +1000,7 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
         # ADM add the number of times to override to the ledger entry.
         entry["NUMOVERRIDE"] = numoverride
         # ADM add some other standardized column information.
-        mtl = standard_override_columns(mtl)
+        entry = standard_override_columns(entry)
 
         # ADM finally write out the override ledger entry, after first
         # ADM checking if the file exists.
@@ -1015,6 +1015,8 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
                 obscon=obscon, nsidefile=nside, hpxlist=pix, scnd=secondary,
                 override=True)
         log.info('Wrote target {} from {} to {}'.format(tid, overfn, checkfn))
+
+    log.info("Touched pixels {}".format(",".join([str(pix) for pix in pixnum])))
 
     return outdir
 
