@@ -5,9 +5,14 @@ desitarget Change Log
 1.2.3 (unreleased)
 ------------------
 
+* Functionality to override MTL ledger entries [`PR #763`_]. Includes:
+    * ``add_to_override_ledgers`` to create or expand override ledgers.
+    * ``force_mtl_overrides`` to force overrides into the MTL ledgers.
+    * Processing overrides automatically as part of the MTL loop.
 * Add a ``TIMESTAMP`` to the Main Survey ToO Ledgers [`PR #761`_].
 
 .. _`PR #761`: https://github.com/desihub/desitarget/pull/761
+.. _`PR #763`: https://github.com/desihub/desitarget/pull/763
 
 1.2.2 (2021-07-08)
 ------------------

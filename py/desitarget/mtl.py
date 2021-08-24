@@ -860,6 +860,8 @@ def process_overrides(ledgerfn):
       TARGET_STATE updated to OVERRIDE, the git VERSION updated, and the
       ZTILEID updated to -1.
     """
+    log.info("Processing override ledgers")
+
     # ADM read in the relevant entries in the override ledger.
     mtl = Table(io.read_mtl_ledger(ledgerfn))
 
