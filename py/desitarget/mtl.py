@@ -1021,6 +1021,52 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
     return outdir
 
 
+def force_overrides(hpdirname, pixlist):
+    """
+    Force override ledgers to be processed and added to the MTL ledgers.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to a directory containing an MTL ledger that has been
+        partitioned by HEALPixel (i.e. as made by `make_ledger`).
+    pixlist : :class:`list`
+        A list of HEALPixels corresponding to the ledgers to be updated.
+
+    Returns
+    -------
+    :class:`str`
+        The directory containing the ledgers that were updated.
+    """
+    # ADM find the general format for the ledger files in `hpdirname`.
+    fileform, oc = io.find_mtl_file_format_from_header(hpdirname)
+    # ADM this is the format for any associated override ledgers.
+    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
+
+    # ADM before making updates, check suggested override ledgers exist.
+    for pix in pixlist:
+        overfn = overrideff.format(pix)
+        if not os.path.exists(overfn):
+            msg = "no override ledger at: ".format(overfn)
+            log.error(msg)
+            raise OSError
+
+    for pix in pixlist:
+        # ADM the correct filenames for this pixel number.
+        fn = fileform.format(pix)
+        overfn = overrideff.format(pix)
+
+        # ADM update override ledger and recover relevant MTL entries.
+        overmtl = process_overrides(overfn)
+
+        # ADM append override entries to the ledger.
+        f = open(fn, "a")
+        ascii.write(overmtl, f, format='no_header', formats=mtlformatdict)
+        f.close()
+
+    return hpdirname
+
+
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
                   numobs_from_ledger=False):
     """
