@@ -21,7 +21,7 @@ from quasarnp.io import load_model
 from quasarnp.io import load_desi_coadd
 from quasarnp.utils import process_preds
 
-from prospect.mycoaddcam import coadd_brz_cameras
+from prospect.coaddcam import coadd_brz_cameras
 from operator import itemgetter
 from itertools import groupby
 from astropy.modeling import fitting
