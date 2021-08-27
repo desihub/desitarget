@@ -2830,16 +2830,18 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
-        `select_targets` with the `bundle_files` option). Or the
-        name of a single file of targets.
+        Full path to either a directory containing MTL ledgers that have
+        been partitioned by HEALPixel. Or the name of a single ledger.
     returnoc : :class:`bool`, optional, defaults to ``False``
         If ``True`` then also return the OBSCON header keyword
         for files in this directory.
     override : :class:`bool`, optional, defaults to ``False``
         If ``True``, return the file form for an override ledger instead
-        of a standard MTL ledger.
+        of a standard MTL ledger IF the location of a standard MTL ledger
+        or ledgers has been passed as `hpdirname`. If the location of an
+        override ledger or ledgers has been passed as `hpdirname`, then
+        the fact that we're working with override ledgers is detected
+        automatically and `override`=``True`` does not need to be passed.
 
     Returns
     -------
@@ -2857,6 +2859,12 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     # ADM grab information from the target directory.
     surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
     oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
+    # ADM detect whether we're working with the override ledgers.
+    try:
+        override = bool(read_keyword_from_mtl_header(hpdirname, "OVERRIDE"))
+    except KeyError:
+        pass
+
     from desitarget.mtl import get_mtl_ledger_format
     ender = get_mtl_ledger_format()
 

@@ -9,6 +9,7 @@ desitarget Change Log
     * ``add_to_override_ledgers`` to create or expand override ledgers.
     * ``force_mtl_overrides`` to force overrides into the MTL ledgers.
     * Processing overrides automatically as part of the MTL loop.
+    * Override ledgers can be read using MTL utilities in desitarget.io.
 * Add a ``TIMESTAMP`` to the Main Survey ToO Ledgers [`PR #761`_].
 
 .. _`PR #761`: https://github.com/desihub/desitarget/pull/761
