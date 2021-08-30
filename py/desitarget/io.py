@@ -744,7 +744,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
-              nsidefile=None, hpxlist=None, extra=None, ecsv=True, mixed=False):
+              nsidefile=None, hpxlist=None, extra=None, override=False,
+              ecsv=True, mixed=False):
     """Write Merged Target List ledgers or files.
 
     Parameters
@@ -774,6 +775,10 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
+    override : :class:`bool`, optional, defaults to ``False``
+        If ``True``, this is an MTL override file. Any instance of
+        "mtl" in the filename is replaced by "mtl-override" and the
+        final part of the directory structure includes "override".
     ecsv : :class:`bool`, defaults to ``True``
         If ``True`` write a .ecsv file, if ``False`` with a .fits file.
     mixed : :class:`bool`, defaults to ``False``
@@ -790,8 +795,8 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         The name of the file to which targets were written.
     """
     # ADM begin to construct a dictionary of header keys and values.
-    keys = ["INDIR", "SURVEY", "OBSCON", "SCND"]
-    vals = [indir, survey, obscon, scnd]
+    keys = ["INDIR", "SURVEY", "OBSCON", "SCND", "OVERRIDE"]
+    vals = [indir, survey, obscon, scnd, override]
 
     # ADM hpxlist and nsidefile need to be passed together.
     if hpxlist is not None or nsidefile is not None:
@@ -846,7 +851,8 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     fn = find_target_files(mtldir, dr=drstring, flavor="mtl", survey=survey,
-                           resolve=resolve, obscon=obscon, hp=hpx, ender=form)
+                           resolve=resolve, obscon=obscon, hp=hpx,
+                           override=override, ender=form)
 
     ntargs = len(data)
     # ADM die if there are no targets to write.
@@ -2314,7 +2320,7 @@ def _get_targ_dir():
 def find_target_files(targdir, dr='X', flavor="targets", survey="main",
                       obscon=None, hp=None, nside=None, resolve=True, supp=False,
                       mock=False, nohp=False, seed=None, region=None, epoch=None,
-                      maglim=None, ender="fits"):
+                      maglim=None, override=False, ender="fits"):
     """Build the name of an output target file (or directory).
 
     Parameters
@@ -2364,6 +2370,10 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     maglim : :class:`float`, optional
         Magnitude limit to which the mask was made. Only relevant if
         `flavor` is "masks". Must be passed if `flavor` is "masks".
+    override : :class:`bool`, optional, defaults to ``False``
+        If ``True``, this is an MTL override file. Any instance of
+        "mtl" in the filename is replaced by "mtl-override" and the
+        final part of the directory structure includes "override".
     ender : :class:`str`, optional, defaults to "fits"
         File format (in file name).
 
@@ -2466,6 +2476,9 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     if flavor in ["targets", "mtl"]:
         fn = os.path.join(fn, survey, resdir, obscon)
         prefix = "{}-{}".format(flavor, obscon)
+        if flavor == "mtl" and override:
+            prefix = "{}-override-{}".format(flavor, obscon)
+            fn = os.path.join(fn, "override")
         if not resolve and flavor != "mtl":
             prefix = "{}-{}".format(prefix, res)
         if survey != "main":
@@ -2811,19 +2824,24 @@ def read_ecsv_header(filename):
     return hdr
 
 
-def find_mtl_file_format_from_header(hpdirname, returnoc=False):
+def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     """Construct an MTL filename just from the header in the file
 
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
-        `select_targets` with the `bundle_files` option). Or the
-        name of a single file of targets.
+        Full path to either a directory containing MTL ledgers that have
+        been partitioned by HEALPixel. Or the name of a single ledger.
     returnoc : :class:`bool`, optional, defaults to ``False``
         If ``True`` then also return the OBSCON header keyword
         for files in this directory.
+    override : :class:`bool`, optional, defaults to ``False``
+        If ``True``, return the file form for an override ledger instead
+        of a standard MTL ledger IF the location of a standard MTL ledger
+        or ledgers has been passed as `hpdirname`. If the location of an
+        override ledger or ledgers has been passed as `hpdirname`, then
+        the fact that we're working with override ledgers is detected
+        automatically and `override`=``True`` does not need to be passed.
 
     Returns
     -------
@@ -2841,14 +2859,27 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False):
     # ADM grab information from the target directory.
     surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
     oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
+    # ADM detect whether we're working with the override ledgers.
+    try:
+        override = bool(read_keyword_from_mtl_header(hpdirname, "OVERRIDE"))
+    except KeyError:
+        pass
+
     from desitarget.mtl import get_mtl_ledger_format
     ender = get_mtl_ledger_format()
 
     # ADM construct the full directory path.
-    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}",
-                               survey=surv, ender=ender, obscon=oc)
+    hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}", survey=surv,
+                               ender=ender, obscon=oc, override=override)
+
     # ADM return the filename.
     fileform = os.path.join(hpdirname, os.path.basename(hugefn))
+    if override:
+        # ADM be forgiving if the override directory itself was passed.
+        fileform = os.path.join(hpdirname, "override", os.path.basename(hugefn))
+        if "override" in hpdirname:
+            fileform = os.path.join(hpdirname, os.path.basename(hugefn))
+
     if returnoc:
         return fileform, oc
     return fileform

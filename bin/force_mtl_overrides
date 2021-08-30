@@ -1,0 +1,29 @@
+#!/usr/bin/env python
+
+from desitarget.mtl import force_overrides
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Force override ledgers to be processed and added to the MTL ledgers without running the full MTL loop.')
+ap.add_argument("hpdirname",
+                help="Full path to a directory containing MTL ledgers that are  \
+                partitioned by HEALPixel (i.e. as made by `make_ledger`). NOTE: \
+                send the directory of the MTL ledgers, NOT the override ledgers")
+ap.add_argument("pixlist",
+                help="A list of HEALPixels signifying the ledgers to be updated.\
+                Send as a comma-separated string (e.g. 12167,53,455,9)")
+
+ns = ap.parse_args()
+
+# ADM a check that we didn't accidentally pass the directory that hosts
+# ADM the override ledgers.
+if "override" in ns.hpdirname:
+    msg = "Did you pass the override directory instead of the MTL directory?"
+    log.warning(msg)
+
+hpxlist = [ pix for pix in ns.pixlist.split(',') ]
+
+outdir = force_overrides(ns.hpdirname, hpxlist)
+
+log.info("Overrode ledgers in {}".format(outdir))

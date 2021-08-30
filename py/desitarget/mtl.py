@@ -12,7 +12,7 @@ import numpy as np
 import healpy as hp
 import numpy.lib.recfunctions as rfn
 import sys
-from astropy.table import Table, hstack
+from astropy.table import Table, hstack, vstack
 from astropy.io import ascii
 import fitsio
 from time import time, sleep
@@ -811,6 +811,266 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     return
 
 
+def standard_override_columns(mtl):
+    """
+    Add some standard column entries to an mtl Table.
+
+    Parameters
+    ----------
+    mtl : :class:`~astropy.table.Table``
+        An astropy Table. Must contain the columns TIMESTAMP,
+        TARGET_STATE, VERSION and ZTILEID.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        The input table with IMESTAMP updated to now, the second part of
+        TARGET_STATE updated to be OVERRIDE, the git VERSION updated, and
+        ZTILEID set to -1.
+    """
+    mtl["TIMESTAMP"] = get_utc_date(survey="main")
+    newts = ["{}|OVERRIDE".format(t.split("|")[0]) for t in mtl["TARGET_STATE"]]
+    mtl["TARGET_STATE"] = np.array(newts)
+    mtl["VERSION"] = dt_version
+    mtl["ZTILEID"] = -1
+
+    return mtl
+
+
+def process_overrides(ledgerfn):
+    """
+    Recover MTL entries from override ledgers and update those ledgers.
+
+    Parameters
+    ----------
+    ledgerfn : :class:`str`
+        Name of the override ledger to process.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        MTL entries from override ledger with NUMOVERRIDE column removed,
+        TIMESTAMP updated to now, the second part of TARGET_STATE
+        updated to be OVERRIDE, and the git VERSION updated.
+
+    Notes
+    -----
+    - Rewrites entries to the override ledger with NUMOVERRIDE updated to
+      be NUMOVERRIDE - 1, TIMESTAMP updated to now, the second part of
+      TARGET_STATE updated to OVERRIDE, the git VERSION updated, and the
+      ZTILEID updated to -1.
+    """
+    log.info("Processing override ledgers")
+
+    # ADM read in the relevant entries in the override ledger.
+    mtl = Table(io.read_mtl_ledger(ledgerfn))
+
+    # ADM indicate that we've already overrode once.
+    mtl["NUMOVERRIDE"] -= 1
+
+    # ADM update the standard information for override ledgers.
+    mtl = standard_override_columns(mtl)
+
+    # ADM append the updated mtl entry to the override ledger.
+    f = open(ledgerfn, "a")
+    ascii.write(mtl, f, format='no_header', formats=mtlformatdict)
+    f.close()
+
+    # ADM return the entry without the NUMOVERRIDE column.
+    del mtl["NUMOVERRIDE"]
+    return mtl
+
+
+def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
+                     mtldir=None, secondary=False, numoverride=999):
+    """
+    Create (or append to) a ledger to override the standard ledgers.
+
+    Parameters
+    ----------
+    overfn : :class:`str`
+        Full path to the filename that contains the override information.
+        Must contain at least `RA`, `DEC`, `TARGETID` and be in a format
+        that can be read automatically by astropy.table.Table.read().
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Used to construct the directory to find the Main Survey ledgers.
+    colsub : :class:`dict`, optional
+        If passed, each key should correspond to the name of a ledger
+        column and each value should correspond to the name of a column
+        in `overfn`. The ledger columns are overwritten by the
+        corresponding column in `overfn` (for the appropriate TARGETID).
+    valsub : :class:`dict`, optional
+        If passed, each key should correspond to the name of a ledger
+        column and each value to a single number or string. The "value"
+        will be overwritten into the "key" column of the ledger. Takes
+        precedence over colsub.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    secondary : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then process secondary targets instead of primaries
+        for passed `obscon`.
+    numoverride : :class:`int`, optional, defaults to 999
+        The override ledger is read every time the MTL loop is run. This
+        is the number of times to override the standard results in the
+        MTL loop. Defaults to 999, i.e. essentially "always override."
+
+    Returns
+    -------
+    :class:`str`
+        The directory containing the ledgers that were updated.
+
+    Notes
+    -----
+    - Regardless of the inputs, the TIMESTAMP in the output override
+      ledger is always updated to now, the second part of TARGET_STATE is
+      always updated to OVERRIDE, the git VERSION is always updated and
+      the ZTILEID is always set to -1.
+    """
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM construct the relevant sub-directory for this survey and
+    # ADM set of observing conditions.
+    resolve = True
+    msg = "running on {} ledgers with obscon={} and survey=main"
+    if secondary:
+        log.info(msg.format("SECONDARY", obscon))
+        resolve = None
+    else:
+        log.info(msg.format("PRIMARY", obscon))
+    outdir = io.find_target_files(mtldir, flavor="mtl", obscon=obscon,
+                                  survey="main", resolve=resolve, override=True)
+    # ADM and create the sub-directory if it doesn't exist.
+    os.makedirs(outdir, exist_ok=True)
+
+    # ADM read in the file with override information.
+    objs = Table.read(overfn)
+    # ADM be somewhat forgiving and convert lower-case columns.
+    for colname in ["RA", "DEC", "TARGETID"]:
+        try:
+            objs.rename_column(colname.lower(), colname)
+        except KeyError:
+            pass
+        # ADM check all required columns are present.
+        if colname not in objs.colnames:
+            msg = "{} must be a column in {}!".format(colname, overfn)
+            log.error(msg)
+            raise IOError(msg)
+
+    # ADM retrieve the current ledger entry for each target to be overrode.
+    nside = _get_mtl_nside()
+    theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
+    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+    for tid, pix in zip(objs["TARGETID"], pixnum):
+        # ADM construct the input/output ledger filenames.
+        infn = io.find_target_files(mtldir, flavor="mtl", survey="main", hp=pix,
+                                    resolve=resolve, obscon=obscon, ender="ecsv")
+        outfn = io.find_target_files(
+            mtldir, flavor="mtl", survey="main", hp=pix, resolve=resolve,
+            obscon=obscon, override=True, ender="ecsv")
+
+        ledger = Table(io.read_mtl_ledger(infn))
+        ii = ledger["TARGETID"] == tid
+        # ADM warn if one of the TARGETIDs seems incorrect.
+        if not np.any(ii):
+            msg = "TARGETID {} from {} not in file {}!".format(tid, overfn, infn)
+            log.warning(msg)
+        entry = ledger[ii]
+
+        # ADM substitute the column entries, where requested.
+        ii = objs["TARGETID"] == tid
+        if colsub is not None:
+            for col in colsub:
+                if col not in ledger.colnames:
+                    msg = "column {} from colsub not in ledger!!!".format(col)
+                    log.error(msg)
+                    raise ValueError(msg)
+                entry[col] = objs[ii][colsub[col]]
+        # ADM overwrite ledger entries, where requested.
+        if valsub is not None:
+            for col, val in valsub.items():
+                if col not in ledger.colnames:
+                    msg = "column {} from valsub not in ledger!!!".format(col)
+                    log.error(msg)
+                    raise ValueError(msg)
+                entry[col] = val
+
+        # ADM add the number of times to override to the ledger entry.
+        entry["NUMOVERRIDE"] = numoverride
+        # ADM add some other standardized column information.
+        entry = standard_override_columns(entry)
+
+        # ADM finally write out the override ledger entry, after first
+        # ADM checking if the file exists.
+        if os.path.exists(outfn):
+            f = open(outfn, "a")
+            ascii.write(entry, f, format='no_header', formats=mtlformatdict)
+            f.close()
+            checkfn = outfn
+        else:
+            _, checkfn = io.write_mtl(
+                mtldir, entry.as_array(), indir=infn, ecsv=True, survey="main",
+                obscon=obscon, nsidefile=nside, hpxlist=pix, scnd=secondary,
+                override=True)
+        log.info('Wrote target {} from {} to {}'.format(tid, overfn, checkfn))
+
+    log.info("Touched pixels {}".format(",".join([str(pix) for pix in pixnum])))
+
+    return outdir
+
+
+def force_overrides(hpdirname, pixlist):
+    """
+    Force override ledgers to be processed and added to the MTL ledgers.
+
+    Parameters
+    ----------
+    hpdirname : :class:`str`
+        Full path to a directory containing an MTL ledger that has been
+        partitioned by HEALPixel (i.e. as made by `make_ledger`).
+    pixlist : :class:`list`
+        A list of HEALPixels corresponding to the ledgers to be updated.
+
+    Returns
+    -------
+    :class:`str`
+        The directory containing the ledgers that were updated.
+    """
+    # ADM find the general format for the ledger files in `hpdirname`.
+    fileform = io.find_mtl_file_format_from_header(hpdirname)
+    # ADM this is the format for any associated override ledgers.
+    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
+
+    # ADM before making updates, check all suggested ledgers exist.
+    for pix in pixlist:
+        overfn = overrideff.format(pix)
+        fn = fileform.format(pix)
+        for f in overfn, fn:
+            if not os.path.exists(f):
+                msg = "no ledger exists at: {}".format(f)
+                log.error(msg)
+                raise OSError
+
+    for pix in pixlist:
+        # ADM the correct filenames for this pixel number.
+        fn = fileform.format(pix)
+        overfn = overrideff.format(pix)
+
+        # ADM update override ledger and recover relevant MTL entries.
+        overmtl = process_overrides(overfn)
+
+        # ADM append override entries to the ledger.
+        f = open(fn, "a")
+        ascii.write(overmtl, f, format='no_header', formats=mtlformatdict)
+        f.close()
+
+    return hpdirname
+
+
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
                   numobs_from_ledger=False):
     """
@@ -847,6 +1107,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
     # ADM find the general format for the ledger files in `hpdirname`.
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
+    # ADM this is the format for any associated override ledgers.
+    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
 
     # ADM check the obscondition is as expected.
     if obscon != oc:
@@ -890,12 +1152,20 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         ii = pixnum == pix
         mtlpix = mtl[ii]
 
-        # ADM sorting on TARGETID is important for
-        # ADM io.read_mtl_ledger(unique=True)
+        # ADM sorting on TARGETID is neater (although not strictly
+        # ADM necessary when using io.read_mtl_ledger(unique=True)).
         mtlpix = mtlpix[np.argsort(mtlpix["TARGETID"])]
 
-        # ADM the correct filename for this pixel number.
+        # ADM the correct filenames for this pixel number.
         fn = fileform.format(pix)
+        overfn = overrideff.format(pix)
+
+        # ADM if an override ledger exists, update it and recover its
+        # ADM relevant MTL entries.
+        if os.path.exists(overfn):
+            overmtl = process_overrides(overfn)
+            # ADM add any override entries TO THE END OF THE LEDGER.
+            mtlpix = vstack([mtlpix, overmtl])
 
         # ADM if we're working with .ecsv, simply append to the ledger.
         if ender == 'ecsv':
@@ -1495,7 +1765,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     msg += " (the zcats also contain {} skies with +ve TARGETIDs)".format(nsky)
     log.info(msg)
 
-    # ADM update the appropriate ledger.
+    # ADM update the appropriate ledgers.
     update_ledger(hpdirname, zcat, obscon=obscon,
                   numobs_from_ledger=numobs_from_ledger)
 
