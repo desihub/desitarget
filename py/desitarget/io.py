@@ -2811,7 +2811,8 @@ def read_ecsv_header(filename):
                 hdr += line.rstrip("\n").lstrip("#")
 
     # ADM extract the meta keyword dictionary or dictionaries.
-    alldicts = re.findall("({.*?})", hdr)
+    # ADM and possibly anything else in the header after "meta".
+    alldicts = re.findall("({.*?})", hdr.split("meta")[-1])
     # ADM loop in case header info comprises several dictionaries.
     hdr = {}
     for d in alldicts:
