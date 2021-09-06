@@ -794,6 +794,7 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
       input `survey`. `RELEASE` is set to ((X-1)*100)+np.log2(scnd_bit)
       with X from the `survey` string survey=svX and scnd_bit from
       `SCND_TARGET`. For the main survey (survey="main") X-1 is 5.
+      For a second iteration of the main survey (survey="main2") X-1=6.
     - The input `scxtargs` is modified, so be careful to make
       a copy if you want that variable to remain unchanged!
     """
@@ -805,8 +806,16 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
 
     # ADM ensure unique secondary bits for different iterations of SV
     # ADM and the Main Survey.
-    if survey == 'main':
-        Xm1 = 5
+    if survey[:4] == "main":
+        if survey == 'main':
+            Xm1 = 5
+        else:
+            # ADM the re.search just extracts the numbers in the string.
+            Xm1 = int(re.search(r'\d+', survey).group())+4
+            if Xm1 >= 10:
+                msg = "Only coded for up to 'main5', not {}!!!".format(survey)
+                log.critical(msg)
+                raise ValueError(msg)
     elif survey[0:2] == 'sv':
         # ADM the re.search just extracts the numbers in the string.
         Xm1 = int(re.search(r'\d+', survey).group())-1
@@ -816,7 +825,7 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
             log.critical(msg)
             raise ValueError(msg)
     else:
-        msg = "allowed surveys: 'main', 'svX', not {}!!!".format(survey)
+        msg = "allowed surveys: 'mainX', 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
@@ -919,7 +928,8 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
     if len(alldups) == 0:
         alldups = [alldups]
     alldups = np.hstack(alldups)
-    log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".format(len(alldups)))
+    log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".
+              format(len(alldups)))
 
     # ADM and remove the INIT fields in prep for a dark/bright split.
     scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
@@ -1042,16 +1052,23 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False,
     # ADM ...and read in all of the secondary targets.
     scxtargs = read_files(scxdir, scnd_mask, subset=nomerge)
 
-    # ADM only non-override targets could match a primary.
-    scxover = scxtargs[scxtargs["OVERRIDE"]]
-    scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
+    # ADM if nomerge is set, make everything OVERRIDE=True, just to
+    # ADM reflect the actual behavior of how the targets are merged...
+    if nomerge:
+        scxtargs["OVERRIDE"] = True
+        scxout = scxtargs
+    # ADM ...otherwise, engage in the regular merging-with-primaries.
+    else:
+        # ADM only non-override targets could match a primary.
+        scxover = scxtargs[scxtargs["OVERRIDE"]]
+        scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
 
-    log.info("Adding primary info...t={:.1f}m".format((time()-start)/60.))
-    # ADM add in the primary TARGETIDs and information.
-    scxtargs = add_primary_info(scxtargs, priminfodir)
+        log.info("Adding primary info...t={:.1f}m".format((time()-start)/60.))
+        # ADM add in the primary TARGETIDs and information.
+        scxtargs = add_primary_info(scxtargs, priminfodir)
 
-    # ADM now we're done matching, bring the override targets back...
-    scxout = np.concatenate([scxtargs, scxover])
+        # ADM now we're done matching, bring the override targets back...
+        scxout = np.concatenate([scxtargs, scxover])
 
     log.info("Finalizing secondaries...t={:.1f}m".format((time()-start)/60.))
     # ADM assign TARGETIDs to secondaries that did not match a primary.
