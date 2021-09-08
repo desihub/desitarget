@@ -20,11 +20,11 @@ ap.add_argument("--scnddir",
                 help="Base directory of secondary target files (e.g.          \
                 '/project/projectdirs/desi/target/secondary' at NERSC).       \
                 Defaults to SCND_DIR environment variable.")
-ap.add_argument('-i','--iteration', default="2", 
+ap.add_argument('-i','--iteration', default="2",
                 help="Iteration of Main Survey target selection to run. Files \
                 of secondary targets are looked up in $SCND_DIR/mainX         \
                 [defaults to 2 for 'main2']")
-ap.add_argument('-d','--drint', default="9", 
+ap.add_argument('-d','--drint', default="9",
                 help="Relevant Legacy Surveys Data Release to use for writing \
                 output files [defaults to '9' for 'dr9']")
 ap.add_argument("--nomasking", action='store_true',
@@ -77,8 +77,8 @@ hdr["maskdir"] = mdcomp
 # ADM and dark-time targets written separately.
 obscons = ["BRIGHT", "DARK"]
 for obscon in obscons:
-    ntargs, outfile = io.write_secondary(ns.dest, scx[~in_mask],
-                                         primhdr=hdr, scxdir=scxdir,
-                                         obscon=obscon, drint=ns.drint)
+    ntargs, outfile = io.write_secondary(
+        ns.dest, scx[~in_mask], primhdr=hdr, scxdir=scxdir,
+        obscon=obscon, drint=ns.drint, iteration=ns.iteration)
     log.info('{} standalone secondary targets written to {}...t={:.1f}mins'
              .format(ntargs, outfile, (time()-time0)/60.))

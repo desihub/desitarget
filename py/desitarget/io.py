@@ -921,7 +921,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
-                    drint='X', subpriority=True, forcesurvey=None):
+                    drint='X', subpriority=True, iteration=None):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -952,11 +952,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
         in the range 0 to 1, using seed 717.
-    forcesurvey : :class:`str`, optional, defaults to ``None``
-        Hardcode the survey name. Useful when we're in the context of
-        Main Survey files but are writing extra secondaries that can't be
-        merged with primaries (i.e. pass `main2` for iteration 2; `main3`
-        for iteration 3, etc.).
+    iteration : :class:`integer` or `str`, optional, defaults to ``None``
+        Hardcode the survey name as "main"+`iteration`. Useful when in
+        the context of the Main Survey but writing extra secondaries
+        that can't be merged with primaries. The random seed for
+        `SUBPRIORITY` is also augmented by adding `iteration` to it.
 
     Returns
     -------
@@ -1012,9 +1012,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         ntargs = len(data)
         subpseed = 717
+        if iteration is not None:
+            subpseed += int(iteration)
         np.random.seed(subpseed)
-        # SB only set subpriorities that aren't already set, but keep original
-        # full random sequence order
+        # SB only set subpriorities that aren't already set, but keep
+        # original full random sequence order
         ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
         hdr["SUBPSEED"] = subpseed
@@ -1037,8 +1039,8 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     scnd_mask = mx[3]
 
     # ADM if we forced the survey, change the survey name.
-    if forcesurvey is not None:
-        survey = forcesurvey
+    if iteration is not None:
+        survey = "main"+str(iteration)
 
     # ADM construct the output full and reduced file name.
     filename = find_target_files(targdir, dr=drint, flavor="targets", nohp=True,

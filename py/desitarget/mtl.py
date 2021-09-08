@@ -593,7 +593,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
-                      timestamp=None):
+                      timestamp=None, append=False):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -622,6 +622,10 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         If ``True`` then this is a ledger of secondary targets.
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
+    append : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then append to any existing ledgers rather than
+        creating new ones. In this mode, if a ledger exists it will be
+        appended to and if it doesn't exist it will be created.
 
     Returns
     -------
@@ -667,7 +671,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
 
 def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
-                numproc=1, timestamp=None):
+                numproc=1, timestamp=None, append=False):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -682,7 +686,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         Output directory to which to write the MTL (the file name is
         constructed on the fly).
     pixlist : :class:`list` or `int`, defaults to ``None``
-        (Nested) HEALPixels at which to write the MTLs at the default
+        (Nested) HEALPixels for which to write the MTLs at the default
         `nside` (which is `_get_mtl_nside()`). Defaults to ``None``,
         which runs all of the pixels at `_get_mtl_nside()`.
     obscon : :class:`str`, optional, defaults to "DARK"
@@ -694,6 +698,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         Number of processes to parallelize across.
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
+    append : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then append to any existing ledgers rather than
+        creating new ones. In this mode, if a ledger exists it will be
+        appended to and if it doesn't exist it will be created.
 
     Returns
     -------
@@ -781,7 +789,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
             indirname=hpdirname, verbose=False, scnd=scnd,
-            timestamp=timestamp)
+            timestamp=timestamp, append=append)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')
