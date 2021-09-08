@@ -921,7 +921,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
-                    drint='X', subpriority=True):
+                    drint='X', subpriority=True, forcesurvey=None):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -952,6 +952,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
         in the range 0 to 1, using seed 717.
+    forcesurvey : :class:`str`, optional, defaults to ``None``
+        Hardcode the survey name. Useful when we're in the context of
+        Main Survey files but are writing extra secondaries that can't be
+        merged with primaries (i.e. pass `main2` for iteration 2; `main3`
+        for iteration 3, etc.).
 
     Returns
     -------
@@ -1030,6 +1035,10 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     _, mx, survey = main_cmx_or_sv(data, scnd=True)
     log.info("Loading mask for {} survey".format(survey))
     scnd_mask = mx[3]
+
+    # ADM if we forced the survey, change the survey name.
+    if forcesurvey is not None:
+        survey = forcesurvey
 
     # ADM construct the output full and reduced file name.
     filename = find_target_files(targdir, dr=drint, flavor="targets", nohp=True,
@@ -2334,7 +2343,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         Options: "skies", "gfas", "targets", "randoms",
         "masks", "mtl", "ToO".
     survey : :class:`str`, optional, defaults to `main`
-        Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
+        Options include "mainX", "cmx", "svX" (where X is 1, 2 etc.).
         Only relevant if `flavor` is "targets".
     obscon : :class:`str`, optional
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
@@ -2396,8 +2405,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     version = desitarget_version
     if obscon is not None:
         obscon = obscon.lower()
-    if survey not in ["main", "cmx"] and survey[:2] != "sv":
-        msg = "survey must be main, cmx or svX, not {}".format(survey)
+    if survey != "cmx" and survey[:2] != "sv" and survey[:4] != "main":
+        msg = "survey must be mainX, cmx or svX, not {}".format(survey)
         log.critical(msg)
         raise ValueError(msg)
     if mock:

@@ -1,0 +1,84 @@
+#!/usr/bin/env python
+
+import os
+import numpy as np
+from desitarget.secondary import select_secondary, _get_scxdir
+from desitarget.brightmask import is_in_bright_mask, get_recent_mask_dir
+from desitarget import io
+from time import time
+time0 = time()
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Generate file of secondary-only targets from $SCND_DIR without merging with primaries')
+ap.add_argument("dest",
+                help="Output secondary-only targets directory (the file names \
+                are built on-the-fly from other inputs")
+ap.add_argument("--scnddir",
+                help="Base directory of secondary target files (e.g.          \
+                '/project/projectdirs/desi/target/secondary' at NERSC).       \
+                Defaults to SCND_DIR environment variable.")
+ap.add_argument('-i','--iteration', default="2", 
+                help="Iteration of Main Survey target selection to run. Files \
+                of secondary targets are looked up in $SCND_DIR/mainX         \
+                [defaults to 2 for 'main2']")
+ap.add_argument('-d','--drint', default="9", 
+                help="Relevant Legacy Surveys Data Release to use for writing \
+                output files [defaults to '9' for 'dr9']")
+ap.add_argument("--nomasking", action='store_true',
+                help="Masking occurs by default. If this is set, do NOT use a \
+                bright star mask to mask the secondary targets")
+ap.add_argument("--maskdir",
+                help="Name of the directory (or file) containing the bright   \
+                star mask (defaults to most recent directory in $MASK_DIR)",
+                default=None)
+
+ns = ap.parse_args()
+do_mask = not(ns.nomasking)
+
+# ADM construct the input/output directory.
+surv = 'main' + ns.iteration
+
+# ADM find the SCND_DIR environment variable, if it wasn't passed.
+scxdir = _get_scxdir(ns.scnddir, survey=surv)
+# ADM and augment the scxdir.
+scxdir = os.path.join(scxdir, surv)
+
+# ADM select secondary targets, specifying the nomerge option.
+scx = select_secondary(None, scxdir=scxdir, nomerge=True)
+
+# ADM set up a header dictionary to write to the output file.
+hdr = {"nomerge": True}
+
+# ADM if secondaries need masked, grab the mask directory and find which
+# ADM targets are masked. Also add the masking information to the header.
+mdcomp = None
+if do_mask:
+    # ADM grab the mask directory
+    maskdir = get_recent_mask_dir(ns.maskdir)
+    log.info("Masking secondaries using bright star masks in {}".format(maskdir))
+    # ADM read in the masks across the entire sky.
+    Mx = io.read_targets_in_quick(maskdir, shape='box',
+                                  radecbox=[0.0, 360.0, -90.0, 90.0])
+    log.info("Checking {} targets against {} masks".format(len(scx), len(Mx)))
+    in_mask, _ = is_in_bright_mask(scx, Mx, inonly=True)
+    # ADM the output in_mask is a list. We want the array it contains.
+    in_mask = in_mask[0]
+    log.info("{} targets are in bright star masks".format(np.sum(in_mask)))
+    # ADM a compact version of the maskdir name.
+    md = maskdir.split("/")
+    mdcomp = "/".join(md[md.index("masks"):])
+hdr["masked"] = do_mask
+hdr["maskdir"] = mdcomp
+
+# ADM write out the secondary targets, with bright-time
+# ADM and dark-time targets written separately.
+obscons = ["BRIGHT", "DARK"]
+for obscon in obscons:
+    ntargs, outfile = io.write_secondary(ns.dest, scx[~in_mask],
+                                         primhdr=hdr, scxdir=scxdir,
+                                         obscon=obscon, drint=ns.drint)
+    log.info('{} standalone secondary targets written to {}...t={:.1f}mins'
+             .format(ntargs, outfile, (time()-time0)/60.))
