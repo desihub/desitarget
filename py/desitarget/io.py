@@ -745,7 +745,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
               nsidefile=None, hpxlist=None, extra=None, override=False,
-              ecsv=True, mixed=False):
+              ecsv=True, mixed=False, nowrite=False, append=False):
     """Write Merged Target List ledgers or files.
 
     Parameters
@@ -786,6 +786,15 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         write out the largest data release integer to the file headers.
         Useful when writing targets from, e.g., DR9 of the Legacy Surveys
         and DR2 of Gaia to the same file.
+    nowrite : :class:`bool`, defaults to ``False``
+        If passed just return 0 and the name of the file. Don't actually
+        write anything. Useful for retrieving the filename that WOULD
+        have been written.
+    append : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then append to any existing ledgers rather than
+        creating new ones. In this mode, if a ledger exists it will be
+        appended to and if it doesn't exist it will be created. Only
+        currently coded for .ecsv ledgers.
 
     Returns
     -------
@@ -856,7 +865,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
 
     ntargs = len(data)
     # ADM die if there are no targets to write.
-    if ntargs == 0:
+    if ntargs == 0 or nowrite:
         return ntargs, fn
 
     # ADM create necessary directories, if they don't exist.
@@ -865,7 +874,20 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
     # ADM sort the output file on TARGETID.
     data = data[np.argsort(data["TARGETID"])]
 
-    write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
+    # ADM if append was sent, check if the file exists. If it doesn't,
+    # ADM write it, if it does, append to it.
+    if append and os.path.isfile(fn):
+        if not ecsv:
+            msg = "Appending is only currently coded up for .ecsv ledgers"
+            log.error(msg)
+            raise IOError(msg)
+        # ADM append the data to the existing mtl ledger.
+        f = open(fn, "a")
+        from desitarget.mtl import mtlformatdict
+        ascii.write(data, f, format='no_header', formats=mtlformatdict)
+        f.close()
+    else:
+        write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
 
     return ntargs, fn
 
