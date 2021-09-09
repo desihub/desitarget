@@ -41,6 +41,9 @@ ap.add_argument('--timestamp',
                 help="Override the TIMESTAMP created by make_mtl, and use this  \
                 time instead",
                 default=None)
+ap.add_argument('--append', action='store_true',
+                help="Append to existing ledgers, instead of writing new ones.  \
+                Particularly useful when adding new secondary targets")
 
 ns = ap.parse_args()
 
@@ -50,4 +53,4 @@ if pixlist is not None:
     pixlist = [int(pix) for pix in pixlist.split(',')]
 
 make_ledger(ns.targdir, ns.dest, pixlist=pixlist, obscon=ns.obscon,
-            numproc=ns.numproc, timestamp=ns.timestamp)
+            numproc=ns.numproc, timestamp=ns.timestamp, append=ns.append)

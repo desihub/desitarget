@@ -875,17 +875,25 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
     data = data[np.argsort(data["TARGETID"])]
 
     # ADM if append was sent, check if the file exists. If it doesn't,
-    # ADM write it, if it does, append to it.
-    if append and os.path.isfile(fn):
-        if not ecsv:
-            msg = "Appending is only currently coded up for .ecsv ledgers"
+    # ADM write it, if it does, append to it. Be particularly careful to
+    # ADM not overwrite files if append wasn't sent!
+    if os.path.isfile(fn):
+        if append:
+            if not ecsv:
+                msg = "Appending is only currently coded up for .ecsv ledgers"
+                log.error(msg)
+                raise IOError(msg)
+            # ADM append the data to the existing mtl ledger.
+            f = open(fn, "a")
+            from desitarget.mtl import mtlformatdict
+            ascii.write(data, f, format='no_header', formats=mtlformatdict)
+            f.close()
+        else:
+            msg = "Cowardly refusal to overwrite {} ".format(fn)
+            msg += "(did you mean to send append? If so, check "
+            msg += "you haven't created any unexpected ledgers)!"
             log.error(msg)
             raise IOError(msg)
-        # ADM append the data to the existing mtl ledger.
-        f = open(fn, "a")
-        from desitarget.mtl import mtlformatdict
-        ascii.write(data, f, format='no_header', formats=mtlformatdict)
-        f.close()
     else:
         write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
 
