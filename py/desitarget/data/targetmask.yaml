@@ -235,6 +235,7 @@ zwarn_mask:
     - [BAD_TARGET,         8, "catastrophically bad targeting data"]
     - [NODATA,             9, "No data for this fiber, e.g. because spectrograph was broken during this exposure (ivar=0 for all pixels)"]
     - [BAD_MINFIT,        10, "Bad parabola fit to the chi2 minimum"]
+    - [POORDATA,          11, "Poor input data quality but try fitting anyway"]
     # SB bits 16-24 available for DESI to set post-redrock
     - [LOW_DEL_CHI2,      16, "DELTACHI2 is lower than 25 for a DESI SV3 target"]
     - [LOW_DEL_CHI2_BGS,  17, "DELTACHI2 is lower than 40 for a DESI SV3 BGS target in bright time"]
