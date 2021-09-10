@@ -5,6 +5,16 @@ desitarget Change Log
 1.2.3 (unreleased)
 ------------------
 
+* Add secondaries to MTL ledgers without merging [`PR #764`_]:
+    * Fix a bug reading ecsv headers with :func:`io.read_ecsv_header()`:
+        * Now strictly extracts dictionaries after the meta keyword.
+    * Add new targeting bits for ``RR_LYRAE`` and ``MWS_FAINT_*``.
+    * Update :func:`secondary.select_secondary()` to ignore primaries:
+        * Every target is effectively treated as an ``OVERRIDE`` target.
+        * Adds a ``TARGETID`` based on ``main2`` to prevent duplicates.
+    * Add a new ``add_secondary_no_merge`` script.
+    * Functionality to append to ledgers in :func:`io.write_mtl()`.
+    * Similarly, add an append option to ``make_initial_ledger`` script.
 * Functionality to override MTL ledger entries [`PR #763`_]. Includes:
     * ``add_to_override_ledgers`` to create or expand override ledgers.
     * ``force_mtl_overrides`` to force overrides into the MTL ledgers.
@@ -14,6 +24,7 @@ desitarget Change Log
 
 .. _`PR #761`: https://github.com/desihub/desitarget/pull/761
 .. _`PR #763`: https://github.com/desihub/desitarget/pull/763
+.. _`PR #764`: https://github.com/desihub/desitarget/pull/764
 
 1.2.2 (2021-07-08)
 ------------------
