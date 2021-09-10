@@ -11,7 +11,10 @@ desitarget Change Log
     * Processing overrides automatically as part of the MTL loop.
     * Override ledgers can be read using MTL utilities in desitarget.io.
 * Add a ``TIMESTAMP`` to the Main Survey ToO Ledgers [`PR #761`_].
+* Add ``POORDATA`` bit 11 to zwarn_mask for consistency with redrock
+  [`PR #7571`_].
 
+.. _`PR #757`: https://github.com/desihub/desitarget/pull/757
 .. _`PR #761`: https://github.com/desihub/desitarget/pull/761
 .. _`PR #763`: https://github.com/desihub/desitarget/pull/763
 
