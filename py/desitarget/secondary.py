@@ -176,7 +176,7 @@ def _get_scxdir(scxdir=None, survey=""):
     return scxdir
 
 
-def _check_files(scxdir, scnd_mask):
+def _check_files(scxdir, scnd_mask, bits2files=True):
     """Retrieve input files from the scx directory with error checking.
 
     Parameters
@@ -187,6 +187,11 @@ def _check_files(scxdir, scnd_mask):
         A mask corresponding to a set of secondary targets, e.g, could
         be ``from desitarget.targetmask import scnd_mask`` for the
         main survey mask.
+    bits2files : :class:`bool`, optional, defaults to ``True``
+        If ``True`` check that all of the files in `scxdir` have a
+        corresponding bit `scnd_mask` AND all of the bits need to have a
+        corresponding file. If ``False``, only check that all of the
+        files have a corresponding bit.
 
     Returns
     -------
@@ -241,7 +246,12 @@ def _check_files(scxdir, scnd_mask):
     # ADM check for bit correspondence.
     setbitfns = set([scnd_mask[name].filename for name in scnd_mask.names()
                      if scnd_mask[name].flavor != "TOO"])
-    if setbitfns != setdic['indata']:
+
+    correspondence = setdic["indata"].issubset(setbitfns)
+    if bits2files:
+        correspondence = setbitfns == setdic['indata']
+
+    if not correspondence:
         msg = "files in yaml file don't match files in {}\n".format(
             dirdic['indata'])
         msg += "files with bits in yaml file: {}\nfiles in {}: {}".format(
@@ -269,7 +279,7 @@ def _check_files(scxdir, scnd_mask):
     return
 
 
-def read_files(scxdir, scnd_mask):
+def read_files(scxdir, scnd_mask, subset=False):
     """Read in all secondary files and concatenate them into one array.
 
     Parameters
@@ -280,6 +290,10 @@ def read_files(scxdir, scnd_mask):
         A mask corresponding to a set of secondary targets, e.g, could
         be ``from desitarget.targetmask import scnd_mask`` for the
         main survey mask.
+    subset : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then `scxdir` only contains a subset of the bits in
+        `scnd_mask`, and that's OK. Otherwise, strictly expect `scxdir`
+        to contain one file for each (non-TOO) bit in scnd_mask.
 
     Returns
     -------
@@ -290,9 +304,16 @@ def read_files(scxdir, scnd_mask):
     # ADM the full directory name for the input data files.
     fulldir = os.path.join(scxdir, 'indata')
 
+    # ADM assume we're looping through all of the bits...
+    noms = scnd_mask.names()
+    # ADM ...unless we aren't!
+    if subset:
+        fullfns = sorted(glob(os.path.join(fulldir, '*')))
+        noms = [os.path.splitext(os.path.split(fn)[-1])[0] for fn in fullfns]
+
     scxall = []
     # ADM loop through all of the scx bits.
-    for name in scnd_mask.names():
+    for name in noms:
         # ADM Targets of Opportunity are handled separately.
         if scnd_mask[name].flavor != 'TOO':
             log.debug('SCND target: {}'.format(name))
@@ -773,6 +794,7 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
       input `survey`. `RELEASE` is set to ((X-1)*100)+np.log2(scnd_bit)
       with X from the `survey` string survey=svX and scnd_bit from
       `SCND_TARGET`. For the main survey (survey="main") X-1 is 5.
+      For a second iteration of the main survey (survey="main2") X-1=6.
     - The input `scxtargs` is modified, so be careful to make
       a copy if you want that variable to remain unchanged!
     """
@@ -784,8 +806,16 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
 
     # ADM ensure unique secondary bits for different iterations of SV
     # ADM and the Main Survey.
-    if survey == 'main':
-        Xm1 = 5
+    if survey[:4] == "main":
+        if survey == 'main':
+            Xm1 = 5
+        else:
+            # ADM the re.search just extracts the numbers in the string.
+            Xm1 = int(re.search(r'\d+', survey).group())+4
+            if Xm1 >= 10:
+                msg = "Only coded for up to 'main5', not {}!!!".format(survey)
+                log.critical(msg)
+                raise ValueError(msg)
     elif survey[0:2] == 'sv':
         # ADM the re.search just extracts the numbers in the string.
         Xm1 = int(re.search(r'\d+', survey).group())-1
@@ -795,7 +825,7 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
             log.critical(msg)
             raise ValueError(msg)
     else:
-        msg = "allowed surveys: 'main', 'svX', not {}!!!".format(survey)
+        msg = "allowed surveys: 'mainX', 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
@@ -898,7 +928,8 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
     if len(alldups) == 0:
         alldups = [alldups]
     alldups = np.hstack(alldups)
-    log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".format(len(alldups)))
+    log.debug("Flagging {} duplicate secondary targetids with PRIORITY_INIT=-1".
+              format(len(alldups)))
 
     # ADM and remove the INIT fields in prep for a dark/bright split.
     scxtargs = rfn.drop_fields(scxtargs, ["PRIORITY_INIT", "NUMOBS_INIT"])
@@ -944,7 +975,8 @@ def finalize_secondary(scxtargs, scnd_mask, survey='main', sep=1.,
     return done
 
 
-def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
+def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False,
+                     nomerge=False):
     """Process secondary targets and update relevant bits.
 
     Parameters
@@ -964,6 +996,16 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
         `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
         and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
         to "BRIGHT" and "DARK|GRAY" observing conditions.
+    nomerge : :class:`bool`, optional, defaults to ``False``
+        Pass this to NEVER merge primaries and secondaries. All of the
+        secondaries will be updated to have OVERRIDE=True. In this mode,
+        scxdir is ASSUMED to terminate in a directory /mainX, where X is
+        the iteration of secondary-target-updates after going on-sky with
+        the main survey (e.g. /main2 for the first update of secondary
+        targets). In this mode, all of the files in (e.g.) /main2 must
+        have a corresponding bit in the main scnd_mask, but not all bits
+        need to have a corresponding file. In this mode, `priminfodir` is
+        ignored, so could be passed as anything (e.g. as ``None``).
 
     Returns
     -------
@@ -972,16 +1014,20 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
         `outdatamodel` at the top of this module added. All of these
         columns are populated, except ``SUBPRIORITY``.
     """
-    # ADM Sanity check that priminfodir exists.
-    if not os.path.exists(priminfodir):
-        msg = "{} doesn't exist".format(priminfodir)
-        log.critical(msg)
-        raise ValueError(msg)
+    if not nomerge:
+        # ADM Sanity check that priminfodir exists.
+        if not os.path.exists(priminfodir):
+            msg = "{} doesn't exist".format(priminfodir)
+            log.critical(msg)
+            raise ValueError(msg)
 
-    # ADM read in the SURVEY from the first file in priminfodir.
-    fns = sorted(glob(os.path.join(priminfodir, "*fits")))
-    hdr = fitsio.read_header(fns[0], 'SCND_TARG')
-    survey = hdr["SURVEY"].rstrip()
+        # ADM read in the SURVEY from the first file in priminfodir.
+        fns = sorted(glob(os.path.join(priminfodir, "*fits")))
+        hdr = fitsio.read_header(fns[0], 'SCND_TARG')
+        survey = hdr["SURVEY"].rstrip()
+    else:
+        # ADM rstrip in case the formal directory with "/" was passed.
+        survey = os.path.split(scxdir.rstrip("/"))[-1]
 
     # ADM load the correct mask.
     from desitarget.targetmask import scnd_mask
@@ -994,28 +1040,35 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False):
             log.critical(msg)
             raise ModuleNotFoundError(msg)
         scnd_mask = targmask.scnd_mask
-    elif survey != 'main':
-        msg = "allowed surveys: 'main', 'svX', not {}!!!".format(survey)
+    elif survey[:4] != 'main':
+        msg = "allowed surveys: 'mainX', 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 
     log.info("Reading secondary files...t={:.1f}m".format((time()-start)/60.))
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)
-    _check_files(scxdir, scnd_mask)
+    _check_files(scxdir, scnd_mask, bits2files=not(nomerge))
     # ADM ...and read in all of the secondary targets.
-    scxtargs = read_files(scxdir, scnd_mask)
+    scxtargs = read_files(scxdir, scnd_mask, subset=nomerge)
 
-    # ADM only non-override targets could match a primary.
-    scxover = scxtargs[scxtargs["OVERRIDE"]]
-    scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
+    # ADM if nomerge is set, make everything OVERRIDE=True, just to
+    # ADM reflect the actual behavior of how the targets are merged...
+    if nomerge:
+        scxtargs["OVERRIDE"] = True
+        scxout = scxtargs
+    # ADM ...otherwise, engage in the regular merging-with-primaries.
+    else:
+        # ADM only non-override targets could match a primary.
+        scxover = scxtargs[scxtargs["OVERRIDE"]]
+        scxtargs = scxtargs[~scxtargs["OVERRIDE"]]
 
-    log.info("Adding primary info...t={:.1f}m".format((time()-start)/60.))
-    # ADM add in the primary TARGETIDs and information.
-    scxtargs = add_primary_info(scxtargs, priminfodir)
+        log.info("Adding primary info...t={:.1f}m".format((time()-start)/60.))
+        # ADM add in the primary TARGETIDs and information.
+        scxtargs = add_primary_info(scxtargs, priminfodir)
 
-    # ADM now we're done matching, bring the override targets back...
-    scxout = np.concatenate([scxtargs, scxover])
+        # ADM now we're done matching, bring the override targets back...
+        scxout = np.concatenate([scxtargs, scxover])
 
     log.info("Finalizing secondaries...t={:.1f}m".format((time()-start)/60.))
     # ADM assign TARGETIDs to secondaries that did not match a primary.

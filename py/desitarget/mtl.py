@@ -593,7 +593,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
-                      timestamp=None):
+                      timestamp=None, append=False):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -622,6 +622,10 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         If ``True`` then this is a ledger of secondary targets.
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
+    append : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then append to any existing ledgers rather than
+        creating new ones. In this mode, if a ledger exists it will be
+        appended to and if it doesn't exist it will be created.
 
     Returns
     -------
@@ -658,16 +662,17 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
             nt, fn = io.write_mtl(
                 outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
                 survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix,
-                scnd=scnd, extra=hdr)
+                scnd=scnd, extra=hdr, append=append)
             if verbose:
-                log.info('{} targets written to {}...t={:.1f}s'.format(
-                    nt, fn, time()-t0))
+                writ = int(append)*"appended" + int(not(append))*"written"
+                log.info('{} targets {} to {}...t={:.1f}s'.format(
+                    nt, writ, fn, time()-t0))
 
     return
 
 
 def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
-                numproc=1, timestamp=None):
+                numproc=1, timestamp=None, append=False):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -682,7 +687,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         Output directory to which to write the MTL (the file name is
         constructed on the fly).
     pixlist : :class:`list` or `int`, defaults to ``None``
-        (Nested) HEALPixels at which to write the MTLs at the default
+        (Nested) HEALPixels for which to write the MTLs at the default
         `nside` (which is `_get_mtl_nside()`). Defaults to ``None``,
         which runs all of the pixels at `_get_mtl_nside()`.
     obscon : :class:`str`, optional, defaults to "DARK"
@@ -694,6 +699,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         Number of processes to parallelize across.
     timestamp : :class:`str`, optional
         A timestamp to use in place of that assigned by `make_mtl`.
+    append : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then append to any existing ledgers rather than
+        creating new ones. In this mode, if a ledger exists it will be
+        appended to and if it doesn't exist it will be created.
 
     Returns
     -------
@@ -781,18 +790,20 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
             indirname=hpdirname, verbose=False, scnd=scnd,
-            timestamp=timestamp)
+            timestamp=timestamp, append=append)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')
     t0 = time()
+    # ADM this is just to log whether we're in write or append mode.
+    writ = int(append)*"Appending" + int(not(append))*"Writing"
 
     def _update_status(result):
         """wrap key reduction operation on the main parallel process"""
         if npix % 2 == 0 and npix > 0:
             rate = (time() - t0) / npix
-            log.info('{}/{} HEALPixels; {:.1f} secs/pixel...t = {:.1f} mins'.
-                     format(npix, npixels, rate, (time()-t0)/60.))
+            log.info('{} {}/{} HEALPixels; {:.1f} secs/pixel...t = {:.1f} mins'.
+                     format(writ, npix, npixels, rate, (time()-t0)/60.))
         npix[...] += 1
         return result
 

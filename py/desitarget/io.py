@@ -745,7 +745,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
               nsidefile=None, hpxlist=None, extra=None, override=False,
-              ecsv=True, mixed=False):
+              ecsv=True, mixed=False, nowrite=False, append=False):
     """Write Merged Target List ledgers or files.
 
     Parameters
@@ -786,6 +786,15 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         write out the largest data release integer to the file headers.
         Useful when writing targets from, e.g., DR9 of the Legacy Surveys
         and DR2 of Gaia to the same file.
+    nowrite : :class:`bool`, defaults to ``False``
+        If passed just return 0 and the name of the file. Don't actually
+        write anything. Useful for retrieving the filename that WOULD
+        have been written.
+    append : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then append to any existing ledgers rather than
+        creating new ones. In this mode, if a ledger exists it will be
+        appended to and if it doesn't exist it will be created. Only
+        currently coded for .ecsv ledgers.
 
     Returns
     -------
@@ -856,7 +865,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
 
     ntargs = len(data)
     # ADM die if there are no targets to write.
-    if ntargs == 0:
+    if ntargs == 0 or nowrite:
         return ntargs, fn
 
     # ADM create necessary directories, if they don't exist.
@@ -865,7 +874,28 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
     # ADM sort the output file on TARGETID.
     data = data[np.argsort(data["TARGETID"])]
 
-    write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
+    # ADM if append was sent, check if the file exists. If it doesn't,
+    # ADM write it, if it does, append to it. Be particularly careful to
+    # ADM not overwrite files if append wasn't sent!
+    if os.path.isfile(fn):
+        if append:
+            if not ecsv:
+                msg = "Appending is only currently coded up for .ecsv ledgers"
+                log.error(msg)
+                raise IOError(msg)
+            # ADM append the data to the existing mtl ledger.
+            f = open(fn, "a")
+            from desitarget.mtl import mtlformatdict
+            ascii.write(data, f, format='no_header', formats=mtlformatdict)
+            f.close()
+        else:
+            msg = "Cowardly refusal to overwrite {} ".format(fn)
+            msg += "(did you mean to send append? If so, check "
+            msg += "you haven't created any unexpected ledgers)!"
+            log.error(msg)
+            raise IOError(msg)
+    else:
+        write_with_units(fn, data, extname='MTL', header=hdrdict, ecsv=ecsv)
 
     return ntargs, fn
 
@@ -921,7 +951,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
-                    drint='X', subpriority=True):
+                    drint='X', subpriority=True, iteration=None):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -952,6 +982,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
         in the range 0 to 1, using seed 717.
+    iteration : :class:`integer` or `str`, optional, defaults to ``None``
+        Hardcode the survey name as "main"+`iteration`. Useful when in
+        the context of the Main Survey but writing extra secondaries
+        that can't be merged with primaries. The random seed for
+        `SUBPRIORITY` is also augmented by adding `iteration` to it.
 
     Returns
     -------
@@ -1007,9 +1042,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         ntargs = len(data)
         subpseed = 717
+        if iteration is not None:
+            subpseed += int(iteration)
         np.random.seed(subpseed)
-        # SB only set subpriorities that aren't already set, but keep original
-        # full random sequence order
+        # SB only set subpriorities that aren't already set, but keep
+        # original full random sequence order
         ii = data["SUBPRIORITY"] == 0.0
         data["SUBPRIORITY"][ii] = np.random.random(ntargs)[ii]
         hdr["SUBPSEED"] = subpseed
@@ -1030,6 +1067,10 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     _, mx, survey = main_cmx_or_sv(data, scnd=True)
     log.info("Loading mask for {} survey".format(survey))
     scnd_mask = mx[3]
+
+    # ADM if we forced the survey, change the survey name.
+    if iteration is not None:
+        survey = "main"+str(iteration)
 
     # ADM construct the output full and reduced file name.
     filename = find_target_files(targdir, dr=drint, flavor="targets", nohp=True,
@@ -2334,7 +2375,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         Options: "skies", "gfas", "targets", "randoms",
         "masks", "mtl", "ToO".
     survey : :class:`str`, optional, defaults to `main`
-        Options include "main", "cmx", "svX" (where X is 1, 2 etc.).
+        Options include "mainX", "cmx", "svX" (where X is 1, 2 etc.).
         Only relevant if `flavor` is "targets".
     obscon : :class:`str`, optional
         Name of the `OBSCONDITIONS` used to make the file (e.g. DARK).
@@ -2396,8 +2437,8 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     version = desitarget_version
     if obscon is not None:
         obscon = obscon.lower()
-    if survey not in ["main", "cmx"] and survey[:2] != "sv":
-        msg = "survey must be main, cmx or svX, not {}".format(survey)
+    if survey != "cmx" and survey[:2] != "sv" and survey[:4] != "main":
+        msg = "survey must be mainX, cmx or svX, not {}".format(survey)
         log.critical(msg)
         raise ValueError(msg)
     if mock:
@@ -2811,7 +2852,8 @@ def read_ecsv_header(filename):
                 hdr += line.rstrip("\n").lstrip("#")
 
     # ADM extract the meta keyword dictionary or dictionaries.
-    alldicts = re.findall("({.*?})", hdr)
+    # ADM and possibly anything else in the header after "meta".
+    alldicts = re.findall("({.*?})", hdr.split("meta")[-1])
     # ADM loop in case header info comprises several dictionaries.
     hdr = {}
     for d in alldicts:
