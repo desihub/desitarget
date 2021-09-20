@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-1.2.3 (unreleased)
+1.3.1 (unreleased)
+------------------
+
+* No changes yet.
+
+1.3.0 (2021-09-20)
 ------------------
 
 * Add secondaries to MTL ledgers without merging [`PR #764`_]:
