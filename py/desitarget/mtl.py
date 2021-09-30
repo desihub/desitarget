@@ -1420,9 +1420,6 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
         else:
             opsdir = os.path.dirname(mtltilefn)
         ztilefn = os.path.join(opsdir, ztilefn)
-        print(mtltilefn)
-        print(opsdir)
-        print(ztilefn)
     else:
         msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
         log.critical(msg)
