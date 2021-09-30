@@ -1414,9 +1414,8 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     ztilefn = get_ztile_file_name(survey=survey)
     # ADM directory structure used to be different for sv and main.
     if survey[:2] == 'sv' or survey == 'main':
-         
-        if os.path.basename(os.path.dirname(mtltilefn)) == 'mtl':
-            opsdir = os.path.join(os.path.dirname(os.path.dirname(mtltilefn)), 'ops')
+        if os.path.dirname(mtltilefn)[-3:] == 'mtl':
+            opsdir = os.path.join(os.path.dirname(mtltilefn)[:-3], 'ops')
         else:
             opsdir = os.path.dirname(mtltilefn)
         ztilefn = os.path.join(opsdir, ztilefn)
@@ -1747,7 +1746,10 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     ztilefn = get_ztile_file_name(survey=survey)
     # ADM directory structure used to be different for sv and main.
     if survey[:2] == 'sv' or survey == 'main':
-        opsdir = os.path.dirname(mtltilefn).replace("mtl", "ops")
+        if os.path.dirname(mtltilefn)[-3:] == 'mtl':
+            opsdir = os.path.join(os.path.dirname(mtltilefn)[:-3], 'ops')
+        else:
+            opsdir = os.path.dirname(mtltilefn)
         ztilefn = os.path.join(opsdir, ztilefn)
 
     # ADM stop if there are no tiles to process.
