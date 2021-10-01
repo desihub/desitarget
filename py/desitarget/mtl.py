@@ -265,9 +265,8 @@ def get_ztile_file_name(survey='main'):
     :class:`str`
         The name of the ZTILE file.
     """
-    if survey[:2] == 'sv':
-        fn = "tiles.csv"
-    elif survey == 'main':
+    # ADM tile file name used to be different for sv and main.
+    if survey[:2] == 'sv' or survey == 'main':
         fn = "tiles-specstatus.ecsv"
     else:
         msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
@@ -1413,11 +1412,12 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     """
     # ADM read in the ZTILE file.
     ztilefn = get_ztile_file_name(survey=survey)
-    # ADM directory structure is different for SV and the Main Survey.
-    if survey[:2] == 'sv':
-        ztilefn = os.path.join(zcatdir, ztilefn)
-    elif survey == 'main':
-        opsdir = os.path.dirname(mtltilefn).replace("mtl", "ops")
+    # ADM directory structure used to be different for sv and main.
+    if survey[:2] == 'sv' or survey == 'main':
+        if os.path.dirname(mtltilefn)[-3:] == 'mtl':
+            opsdir = os.path.join(os.path.dirname(mtltilefn)[:-3], 'ops')
+        else:
+            opsdir = os.path.dirname(mtltilefn)
         ztilefn = os.path.join(opsdir, ztilefn)
     else:
         msg = "Allowed 'survey' inputs are sv(X) or main, not {}".format(survey)
@@ -1744,11 +1744,12 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM contruct the ZTILE filename, for logging purposes.
     ztilefn = get_ztile_file_name(survey=survey)
-    # ADM directory structure is different for SV and the Main Survey.
-    if survey[:2] == 'sv':
-        ztilefn = os.path.join(zcatdir, ztilefn)
-    elif survey == 'main':
-        opsdir = os.path.dirname(mtltilefn).replace("mtl", "ops")
+    # ADM directory structure used to be different for sv and main.
+    if survey[:2] == 'sv' or survey == 'main':
+        if os.path.dirname(mtltilefn)[-3:] == 'mtl':
+            opsdir = os.path.join(os.path.dirname(mtltilefn)[:-3], 'ops')
+        else:
+            opsdir = os.path.dirname(mtltilefn)
         ztilefn = os.path.join(opsdir, ztilefn)
 
     # ADM stop if there are no tiles to process.
