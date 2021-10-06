@@ -400,8 +400,8 @@ def isBACKUP(ra=None, dec=None,
     is_gaiagiant = parallax < (3 * parallaxerr + 0.1)
 
     # APC giant targets are min(17.5 + 0.6(BP-RP), 19) < G < 16
-    isbackupgiant &= gaiamag > 16.0
-    isbackupgiant &= gaiamag <= np.minimum(17.5 + 0.6*bprp, 19)
+    isbackupgiant &= gaiagmag > 16.0
+    isbackupgiant &= gaiagmag <= np.minimum(17.5 + 0.6*bprp, 19)
     # APC and are likely giants
     isbackupgiant &= is_gaiagiant
 
@@ -2759,7 +2759,8 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
-    mws_target |= backup_giant * mws_mask.BACKUP_GIANT
+    if survey == 'main':
+        mws_target |= backup_giant * mws_mask.BACKUP_GIANT
     mws_target |= std_faint * mws_mask.GAIA_STD_FAINT
     mws_target |= std_bright * mws_mask.GAIA_STD_BRIGHT
     mws_target |= std_wd * mws_mask.GAIA_STD_WD
