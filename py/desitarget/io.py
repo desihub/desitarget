@@ -804,8 +804,14 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         The name of the file to which targets were written.
     """
     # ADM begin to construct a dictionary of header keys and values.
-    keys = ["INDIR", "SURVEY", "OBSCON", "SCND", "OVERRIDE"]
-    vals = [indir, survey, obscon, scnd, override]
+    if ('sv' in survey.lower()) or ('cmx' in survey.lower()):
+        keys = ["INDIR", "SURVEY", "OBSCON", "SCND"]
+        vals = [indir, survey, obscon, scnd]
+    elif survey.lower() == 'main':
+        keys = ["INDIR", "SURVEY", "OBSCON", "SCND", "OVERRIDE"]
+        vals = [indir, survey, obscon, scnd, override]
+    else:
+        raise ValueError('survey must be cmx svN or main')
 
     # ADM hpxlist and nsidefile need to be passed together.
     if hpxlist is not None or nsidefile is not None:
@@ -2904,23 +2910,35 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     # ADM detect whether we're working with the override ledgers.
     try:
         override = bool(read_keyword_from_mtl_header(hpdirname, "OVERRIDE"))
+        print('hpdir from which OVERRIDE was taken')
+        print(hpdirname)
     except KeyError:
         pass
-
+    print('orig override keyword')
+    print(override)
+    #override = False
     from desitarget.mtl import get_mtl_ledger_format
     ender = get_mtl_ledger_format()
-
+    print('ender')
+    print(ender)
     # ADM construct the full directory path.
     hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}", survey=surv,
                                ender=ender, obscon=oc, override=override)
-
+    print('hugefn')
+    print(hugefn)
     # ADM return the filename.
     fileform = os.path.join(hpdirname, os.path.basename(hugefn))
+    print('fileform')
+    print(fileform)
     if override:
         # ADM be forgiving if the override directory itself was passed.
         fileform = os.path.join(hpdirname, "override", os.path.basename(hugefn))
+        print('more fileform')
+        print(fileform)
         if "override" in hpdirname:
             fileform = os.path.join(hpdirname, os.path.basename(hugefn))
+            print('even more fileform')
+            print(fileform)
 
     if returnoc:
         return fileform, oc
