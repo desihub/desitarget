@@ -339,7 +339,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
 
 def isBACKUP(ra=None, dec=None,
-             gaiagmag=None, gaiabmag=None, gaiarmag=None,
+             gaiagmag=None, gaiabmag=None, gaiarmag=None, ebv=None,
              parallax=None, parallaxerr=None,
              primary=None):
     """BACKUP targets based on Gaia magnitudes.
@@ -2734,11 +2734,16 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
 
     # ADM determine if an object is a BACKUP target.
     primary = np.ones_like(gaiaobjs, dtype=bool)
-    backup_bright, backup_faint, backup_very_faint, backup_giant = targcuts.isBACKUP(
-        ra=ra, dec=dec, gaiagmag=gaiagmag,
-        gaiabmag=gaiabmag, gaiarmag=gaiarmag,
-        parallax=parallax, parallaxerr=parallaxerr,
-        primary=primary)
+    if survey == 'main':
+        backup_bright, backup_faint, backup_very_faint, backup_giant = targcuts.isBACKUP(
+            ra=ra, dec=dec, gaiagmag=gaiagmag,
+            gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+            parallax=parallax, parallaxerr=parallaxerr, ebv=ebv,
+            primary=primary)
+    else:
+        backup_bright, backup_faint, backup_very_faint = targcuts.isBACKUP(
+            ra=ra, dec=dec, gaiagmag=gaiagmag,
+            primary=primary)
 
     # ADM determine if a target is a Gaia-only standard.
     primary = np.ones_like(gaiaobjs, dtype=bool)
