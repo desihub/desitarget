@@ -2736,7 +2736,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     primary = np.ones_like(gaiaobjs, dtype=bool)
     backup_bright, backup_faint, backup_very_faint, backup_giant = targcuts.isBACKUP(
         ra=ra, dec=dec, gaiagmag=gaiagmag,
-        gaiabmag=gaiabmag, gaiarmag=gaiarmag=gaiarmag,
+        gaiabmag=gaiabmag, gaiarmag=gaiarmag,
         parallax=parallax, parallaxerr=parallaxerr,
         primary=primary)
 
