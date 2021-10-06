@@ -1054,7 +1054,9 @@ def force_overrides(hpdirname, pixlist):
     fileform = io.find_mtl_file_format_from_header(hpdirname)
     # ADM this is the format for any associated override ledgers.
     overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
-
+    print('overrideff')
+    print(hpdirname)
+    print(overrideff)
     # ADM before making updates, check all suggested ledgers exist.
     for pix in pixlist:
         overfn = overrideff.format(pix)
@@ -1081,8 +1083,7 @@ def force_overrides(hpdirname, pixlist):
     return hpdirname
 
 
-def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
-                  numobs_from_ledger=False):
+def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",numobs_from_ledger=False):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -1172,6 +1173,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
 
         # ADM if an override ledger exists, update it and recover its
         # ADM relevant MTL entries.
+        #print('overfn')
+        #print(overfn)
         if os.path.exists(overfn):
             overmtl = process_overrides(overfn)
             # ADM add any override entries TO THE END OF THE LEDGER.
