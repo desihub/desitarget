@@ -417,7 +417,7 @@ def isBACKUP(ra=None, dec=None,
     isbackupveryfaint &= gaiagmag >= 18.
     isbackupveryfaint &= gaiagmag < 19
     # APC and are not halo giant candidates
-    isbackupiveryfaint &= ~is_gaiagiant
+    isbackupveryfaint &= ~is_gaiagiant
     # ADM and are "far from" the Galaxy.
     isbackupveryfaint &= ~in_gal
 
