@@ -5,7 +5,10 @@ desitarget Change Log
 1.3.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Update targetmask and cuts for backup program [`PR #766`_]:
+    * Matches description in backup program document.
+
+.. _`PR #766`: https://github.com/desihub/desitarget/pull/766
 
 1.3.0 (2021-09-20)
 ------------------
