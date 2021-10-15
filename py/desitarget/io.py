@@ -1424,6 +1424,89 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     return len(data), filename
 
 
+def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
+                        verbose=True, infile=None, hdr=None):
+    """
+    Rewrite an existing random catalog split by HEALPixel.
+
+    Parameters
+    ----------
+    randoms : :class:`~numpy.array`
+        Entries a from random catalog as made by, e.g.,
+        :func:`desitarget.randoms.select_randoms()`.
+    outdirname : :class:`str`
+        Output directory to which to write the random catalog (the file
+        names are constructed on the fly).
+    nside : :class:`int`
+        (NESTED) HEALPixel nside that corresponds to `pixlist`.
+    hpx : :class:`~numpy.array`, optional, defaults to ``None``
+        The HEALPixel occupied by each of `randoms` in the NESTED scheme
+        at `nside`. If `hpx` isn't passed it will be calculated from the
+        required inputs. But, for large `randoms` array it may be quicker
+        to calculate it in advance. Must contain one HEALPixel number for
+        each row in `randoms`.
+    pixlist : :class:`list` or `int`
+        HEALPixels at `nside` at which to write the split catalogs.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log target and file information.
+    infile : :class:`str`, optional, defaults to ``None``
+        Name of input random catalog to add to the output file header.
+    hdr : :class:`dict`, optional, defaults to ``None``
+        Dictionary to write as the header of the output file. Note that
+        `hdr` is a kwarg so will be modified-in-place.
+
+    Returns
+    -------
+    Nothing, but writes the `randoms` to `outdirname` split across each
+    HEALPixel in `pixlist`. A new column HPXPIXEL is added to `randoms`.
+    HPXNSIDE=`nside` and FILENSID=`nside` and "HPXNEST"=``True`` are
+    added to the output header (or overwritten, if they already exist).
+    """
+    t0 = time()
+
+    # ADM set up output file header.
+    if hdr is None:
+        hdr = {}
+    if infile is not None:
+        hdr["INFILE"] = infile
+    hdr["HPXNEST"] = True
+    hdr["HPXNSIDE"] = nside
+    hdr["FILENSID"] = nside
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM calculate hpx if it wasn't passed.
+    if hpx is None:
+        theta, phi = np.radians(90-randoms["DEC"]), np.radians(randoms["RA"])
+        hpx = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM write the catalogs...
+    for pix in pixlist:
+        inpix = hpx == pix
+        if np.any(inpix):
+            # ADM set up a new array restricted to just the pixel of
+            # ADM interest and add the HPXPIXEL column.
+            nrows = np.sum(inpix)
+            dt = randoms.dtype.descr + [('HPXPIXEL', '>i8')]
+            outran = np.zeros(nrows, dtype=dt)
+            outran["HPXPIXEL"] = pix
+            for col in randoms.dtype.names:
+                outran[col] = randoms[col][inpix]
+            # ADM add the pixel to the output file hdr. dict is in case
+            # ADM hdr was passed as a FITSHDR, which can't be copied.
+            outhdr = dict(hdr).copy()
+            outhdr["FILEHPX"] = pix
+            # ADM write out the randoms in this pixel.
+            nt, fn = write_randoms(outdirname, outran, indir=infile,
+                                   nsidefile=nside, hpxlist=pix, extra=outhdr)
+            if verbose:
+                log.info('{} targets written to {}...t={:.1f}s'.format(
+                    nt, fn, time()-t0))
+
+    return
+
+
 def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
                   nsidefile=None, hpxlist=None, resolve=True, north=None,
                   extra=None):
@@ -1495,7 +1578,11 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
             drstring = 'dr'+str(drint)
             depend.setdep(hdr, 'photcat', drstring)
         except (ValueError, IndexError, AttributeError):
-            drint = None
+            # ADM can also try reading the DR from a passed header.
+            try:
+                drint = int(extra["DR"])
+            except KeyError:
+                drint = None
 
     # ADM whether this is a north-specific or south-specific file.
     region = None
@@ -1523,6 +1610,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
 
     # ADM add the extra keywords to the header.
     hdr["DR"] = drint
+    if drint is None:
+        drint = "X"
     if extra is not None:
         for key in extra:
             hdr[key] = extra[key]
@@ -2401,7 +2490,9 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     seed : :class:`int` or `str`, optional
         If `seed` is not ``None``, then it is added to the file name just
         before the ".fits" extension (i.e. "-8.fits" for `seed` of 8).
-        Only relevant if `flavor` is "randoms".
+        Only relevant if `flavor` is "randoms". If `seed` is not ``None``
+        and `hp` is not ``None`` then `seed` is added to the file name
+        AFTER `hp` (i.e. "-8-hp-44.fits" for `seed` of 8 and `hp` of 44).
     region : :class:`int`, optional
         If `region` is not ``None``, then it is added to the directory
         name after `resolve`. Only relevant if `flavor` is "randoms".
@@ -2552,7 +2643,11 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         # ADM note that these clauses won't do anything
         # ADM unless a file name was already constructed.
         if seed is not None:
-            fn = fn.replace(".{}".format(ender), "-{}.{}".format(seed, ender))
+            if hp is None:
+                fn = fn.replace(".{}".format(ender),
+                                "-{}.{}".format(seed, ender))
+            else:
+                fn = fn.replace("hp", "{}-hp".format(seed))
         if supp:
             justfn = os.path.basename(fn)
             justfn = justfn.replace("randoms", "randoms-outside")
