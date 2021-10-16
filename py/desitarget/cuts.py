@@ -371,7 +371,7 @@ def isBACKUP(ra=None, dec=None,
 
     Notes
     -----
-    - Current version (10/24/19) is version 204 on `the wiki`_.
+    - Current version (10/16/21) is version 271 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')
