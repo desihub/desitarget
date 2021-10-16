@@ -385,7 +385,7 @@ def isBACKUP(ra=None, dec=None,
     # APC require measured  gaia color.
     primary &= ~np.isnan(bprp)
     # APC hard bright limit
-    primary &= gaiagmag > 10.0
+    primary &= gaiagmag >= 10.0
 
     isbackupbright = primary.copy()
     isbackupfaint = primary.copy()
@@ -396,21 +396,21 @@ def isBACKUP(ra=None, dec=None,
     in_gal = is_in_Galaxy([ra, dec], radec=True)
 
     # APC bright targets are 11.2 + 0.6(BP-RP) < G < 16.
-    isbackupbright &= gaiagmag > 11.2 + 0.6*bprp
-    isbackupbright &= gaiagmag <= 16.0
+    isbackupbright &= gaiagmag >= 11.2 + 0.6*bprp
+    isbackupbright &= gaiagmag < 16.0
 
     # APC Giant candidates have low parallax
     is_gaiagiant = parallax < (3 * parallaxerr + 0.1)
 
     # APC giant targets are min(17.5 + 0.6(BP-RP), 19) < G < 16
-    isbackupgiant &= gaiagmag > 16.0
-    isbackupgiant &= gaiagmag <= np.minimum(17.5 + 0.6*bprp, 19)
+    isbackupgiant &= gaiagmag >= 16.0
+    isbackupgiant &= gaiagmag < np.minimum(17.5 + 0.6*bprp, 19)
     # APC and are likely giants
     isbackupgiant &= is_gaiagiant
 
     # APC faint targets are 16 < G < 18
-    isbackupfaint &= gaiagmag > 16.0
-    isbackupfaint &= gaiagmag <= 18.0
+    isbackupfaint &= gaiagmag >= 16.0
+    isbackupfaint &= gaiagmag < 18.0
     # APC and are not halo giant candidates
     isbackupfaint &= ~is_gaiagiant
     # ADM and are "far from" the Galaxy.
