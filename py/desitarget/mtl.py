@@ -641,42 +641,73 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     tiles = tiles[ii]
     # ADM and restrict to the obscon of interest.
     ii = tiles["PROGRAM"] == obscon.upper()
-    log.info("Working with {} {} tiles...t={:.1f}s".format(
+    log.info("{} {} tiles in MTL done file...t={:.1f}s".format(
         np.sum(ii), obscon, time()-t0))
     tiles = tiles[ii]
-    if isodate is not None:
-        # ADM and restrict to the dates of interest.
-        ii = tiles["TIMESTAMP"] >= isodate
-        log.info("{} {} tiles processed on or after {}...t={:.1f}s".format(
-            np.sum(ii), obscon, isodate, time()-t0))
-        tiles = tiles[ii]
 
     # ADM grab the ops directory to retrieve the full tile information.
     opsdir = os.path.join(os.path.dirname(mtltilefn)[:-3], 'ops')
     opstilefn = os.path.join(opsdir, "tiles-main.ecsv")
     alltileinfo = Table.read(opstilefn)
+    # ADM restrict to tiles that have been observed in specified obscon.
+    ii = alltileinfo["PROGRAM"] == obscon.upper()
+    ii &= alltileinfo["STATUS"] != "unobs"
+    alltileinfo = alltileinfo[ii]
+
+    # ADM retrieve observed tiles that have not been processed by MTL.
+    alltilematch, tilematch = match(alltileinfo["TILEID"], tiles["TILEID"])
+    alltilenomatch = np.array(list(
+        set(np.arange(len(alltileinfo))) - set(alltilematch)))
+    log.info("{} observed {} tiles not yet processed by MTL...t={:.1f}s".format(
+        len(alltilenomatch), obscon, time()-t0))
+    obstileinfo = alltileinfo[alltilenomatch]
+
+    # ADM restrict MTL tiles to just the dates of interest, if requested.
+    if isodate is not None:
+        ii = tiles["TIMESTAMP"] >= isodate
+        log.info("{} {} tiles MTL-processed on or after {}...t={:.1f}s".format(
+            np.sum(ii), obscon, isodate, time()-t0))
+        tiles = tiles[ii]
+
+    # ADM retrieve the full tile information for MTL tiles of interest.
     aii = match_to(alltileinfo["TILEID"], tiles["TILEID"])
-    log.info("matched {} ops tiles to mtl tiles....t={:.1f}s".format(
+    log.info("matched {} ops tiles to mtl tiles...t={:.1f}s".format(
         len(aii), time()-t0))
     alltileinfo = alltileinfo[aii]
 
-    # ADM read in the ledgers in the relevant tiles.
+    # ADM *************************************************************
+    # ADM here, strictly, we should read fiberassign files to retrieve
+    # ADM targets _actually_ observed. But, this is quicker and would
+    # ADM only _not_ work for tiles where we never reobserved a target.
+    # ADM *************************************************************
+    # ADM read in the potential additional targets that could have been
+    # ADM observed since MTL was last run...
     ledgerdir = os.path.join(mtldir, "main", obscon.lower())
-    # ADM unique=False is crucial to get targets observed on > 1 tile!!
-    targs = read_targets_in_tiles(ledgerdir,
-                                  tiles=alltileinfo, mtl=True, unique=False)
-    # ADM and restrict just to the tiles of interest.
+    obstargs = io.read_targets_in_tiles(ledgerdir, tiles=obstileinfo, mtl=True)
+    # ADM ...and restrict to just overlapping targets that have been
+    # ADM processed through MTL at least once before.
+    ii = obstargs["ZTILEID"] != -1
+    obstargs = obstargs[ii]
+    log.info("Read {} potentially observed targets in {} tiles...t={:.1f}s"
+             .format(np.sum(ii), len(obstileinfo), time()-t0))
+
+    # ADM read in targets in the tiles that have been processed by MTL...
+    # ADM (unique=False is crucial to get targets observed on > 1 tile)!!
+    targs = io.read_targets_in_tiles(ledgerdir,
+                                     tiles=alltileinfo, mtl=True, unique=False)
+    # ADM ...and restrict to just the MTL tiles of interest.
     tileset = set(tiles["TILEID"])
     ii = np.array([tile in tileset for tile in targs["ZTILEID"]])
-    log.info("Read {} targets in ledgers in these {} tiles...t={:.1f}s".format(
-        np.sum(ii), len(aii), time()-t0))
+    log.info("Read {} MTL-processed targets in {} tiles...t={:.1f}s".format(
+        np.sum(ii), len(alltileinfo), time()-t0))
     targs = targs[ii]
 
     # ADM now we have the targets and tiles, loop through the tiles in
     # ADM reverse chronological order, store the targets, and flag any
     # ADM tiles that have some targets that are also on a later tile.
     nooverlap = []  # ADM to hold tiles that do NOT overlap a later tile.
-    aftertargs = []  # ADM to hold TARGETIDs that were observed "later".
+    # ADM this holds TARGETIDs for targets that were observed "later".
+    aftertargs = list(obstargs["TARGETID"])
     timestore = "9999-01-01T00:00:00+00:00"
     for ntile, tile in enumerate(tiles):
         # ADM just to log progress.
@@ -715,22 +746,29 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
         # ADM we'll need to work with all of the tiles, again.
         tiles = Table.read(mtltilefn)
         log.info("Making checker dictionary...")
+        # ADM loop through the tiles that have no "future" overlaps.
         for ntile, tile in enumerate(nooverlap):
             # ADM just to log progress.
-            if ntile % (len(nooverlap)//10+1) == 0 and ntile > 0:
+            if ntile % (len(nooverlap)//5+1) == 0 and ntile > 0:
                 elapsed = time() - t0
                 rate = elapsed / ntile
                 msg = "Made for {}/{} ".format(ntile, len(nooverlap))
                 log.info(msg + "{:.1f} secs/tile; {:.1f} mins elapsed".format(
                     rate, elapsed/60.))
+            # ADM read in the targets in this no-future-overlaps tile.
             ii = alltileinfo["TILEID"] == tile
-            targs = read_targets_in_tiles(ledgerdir, tiles=alltileinfo[ii],
-                                          mtl=True, unique=False)
+            targs = io.read_targets_in_tiles(ledgerdir, tiles=alltileinfo[ii],
+                                             mtl=True, unique=False)
+            # ADM find all of the past tiles touched by the targets.
             tilespast = list(set(targs["ZTILEID"]) - {-1})
+            # ADM match back to the MTL tiles to retrieve the TIMESTAMP.
             ii =  match_to(tiles["TILEID"], tilespast)
+            # ADM the MTL tile file is oredered chronologically, so if we
+            # ADM sort on index we'll recover the TIMESTAMPs in order.
+            ii = sorted(ii)
             checkdict[tile] = {k: v for k, v in
                                zip(tiles[ii]["TILEID"], tiles[ii]["TIMESTAMP"])}
-            return checkdict
+        return checkdict
 
     # ADM return the non-overlapping tiles.
     return nooverlap
