@@ -646,12 +646,14 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     tiles = tiles[ii]
 
     # ADM grab the ops directory to retrieve the full tile information.
-    opsdir = os.path.join(os.path.dirname(mtltilefn)[:-3], 'ops')
+    opsdir = os.path.join(mtldir[:-3], 'ops')
     opstilefn = os.path.join(opsdir, "tiles-main.ecsv")
     alltileinfo = Table.read(opstilefn)
     # ADM restrict to tiles that have been observed in specified obscon.
     ii = alltileinfo["PROGRAM"] == obscon.upper()
     ii &= alltileinfo["STATUS"] != "unobs"
+    # ADM remove any potentially retired tiles.
+    ii &= alltileinfo["IN_DESI"]
     alltileinfo = alltileinfo[ii]
 
     # ADM retrieve observed tiles that have not been processed by MTL.
@@ -675,11 +677,6 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
         len(aii), time()-t0))
     alltileinfo = alltileinfo[aii]
 
-    # ADM *************************************************************
-    # ADM here, strictly, we should read fiberassign files to retrieve
-    # ADM targets _actually_ observed. But, this is quicker and would
-    # ADM only _not_ work for tiles where we never reobserved a target.
-    # ADM *************************************************************
     # ADM read in the potential additional targets that could have been
     # ADM observed since MTL was last run...
     ledgerdir = os.path.join(mtldir, "main", obscon.lower())
