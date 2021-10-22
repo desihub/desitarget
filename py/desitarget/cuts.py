@@ -384,8 +384,11 @@ def isBACKUP(ra=None, dec=None,
     primary &= dec >= -30.
     # APC require measured  gaia color.
     primary &= ~np.isnan(bprp)
-    # APC hard bright limit
-    primary &= gaiagmag >= 10.0
+    # APC hard bright limits
+    # See https://github.com/desihub/desitarget/pull/766
+    primary &= gaiagmag >= 11.2
+    primary &= gaiabmag >= 11.2
+    primary &= gaiarmag >= 11.2
 
     isbackupbright = primary.copy()
     isbackupfaint = primary.copy()
