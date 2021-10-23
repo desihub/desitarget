@@ -27,6 +27,7 @@ from desitarget.targets import set_obsconditions, decode_targetid
 from desitarget.geomask import match, match_to
 from desitarget.internal import sharedmem
 from desitarget import io
+from desimodel.footprint import is_point_in_desi
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -689,7 +690,7 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
              .format(np.sum(ii), len(obstileinfo), time()-t0))
 
     # ADM read in targets in the tiles that have been processed by MTL...
-    # ADM (unique=False is crucial to get targets observed on > 1 tile)!!
+    # ADM (unique=False returns targets observed on > 1 tile).
     targs = io.read_targets_in_tiles(ledgerdir,
                                      tiles=alltileinfo, mtl=True, unique=False)
     # ADM ...and restrict to just the MTL tiles of interest.
@@ -720,19 +721,21 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
             log.critical(msg)
             raise ValueError(msg)
         timestore = tile["TIMESTAMP"]
-        ii = targs["ZTILEID"] == tile["TILEID"]
-        # ADM a sanity check that TARGETIDs are unique in the ledgers.
-        if np.sum(ii) != len(set(targs[ii]["TARGETID"])):
-            msg = "TARGETIDs in ledgers not unique for tile {}!!!".format(tile)
-            log.critical(msg)
-            raise ValueError(msg)
+
+        # ADM look up the full tile info for this tile.
+        ii = alltileinfo["TILEID"] == tile["TILEID"]
+        # ADM read in potential targets touched by this tile.
+        intile = is_point_in_desi(alltileinfo[ii], targs["RA"], targs["DEC"])
+        # ADM restrict to just unique TARGETIDs (as a potential target
+        # ADM could have been observed on multiple tiles).
+        targsintile = list(set(targs[intile]["TARGETID"]))
         # ADM match to check if targets were observed on a later tile.
-        tii, aii = match(targs[ii]["TARGETID"], aftertargs)
+        tii, aii = match(targsintile, aftertargs)
         # ADM if there IS a match, this is an overlapping tile.
         if len(tii) == 0:
             nooverlap.append(tile["TILEID"])
         # ADM append all of the TARGETIDs to the "observed later" list.
-        aftertargs += list(targs[ii]["TARGETID"])
+        aftertargs += targsintile
         # ADM only retain unique TARGETIDs, for later matching.
         aftertargs = list(set(aftertargs))
 
