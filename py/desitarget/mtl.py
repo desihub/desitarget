@@ -27,7 +27,7 @@ from desitarget.targets import set_obsconditions, decode_targetid
 from desitarget.geomask import match, match_to
 from desitarget.internal import sharedmem
 from desitarget import io
-from desimodel.footprint import is_point_in_desi
+from desimodel.footprint import is_point_in_desi, tiles2pix
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -619,10 +619,10 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
 
     Returns
     -------
-    :class:`list` or `dict`
-        A list of tiles (TILEIDs) that haven't been subsequently covered
-        by a future, overlapping tile. A dictionary is returned if 
-        `check` is passed as ``True``.
+    :class:`~astropy.table.Table` or `dict`
+        A table of tiles (in the standard DESI format) that weren't
+        covered by a future, overlapping tile, sorted by `TILEID`. A
+        dictionary is returned instead if `check` is passed as ``True``.
 
     Notes
     -----
@@ -771,7 +771,105 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
         return checkdict
 
     # ADM return the non-overlapping tiles.
-    return nooverlap
+    ii = match_to(alltileinfo["TILEID"], sorted(nooverlap))
+    return alltileinfo[ii]
+
+
+def purge_tiles(tiles, obscon, mtldir=None, secondary=False):
+    """
+    Utterly remove tiles from MTL ledgers and associated mtl-done files.
+
+    Parameters
+    ----------
+    tiles : :class:`~astropy.table.Table`
+        A Table of tiles (in the standard DESI format) to be removed from
+        the MTL ledgers and associated mtl-done files.
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Used to construct the directory to find the Main Survey ledgers.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    secondary : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then purge secondary targets instead of primaries for
+        passed `obscon`.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        A Table of all of the entries removed from the ledgers.
+    :class:`~astropy.table.Table`
+        A Table of all of the entries removed from an mtl-done file.
+
+    Notes
+    -----
+    - Requires the mtl part of the operations SVN trunk to be checked out
+      in the standard location relative to `mtldir`.
+    - Only works for Main Survey tiles, as we only look in $MTL_DIR/main.
+    """
+    t0 = time()
+    # ADM a quick check that the observing conditions match the program.
+    if not np.all(tiles["PROGRAM"] == obscon.upper()):
+        msg = "PROGRAM is {} but passed obscon is {}!!!".format(
+            set(tiles["PROGRAM"]), obscon)
+        log.error(msg)
+        raise RuntimeError(msg)
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+    # ADM construct the full path to the mtl tile file.
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(secondary=secondary))
+
+    # ADM construct the full path to the ledger directory.
+    resolve = True
+    msg = "running on {} ledger with obscon={} (and survey={})"
+    if secondary:
+        log.info(msg.format("SECONDARY", obscon, "main"))
+        resolve = None
+    else:
+        log.info(msg.format("PRIMARY", obscon, "main"))
+    ledgerdir = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
+                                     obscon=obscon)
+
+    # ADM the filename format and the HEALPixel nside for the ledgers.
+    fileform = io.find_mtl_file_format_from_header(ledgerdir)
+    nside = int(io.read_keyword_from_mtl_header(ledgerdir, "FILENSID"))
+
+    # ADM generate the ledger names from the input tiles.
+    pixlist = tiles2pix(nside, tiles=tiles)
+
+    # ADM first, remove the targets from the ledger files.
+    # ADM to store the removed targets.
+    gonetargs = []
+    # ADM a set of all of the to-be-removed TILEIDs.
+    s = set(tiles["TILEID"])
+    # ADM read in each ledger and remove the relevant tiles.
+    for pix in pixlist:
+        # ADM read the header and the data.
+        fn = fileform.format(pix)
+        hdr = io.read_ecsv_header(fn, cleanup=True)
+        targs = io.read_mtl_ledger(fn, unique=False)
+        # ADM remove any targets on to-be-purged tiles...
+        iibad = np.array([tileid in s for tileid in targs["ZTILEID"]])
+        # ADM ...but retain these targets to return.
+        gonetargs.append(targs[iibad])
+        # ADM write the targets on the not-to-be-purged tiles.
+        io.write_with_units(fn, targs[~iibad],
+                            extname='MTL', header=hdr, ecsv=True)
+        msg = "Removed {} targets and retained {} targets in {}".format(
+            np.sum(iibad), np.sum(~iibad), fn)
+        log.info(msg)
+
+    # ADM second, remove the tiles from the done file.
+    # ADM to store the removed tiles.
+    mtltiles = io.read_mtl_tile_file(mtltilefn)
+    iibad = np.array([tileid in s for tileid in mtltiles["TILEID"]])
+    gonetiles = mtltiles[iibad]
+    tiles = io.write_mtl_tile_file(mtltilefn, mtltiles[~iibad])
+
+    return Table(np.concatenate(gonetargs)), gonetiles
 
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
@@ -1011,7 +1109,7 @@ def standard_override_columns(mtl):
 
     Parameters
     ----------
-    mtl : :class:`~astropy.table.Table``
+    mtl : :class:`~astropy.table.Table`
         An astropy Table. Must contain the columns TIMESTAMP,
         TARGET_STATE, VERSION and ZTILEID.
 
