@@ -1,0 +1,71 @@
+#!/usr/bin/env python
+
+from desitarget.mtl import find_non_overlap_tiles, purge_tiles
+from desitarget.mtl import get_mtl_tile_file_name, get_mtl_dir
+from desitarget.io import find_target_files
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Determine which tiles are not overlapped by future tiles, and remove those tiles from all MTL files')
+ap.add_argument("obscon",
+                help="String matching ONE obscondition in the bitmask yaml file \
+                (e.g. 'BRIGHT'). Controls priorities when merging targets,      \
+                which tiles to process, etc.")
+ap.add_argument('--purge', action='store_true',
+                help="By default, for safety, this code only prints the tiles" +
+                "that WOULD be purged. Pass this to ACTUALLY purge the tiles.")
+ap.add_argument('--mtldir',
+                help="Full path to the directory that hosts the MTL ledgers.    \
+                Default is to use the $MTL_DIR environment variable.",
+                default=None)
+ap.add_argument("-i", "--isodate",
+                help="A date in ISO format, such as returned mtl.get_utc_date().\
+                Only tiles processed AFTER OR EXACTLY ON `isodate` are used to  \
+                construct the list of non-overlapping tiles. If isodate isn't   \
+                passed, then no date restrictions are applied.",
+                default=None)
+ap.add_argument("-nosec", "--nosecondary", action='store_true',
+                help="By default, this code always purges secondary files in    \
+                addition to the primary files so they keep pace. Pass this if   \
+                there are no secondaries to process.")
+
+ns = ap.parse_args()
+
+mtldir = get_mtl_dir(ns.mtldir)
+log.info("MTL directory is {}".format(mtldir))
+
+# ADM first find the tiles to be purged.
+tiles = find_non_overlap_tiles(ns.obscon, mtldir=mtldir, isodate=ns.isodate)
+
+log.info("The following {} tiles will be purged:".format(len(tiles)))
+# ADM pprint(nlines) allows n lines of a table to be displayed.
+log.info(tiles.pprint(len(tiles)+2))
+
+scndstates = [False]
+# ADM for programs that actually have secondary ledgers (BRIGHT/DARK).
+if ns.obscon in ["BRIGHT", "DARK"]:
+    if not(ns.nosecondary):
+        scndstates = [True, False]
+
+if ns.purge:
+    for secondary in scndstates:
+        # ADM recover some useful file names for logging...
+        mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(
+            secondary=secondary))
+        resolve = True
+        if secondary:
+            resolve=None
+        ledgerdir = find_target_files(mtldir, flavor="mtl", resolve=resolve,
+                                      obscon=obscon)
+
+        # ADM ...now actually purge the tiles.
+        gonetargs, gonetiles = purge_tiles(tiles, ns.obscon, mtldir=mtldir,
+                                           secondary=secondary)
+      
+        log.info("Removed {} targets from ledgers in {}".format(
+            len(gonetargs), ledgerdir))
+        log.info("Remover {} tiles from MTL tile file ({})".format(
+            len(gonetiles), mtltilefn))
+else:
+    log.info("pass --purge to actually remove them")

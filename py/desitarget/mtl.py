@@ -608,7 +608,7 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     isodate : :class:`str`, optional, defaults to ``None``
         A date in ISO format, such as returned by
         :func:`desitarget.mtl.get_utc_date() `. Only tiles processed
-        AFTER THEN OR EQUAL TO `isodate` are considered. If ``None`` then
+        AFTER OR EXACTLY ON `isodate` are considered. If ``None`` then
         no date restrictions are applied.
     check : :class:`bool`, optional, defaults to ``False``
         If ``True``, then instead of a list of non-overlapping tiles,
