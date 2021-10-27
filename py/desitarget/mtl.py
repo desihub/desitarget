@@ -1171,7 +1171,6 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",numobs_from_ledge
 
         # ADM if an override ledger exists, update it and recover its
         # ADM relevant MTL entries.
-        
         if os.path.exists(overfn):
             overmtl = process_overrides(overfn)
             # ADM add any override entries TO THE END OF THE LEDGER.

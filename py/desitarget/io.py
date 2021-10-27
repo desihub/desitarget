@@ -2910,27 +2910,20 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     # ADM detect whether we're working with the override ledgers.
     try:
         override = bool(read_keyword_from_mtl_header(hpdirname, "OVERRIDE"))
-        
     except KeyError:
         pass
-    
     from desitarget.mtl import get_mtl_ledger_format
     ender = get_mtl_ledger_format()
-    
     # ADM construct the full directory path.
     hugefn = find_target_files(hpdirname, flavor="mtl", hp="{}", survey=surv,
                                ender=ender, obscon=oc, override=override)
-    
     # ADM return the filename.
     fileform = os.path.join(hpdirname, os.path.basename(hugefn))
-    
     if override:
         # ADM be forgiving if the override directory itself was passed.
         fileform = os.path.join(hpdirname, "override", os.path.basename(hugefn))
-        
         if "override" in hpdirname:
-            fileform = os.path.join(hpdirname, os.path.basename(hugefn))
-            
+            fileform = os.path.join(hpdirname, os.path.basename(hugefn))     
 
     if returnoc:
         return fileform, oc
