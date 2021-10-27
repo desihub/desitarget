@@ -2923,7 +2923,7 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
         # ADM be forgiving if the override directory itself was passed.
         fileform = os.path.join(hpdirname, "override", os.path.basename(hugefn))
         if "override" in hpdirname:
-            fileform = os.path.join(hpdirname, os.path.basename(hugefn))     
+            fileform = os.path.join(hpdirname, os.path.basename(hugefn))
 
     if returnoc:
         return fileform, oc
