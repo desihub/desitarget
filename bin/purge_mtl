@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import os
 from desitarget.mtl import find_non_overlap_tiles, purge_tiles
 from desitarget.mtl import get_mtl_tile_file_name, get_mtl_dir
 from desitarget.io import find_target_files
@@ -40,7 +41,7 @@ tiles = find_non_overlap_tiles(ns.obscon, mtldir=mtldir, isodate=ns.isodate)
 
 log.info("The following {} tiles will be purged:".format(len(tiles)))
 # ADM pprint(nlines) allows n lines of a table to be displayed.
-log.info(tiles.pprint(len(tiles)+2))
+tiles.pprint(len(tiles)+2)
 
 scndstates = [False]
 # ADM for programs that actually have secondary ledgers (BRIGHT/DARK).
@@ -57,15 +58,15 @@ if ns.purge:
         if secondary:
             resolve=None
         ledgerdir = find_target_files(mtldir, flavor="mtl", resolve=resolve,
-                                      obscon=obscon)
+                                      obscon=ns.obscon)
 
         # ADM ...now actually purge the tiles.
         gonetargs, gonetiles = purge_tiles(tiles, ns.obscon, mtldir=mtldir,
-                                           secondary=secondary)
-      
+                                           secondary=secondary, verbose=False)
+
         log.info("Removed {} targets from ledgers in {}".format(
             len(gonetargs), ledgerdir))
-        log.info("Remover {} tiles from MTL tile file ({})".format(
+        log.info("Removed {} tiles from MTL tile file ({})".format(
             len(gonetiles), mtltilefn))
 else:
-    log.info("pass --purge to actually remove them")
+    log.info("pass --purge to actually remove these tiles")

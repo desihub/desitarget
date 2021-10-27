@@ -614,7 +614,7 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
         If ``True``, then instead of a list of non-overlapping tiles,
         return a dictionary whose keys are the list of non-overlapping
         tiles and whose values are dictionaries who, in turn, have keys
-        corresponding to any past overlapping tiles and values that are 
+        corresponding to any past overlapping tiles and values that are
         the `TIMESTAMP` for that past overlapping tile.
 
     Returns
@@ -762,7 +762,7 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
             # ADM find all of the past tiles touched by the targets.
             tilespast = list(set(targs["ZTILEID"]) - {-1})
             # ADM match back to the MTL tiles to retrieve the TIMESTAMP.
-            ii =  match_to(tiles["TILEID"], tilespast)
+            ii = match_to(tiles["TILEID"], tilespast)
             # ADM the MTL tile file is oredered chronologically, so if we
             # ADM sort on index we'll recover the TIMESTAMPs in order.
             ii = sorted(ii)
@@ -775,7 +775,7 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     return alltileinfo[ii]
 
 
-def purge_tiles(tiles, obscon, mtldir=None, secondary=False):
+def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
     """
     Utterly remove tiles from MTL ledgers and associated mtl-done files.
 
@@ -795,6 +795,8 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False):
     secondary : :class:`bool`, optional, defaults to ``False``
         If ``True`` then purge secondary targets instead of primaries for
         passed `obscon`.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log extra information.
 
     Returns
     -------
@@ -858,16 +860,24 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False):
         # ADM write the targets on the not-to-be-purged tiles.
         io.write_with_units(fn, targs[~iibad],
                             extname='MTL', header=hdr, ecsv=True)
-        msg = "Removed {} targets and retained {} targets in {}".format(
-            np.sum(iibad), np.sum(~iibad), fn)
-        log.info(msg)
+        if verbose:
+            msg = "Removed {} targets and retained {} targets in {}".format(
+                np.sum(iibad), np.sum(~iibad), fn)
+            log.info(msg)
 
     # ADM second, remove the tiles from the done file.
     # ADM to store the removed tiles.
-    mtltiles = io.read_mtl_tile_file(mtltilefn)
+    inmtltiles = io.read_mtl_tile_file(mtltilefn)
+    # ADM guarantee that the output Table will be in the required format.
+    mtltiles = np.empty_like(mtltilefiledm, shape=len(inmtltiles))
+    for col in mtltilefiledm.dtype.names:
+        mtltiles[col] = inmtltiles[col]
+    mtltiles = Table(mtltiles)
+    # ADM now find and purge the actual tiles.
     iibad = np.array([tileid in s for tileid in mtltiles["TILEID"]])
     gonetiles = mtltiles[iibad]
-    tiles = io.write_mtl_tile_file(mtltilefn, mtltiles[~iibad])
+    io.write_with_units(mtltilefn, mtltiles[~iibad], extname='MTLTILE',
+                        ecsv=True)
 
     return Table(np.concatenate(gonetargs)), gonetiles
 
