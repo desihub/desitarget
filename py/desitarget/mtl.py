@@ -837,7 +837,7 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
 
     # ADM the filename format and the HEALPixel nside for the ledgers.
     fileform = io.find_mtl_file_format_from_header(ledgerdir)
-    nside = int(io.read_keyword_from_mtl_header(ledgerdir, "FILENSID"))
+    nside = io.read_keyword_from_mtl_header(ledgerdir, "FILENSID")
 
     # ADM generate the ledger names from the input tiles.
     pixlist = tiles2pix(nside, tiles=tiles)
