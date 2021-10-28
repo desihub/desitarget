@@ -2828,14 +2828,14 @@ def read_keyword_from_mtl_header(hpdirname, keyword):
     return hdr[keyword]
 
 
-def read_ecsv_header(filename, cleanup=False):
+def read_ecsv_header(filename, cleanup=True):
     """Read header info from an ecsv file without reading the whole file.
 
     Parameters
     ----------
     filename : :class:`str`
         The full path to the .ecsv file of interest.
-    cleanup : :class:`bool`, optional, defaults to ``False``
+    cleanup : :class:`bool`, optional, defaults to ``True``
         If passed, perform some syntax cleanup to convert strings to more
         likely types. Integer strings will be changed to integer type,
         Quotation marks inside of strings will be removed, and instances
@@ -2868,16 +2868,22 @@ def read_ecsv_header(filename, cleanup=False):
             key, val = keyval.split(":", maxsplit=1)
             # ADM syntax clean-up to convert strings to likely types.
             if cleanup:
-                val = val.replace("'", "").replace('"', '')
-                try:
-                    val = int(val)
-                except ValueError:
-                    pass
-                if val == 'false':
-                    val = False
-                if val == 'true':
-                    val = True
-            hdr[key] = val
+                # ADM should only process header values that ARE strings.
+                if isinstance(val, str):
+                    val = val.replace("'", "").replace('"', '')
+                    if val.lower() == 'false':
+                        val = False
+                    # ADM elif, as first if could convert str to bool.
+                    elif val.lower() == 'true':
+                        val = True
+                    # ADM else, to prevent any booleans becoming 0/1.
+                    else:
+                        # ADM do this last as it will convert str to int.
+                        try:
+                            val = int(val)
+                        except ValueError:
+                            pass
+                hdr[key] = val
 
     return hdr
 
@@ -2919,7 +2925,7 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
     # ADM detect whether we're working with the override ledgers.
     try:
-        override = bool(read_keyword_from_mtl_header(hpdirname, "OVERRIDE"))
+        override = read_keyword_from_mtl_header(hpdirname, "OVERRIDE")
     except KeyError:
         pass
 

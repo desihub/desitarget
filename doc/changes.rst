@@ -7,6 +7,7 @@ desitarget Change Log
 
 * Find MTL-processed tiles that don't overlap future tiles [`PR #768`_]:
     * Add code to purge such tiles from the MTL done files and ledgers.
+    * Also improve reading headers and header values from .ecsv files.
 * Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
