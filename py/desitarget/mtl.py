@@ -27,6 +27,7 @@ from desitarget.targets import set_obsconditions, decode_targetid
 from desitarget.geomask import match, match_to
 from desitarget.internal import sharedmem
 from desitarget import io
+from desimodel.footprint import is_point_in_desi, tiles2pix
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -590,6 +591,297 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     return mtl
 
 
+def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
+    """
+    Create (or append to) a ledger to override the standard ledgers.
+
+    Parameters
+    ----------
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Used to construct the directory to find the Main Survey ledgers.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    isodate : :class:`str`, optional, defaults to ``None``
+        A date in ISO format, such as returned by
+        :func:`desitarget.mtl.get_utc_date() `. Only tiles processed
+        AFTER OR EXACTLY ON `isodate` are considered. If ``None`` then
+        no date restrictions are applied.
+    check : :class:`bool`, optional, defaults to ``False``
+        If ``True``, then instead of a list of non-overlapping tiles,
+        return a dictionary whose keys are the list of non-overlapping
+        tiles and whose values are dictionaries who, in turn, have keys
+        corresponding to any past overlapping tiles and values that are
+        the `TIMESTAMP` for that past overlapping tile.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table` or `dict`
+        A table of tiles (in the standard DESI format) that weren't
+        covered by a future, overlapping tile, sorted by `TILEID`. A
+        dictionary is returned instead if `check` is passed as ``True``.
+
+    Notes
+    -----
+    - Requires both the ops and mtl parts of the operations SVN trunk to
+      be checked out in the standard location relative to `mtldir`.
+    - Only works for Main Survey tiles, because we only look in the
+      tiles-main.ecsv file and in $MTL_DIR/main.
+    """
+    t0 = time()
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+    # ADM construct the full path to the mtl tile file.
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name())
+    # ADM read the tiles in reverse chronological order.
+    tiles = Table.read(mtltilefn)
+    ii = np.flip(np.argsort(tiles["TIMESTAMP"]))
+    tiles = tiles[ii]
+    # ADM and restrict to the obscon of interest.
+    ii = tiles["PROGRAM"] == obscon.upper()
+    log.info("{} {} tiles in MTL done file...t={:.1f}s".format(
+        np.sum(ii), obscon, time()-t0))
+    tiles = tiles[ii]
+
+    # ADM grab the ops directory to retrieve the full tile information.
+    opsdir = os.path.join(mtldir[:-3], 'ops')
+    opstilefn = os.path.join(opsdir, "tiles-main.ecsv")
+    alltileinfo = Table.read(opstilefn)
+    # ADM restrict to tiles that have been observed in specified obscon.
+    ii = alltileinfo["PROGRAM"] == obscon.upper()
+    ii &= alltileinfo["STATUS"] != "unobs"
+    # ADM remove any potentially retired tiles.
+    ii &= alltileinfo["IN_DESI"]
+    alltileinfo = alltileinfo[ii]
+
+    # ADM retrieve observed tiles that have not been processed by MTL.
+    alltilematch, tilematch = match(alltileinfo["TILEID"], tiles["TILEID"])
+    alltilenomatch = np.array(list(
+        set(np.arange(len(alltileinfo))) - set(alltilematch)))
+    log.info("{} observed {} tiles not yet processed by MTL...t={:.1f}s".format(
+        len(alltilenomatch), obscon, time()-t0))
+    obstileinfo = alltileinfo[alltilenomatch]
+
+    # ADM restrict MTL tiles to just the dates of interest, if requested.
+    if isodate is not None:
+        ii = tiles["TIMESTAMP"] >= isodate
+        log.info("{} {} tiles MTL-processed on or after {}...t={:.1f}s".format(
+            np.sum(ii), obscon, isodate, time()-t0))
+        tiles = tiles[ii]
+
+    # ADM retrieve the full tile information for MTL tiles of interest.
+    aii = match_to(alltileinfo["TILEID"], tiles["TILEID"])
+    log.info("matched {} ops tiles to mtl tiles...t={:.1f}s".format(
+        len(aii), time()-t0))
+    alltileinfo = alltileinfo[aii]
+
+    # ADM read in the potential additional targets that could have been
+    # ADM observed since MTL was last run...
+    ledgerdir = os.path.join(mtldir, "main", obscon.lower())
+    obstargs = io.read_targets_in_tiles(ledgerdir, tiles=obstileinfo, mtl=True)
+    # ADM ...and restrict to just overlapping targets that have been
+    # ADM processed through MTL at least once before.
+    ii = obstargs["ZTILEID"] != -1
+    obstargs = obstargs[ii]
+    log.info("Read {} potentially observed targets in {} tiles...t={:.1f}s"
+             .format(np.sum(ii), len(obstileinfo), time()-t0))
+
+    # ADM read in targets in the tiles that have been processed by MTL...
+    # ADM (unique=False returns targets observed on > 1 tile).
+    targs = io.read_targets_in_tiles(ledgerdir,
+                                     tiles=alltileinfo, mtl=True, unique=False)
+    # ADM ...and restrict to just the MTL tiles of interest.
+    tileset = set(tiles["TILEID"])
+    ii = np.array([tile in tileset for tile in targs["ZTILEID"]])
+    log.info("Read {} MTL-processed targets in {} tiles...t={:.1f}s".format(
+        np.sum(ii), len(alltileinfo), time()-t0))
+    targs = targs[ii]
+
+    # ADM now we have the targets and tiles, loop through the tiles in
+    # ADM reverse chronological order, store the targets, and flag any
+    # ADM tiles that have some targets that are also on a later tile.
+    nooverlap = []  # ADM to hold tiles that do NOT overlap a later tile.
+    # ADM this holds TARGETIDs for targets that were observed "later".
+    aftertargs = list(obstargs["TARGETID"])
+    timestore = "9999-01-01T00:00:00+00:00"
+    for ntile, tile in enumerate(tiles):
+        # ADM just to log progress.
+        if ntile % (len(tiles)//5+1) == 0 and ntile > 0:
+            elapsed = time() - t0
+            rate = elapsed / ntile
+            msg = "{}/{} tiles checked for overlaps ".format(ntile, len(tiles))
+            log.info(msg + "{:.1f} secs/tile; {:.1f} total mins elapsed".format(
+                rate, elapsed/60.))
+        # ADM check the chronology is, indeed, reversed.
+        if tile["TIMESTAMP"] > timestore:
+            msg = "Tiles not in reverse chronological order!!!"
+            log.critical(msg)
+            raise ValueError(msg)
+        timestore = tile["TIMESTAMP"]
+
+        # ADM look up the full tile info for this tile.
+        ii = alltileinfo["TILEID"] == tile["TILEID"]
+        # ADM read in potential targets touched by this tile.
+        intile = is_point_in_desi(alltileinfo[ii], targs["RA"], targs["DEC"])
+        # ADM restrict to just unique TARGETIDs (as a potential target
+        # ADM could have been observed on multiple tiles).
+        targsintile = list(set(targs[intile]["TARGETID"]))
+        # ADM match to check if targets were observed on a later tile.
+        tii, aii = match(targsintile, aftertargs)
+        # ADM if there IS a match, this is an overlapping tile.
+        if len(tii) == 0:
+            nooverlap.append(tile["TILEID"])
+        # ADM append all of the TARGETIDs to the "observed later" list.
+        aftertargs += targsintile
+        # ADM only retain unique TARGETIDs, for later matching.
+        aftertargs = list(set(aftertargs))
+
+    # ADM return an informative dictionary if `check` was passed.
+    # ADM this might be slow for large numbers of tiles.
+    if check:
+        checkdict = {}
+        # ADM we'll need to work with all of the tiles, again.
+        tiles = Table.read(mtltilefn)
+        log.info("Making checker dictionary...")
+        # ADM loop through the tiles that have no "future" overlaps.
+        for ntile, tile in enumerate(nooverlap):
+            # ADM just to log progress.
+            if ntile % (len(nooverlap)//5+1) == 0 and ntile > 0:
+                elapsed = time() - t0
+                rate = elapsed / ntile
+                msg = "Made for {}/{} ".format(ntile, len(nooverlap))
+                log.info(msg + "{:.1f} secs/tile; {:.1f} mins elapsed".format(
+                    rate, elapsed/60.))
+            # ADM read in the targets in this no-future-overlaps tile.
+            ii = alltileinfo["TILEID"] == tile
+            targs = io.read_targets_in_tiles(ledgerdir, tiles=alltileinfo[ii],
+                                             mtl=True, unique=False)
+            # ADM find all of the past tiles touched by the targets.
+            tilespast = list(set(targs["ZTILEID"]) - {-1})
+            # ADM match back to the MTL tiles to retrieve the TIMESTAMP.
+            ii = match_to(tiles["TILEID"], tilespast)
+            # ADM the MTL tile file is oredered chronologically, so if we
+            # ADM sort on index we'll recover the TIMESTAMPs in order.
+            ii = sorted(ii)
+            checkdict[tile] = {k: v for k, v in
+                               zip(tiles[ii]["TILEID"], tiles[ii]["TIMESTAMP"])}
+        return checkdict
+
+    # ADM return the non-overlapping tiles.
+    ii = match_to(alltileinfo["TILEID"], sorted(nooverlap))
+    return alltileinfo[ii]
+
+
+def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
+    """
+    Utterly remove tiles from MTL ledgers and associated mtl-done files.
+
+    Parameters
+    ----------
+    tiles : :class:`~astropy.table.Table`
+        A Table of tiles (in the standard DESI format) to be removed from
+        the MTL ledgers and associated mtl-done files.
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Used to construct the directory to find the Main Survey ledgers.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    secondary : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then purge secondary targets instead of primaries for
+        passed `obscon`.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log extra information.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        A Table of all of the entries removed from the ledgers.
+    :class:`~astropy.table.Table`
+        A Table of all of the entries removed from an mtl-done file.
+
+    Notes
+    -----
+    - Requires the mtl part of the operations SVN trunk to be checked out
+      in the standard location relative to `mtldir`.
+    - Only works for Main Survey tiles, as we only look in $MTL_DIR/main.
+    """
+    t0 = time()
+    # ADM a quick check that the observing conditions match the program.
+    if not np.all(tiles["PROGRAM"] == obscon.upper()):
+        msg = "PROGRAM is {} but passed obscon is {}!!!".format(
+            set(tiles["PROGRAM"]), obscon)
+        log.error(msg)
+        raise RuntimeError(msg)
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+    # ADM construct the full path to the mtl tile file.
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(secondary=secondary))
+
+    # ADM construct the full path to the ledger directory.
+    resolve = True
+    msg = "running on {} ledger with obscon={} (and survey={})"
+    if secondary:
+        log.info(msg.format("SECONDARY", obscon, "main"))
+        resolve = None
+    else:
+        log.info(msg.format("PRIMARY", obscon, "main"))
+    ledgerdir = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
+                                     obscon=obscon)
+
+    # ADM the filename format and the HEALPixel nside for the ledgers.
+    fileform = io.find_mtl_file_format_from_header(ledgerdir)
+    nside = io.read_keyword_from_mtl_header(ledgerdir, "FILENSID")
+
+    # ADM generate the ledger names from the input tiles.
+    pixlist = tiles2pix(nside, tiles=tiles)
+
+    # ADM first, remove the targets from the ledger files.
+    # ADM to store the removed targets.
+    gonetargs = []
+    # ADM a set of all of the to-be-removed TILEIDs.
+    s = set(tiles["TILEID"])
+    # ADM read in each ledger and remove the relevant tiles.
+    for pix in pixlist:
+        # ADM read the header and the data.
+        fn = fileform.format(pix)
+        hdr = io.read_ecsv_header(fn, cleanup=True)
+        targs = io.read_mtl_ledger(fn, unique=False)
+        # ADM remove any targets on to-be-purged tiles...
+        iibad = np.array([tileid in s for tileid in targs["ZTILEID"]])
+        # ADM ...but retain these targets to return.
+        gonetargs.append(targs[iibad])
+        # ADM write the targets on the not-to-be-purged tiles.
+        io.write_with_units(fn, targs[~iibad],
+                            extname='MTL', header=hdr, ecsv=True)
+        if verbose:
+            msg = "Removed {} targets and retained {} targets in {}".format(
+                np.sum(iibad), np.sum(~iibad), fn)
+            log.info(msg)
+
+    # ADM second, remove the tiles from the done file.
+    # ADM to store the removed tiles.
+    inmtltiles = io.read_mtl_tile_file(mtltilefn)
+    # ADM guarantee that the output Table will be in the required format.
+    mtltiles = np.empty_like(mtltilefiledm, shape=len(inmtltiles))
+    for col in mtltilefiledm.dtype.names:
+        mtltiles[col] = inmtltiles[col]
+    mtltiles = Table(mtltiles)
+    # ADM now find and purge the actual tiles.
+    iibad = np.array([tileid in s for tileid in mtltiles["TILEID"]])
+    gonetiles = mtltiles[iibad]
+    io.write_with_units(mtltilefn, mtltiles[~iibad], extname='MTLTILE',
+                        ecsv=True)
+
+    return Table(np.concatenate(gonetargs)), gonetiles
+
+
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
                       timestamp=None, append=False):
@@ -827,7 +1119,7 @@ def standard_override_columns(mtl):
 
     Parameters
     ----------
-    mtl : :class:`~astropy.table.Table``
+    mtl : :class:`~astropy.table.Table`
         An astropy Table. Must contain the columns TIMESTAMP,
         TARGET_STATE, VERSION and ZTILEID.
 

@@ -5,12 +5,17 @@ desitarget Change Log
 1.3.1 (unreleased)
 ------------------
 
-* Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
+* Find MTL-processed tiles that don't overlap future tiles [`PR #768`_]:
+    * Add code to purge such tiles from the MTL done files and ledgers.
+    * Also improve reading headers and header values from .ecsv files.
+    * Also update GAIA EDR3 files to include RA/Dec errors and REF_EPOCH.
 * Update targetmask and cuts for backup program [`PR #766`_]:
     * Matches description in backup program document.
+* Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
 .. _`PR #766`: https://github.com/desihub/desitarget/pull/766
+.. _`PR #768`: https://github.com/desihub/desitarget/pull/768
 
 1.3.0 (2021-09-20)
 ------------------
