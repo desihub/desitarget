@@ -12,13 +12,14 @@ desitarget Change Log
 * Update targetmask and cuts for backup program [`PR #766`_]:
     * Matches description in backup program document.
 * Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
+* Fix a few variable name typos in the target selection code [`PR #770`_].
+  All of those likely never were triggered in production.
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
 .. _`PR #766`: https://github.com/desihub/desitarget/pull/766
 .. _`PR #768`: https://github.com/desihub/desitarget/pull/768
+.. _`PR #770`: https://github.com/desihub/desitarget/pull/770
 
-* Fix a few variable name typos in the target selection code [`PR #770`_].
-  All of those likely never were triggered in production.
 
 1.3.0 (2021-09-20)
 ------------------
