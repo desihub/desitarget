@@ -17,6 +17,9 @@ desitarget Change Log
 .. _`PR #766`: https://github.com/desihub/desitarget/pull/766
 .. _`PR #768`: https://github.com/desihub/desitarget/pull/768
 
+* Fix a few variable name typos in the target selection code [`PR #770`_].
+  All of those likely never were triggered in production.
+
 1.3.0 (2021-09-20)
 ------------------
 
