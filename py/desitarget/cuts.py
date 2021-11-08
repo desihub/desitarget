@@ -731,7 +731,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:
-        primary = np.ones_like(gflux, dtype='?')
+        primary = np.ones_like(gaiagmag, dtype='?')
     std = primary.copy()
 
     # ADM Bp and Rp are both measured.
@@ -876,8 +876,8 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     else:
         # Use LS r-band as a Gaia G-band proxy.
         gaiamag_proxy = 22.5 - 2.5 * np.log10(rflux.clip(1e-16))
-        std &= gaiamag_ >= gbright
-        std &= gaiamag_ < gfaint
+        std &= gaiamag_proxy >= gbright
+        std &= gaiamag_proxy < gfaint
 
     return std
 
@@ -1177,7 +1177,7 @@ def isMWS_bhb(primary=None, objtype=None,
         rflux, gflux, zflux = rflux.copy(), gflux.copy(), zflux.copy()
         w1flux = w1flux.copy()
         parallax = parallax.copy()
-        gaigmag = gaiagmag.copy()
+        gaiagmag = gaiagmag.copy()
         rflux[w], gflux[w], zflux[w], w1flux[w] = 0., 0., 0., 0.
         parallax[w] = 0.
         gaiagmag[w] = 0.
@@ -2197,7 +2197,7 @@ def _prepare_gaia(objects, colnames=None):
         if len(w) > 0:
             # ADM we need to check the case of a single row being passed.
             if _is_row(gaiaparamssolved):
-                gaiaparamsolved = 3
+                gaiaparamssolved = 3
             else:
                 gaiaparamssolved[w] = 3
 
