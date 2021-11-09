@@ -14,11 +14,13 @@ desitarget Change Log
 * Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
 * Fix a few variable name typos in the target selection code [`PR #770`_].
   All of those likely never were triggered in production.
+* Support Gaia-based look-up for good sky position for stuck fibers [`PR #771`_].
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
 .. _`PR #766`: https://github.com/desihub/desitarget/pull/766
 .. _`PR #768`: https://github.com/desihub/desitarget/pull/768
 .. _`PR #770`: https://github.com/desihub/desitarget/pull/770
+.. _`PR #771`: https://github.com/desihub/desitarget/pull/771
 
 
 1.3.0 (2021-09-20)
