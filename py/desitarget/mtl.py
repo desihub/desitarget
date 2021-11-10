@@ -59,8 +59,8 @@ zcatdatamodel = np.array([], dtype=[
     ])
 
 mtltilefiledm = np.array([], dtype=[
-    ('TILEID', '>i4'), ('TIMESTAMP', 'U25'),
-    ('VERSION', 'U14'), ('PROGRAM', 'U6'), ('ZDATE', 'U8')
+    ('TILEID', '>i4'), ('TIMESTAMP', 'U25'), ('VERSION', 'U14'),
+    ('PROGRAM', 'U6'), ('ZDATE', 'U8'), ('ARCHIVEDATE', 'U8')
     ])
 
 
