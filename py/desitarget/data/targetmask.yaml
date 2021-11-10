@@ -504,6 +504,7 @@ numobs:
 # ADM backup targets.
         BACKUP_BRIGHT:                2
         BACKUP_GIANT:                 2
+        BACKUP_GIANT_LOP:             2
         BACKUP_FAINT:                 2
         BACKUP_VERY_FAINT:            2
 
