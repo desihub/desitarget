@@ -337,6 +337,38 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     return std_faint, std_bright, std_wd
 
+def backupGiantDownsample(l, b):
+    """
+    Return the downsampling factor as a function of l,b 
+    
+    
+    Parameters:
+    -----------
+    l: array
+         Galactic longitude
+    b: array
+         Galactic latitude
+    Returns:
+    --------
+    frac: array
+         The fraction of objects to select        
+    """
+    p = [6.9529434, 0.18786695, -2.6621607, -3.05095354, 8.10060927]
+
+    # this is approximately log density
+    ldens = p[0] + p[1] * np.cos(np.deg2rad(l)) + p[2] * np.log10(
+        np.abs(np.abs(bb) + p[3] * np.cos(np.deg2rad(l)) + p[4]))
+
+    # this just maps x -> x when x<th
+    # and then x-> (1+alpha)*(x-th)+th when x>th
+    # The purpose is that in high density regions, it gives a
+    # high envelope
+    mapper = lambda x, alpha, th: (x * (x < th) + ((1 + alpha) * (x - th) + th) * (x > th))
+
+    subsamp = np.minimum(100 / 10**mapper(ldens, .1, .0), 1)
+    return subsamp
+
+
 
 def isBACKUP(ra=None, dec=None,
              gaiagmag=None, gaiabmag=None, gaiarmag=None,
@@ -397,19 +429,23 @@ def isBACKUP(ra=None, dec=None,
 
     # ADM determine which sources are close to the Galaxy.
     in_gal = is_in_Galaxy([ra, dec], radec=True)
-
     # APC bright targets are 11.2 + 0.6(BP-RP) < G < 16.
-    isbackupbright &= gaiagmag >= 11.2 + 0.6*bprp
+    isbackupbright &= gaiagmag >= 11.2 + 0.6 * bprp
     isbackupbright &= gaiagmag < 16.0
 
     # APC Giant candidates have low parallax
     is_gaiagiant = parallax < (3 * parallaxerr + 0.1)
 
-    # APC giant targets are min(17.5 + 0.6(BP-RP), 19) < G < 16
+    # APC giant targets are min(17.5 + 0.6 (BP-RP), 19) < G < 16
     isbackupgiant &= gaiagmag >= 16.0
-    isbackupgiant &= gaiagmag < np.minimum(17.5 + 0.6*bprp, 19)
+    isbackupgiant &= gaiagmag < np.minimum(17.5 + 0.6 * bprp, 19)
     # APC and are likely giants
     isbackupgiant &= is_gaiagiant
+    gal = SkyCoord(ra*u.degree, dec*u.degree).galactic
+    l, b = gal.l.to_value(u.degree), gal.b.to_value(u.degree)    
+    lowlat_fraction = backupGiantDownsample(l, b)
+    is_backup_high_prior_giant = random_fraction_of_trues(lowlat_fraction, isbackupgiant)
+    is_backup_low_prior_giant = isbackupgiant &  (~is_backup_high_prior_giant)
 
     # APC faint targets are 16 < G < 18
     isbackupfaint &= gaiagmag >= 16.0
@@ -427,7 +463,7 @@ def isBACKUP(ra=None, dec=None,
     # ADM and are "far from" the Galaxy.
     isbackupveryfaint &= ~in_gal
 
-    return isbackupbright, isbackupfaint, isbackupveryfaint, isbackupgiant
+    return isbackupbright, isbackupfaint, isbackupveryfaint, is_backup_high_prior_giant, is_backup_low_prior_giant
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -2740,15 +2776,10 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
 
     # ADM determine if an object is a BACKUP target.
     primary = np.ones_like(gaiaobjs, dtype=bool)
-    if survey == 'main':
-        backup_bright, backup_faint, backup_very_faint, backup_giant = targcuts.isBACKUP(
+    backup_bright, backup_faint, backup_very_faint, backup_hip_giant, backup_lowp_giant = targcuts.isBACKUP(
             ra=ra, dec=dec, gaiagmag=gaiagmag,
             gaiabmag=gaiabmag, gaiarmag=gaiarmag,
             parallax=parallax, parallaxerr=parallaxerr,
-            primary=primary)
-    else:
-        backup_bright, backup_faint, backup_very_faint = targcuts.isBACKUP(
-            ra=ra, dec=dec, gaiagmag=gaiagmag,
             primary=primary)
 
     # ADM determine if a target is a Gaia-only standard.
@@ -2765,8 +2796,8 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
-    if survey == 'main':
-        mws_target |= backup_giant * mws_mask.BACKUP_GIANT
+    mws_target |= backup_hip_giant * mws_mask.BACKUP_GIANT
+    mws_target |= backup_lowp_giant * mws_mask.BACKUP_GIANT_LOWP
     mws_target |= std_faint * mws_mask.GAIA_STD_FAINT
     mws_target |= std_bright * mws_mask.GAIA_STD_BRIGHT
     mws_target |= std_wd * mws_mask.GAIA_STD_WD
