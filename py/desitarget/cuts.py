@@ -104,7 +104,7 @@ def random_fraction_of_trues(fraction, bool_array):
         If a scalar is passed, then a scalar is returned.
     """
     # ADM check that the input fraction was between 0 and 1.
-    if not 0 <= fraction <= 1:
+    if not np.all((0 <= fraction) & (fraction <= 1)):
         msg = "fraction must be between 0 and 1, not {}".format(fraction)
         log.critical(msg)
         raise ValueError(msg)
@@ -425,7 +425,8 @@ def isBACKUP(ra=None, dec=None,
     isbackupbright = primary.copy()
     isbackupfaint = primary.copy()
     isbackupveryfaint = primary.copy()
-    isbackupgiant = primary.copy()
+    is_backup_giant = primary.copy()
+    is_backup_lowp_giant = primary.copy()
 
     # ADM determine which sources are close to the Galaxy.
     in_gal = is_in_Galaxy([ra, dec], radec=True)
@@ -433,25 +434,30 @@ def isBACKUP(ra=None, dec=None,
     isbackupbright &= gaiagmag >= 11.2 + 0.6 * bprp
     isbackupbright &= gaiagmag < 16.0
 
-    # APC Giant candidates have low parallax
-    is_gaiagiant = parallax < (3 * parallaxerr + 0.1)
-
     # APC giant targets are min(17.5 + 0.6 (BP-RP), 19) < G < 16
-    isbackupgiant &= gaiagmag >= 16.0
-    isbackupgiant &= gaiagmag < np.minimum(17.5 + 0.6 * bprp, 19)
+    giant_sel = (gaiagmag >= 16.0)
+    giant_sel &= gaiagmag < np.minimum(17.5 + 0.6 * bprp, 19)
+    # APC Giant candidates have low parallax
+    giant_sel &= parallax < (3 * parallaxerr + 0.1)
+
+    # less contaminated giant selection
+    giant_hp_sel = giant_sel & (parallax < (2 * parallaxerr + 0.1))
+
     # APC and are likely giants
-    isbackupgiant &= is_gaiagiant
     gal = SkyCoord(ra*u.degree, dec*u.degree).galactic
     l, b = gal.l.to_value(u.degree), gal.b.to_value(u.degree)    
+
     lowlat_fraction = backupGiantDownsample(l, b)
-    is_backup_high_prior_giant = random_fraction_of_trues(lowlat_fraction, isbackupgiant)
-    is_backup_low_prior_giant = isbackupgiant &  (~is_backup_high_prior_giant)
+    giant_hpsub_sel = random_fraction_of_trues(lowlat_fraction, giant_hp_sel)
+    # Subsampled subset of high priority giants
+    is_backup_giant &= giant_hpsub_sel
+    is_backup_lowp_giant &= (giant_sel & (~giant_hpsub_sel))
 
     # APC faint targets are 16 < G < 18
     isbackupfaint &= gaiagmag >= 16.0
     isbackupfaint &= gaiagmag < 18.0
     # APC and are not halo giant candidates
-    isbackupfaint &= ~is_gaiagiant
+    isbackupfaint &= (~is_backup_giant) & (~is_backup_lowp_giant)
     # ADM and are "far from" the Galaxy.
     isbackupfaint &= ~in_gal
 
@@ -459,11 +465,13 @@ def isBACKUP(ra=None, dec=None,
     isbackupveryfaint &= gaiagmag >= 18.
     isbackupveryfaint &= gaiagmag < 19
     # APC and are not halo giant candidates
-    isbackupveryfaint &= ~is_gaiagiant
+    isbackupveryfaint &= ~is_backup_giant
+    isbackupveryfaint &= ~is_backup_lowp_giant
     # ADM and are "far from" the Galaxy.
     isbackupveryfaint &= ~in_gal
 
-    return isbackupbright, isbackupfaint, isbackupveryfaint, is_backup_high_prior_giant, is_backup_low_prior_giant
+    return (isbackupbright, isbackupfaint, isbackupveryfaint,
+            is_backup_giant, is_backup_lowp_giant)
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
