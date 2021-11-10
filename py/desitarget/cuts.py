@@ -357,7 +357,7 @@ def backupGiantDownsample(l, b):
 
     # this is approximately log density
     ldens = p[0] + p[1] * np.cos(np.deg2rad(l)) + p[2] * np.log10(
-        np.abs(np.abs(bb) + p[3] * np.cos(np.deg2rad(l)) + p[4]))
+        np.abs(np.abs(b) + p[3] * np.cos(np.deg2rad(l)) + p[4]))
 
     # this just maps x -> x when x<th
     # and then x-> (1+alpha)*(x-th)+th when x>th
@@ -2776,11 +2776,18 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
 
     # ADM determine if an object is a BACKUP target.
     primary = np.ones_like(gaiaobjs, dtype=bool)
-    backup_bright, backup_faint, backup_very_faint, backup_hip_giant, backup_lowp_giant = targcuts.isBACKUP(
+    if survey == 'main':
+        (backup_bright, backup_faint, backup_very_faint, backup_hip_giant,
+         backup_lowp_giant) = targcuts.isBACKUP(
             ra=ra, dec=dec, gaiagmag=gaiagmag,
             gaiabmag=gaiabmag, gaiarmag=gaiarmag,
             parallax=parallax, parallaxerr=parallaxerr,
             primary=primary)
+    else:
+        (backup_bright, backup_faint, backup_very_faint) = targcuts.isBACKUP(
+            ra=ra, dec=dec, gaiagmag=gaiagmag,
+            primary=primary)
+        
 
     # ADM determine if a target is a Gaia-only standard.
     primary = np.ones_like(gaiaobjs, dtype=bool)
