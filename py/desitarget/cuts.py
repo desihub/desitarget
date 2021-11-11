@@ -452,7 +452,9 @@ def isBACKUP(ra=None, dec=None,
     # Subsampled subset of high priority giants
     is_backup_giant &= giant_hpsub_sel
     is_backup_lowp_giant &= (giant_sel & (~giant_hpsub_sel))
-
+    # do not select low priority distant giants in the galactic plane
+    is_backup_lowp_giant &= (~in_gal)
+    
     # APC faint targets are 16 < G < 18
     isbackupfaint &= gaiagmag >= 16.0
     isbackupfaint &= gaiagmag < 18.0
