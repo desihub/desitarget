@@ -6,6 +6,7 @@ desitarget Change Log
 ------------------
 
 * Add ``ARCHIVEDATE`` to the mtl done files and data model [`PR #773`_].
+    * Also change the type of ``ZDATE`` to int64.
 * Fix some variable name typos in the target selection code [`PR #770`_].
   All of those likely never were triggered in production.
 * Find MTL-processed tiles that don't overlap future tiles [`PR #768`_]:

@@ -60,7 +60,7 @@ zcatdatamodel = np.array([], dtype=[
 
 mtltilefiledm = np.array([], dtype=[
     ('TILEID', '>i4'), ('TIMESTAMP', 'U25'), ('VERSION', 'U14'),
-    ('PROGRAM', 'U6'), ('ZDATE', 'U8'), ('ARCHIVEDATE', 'U8')
+    ('PROGRAM', 'U6'), ('ZDATE', '>i8'), ('ARCHIVEDATE', '>i8')
     ])
 
 
@@ -1815,7 +1815,7 @@ def make_zcat(zcatdir, tiles, obscon, survey):
     for tile in tiles:
         # ADM build the correct directory structure.
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
-        ymdir = os.path.join(tiledir, tile["ZDATE"])
+        ymdir = os.path.join(tiledir, str(tile["ZDATE"]))
         # ADM and retrieve the zmtl catalog (orig name zqso/lyazcat)
         qsozcatfns = sorted(glob(os.path.join(ymdir, "zmtl*fits")))
         for qsozcatfn in qsozcatfns:
@@ -1890,7 +1890,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
     for tile in tiles:
         # ADM build the correct directory structure.
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
-        ymdir = os.path.join(tiledir, tile["ZDATE"])
+        ymdir = os.path.join(tiledir, str(tile["ZDATE"]))
         # ADM and retrieve the redshifts.
         zbestfns = sorted(glob(os.path.join(ymdir, "zbest*")))
         for zbestfn in zbestfns:
