@@ -1766,6 +1766,8 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey):
     newtiles["PROGRAM"] = obscon
     # ADM the final processed date for the redshifts.
     newtiles["ZDATE"] = tiles["LASTNIGHT"]
+    # ADM the date the tile was archived.
+    newtiles["ARCHIVEDATE"] = tiles["ARCHIVEDATE"]
 
     return newtiles
 
