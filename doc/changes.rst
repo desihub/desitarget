@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.0.0 (unreleased)
+2.0.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.0.0 (2021-11-11)
 ------------------
 
 * Add ``ARCHIVEDATE`` to the mtl done files and data model [`PR #773`_].
@@ -23,7 +28,6 @@ desitarget Change Log
 .. _`PR #768`: https://github.com/desihub/desitarget/pull/768
 .. _`PR #770`: https://github.com/desihub/desitarget/pull/770
 .. _`PR #773`: https://github.com/desihub/desitarget/pull/773
-
 
 1.3.0 (2021-09-20)
 ------------------
