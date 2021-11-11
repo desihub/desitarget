@@ -2,9 +2,12 @@
 desitarget Change Log
 =====================
 
-1.3.1 (unreleased)
+2.0.0 (unreleased)
 ------------------
 
+* Add ``ARCHIVEDATE`` to the mtl done files and data model [`PR #773`_].
+* Fix some variable name typos in the target selection code [`PR #770`_].
+  All of those likely never were triggered in production.
 * Find MTL-processed tiles that don't overlap future tiles [`PR #768`_]:
     * Add code to purge such tiles from the MTL done files and ledgers.
     * Also improve reading headers and header values from .ecsv files.
@@ -12,13 +15,12 @@ desitarget Change Log
 * Update targetmask and cuts for backup program [`PR #766`_]:
     * Matches description in backup program document.
 * Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
-* Fix a few variable name typos in the target selection code [`PR #770`_].
-  All of those likely never were triggered in production.
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
 .. _`PR #766`: https://github.com/desihub/desitarget/pull/766
 .. _`PR #768`: https://github.com/desihub/desitarget/pull/768
 .. _`PR #770`: https://github.com/desihub/desitarget/pull/770
+.. _`PR #773`: https://github.com/desihub/desitarget/pull/773
 
 
 1.3.0 (2021-09-20)
