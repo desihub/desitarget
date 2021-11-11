@@ -2811,8 +2811,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
-    mws_target |= backup_hip_giant * mws_mask.BACKUP_GIANT
-    mws_target |= backup_lowp_giant * mws_mask.BACKUP_GIANT_LOP
+    if survey == 'main':
+      mws_target |= backup_hip_giant * mws_mask.BACKUP_GIANT
+      mws_target |= backup_lowp_giant * mws_mask.BACKUP_GIANT_LOP
     mws_target |= std_faint * mws_mask.GAIA_STD_FAINT
     mws_target |= std_bright * mws_mask.GAIA_STD_BRIGHT
     mws_target |= std_wd * mws_mask.GAIA_STD_WD
