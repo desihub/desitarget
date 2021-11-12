@@ -1862,14 +1862,14 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         return make_zcat_rr_backstop(zcatdir, tiles, obscon, survey)
 
     # ADM the root directory in the data model.
-    rootdir = os.path.join(zcatdir, "tiles", "cumulative")
+    rootdir = os.path.join(zcatdir, "tiles", "archive")
 
     # ADM for each tile, read in the spectroscopic and targeting info.
     allzs = []
     for tile in tiles:
         # ADM build the correct directory structure.
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
-        ymdir = os.path.join(tiledir, str(tile["ZDATE"]))
+        ymdir = os.path.join(tiledir, str(tile["ARCHIVEDATE"]))
         # ADM and retrieve the zmtl catalog (orig name zqso/lyazcat)
         qsozcatfns = sorted(glob(os.path.join(ymdir, "zmtl*fits")))
         for qsozcatfn in qsozcatfns:
@@ -2109,7 +2109,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include
-    # ADM ZTILEID, and other columns addes for the Main Survey. These
+    # ADM ZTILEID, and other columns added for the Main Survey. These
     # ADM columns may not be needed for non-ledger simulations.
     # ADM Note that the data model differs with survey type.
     zcatdm = survey_data_model(zcatdatamodel, survey=survey)
