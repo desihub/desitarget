@@ -1772,8 +1772,11 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
         if ncheck > 0:
             msg = "{} tile(s) that have been processed by MTL".format(ncheck)
             msg += " are missing from the ZTILES file!!!"
-            log.critical(msg)
-            raise ValueError(msg)
+            log.warning(msg)
+            msg = "This might be because some zdone=true tiles have been set to "
+            msg += "false in tiles-specstatus.ecsv for reprocessing. Tiles are:"
+            log.info(msg)
+            log.info(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
 
     # ADM extract the updated tiles.
     if donetiles is None:
@@ -1870,6 +1873,12 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         # ADM build the correct directory structure.
         tiledir = os.path.join(rootdir, str(tile["TILEID"]))
         ymdir = os.path.join(tiledir, str(tile["ARCHIVEDATE"]))
+        # ADM explicitly check if the directory has been created.
+        if not os.path.isdir(ymdir):
+            msg = "{} is pointed to in the tiles-specstatus.ecsv".format(ymdir)
+            msg += " file but does not exist!!!"
+            log.critical(msg)
+            raise RuntimeError(msg)
         # ADM and retrieve the zmtl catalog (orig name zqso/lyazcat)
         qsozcatfns = sorted(glob(os.path.join(ymdir, "zmtl*fits")))
         for qsozcatfn in qsozcatfns:
