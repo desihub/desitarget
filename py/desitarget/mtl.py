@@ -2263,7 +2263,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         If ``True`` find reprocessed tiles (tiles with an ARCHIVEDATE in
         the tiles-specstatus file later than their TIMESTAMP in the
         mtl-done-tiles file) instead of tiles that are newly done and
-        process using special logic.
+        process using special reprocessing logic.
 
     Returns
     -------
