@@ -32,7 +32,7 @@ ap.add_argument("-nosec", "--nosecondary", action='store_true',
                 in addition to the primaries so they keep pace. Pass this if    \
                 there are no secondaries to process")
 ap.add_argument("-reproc", "--reprocess", action='store_true',
-                help="Run reprocessed tiles (in addition to the standard loop)")
+                help="Run reprocessed tiles (instead of the standard loop)")
 
 ns = ap.parse_args()
 
@@ -46,21 +46,15 @@ if ns.obscon in ["BRIGHT", "DARK"]:
     if not(ns.nosecondary):
         scndstates = [True, False]
 
+premsg = ["Processed", "REprocessed"][ns.reprocess]
 for secondary in scndstates:
     # ADM run through the regular loop once.
     hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
         ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-        numobs_from_ledger=numobs_from_ledger, secondary=secondary)
+        numobs_from_ledger=numobs_from_ledger, secondary=secondary,
+        reprocess=ns.reprocess)
 
     log.info("MTL ledger directory: {}".format(hpdirname))
     log.info("MTL tile file: {}".format(mtltilefn))
     log.info("Redshift tile file: {}".format(tilefn))
-    log.info("Processed {} new tiles, which are: {}".format(len(tiles), tiles))
-
-    # ADM perhaps also do the re-processing.
-    if ns.reprocess:
-        log.info("Also reprocessing...")
-        _, _, _, tiles = loop_ledger(
-            ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-            numobs_from_ledger=numobs_from_ledger, secondary=secondary)
-        log.info("Reprocessed {} tiles, which are: {}".format(len(tiles), tiles))
+    log.info("{} {} tiles, which are: {}".format(premsg, len(tiles), tiles))

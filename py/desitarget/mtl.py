@@ -1975,7 +1975,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
         donetiles = io.read_mtl_tile_file(mtltilefn)
         # ADM check loop from ZTILES to MTL_DONE_TILES isn't out-of-sync.
         ncheck = len(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
-        if ncheck > 0:
+        if ncheck > 0 and not reprocess:
             msg = "{} tile(s) that have been processed by MTL".format(ncheck)
             msg += " are missing from the ZTILES file!!!"
             log.warning(msg)
