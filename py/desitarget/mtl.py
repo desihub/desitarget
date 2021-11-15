@@ -1975,7 +1975,7 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
         donetiles = io.read_mtl_tile_file(mtltilefn)
         # ADM check loop from ZTILES to MTL_DONE_TILES isn't out-of-sync.
         ncheck = len(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
-        if ncheck > 0 and not reprocess:
+        if ncheck > 0:
             msg = "{} tile(s) that have been processed by MTL".format(ncheck)
             msg += " are missing from the ZTILES file!!!"
             log.warning(msg)
@@ -1990,14 +1990,16 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
         tiles = alltiles
     elif reprocess:
         # ADM match the done tiles to tiles-specstatus file on TILEID.
-        ii = match_to(alltiles["TILEID"], donetiles["TILEID"])
+        aii, dii = match(alltiles["TILEID"], donetiles["TILEID"])
         # ADM quick check that we've matched everything.
-        if len(donetiles) != len(ii):
+        if len(donetiles) != len(dii):
             msg = "{} tiles in {} only matched to {} tiles in {}!!!".format(
-                len(donetiles), mtltilefn, len(ii), ztilefn)
-            log.critical(msg)
-            raise RuntimeError(msg)
-        matchedtiles = alltiles[ii]
+                len(donetiles), mtltilefn, len(dii), ztilefn)
+            log.warning(msg)
+            msg = "Again, this might be as some zdone=true tiles have been set "
+            msg += "to false for further reprocessing (see above)."
+            log.info(msg)
+        matchedtiles, donetiles = alltiles[aii], donetiles[dii]
         # ADM convert the TIMESTAMP for the done tiles to a DESI night.
         donenight = utc_date_to_night(donetiles["TIMESTAMP"])
         # ADM check for tiles that were archived on a date later than
