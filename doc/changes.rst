@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.1.0 (unreleased)
+2.1.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.1.0 (2021-11-16)
 ------------------
 
 * First steps towards MTL for reprocessed tiles [`PR #774`_]. Includes:
