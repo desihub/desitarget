@@ -2,10 +2,22 @@
 desitarget Change Log
 =====================
 
-2.0.1 (unreleased)
+2.1.0 (unreleased)
 ------------------
 
-* No changes yet.
+* First steps towards MTL for reprocessed tiles [`PR #774`_]. Includes:
+    * Finding reprocessed tiles using ``ARCHIVEDATE`` and ``TIMESTAMP``.
+    * Adding a ``--reprocess`` option to the run_mtl_loop script.
+        * MTL will only reprocess when forced to do so.
+    * Keep reprocessing completely separate from "standard" MTL looping.
+        * So the approaches can be run independently.
+    * Looser error checking because we may be reprocessing piecemeal.
+        * i.e. zdone could change from true to false for some tiles.
+    * The skeleton of the logic for updating reprocessed targets.
+        * In the :func:`mtl.reprocess_ledger()` function.
+        * This will need tested and updated in a future PR.
+
+.. _`PR #774`: https://github.com/desihub/desitarget/pull/774
 
 2.0.0 (2021-11-11)
 ------------------
