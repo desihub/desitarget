@@ -901,7 +901,7 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
 
     # ADM second, remove the tiles from the done file.
     # ADM to store the removed tiles.
-    inmtltiles = io.read_mtl_tile_file(mtltilefn)
+    inmtltiles = io.read_mtl_tile_file(mtltilefn, unique=False)
     # ADM guarantee that the output Table will be in the required format.
     mtltiles = np.empty_like(mtltilefiledm, shape=len(inmtltiles))
     for col in mtltilefiledm.dtype.names:
