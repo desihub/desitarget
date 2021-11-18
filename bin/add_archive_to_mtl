@@ -1,0 +1,69 @@
+#!/usr/bin/env python
+
+import os
+import numpy as np
+from astropy.table import Table
+
+from desitarget.mtl import get_mtl_dir, get_mtl_tile_file_name, mtltilefiledm
+from desitarget.mtl import get_ztile_file_name
+from desitarget.geomask import match_to
+from desitarget import io
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Convenience script to look up initial ARCHIVEDATE in the tiles-specstatus file and add to the mtl-done-tiles and scnd-mtl-done-tiles files')
+ap.add_argument('--mtldir',
+                help="Full path to the directory that hosts the MTL ledgers.    \
+                Default is to use the $MTL_DIR environment variable.",
+                default=None)
+
+ns = ap.parse_args()
+
+# ADM grab the MTL directory (in case None was passed).
+mtldir = get_mtl_dir(ns.mtldir)
+log.info("MTL directory is {}".format(mtldir))
+
+# ADM determine the ops directory and ztile file.
+opsdir = os.path.join(mtldir[:-3], 'ops')
+ztilefn = os.path.join(opsdir, get_ztile_file_name())
+ztiles = Table.read(ztilefn)
+
+# ADM for both the secondary and primary done files...
+for sec in True, False:
+    # ADM ...derive the done file name and read in the tiles.
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(secondary=sec))
+    tiles = io.read_mtl_tile_file(mtltilefn)
+
+    # ADM now match to the tiles-specstatus file on TILEID.
+    ii = match_to(ztiles["TILEID"], tiles["TILEID"])
+    # ADM and check we've matched everything.
+    if len(tiles) != len(ii):
+        msg = "{} tiles in {} only matched to {} tiles in {}!!!".format(
+            len(tiles), mtltilefn, len(ii), ztilefn)
+        log.critical(msg)
+        raise RuntimeError(msg)
+
+    # ADM set up a new array copy to ensure the dtype is correct.
+    newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
+    for col in tiles.dtype.names:
+        newtiles[col] = tiles[col]
+        # ADM add the matching ARCHIVEDATEs.
+        newtiles["ARCHIVEDATE"] = ztiles[ii]["ARCHIVEDATE"]
+
+    # ADM write to a new location, or the info would be appended.
+    io.write_mtl_tile_file(mtltilefn + ".tmp", newtiles)
+
+    # ADM then copy the new file into the old location, first we
+    # ADM may as well check for sure if we want to proceed.
+    msg = "About to copy {} over {}. Proceed (y/n)?".format(
+        mtltilefn + ".tmp", mtltilefn)
+    yorn = input(msg).lower()
+    if yorn == 'y':
+        os.rename(mtltilefn+'.tmp', mtltilefn)
+        log.info("{} copied over {}".format(mtltilefn + ".tmp", mtltilefn))
+    else:
+        log.info("{} NOT copied over {}".format(mtltilefn + ".tmp", mtltilefn))
+        os.remove(mtltilefn + ".tmp")
+        log.info("{} was removed, instead.".format(mtltilefn + ".tmp"))
