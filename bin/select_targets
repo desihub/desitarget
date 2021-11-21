@@ -251,7 +251,7 @@ if ns.bundlefiles is None:
             maskbits=not(ns.nomaskbits), indir=ns.sweepdir, indir2=ns.sweepdir2,
             obscon=obscon, scndout=scndout, survey="main", nsidefile=ns.nside,
             hpxlist=pixlist, supp=supp, qso_selection=ns.qsoselection,
-            extra=extra, extradeps=extradeps,
+            extra=extra, extradeps=extradeps, nosec=ns.nosecondary,
             infiles=shatab, checkbright=ns.checkbright
         )
         log.info('{} targets written to {}...t={:.1f}s'.format(ntargs, outfile, time()-start))
