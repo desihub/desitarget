@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.1.1 (unreleased)
+2.2.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.2.0 (2021-11-21)
 ------------------
 
 * Add ``SCND_TARGET`` for backup targets if nosec is passed [`PR #775`_].
