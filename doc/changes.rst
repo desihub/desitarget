@@ -5,9 +5,17 @@ desitarget Change Log
 2.1.1 (unreleased)
 ------------------
 
+* Add ``SCND_TARGET`` for backup targets if nosec is passed [`PR #775`_].
+* Add another MWS backup object type BACKUP_GIANT_LOP. The default
+  BACKUP_GIANT category is now downsampled with galactic latitude to
+  avoid having large densities [`PR #772`_].
+* Change backup target priorities to be between 15-30 to be able to place
+  new object types in between [`PR #772`_].
 * Use Gaia to look up good sky positions for stuck fibers [`PR #771`_].
 
 .. _`PR #771`: https://github.com/desihub/desitarget/pull/771
+.. _`PR #772`: https://github.com/desihub/desitarget/pull/772
+.. _`PR #775`: https://github.com/desihub/desitarget/pull/775
 
 2.1.0 (2021-11-16)
 ------------------
@@ -43,17 +51,11 @@ desitarget Change Log
 * Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
 * Fix a few variable name typos in the target selection code [`PR #770`_].
   All of those likely never were triggered in production.
-* Add another MWS backup object type BACKUP_GIANT_LOP. The default
-  BACKUP_GIANT category is now downsampled with galactic latitude to
-  avoid having large densities [`PR #772`_].
-* Change backup target priorities to be between 15-30 to be able to place
-  new object types in between [`PR #772`_].
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
 .. _`PR #766`: https://github.com/desihub/desitarget/pull/766
 .. _`PR #768`: https://github.com/desihub/desitarget/pull/768
 .. _`PR #770`: https://github.com/desihub/desitarget/pull/770
-.. _`PR #772`: https://github.com/desihub/desitarget/pull/772
 .. _`PR #773`: https://github.com/desihub/desitarget/pull/773
 
 1.3.0 (2021-09-20)

@@ -337,9 +337,10 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
 
     return std_faint, std_bright, std_wd
 
+
 def backupGiantDownsample(l, b):
     """
-    Return the downsampling factor as a function of l,b 
+    Return the downsampling factor as a function of l,b
 
     Parameters
     ----------
@@ -351,7 +352,7 @@ def backupGiantDownsample(l, b):
     Returns
     -------
     frac: array
-         The fraction of objects to select        
+         The fraction of objects to select
     """
     p = [6.9529434, 0.18786695, -2.6621607, -3.05095354, 8.10060927]
 
@@ -367,7 +368,6 @@ def backupGiantDownsample(l, b):
 
     subsamp = np.minimum(100 / 10**mapper(ldens, .1, .0), 1)
     return subsamp
-
 
 
 def isBACKUP(ra=None, dec=None,
@@ -445,7 +445,7 @@ def isBACKUP(ra=None, dec=None,
 
     # APC and are likely giants
     gal = SkyCoord(ra*u.degree, dec*u.degree).galactic
-    l, b = gal.l.to_value(u.degree), gal.b.to_value(u.degree)    
+    l, b = gal.l.to_value(u.degree), gal.b.to_value(u.degree)
 
     lowlat_fraction = backupGiantDownsample(l, b)
     giant_hpsub_sel = random_fraction_of_trues(lowlat_fraction, giant_hp_sel)
@@ -454,7 +454,7 @@ def isBACKUP(ra=None, dec=None,
     is_backup_lowp_giant &= (giant_sel & (~giant_hpsub_sel))
     # do not select low priority distant giants in the galactic plane
     is_backup_lowp_giant &= (~in_gal)
-    
+
     # APC faint targets are 16 < G < 18
     isbackupfaint &= gaiagmag >= 16.0
     isbackupfaint &= gaiagmag < 18.0
@@ -2797,7 +2797,6 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
         (backup_bright, backup_faint, backup_very_faint) = targcuts.isBACKUP(
             ra=ra, dec=dec, gaiagmag=gaiagmag,
             primary=primary)
-        
 
     # ADM determine if a target is a Gaia-only standard.
     primary = np.ones_like(gaiaobjs, dtype=bool)
@@ -2814,8 +2813,8 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
     if survey == 'main':
-      mws_target |= backup_hip_giant * mws_mask.BACKUP_GIANT
-      mws_target |= backup_lowp_giant * mws_mask.BACKUP_GIANT_LOP
+        mws_target |= backup_hip_giant * mws_mask.BACKUP_GIANT
+        mws_target |= backup_lowp_giant * mws_mask.BACKUP_GIANT_LOP
     mws_target |= std_faint * mws_mask.GAIA_STD_FAINT
     mws_target |= std_bright * mws_mask.GAIA_STD_BRIGHT
     mws_target |= std_wd * mws_mask.GAIA_STD_WD

@@ -458,7 +458,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
                   obscon=None, mockdata=None, supp=False, extra=None,
-                  extradeps=None,
+                  extradeps=None, nosec=False,
                   infiles=None, checkbright=False, subpriority=True):
     """Write target catalogues.
 
@@ -511,6 +511,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         values to the output header.
     extradeps : :class:`dict`, optional
         If not None, add extra DEPNAMnn/DEPVERnn keywords to output header
+    nosec : :class:`bool`, optional, defaults to ``False``
+        Written to the output file header as `NOSEC`. If both this kwarg
+        and `supp` are ``True``, add a `SCND_TARGET` column to the file.
     infiles : :class:`list` or `~numpy.ndarray`, optional
         If passed (and not None), write a second extension "INFILES" that
         contains the files in `infiles` and their SHA-256 checksums. If
@@ -618,15 +621,31 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         for key, value in extradeps.items():
             depend.setdep(hdr, key, value)
 
+    # ADM in case we need to add a SCND_TARGET column.
+    from desitarget.secondary import outdatamodel as sdm
+    desicols, _, _ = main_cmx_or_sv(data, scnd=True)
+    _, scnd_target = desicols[0], desicols[3]
+    stdt = sdm["SCND_TARGET"].dtype
+
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
-        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        flds, vals = [], []
+        # ADM to save time/memory, can add SCND_TARGET if needed, too.
+        if supp and nosec:
+            flds.append(scnd_target)
+            vals.append(np.zeros(len(data), dtype=stdt))
+        flds.append("HPXPIXEL")
+        vals.append(hppix)
+        data = rfn.append_fields(data, flds, vals, usemask=False)
         hdr.add_record(dict(name='HPXNSIDE', value=nside,
                             comment="HEALPix nside"))
         hdr.add_record(dict(name='HPXNEST', value=True,
                             comment="HEALPix nested (not ring) ordering"))
+    # ADM if we didn't use the speed-up to add SCND_TARGET, add it.
+    elif supp and nosec:
+        flds, vals = scnd_target, np.zeros(len(data), dtype=stdt)
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
@@ -648,6 +667,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     hdr["MASKBITS"] = maskbits
     # ADM indicate whether this is a supplemental file.
     hdr["BACKUP"] = supp
+    # ADM whether the nosecondary option was passed.
+    hdr["NOSEC"] = nosec
     # ADM add the Data Release to the header.
     if supp:
         hdr["GAIADR"] = gaiadr

@@ -11,6 +11,7 @@ Scripts based on desitarget.skybricks, adapted for healpix split.
 import os
 import numpy as np
 
+
 class Skyhealpixs(object):
     '''
     This class handles dynamic lookup of whether a given (RA,Dec)
