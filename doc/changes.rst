@@ -5,7 +5,9 @@ desitarget Change Log
 2.1.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Use Gaia to look up good sky positions for stuck fibers [`PR #771`_].
+
+.. _`PR #771`: https://github.com/desihub/desitarget/pull/771
 
 2.1.0 (2021-11-16)
 ------------------
@@ -30,7 +32,7 @@ desitarget Change Log
 * Add ``ARCHIVEDATE`` to the mtl done files and data model [`PR #773`_].
     * Also change the type of ``ZDATE`` to int64.
     * These changes will not generally be backward compatible for MTL.
-* Fix some variable name typos in the target selection code [`PR #770`_].
+* Fix some typos in variables' names in the targeting cuts [`PR #770`_].
   All of those likely never were triggered in production.
 * Find MTL-processed tiles that don't overlap future tiles [`PR #768`_]:
     * Add code to purge such tiles from the MTL done files and ledgers.
