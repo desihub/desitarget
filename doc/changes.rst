@@ -2,9 +2,38 @@
 desitarget Change Log
 =====================
 
-1.3.1 (unreleased)
+2.1.1 (unreleased)
 ------------------
 
+* Use Gaia to look up good sky positions for stuck fibers [`PR #771`_].
+
+.. _`PR #771`: https://github.com/desihub/desitarget/pull/771
+
+2.1.0 (2021-11-16)
+------------------
+
+* First steps towards MTL for reprocessed tiles [`PR #774`_]. Includes:
+    * Finding reprocessed tiles using ``ARCHIVEDATE`` and ``TIMESTAMP``.
+    * Adding a ``--reprocess`` option to the run_mtl_loop script.
+        * MTL will only reprocess when forced to do so.
+    * Keep reprocessing completely separate from "standard" MTL looping.
+        * So the approaches can be run independently.
+    * Looser error checking because we may be reprocessing piecemeal.
+        * i.e. zdone could change from true to false for some tiles.
+    * The skeleton of the logic for updating reprocessed targets.
+        * In the :func:`mtl.reprocess_ledger()` function.
+        * This will need tested and updated in a future PR.
+
+.. _`PR #774`: https://github.com/desihub/desitarget/pull/774
+
+2.0.0 (2021-11-11)
+------------------
+
+* Add ``ARCHIVEDATE`` to the mtl done files and data model [`PR #773`_].
+    * Also change the type of ``ZDATE`` to int64.
+    * These changes will not generally be backward compatible for MTL.
+* Fix some typos in variables' names in the targeting cuts [`PR #770`_].
+  All of those likely never were triggered in production.
 * Find MTL-processed tiles that don't overlap future tiles [`PR #768`_]:
     * Add code to purge such tiles from the MTL done files and ledgers.
     * Also improve reading headers and header values from .ecsv files.
@@ -12,16 +41,12 @@ desitarget Change Log
 * Update targetmask and cuts for backup program [`PR #766`_]:
     * Matches description in backup program document.
 * Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
-* Fix a few variable name typos in the target selection code [`PR #770`_].
-  All of those likely never were triggered in production.
-* Support Gaia-based look-up for good sky position for stuck fibers [`PR #771`_].
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
 .. _`PR #766`: https://github.com/desihub/desitarget/pull/766
 .. _`PR #768`: https://github.com/desihub/desitarget/pull/768
 .. _`PR #770`: https://github.com/desihub/desitarget/pull/770
-.. _`PR #771`: https://github.com/desihub/desitarget/pull/771
-
+.. _`PR #773`: https://github.com/desihub/desitarget/pull/773
 
 1.3.0 (2021-09-20)
 ------------------
