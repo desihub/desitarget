@@ -17,13 +17,15 @@ class Skyhealpixs(object):
     This class handles dynamic lookup of whether a given (RA,Dec)
     should make a good location for a sky fiber.
     '''
-    def __init__(self, skyhealpixs_dir=None):
+    def __init__(self, skyhealpixs_dir=None, nside=64, nest=True):
         '''
         Create a Skyhealpixs object, reading metadata.
 
         Parameters
         ----------
         skyhealpixs_dir : :class:`str`
+        nside (defaults to 64) : :class:`int`
+        nest (defaults to True) : :clasee:`bool`
             The directory to find skyhealpixs data files; if None, will read from
             SKYHEALPIXS_DIR environment variable.
         '''
@@ -34,8 +36,7 @@ class Skyhealpixs(object):
             raise RuntimeError('Environment variable SKYHEALPIXS_DIR is not set; '
                                'needed to look up dynamic sky fiber positions')
         self.skyhealpixs_dir = skyhealpixs_dir
-        # AR healpix settings hard-coded...
-        self.nside, self.nest = 64, True
+        self.nside, self.nest = nside, nest
 
     def lookup_position(self, ras, decs):
         '''
@@ -61,6 +62,9 @@ class Skyhealpixs(object):
         import healpy as hp
         log = get_logger()
 
+        # AR pixel padding in file name, taking the largest pixel number
+        npadpix = len(str(hp.nside2npix(self.nside)))
+
         # AR infos
         log.info(
             'settings : skyhealpixs_dir={}, nside={}, nest={}'.format(
@@ -68,7 +72,10 @@ class Skyhealpixs(object):
             )
         )
         log.info('the code will look for {} files'.format(
-                os.path.join(self.skyhealpixs_dir, 'skymap-?????.fits.gz'),
+                os.path.join(self.skyhealpixs_dir, 'skymap-{}.fits.gz'.format(
+                    "".join(np.repeat("?", npadpix)),
+                    )
+                ),
             )
         )
 
@@ -84,7 +91,8 @@ class Skyhealpixs(object):
             log.debug('Skyhealpixs: %i locations overlap healpix pixel %s' % (len(I), pix))
 
             # Read healpix file
-            fn = os.path.join(self.skyhealpixs_dir, 'skymap-{:05d}.fits.gz'.format(pix))
+            padpix = "{number:0{width}d}".format(number=pix, width=npadpix)
+            fn = os.path.join(self.skyhealpixs_dir, 'skymap-{}.fits.gz'.format(padpix))
             if not os.path.exists(fn):
                 log.warning('Missing "skyhealpix" file: {}'.format(fn))
                 continue
