@@ -2,12 +2,17 @@
 desitarget Change Log
 =====================
 
-2.2.1 (unreleased)
+2.2.2 (unreleased)
+------------------
+
+* No changes yet.
+
+2.2.1 (2021-11-22)
 ------------------
 
 * Small modification on skyhealpixs.py [`PR #776`_]:
-    * adjust the per-healpix file name
-    * set (nside, nest) arguments, defaulting to (64, True)
+    * Adjust the per-healpix file name.
+    * Set (nside, nest) arguments, defaulting to (64, True).
 
 .. _`PR #776`: https://github.com/desihub/desitarget/pull/776
 
