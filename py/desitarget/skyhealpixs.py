@@ -61,6 +61,17 @@ class Skyhealpixs(object):
         import healpy as hp
         log = get_logger()
 
+        # AR infos
+        log.info(
+            'settings : skyhealpixs_dir={}, nside={}, nest={}'.format(
+                self.skyhealpixs_dir, self.nside, self.nest,
+            )
+        )
+        log.info('the code will look for {} files'.format(
+                os.path.join(self.skyhealpixs_dir, 'skymap-?????.fits.gz'),
+            )
+        )
+
         # handle non-array iterables (eg lists) as inputs
         ras = np.array(ras)
         decs = np.array(decs)
