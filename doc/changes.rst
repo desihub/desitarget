@@ -5,7 +5,11 @@ desitarget Change Log
 2.2.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Small modification on skyhealpixs.py [`PR #776`_]:
+    * adjust the per-healpix file name
+    * set (nside, nest) arguments, defaulting to (64, True)
+
+.. _`PR #776`: https://github.com/desihub/desitarget/pull/776
 
 2.2.0 (2021-11-21)
 ------------------
