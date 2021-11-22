@@ -73,7 +73,7 @@ class Skyhealpixs(object):
             log.debug('Skyhealpixs: %i locations overlap healpix pixel %s' % (len(I), pix))
 
             # Read healpix file
-            fn = os.path.join(self.skyhealpixs_dir, 'gaia_skymap-{:05d}.fits.gz'.format(pix))
+            fn = os.path.join(self.skyhealpixs_dir, 'skymap-{:05d}.fits.gz'.format(pix))
             if not os.path.exists(fn):
                 log.warning('Missing "skyhealpix" file: {}'.format(fn))
                 continue
