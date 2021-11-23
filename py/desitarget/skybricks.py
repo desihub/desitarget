@@ -34,8 +34,10 @@ class Skybricks(object):
                                'needed to look up dynamic sky fiber positions')
         self.skybricks_dir = skybricks_dir
         skybricks_fn = os.path.join(self.skybricks_dir, 'skybricks-exist.fits')
-        self.skybricks = fitsio.read(skybricks_fn, upper=True)
+        self.skybricks,hdr = fitsio.read(skybricks_fn, upper=True, header=True)
         self.skykd = _radec2kd(self.skybricks['RA'], self.skybricks['DEC'])
+        # default skybricks are 1 x 1 deg.
+        self.brick_radius = hdr.get('SKYBRAD', 1.*np.sqrt(2.)/2.)
 
     def lookup_tile(self, tilera, tiledec, tileradius, ras, decs):
         '''
@@ -66,9 +68,7 @@ class Skybricks(object):
         from desiutil.log import get_logger
         log = get_logger()
 
-        # skybricks are 1 x 1 deg.
-        brickrad = (1. * np.sqrt(2.) / 2.)
-        searchrad = 1.01 * (tileradius + brickrad)
+        searchrad = 1.01 * (tileradius + self.brick_radius)
         # here, convert search radius to radians -- an overestimate vs
         # unit-sphere distance, but that's the safe direction.
         searchrad = np.deg2rad(searchrad)
@@ -78,17 +78,25 @@ class Skybricks(object):
         ras = np.array(ras)
         decs = np.array(decs)
         good_sky = np.zeros(ras.shape, bool)
-        # Check possibly-overlapping skybricks.
         for i in sky_inds:
-            # Do any of the query points overlap in the brick's RA,DEC unique-area bounding-box?
-            I = np.flatnonzero(
-                (ras >= self.skybricks['RA1'][i]) *
-                (ras < self.skybricks['RA2'][i]) *
-                (decs >= self.skybricks['DEC1'][i]) *
-                (decs < self.skybricks['DEC2'][i]))
-            log.debug('Skybricks: %i locations overlap skybrick %s' % (len(I), self.skybricks['BRICKNAME'][i]))
-            if len(I) == 0:
-                continue
+            # Check possibly-overlapping skybricks in [RA1,RA2], [DEC1,DEC2] boxes
+            # (if available)
+            have_radecbox = 'RA1' in self.skybricks.dtype.fields
+            if have_radecbox:
+                # Do any of the query points overlap in the brick's RA,DEC unique-area bounding-box?
+                ra1 = self.skybricks['RA1'][i]
+                ra2 = self.skybricks['RA2'][i]
+                I = np.flatnonzero(
+                    # RA wrap-around -- ra1 <= 360, ra2 >= 0
+                    np.logical_or((ra1 > ra2) * np.logical_or(ras >= ra1, ras <= ra2),
+                                  (ra1 <= ra2) * (ras >= ra1) * (ras <= ra2)) *
+                    (decs >= self.skybricks['DEC1'][i]) *
+                    (decs <  self.skybricks['DEC2'][i]))
+                log.debug('Skybricks: %i locations overlap skybrick %s' % (len(I), self.skybricks['BRICKNAME'][i]))
+                if len(I) == 0:
+                    continue
+            else:
+                I = np.arange(len(ras))
 
             # Read skybrick file, looking for fits.fz then fits.gz
             for ext in ['fz', 'gz']:
@@ -113,12 +121,13 @@ class Skybricks(object):
             x, y = w.wcs_world2pix(ras.flat[I], decs.flat[I], 0)
             x = np.round(x).astype(int)
             y = np.round(y).astype(int)
+            in_bounds = (x >= 0) * (x < W) * (y >= 0) * (y < H)
             # we have margins that should ensure this...
-            if not (np.all(x >= 0) and np.all(x < W) and np.all(y >= 0) and np.all(y < H)):
-                raise RuntimeError('Skybrick %s: locations project outside the brick bounds' % (self.skybricks['BRICKNAME'][i]))
+            if have_radecbox and not np.all(in_bounds):
+                raise RuntimeError('Skybrick %s: RA,Decs project outside the brick bounds' % (self.skybricks['BRICKNAME'][i]))
 
-            # FIXME -- look at surrounding pixels too??
-            good_sky.flat[I] = (skymap[y, x] == 0)
+            # Look at the nearest pixel in the skybrick map.
+            good_sky.flat[I[in_bounds]] = (skymap[y[in_bounds], x[in_bounds]] == 0)
         return good_sky
 
 
