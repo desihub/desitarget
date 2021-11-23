@@ -34,10 +34,13 @@ class Skybricks(object):
                                'needed to look up dynamic sky fiber positions')
         self.skybricks_dir = skybricks_dir
         skybricks_fn = os.path.join(self.skybricks_dir, 'skybricks-exist.fits')
-        self.skybricks,hdr = fitsio.read(skybricks_fn, upper=True, header=True)
+        self.skybricks = fitsio.read(skybricks_fn, upper=True)
+        hdr = fitsio.read_header(skybricks_fn)
         self.skykd = _radec2kd(self.skybricks['RA'], self.skybricks['DEC'])
         # default skybricks are 1 x 1 deg.
         self.brick_radius = hdr.get('SKYBRAD', 1.*np.sqrt(2.)/2.)
+        self.nside = hdr.get('SKYHPNS', None)
+        self.nest = True
 
     def lookup_tile(self, tilera, tiledec, tileradius, ras, decs):
         '''
@@ -78,25 +81,36 @@ class Skybricks(object):
         ras = np.array(ras)
         decs = np.array(decs)
         good_sky = np.zeros(ras.shape, bool)
+        have_radecbox = 'RA1' in self.skybricks.dtype.fields
+        have_nside = (self.nside is not None) and ('HEALPIX' in self.skybricks.dtype.fields)
+        if have_nside:
+            import healpy as hp
+            hps = hp.ang2pix(self.nside, np.radians((90. - decs)), np.radians(ras),
+                             nest=self.nest)
         for i in sky_inds:
             # Check possibly-overlapping skybricks in [RA1,RA2], [DEC1,DEC2] boxes
             # (if available)
-            have_radecbox = 'RA1' in self.skybricks.dtype.fields
             if have_radecbox:
                 # Do any of the query points overlap in the brick's RA,DEC unique-area bounding-box?
                 ra1 = self.skybricks['RA1'][i]
                 ra2 = self.skybricks['RA2'][i]
-                I = np.flatnonzero(
+                # normal case
+                if ra1 < ra2:
+                    raok = (ras >= ra1) * (ras <= ra2)
+                else:
                     # RA wrap-around -- ra1 <= 360, ra2 >= 0
-                    np.logical_or((ra1 > ra2) * np.logical_or(ras >= ra1, ras <= ra2),
-                                  (ra1 <= ra2) * (ras >= ra1) * (ras <= ra2)) *
-                    (decs >= self.skybricks['DEC1'][i]) *
-                    (decs <  self.skybricks['DEC2'][i]))
+                    raok = np.logical_or(ras >= ra1, ras <= ra2)
+                I = np.flatnonzero(raok *
+                                   (decs >= self.skybricks['DEC1'][i]) *
+                                   (decs <  self.skybricks['DEC2'][i]))
                 log.debug('Skybricks: %i locations overlap skybrick %s' % (len(I), self.skybricks['BRICKNAME'][i]))
-                if len(I) == 0:
-                    continue
+            elif have_nside:
+                # Do any of the query points land in this "brick's" healpix?
+                I = np.flatnonzero(hps == self.skybricks['HEALPIX'][i])
             else:
                 I = np.arange(len(ras))
+            if len(I) == 0:
+                continue
 
             # Read skybrick file, looking for fits.fz then fits.gz
             for ext in ['fz', 'gz']:
