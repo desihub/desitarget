@@ -11,8 +11,9 @@ Scripts based on desitarget.skybricks, adapted for healpix split.
 import os
 import numpy as np
 
+from desitarget.skybricks import Skybricks
 
-class Skyhealpixs(object):
+class Skyhealpixs(Skybricks):
     '''
     This class handles dynamic lookup of whether a given (RA,Dec)
     should make a good location for a sky fiber.
@@ -37,6 +38,13 @@ class Skyhealpixs(object):
                                'needed to look up dynamic sky fiber positions')
         self.skyhealpixs_dir = skyhealpixs_dir
         self.nside, self.nest = nside, nest
+
+    def lookup_tile(self, tilera, tiledec, tileradius, ras, decs):
+        '''
+        Looks up a set of RA,Dec positions that are all within a given
+        tile (disk on the sky).  Overrides the implementation in Skybricks.
+        '''
+        return lookup_position(self, ras, decs)
 
     def lookup_position(self, ras, decs):
         '''
@@ -87,7 +95,7 @@ class Skyhealpixs(object):
         pixs = hp.ang2pix(self.nside, np.radians((90. - decs)), np.radians(ras), nest=self.nest)
         # AR Check healpix pixels
         for pix in np.unique(pixs):
-            I = pixs == pix
+            I = (pixs == pix)
             log.debug('Skyhealpixs: %i locations overlap healpix pixel %s' % (len(I), pix))
 
             # Read healpix file
@@ -97,22 +105,6 @@ class Skyhealpixs(object):
                 log.warning('Missing "skyhealpix" file: {}'.format(fn))
                 continue
 
-            skymap, hdr = fitsio.read(fn, header=True)
-            H, W = skymap.shape
-            # create WCS object
-            w = WCS(naxis=2)
-            w.wcs.ctype = [hdr['CTYPE1'], hdr['CTYPE2']]
-            w.wcs.crpix = [hdr['CRPIX1'], hdr['CRPIX2']]
-            w.wcs.crval = [hdr['CRVAL1'], hdr['CRVAL2']]
-            w.wcs.cd = [[hdr['CD1_1'], hdr['CD1_2']],
-                        [hdr['CD2_1'], hdr['CD2_2']]]
-            x, y = w.wcs_world2pix(ras.flat[I], decs.flat[I], 0)
-            x = np.round(x).astype(int)
-            y = np.round(y).astype(int)
-            # we have margins that should ensure this...
-            if not (np.all(x >= 0) and np.all(x < W) and np.all(y >= 0) and np.all(y < H)):
-                raise RuntimeError('Skyhealpix %s: locations project outside the brick bounds' % (fn))
+            good_sky.flat[I] = self.lookup_positions_in_tile(fn, ras.flat[I], decs.flat[I])
 
-            # FIXME -- look at surrounding pixels too??
-            good_sky.flat[I] = (skymap[y, x] == 0)
         return good_sky

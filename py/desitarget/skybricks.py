@@ -101,26 +101,28 @@ class Skybricks(object):
                 log.warning('Missing "skybrick" file: %s/.fz' % fn)
                 continue
 
-            skymap, hdr = fitsio.read(fn, header=True)
-            H, W = skymap.shape
-            # create WCS object
-            w = WCS(naxis=2)
-            w.wcs.ctype = [hdr['CTYPE1'], hdr['CTYPE2']]
-            w.wcs.crpix = [hdr['CRPIX1'], hdr['CRPIX2']]
-            w.wcs.crval = [hdr['CRVAL1'], hdr['CRVAL2']]
-            w.wcs.cd = [[hdr['CD1_1'], hdr['CD1_2']],
-                        [hdr['CD2_1'], hdr['CD2_2']]]
-            x, y = w.wcs_world2pix(ras.flat[I], decs.flat[I], 0)
-            x = np.round(x).astype(int)
-            y = np.round(y).astype(int)
-            # we have margins that should ensure this...
-            if not (np.all(x >= 0) and np.all(x < W) and np.all(y >= 0) and np.all(y < H)):
-                raise RuntimeError('Skybrick %s: locations project outside the brick bounds' % (self.skybricks['BRICKNAME'][i]))
+            good_sky.flat[I] = self.lookup_positions_in_tile(fn, ras.flat[I], decs.flat[I])
 
-            # FIXME -- look at surrounding pixels too??
-            good_sky.flat[I] = (skymap[y, x] == 0)
         return good_sky
 
+    def lookup_positions_in_tile(self, tilefn, ras, decs):
+        skymap, hdr = fitsio.read(tilefn, header=True)
+        H, W = skymap.shape
+        # create WCS object
+        w = WCS(naxis=2)
+        w.wcs.ctype = [hdr['CTYPE1'], hdr['CTYPE2']]
+        w.wcs.crpix = [hdr['CRPIX1'], hdr['CRPIX2']]
+        w.wcs.crval = [hdr['CRVAL1'], hdr['CRVAL2']]
+        w.wcs.cd = [[hdr['CD1_1'], hdr['CD1_2']],
+                    [hdr['CD2_1'], hdr['CD2_2']]]
+        x, y = w.wcs_world2pix(ras, decs, 0)
+        x = np.round(x).astype(int)
+        y = np.round(y).astype(int)
+        # we have margins that should ensure this...
+        if not (np.all(x >= 0) and np.all(x < W) and np.all(y >= 0) and np.all(y < H)):
+            raise RuntimeError('Skybrick %s: locations project outside the brick bounds' % tilefn)
+        # FIXME -- look at surrounding pixels too??
+        return (skymap[y, x] == 0)
 
 def _radec2kd(ra, dec):
     """
