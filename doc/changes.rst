@@ -5,7 +5,9 @@ desitarget Change Log
 2.2.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Refactor skyhealpixs.py to subclass and provide the same API as skybricks.py [`PR #778`_]
+
+.. _`PR #778`: https://github.com/desihub/desitarget/pull/778
 
 2.2.1 (2021-11-22)
 ------------------
