@@ -1911,7 +1911,8 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
     return done
 
 
-def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
+def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
+                          batch=None):
     """Find tiles that are "done" but aren't yet in the MTL tile record.
 
     Parameters
@@ -1932,12 +1933,17 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
         If ``True`` find reprocessed tiles (tiles with an ARCHIVEDATE in
         the tiles-specstatus file later than their TIMESTAMP in the
         mtl-done-tiles file) instead of tiles that are newly done.
+    batch : :class:`int`, optional, defaults to ``None``
+        Only return the first `batch` tiles. The ``None`` default returns
+        all tiles. Useful for performing MTL updates in small batches. If
+        `batch` exceeds the total number of unprocessed tiles, all tiles
+        are returned. Tiles are sorted by TILEID for reproducibility.
 
     Returns
     -------
     :class:`~numpy.array`
-        An array of tiles that have not yet been processed and written to
-        the mtl tile file.
+        An array of tiles that are yet to be processed and written to the
+        mtl tile file. A subset is returned if `batch` is not ``None``.
 
     Notes
     -----
@@ -2033,6 +2039,13 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
     newtiles["ZDATE"] = tiles["LASTNIGHT"]
     # ADM the date the tile was archived.
     newtiles["ARCHIVEDATE"] = tiles["ARCHIVEDATE"]
+
+    # ADM sort on TILEID, just in case.
+    ii = np.argsort(newtiles["TILEID"])
+    newtiles = newtiles[ii]
+    # ADM if batching was requested, return the first n tiles.
+    if batch is not None and batch < len(newtiles):
+        return newtiles[:batch]
 
     return newtiles
 
@@ -2233,7 +2246,8 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
-                numobs_from_ledger=True, secondary=False, reprocess=False):
+                numobs_from_ledger=True, secondary=False, reprocess=False,
+                batch=None):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -2266,6 +2280,11 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         the tiles-specstatus file later than their TIMESTAMP in the
         mtl-done-tiles file) instead of tiles that are newly done and
         process using special reprocessing logic.
+    batch : :class:`int`, optional, defaults to ``None``
+        Only process the first `batch` tiles. The ``None`` default returns
+        all tiles. Useful for performing MTL updates in small batches. If
+        `batch` exceeds the total number of unprocessed tiles, all tiles
+        are returned. Tiles are sorted by TILEID for reproducibility.
 
     Returns
     -------
@@ -2311,7 +2330,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM grab an array of tiles that are yet to be processed.
     tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey,
-                                  reprocess=reprocess)
+                                  reprocess=reprocess, batch=batch)
 
     # ADM contruct the ZTILE filename, for logging purposes.
     ztilefn = get_ztile_file_name(survey=survey)
