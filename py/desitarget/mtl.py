@@ -1407,6 +1407,36 @@ def force_overrides(hpdirname, pixlist):
     return hpdirname
 
 
+def remove_overrides(mtl):
+    """Remove all targets that share a TARGETID with an OVERRIDE target
+
+    Parameters
+    ----------
+    mtl : :class:`~numpy.array` or `~astropy.table.Table`
+        An array of targets from a Merged Target List. Must contain at
+        least the column TARGET_STATE. Can contain duplicate TARGETIDs.
+
+    Returns
+    -------
+    :class:`~numpy.array` or `~astropy.table.Table`
+        The original `mtl` but all targets that have a TARGETID for which
+        one entry has the string "OVERRIDE" in TARGET_STATE are removed.
+    """
+    # ADM find OVERRIDE entries.
+    ii = np.array(["OVERRIDE" in ts for ts in mtl["TARGET_STATE"]])
+
+    # ADM find the set of TARGETIDs that have an OVERRIDE entry.
+    s = set(mtl[ii]["TARGETID"])
+
+    # ADM find the entries that do NOT have an OVERRIDE TARGETID.
+    ii = np.array([tid not in s for tid in mtl["TARGETID"]])
+
+    log.info("removing {} override entries".format(len(mtl)-np.sum(ii)))
+
+    # ADM return the input mtl without the OVERRIDE TARGETIDs.
+    return mtl[ii]
+
+
 def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     """
     Reprocess HEALPixel-split ledgers for targets with new redshifts.
@@ -1452,6 +1482,8 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM we'll read in too many targets, here, but that's OK as
     # ADM we'll soon match to just the relevant targets.
     targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=True)
+    # ADM remove OVERRIDE entries, which should never need reprocessed.
+    targets = remove_overrides(targets)
 
     # ADM match the zcat to the targets and restrict to just the
     # ADM relevant targets and zcat entries.
@@ -1480,6 +1512,8 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM now we're done with unobserved targets, read all observations
     # ADM of all targets (unique=False) and work tile-by-tile.
     targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=False)
+    # ADM remove OVERRIDE entries, which should never need reprocessed.
+    targets = remove_overrides(targets)
     # ADM sort by TIMESTAMP to ensure tiles are listed chronologically.
     targets = targets[np.argsort(targets["TIMESTAMP"])]
 
