@@ -384,6 +384,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     trimtozcat : :class:`bool`, optional, defaults to ``False``
         Only return targets that have been UPDATED (i.e. the targets with
         a match in `zcat`). Returns all targets if `zcat` is ``None``.
+        See important Notes about `trimtozcat`=``False``!!!
 
     Returns
     -------
@@ -399,8 +400,11 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
     Notes
     -----
-    - Sources in the zcat with `ZWARN` of `NODATA` are always ignored.
-    - The input `zcat` WILL BE MODIFIED. So, if a desire is that `zcat`
+    - Sources in the zcat with `ZWARN` of `BAD_SPECQA|BAD_PETALQA|NODATA`
+      are always ignored.
+    - As sources with `BAD_SPECQA|BAD_PETALQA|NODATA` are ignored they
+      will have ridiculous z-entries if `trimtozcat`=``False`` is passed!
+    - The input `zcat` MAY BE MODIFIED. If a desideratum is that `zcat`
       remains unaltered, make sure to copy `zcat` before passing it.
     """
     start = time()
@@ -1562,8 +1566,14 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM recover the initial ("UNOBS") mtl for this tile.
         initmtl = make_mtl(ttile, oc, trimcols=True)
         # ADM also recover the once-through-mtl updated state.
+        # ADM need to use trimtozcat=False to ensure firstmtl is the same
+        # ADM length as initmtl. This should be safe as any nonsense zcat
+        # ADM entries that we would discard will have zbad=True.
         firstmtl = make_mtl(initmtl, oc, zcat=ztile,
-                            trimtozcat=True, trimcols=True)
+                            trimtozcat=False, trimcols=True)
+        # ADM check for any nonsense entries that have zgood=True.
+        assert set(firstmtl[zbad]["TARGET_STATE"]) == {'UNOBS'}
+        assert set(firstmtl[zgood]["ZTILEID"]) == {tileid}
 
         # ADM there are 4 possible cases, but there's nothing to do when
         # ADM the new and old processing were bad & bad or good & good
@@ -1602,8 +1612,9 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM collect the results.
     mtl = np.concatenate(donemtl)
 
-    # ADM update the TIMESTAMP to now for all cases.
+    # ADM update the TIMESTAMP and VERSION to now/this for all cases.
     mtl["TIMESTAMP"] = get_utc_date(survey="main")
+    mtl["VERSION"] = dt_version
 
     # ADM re-collect everything on pixels for writing to ledgers.
     nside = _get_mtl_nside()
