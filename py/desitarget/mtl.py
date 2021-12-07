@@ -1462,8 +1462,14 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
     Returns
     -------
-    Nothing, but relevant ledger files are updated.
+    :class:`dict`
+        A dictionary where the keys are the integer TILEIDs and the values
+        are the TIMESTAMP at which that tile was reprocessed.
+
     """
+    # ADM the output dictionary.
+    timedict = {}
+
     # ADM find the general format for the ledger files in `hpdirname`.
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
@@ -1534,7 +1540,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM to hold the final list of updates:
     donemtl = [mtl]
     # ADM work separately on each tile one-by-one.
-    for tileid in set(zcat["ZTILEID"]):
+    for tileid in sorted(list(set(zcat["ZTILEID"]))):
         ztile = zcat[zcat["ZTILEID"] == tileid]
         ttile = targets[targets["ZTILEID"] == tileid]
 
@@ -1604,14 +1610,22 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         for col in reprocmtl.dtype.names:
             reprocmtl[col][firstcase] = initmtl[col][firstcase]
 
+        # ADM get the timestamp for this tile...
+        ts = get_utc_date(survey="main")
+        reprocmtl["TIMESTAMP"] = ts
+        # ADM ...and add it to the output dictionary.
+        timedict[tileid] = ts
+
         # ADM append this reprocessing to the MTL updates.
         donemtl.append(reprocmtl)
+
+        # ADM add a delay to ensure unique TIMESTAMPs.
+        sleep(1)
 
     # ADM collect the results.
     mtl = np.concatenate(donemtl)
 
-    # ADM update the TIMESTAMP and VERSION to now/this for all cases.
-    mtl["TIMESTAMP"] = get_utc_date(survey="main")
+    # ADM update the VERSION to the one being used, for all targets.
     mtl["VERSION"] = dt_version
 
     # ADM re-collect everything on pixels for writing to ledgers.
@@ -1646,7 +1660,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
             fitsio.write(fn+'.tmp', done, extname='MTL', header=hd, clobber=True)
             os.rename(fn+'.tmp', fn)
 
-    return
+    return timedict
 
 
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
@@ -2404,7 +2418,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM update the appropriate ledgers.
     if reprocess:
-        reprocess_ledger(hpdirname, zcat, obscon=obscon)
+        timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon)
     else:
         update_ledger(hpdirname, zcat, obscon=obscon,
                       numobs_from_ledger=numobs_from_ledger)
@@ -2412,8 +2426,13 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     # ADM for the main survey "holding pen" method, ensure the TIMESTAMP
     # ADM in the mtl-done-tiles file is always later than in the ledgers.
     if survey == "main":
-        sleep(1)
-        tiles["TIMESTAMP"] = get_utc_date(survey=survey)
+        # ADM when re-processing, a delay was already added, so get the
+        # ADM TIMESTAMP from the dictionary returned by reprocess_ledger.
+        if reprocess:
+            tiles["TIMESTAMP"] = [timedict[tid] for tid in tiles["TILEID"]]
+        else:
+            sleep(1)
+            tiles["TIMESTAMP"] = get_utc_date(survey=survey)
 
     # ADM write the processed tiles to the MTL tile file.
     io.write_mtl_tile_file(mtltilefn, tiles)
