@@ -16,7 +16,7 @@ from astropy.table import Table, hstack, vstack
 from astropy.io import ascii
 import fitsio
 from time import time, sleep
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
 from glob import glob, iglob
 
 from . import __version__ as dt_version
@@ -210,6 +210,46 @@ def get_utc_iso_date():
         UTC date in `STRICT ISO format`_, appropriate for a TIMESTAMP.
     """
     return datetime.now(tz=timezone.utc).isoformat(timespec='seconds')
+
+
+def get_local_iso_date():
+    """Convenience function to grab the local date in STRICT ISO format.
+
+    Returns
+    -------
+    :class:`str`
+        UTC date in `STRICT ISO format`_, appropriate for a TIMESTAMP.
+    """
+    return datetime.now().isoformat(timespec='seconds')
+
+
+def days_between_nights(date1, date2):
+    """Find the number of days between two dates in YYYYMMDD format
+
+    Parameters
+    ----------
+    date1, date2 : :class:`str` or `int` or `array_like`
+        Two dates or arrays of dates in YYYYMMDD format.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        Number of days between the dates. `date2` is assumed to be the
+        later date, so +ve answers are returned if `date2` > `date1`.
+    """
+    # ADM in case a single item was passed.
+    date1 = np.atleast_1d(date1)
+    date2 = np.atleast_1d(date2)
+
+    # ADM allow dates to be strings or integers.
+    date1, date2 = [str(d) for d in date1], [str(d) for d in date2]
+
+    day1 = [date(int(d1[:4]), int(d1[4:6]), int(d1[6:])).toordinal()
+            for d1 in date1]
+    day2 = [date(int(d2[:4]), int(d2[4:6]), int(d2[6:])).toordinal()
+            for d2 in date2]
+
+    return np.array(day2) - np.array(day1)
 
 
 def get_mtl_dir(mtldir=None):
@@ -1961,7 +2001,7 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
 
 
 def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
-                          batch=None):
+                          batch=None, delay=0):
     """Find tiles that are "done" but aren't yet in the MTL tile record.
 
     Parameters
@@ -1987,6 +2027,11 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
         all tiles. Useful for performing MTL updates in small batches. If
         `batch` exceeds the total number of unprocessed tiles, all tiles
         are returned. Tiles are sorted by TILEID for reproducibility.
+    delay : :class:`int`, optional, defaults to 0
+        Number of days since QA was done to delay before running MTL. For
+        instance, if the tile QANIGHT was (YYYYMMDD=) 20211203 and today
+        is 20211206 then delay must be <= 3 to process the tile. Only
+        applied if `survey` is "main" as SV had no concept of "QANIGHT".
 
     Returns
     -------
@@ -2073,6 +2118,10 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
     # ADM also must match the correct lower- or upper-case (OBSCON).
     ii &= ((tiles["FAPRGRM"] == obscon.lower()) |
            (tiles["FAPRGRM"] == obscon.upper()))
+    # ADM is we're working on main-survey tiles, add any requested delay.
+    if survey == "main":
+        now = utc_date_to_night(get_local_iso_date())
+        ii &= days_between_nights(tiles["QANIGHT"], now) >= delay
     tiles = tiles[ii]
 
     # ADM initialize the output array and add the tiles.
@@ -2296,7 +2345,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
                 numobs_from_ledger=True, secondary=False, reprocess=False,
-                batch=None):
+                batch=None, delay=0):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -2334,6 +2383,11 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         all tiles. Useful for performing MTL updates in small batches. If
         `batch` exceeds the total number of unprocessed tiles, all tiles
         are returned. Tiles are sorted by TILEID for reproducibility.
+    delay : :class:`int`, optional, defaults to 0
+        Number of days since QA was done to delay before running MTL. For
+        instance, if the tile QANIGHT was (YYYYMMDD=) 20211203 and today
+        is 20211206 then delay must be <= 3 to process the tile. Only
+        applied if `survey` is "main" as SV had no concept of "QANIGHT".
 
     Returns
     -------
@@ -2379,7 +2433,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM grab an array of tiles that are yet to be processed.
     tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey,
-                                  reprocess=reprocess, batch=batch)
+                                  reprocess=reprocess, batch=batch, delay=delay)
 
     # ADM contruct the ZTILE filename, for logging purposes.
     ztilefn = get_ztile_file_name(survey=survey)

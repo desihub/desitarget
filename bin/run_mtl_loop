@@ -6,6 +6,8 @@ log = get_logger()
 
 # ADM default survey to run.
 survey = "main"
+# ADM default delay to allow between QA and MTL.
+delay = 3
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Make an initial HEALPixel-split ledger for a Merged Target List based on a directory of targets')
@@ -36,6 +38,10 @@ ap.add_argument("--reprocess", action='store_true',
 ap.add_argument("-b", "--batch", type=int,
                 help='If passed, run BATCH tiles rather than all tiles',
                 default=None)
+ap.add_argument("-d", "--delay", type=int,
+                help="Number of days since QA was done to delay before running  \
+                MTL. Defaults to [{}]".format(delay),
+                default=delay)
 
 ns = ap.parse_args()
 
@@ -56,7 +62,7 @@ for secondary in scndstates:
     hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
         ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
         numobs_from_ledger=numobs_from_ledger, secondary=secondary,
-        reprocess=ns.reprocess, batch=ns.batch)
+        reprocess=ns.reprocess, batch=ns.batch, delay=ns.delay)
 
     log.info("MTL ledger directory: {}".format(hpdirname))
     log.info("MTL tile file: {}".format(mtltilefn))
