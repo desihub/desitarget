@@ -2135,11 +2135,12 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
         ii = np.array([tid in newtids for tid in alltiles["TILEID"]])
         tiles = alltiles[ii]
 
-    # ADM restrict the tiles to be processed to the correct survey.
+    # ADM restrict the tiles to be processed to the correct survey...
     ii = tiles["SURVEY"] == survey
-    # ADM also must match the correct lower- or upper-case (OBSCON).
+    # ADM ...and the correct lower- or upper-case program (OBSCON).
     ii &= ((tiles["FAPRGRM"] == obscon.lower()) |
            (tiles["FAPRGRM"] == obscon.upper()))
+    tiles = tiles[ii]
 
     # ADM initialize the output array and add the tiles.
     newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
