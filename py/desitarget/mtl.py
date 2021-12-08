@@ -1571,6 +1571,24 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     targets = remove_overrides(targets)
     # ADM sort by TIMESTAMP to ensure tiles are listed chronologically.
     targets = targets[np.argsort(targets["TIMESTAMP"])]
+    # ADM for speed, we only need to work with targets with a zcat entry.
+    ii = np.array([tid in s for tid in targets["TARGETID"]])
+    targets = targets[ii]
+
+    # ADM calculate which of the targets have good/bad redshifts.
+    Mxbad = "BAD_SPECQA|BAD_PETALQA|NODATA"
+    bad = targets["ZWARN"] & zwarn_mask.mask(Mxbad) != 0
+    good = ~bad
+    # ADM determine if any final entries for a target on a tile are good.
+    # ADM first, create a unique hash of TILEID and TARGETID.
+    tiletarg = [str(t["ZTILEID"]) + "-" + str(t["TARGETID"]) for t in targets]
+    # ADM find the final unique combination of TILEID and TARGETID. We
+    # ADM have to flip, here, as np.unique find the first unique entries.
+    tiletarg = np.flip(tiletarg)
+    _, ii = np.unique(tiletarg, return_index=True)
+    # ADM make sure to retain overall reverse-ordering.
+    ii = sorted(ii)
+    # ADM 
 
     # ADM need to know which targets were first observed on which tiles.
     obs = targets[targets["ZTILEID"] != -1]
