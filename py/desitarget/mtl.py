@@ -1533,6 +1533,13 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM remove OVERRIDE entries, which should never need reprocessed.
     targets = remove_overrides(targets)
 
+    # ADM holds the most recent numbers of observations for each target.
+    dt = [d for d in mtl.dtype.descr
+          if "TARGETID" in d or "NUMOBS" in d or "NUMOBS_MORE" in d]
+    nobshold = np.zeros(len(targets), dtype=dt)
+    for col in nobshold.dtype.names:
+        nobshold[col] = targets[col]
+
     # ADM match the zcat to the targets and restrict to just the
     # ADM relevant targets and zcat entries.
     tii, zii = match(targets["TARGETID"], zcat["TARGETID"])
@@ -1616,38 +1623,46 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         firstmtl = make_mtl(initmtl, oc, zcat=ztile,
                             trimtozcat=False, trimcols=True)
         # ADM check for any nonsense entries that have zgood=True.
-        assert set(firstmtl[zbad]["TARGET_STATE"]) == {'UNOBS'}
-        assert set(firstmtl[zgood]["ZTILEID"]) == {tileid}
+        assert set(firstmtl["TARGET_STATE"][zbad]) == {'UNOBS'}
+        assert set(firstmtl["ZTILEID"][zgood]) == {tileid}
 
-        # ADM there are 4 possible cases, but there's nothing to do when
+        # ADM there are 4 possible cases, but there's not much to do when
         # ADM the new and old processing were bad & bad or good & good
-        # ADM except update the z information for targets on the tile.
+        # ADM except update the z information for targets on the tile...
         reprocmtl = np.zeros(len(ttile), dtype=mtl.dtype)
         for col in reprocmtl.dtype.names:
             reprocmtl[col] = ttile[col]
         for col in ["Z", "ZWARN"] + list(msaddcols.dtype.names):
             reprocmtl[col] = ztile[col]
+        # ADM ...and retain the most recent numbers of observations.
+        rii, nii = match(reprocmtl["TARGETID"], nobshold["TARGETID"])
+        reprocmtl["NUMOBS"][rii] = nobshold["NUMOBS"][nii]
+        reprocmtl["NUMOBS_MORE"][rii] = nobshold["NUMOBS_MORE"][nii]
 
         # ADM CASE: Most recent processing was bad, new one is good.
         case = tbad & zgood
         # ADM generically, just acknowledge we have a good observation.
-        reprocmtl[case]["NUMOBS"] += 1
-        reprocmtl[case]["NUMOBS_MORE"] -= 1
+        reprocmtl["NUMOBS"][case] += 1
+        reprocmtl["NUMOBS_MORE"][case] -= 1
+        nobshold["NUMOBS"][nii[case]] -= 1
+        nobshold["NUMOBS_MORE"][nii[case]] += 1
         # ADM if the first observation was on this TILE, update to the
         # ADM first-observation-after-the-initial state.
         firstcase = case & firstseen
-        for col in reprocmtl.dtype.names:
+        for col in set(reprocmtl.dtype.names) - {"NUMOBS", "NUMOBS_MORE"}:
             reprocmtl[col][firstcase] = firstmtl[col][firstcase]
 
         # ADM CASE: Most recent processing was good, new one is bad.
         case = tgood & zbad
         # ADM generically, just acknowledge we have a bad observation.
-        reprocmtl[case]["NUMOBS"] -= 1
-        reprocmtl[case]["NUMOBS_MORE"] += 1
+        reprocmtl["NUMOBS"][case] -= 1
+        reprocmtl["NUMOBS_MORE"][case] += 1
+        nobshold["NUMOBS"][nii[case]] -= 1
+        nobshold["NUMOBS_MORE"][nii[case]] += 1
         # ADM if the first observation was on this TILE, update to the
-        # ADM unobserved state.
+        # ADM unobserved state. We've already update NUMOBS, NUMOBS_MORE.
         firstcase = case & firstseen
-        for col in reprocmtl.dtype.names:
+        for col in set(reprocmtl.dtype.names) - {"NUMOBS", "NUMOBS_MORE"}:
             reprocmtl[col][firstcase] = initmtl[col][firstcase]
 
         # ADM get the timestamp for this tile...
