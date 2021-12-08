@@ -2033,8 +2033,7 @@ def inflate_ledger(mtl, hpdirname, columns=None, header=False, strictcols=False,
     return done
 
 
-def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
-                          batch=None, delay=0):
+def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
     """Find tiles that are "done" but aren't yet in the MTL tile record.
 
     Parameters
@@ -2055,22 +2054,12 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
         If ``True`` find reprocessed tiles (tiles with an ARCHIVEDATE in
         the tiles-specstatus file later than their TIMESTAMP in the
         mtl-done-tiles file) instead of tiles that are newly done.
-    batch : :class:`int`, optional, defaults to ``None``
-        Only return the first `batch` tiles. The ``None`` default returns
-        all tiles. Useful for performing MTL updates in small batches. If
-        `batch` exceeds the total number of unprocessed tiles, all tiles
-        are returned. Tiles are sorted by TILEID for reproducibility.
-    delay : :class:`int`, optional, defaults to 0
-        Number of days since QA was done to delay before running MTL. For
-        instance, if the tile QANIGHT was (YYYYMMDD=) 20211203 and today
-        is 20211206 then delay must be <= 3 to process the tile. Only
-        applied if `survey` is "main" as SV had no concept of "QANIGHT".
 
     Returns
     -------
     :class:`~numpy.array`
         An array of tiles that are yet to be processed and written to the
-        mtl tile file. A subset is returned if `batch` is not ``None``.
+        mtl tile file.
 
     Notes
     -----
@@ -2151,11 +2140,6 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
     # ADM also must match the correct lower- or upper-case (OBSCON).
     ii &= ((tiles["FAPRGRM"] == obscon.lower()) |
            (tiles["FAPRGRM"] == obscon.upper()))
-    # ADM is we're working on main-survey tiles, add any requested delay.
-    if survey == "main":
-        now = utc_date_to_night(get_local_iso_date())
-        ii &= days_between_nights(tiles["QANIGHT"], now) >= delay
-    tiles = tiles[ii]
 
     # ADM initialize the output array and add the tiles.
     newtiles = np.zeros(len(tiles), dtype=mtltilefiledm.dtype)
@@ -2174,9 +2158,6 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False,
     # ADM sort on TILEID, just in case.
     ii = np.argsort(newtiles["TILEID"])
     newtiles = newtiles[ii]
-    # ADM if batching was requested, return the first n tiles.
-    if batch is not None and batch < len(newtiles):
-        return newtiles[:batch]
 
     return newtiles
 
@@ -2377,8 +2358,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
-                numobs_from_ledger=True, secondary=False, reprocess=False,
-                batch=None, delay=0):
+                numobs_from_ledger=True, secondary=False, reprocess=False):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -2411,16 +2391,6 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         the tiles-specstatus file later than their TIMESTAMP in the
         mtl-done-tiles file) instead of tiles that are newly done and
         process using special reprocessing logic.
-    batch : :class:`int`, optional, defaults to ``None``
-        Only process the first `batch` tiles. The ``None`` default returns
-        all tiles. Useful for performing MTL updates in small batches. If
-        `batch` exceeds the total number of unprocessed tiles, all tiles
-        are returned. Tiles are sorted by TILEID for reproducibility.
-    delay : :class:`int`, optional, defaults to 0
-        Number of days since QA was done to delay before running MTL. For
-        instance, if the tile QANIGHT was (YYYYMMDD=) 20211203 and today
-        is 20211206 then delay must be <= 3 to process the tile. Only
-        applied if `survey` is "main" as SV had no concept of "QANIGHT".
 
     Returns
     -------
@@ -2466,7 +2436,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM grab an array of tiles that are yet to be processed.
     tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey,
-                                  reprocess=reprocess, batch=batch, delay=delay)
+                                  reprocess=reprocess)
 
     # ADM contruct the ZTILE filename, for logging purposes.
     ztilefn = get_ztile_file_name(survey=survey)
