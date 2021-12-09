@@ -2088,6 +2088,9 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
     zdone = np.array(["true" in row for row in tilelookup["ZDONE"]])
     # ADM redshift processing must be complete.
     ii = zdone
+    if survey == "main":
+        # ADM tile must have been archived.
+        ii &= tilelookup["ARCHIVEDATE"] > 0
     alltiles = tilelookup[ii]
 
     # ADM read in the MTL tile file, guarding against it not having being
