@@ -1508,7 +1508,8 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
     """
     t0 = time()
-    log.info("Reprocessing...t={:.1f}s".format(time()-t0))
+    log.info("Reprocessing based on zcat with {} entries...t={:.1f}s"
+             .format(len(zcat), time()-t0))
     # ADM the output dictionary.
     timedict = {}
 
@@ -1540,7 +1541,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     nuniq = len(set(targets["TARGETID"]))
     log.info("Read {} targets with {} unique TARGETIDs...t={:.1f}s"
              .format(ntargs, nuniq, time()-t0))
-    log.info("Limiting to {} (unique) TARGETIDs in the zcat...t={:.1f}s"
+    log.info("Limiting targets to {} (unique) TARGETIDs in the zcat...t={:.1f}s"
              .format(len(set(zcat["TARGETID"])), time()-t0))
     s = set(zcat["TARGETID"])
     ii = np.array([tid in s for tid in targets["TARGETID"]])
@@ -1549,19 +1550,57 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     log.info("Retained {}/{} targets with {} unique TARGETIDs...t={:.1f}s"
              .format(len(targets), ntargs, nuniq, time()-t0))
 
+    # ADM split off the updated target states from the unobserved state.
+    unobs = targets[targets["ZTILEID"] == -1]
+    targets = targets[targets["ZTILEID"] != -1]
+    # ADM every target should have been unobserved at some point.
+    assert(len(set(targets["TARGETID"]) - set(unobs["TARGETID"])) == 0)
+    log.info("{} ({}) targets are in the unobserved (observed) state...t={:.1f}s"
+             .format(len(unobs), len(targets), time()-t0))
+
+    # ADM make a look-up dictionary of the TIMESTAMP of each TILEID.
+    _, ii = np.unique(targets["ZTILEID"], return_index=True)
+    tiletsdict = {tid:ts for tid, ts in targets[ii][["ZTILEID", "TIMESTAMP"]]}
+
+    # ADM assemble a zcat for all previous and reprocessed observations.
+    dt = [d for d in targets.dtype.descr if "TIMESTAMP" in d]
+    dt = zcat.dtype.descr + dt
+    zcatwithts = np.zeros(len(zcat), dtype=dt)
+    for col in zcat.dtype.names:
+        zcatwithts[col] = zcat[col]
+    # ADM add the official TIMESTAMP for the TILED for new redshifts.
+    timestamp = [tiletsdict[ztileid] for ztileid in zcat["ZTILEID"]]
+    zcatwithts["TIMESTAMP"] = timestamp
+    zcatfromtargs = np.zeros(len(targets), dtype=dt)
+    for col in zcatwithts.dtype.names:
+        zcatfromtargs[col] = targets[col]
+    # ADM note that the new redshifts will (deliberately) all be listed
+    # ADM last in this array, regardless of the actual TIMESTAMP.
+    allzcat = np.concatenate([zcatfromtargs, zcatwithts])
+    log.info("Assembled a zcat of {} total observations...t={:.1f}s"
+             .format(len(allzcat), time()-t0))
+
+    # ADM determine the FINAL observation for each TILED-TARGETID combo.
+    # ADM must flip first as np.unique finds the FIRST unique entries.
+    allzcat = np.flip(allzcat)
+    # ADM create a unique hash of TILEID and TARGETID.
+    tiletarg = [str(tt["ZTILEID"]) + "-" + str(tt["TARGETID"]) for tt in allzcat]
+    # ADM find the final unique combination of TILEID and TARGETID.
+    _, ii = np.unique(tiletarg, return_index=True)
+    # ADM make sure to retain exact reverse-ordering.
+    ii = sorted(ii)
+    # ADM condition on indexes-of-uniqueness and flip back.
+    allzcat = np.flip(allzcat[ii])
+    log.info("Found {} final TARGETID/TILEID combinations...t={:.1f}s"
+             .format(len(allzcat), time()-t0))
+
+
+
+
     # ADM calculate which of the targets have good/bad redshifts.
     Mxbad = "BAD_SPECQA|BAD_PETALQA|NODATA"
     bad = targets["ZWARN"] & zwarn_mask.mask(Mxbad) != 0
     good = ~bad
-    # ADM determine if any final entries for a target on a tile are good.
-    # ADM first, create a unique hash of TILEID and TARGETID.
-    tiletarg = [str(t["ZTILEID"]) + "-" + str(t["TARGETID"]) for t in targets]
-    # ADM find the final unique combination of TILEID and TARGETID. We
-    # ADM have to flip, here, as np.unique find the first unique entries.
-    tiletarg = np.flip(tiletarg)
-    _, ii = np.unique(tiletarg, return_index=True)
-    # ADM make sure to retain overall reverse-ordering.
-    ii = sorted(ii)
     # ADM 
 
     # ADM need to know which targets were first observed on which tiles.
