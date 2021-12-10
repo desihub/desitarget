@@ -1523,6 +1523,10 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         log.critical(msg)
         raise RuntimeError(msg)
 
+    # ADM check the zcat has unique TARGETID/TILEID combinations.
+    tiletarg = [str(tt["ZTILEID"]) + "-" + str(tt["TARGETID"]) for tt in zcat]
+    assert(len(set(tiletarg)) == len(tiletarg))
+
     # ADM read ALL targets from the relevant ledgers.
     ntiles = len(set(zcat["ZTILEID"]))
     log.info("Reading (all instances of) targets for {} tiles...t={:.1f}s"
@@ -1558,25 +1562,19 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     log.info("{} ({}) targets are in the unobserved (observed) state...t={:.1f}s"
              .format(len(unobs), len(targets), time()-t0))
 
-    # ADM make a look-up dictionary of the TIMESTAMP of each TILEID.
+    # ADM store first-time-through tile order to reproduce processing.
+    # ADM ONLY WORKS because we sorted by TIMESTAMP, above!
     _, ii = np.unique(targets["ZTILEID"], return_index=True)
-    tiletsdict = {tid:ts for tid, ts in targets[ii][["ZTILEID", "TIMESTAMP"]]}
+    # ADM remember to sort ii so that the first tiles appear first.
+    tileorder = targets["ZTILEID"][sorted(ii)]
 
     # ADM assemble a zcat for all previous and reprocessed observations.
-    dt = [d for d in targets.dtype.descr if "TIMESTAMP" in d]
-    dt = zcat.dtype.descr + dt
-    zcatwithts = np.zeros(len(zcat), dtype=dt)
+    zcatfromtargs = np.zeros(len(targets), dtype=zcat.dtype)
     for col in zcat.dtype.names:
-        zcatwithts[col] = zcat[col]
-    # ADM add the official TIMESTAMP for the TILED for new redshifts.
-    timestamp = [tiletsdict[ztileid] for ztileid in zcat["ZTILEID"]]
-    zcatwithts["TIMESTAMP"] = timestamp
-    zcatfromtargs = np.zeros(len(targets), dtype=dt)
-    for col in zcatwithts.dtype.names:
         zcatfromtargs[col] = targets[col]
-    # ADM note that the new redshifts will (deliberately) all be listed
-    # ADM last in this array, regardless of the actual TIMESTAMP.
-    allzcat = np.concatenate([zcatfromtargs, zcatwithts])
+    # ADM note that we'll retain the TIMESTAMPed order of the old ledger
+    # ADM entries and new redshifts will (deliberately) be listed last.
+    allzcat = np.concatenate([zcatfromtargs, zcat])
     log.info("Assembled a zcat of {} total observations...t={:.1f}s"
              .format(len(allzcat), time()-t0))
 
