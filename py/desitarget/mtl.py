@@ -697,7 +697,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
 def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     """
-    Create (or append to) a ledger to override the standard ledgers.
+    Find tiles in the MTL ledgers that do not overlap any future tile.
 
     Parameters
     ----------
@@ -1491,6 +1491,9 @@ def remove_overrides(mtl):
     :class:`~numpy.array` or `~astropy.table.Table`
         The original `mtl` but all targets that have a TARGETID for which
         one entry has the string "OVERRIDE" in TARGET_STATE are removed.
+
+    :class:`~numpy.array` or `~astropy.table.Table`
+        The targets that were removed.
     """
     # ADM find OVERRIDE entries.
     ii = np.array(["OVERRIDE" in ts for ts in mtl["TARGET_STATE"]])
@@ -1504,7 +1507,7 @@ def remove_overrides(mtl):
     log.info("removing {} override entries".format(len(mtl)-np.sum(ii)))
 
     # ADM return the input mtl without the OVERRIDE TARGETIDs.
-    return mtl[ii]
+    return mtl[ii], mtl[~ii]
 
 
 def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
@@ -1575,7 +1578,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=False)
 
     # ADM remove OVERRIDE entries, which should never need reprocessed.
-    targets = remove_overrides(targets)
+    targets, _ = remove_overrides(targets)
 
     # ADM sort by TIMESTAMP to ensure tiles are listed chronologically.
     targets = targets[np.argsort(targets["TIMESTAMP"])]
@@ -1600,6 +1603,11 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM every target should have been unobserved at some point.
     if len(set(targets["TARGETID"]) - set(unobs["TARGETID"])) != 0:
         msg = "Some targets don't have a corresponding UNOBS state!!!"
+        log.critical(msg)
+        raise RuntimeError(msg)
+    # ADM each target should have only one UNOBS state.
+    if len(set(unobs["TARGETID"])) != len(unobs["TARGETID"]):
+        msg = "Passed ledgers have multiple UNOBS states!!!"
         log.critical(msg)
         raise RuntimeError(msg)
 
@@ -1638,7 +1646,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
     # ADM mock up a dictionary of timestamps in advance. This is faster
     # ADM as no delays need to be built into the code.
-    now =  get_utc_date(survey="main")
+    now = get_utc_date(survey="main")
     timestamps = {t: add_to_iso_date(now, s) for s, t in enumerate(orderedtiles)}
 
     # ADM make_mtl() expects zcats to be in Table form.
@@ -1720,7 +1728,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
             timedict[tileid] = timestamp
 
     # ADM collect the results.
-    mtl = np.concatenate(donemtl)
+    mtl = Table(np.concatenate(donemtl))
 
     # ADM re-collect everything on pixels for writing to ledgers.
     nside = _get_mtl_nside()
@@ -1734,10 +1742,6 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM grab the targets in the pixel.
         ii = pixnum == pix
         mtlpix = mtl[ii]
-
-        # ADM sorting on TARGETID is neater (although not strictly
-        # ADM necessary when using io.read_mtl_ledger(unique=True)).
-        mtlpix = mtlpix[np.argsort(mtlpix["TARGETID"])]
 
         # ADM the correct filenames for this pixel number.
         fn = fileform.format(pix)
@@ -2527,6 +2531,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         # ADM TIMESTAMP from the dictionary returned by reprocess_ledger.
         if reprocess:
             tiles["TIMESTAMP"] = [timedict[tid] for tid in tiles["TILEID"]]
+            # ADM sort tiles chronologically when reprocessing.
+            tiles = tiles[np.argsort(tiles["TIMESTAMP"])]
         else:
             sleep(1)
             tiles["TIMESTAMP"] = get_utc_date(survey=survey)
