@@ -1557,7 +1557,10 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
     # ADM check the zcat has unique TARGETID/TILEID combinations.
     tiletarg = [str(tt["ZTILEID"]) + "-" + str(tt["TARGETID"]) for tt in zcat]
-    assert(len(set(tiletarg)) == len(tiletarg))
+    if len(set(tiletarg)) != len(tiletarg):
+        msg = "Passed zcat does NOT have unique TARGETID/TILEID combinations!!!"
+        log.critical(msg)
+        raise RuntimeError(msg)
 
     # ADM record the set of tiles that are being reprocessed.
     reproctiles = set(zcat["ZTILEID"])
@@ -1595,7 +1598,11 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     unobs = targets[targets["ZTILEID"] == -1]
     targets = targets[targets["ZTILEID"] != -1]
     # ADM every target should have been unobserved at some point.
-    assert(len(set(targets["TARGETID"]) - set(unobs["TARGETID"])) == 0)
+    if len(set(targets["TARGETID"]) - set(unobs["TARGETID"])) != 0:
+        msg = "Some targets don't have a corresponding UNOBS state!!!"
+        log.critical(msg)
+        raise RuntimeError(msg)
+
     log.info("{} ({}) targets are in the unobserved (observed) state...t={:.1f}s"
              .format(len(unobs), len(targets), time()-t0))
 
@@ -1649,7 +1656,10 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM restrict to the observations on this tile.
         zcatmini = allzcat[allzcat["ZTILEID"] == tileid]
         # ADM check there are only unique TARGETIDs on each tile!
-        assert (len(set(zcatmini["TARGETID"])) == len(zcatmini))
+        if len(set(zcatmini["TARGETID"])) != len(zcatmini):
+            msg = "There are duplicate TARGETIDs on tile {}".format(tileid)
+            log.critical(msg)
+            raise RuntimeError(msg)
 
         # ADM update NUMOBS in the zcat using previous MTL totals.
         mii, zii = match(mtl["TARGETID"], zcatmini["TARGETID"])
@@ -1684,7 +1694,11 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         tii = match_to(zcatmini["TARGETID"], tidmiss)
         zbadmiss = zcatmini[tii]
         # ADM check all of the missing observations are, indeed, bad.
-        assert(np.all(zbadmiss["ZWARN"] & zwarn_mask.mask(Mxbad) != 0))
+        if np.any(zbadmiss["ZWARN"] & zwarn_mask.mask(Mxbad) == 0):
+            msg = "Some objects skipped by make_mtl() on tile {} are not BAD!!!"
+            msg = msg.format(tileid)
+            log.critical(msg)
+            raise RuntimeError(msg)
         log.info("Adding back {} bad observations from zcat...t={:.1f}s"
                  .format(len(zbadmiss), time()-t0))
 
