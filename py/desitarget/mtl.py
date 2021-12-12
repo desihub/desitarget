@@ -1546,6 +1546,8 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM find the general format for the ledger files in `hpdirname`.
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
+    # ADM also find the format for any associated override ledgers.
+    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
 
     # ADM check the obscondition is as expected.
     if obscon != oc:
@@ -1568,6 +1570,9 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
     pixnum = list(set(pixnum))
     targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=False)
+
+    # ADM remove OVERRIDE entries, which should never need reprocessed.
+    targets = remove_overrides(targets)
 
     # ADM sort by TIMESTAMP to ensure tiles are listed chronologically.
     targets = targets[np.argsort(targets["TIMESTAMP"])]
@@ -1720,8 +1725,16 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM necessary when using io.read_mtl_ledger(unique=True)).
         mtlpix = mtlpix[np.argsort(mtlpix["TARGETID"])]
 
-        # ADM the correct filename for this pixel number.
+        # ADM the correct filenames for this pixel number.
         fn = fileform.format(pix)
+        overfn = overrideff.format(pix)
+
+        # ADM if an override ledger exists, update it and recover its
+        # ADM relevant MTL entries.
+        if os.path.exists(overfn):
+            overmtl = process_overrides(overfn)
+            # ADM add any override entries TO THE END OF THE LEDGER.
+            mtlpix = vstack([mtlpix, overmtl])
 
         # ADM if we're working with .ecsv, simply append to the ledger.
         if ender == 'ecsv':
