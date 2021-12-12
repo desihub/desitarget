@@ -16,7 +16,7 @@ from astropy.table import Table, hstack, vstack
 from astropy.io import ascii
 import fitsio
 from time import time, sleep
-from datetime import datetime, timezone, date
+from datetime import datetime, timezone, date, timedelta
 from glob import glob, iglob
 
 from . import __version__ as dt_version
@@ -250,6 +250,32 @@ def days_between_nights(date1, date2):
             for d2 in date2]
 
     return np.array(day2) - np.array(day1)
+
+
+def add_to_iso_date(isodate, secs):
+    """Convenience function to add seconds to an ISO date.
+
+    Parameters
+    ----------
+    isodate : :class:`str`
+        Date in `STRICT ISO format`_, appropriate for a TIMESTAMP.
+        As produced by, e.g., :func:`desitarget.mtl.get_utc_iso_date()`.
+    secs : :class:`int`
+        Number of seconds to add to `isodate`.
+
+    Returns
+    -------
+    :class:`str`
+        Date in `STRICT ISO format`_ with `secs` added.
+    """
+    # ADM convert date back from ISO to a datetime object.
+    dt = datetime.fromisoformat(isodate)
+
+    # ADM add seconds.
+    dt += timedelta(seconds=secs)
+
+    # ADM convert back and return.
+    return datetime.isoformat(dt)
 
 
 def get_mtl_dir(mtldir=None):
@@ -1598,6 +1624,11 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     log.info("Found {} final TARGETID/TILEID combinations...t={:.1f}s"
              .format(len(allzcat), time()-t0))
 
+    # ADM mock up a dictionary of timestamps in advance. This is faster
+    # ADM as no delays need to be built into the code.
+    now =  get_utc_date(survey="main")
+    timestamps = {t: add_to_iso_date(now, s) for s, t in enumerate(orderedtiles)}
+
     # ADM make_mtl() expects zcats to be in Table form.
     allzcat = Table(allzcat)
     # ADM a merged target list to track and record the final states.
@@ -1607,6 +1638,9 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
     # ADM loop through the tiles in order and update the MTL state.
     for tileid in orderedtiles:
+        # ADM the timestamp for this tile.
+        timestamp = timestamps[tileid]
+
         # ADM restrict to the observations on this tile.
         zcatmini = allzcat[allzcat["ZTILEID"] == tileid]
         # ADM check there are only unique TARGETIDs on each tile!
@@ -1632,14 +1666,13 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM push the observations on this tile through MTL.
         zmtl = make_mtl(mtl, oc, zcat=zcatmini, trimtozcat=True, trimcols=True)
 
-        # ADM record the official timestamp for this tile for posterity.
-        timestamp = zmtl["TIMESTAMP"][0]
-
         # ADM match back to overall merged target list to update states.
         mii, zii = match(mtl["TARGETID"], zmtl["TARGETID"])
         # ADM update the overall merged target list.
         for col in mtl.dtype.names:
             mtl[col][mii] = zmtl[col][zii]
+        # ADM also update the TIMESTAMP for changes on this tile.
+        mtl["TIMESTAMP"][mii] = timestamp
 
         # ADM trimtozcat=True discards BAD observations. Retain these.
         tidmiss = list(set(zcatmini["TARGETID"]) - set(zmtl["TARGETID"]))
@@ -1656,8 +1689,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM Never update NUMOBS or NUMOBS_MORE using bad observations.
         for col in set(zbadmiss.dtype.names) - set(["NUMOBS", "NUMOBS_MORE"]):
             mtl[col][mii] = zbadmiss[col][zii]
-        # ADM also update the TIMESTAMP (rather than retaining that of
-        # ADM the previous good observation in the MTL).
+        # ADM also update the TIMESTAMP for changes on this tile.
         mtl["TIMESTAMP"][mii] = timestamp
 
         # ADM record the information to add to the output ledgers...
@@ -1667,8 +1699,6 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM later overlapping tile) record the TIMESTAMP...
         if tileid in reproctiles:
             timedict[tileid] = timestamp
-            # ADM ...and add a delay to ensure unique TIMESTAMPs.
-            sleep(1)
 
     # ADM collect the results.
     mtl = np.concatenate(donemtl)
