@@ -16,10 +16,10 @@ desitarget Change Log
         * Update the ``UNOBS`` state with entries in the "all-zcat".
         * Recover the final state for each ``TARGETID``.
         * Add the progression, WITH ``BAD`` observations, to the ledgers.
-    * Also includees:
+    * Also includes:
         * Mock-up (unique) ``TIMESTAMPs`` instead of delaying the code.
         * Deprecate ``numobsfromzcat`` as a user-specified option.
-	    * as we now always retrieve ``NUMOBS`` from the ledger.
+            * as we now always retrieve ``NUMOBS`` from the ledger.
 
 .. _`PR #780`: https://github.com/desihub/desitarget/pull/780
 
