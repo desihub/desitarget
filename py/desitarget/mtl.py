@@ -786,8 +786,8 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     # ADM observed since MTL was last run...
     ledgerdir = os.path.join(mtldir, "main", obscon.lower())
     obstargs = io.read_targets_in_tiles(ledgerdir, tiles=obstileinfo, mtl=True)
-    # ADM ...and restrict to just overlapping targets that have been
-    # ADM processed through MTL at least once before.
+    # ADM ...and restrict to just overlapping targets that have passed
+    # ADM through MTL before (and registered a GOOD observation).
     ii = obstargs["ZTILEID"] != -1
     obstargs = obstargs[ii]
     log.info("Read {} potentially observed targets in {} tiles...t={:.1f}s"
@@ -1597,8 +1597,11 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     log.info("Retained {}/{} targets with {} unique TARGETIDs...t={:.1f}s"
              .format(len(targets), ntargs, nuniq, time()-t0))
 
-    # ADM split off the updated target states from the unobserved state.
-    unobs = targets[targets["ZTILEID"] == -1]
+    # ADM split off the updated target states from the unobserved states.
+    _, ii = np.unique(targets["TARGETID"], return_index=True)
+    unobs = targets[sorted(ii)]
+    # ADM this should remove both original UNOBS states and any resets
+    # ADM to UNOBS due to reprocessing data that turned out to be bad.
     targets = targets[targets["ZTILEID"] != -1]
     # ADM every target should have been unobserved at some point.
     if len(set(targets["TARGETID"]) - set(unobs["TARGETID"])) != 0:
