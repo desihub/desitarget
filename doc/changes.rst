@@ -5,7 +5,11 @@ desitarget Change Log
 2.2.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Fix ragged array warning in geomask.circle_boundaries() [`PR #781`_]:
+        * Addresses `issue #779`_.
+
+.. _`issue #779`: https://github.com/desihub/desitarget/issues/779
+.. _`PR #781`: https://github.com/desihub/desitarget/pull/781
 
 2.2.1 (2021-11-22)
 ------------------
