@@ -2582,13 +2582,17 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     return fn
 
 
-def read_mtl_tile_file(filename):
+def read_mtl_tile_file(filename, unique=True):
     """Read which tiles have been processed by MTL from the tile file.
 
     Parameters
     ----------
     filename : :class:`str`
         The full path to the MTL tile file.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read entires with unique `TILEID`, where
+        the last occurrence of the TILEID in the file is the one that
+        is retained. If ``False`` then read the entire file.
 
     Returns
     -------
@@ -2596,6 +2600,16 @@ def read_mtl_tile_file(filename):
         A structured numpy array of the MTL tile file.
     """
     mtltiles = Table.read(filename, comment="#", delimiter=" ")
+
+    if unique:
+        # ADM the flip is because np.unique retains the FIRST unique
+        # ADM entry and we want the LAST unique entry.
+        mtltiles = np.flip(mtltiles)
+        _, ii = np.unique(mtltiles["TILEID"], return_index=True)
+        # ADM sort on ii to retain the exact original order...
+        ii = sorted(ii)
+        # ADM ...and flip back to the original ordering
+        return np.flip(mtltiles[ii])
 
     return mtltiles
 
@@ -2739,7 +2753,7 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         mtl = mtl[ii]
 
     if unique or initial:
-        # ADM the reverse is because np.unique retains the FIRST unique
+        # ADM the flip is because np.unique retains the FIRST unique
         # ADM entry and we want the LAST unique entry.
         if not initial:
             mtl = np.flip(mtl)
