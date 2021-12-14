@@ -7,8 +7,24 @@ desitarget Change Log
 
 * Fix ragged array warning in geomask.circle_boundaries() [`PR #781`_]:
     * Addresses `issue #779`_.
+* Finalize MTL logic for reprocessed tiles [`PR #780`_]. Logic is:
+    * Assemble all previous observations that touch a reprocessed tile.
+        * Include any new, reprocessed observations.
+        * Find the most recent for unique ``TILEID`` + ``TARGETID``.
+        * Store these in a redshift catalog (an "all-zcat").
+    * Determine the order in which tiles were originally processed.
+    * Loop through the tiles in this original order.
+        * Start with the ``UNOBS`` state.
+        * Update the ``UNOBS`` state with entries in the "all-zcat".
+        * Recover the final state for each ``TARGETID``.
+        * Add the progression, WITH ``BAD`` observations, to the ledgers.
+    * Also includes:
+        * Mock-up (unique) ``TIMESTAMPs`` instead of delaying the code.
+        * Deprecate ``numobsfromzcat`` as a user-specified option.
+            * as we now always retrieve ``NUMOBS`` from the ledger.
 
 .. _`issue #779`: https://github.com/desihub/desitarget/issues/779
+.. _`PR #780`: https://github.com/desihub/desitarget/pull/780
 .. _`PR #781`: https://github.com/desihub/desitarget/pull/781
 
 2.2.1 (2021-11-22)

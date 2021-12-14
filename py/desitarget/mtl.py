@@ -16,7 +16,7 @@ from astropy.table import Table, hstack, vstack
 from astropy.io import ascii
 import fitsio
 from time import time, sleep
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date, timedelta
 from glob import glob, iglob
 
 from . import __version__ as dt_version
@@ -212,6 +212,72 @@ def get_utc_iso_date():
     return datetime.now(tz=timezone.utc).isoformat(timespec='seconds')
 
 
+def get_local_iso_date():
+    """Convenience function to grab the local date in STRICT ISO format.
+
+    Returns
+    -------
+    :class:`str`
+        UTC date in `STRICT ISO format`_, appropriate for a TIMESTAMP.
+    """
+    return datetime.now().isoformat(timespec='seconds')
+
+
+def days_between_nights(date1, date2):
+    """Find the number of days between two dates in YYYYMMDD format
+
+    Parameters
+    ----------
+    date1, date2 : :class:`str` or `int` or `array_like`
+        Two dates or arrays of dates in YYYYMMDD format.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        Number of days between the dates. `date2` is assumed to be the
+        later date, so +ve answers are returned if `date2` > `date1`.
+    """
+    # ADM in case a single item was passed.
+    date1 = np.atleast_1d(date1)
+    date2 = np.atleast_1d(date2)
+
+    # ADM allow dates to be strings or integers.
+    date1, date2 = [str(d) for d in date1], [str(d) for d in date2]
+
+    day1 = [date(int(d1[:4]), int(d1[4:6]), int(d1[6:])).toordinal()
+            for d1 in date1]
+    day2 = [date(int(d2[:4]), int(d2[4:6]), int(d2[6:])).toordinal()
+            for d2 in date2]
+
+    return np.array(day2) - np.array(day1)
+
+
+def add_to_iso_date(isodate, secs):
+    """Convenience function to add seconds to an ISO date.
+
+    Parameters
+    ----------
+    isodate : :class:`str`
+        Date in `STRICT ISO format`_, appropriate for a TIMESTAMP.
+        As produced by, e.g., :func:`desitarget.mtl.get_utc_iso_date()`.
+    secs : :class:`int`
+        Number of seconds to add to `isodate`.
+
+    Returns
+    -------
+    :class:`str`
+        Date in `STRICT ISO format`_ with `secs` added.
+    """
+    # ADM convert date back from ISO to a datetime object.
+    dt = datetime.fromisoformat(isodate)
+
+    # ADM add seconds.
+    dt += timedelta(seconds=secs)
+
+    # ADM convert back and return.
+    return datetime.isoformat(dt)
+
+
 def get_mtl_dir(mtldir=None):
     """Convenience function to grab the $MTL_DIR environment variable.
 
@@ -384,6 +450,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     trimtozcat : :class:`bool`, optional, defaults to ``False``
         Only return targets that have been UPDATED (i.e. the targets with
         a match in `zcat`). Returns all targets if `zcat` is ``None``.
+        See important Notes about `trimtozcat`=``False``!!!
 
     Returns
     -------
@@ -399,8 +466,11 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
     Notes
     -----
-    - Sources in the zcat with `ZWARN` of `NODATA` are always ignored.
-    - The input `zcat` WILL BE MODIFIED. So, if a desire is that `zcat`
+    - Sources in the zcat with `ZWARN` of `BAD_SPECQA|BAD_PETALQA|NODATA`
+      are always ignored.
+    - As sources with `BAD_SPECQA|BAD_PETALQA|NODATA` are ignored they
+      will have ridiculous z-entries if `trimtozcat`=``False`` is passed!
+    - The input `zcat` MAY BE MODIFIED. If a desideratum is that `zcat`
       remains unaltered, make sure to copy `zcat` before passing it.
     """
     start = time()
@@ -627,7 +697,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
 
 def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     """
-    Create (or append to) a ledger to override the standard ledgers.
+    Find tiles in the MTL ledgers that do not overlap any future tile.
 
     Parameters
     ----------
@@ -716,8 +786,8 @@ def find_non_overlap_tiles(obscon, mtldir=None, isodate=None, check=False):
     # ADM observed since MTL was last run...
     ledgerdir = os.path.join(mtldir, "main", obscon.lower())
     obstargs = io.read_targets_in_tiles(ledgerdir, tiles=obstileinfo, mtl=True)
-    # ADM ...and restrict to just overlapping targets that have been
-    # ADM processed through MTL at least once before.
+    # ADM ...and restrict to just overlapping targets that have passed
+    # ADM through MTL before (and registered a GOOD observation).
     ii = obstargs["ZTILEID"] != -1
     obstargs = obstargs[ii]
     log.info("Read {} potentially observed targets in {} tiles...t={:.1f}s"
@@ -901,7 +971,7 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
 
     # ADM second, remove the tiles from the done file.
     # ADM to store the removed tiles.
-    inmtltiles = io.read_mtl_tile_file(mtltilefn)
+    inmtltiles = io.read_mtl_tile_file(mtltilefn, unique=False)
     # ADM guarantee that the output Table will be in the required format.
     mtltiles = np.empty_like(mtltilefiledm, shape=len(inmtltiles))
     for col in mtltilefiledm.dtype.names:
@@ -1407,6 +1477,39 @@ def force_overrides(hpdirname, pixlist):
     return hpdirname
 
 
+def remove_overrides(mtl):
+    """Remove all targets that share a TARGETID with an OVERRIDE target
+
+    Parameters
+    ----------
+    mtl : :class:`~numpy.array` or `~astropy.table.Table`
+        An array of targets from a Merged Target List. Must contain at
+        least the column TARGET_STATE. Can contain duplicate TARGETIDs.
+
+    Returns
+    -------
+    :class:`~numpy.array` or `~astropy.table.Table`
+        The original `mtl` but all targets that have a TARGETID for which
+        one entry has the string "OVERRIDE" in TARGET_STATE are removed.
+
+    :class:`~numpy.array` or `~astropy.table.Table`
+        The targets that were removed.
+    """
+    # ADM find OVERRIDE entries.
+    ii = np.array(["OVERRIDE" in ts for ts in mtl["TARGET_STATE"]])
+
+    # ADM find the set of TARGETIDs that have an OVERRIDE entry.
+    s = set(mtl[ii]["TARGETID"])
+
+    # ADM find the entries that do NOT have an OVERRIDE TARGETID.
+    ii = np.array([tid not in s for tid in mtl["TARGETID"]])
+
+    log.info("removing {} override entries".format(len(mtl)-np.sum(ii)))
+
+    # ADM return the input mtl without the OVERRIDE TARGETIDs.
+    return mtl[ii], mtl[~ii]
+
+
 def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     """
     Reprocess HEALPixel-split ledgers for targets with new redshifts.
@@ -1428,12 +1531,25 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
     Returns
     -------
-    Nothing, but relevant ledger files are updated.
+    :class:`dict`
+        A dictionary where the keys are the integer TILEIDs and the values
+        are the TIMESTAMP at which that tile was reprocessed.
+
     """
+    t0 = time()
+    log.info("Reprocessing based on zcat with {} entries...t={:.1f}s"
+             .format(len(zcat), time()-t0))
+
+    # ADM the output dictionary.
+    timedict = {}
+
+    # ADM bits that correspond to a "bad" observation in the zwarn_mask.
+    Mxbad = "BAD_SPECQA|BAD_PETALQA|NODATA"
+
     # ADM find the general format for the ledger files in `hpdirname`.
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
-    # ADM this is the format for any associated override ledgers.
+    # ADM also find the format for any associated override ledgers.
     overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
 
     # ADM check the obscondition is as expected.
@@ -1442,134 +1558,180 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         log.critical(msg)
         raise RuntimeError(msg)
 
-    # ADM read targets from the relevant ledgers.
+    # ADM check the zcat has unique TARGETID/TILEID combinations.
+    tiletarg = [str(tt["ZTILEID"]) + "-" + str(tt["TARGETID"]) for tt in zcat]
+    if len(set(tiletarg)) != len(tiletarg):
+        msg = "Passed zcat does NOT have unique TARGETID/TILEID combinations!!!"
+        log.critical(msg)
+        raise RuntimeError(msg)
+
+    # ADM record the set of tiles that are being reprocessed.
+    reproctiles = set(zcat["ZTILEID"])
+
+    # ADM read ALL targets from the relevant ledgers.
+    log.info("Reading (all instances of) targets for {} tiles...t={:.1f}s"
+             .format(len(reproctiles), time()-t0))
     nside = _get_mtl_nside()
     theta, phi = np.radians(90-zcat["DEC"]), np.radians(zcat["RA"])
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
     pixnum = list(set(pixnum))
-
-    # ADM first, gather unique targets to find any unobserved targets.
-    # ADM we'll read in too many targets, here, but that's OK as
-    # ADM we'll soon match to just the relevant targets.
-    targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=True)
-
-    # ADM match the zcat to the targets and restrict to just the
-    # ADM relevant targets and zcat entries.
-    tii, zii = match(targets["TARGETID"], zcat["TARGETID"])
-    msg = "Found {}/{} targets from zcat in ledgers".format(len(zii), len(zcat))
-    msg += " (remainder likely primaries when running secondaries or vice versa)"
-    log.info(msg)
-    targets, zcat = targets[tii], zcat[zii]
-
-    # ADM run through various cases. FIRST, as-yet-unobserved targets.
-    log.info("Reprocessing as-yet-unobserved targets")
-    isunobs = targets["ZTILEID"] == -1
-    unobs = targets[isunobs]
-    # ADM a quick check for strangeness.
-    kewl = np.array(["UNOBS" in state or "CALIB" in state
-                     for state in unobs["TARGET_STATE"]])
-    if not np.all(kewl):
-        msg = "Some targets have ZTILEID of -1 but STATE isn't UNOBS or CALIB:"
-        log.critical(msg)
-        log.info(unobs[~kewl])
-        raise RuntimeError
-
-    # ADM run MTL as usual for the unobserved targets.
-    mtl = make_mtl(unobs, oc, zcat=zcat[isunobs], trimtozcat=True, trimcols=True)
-
-    # ADM now we're done with unobserved targets, read all observations
-    # ADM of all targets (unique=False) and work tile-by-tile.
     targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=False)
+
+    # ADM remove OVERRIDE entries, which should never need reprocessed.
+    targets, _ = remove_overrides(targets)
+
     # ADM sort by TIMESTAMP to ensure tiles are listed chronologically.
     targets = targets[np.argsort(targets["TIMESTAMP"])]
 
-    # ADM need to know which targets were first observed on which tiles.
-    obs = targets[targets["ZTILEID"] != -1]
-    _, ii = np.unique(obs["TARGETID"], return_index=True)
-    first = obs[ii]
-    # ADM a few quick sanity checks.
-    # ADM all of the first observations indeed had one observation.
-    assert np.all(first["NUMOBS"] == 1)
-    # ADM all of the first-observation targets are in first.
-    assert np.sum(targets["NUMOBS"] == 1) == len(first)
-    # ADM all TARGETIDs in the set of first observations are unique.
-    assert len(set(first["TARGETID"])) == len(first)
+    # ADM for speed, we only need to work with targets with a zcat entry.
+    ntargs = len(targets)
+    nuniq = len(set(targets["TARGETID"]))
+    log.info("Read {} targets with {} unique TARGETIDs...t={:.1f}s"
+             .format(ntargs, nuniq, time()-t0))
+    log.info("Limiting targets to {} (unique) TARGETIDs in the zcat...t={:.1f}s"
+             .format(len(set(zcat["TARGETID"])), time()-t0))
+    s = set(zcat["TARGETID"])
+    ii = np.array([tid in s for tid in targets["TARGETID"]])
+    targets = targets[ii]
+    nuniq = len(set(targets["TARGETID"]))
+    log.info("Retained {}/{} targets with {} unique TARGETIDs...t={:.1f}s"
+             .format(len(targets), ntargs, nuniq, time()-t0))
 
-    # ADM to hold the final list of updates:
-    donemtl = [mtl]
-    # ADM work separately on each tile one-by-one.
-    for tileid in set(zcat["ZTILEID"]):
-        ztile = zcat[zcat["ZTILEID"] == tileid]
-        ttile = targets[targets["ZTILEID"] == tileid]
+    # ADM split off the updated target states from the unobserved states.
+    _, ii = np.unique(targets["TARGETID"], return_index=True)
+    unobs = targets[sorted(ii)]
+    # ADM this should remove both original UNOBS states and any resets
+    # ADM to UNOBS due to reprocessing data that turned out to be bad.
+    targets = targets[targets["ZTILEID"] != -1]
+    # ADM every target should have been unobserved at some point.
+    if len(set(targets["TARGETID"]) - set(unobs["TARGETID"])) != 0:
+        msg = "Some targets don't have a corresponding UNOBS state!!!"
+        log.critical(msg)
+        raise RuntimeError(msg)
+    # ADM each target should have only one UNOBS state.
+    if len(set(unobs["TARGETID"])) != len(unobs["TARGETID"]):
+        msg = "Passed ledgers have multiple UNOBS states!!!"
+        log.critical(msg)
+        raise RuntimeError(msg)
 
-        # ADM find the most recent observations on this tile...
-        tflipped = np.flip(ttile)
-        _, ii = np.unique(tflipped["TARGETID"], return_index=True)
-        ttile = tflipped[ii]
+    log.info("{} ({}) targets are in the unobserved (observed) state...t={:.1f}s"
+             .format(len(unobs), len(targets), time()-t0))
 
-        # ADM match the new and the most recent MTL observations.
-        tii, zii = match(ttile["TARGETID"], ztile["TARGETID"])
-        msg = "{}/{} recently observed targets from zcat on tile {}".format(
-            len(zii), len(ztile), tileid)
-        log.info(msg)
-        ttile, ztile = ttile[tii], ztile[zii]
+    # ADM store first-time-through tile order to reproduce processing.
+    # ADM ONLY WORKS because we sorted by TIMESTAMP, above!
+    _, ii = np.unique(targets["ZTILEID"], return_index=True)
+    # ADM remember to sort ii so that the first tiles appear first.
+    orderedtiles = targets["ZTILEID"][sorted(ii)]
 
-        # ADM find previous good and bad observations based on zwarn.
-        Mxbad = "BAD_SPECQA|BAD_PETALQA|NODATA"
-        tbad = ttile["ZWARN"] & zwarn_mask.mask(Mxbad) != 0
-        zbad = ztile["ZWARN"] & zwarn_mask.mask(Mxbad) != 0
-        tgood, zgood = ~tbad, ~zbad
+    # ADM assemble a zcat for all previous and reprocessed observations.
+    zcatfromtargs = np.zeros(len(targets), dtype=zcat.dtype)
+    for col in zcat.dtype.names:
+        zcatfromtargs[col] = targets[col]
+    # ADM note that we'll retain the TIMESTAMPed order of the old ledger
+    # ADM entries and new redshifts will (deliberately) be listed last.
+    allzcat = np.concatenate([zcatfromtargs, zcat])
+    log.info("Assembled a zcat of {} total observations...t={:.1f}s"
+             .format(len(allzcat), time()-t0))
 
-        # ADM check for "first" observations on this tile.
-        fii, zii = match(first["TARGETID"], ztile["TARGETID"])
-        firstseen = np.zeros(len(ztile), dtype="?")
-        firstseen[zii] = True
+    # ADM determine the FINAL observation for each TILED-TARGETID combo.
+    # ADM must flip first as np.unique finds the FIRST unique entries.
+    allzcat = np.flip(allzcat)
+    # ADM create a unique hash of TILEID and TARGETID.
+    tiletarg = [str(tt["ZTILEID"]) + "-" + str(tt["TARGETID"]) for tt in allzcat]
+    # ADM find the final unique combination of TILEID and TARGETID.
+    _, ii = np.unique(tiletarg, return_index=True)
+    # ADM make sure to retain exact reverse-ordering.
+    ii = sorted(ii)
+    # ADM condition on indexes-of-uniqueness and flip back.
+    allzcat = np.flip(allzcat[ii])
+    log.info("Found {} final TARGETID/TILEID combinations...t={:.1f}s"
+             .format(len(allzcat), time()-t0))
 
-        # ADM recover the initial ("UNOBS") mtl for this tile.
-        initmtl = make_mtl(ttile, oc, trimcols=True)
-        # ADM also recover the once-through-mtl updated state.
-        firstmtl = make_mtl(initmtl, oc, zcat=ztile,
-                            trimtozcat=True, trimcols=True)
+    # ADM mock up a dictionary of timestamps in advance. This is faster
+    # ADM as no delays need to be built into the code.
+    now = get_utc_date(survey="main")
+    timestamps = {t: add_to_iso_date(now, s) for s, t in enumerate(orderedtiles)}
 
-        # ADM there are 4 possible cases, but there's nothing to do when
-        # ADM the new and old processing were bad & bad or good & good
-        # ADM except update the z information for targets on the tile.
-        reprocmtl = np.zeros(len(ttile), dtype=mtl.dtype)
-        for col in reprocmtl.dtype.names:
-            reprocmtl[col] = ttile[col]
-        for col in ["Z", "ZWARN"] + list(msaddcols.dtype.names):
-            reprocmtl[col] = ztile[col]
+    # ADM make_mtl() expects zcats to be in Table form.
+    allzcat = Table(allzcat)
+    # ADM a merged target list to track and record the final states.
+    mtl = Table(unobs)
+    # ADM to hold the final list of updates per-tile.
+    donemtl = []
 
-        # ADM CASE: Most recent processing was bad, new one is good.
-        case = tbad & zgood
-        # ADM generically, just acknowledge we have a good observation.
-        reprocmtl[case]["NUMOBS"] += 1
-        reprocmtl[case]["NUMOBS_MORE"] -= 1
-        # ADM if the first observation was on this TILE, update to the
-        # ADM first-observation-after-the-initial state.
-        firstcase = case & firstseen
-        for col in reprocmtl.dtype.names:
-            reprocmtl[col][firstcase] = firstmtl[col][firstcase]
+    # ADM loop through the tiles in order and update the MTL state.
+    for tileid in orderedtiles:
+        # ADM the timestamp for this tile.
+        timestamp = timestamps[tileid]
 
-        # ADM CASE: Most recent processing was good, new one is bad.
-        case = tgood & zbad
-        # ADM generically, just acknowledge we have a bad observation.
-        reprocmtl[case]["NUMOBS"] -= 1
-        reprocmtl[case]["NUMOBS_MORE"] += 1
-        # ADM if the first observation was on this TILE, update to the
-        # ADM unobserved state.
-        firstcase = case & firstseen
-        for col in reprocmtl.dtype.names:
-            reprocmtl[col][firstcase] = initmtl[col][firstcase]
+        # ADM restrict to the observations on this tile.
+        zcatmini = allzcat[allzcat["ZTILEID"] == tileid]
+        # ADM check there are only unique TARGETIDs on each tile!
+        if len(set(zcatmini["TARGETID"])) != len(zcatmini):
+            msg = "There are duplicate TARGETIDs on tile {}".format(tileid)
+            log.critical(msg)
+            raise RuntimeError(msg)
 
-        # ADM append this reprocessing to the MTL updates.
-        donemtl.append(reprocmtl)
+        # ADM update NUMOBS in the zcat using previous MTL totals.
+        mii, zii = match(mtl["TARGETID"], zcatmini["TARGETID"])
+        zcatmini["NUMOBS"][zii] = mtl["NUMOBS"][mii] + 1
+
+        # ADM restrict to just objects in the zcat that match an UNOBS
+        # ADM target (i,e that match something in the MTL).
+        log.info("Processing {}/{} observations from zcat on tile {}...t={:.1f}s"
+                 .format(len(zii), len(zcatmini), tileid, time()-t0))
+        log.info("(i.e. removed secondaries-if-running-primaries or vice versa)")
+        zcatmini = zcatmini[zii]
+
+        # ADM ------
+        # ADM NOTE: We could use trimtozcat=False without matching, and
+        # ADM just continually update the overall mtl list. But, make_mtl
+        # ADM doesn't track NUMOBS just NUMOBS_MORE, so we need to add
+        # ADM complexity somewhere, hence trimtozcat=True/matching-back.
+        # ADM ------
+        # ADM push the observations on this tile through MTL.
+        zmtl = make_mtl(mtl, oc, zcat=zcatmini, trimtozcat=True, trimcols=True)
+
+        # ADM match back to overall merged target list to update states.
+        mii, zii = match(mtl["TARGETID"], zmtl["TARGETID"])
+        # ADM update the overall merged target list.
+        for col in mtl.dtype.names:
+            mtl[col][mii] = zmtl[col][zii]
+        # ADM also update the TIMESTAMP for changes on this tile.
+        mtl["TIMESTAMP"][mii] = timestamp
+
+        # ADM trimtozcat=True discards BAD observations. Retain these.
+        tidmiss = list(set(zcatmini["TARGETID"]) - set(zmtl["TARGETID"]))
+        tii = match_to(zcatmini["TARGETID"], tidmiss)
+        zbadmiss = zcatmini[tii]
+        # ADM check all of the missing observations are, indeed, bad.
+        if np.any(zbadmiss["ZWARN"] & zwarn_mask.mask(Mxbad) == 0):
+            msg = "Some objects skipped by make_mtl() on tile {} are not BAD!!!"
+            msg = msg.format(tileid)
+            log.critical(msg)
+            raise RuntimeError(msg)
+        log.info("Adding back {} bad observations from zcat...t={:.1f}s"
+                 .format(len(zbadmiss), time()-t0))
+
+        # ADM update redshift information in MTL for bad observations.
+        mii, zii = match(mtl["TARGETID"], zbadmiss["TARGETID"])
+        # ADM update the overall merged target list.
+        # ADM Never update NUMOBS or NUMOBS_MORE using bad observations.
+        for col in set(zbadmiss.dtype.names) - set(["NUMOBS", "NUMOBS_MORE"]):
+            mtl[col][mii] = zbadmiss[col][zii]
+        # ADM also update the TIMESTAMP for changes on this tile.
+        mtl["TIMESTAMP"][mii] = timestamp
+
+        # ADM record the information to add to the output ledgers...
+        donemtl.append(mtl[mtl["ZTILEID"] == tileid])
+
+        # ADM if this tile was actually reprocessed (rather than being a
+        # ADM later overlapping tile) record the TIMESTAMP...
+        if tileid in reproctiles:
+            timedict[tileid] = timestamp
 
     # ADM collect the results.
-    mtl = np.concatenate(donemtl)
-
-    # ADM update the TIMESTAMP to now for all cases.
-    mtl["TIMESTAMP"] = get_utc_date(survey="main")
+    mtl = Table(np.concatenate(donemtl))
 
     # ADM re-collect everything on pixels for writing to ledgers.
     nside = _get_mtl_nside()
@@ -1583,10 +1745,6 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         # ADM grab the targets in the pixel.
         ii = pixnum == pix
         mtlpix = mtl[ii]
-
-        # ADM sorting on TARGETID is neater (although not strictly
-        # ADM necessary when using io.read_mtl_ledger(unique=True)).
-        mtlpix = mtlpix[np.argsort(mtlpix["TARGETID"])]
 
         # ADM the correct filenames for this pixel number.
         fn = fileform.format(pix)
@@ -1611,7 +1769,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
             fitsio.write(fn+'.tmp', done, extname='MTL', header=hd, clobber=True)
             os.rename(fn+'.tmp', fn)
 
-    return
+    return timedict
 
 
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
@@ -1936,8 +2094,8 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
     Returns
     -------
     :class:`~numpy.array`
-        An array of tiles that have not yet been processed and written to
-        the mtl tile file.
+        An array of tiles that are yet to be processed and written to the
+        mtl tile file.
 
     Notes
     -----
@@ -1966,6 +2124,9 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
     zdone = np.array(["true" in row for row in tilelookup["ZDONE"]])
     # ADM redshift processing must be complete.
     ii = zdone
+    if survey == "main":
+        # ADM tile must have been archived.
+        ii &= tilelookup["ARCHIVEDATE"] > 0
     alltiles = tilelookup[ii]
 
     # ADM read in the MTL tile file, guarding against it not having being
@@ -2013,9 +2174,9 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
         ii = np.array([tid in newtids for tid in alltiles["TILEID"]])
         tiles = alltiles[ii]
 
-    # ADM restrict the tiles to be processed to the correct survey.
+    # ADM restrict the tiles to be processed to the correct survey...
     ii = tiles["SURVEY"] == survey
-    # ADM also must match the correct lower- or upper-case (OBSCON).
+    # ADM ...and the correct lower- or upper-case program (OBSCON).
     ii &= ((tiles["FAPRGRM"] == obscon.lower()) |
            (tiles["FAPRGRM"] == obscon.upper()))
     tiles = tiles[ii]
@@ -2034,10 +2195,14 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
     # ADM the date the tile was archived.
     newtiles["ARCHIVEDATE"] = tiles["ARCHIVEDATE"]
 
+    # ADM sort on TILEID, just in case.
+    ii = np.argsort(newtiles["TILEID"])
+    newtiles = newtiles[ii]
+
     return newtiles
 
 
-def make_zcat(zcatdir, tiles, obscon, survey):
+def make_zcat(zcatdir, tiles, obscon, survey, allow_overlaps=False):
     """Make a catalog of redshifts used to inform the MTL loop.
 
     Parameters
@@ -2057,6 +2222,11 @@ def make_zcat(zcatdir, tiles, obscon, survey):
         Used to update `ZWARN` using `DELTACHI2` for a given survey type.
         Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
         for the main survey and different iterations of SV, respectively.
+    allow_overlaps : :class`bool`, optional, defaults to ``False``
+        If ``True`` then allow the zcat to contain duplicate TARGETIDs.
+        Duplicate TARGETIDs should not exist for the "standard" MTL loop,
+        because tiles should never overlap, but could be a feature of
+        reprocessing tiles.
 
     Returns
     -------
@@ -2105,12 +2275,13 @@ def make_zcat(zcatdir, tiles, obscon, survey):
     # ADM check the TARGETIDs are unique. If they aren't the likely
     # ADM explanation is that overlapping tiles (which could include
     # ADM duplicate targets) are being processed.
-    if len(zs) != len(set(zs["TARGETID"])):
-        msg = "a target is duplicated!!! You are likely trying to process "
-        msg += "overlapping tiles when one of these tiles should already have "
-        msg += "been processed and locked in mtl-done-tiles.ecsv"
-        log.critical(msg)
-        raise ValueError(msg)
+    if not allow_overlaps:
+        if len(zs) != len(set(zs["TARGETID"])):
+            msg = "a target is duplicated!!! You are likely trying to process "
+            msg += "overlapping tiles when one of these tiles should already "
+            msg += "have been processed and locked in mtl-done-tiles.ecsv"
+            log.critical(msg)
+            raise ValueError(msg)
 
     # ADM write out the zcat as a file with the correct data model.
     dm = survey_data_model(zcatdatamodel, survey=survey)
@@ -2327,8 +2498,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     if len(tiles) == 0:
         return hpdirname, mtltilefn, ztilefn, tiles
 
-    # ADM create the catalog of updated redshifts.
-    zcat = make_zcat(zcatdir, tiles, obscon, survey)
+    # ADM create the catalog of updated redshifts. Remember
+    # ADM that we could have duplicate TARGETIDs if reprocessing.
+    zcat = make_zcat(zcatdir, tiles, obscon, survey, allow_overlaps=reprocess)
 
     # ADM insist that for an MTL loop with real observations, the zcat
     # ADM must conform to the data model. In particular, it must include
@@ -2350,7 +2522,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM update the appropriate ledgers.
     if reprocess:
-        reprocess_ledger(hpdirname, zcat, obscon=obscon)
+        timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon)
     else:
         update_ledger(hpdirname, zcat, obscon=obscon,
                       numobs_from_ledger=numobs_from_ledger)
@@ -2358,8 +2530,15 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     # ADM for the main survey "holding pen" method, ensure the TIMESTAMP
     # ADM in the mtl-done-tiles file is always later than in the ledgers.
     if survey == "main":
-        sleep(1)
-        tiles["TIMESTAMP"] = get_utc_date(survey=survey)
+        # ADM when re-processing, a delay was already added, so get the
+        # ADM TIMESTAMP from the dictionary returned by reprocess_ledger.
+        if reprocess:
+            tiles["TIMESTAMP"] = [timedict[tid] for tid in tiles["TILEID"]]
+            # ADM sort tiles chronologically when reprocessing.
+            tiles = tiles[np.argsort(tiles["TIMESTAMP"])]
+        else:
+            sleep(1)
+            tiles["TIMESTAMP"] = get_utc_date(survey=survey)
 
     # ADM write the processed tiles to the MTL tile file.
     io.write_mtl_tile_file(mtltilefn, tiles)
