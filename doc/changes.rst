@@ -5,6 +5,8 @@ desitarget Change Log
 2.2.2 (unreleased)
 ------------------
 
+* Fix ragged array warning in geomask.circle_boundaries() [`PR #781`_]:
+    * Addresses `issue #779`_.
 * Finalize MTL logic for reprocessed tiles [`PR #780`_]. Logic is:
     * Assemble all previous observations that touch a reprocessed tile.
         * Include any new, reprocessed observations.
@@ -21,7 +23,9 @@ desitarget Change Log
         * Deprecate ``numobsfromzcat`` as a user-specified option.
             * as we now always retrieve ``NUMOBS`` from the ledger.
 
+.. _`issue #779`: https://github.com/desihub/desitarget/issues/779
 .. _`PR #780`: https://github.com/desihub/desitarget/pull/780
+.. _`PR #781`: https://github.com/desihub/desitarget/pull/781
 
 2.2.1 (2021-11-22)
 ------------------
