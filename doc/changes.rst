@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.2.2 (unreleased)
+2.3.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.3.0 (2021-12-14)
 ------------------
 
 * Fix ragged array warning in geomask.circle_boundaries() [`PR #781`_]:
