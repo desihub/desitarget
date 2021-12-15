@@ -470,7 +470,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                             ivar[err == 0] = 0.
                         qdict[qout+'_ivar_'+filt] = np.array(ivar)
                     else:
-                        qdict[qout+'_'+filt] = img.data[y.astype("int"), x.astype("int")]
+                        qdict[qout+'_'+filt] = img.data[y.round().astype("int"), x.round().astype("int")]
                 # ADM if the file doesn't exist, set quantities to zero.
                 else:
                     if qout == 'apflux':
@@ -498,7 +498,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                     x, y = w.all_world2pix(ras, decs, 0)
                     iswcs = True
                 # ADM add the maskbits to the dictionary.
-                qdict[mout] = img.data[y.astype("int"), x.astype("int")]
+                qdict[mout] = img.data[y.round().astype("int"), x.round().astype("int")]
             else:
                 # ADM if no files are found, populate with zeros.
                 qdict[mout] = np.zeros(npts, dtype=mform)
@@ -542,7 +542,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                         x, y = w.all_world2pix(ras, decs, 0)
                         iswcs = True
                     # ADM get the inverse variance at each location.
-                    ivar = img.data[y.astype("int"), x.astype("int")]
+                    ivar = img.data[y.round().astype("int"), x.round().astype("int")]
                     # ADM convert to WISE depth in AB. From Dustin Lang on the
                     # decam-chatter mailing list on 06/20/19, 1:59PM MST:
                     # psfdepth_Wx_AB = invvar_Wx * norm_Wx**2 / fluxfactor_Wx**2
