@@ -2,12 +2,104 @@
 desitarget Change Log
 =====================
 
-1.3.1 (unreleased)
+2.3.1 (unreleased)
 ------------------
 
+* Fix a bug in the randoms due to inaccrate rounding of pixel coordinates [`PR #782`_].
+    * This change will affect brick-based values in randoms (e.g.,
+      NOBS, MASKBITS and PSFSIZE).
+
+.. _`PR #782`: https://github.com/desihub/desitarget/pull/782
+
+2.3.0 (2021-12-14)
+------------------
+
+* Fix ragged array warning in geomask.circle_boundaries() [`PR #781`_]:
+    * Addresses `issue #779`_.
+* Finalize MTL logic for reprocessed tiles [`PR #780`_]. Logic is:
+    * Assemble all previous observations that touch a reprocessed tile.
+        * Include any new, reprocessed observations.
+        * Find the most recent for unique ``TILEID`` + ``TARGETID``.
+        * Store these in a redshift catalog (an "all-zcat").
+    * Determine the order in which tiles were originally processed.
+    * Loop through the tiles in this original order.
+        * Start with the ``UNOBS`` state.
+        * Update the ``UNOBS`` state with entries in the "all-zcat".
+        * Recover the final state for each ``TARGETID``.
+        * Add the progression, WITH ``BAD`` observations, to the ledgers.
+    * Also includes:
+        * Mock-up (unique) ``TIMESTAMPs`` instead of delaying the code.
+        * Deprecate ``numobsfromzcat`` as a user-specified option.
+            * as we now always retrieve ``NUMOBS`` from the ledger.
+
+.. _`issue #779`: https://github.com/desihub/desitarget/issues/779
+.. _`PR #780`: https://github.com/desihub/desitarget/pull/780
+.. _`PR #781`: https://github.com/desihub/desitarget/pull/781
+
+2.2.1 (2021-11-22)
+------------------
+
+* Small modification on skyhealpixs.py [`PR #776`_]:
+    * Adjust the per-healpix file name.
+    * Set (nside, nest) arguments, defaulting to (64, True).
+
+.. _`PR #776`: https://github.com/desihub/desitarget/pull/776
+
+2.2.0 (2021-11-21)
+------------------
+
+* Add ``SCND_TARGET`` for backup targets if nosec is passed [`PR #775`_].
+* Add another MWS backup object type BACKUP_GIANT_LOP. The default
+  BACKUP_GIANT category is now downsampled with galactic latitude to
+  avoid having large densities [`PR #772`_].
+* Change backup target priorities to be between 15-30 to be able to place
+  new object types in between [`PR #772`_].
+* Use Gaia to look up good sky positions for stuck fibers [`PR #771`_].
+
+.. _`PR #771`: https://github.com/desihub/desitarget/pull/771
+.. _`PR #772`: https://github.com/desihub/desitarget/pull/772
+.. _`PR #775`: https://github.com/desihub/desitarget/pull/775
+
+2.1.0 (2021-11-16)
+------------------
+
+* First steps towards MTL for reprocessed tiles [`PR #774`_]. Includes:
+    * Finding reprocessed tiles using ``ARCHIVEDATE`` and ``TIMESTAMP``.
+    * Adding a ``--reprocess`` option to the run_mtl_loop script.
+        * MTL will only reprocess when forced to do so.
+    * Keep reprocessing completely separate from "standard" MTL looping.
+        * So the approaches can be run independently.
+    * Looser error checking because we may be reprocessing piecemeal.
+        * i.e. zdone could change from true to false for some tiles.
+    * The skeleton of the logic for updating reprocessed targets.
+        * In the :func:`mtl.reprocess_ledger()` function.
+        * This will need tested and updated in a future PR.
+
+.. _`PR #774`: https://github.com/desihub/desitarget/pull/774
+
+2.0.0 (2021-11-11)
+------------------
+
+* Add ``ARCHIVEDATE`` to the mtl done files and data model [`PR #773`_].
+    * Also change the type of ``ZDATE`` to int64.
+    * These changes will not generally be backward compatible for MTL.
+* Fix some typos in variables' names in the targeting cuts [`PR #770`_].
+  All of those likely never were triggered in production.
+* Find MTL-processed tiles that don't overlap future tiles [`PR #768`_]:
+    * Add code to purge such tiles from the MTL done files and ledgers.
+    * Also improve reading headers and header values from .ecsv files.
+    * Also update GAIA EDR3 files to include RA/Dec errors and REF_EPOCH.
+* Update targetmask and cuts for backup program [`PR #766`_]:
+    * Matches description in backup program document.
 * Also use the ops/tiles-specstatus.ecsv tile file for SV [`PR #765`_].
+* Fix a few variable name typos in the target selection code [`PR #770`_].
+  All of those likely never were triggered in production.
 
 .. _`PR #765`: https://github.com/desihub/desitarget/pull/765
+.. _`PR #766`: https://github.com/desihub/desitarget/pull/766
+.. _`PR #768`: https://github.com/desihub/desitarget/pull/768
+.. _`PR #770`: https://github.com/desihub/desitarget/pull/770
+.. _`PR #773`: https://github.com/desihub/desitarget/pull/773
 
 1.3.0 (2021-09-20)
 ------------------

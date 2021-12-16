@@ -114,6 +114,8 @@ mws_mask:
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     # ADM back-up targets for poor conditions and as filler.
+    - [BACKUP_GIANT_LOP,    58, "Giant candidate backup targets",            {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [BACKUP_GIANT,        59, "Giant candidate backup targets",            {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_BRIGHT,       60, "Bright backup Gaia targets",                {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_FAINT,        61, "Fainter backup Gaia targets",               {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_VERY_FAINT,   62, "Even fainter backup Gaia targets",          {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -350,9 +352,11 @@ priorities:
         MWS_FAINT_RED_SOUTH:          SAME_AS_MWS_BROAD_NORTH
 
 # ADM backup targets.
-        BACKUP_BRIGHT:                {UNOBS: 9, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        BACKUP_FAINT:                 {UNOBS: 8, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        BACKUP_VERY_FAINT:            {UNOBS: 7, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_GIANT:                 {UNOBS: 35, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_BRIGHT:                {UNOBS: 30, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_GIANT_LOP:             {UNOBS: 25, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_FAINT:                 {UNOBS: 20, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_VERY_FAINT:            {UNOBS: 15, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM Standards are special; priorities don't apply.
         GAIA_STD_FAINT:  -1
@@ -499,6 +503,8 @@ numobs:
 
 # ADM backup targets.
         BACKUP_BRIGHT:                2
+        BACKUP_GIANT:                 2
+        BACKUP_GIANT_LOP:             2
         BACKUP_FAINT:                 2
         BACKUP_VERY_FAINT:            2
 

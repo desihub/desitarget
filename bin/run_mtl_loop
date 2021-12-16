@@ -24,17 +24,14 @@ ap.add_argument('--mtldir',
                 help="Full path to the directory that hosts the MTL ledgers.    \
                 Default is to use the $MTL_DIR environment variable",
                 default=None)
-ap.add_argument("-n", "--numobsfromzcat", action='store_true',
-                help="If passed, the zcat includes a meaningful NUMOBS.         \
-                Otherwise, NUMOBS is looked up from the ledger itself")
 ap.add_argument("-nosec", "--nosecondary", action='store_true',
                 help="By default, we always process the ledger of secondaries   \
                 in addition to the primaries so they keep pace. Pass this if    \
                 there are no secondaries to process")
+ap.add_argument("--reprocess", action='store_true',
+                help="Run reprocessed tiles (instead of the standard loop)")
 
 ns = ap.parse_args()
-
-numobs_from_ledger = not(ns.numobsfromzcat)
 
 scndstates = [False]
 
@@ -44,12 +41,15 @@ if ns.obscon in ["BRIGHT", "DARK"]:
     if not(ns.nosecondary):
         scndstates = [True, False]
 
+premsg = ["Processed", "REprocessed"][ns.reprocess]
+
 for secondary in scndstates:
+    # ADM run through the regular loop once.
     hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
         ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-        numobs_from_ledger=numobs_from_ledger, secondary=secondary)
+        secondary=secondary, reprocess=ns.reprocess)
 
     log.info("MTL ledger directory: {}".format(hpdirname))
     log.info("MTL tile file: {}".format(mtltilefn))
     log.info("Redshift tile file: {}".format(tilefn))
-    log.info("Processed {} new tiles, which are: {}".format(len(tiles), tiles))
+    log.info("{} {} tiles, which are: {}".format(premsg, len(tiles), tiles))

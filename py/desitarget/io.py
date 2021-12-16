@@ -458,7 +458,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                   qso_selection=None, nside=None, survey="main", nsidefile=None,
                   hpxlist=None, scndout=None, resolve=True, maskbits=True,
                   obscon=None, mockdata=None, supp=False, extra=None,
-                  extradeps=None,
+                  extradeps=None, nosec=False,
                   infiles=None, checkbright=False, subpriority=True):
     """Write target catalogues.
 
@@ -511,6 +511,9 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         values to the output header.
     extradeps : :class:`dict`, optional
         If not None, add extra DEPNAMnn/DEPVERnn keywords to output header
+    nosec : :class:`bool`, optional, defaults to ``False``
+        Written to the output file header as `NOSEC`. If both this kwarg
+        and `supp` are ``True``, add a `SCND_TARGET` column to the file.
     infiles : :class:`list` or `~numpy.ndarray`, optional
         If passed (and not None), write a second extension "INFILES" that
         contains the files in `infiles` and their SHA-256 checksums. If
@@ -618,15 +621,31 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         for key, value in extradeps.items():
             depend.setdep(hdr, key, value)
 
+    # ADM in case we need to add a SCND_TARGET column.
+    from desitarget.secondary import outdatamodel as sdm
+    desicols, _, _ = main_cmx_or_sv(data, scnd=True)
+    _, scnd_target = desicols[0], desicols[3]
+    stdt = sdm["SCND_TARGET"].dtype
+
     # ADM add HEALPix column, if requested by input.
     if nside is not None:
         theta, phi = np.radians(90-data["DEC"]), np.radians(data["RA"])
         hppix = hp.ang2pix(nside, theta, phi, nest=True)
-        data = rfn.append_fields(data, 'HPXPIXEL', hppix, usemask=False)
+        flds, vals = [], []
+        # ADM to save time/memory, can add SCND_TARGET if needed, too.
+        if supp and nosec:
+            flds.append(scnd_target)
+            vals.append(np.zeros(len(data), dtype=stdt))
+        flds.append("HPXPIXEL")
+        vals.append(hppix)
+        data = rfn.append_fields(data, flds, vals, usemask=False)
         hdr.add_record(dict(name='HPXNSIDE', value=nside,
                             comment="HEALPix nside"))
         hdr.add_record(dict(name='HPXNEST', value=True,
                             comment="HEALPix nested (not ring) ordering"))
+    # ADM if we didn't use the speed-up to add SCND_TARGET, add it.
+    elif supp and nosec:
+        flds, vals = scnd_target, np.zeros(len(data), dtype=stdt)
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
@@ -648,6 +667,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     hdr["MASKBITS"] = maskbits
     # ADM indicate whether this is a supplemental file.
     hdr["BACKUP"] = supp
+    # ADM whether the nosecondary option was passed.
+    hdr["NOSEC"] = nosec
     # ADM add the Data Release to the header.
     if supp:
         hdr["GAIADR"] = gaiadr
@@ -2656,13 +2677,17 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     return fn
 
 
-def read_mtl_tile_file(filename):
+def read_mtl_tile_file(filename, unique=True):
     """Read which tiles have been processed by MTL from the tile file.
 
     Parameters
     ----------
     filename : :class:`str`
         The full path to the MTL tile file.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read entires with unique `TILEID`, where
+        the last occurrence of the TILEID in the file is the one that
+        is retained. If ``False`` then read the entire file.
 
     Returns
     -------
@@ -2670,6 +2695,16 @@ def read_mtl_tile_file(filename):
         A structured numpy array of the MTL tile file.
     """
     mtltiles = Table.read(filename, comment="#", delimiter=" ")
+
+    if unique:
+        # ADM the flip is because np.unique retains the FIRST unique
+        # ADM entry and we want the LAST unique entry.
+        mtltiles = np.flip(mtltiles)
+        _, ii = np.unique(mtltiles["TILEID"], return_index=True)
+        # ADM sort on ii to retain the exact original order...
+        ii = sorted(ii)
+        # ADM ...and flip back to the original ordering
+        return np.flip(mtltiles[ii])
 
     return mtltiles
 
@@ -2813,7 +2848,7 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         mtl = mtl[ii]
 
     if unique or initial:
-        # ADM the reverse is because np.unique retains the FIRST unique
+        # ADM the flip is because np.unique retains the FIRST unique
         # ADM entry and we want the LAST unique entry.
         if not initial:
             mtl = np.flip(mtl)
@@ -2923,13 +2958,18 @@ def read_keyword_from_mtl_header(hpdirname, keyword):
     return hdr[keyword]
 
 
-def read_ecsv_header(filename):
+def read_ecsv_header(filename, cleanup=True):
     """Read header info from an ecsv file without reading the whole file.
 
     Parameters
     ----------
     filename : :class:`str`
         The full path to the .ecsv file of interest.
+    cleanup : :class:`bool`, optional, defaults to ``True``
+        If passed, perform some syntax cleanup to convert strings to more
+        likely types. Integer strings will be changed to integer type,
+        Quotation marks inside of strings will be removed, and instances
+        of 'false' or 'true' will be changed to Boolean types.
 
     Returns
     -------
@@ -2956,7 +2996,24 @@ def read_ecsv_header(filename):
         keyvals = d.split("{")[-1].strip("}").replace(" ", "").split(",")
         for keyval in keyvals:
             key, val = keyval.split(":", maxsplit=1)
-            hdr[key] = val
+            # ADM syntax clean-up to convert strings to likely types.
+            if cleanup:
+                # ADM should only process header values that ARE strings.
+                if isinstance(val, str):
+                    val = val.replace("'", "").replace('"', '')
+                    if val.lower() == 'false':
+                        val = False
+                    # ADM elif, as first if could convert str to bool.
+                    elif val.lower() == 'true':
+                        val = True
+                    # ADM else, to prevent any booleans becoming 0/1.
+                    else:
+                        # ADM do this last as it will convert str to int.
+                        try:
+                            val = int(val)
+                        except ValueError:
+                            pass
+                hdr[key] = val
 
     return hdr
 
@@ -2998,7 +3055,7 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
     # ADM detect whether we're working with the override ledgers.
     try:
-        override = bool(read_keyword_from_mtl_header(hpdirname, "OVERRIDE"))
+        override = read_keyword_from_mtl_header(hpdirname, "OVERRIDE")
     except KeyError:
         pass
 

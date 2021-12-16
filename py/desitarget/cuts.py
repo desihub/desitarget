@@ -104,7 +104,7 @@ def random_fraction_of_trues(fraction, bool_array):
         If a scalar is passed, then a scalar is returned.
     """
     # ADM check that the input fraction was between 0 and 1.
-    if not 0 <= fraction <= 1:
+    if not np.all((0 <= fraction) & (fraction <= 1)):
         msg = "fraction must be between 0 and 1, not {}".format(fraction)
         log.critical(msg)
         raise ValueError(msg)
@@ -338,16 +338,53 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
     return std_faint, std_bright, std_wd
 
 
-def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
+def backupGiantDownsample(l, b):
+    """
+    Return the downsampling factor as a function of l,b
+
+    Parameters
+    ----------
+    l: array
+         Galactic longitude
+    b: array
+         Galactic latitude
+
+    Returns
+    -------
+    frac: array
+         The fraction of objects to select
+    """
+    p = [6.9529434, 0.18786695, -2.6621607, -3.05095354, 8.10060927]
+
+    # this is approximately log density
+    ldens = p[0] + p[1] * np.cos(np.deg2rad(l)) + p[2] * np.log10(
+        np.abs(np.abs(b) + p[3] * np.cos(np.deg2rad(l)) + p[4]))
+
+    # this just maps x -> x when x<th
+    # and then x-> (1+alpha)*(x-th)+th when x>th
+    # The purpose is that in high density regions, it gives a
+    # high envelope
+    mapper = lambda x, alpha, th: (x * (x < th) + ((1 + alpha) * (x - th) + th) * (x > th))
+
+    subsamp = np.minimum(100 / 10**mapper(ldens, .1, .0), 1)
+    return subsamp
+
+
+def isBACKUP(ra=None, dec=None,
+             gaiagmag=None, gaiabmag=None, gaiarmag=None,
+             parallax=None, parallaxerr=None,
+             primary=None):
     """BACKUP targets based on Gaia magnitudes.
 
     Parameters
     ----------
     ra, dec: :class:`array_like` or :class:`None`
         Right Ascension and Declination in degrees.
-    gaiagmag: :class:`array_like` or :class:`None`
-        Gaia-based g MAGNITUDE (not Galactic-extinction-corrected).
-        (same units as `the Gaia data model`_).
+    gaiagmag, gaiabmag, gaiarmag: :class:`array_like` or :class:`None`
+            Gaia-based g, b and  r MAGNITUDES (not corrected for Galactic
+            extinction (same units as `the Gaia data model`_).
+    parallax, parallaxerr: :class:`array_like` or :class:`None`
+            Gaia parallax and error (same units as `the Gaia data model`_)
     primary : :class:`array_like` or :class:`None`
         ``True`` for objects that should be passed through the selection.
 
@@ -360,41 +397,83 @@ def isBACKUP(ra=None, dec=None, gaiagmag=None, primary=None):
     :class:`array_like`
         ``True`` if and only if the object is a very faint "BACKUP"
         target.
+    :class:`array_like`
+        ``True`` if and only if the object is a gaia-selected giant
+        "BACKUP" target.
 
     Notes
     -----
-    - Current version (10/24/19) is version 204 on `the wiki`_.
+    - Current version (10/22/21) is version 273 on `the wiki`_.
     """
     if primary is None:
         primary = np.ones_like(gaiagmag, dtype='?')
 
+    # APC In this case the BP-RP relations use the fluxes without
+    # APC any correction for extinction, by design.
+    bprp = gaiabmag - gaiarmag
+
     # ADM restrict all classes to dec >= -30.
     primary &= dec >= -30.
+    # APC require measured  gaia color.
+    primary &= ~np.isnan(bprp)
+    # APC hard bright limits
+    # See https://github.com/desihub/desitarget/pull/766
+    primary &= gaiagmag >= 11.2
+    primary &= gaiabmag >= 11.2
+    primary &= gaiarmag >= 11.2
 
     isbackupbright = primary.copy()
     isbackupfaint = primary.copy()
     isbackupveryfaint = primary.copy()
+    is_backup_giant = primary.copy()
+    is_backup_lowp_giant = primary.copy()
 
     # ADM determine which sources are close to the Galaxy.
     in_gal = is_in_Galaxy([ra, dec], radec=True)
+    # APC bright targets are 11.2 + 0.6(BP-RP) < G < 16.
+    isbackupbright &= gaiagmag >= 11.2 + 0.6 * bprp
+    isbackupbright &= gaiagmag < 16.0
 
-    # ADM bright targets are 10 < G < 16.
-    isbackupbright &= gaiagmag >= 10
-    isbackupbright &= gaiagmag < 16
+    # APC giant targets are min(17.5 + 0.6 (BP-RP), 19) < G < 16
+    giant_sel = (gaiagmag >= 16.0)
+    giant_sel &= gaiagmag < np.minimum(17.5 + 0.6 * bprp, 19)
+    # APC Giant candidates have low parallax
+    giant_sel &= parallax < (3 * parallaxerr + 0.1)
 
-    # ADM faint targets are 16 < G < 18.
-    isbackupfaint &= gaiagmag >= 16
-    isbackupfaint &= gaiagmag < 18.
+    # less contaminated giant selection
+    giant_hp_sel = giant_sel & (parallax < (2 * parallaxerr + 0.1))
+
+    # APC and are likely giants
+    gal = SkyCoord(ra*u.degree, dec*u.degree).galactic
+    l, b = gal.l.to_value(u.degree), gal.b.to_value(u.degree)
+
+    lowlat_fraction = backupGiantDownsample(l, b)
+    giant_hpsub_sel = random_fraction_of_trues(lowlat_fraction, giant_hp_sel)
+    # Subsampled subset of high priority giants
+    is_backup_giant &= giant_hpsub_sel
+    is_backup_lowp_giant &= (giant_sel & (~giant_hpsub_sel))
+    # do not select low priority distant giants in the galactic plane
+    is_backup_lowp_giant &= (~in_gal)
+
+    # APC faint targets are 16 < G < 18
+    isbackupfaint &= gaiagmag >= 16.0
+    isbackupfaint &= gaiagmag < 18.0
+    # APC and are not halo giant candidates
+    isbackupfaint &= (~is_backup_giant) & (~is_backup_lowp_giant)
     # ADM and are "far from" the Galaxy.
     isbackupfaint &= ~in_gal
 
     # ADM very faint targets are 18. < G < 19.
     isbackupveryfaint &= gaiagmag >= 18.
     isbackupveryfaint &= gaiagmag < 19
+    # APC and are not halo giant candidates
+    isbackupveryfaint &= ~is_backup_giant
+    isbackupveryfaint &= ~is_backup_lowp_giant
     # ADM and are "far from" the Galaxy.
     isbackupveryfaint &= ~in_gal
 
-    return isbackupbright, isbackupfaint, isbackupveryfaint
+    return (isbackupbright, isbackupfaint, isbackupveryfaint,
+            is_backup_giant, is_backup_lowp_giant)
 
 
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
@@ -698,7 +777,7 @@ def isSTD_gaia(primary=None, gaia=None, astrometricexcessnoise=None,
     - Current version (08/01/18) is version 121 on `the wiki`_.
     """
     if primary is None:
-        primary = np.ones_like(gflux, dtype='?')
+        primary = np.ones_like(gaiagmag, dtype='?')
     std = primary.copy()
 
     # ADM Bp and Rp are both measured.
@@ -843,8 +922,8 @@ def isSTD(gflux=None, rflux=None, zflux=None, primary=None,
     else:
         # Use LS r-band as a Gaia G-band proxy.
         gaiamag_proxy = 22.5 - 2.5 * np.log10(rflux.clip(1e-16))
-        std &= gaiamag_ >= gbright
-        std &= gaiamag_ < gfaint
+        std &= gaiamag_proxy >= gbright
+        std &= gaiamag_proxy < gfaint
 
     return std
 
@@ -1144,7 +1223,7 @@ def isMWS_bhb(primary=None, objtype=None,
         rflux, gflux, zflux = rflux.copy(), gflux.copy(), zflux.copy()
         w1flux = w1flux.copy()
         parallax = parallax.copy()
-        gaigmag = gaiagmag.copy()
+        gaiagmag = gaiagmag.copy()
         rflux[w], gflux[w], zflux[w], w1flux[w] = 0., 0., 0., 0.
         parallax[w] = 0.
         gaiagmag[w] = 0.
@@ -2164,7 +2243,7 @@ def _prepare_gaia(objects, colnames=None):
         if len(w) > 0:
             # ADM we need to check the case of a single row being passed.
             if _is_row(gaiaparamssolved):
-                gaiaparamsolved = 3
+                gaiaparamssolved = 3
             else:
                 gaiaparamssolved[w] = 3
 
@@ -2707,9 +2786,17 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
 
     # ADM determine if an object is a BACKUP target.
     primary = np.ones_like(gaiaobjs, dtype=bool)
-    backup_bright, backup_faint, backup_very_faint = targcuts.isBACKUP(
-        ra=ra, dec=dec, gaiagmag=gaiagmag, primary=primary
-    )
+    if survey == 'main':
+        (backup_bright, backup_faint, backup_very_faint, backup_hip_giant,
+         backup_lowp_giant) = targcuts.isBACKUP(
+            ra=ra, dec=dec, gaiagmag=gaiagmag,
+            gaiabmag=gaiabmag, gaiarmag=gaiarmag,
+            parallax=parallax, parallaxerr=parallaxerr,
+            primary=primary)
+    else:
+        (backup_bright, backup_faint, backup_very_faint) = targcuts.isBACKUP(
+            ra=ra, dec=dec, gaiagmag=gaiagmag,
+            primary=primary)
 
     # ADM determine if a target is a Gaia-only standard.
     primary = np.ones_like(gaiaobjs, dtype=bool)
@@ -2725,6 +2812,9 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
     mws_target = backup_bright * mws_mask.BACKUP_BRIGHT
     mws_target |= backup_faint * mws_mask.BACKUP_FAINT
     mws_target |= backup_very_faint * mws_mask.BACKUP_VERY_FAINT
+    if survey == 'main':
+        mws_target |= backup_hip_giant * mws_mask.BACKUP_GIANT
+        mws_target |= backup_lowp_giant * mws_mask.BACKUP_GIANT_LOP
     mws_target |= std_faint * mws_mask.GAIA_STD_FAINT
     mws_target |= std_bright * mws_mask.GAIA_STD_BRIGHT
     mws_target |= std_wd * mws_mask.GAIA_STD_WD

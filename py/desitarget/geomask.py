@@ -762,24 +762,26 @@ def circle_boundaries(RAcens, DECcens, r, nloc):
 
     # ADM nloc Dec offsets equally spaced around the circle perimeter.
     offdec = np.array([rad*np.sin(np.arange(ns)*2*np.pi/ns)
-                       for ns, rad in zip(nloc, radius)]).transpose()
+                       for ns, rad in zip(nloc, radius)], dtype=object).transpose()
 
     # ADM use offsets to determine DEC positions.
     decs = DECcens + offdec
 
     # ADM offsets in RA at these Decs given the mask center Dec.
-    offrapos = [sphere_circle_ra_off(th, cen, declocs)
+    # ADM astype, here, to ensure inputs are floats rather than objects.
+    offrapos = [sphere_circle_ra_off(th, cen, declocs.astype('<f8'))
                 for th, cen, declocs in zip(radius, DECcens, decs.transpose())]
 
     # ADM determine which RA offsets are in the positive direction.
     sign = [np.sign(np.cos(np.arange(ns)*2*np.pi/ns)) for ns in nloc]
 
     # ADM add RA offsets with the right sign to the the circle center.
-    offra = np.array([o*s for o, s in zip(offrapos, sign)]).transpose()
+    offra = np.array([o*s for o, s in zip(offrapos, sign)],
+                     dtype=object).transpose()
     ras = RAcens + offra
 
-    # ADM return the results as 1-D arrays.
-    return np.hstack(ras), np.hstack(decs)
+    # ADM return results as 1-D arrays, converting from object to float.
+    return np.hstack(ras).astype('<f8'), np.hstack(decs).astype('<f8')
 
 
 def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
