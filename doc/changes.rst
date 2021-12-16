@@ -5,7 +5,11 @@ desitarget Change Log
 2.3.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Fix a bug in the randoms due to inaccrate rounding of pixel coordinates [`PR #782`_].
+    * This change will affect brick-based values in randoms (e.g.,
+      NOBS, MASKBITS and PSFSIZE).
+
+.. _`PR #782`: https://github.com/desihub/desitarget/pull/782
 
 2.3.0 (2021-12-14)
 ------------------
