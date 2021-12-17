@@ -5,11 +5,13 @@ desitarget Change Log
 2.3.1 (unreleased)
 ------------------
 
-* Fix a bug in the randoms due to inaccrate rounding of pixel coordinates [`PR #782`_].
-    * This change will affect brick-based values in randoms (e.g.,
-      NOBS, MASKBITS and PSFSIZE).
+* Functionality to split random catalogs by HEALPixel [`PR #783`_].
+    * Allows the io/reading utilities to be used on the resulting files.
+* More accurately round pixel coordinates for randoms [`PR #782`_].
+    * Alters brick-based values for randoms (e.g. NOBS/MASKBITS/PSFSIZE).
 
 .. _`PR #782`: https://github.com/desihub/desitarget/pull/782
+.. _`PR #783`: https://github.com/desihub/desitarget/pull/783
 
 2.3.0 (2021-12-14)
 ------------------
