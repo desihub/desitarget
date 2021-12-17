@@ -1448,7 +1448,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
 def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
                         verbose=True, infile=None, hdr=None):
     """
-    Rewrite an existing random catalog split by HEALPixel.
+    Rewrite a random catalog split by HEALPixel.
 
     Parameters
     ----------
@@ -1478,10 +1478,16 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
 
     Returns
     -------
-    Nothing, but writes the `randoms` to `outdirname` split across each
-    HEALPixel in `pixlist`. A new column HPXPIXEL is added to `randoms`.
-    HPXNSIDE=`nside` and FILENSID=`nside` and "HPXNEST"=``True`` are
-    added to the output header (or overwritten, if they already exist).
+    :class:`int`
+        The number of randoms that were written to file.
+    :class:`str`
+        The name of the file to which randoms were written.
+
+    Notes
+    -------
+        - A new column HPXPIXEL is added to `randoms`. HPXNSIDE=`nside`
+          and FILENSID=`nside` and "HPXNEST"=``True`` are added to the
+          output header (or overwritten, if they already exist).
     """
     t0 = time()
 
@@ -1503,6 +1509,7 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
         hpx = hp.ang2pix(nside, theta, phi, nest=True)
 
     # ADM write the catalogs...
+    nt, fn = 0, None
     for pix in pixlist:
         inpix = hpx == pix
         if np.any(inpix):
@@ -1525,7 +1532,7 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
                 log.info('{} targets written to {}...t={:.1f}s'.format(
                     nt, fn, time()-t0))
 
-    return
+    return nt, fn
 
 
 def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,

@@ -113,6 +113,62 @@ def finalize_randoms(randoms):
     return finalize(randoms, dt, dt*0, dt*0, randoms=True)
 
 
+def rewrite_randoms_in_hp(fn, outdn, nside, verbose=True, ntest=None):
+    """Rewrite randoms in HEALPixels, in files that can use io functions.
+
+    Parameters
+    ----------
+    fn : :class:`str`
+        The filename of a monolithic random catalog to be rewritten split
+        across HEALPixels. For full functionality, include the entire
+        directory string to be searched for the data release number.
+    outdn : :class:`str`
+        Output directory to which to write the files. The sub-directory
+        structure and filenames are built on-the-fly from the header of
+        `fn` (which must correspond to a typical random catalog).
+    nside : :class:`int`
+        The NESTED HEALPixel resolution at which to write files.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log extra information.
+    ntest : :class:`int`, optional, default to ``None``
+        If passed (and not ``None``) then read the first `ntest` randoms
+        instead of the entire catalog. Useful for testing.
+
+    Returns
+    -------
+    Nothing, but rewrites the randoms in `fn` split across HEALPixels.
+
+    Notes
+    -----
+    - Really just a simple wrapper on :func:`io.write_randoms_in_hp()`
+      that also reads the input file.
+    """
+    t0 = time()
+    from desitarget.io import write_randoms_in_hp
+
+    # ADM read in the random catalog (and header).
+    if ntest is None:
+        randoms, hdr = fitsio.read(fn, header=True)
+    else:
+        randoms, hdr = fitsio.read(fn, header=True, rows=np.arange(ntest))
+
+    if verbose:
+        log.info('Read {} randoms from {}...t={:.1f}m'
+                 .format(len(randoms), fn, (time()-t0)/60.))
+
+    # ADM determine all possible pixels at the passed nside.
+    pixlist = np.arange(hp.nside2npix(nside))
+
+    # ADM write the catalog back out split-by-healpixel
+    _, _ = write_randoms_in_hp(randoms, outdn, nside, pixlist,
+                               verbose=verbose, infile=fn, hdr=hdr)
+
+    if verbose:
+        log.info('Done...t={:.1f}m'.format((time()-t0)/60.))
+
+    return
+
+
 def add_default_mtl(randoms, seed):
     """Add default columns that are added by MTL.
 
