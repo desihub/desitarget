@@ -1604,6 +1604,8 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
                 drint = int(extra["DR"])
             except KeyError:
                 drint = None
+    else:
+        drint = None
 
     # ADM whether this is a north-specific or south-specific file.
     region = None
