@@ -1,0 +1,32 @@
+#!/usr/bin/env python
+
+from desitarget.randoms import rewrite_randoms_in_hp
+from desiutil.log import get_logger
+log = get_logger()
+
+# ADM default nside for writing HEALPixel-split files.
+nside = 8
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description='Rewrite randoms in files that are split by HEALPixel and that can use the desitarget.io functions')
+ap.add_argument("infile",
+                help="Filename of monolithic random catalog to rewrite split    \
+                across HEALPixels. For full functionality, include the entire   \
+                directory string to be searched for the data release number.")
+ap.add_argument("outdirectory",
+                help="Directory to which to write the files. The sub-directory  \
+                structure and filenames are built on-the-fly from the header of \
+                the infile.")
+ap.add_argument("--nside", type=int,
+                help="The NESTED HEALPixel resolution at which to write the     \
+                files. Defaults to [{}]".format(nside),
+                default=nside)
+ap.add_argument("--verbose", action='store_true',
+                help="Log extra information")
+ap.add_argument("--ntest", type=int,
+                help=" Read first `ntest` randoms instead of the full catalog.")
+
+ns = ap.parse_args()
+
+rewrite_randoms_in_hp(ns.infile, ns.outdirectory, ns.nside,
+                      verbose=ns.verbose, ntest=ns.ntest)
