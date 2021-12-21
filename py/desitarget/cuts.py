@@ -561,8 +561,8 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 zfiberflux=None, ggood=None,
-                 w2flux=None, primary=None, south=True):
+                 gfiberflux=None, rfiberflux=None, zfiberflux=None,
+                 ggood=None, w2flux=None, primary=None, south=True):
     """(see, e.g., :func:`~desitarget.cuts.isLRG`).
 
     Notes:
@@ -653,8 +653,9 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, gfiberflux=None, south=True, primary=None):
+def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 gfiberflux=None, rfiberflux=None, zfiberflux=None,
+                 south=True, primary=None):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
