@@ -1485,9 +1485,10 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
 
     Notes
     -------
-        - A new column HPXPIXEL is added to `randoms`. HPXNSIDE=`nside`
-          and FILENSID=`nside` and "HPXNEST"=``True`` are added to the
-          output header (or overwritten, if they already exist).
+        - A new column HPXPIXEL is added to `randoms` (or overwritten if
+          it already exists). HPXNSIDE=`nside` and FILENSID=`nside` and
+          "HPXNEST"=``True`` are added to the output header (or
+          overwritten, if they already exist).
     """
     t0 = time()
 
@@ -1516,7 +1517,10 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
             # ADM set up a new array restricted to just the pixel of
             # ADM interest and add the HPXPIXEL column.
             nrows = np.sum(inpix)
-            dt = randoms.dtype.descr + [('HPXPIXEL', '>i8')]
+            if "HPXPIXEL" in randoms.dtype.names:
+                dt = randoms.dtype.descr
+            else:
+                dt = randoms.dtype.descr + [('HPXPIXEL', '>i8')]
             outran = np.zeros(nrows, dtype=dt)
             outran["HPXPIXEL"] = pix
             for col in randoms.dtype.names:
