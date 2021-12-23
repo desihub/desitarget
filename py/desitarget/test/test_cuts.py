@@ -150,32 +150,30 @@ class TestCuts(unittest.TestCase):
         else:
             primary = np.ones_like(gflux, dtype='?')
 
-        # ADM check for both defined fiberflux and fiberflux of None.
-        for ff in zfiberflux, None:
-            lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
-                              zflux=zflux, w1flux=w1flux, zfiberflux=ff,
-                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits, rfluxivar=rfluxivar,
-                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-                              gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
-            lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux,
-                              zflux=zflux, w1flux=w1flux, zfiberflux=ff,
-                              gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                              maskbits=maskbits, rfluxivar=rfluxivar,
-                              zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-                              gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
+        lrg1 = cuts.isLRG(primary=primary, gflux=gflux, rflux=rflux,
+                          zflux=zflux, w1flux=w1flux, zfiberflux=zfiberflux,
+                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                          maskbits=maskbits, rfluxivar=rfluxivar,
+                          zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
+                          gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
+        lrg2 = cuts.isLRG(primary=None, gflux=gflux, rflux=rflux,
+                          zflux=zflux, w1flux=w1flux, zfiberflux=zfiberflux,
+                          gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                          maskbits=maskbits, rfluxivar=rfluxivar,
+                          zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
+                          gaiagmag=gaiagmag, zfibertotflux=zfibertotflux)
 
-            self.assertTrue(np.all(lrg1 == lrg2))
+        self.assertTrue(np.all(lrg1 == lrg2))
 
-            # ADM check color selections alone work. Tripped us up once
-            # ADM when the mocks called a missing isLRG_colors function.
-            lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux,
-                                     rflux=rflux, zflux=zflux, zfiberflux=ff,
-                                     w1flux=w1flux, w2flux=w2flux)
-            lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux,
-                                     zflux=zflux, zfiberflux=ff,
-                                     w1flux=w1flux, w2flux=w2flux)
-            self.assertTrue(np.all(lrg1 == lrg2))
+        # ADM check color selections alone work. Tripped us up once
+        # ADM when the mocks called a missing isLRG_colors function.
+        lrg1 = cuts.isLRG_colors(primary=primary, gflux=gflux,
+                                 rflux=rflux, zflux=zflux, zfiberflux=zfiberflux,
+                                 w1flux=w1flux, w2flux=w2flux)
+        lrg2 = cuts.isLRG_colors(primary=None, gflux=gflux, rflux=rflux,
+                                 zflux=zflux, zfiberflux=zfiberflux,
+                                 w1flux=w1flux, w2flux=w2flux)
+        self.assertTrue(np.all(lrg1 == lrg2))
 
         elg1, _ = cuts.isELG(gflux=gflux, rflux=rflux, zflux=zflux, gsnr=gsnr,
                              gfiberflux=gfiberflux, rsnr=rsnr, zsnr=zsnr,
@@ -193,23 +191,21 @@ class TestCuts(unittest.TestCase):
                                     gfiberflux=gfiberflux, primary=None)
         self.assertTrue(np.all(elg1 == elg2))
 
-        # ADM check for both defined fiberflux and fiberflux of None.
-        for ff in rfiberflux, None:
-            for targtype in ["bright", "faint", "wise"]:
-                bgs = []
-                for prim in [primary, None]:
-                    bgs.append(
-                        cuts.isBGS(
-                            rfiberflux=ff, gflux=gflux, rflux=rflux,
-                            rfibertotflux=rfibertotflux,
-                            zflux=zflux, w1flux=w1flux, w2flux=w2flux,
-                            gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                            gfluxivar=gfluxivar, rfluxivar=rfluxivar,
-                            zfluxivar=zfluxivar, maskbits=maskbits,
-                            Grr=Grr, w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag,
-                            objtype=objtype, primary=prim, targtype=targtype)
-                    )
-                self.assertTrue(np.all(bgs[0] == bgs[1]))
+        for targtype in ["bright", "faint", "wise"]:
+            bgs = []
+            for prim in [primary, None]:
+                bgs.append(
+                    cuts.isBGS(
+                        rfiberflux=rfiberflux, gflux=gflux, rflux=rflux,
+                        rfibertotflux=rfibertotflux,
+                        zflux=zflux, w1flux=w1flux, w2flux=w2flux,
+                        gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                        gfluxivar=gfluxivar, rfluxivar=rfluxivar,
+                        zfluxivar=zfluxivar, maskbits=maskbits,
+                        Grr=Grr, w1snr=w1snr, w2snr=w2snr, gaiagmag=gaiagmag,
+                        objtype=objtype, primary=prim, targtype=targtype)
+                )
+            self.assertTrue(np.all(bgs[0] == bgs[1]))
 
         # ADM need to include RELEASE for quasar cuts, at least.
         release = targets['RELEASE']
