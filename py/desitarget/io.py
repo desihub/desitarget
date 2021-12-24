@@ -1522,9 +1522,9 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
             else:
                 dt = randoms.dtype.descr + [('HPXPIXEL', '>i8')]
             outran = np.zeros(nrows, dtype=dt)
-            outran["HPXPIXEL"] = pix
-            for col in randoms.dtype.names:
+            for col in outran.dtype.names:
                 outran[col] = randoms[col][inpix]
+            outran["HPXPIXEL"] = pix
             # ADM add the pixel to the output file hdr. dict is in case
             # ADM hdr was passed as a FITSHDR, which can't be copied.
             outhdr = dict(hdr).copy()
