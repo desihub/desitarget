@@ -5,11 +5,16 @@ desitarget Change Log
 2.3.1 (unreleased)
 ------------------
 
+* Add optional ``[grz]fiberflux`` arguments to the ``ELG``, ``LRG``, and ``BGS`` 
+  color-cut selection functions to support the `desisim` template-generating
+  code (see `desisim/PR #556`) [`PR #786`].
 * Fix a bug in the randoms due to inaccrate rounding of pixel coordinates [`PR #782`_].
     * This change will affect brick-based values in randoms (e.g.,
       NOBS, MASKBITS and PSFSIZE).
 
 .. _`PR #782`: https://github.com/desihub/desitarget/pull/782
+.. _`PR #786`: https://github.com/desihub/desitarget/pull/786
+.. _`desisim/PR #556`: https://github.com/desihub/desisim/pull/556
 
 2.3.0 (2021-12-14)
 ------------------
