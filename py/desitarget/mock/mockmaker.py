@@ -305,6 +305,9 @@ class SelectTargets(object):
         with fits.open(pixfile) as hdulist:
             self.pixmap = hdulist[0].data
 
+        # from desisim.templates.GALAXY
+        self.fiberflux_fraction = {'ELG': 0.6, 'LRG': 0.4, 'BGS': 0.3}
+
     def mw_transmission(self, data):
         """Compute the grzW1W2 Galactic transmission for every object.
 
@@ -5311,17 +5314,26 @@ class BuzzardMaker(SelectTargets):
         w1flux = elgscale * self.meta['SYNTH_WISE2010_W1'].data.flatten()[elgzcut]
         w2flux = elgscale * self.meta['SYNTH_WISE2010_W2'].data.flatten()[elgzcut]
 
+        fiberflux_fraction = self.fiberflux_fraction['ELG']
+        gfiberflux = fiberflux_fraction * gflux
+        rfiberflux = fiberflux_fraction * rflux 
+        zfiberflux = fiberflux_fraction * zflux
+
         # Monte Carlo the colors and take the union of all the templates that
         # scatter into the ELG color-box.
         iselg = np.zeros(len(gflux)).astype(bool)
         for ii in range(nmonte):
-            iselg = np.logical_or( (iselg), (isELG_colors(
+            _iselg_vlo, _iselg = isELG_colors(
                 south = True,
                 gflux = gflux + gflux_err[ii],
                 rflux = rflux + rflux_err[ii],
                 zflux = zflux + zflux_err[ii],
+                gfiberflux = gfiberflux,
+                rfiberflux = rfiberflux,
+                zfiberflux = zfiberflux,
                 w1flux= w1flux + w1flux_err[ii],
-                w2flux= w2flux + w2flux_err[ii])) )
+                w2flux= w2flux + w2flux_err[ii])
+            iselg = np.logical_or(np.logical_or(iselg, _iselg_vlo), _iselg)
 
         # Determine which templates scatter into the ELG color-box **in each
         # redshift bin.***
