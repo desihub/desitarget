@@ -570,7 +570,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
             trueflux = []
         else:
             if len(good) > 0:
-                trueflux = np.concatenate(np.array(results[3])[good])
+                trueflux = np.concatenate(np.array(results[3], dtype=object)[good])
             else:
                 trueflux = []
 
@@ -984,7 +984,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         if nsky > 0:
             log.info('Writing {} SKY targets to {}'.format(nsky, skyfile))
             write_skies(output_dir, skytargets.as_array(), nside=nside, nsidefile=nside,
-                        hpxlist=healpix, mock=True)
+                        hpxlist=np.atleast_1d(healpix), mock=True)
         else:
             log.info('No SKY targets generated; {} not written.'.format(skyfile))
             log.info('  Sky file {} not written.'.format(skyfile))

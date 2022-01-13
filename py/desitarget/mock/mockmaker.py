@@ -663,6 +663,14 @@ class SelectTargets(object):
                                                    rfibertotflux=rfiberflux,
                                                    zfiberflux=zfiberflux,
                                                    south=south)
+                    elif target == 'ELG':
+                        itarg_vlo, _itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
+                                                               w1flux=w1flux, w2flux=w2flux, 
+                                                               gfiberflux=gfiberflux,
+                                                               rfiberflux=rfiberflux,
+                                                               zfiberflux=zfiberflux,
+                                                               south=south)
+                        itarg = np.logical_or(itarg_vlo, _itarg)
                     else:
                         itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
                                                    w1flux=w1flux, w2flux=w2flux, 
