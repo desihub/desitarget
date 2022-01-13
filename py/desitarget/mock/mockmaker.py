@@ -7,9 +7,6 @@ desitarget.mock.mockmaker
 
 Read mock catalogs and assign spectra.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import os
 import numpy as np
 from glob import glob
