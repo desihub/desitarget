@@ -7,8 +7,6 @@ desitarget.mock.build
 Build truth and targets catalogs, including spectra, for the mocks.
 
 """
-from __future__ import absolute_import, division, print_function
-
 import os, time
 import numpy as np
 import healpy as hp
