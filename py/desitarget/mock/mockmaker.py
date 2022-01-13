@@ -268,7 +268,7 @@ class SelectTargets(object):
         from speclite import filters
         from desiutil.dust import SFDMap
         from desiutil.brick import Bricks
-        from specsim.fastfiberacceptance import FastFiberAcceptance
+        from desimodel.fastfiberacceptance import FastFiberAcceptance
 
         self.survey = survey
         if survey == 'main':
