@@ -1293,7 +1293,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         else:
             subpseed = 718
         if hpxlist is not None:
-            subpseed += int(hpxlist[0])
+            subpseed += int(np.atleast_1d(hpxlist)[0])
             # ADM the way we construct different random seeds for the
             # ADM skies and supplemental skies requires nsidefile < 1024.
             if int(nsidefile) > 1024:
