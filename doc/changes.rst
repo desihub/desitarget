@@ -8,6 +8,8 @@ desitarget Change Log
 * Add optional ``[grz]fiberflux`` arguments to the ``ELG``, ``LRG``, and ``BGS`` 
   color-cut selection functions to support the `desisim` template-generating
   code (see `desisim/PR #556`) [`PR #786`].
+* Extra functionality for splitting randoms by HEALPixel [`PR #785`_]:
+    * Correctly process catalogs with an existing ``HPXPIXEL`` column.
 * Functionality to split random catalogs by HEALPixel [`PR #783`_].
     * Allows the io/reading utilities to be used on the resulting files.
 * More accurately round pixel coordinates for randoms [`PR #782`_].
@@ -15,6 +17,7 @@ desitarget Change Log
 
 .. _`PR #782`: https://github.com/desihub/desitarget/pull/782
 .. _`PR #783`: https://github.com/desihub/desitarget/pull/783
+.. _`PR #785`: https://github.com/desihub/desitarget/pull/785
 .. _`desisim/PR #556`: https://github.com/desihub/desisim/pull/556
 .. _`PR #786`: https://github.com/desihub/desitarget/pull/786
 
