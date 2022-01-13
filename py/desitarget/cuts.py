@@ -537,11 +537,6 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
 
-    # ADM to maintain backwards-compatibility with mocks.
-    if zfiberflux is None:
-        log.warning('Setting zfiberflux to zflux!!!')
-        zfiberflux = zflux.copy()
-
     lrg &= (rfluxivar > 0) & (rflux > 0)   # ADM quality in r.
     lrg &= (zfluxivar > 0) & (zflux > 0) & (zfiberflux > 0)   # ADM quality in z.
     lrg &= (w1fluxivar > 0) & (w1flux > 0)  # ADM quality in W1.
@@ -561,8 +556,8 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 zfiberflux=None, ggood=None,
-                 w2flux=None, primary=None, south=True):
+                 gfiberflux=None, rfiberflux=None, zfiberflux=None,
+                 ggood=None, w2flux=None, primary=None, south=True):
     """(see, e.g., :func:`~desitarget.cuts.isLRG`).
 
     Notes:
@@ -572,11 +567,6 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
-
-    # ADM to maintain backwards-compatibility with mocks.
-    if zfiberflux is None:
-        log.warning('Setting zfiberflux to zflux!!!')
-        zfiberflux = zflux.copy()
 
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
     # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
@@ -653,8 +643,9 @@ def notinELG_mask(maskbits=None, gsnr=None, rsnr=None, zsnr=None,
     return elg
 
 
-def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
-                 w2flux=None, gfiberflux=None, south=True, primary=None):
+def isELG_colors(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
+                 gfiberflux=None, rfiberflux=None, zfiberflux=None,
+                 south=True, primary=None):
     """Color cuts for ELG target selection classes
     (see, e.g., :func:`~desitarget.cuts.set_target_bits` for parameters).
     """
@@ -1462,11 +1453,6 @@ def isBGS(rfiberflux=None, gflux=None, rflux=None, zflux=None, rfibertotflux=Non
     """
     _check_BGS_targtype(targtype)
 
-    # ADM to maintain backwards-compatibility with mocks.
-    if rfiberflux is None:
-        log.warning('Setting rfiberflux to rflux!!!')
-        rfiberflux = rflux.copy()
-
     # ------ Bright Galaxy Survey
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -1530,17 +1516,12 @@ def notinBGS_mask(gnobs=None, rnobs=None, znobs=None, primary=None,
 
 
 def isBGS_colors(rfiberflux=None, gflux=None, rflux=None, zflux=None,
-                 w1flux=None, rfibertotflux=None, maskbits=None,
+                 w1flux=None, w2flux=None, rfibertotflux=None, maskbits=None,
                  south=True, targtype=None, primary=None):
     """Standard color-based cuts used by all BGS target selection classes
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
-
-    # ADM to maintain backwards-compatibility with mocks.
-    if rfiberflux is None:
-        log.warning('Setting rfiberflux to rflux!!!')
-        rfiberflux = rflux.copy()
 
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
@@ -1620,11 +1601,6 @@ def isBGS_wise(rfiberflux=None, gflux=None, rflux=None, zflux=None, w1flux=None,
     (see, e.g., :func:`~desitarget.cuts.isBGS` for parameters).
     """
     _check_BGS_targtype(targtype)
-
-    # ADM to maintain backwards-compatibility with mocks.
-    if rfiberflux is None:
-        log.warning('Setting rfiberflux to rflux!!!')
-        rfiberflux = rflux.copy()
 
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
