@@ -12,10 +12,10 @@ ap = ArgumentParser(description='Make an initial HEALPixel-split ledger for a Me
 ap.add_argument("obscon",
                 help="String matching ONE obscondition in the bitmask yaml file \
                 (e.g. 'BRIGHT'). Controls priorities when merging targets,      \
-                which tiles to process, etc.")
+                which tiles to process, etc.", choices=["DARK", "BRIGHT", "BACKUP"])
 ap.add_argument("-s", "--survey",
                 help="Flavor of survey to run. Defaults to [{}]".format(survey),
-                default=survey)
+                default=survey, choices=["main", "sv3", "sv2"])
 ap.add_argument('--zcatdir',
                 help="Full path to the directory that hosts the redshift        \
                 catalogs. Default is to use the $ZCAT_DIR environment variable",
@@ -32,6 +32,11 @@ ap.add_argument("--reprocess", action='store_true',
                 help="Run reprocessed tiles (instead of the standard loop)")
 
 ns = ap.parse_args()
+
+if ns.obscon == "BACKUP" and ns.survey == "main":
+    msg = "Updating BACKUP ledgers is not yet supported for the Main Survey!!!"
+    raise RuntimeError(msg)
+    log.error(msg)
 
 scndstates = [False]
 
