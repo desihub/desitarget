@@ -23,7 +23,6 @@ jobs:
         env:
             DESIUTIL_VERSION: 3.2.3
             DESIMODEL_DATA: branches/test-0.12
-            DESITARGET_RUN_MOCK_UNITTEST: doit
 
         steps:
             - name: Checkout code
