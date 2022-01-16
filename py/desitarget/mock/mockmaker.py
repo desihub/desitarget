@@ -902,7 +902,7 @@ class SelectTargets(object):
             else:
                 gmag = normmag = data['MAG'][indx]
                 magfilter = data['MAGFILTER'][indx]
-            rmag, zmag = _r_and_z(rmag, gr, rz)
+            rmag, zmag = _r_and_z(gmag, gr, rz)
         else:
             rmag = normmag = data['MAG'][indx]
             magfilter = data['MAGFILTER'][indx]
