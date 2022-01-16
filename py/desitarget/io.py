@@ -716,12 +716,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
             wavehdr['BUNIT'] = 'Angstrom'
             wavehdr['AIRORVAC'] = 'vac'
             fitsio.write(truthfile+'.tmp', mockdata['truewave'].astype(np.float32),
-                         extname='WAVE', header=wavehdr, append=True)
+                         extname='WAVE', header=wavehdr)
 
             fluxhdr = fitsio.FITSHDR()
             fluxhdr['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
             fitsio.write(truthfile+'.tmp', trueflux.astype(np.float32),
-                         extname='FLUX', header=fluxhdr, append=True)
+                         extname='FLUX', header=fluxhdr)
 
         if len(objtruth) > 0:
             for obj in sorted(set(truthdata['TEMPLATETYPE'])):
@@ -735,7 +735,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                     if 'TRANSIENT_' in col:
                         out.remove_column(col)
 
-                fitsio.write(truthfile+'.tmp', out.as_array(), append=True, extname='TRUTH_{}'.format(obj))
+                fitsio.write(truthfile+'.tmp', out.as_array(), extname='TRUTH_{}'.format(obj))
         os.rename(truthfile+'.tmp', truthfile)
 
     # ADM If input files were passed, write them to a second extension.
