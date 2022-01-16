@@ -318,7 +318,7 @@ class SelectTargets(object):
         ------
 
         """
-        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113, W3 = 0.0241, W4 = 0.00910)
+        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.211, W1 = 0.184, W2 = 0.113, W3 = 0.0241, W4 = 0.00910)
         data['EBV'] = self.SFDMap.ebv(data['RA'], data['DEC'], scaling=1.0)
 
         for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
