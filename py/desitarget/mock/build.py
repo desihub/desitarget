@@ -490,8 +490,8 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     """
     from time import time
-    import multiprocessing
-    #from desitarget.internal import sharedmem
+    #import multiprocessing
+    from desitarget.internal import sharedmem
     
     # Parallelize by chunking the sample into smaller healpixels and
     # determine the number of targets per chunk.
@@ -521,25 +521,31 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     nn = np.zeros((), dtype='i8')
     t0 = time()
-    #def _update_spectra_status(result):
-    #    """Status update."""
-    #    if nn % 2 == 0 and nn > 0:
-    #        rate = (time() - t0) / nn
-    #        log.debug('Healpixel chunk {} / {} ({:.1f} sec / chunk)'.format(nn, nchunk, rate))
-    #    nn[...] += 1    # in-place modification
-    #    return result
+    def _update_spectra_status(result):
+        """Status update."""
+        if nn % 2 == 0 and nn > 0:
+            rate = (time() - t0) / nn
+            log.debug('Healpixel chunk {} / {} ({:.1f} sec / chunk)'.format(nn, nchunk, rate))
+        nn[...] += 1    # in-place modification
+        return result
     
     if nproc > 1:
-        #with sharedmem.MapReduce(np=nproc) as pool:
-        #    results = pool.map(_get_spectra_onepixel, specargs,
-        #                       reduce=_update_spectra_status)
-        with multiprocessing.Pool(nproc) as P:
-            results = P.map(_get_spectra_onepixel, specargs)
+        with sharedmem.MapReduce(np=nproc) as pool:
+            results = pool.map(_get_spectra_onepixel, specargs,
+                               reduce=_update_spectra_status)
     else:
         results = list()
         for args in specargs:
-            #results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
-            results.append(_get_spectra_onepixel(args))
+            results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
+
+    #if nproc > 1:
+    #    with multiprocessing.Pool(nproc) as P:
+    #        results = P.map(_get_spectra_onepixel, specargs)
+    #else:
+    #    results = list()
+    #    for args in specargs:
+    #        results.append(_get_spectra_onepixel(args))
+            
     ttime = time() - t0
 
     # Unpack the results and return; note that sky targets are a special case.

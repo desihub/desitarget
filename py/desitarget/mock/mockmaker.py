@@ -652,7 +652,6 @@ class SelectTargets(object):
                     rfiberflux = fiberflux_fraction * rflux
                     zfiberflux = fiberflux_fraction * zflux
 
-                    #import pdb ; pdb.set_trace()
                     if target == 'QSO':
                         itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
                                                    w1flux=w1flux, w2flux=w2flux, 
@@ -5359,12 +5358,10 @@ class BuzzardMaker(SelectTargets):
         w1flux = elgscale * self.meta['SYNTH_WISE2010_W1'].data.flatten()[elgzcut]
         w2flux = elgscale * self.meta['SYNTH_WISE2010_W2'].data.flatten()[elgzcut]
 
-        import pdb ; pdb.set_trace()
-
-        #fiberflux_fraction = self.fiberflux_fraction['ELG']
-        #gfiberflux = fiberflux_fraction * gflux
-        #rfiberflux = fiberflux_fraction * rflux 
-        #zfiberflux = fiberflux_fraction * zflux
+        fiberflux_fraction = self.fiberflux_fraction['ELG']
+        gfiberflux = fiberflux_fraction * gflux
+        rfiberflux = fiberflux_fraction * rflux 
+        zfiberflux = fiberflux_fraction * zflux
 
         # Monte Carlo the colors and take the union of all the templates that
         # scatter into the ELG color-box.
