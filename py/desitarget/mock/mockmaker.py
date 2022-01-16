@@ -1693,7 +1693,7 @@ class ReadBuzzard(SelectTargets):
         #                         seed=seed, prior_redshift=zz)
         #gmmout = None
 
-        #gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
+        gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
         rmag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
         zmag = data['TMAG'][:, 4].astype('f4') # DES z-band, no MW extinction 
 
