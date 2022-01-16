@@ -5,6 +5,7 @@ desitarget Change Log
 2.3.1 (unreleased)
 ------------------
 
+* Restore ``select_mock_targets`` to a working state [`PR #788`].
 * Add optional ``[grz]fiberflux`` arguments to the ``ELG``, ``LRG``, and ``BGS`` 
   color-cut selection functions to support the `desisim` template-generating
   code (see `desisim/PR #556`) [`PR #786`].
@@ -17,6 +18,7 @@ desitarget Change Log
 .. _`PR #783`: https://github.com/desihub/desitarget/pull/783
 .. _`desisim/PR #556`: https://github.com/desihub/desisim/pull/556
 .. _`PR #786`: https://github.com/desihub/desitarget/pull/786
+.. _`PR #788`: https://github.com/desihub/desitarget/pull/788
 
 2.3.0 (2021-12-14)
 ------------------
