@@ -627,6 +627,7 @@ class SelectTargets(object):
                     if 'z' in samp.dtype.names:
                         zmag = samp['z'][need]
                         rmag = samp['rz'][need] + zmag
+                        gmag = samp['gr'][need] + rmag
                     elif 'g' in samp.dtype.names:
                         gmag = samp['g'][need]
                         rmag = gmag - samp['gr'][need]

@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import print_function, division
-
 import os
 import sys
 import argparse
@@ -20,91 +18,97 @@ from  desitarget.io import find_target_files
 import multiprocessing
 nproc = multiprocessing.cpu_count() // 2
 
-parser = argparse.ArgumentParser()
-parser.add_argument('-c', '--config', default='input.yaml')
-parser.add_argument('-O', '--output_dir', help='Path to write the outputs', type=str, default='./')
-parser.add_argument('-s', '--seed', help='Seed for random number generation', type=int, default=None)
-parser.add_argument('-n', '--nproc', type=int, help='Number of concurrent processes to use [{}]'.format(nproc), default=nproc)
-parser.add_argument('--survey', type=str, choices=['main', 'sv1'], help='Survey to simulate.', default='main')
-parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=None)
-parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
-parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
-parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
-parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
-parser.add_argument('--no-spectra', action='store_true', help='Do not generate spectra.')
-parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files.')
+def main():
+    """Main wrapper on select_mock_targets
 
-args = parser.parse_args()
-
-if args.verbose:
-    log = get_logger(DEBUG)
-else:
-    log = get_logger()
-
-log.info('Starting select_mock_targets at {}'.format(time.asctime()))
-
-if args.nside is None:
-    log.warning('NSIDE is a required input.')
-    raise ValueError
-
-# Divide the DESI footprint into healpix pixels.
-if args.nside < 2:
-    log.fatal('NSIDE = {} must be >=2'.format(args.nside))
-    raise Exception()
-
-if args.tiles and args.healpixels:
-    log.error('use --tiles or --healpixels but not both')
-    sys.exit(1)
+    """
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-c', '--config', default='input.yaml')
+    parser.add_argument('-O', '--output_dir', help='Path to write the outputs', type=str, default='./')
+    parser.add_argument('-s', '--seed', help='Seed for random number generation', type=int, default=None)
+    parser.add_argument('-n', '--nproc', type=int, help='Number of concurrent processes to use [{}]'.format(nproc), default=nproc)
+    parser.add_argument('--survey', type=str, choices=['main', 'sv1'], help='Survey to simulate.', default='main')
+    parser.add_argument('--nside', help='Divide the DESI footprint into this healpix resolution', type=int, default=None)
+    parser.add_argument('--tiles', help='Path to file with tiles to cover', type=str)
+    parser.add_argument('--healpixels', help='Integer list of healpix pixels (corresponding to nside) to process.', type=int, nargs='*', default=None)
+    parser.add_argument('--join', action='store_true', help='Join the target and truth files in output_dir.')
+    parser.add_argument('-v','--verbose', action='store_true', help='Enable verbose output.')
+    parser.add_argument('--no-spectra', action='store_true', help='Do not generate spectra.')
+    parser.add_argument('--overwrite', action='store_true', help='Overwrite existing files.')
     
-if args.healpixels is None:
-    if args.tiles is not None:
-        if args.tiles.endswith('.ecsv'):
-            tiles = Table.read(args.tiles, format='ascii.ecsv')
-        else:
-            tiles = Table.read(args.tiles)
-        log.info('{} tiles'.format(len(tiles)))
+    args = parser.parse_args()
+    
+    if args.verbose:
+        log = get_logger(DEBUG)
     else:
-        tiles = None
-        log.info('Running on the full DESI footprint')
-    healpixels = desimodel.footprint.tiles2pix(args.nside, tiles)
-else:
-    healpixels = np.array(args.healpixels)
+        log = get_logger()
+    
+    log.info('Starting select_mock_targets at {}'.format(time.asctime()))
+    
+    if args.nside is None:
+        log.warning('NSIDE is a required input.')
+        raise ValueError
+    
+    # Divide the DESI footprint into healpix pixels.
+    if args.nside < 2:
+        log.fatal('NSIDE = {} must be >=2'.format(args.nside))
+        raise Exception()
+    
+    if args.tiles and args.healpixels:
+        log.error('use --tiles or --healpixels but not both')
+        sys.exit(1)
+        
+    if args.healpixels is None:
+        if args.tiles is not None:
+            if args.tiles.endswith('.ecsv'):
+                tiles = Table.read(args.tiles, format='ascii.ecsv')
+            else:
+                tiles = Table.read(args.tiles)
+            log.info('{} tiles'.format(len(tiles)))
+        else:
+            tiles = None
+            log.info('Running on the full DESI footprint')
+        healpixels = desimodel.footprint.tiles2pix(args.nside, tiles)
+    else:
+        healpixels = np.array(args.healpixels)
+    
+    if args.overwrite:
+        log.info('Processing {} pixel(s).'.format(len(healpixels)))
+    else:
+        keep = list()
+        for i, pixnum in enumerate(healpixels):
+            truth_dark = find_target_files(args.output_dir, flavor="truth", obscon='dark',
+                                            hp=pixnum, nside=args.nside, mock=True)
+            truth_bright = find_target_files(args.output_dir, flavor="truth", obscon='bright',
+                                            hp=pixnum, nside=args.nside, mock=True)
+            if os.path.exists(truth_dark) or os.path.exists(truth_bright):
+                continue
+            keep.append(i)
+    
+        log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
+        healpixels = healpixels[keep]
+    
+    if args.join:
+        from desitarget.mock.build import join_targets_truth
+        join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, overwrite=args.overwrite)
+    
+    # Construct Targets and Truth files
+    if not os.path.exists(args.config):
+        log.fatal('No configuration file {} found.'.format(args.config))
+        raise Exception()
+    
+    if len(healpixels)>0:
+        # Read parameters from yaml file.
+        log.info('Reading configuration file {}'.format(args.config))
+        with open(args.config, 'r') as pfile:
+            params = yaml.safe_load(pfile)
+    
+        log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
+        targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed,
+                  output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,
+                  no_spectra=args.no_spectra, survey=args.survey)
+    
+    log.info('All done at {}'.format(time.asctime()))
 
-if args.overwrite:
-    log.info('Processing {} pixel(s).'.format(len(healpixels)))
-else:
-    keep = list()
-    for i, pixnum in enumerate(healpixels):
-        truth_dark = find_target_files(args.output_dir, flavor="truth", obscon='dark',
-                                        hp=pixnum, nside=args.nside, mock=True)
-        truth_bright = find_target_files(args.output_dir, flavor="truth", obscon='bright',
-                                        hp=pixnum, nside=args.nside, mock=True)
-        if os.path.exists(truth_dark) or os.path.exists(truth_bright):
-            continue
-        keep.append(i)
-
-    log.info('{}/{} pixels remaining to do'.format(len(keep), len(healpixels)))
-    healpixels = healpixels[keep]
-
-if args.join:
-    from desitarget.mock.build import join_targets_truth
-    join_targets_truth(mockdir=args.output_dir, outdir=args.output_dir, overwrite=args.overwrite)
-
-# Construct Targets and Truth files
-if not os.path.exists(args.config):
-    log.fatal('No configuration file {} found.'.format(args.config))
-    raise Exception()
-
-if len(healpixels)>0:
-    # Read parameters from yaml file.
-    log.info('Reading configuration file {}'.format(args.config))
-    with open(args.config, 'r') as pfile:
-        params = yaml.safe_load(pfile)
-
-    log.info('Calling targets_truth with survey={} at {}'.format(args.survey, time.asctime()))
-    targets_truth(params, healpixels=healpixels, nside=args.nside, seed=args.seed,
-              output_dir=args.output_dir, nproc=args.nproc, verbose=args.verbose,
-              no_spectra=args.no_spectra, survey=args.survey)
-
-log.info('All done at {}'.format(time.asctime()))
-
+if __name__ == '__main__':
+    main()
