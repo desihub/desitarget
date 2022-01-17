@@ -1190,10 +1190,10 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
         nside. Used in conjunction with `hpxlist`.
-    hpxlist : :class:`list`, optional, defaults to `None`
+    hpxlist : :class:`list` or :class:`int`, optional, defaults to `None`
         Passed to indicate in the output file header that the targets
-        have been limited to only this list of HEALPixels. Used in
-        conjunction with `nsidefile`.
+        have been limited to only this list of HEALPixels. May also be a
+        scalar integer. Used in conjunction with `nsidefile`.
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
