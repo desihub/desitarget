@@ -5,6 +5,8 @@ desitarget.io
 =============
 
 Functions for reading, writing and manipulating files related to targeting.
+
+.. _`desitarget issue 784`: https://github.com/desihub/desitarget/issues/784#issuecomment-1011452303
 """
 from __future__ import (absolute_import, division)
 #
@@ -1485,9 +1487,10 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
 
     Notes
     -------
-        - A new column HPXPIXEL is added to `randoms`. HPXNSIDE=`nside`
-          and FILENSID=`nside` and "HPXNEST"=``True`` are added to the
-          output header (or overwritten, if they already exist).
+        - A new column HPXPIXEL is added to `randoms` (or overwritten if
+          it already exists). HPXNSIDE=`nside` and FILENSID=`nside` and
+          "HPXNEST"=``True`` are added to the output header (or
+          overwritten, if they already exist).
     """
     t0 = time()
 
@@ -1516,18 +1519,22 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
             # ADM set up a new array restricted to just the pixel of
             # ADM interest and add the HPXPIXEL column.
             nrows = np.sum(inpix)
-            dt = randoms.dtype.descr + [('HPXPIXEL', '>i8')]
+            if "HPXPIXEL" in randoms.dtype.names:
+                dt = randoms.dtype.descr
+            else:
+                dt = randoms.dtype.descr + [('HPXPIXEL', '>i8')]
             outran = np.zeros(nrows, dtype=dt)
-            outran["HPXPIXEL"] = pix
-            for col in randoms.dtype.names:
+            for col in outran.dtype.names:
                 outran[col] = randoms[col][inpix]
+            outran["HPXPIXEL"] = pix
             # ADM add the pixel to the output file hdr. dict is in case
             # ADM hdr was passed as a FITSHDR, which can't be copied.
             outhdr = dict(hdr).copy()
             outhdr["FILEHPX"] = pix
             # ADM write out the randoms in this pixel.
-            nt, fn = write_randoms(outdirname, outran, indir=infile,
-                                   nsidefile=nside, hpxlist=pix, extra=outhdr)
+            nt, fn = write_randoms(
+                outdirname, outran, indir=infile, nsidefile=nside, hpxlist=pix,
+                extra=outhdr, hpxsplit=True)
             if verbose:
                 log.info('{} targets written to {}...t={:.1f}s'.format(
                     nt, fn, time()-t0))
@@ -1537,7 +1544,7 @@ def write_randoms_in_hp(randoms, outdirname, nside, pixlist, hpx=None,
 
 def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
                   nsidefile=None, hpxlist=None, resolve=True, north=None,
-                  extra=None):
+                  extra=None, hpxsplit=False):
     """Write a catalogue of randoms and associated pixel-level info.
 
     Parameters
@@ -1577,6 +1584,9 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
     extra : :class:`dict`, optional
         If passed (and not ``None``), write these extra dictionary keys
         and values to the output header.
+    hpxsplit : :class:`bool`, optional, defaults to ``False``
+        If ``True`` use the "INFILE" key in `hdr` to determine an extra,
+        final, directory to add to the output path.
 
     Returns
     -------
@@ -1683,6 +1693,18 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
 
     # ADM add whether or not the randoms were resolved to the header.
     hdr["RESOLVE"] = resolve
+
+    # ADM if performing a split-by-HEALPixel, add an extra directory.
+    if hpxsplit:
+        if "INFILE" in hdr:
+            # ADM determine an extra directory to add to the output path.
+            xdirname = os.path.splitext(os.path.basename(hdr["INFILE"]))[0]
+            dirname, basename = os.path.split(filename)
+            filename = os.path.join(dirname, xdirname, basename)
+        else:
+            msg = "hpxsplit is True: hdr must include the INFILE key!!!"
+            log.error(msg)
+            raise RuntimeError(msg)
 
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(filename), exist_ok=True)
@@ -3027,24 +3049,27 @@ def read_ecsv_header(filename, cleanup=True):
     return hdr
 
 
-def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
-    """Construct an MTL filename just from the header in the file
+def find_mtl_file_format_from_header(hpdirname, returnoc=False,
+                                     override=False, forceoverride=False):
+    """Construct MTL filename from a directory containing an MTL ledger.
 
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to either a directory containing MTL ledgers that have
-        been partitioned by HEALPixel. Or the name of a single ledger.
+        Full path to a directory containing MTL ledgers that have been
+        partitioned by HEALPixel.
     returnoc : :class:`bool`, optional, defaults to ``False``
         If ``True`` then also return the OBSCON header keyword
         for files in this directory.
     override : :class:`bool`, optional, defaults to ``False``
         If ``True``, return the file form for an override ledger instead
-        of a standard MTL ledger IF the location of a standard MTL ledger
-        or ledgers has been passed as `hpdirname`. If the location of an
-        override ledger or ledgers has been passed as `hpdirname`, then
-        the fact that we're working with override ledgers is detected
-        automatically and `override`=``True`` does not need to be passed.
+        of a standard MTL ledger BUT if an OVERRIDE value is detected in
+        the header of the first file found in `hpdirname` let it take
+        precedence over `override`. See `desitarget issue 784`_.
+    forceoverride : :class:`bool`, optional, defaults to ``False``
+        If ``True``, return the file form for an override ledger instead
+        of a standard MTL ledger REGARDLESS of any OVERRIDE value found
+        in the header of the first file found in `hpdirname`.
 
     Returns
     -------
@@ -3058,15 +3083,20 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     Notes
     -----
         - Should work for both .ecsv and .fits files.
+        - If both `override` and `forceoverride` are ``True``,
+          `forceoverride` takes precedence.
     """
     # ADM grab information from the target directory.
     surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
     oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
     # ADM detect whether we're working with the override ledgers.
-    try:
-        override = read_keyword_from_mtl_header(hpdirname, "OVERRIDE")
-    except KeyError:
-        pass
+    if forceoverride:
+        override = forceoverride
+    else:
+        try:
+            override = read_keyword_from_mtl_header(hpdirname, "OVERRIDE")
+        except KeyError:
+            pass
 
     from desitarget.mtl import get_mtl_ledger_format
     ender = get_mtl_ledger_format()
