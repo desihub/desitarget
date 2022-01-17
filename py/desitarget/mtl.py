@@ -1449,7 +1449,8 @@ def force_overrides(hpdirname, pixlist):
     # ADM find the general format for the ledger files in `hpdirname`.
     fileform = io.find_mtl_file_format_from_header(hpdirname)
     # ADM this is the format for any associated override ledgers.
-    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
+    overrideff = io.find_mtl_file_format_from_header(hpdirname,
+                                                     forceoverride=True)
 
     # ADM before making updates, check all suggested ledgers exist.
     for pix in pixlist:
@@ -1550,7 +1551,8 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
     # ADM also find the format for any associated override ledgers.
-    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
+    overrideff = io.find_mtl_file_format_from_header(hpdirname,
+                                                     forceoverride=True)
 
     # ADM check the obscondition is as expected.
     if obscon != oc:
@@ -1809,7 +1811,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
     # ADM also returning the obsconditions.
     fileform, oc = io.find_mtl_file_format_from_header(hpdirname, returnoc=True)
     # ADM this is the format for any associated override ledgers.
-    overrideff = io.find_mtl_file_format_from_header(hpdirname, override=True)
+    overrideff = io.find_mtl_file_format_from_header(hpdirname,
+                                                     forceoverride=True)
 
     # ADM check the obscondition is as expected.
     if obscon != oc:

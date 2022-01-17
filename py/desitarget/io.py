@@ -5,6 +5,8 @@ desitarget.io
 =============
 
 Functions for reading, writing and manipulating files related to targeting.
+
+.. _`desitarget issue 784`: https://github.com/desihub/desitarget/issues/784#issuecomment-1011452303
 """
 from __future__ import (absolute_import, division)
 #
@@ -3047,24 +3049,27 @@ def read_ecsv_header(filename, cleanup=True):
     return hdr
 
 
-def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
-    """Construct an MTL filename just from the header in the file
+def find_mtl_file_format_from_header(hpdirname, returnoc=False,
+                                     override=False, forceoverride=False):
+    """Construct MTL filename from a directory containing an MTL ledger.
 
     Parameters
     ----------
     hpdirname : :class:`str`
-        Full path to either a directory containing MTL ledgers that have
-        been partitioned by HEALPixel. Or the name of a single ledger.
+        Full path to a directory containing MTL ledgers that have been
+        partitioned by HEALPixel.
     returnoc : :class:`bool`, optional, defaults to ``False``
         If ``True`` then also return the OBSCON header keyword
         for files in this directory.
     override : :class:`bool`, optional, defaults to ``False``
         If ``True``, return the file form for an override ledger instead
-        of a standard MTL ledger IF the location of a standard MTL ledger
-        or ledgers has been passed as `hpdirname`. If the location of an
-        override ledger or ledgers has been passed as `hpdirname`, then
-        the fact that we're working with override ledgers is detected
-        automatically and `override`=``True`` does not need to be passed.
+        of a standard MTL ledger BUT if an OVERRIDE value is detected in
+        the header of the first file found in `hpdirname` let it take
+        precedence over `override`. See `desitarget issue 784`_.
+    forceoverride : :class:`bool`, optional, defaults to ``False``
+        If ``True``, return the file form for an override ledger instead
+        of a standard MTL ledger REGARDLESS of any OVERRIDE value found
+        in the header of the first file found in `hpdirname`.
 
     Returns
     -------
@@ -3078,15 +3083,20 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False, override=False):
     Notes
     -----
         - Should work for both .ecsv and .fits files.
+        - If both `override` and `forceoverride` are ``True``,
+          `forceoverride` takes precedence.
     """
     # ADM grab information from the target directory.
     surv = read_keyword_from_mtl_header(hpdirname, "SURVEY")
     oc = read_keyword_from_mtl_header(hpdirname, "OBSCON")
     # ADM detect whether we're working with the override ledgers.
-    try:
-        override = read_keyword_from_mtl_header(hpdirname, "OVERRIDE")
-    except KeyError:
-        pass
+    if forceoverride:
+        override = forceoverride
+    else:
+        try:
+            override = read_keyword_from_mtl_header(hpdirname, "OVERRIDE")
+        except KeyError:
+            pass
 
     from desitarget.mtl import get_mtl_ledger_format
     ender = get_mtl_ledger_format()
