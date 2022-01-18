@@ -7,9 +7,6 @@ desitarget.mock.mockmaker
 
 Read mock catalogs and assign spectra.
 """
-from __future__ import (absolute_import, division, print_function,
-                        unicode_literals)
-
 import os
 import numpy as np
 from glob import glob
@@ -271,7 +268,7 @@ class SelectTargets(object):
         from speclite import filters
         from desiutil.dust import SFDMap
         from desiutil.brick import Bricks
-        from specsim.fastfiberacceptance import FastFiberAcceptance
+        from desimodel.fastfiberacceptance import FastFiberAcceptance
 
         self.survey = survey
         if survey == 'main':
@@ -305,6 +302,9 @@ class SelectTargets(object):
         with fits.open(pixfile) as hdulist:
             self.pixmap = hdulist[0].data
 
+        # from desisim.templates.GALAXY
+        self.fiberflux_fraction = {'ELG': 0.6, 'LRG': 0.4, 'BGS': 0.3}
+
     def mw_transmission(self, data):
         """Compute the grzW1W2 Galactic transmission for every object.
 
@@ -318,7 +318,7 @@ class SelectTargets(object):
         ------
 
         """
-        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.221, W1 = 0.184, W2 = 0.113, W3 = 0.0241, W4 = 0.00910)
+        extcoeff = dict(G = 3.214, R = 2.165, Z = 1.211, W1 = 0.184, W2 = 0.113, W3 = 0.0241, W4 = 0.00910)
         data['EBV'] = self.SFDMap.ebv(data['RA'], data['DEC'], scaling=1.0)
 
         for band in ('G', 'R', 'Z', 'W1', 'W2', 'W3', 'W4'):
@@ -499,7 +499,7 @@ class SelectTargets(object):
         """Read the GMM for the full range of morphological types of a given target
         type, as well as the magnitude-dependent morphological fraction.
 
-        See desitarget/doc/nb/gmm-dr7.ipynb for details.
+        See desitarget/doc/nb/gmm-dr9.ipynb for details.
 
         """
         from astropy.io import fits
@@ -514,16 +514,16 @@ class SelectTargets(object):
                 pass
                 #return
 
-            gmmdir = resource_filename('desitarget', 'mock/data/dr7.1')
+            gmmdir = resource_filename('desitarget', 'mock/data/dr9')
             if not os.path.isdir:
-                log.warning('DR7.1 GMM directory {} not found!'.format(gmmdir))
+                log.warning('DR9 GMM directory {} not found!'.format(gmmdir))
                 raise IOError
             
             fracfile = os.path.join(gmmdir, 'fractype_{}.fits'.format(target.lower()))
             fractype = Table.read(fracfile)
 
             gmm = []
-            for morph in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+            for morph in ('PSF', 'REX', 'EXP', 'DEV', 'SER'):
                 gmmfile = os.path.join(gmmdir, 'gmm_{}_{}.fits'.format(target.lower(), morph.lower()))
                 if os.path.isfile(gmmfile): # not all targets have all morphologies
                     # Get the GMM properties modeled.
@@ -546,7 +546,7 @@ class SelectTargets(object):
                    prior_mag=None, prior_redshift=None):
         """Sample from the GMMs read by self.read_GMM.
 
-        See desitarget/doc/nb/gmm-dr7.ipynb for details.
+        See desitarget/doc/nb/gmm-dr9.ipynb for details.
 
         """
         rand = np.random.RandomState(seed)
@@ -597,16 +597,14 @@ class SelectTargets(object):
         # Next, sample from the GMM for each morphological type.  For
         # simplicity we ignore the north-south split here.
         gmmout = {'MAGFILTER': np.zeros(nobj).astype('U15'), 'TYPE': np.zeros(nobj).astype('U4')}
-        for key in ('MAG', 'FRACDEV', 'FRACDEV_IVAR',
-                    'SHAPEDEV_R', 'SHAPEDEV_R_IVAR', 'SHAPEDEV_E1', 'SHAPEDEV_E1_IVAR',
-                    'SHAPEDEV_E2', 'SHAPEDEV_E2_IVAR',
-                    'SHAPEEXP_R', 'SHAPEEXP_R_IVAR', 'SHAPEEXP_E1', 'SHAPEEXP_E1_IVAR',
-                    'SHAPEEXP_E2', 'SHAPEEXP_E2_IVAR',
+        for key in ('MAG', 'SHAPE_R', 'SHAPE_R_IVAR', 
+                    'SHAPE_E1', 'SHAPE_E1_IVAR',
+                    'SHAPE_E2', 'SHAPE_E2_IVAR',
                     'GR', 'RZ', 'ZW1', 'W1W2'):
             gmmout[key] = np.zeros(nobj).astype('f4')
 
         def _samp_iterate(samp, target='', south=True, rand=None, maxiter=5,
-                          colorcuts_function=None):
+                          colorcuts_function=None, fiberflux_fraction=1.0):
             """Sample from the given GMM iteratively and only keep objects that pass our
             color-cuts."""
             nneed = len(samp)
@@ -616,7 +614,7 @@ class SelectTargets(object):
             while makemore:
                 #print(itercount, nneed)
                 # This algorithm is not quite right because the GMMs are drawn
-                # from DR7/south, but we're using them to simulate "north"
+                # from DR9/south, but we're using them to simulate "north"
                 # photometry as well.
                 _samp = GMM[3][ii].sample(nneed, random_state=rand)
                 for jj, tt in enumerate(cols):
@@ -629,10 +627,16 @@ class SelectTargets(object):
                     if 'z' in samp.dtype.names:
                         zmag = samp['z'][need]
                         rmag = samp['rz'][need] + zmag
+                        gmag = samp['gr'][need] + rmag
+                    elif 'g' in samp.dtype.names:
+                        gmag = samp['g'][need]
+                        rmag = gmag - samp['gr'][need]
+                        zmag = rmag - samp['rz'][need]
                     else:
                         rmag = samp['r'][need]
                         zmag = rmag - samp['rz'][need]
-                    gmag = samp['gr'][need] + rmag
+                        gmag = samp['gr'][need] + rmag
+
                     if 'zw1' in samp.dtype.names:
                         w1mag = zmag - samp['zw1'][need]
                     else:
@@ -644,8 +648,37 @@ class SelectTargets(object):
 
                     gflux, rflux, zflux, w1flux, w2flux = [1e9 * 10**(-0.4*mg) for mg in
                                                            (gmag, rmag, zmag, w1mag, w2mag)]
-                    itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
-                                               w1flux=w1flux, w2flux=w2flux, south=south)
+                    gfiberflux = fiberflux_fraction * gflux
+                    rfiberflux = fiberflux_fraction * rflux
+                    zfiberflux = fiberflux_fraction * zflux
+
+                    if target == 'QSO':
+                        itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
+                                                   w1flux=w1flux, w2flux=w2flux, 
+                                                   south=south)
+                    elif target == 'BGS':
+                        itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
+                                                   w1flux=w1flux, w2flux=w2flux, 
+                                                   gfiberflux=gfiberflux,
+                                                   rfibertotflux=rfiberflux,
+                                                   zfiberflux=zfiberflux,
+                                                   south=south)
+                    elif target == 'ELG':
+                        itarg_vlo, _itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
+                                                               w1flux=w1flux, w2flux=w2flux, 
+                                                               gfiberflux=gfiberflux,
+                                                               rfiberflux=rfiberflux,
+                                                               zfiberflux=zfiberflux,
+                                                               south=south)
+                        itarg = np.logical_or(itarg_vlo, _itarg)
+                    else:
+                        itarg = colorcuts_function(gflux=gflux, rflux=rflux, zflux=zflux,
+                                                   w1flux=w1flux, w2flux=w2flux, 
+                                                   gfiberflux=gfiberflux,
+                                                   rfiberflux=rfiberflux,
+                                                   zfiberflux=zfiberflux,
+                                                   south=south)
+
                     need = np.where( itarg == False )[0]
                     nneed = len(need)
 
@@ -654,7 +687,12 @@ class SelectTargets(object):
                 itercount += 1
 
             return samp
-        
+
+        if target in self.fiberflux_fraction.keys():
+            fiberflux_fraction = self.fiberflux_fraction[target]
+        else:
+            fiberflux_fraction = 1.0
+
         for ii, mm in enumerate(np.atleast_1d(morph)):
             if nobj_morph[ii] > 0:
                 # Should really be using north/south GMMs.
@@ -664,7 +702,8 @@ class SelectTargets(object):
                 # Iterate to make sure the sampled objects pass color-cuts! 
                 if len(north) > 0:
                     samp[north] = _samp_iterate(samp[north], target=target, south=False, rand=rand,
-                                                colorcuts_function=colorcuts_function)
+                                                colorcuts_function=colorcuts_function,
+                                                fiberflux_fraction=fiberflux_fraction)
                 if len(south) > 0:
                     samp[south] = _samp_iterate(samp[south], target=target, south=True, rand=rand,
                                                 colorcuts_function=colorcuts_function)
@@ -682,8 +721,11 @@ class SelectTargets(object):
 
                 if 'z' in samp.dtype.names:
                     gmmout['MAG'][gthese] = samp['z'][these]
+                elif 'g' in samp.dtype.names:
+                    gmmout['MAG'][gthese] = samp['g'][these]
                 else:
                     gmmout['MAG'][gthese] = samp['r'][these]
+
                 if 'zw1' in samp.dtype.names:
                     gmmout['ZW1'][gthese] = samp['zw1'][these]
                 if 'w1w2' in samp.dtype.names:
@@ -706,22 +748,20 @@ class SelectTargets(object):
                         gmmout[outcol][gthese] = val
                         gmmout[outivarcol][gthese] = (10**samp[sampsnrcol][these] / val)**2 # S/N-->ivar
 
-                if mm == 'DEV':
-                    gmmout['FRACDEV'][gthese] = 1.0
-
-        gmmout['FRACDEV'][gmmout['FRACDEV'] < 0.0] = 0.0
-        gmmout['FRACDEV'][gmmout['FRACDEV'] > 1.0] = 1.0
-
         # Assign filter names.
         if np.sum(isouth) > 0:
             if target == 'LRG':
                 gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-z', np.sum(isouth))
+            elif target == 'ELG':
+                gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-g', np.sum(isouth))
             else:
                 gmmout['MAGFILTER'][isouth] = np.repeat('decam2014-r', np.sum(isouth))
 
         if np.sum(~isouth) > 0:
             if target == 'LRG':
                 gmmout['MAGFILTER'][~isouth] = np.repeat('MzLS-z', np.sum(~isouth))
+            elif target == 'ELG':
+                gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-g', np.sum(~isouth))
             else:
                 gmmout['MAGFILTER'][~isouth] = np.repeat('BASS-r', np.sum(~isouth))
 
@@ -855,6 +895,14 @@ class SelectTargets(object):
                 zmag = normmag = data['MAG'][indx]
                 magfilter = data['MAGFILTER'][indx]
             gmag, rmag = _g_and_r(zmag, gr, rz)
+        elif target_name == 'ELG':
+            if contaminants:
+                gmag = normmag = data['GMAG'][indx]
+                magfilter = data['MAGFILTER-G'][indx]
+            else:
+                gmag = normmag = data['MAG'][indx]
+                magfilter = data['MAGFILTER'][indx]
+            rmag, zmag = _r_and_z(gmag, gr, rz)
         else:
             rmag = normmag = data['MAG'][indx]
             magfilter = data['MAGFILTER'][indx]
@@ -916,16 +964,15 @@ class SelectTargets(object):
         else:
             lambdafilts = self.bassmzlswise.effective_wavelengths[:4].value # [Angstrom]
 
-        # Not quite right to use a bulge-like surface-brightness profile for COMP.
+        # Not quite right to use a bulge-like surface-brightness profile for SER.
         type2source = {'PSF': 'POINT', 'REX': 'DISK', 'EXP': 'DISK',
-                       'DEV': 'BULGE', 'COMP': 'BULGE'}
+                       'DEV': 'BULGE', 'SER': 'BULGE'}
 
-        for morphtype in ('PSF', 'REX', 'EXP', 'DEV', 'COMP'):
+        for morphtype in ('PSF', 'REX', 'EXP', 'DEV', 'SER'):
             istype = targets['TYPE'] == morphtype
             if np.sum(istype) > 0:
                 # Assume the radius is independent of wavelength.
-                reff = ( targets['FRACDEV'][istype].data * targets['SHAPEDEV_R'][istype].data +
-                         (1 - targets['FRACDEV'][istype].data) * targets['SHAPEEXP_R'][istype].data )
+                reff = targets['SHAPEEXP_R'][istype].data
                 offset = np.zeros( np.sum(istype) ) # fiber offset [um]
 
                 for band, lambdafilt, fiberfraction in zip( ('G', 'R', 'Z'), lambdafilts,
@@ -1646,7 +1693,7 @@ class ReadBuzzard(SelectTargets):
         #                         seed=seed, prior_redshift=zz)
         #gmmout = None
 
-        #gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
+        gmag = data['TMAG'][:, 1].astype('f4') # DES g-band, no MW extinction 
         rmag = data['TMAG'][:, 2].astype('f4') # DES r-band, no MW extinction 
         zmag = data['TMAG'][:, 4].astype('f4') # DES z-band, no MW extinction 
 
@@ -1657,7 +1704,7 @@ class ReadBuzzard(SelectTargets):
             'BRICKID': self.Bricks.brickid(ra, dec),
             'RA': ra, 'DEC': dec, 'Z': zz,
             'MAG': rmag, 'MAGFILTER': np.repeat('decam2014-r', nobj),
-            #'GMAG': gmag, 'MAGFILTER-G': np.repeat('decam2014-g', nobj),
+            'GMAG': gmag, 'MAGFILTER-G': np.repeat('decam2014-g', nobj),
             'ZMAG': zmag, 'MAGFILTER-Z': np.repeat('decam2014-z', nobj),
             'SOUTH': isouth}
             
@@ -5311,17 +5358,26 @@ class BuzzardMaker(SelectTargets):
         w1flux = elgscale * self.meta['SYNTH_WISE2010_W1'].data.flatten()[elgzcut]
         w2flux = elgscale * self.meta['SYNTH_WISE2010_W2'].data.flatten()[elgzcut]
 
+        fiberflux_fraction = self.fiberflux_fraction['ELG']
+        gfiberflux = fiberflux_fraction * gflux
+        rfiberflux = fiberflux_fraction * rflux 
+        zfiberflux = fiberflux_fraction * zflux
+
         # Monte Carlo the colors and take the union of all the templates that
         # scatter into the ELG color-box.
         iselg = np.zeros(len(gflux)).astype(bool)
         for ii in range(nmonte):
-            iselg = np.logical_or( (iselg), (isELG_colors(
+            _iselg_vlo, _iselg = isELG_colors(
                 south = True,
                 gflux = gflux + gflux_err[ii],
                 rflux = rflux + rflux_err[ii],
                 zflux = zflux + zflux_err[ii],
+                gfiberflux = gfiberflux,
+                rfiberflux = rfiberflux,
+                zfiberflux = zfiberflux,
                 w1flux= w1flux + w1flux_err[ii],
-                w2flux= w2flux + w2flux_err[ii])) )
+                w2flux= w2flux + w2flux_err[ii])
+            iselg = np.logical_or(np.logical_or(iselg, _iselg_vlo), _iselg)
 
         # Determine which templates scatter into the ELG color-box **in each
         # redshift bin.***

@@ -7,8 +7,6 @@ desitarget.mock.build
 Build truth and targets catalogs, including spectra, for the mocks.
 
 """
-from __future__ import absolute_import, division, print_function
-
 import os, time
 import numpy as np
 import healpy as hp
@@ -226,6 +224,7 @@ def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
 
+#def get_spectra_onepixel(data):
 def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
                          maxiter=1, no_spectra=False, calib_only=False):
     """Wrapper function to generate spectra for all targets on a single healpixel.
@@ -491,6 +490,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     """
     from time import time
+    #import multiprocessing
     from desitarget.internal import sharedmem
     
     # Parallelize by chunking the sample into smaller healpixels and
@@ -530,14 +530,22 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
         return result
     
     if nproc > 1:
-        pool = sharedmem.MapReduce(np=nproc)
-        with pool:
+        with sharedmem.MapReduce(np=nproc) as pool:
             results = pool.map(_get_spectra_onepixel, specargs,
                                reduce=_update_spectra_status)
     else:
         results = list()
         for args in specargs:
             results.append( _update_spectra_status( _get_spectra_onepixel(args) ) )
+
+    #if nproc > 1:
+    #    with multiprocessing.Pool(nproc) as P:
+    #        results = P.map(_get_spectra_onepixel, specargs)
+    #else:
+    #    results = list()
+    #    for args in specargs:
+    #        results.append(_get_spectra_onepixel(args))
+            
     ttime = time() - t0
 
     # Unpack the results and return; note that sky targets are a special case.
@@ -572,7 +580,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
             trueflux = []
         else:
             if len(good) > 0:
-                trueflux = np.concatenate(np.array(results[3])[good])
+                trueflux = np.concatenate(np.array(results[3], dtype=object)[good])
             else:
                 trueflux = []
 

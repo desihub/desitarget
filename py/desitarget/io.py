@@ -718,12 +718,12 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
             wavehdr['BUNIT'] = 'Angstrom'
             wavehdr['AIRORVAC'] = 'vac'
             fitsio.write(truthfile+'.tmp', mockdata['truewave'].astype(np.float32),
-                         extname='WAVE', header=wavehdr, append=True)
+                         extname='WAVE', header=wavehdr)
 
             fluxhdr = fitsio.FITSHDR()
             fluxhdr['BUNIT'] = '1e-17 erg/s/cm2/Angstrom'
             fitsio.write(truthfile+'.tmp', trueflux.astype(np.float32),
-                         extname='FLUX', header=fluxhdr, append=True)
+                         extname='FLUX', header=fluxhdr)
 
         if len(objtruth) > 0:
             for obj in sorted(set(truthdata['TEMPLATETYPE'])):
@@ -737,7 +737,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
                     if 'TRANSIENT_' in col:
                         out.remove_column(col)
 
-                fitsio.write(truthfile+'.tmp', out.as_array(), append=True, extname='TRUTH_{}'.format(obj))
+                fitsio.write(truthfile+'.tmp', out.as_array(), extname='TRUTH_{}'.format(obj))
         os.rename(truthfile+'.tmp', truthfile)
 
     # ADM If input files were passed, write them to a second extension.
@@ -1190,10 +1190,10 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
         nside. Used in conjunction with `hpxlist`.
-    hpxlist : :class:`list`, optional, defaults to `None`
+    hpxlist : :class:`list` or :class:`int`, optional, defaults to `None`
         Passed to indicate in the output file header that the targets
-        have been limited to only this list of HEALPixels. Used in
-        conjunction with `nsidefile`.
+        have been limited to only this list of HEALPixels. May also be a
+        scalar integer. Used in conjunction with `nsidefile`.
     extra : :class:`dict`, optional
         If passed (and not None), write these extra dictionary keys and
         values to the output header.
@@ -1295,7 +1295,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         else:
             subpseed = 718
         if hpxlist is not None:
-            subpseed += int(hpxlist[0])
+            subpseed += int(np.atleast_1d(hpxlist)[0])
             # ADM the way we construct different random seeds for the
             # ADM skies and supplemental skies requires nsidefile < 1024.
             if int(nsidefile) > 1024:
