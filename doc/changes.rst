@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.3.1 (unreleased)
+2.4.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.4.0 (2022-01-20)
 ------------------
 
 * A couple of MTL maintenance updates [`PR #789`_]. Includes:
