@@ -5,7 +5,10 @@ desitarget Change Log
 2.4.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Added a notebook about running Main Survey targeting [`PR #791`_].
+    * To accompany the DESI target selection pipeline paper.
+
+.. _`PR #791`: https://github.com/desihub/desitarget/pull/791
 
 2.4.0 (2022-01-20)
 ------------------
