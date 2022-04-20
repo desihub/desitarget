@@ -302,13 +302,17 @@ def max_integers_in_interval(ibegin, iend, narray):
     return maxes
 
 
-def _check_ledger(inledger):
+def _check_ledger(inledger, survey="main"):
     """Perform checks that the ledger conforms to requirements.
 
     Parameters
     ----------
     inledger : :class:`~astropy.table.Table`
         A Table of input Targets of Opportunity from the ToO ledger.
+    survey : :class:`str`, optional, defaults to ``'main'``
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
+        Certain extra checks are only conducted if survey is ``'main'``.
 
     None
         But a series of checks of the ledger are conducted.
@@ -332,6 +336,16 @@ def _check_ledger(inledger):
         if not set(inledger[col]).issubset(allowed[col]):
             msg = "Some {} entries in the ToO ledger are not one of {}!".format(
                 col, allowed[col])
+            log.critical(msg)
+            raise ValueError(msg)
+
+    # ADM for main survey ToOs check that there are not high-priority
+    # ADM fiber-override observations.
+    if survey == "main":
+        ii = (inledger["TOO_TYPE"] == "FIBER") & (inledger["TOO_PRIO"] == "HI")
+        if np.any(ii):
+            msg = "High-priority fiber-overrides disallowed in {} survey".format(
+                survey)
             log.critical(msg)
             raise ValueError(msg)
 
@@ -429,14 +443,14 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
 
     Parameters
     ----------
+    toodir : :class:`str`, optional, defaults to ``None``
+        The directory to treat as the Targets of Opportunity I/O directory.
+        If ``None`` then look up from the $TOO_DIR environment variable.
     survey : :class:`str`, optional, defaults to ``'main'``
         Specifies which target masks yaml file to use for bits, and which
         column names to add in the output file. Options are ``'main'``
         and ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and
         different iterations of SV, respectively.
-    toodir : :class:`str`, optional, defaults to ``None``
-        The directory to treat as the Targets of Opportunity I/O directory.
-        If ``None`` then look up from the $TOO_DIR environment variable.
     ecsv : :class:`bool`, optional, defaults to ``True``
         If ``True`` then write as a .ecsv file, if ``False`` then write
         as a .fits file.
@@ -465,7 +479,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     indata = Table.read(fn, comment='#', format='ascii.basic', guess=False)
 
     # ADM check the ledger conforms to requirements.
-    _check_ledger(indata)
+    _check_ledger(indata, survey=survey)
 
     # ADM add the output targeting columns.
     outdata = finalize_too(indata, survey=survey)
