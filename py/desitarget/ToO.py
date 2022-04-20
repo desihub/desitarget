@@ -40,14 +40,6 @@ tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 # ADM This RELEASE means Target of Opportunity in TARGETID.
 release = 9999
 
-# ADM Constrain how many high-priority ToOs are allowed in a given time.
-# ADM dictionary keys are total nights, dictionary vals are total fibers.
-# ADM so, e.g., 365: 500 means no more than 500 fibers per year.
-# ADM There are separate allocations for tile and fiber overrides.
-# ADM Only apply to high-priority ToOs, which can override primaries.
-constraints = {"FIBER": {1: 2, 30: 50, 365: 500},
-               "TILE": {1: 5000, 30: 5000, 365: 10000}}
-
 log = get_logger()
 
 
@@ -348,38 +340,6 @@ def _check_ledger(inledger):
         msg = "Some MJD_BEGINs are later than their associated MJD_END!"
         log.critical(msg)
         raise ValueError(msg)
-
-    # ADM check that the requested ToOs don't exceed allocations. There
-    # ADM are different constraints for different types of observations.
-    for tootype in "FIBER", "TILE":
-        log.info("Working on ToO observations of type {}".format(tootype))
-        # ADM only restrict observations at higher-than-primary priority.
-        ii = (inledger["TOO_TYPE"] == tootype) & (inledger["TOO_PRIO"] == "HI")
-        # ADM work with discretized days that run from noon until noon
-        # ADM so each observing night is encompassed by an integer day.
-        if np.any(ii):
-            jdbegin = inledger["MJD_BEGIN"][ii]+0.5
-            jdend = inledger["MJD_END"][ii]+0.5
-            jdbegin, jdend = jdbegin.astype(int), jdend.astype(int)
-            # ADM grab the allowed fibers for each interval in nights.
-            nights = np.array(list(constraints[tootype].keys()))
-            allowed = np.array(list(constraints[tootype].values()))
-            # ADM check the total nights covered by the MJD ranges.
-            fibers = max_integers_in_interval(jdbegin, jdend, nights)
-            for fiber, night, allow in zip(fibers, nights, allowed):
-                log.info(
-                    "Max of {} HIP fibers requested over {} nights ({} allowed)"
-                    .format(fiber, night, allow)
-                    )
-            excess = fibers > allowed
-            if np.any(excess):
-                msg = "Allocation exceeded! Number of HIP fibers requested over"
-                msg += "{} nights is {} (but only {} are allowed)".format(
-                    nights[excess], fibers[excess], allowed[excess])
-                log.critical(msg)
-                raise ValueError(msg)
-        else:
-            log.info("No fibers requested")
 
     return
 
