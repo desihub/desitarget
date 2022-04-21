@@ -1511,6 +1511,21 @@ def force_overrides(obscon, survey='main', secondary=False, mtldir=None,
             ascii.write(overmtl, f, format='no_header', formats=mtlformatdict)
             f.close()
 
+    # ADM log the overrides version of the "done" file.
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(secondary=secondary,
+                                                            override=True))
+
+    # ADM initialize the output array and add the tiles.
+    mocktiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+    # ADM look up the time.
+    mocktiles["TIMESTAMP"] = get_utc_date(survey=survey)
+    # ADM add the version of desitarget.
+    mocktiles["VERSION"] = dt_version
+    # ADM add the program/obscon.
+    mocktiles["PROGRAM"] = obscon
+
+    io.write_mtl_tile_file(mtltilefn, mocktiles)
+
     return hpdirname
 
 
