@@ -74,7 +74,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True):
+def _write_too_files(filename, data, ecsv=True, survey="main"):
     """Write ToO ledgers and files.
 
     Parameters
@@ -86,26 +86,61 @@ def _write_too_files(filename, data, ecsv=True):
     ecsv : :class:`bool`, optional, defaults to ``True``
         If ``True`` then write as a .ecsv file, if ``False`` then write
         as a .fits file.
+    survey : :class:`str`, optional, defaults to ``'main'``
+        If survey is "main", create a separate file that holds the fiber
+        observations, which resembles the output file but with ToO.
+        replaced by ToO-fiber. in the filename. Also, again if survey is
+        main append new entries to files rather than writing a full, new
+        file. Performs a look up on TARGETID to find existing entries
+        in the ToO. and Too-fiber. files to only append new entries.
 
     Returns
     -------
     None
         But `data` is written to `filename` with standard ToO formalism.
     """
-    log.info("Writing ToO file to {}".format(filename))
-
     # ADM grab the standard header.
     hdr = _get_too_header()
-
-    # ADM create necessary directories, if they don't exist.
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     # ADM io.write_with_units expects an array, not a Table.
     if isinstance(data, Table):
         data = data.as_array()
 
-    # ADM write the file.
-    io.write_with_units(filename, data, extname="TOO", header=hdr, ecsv=ecsv)
+    # ADM if survey is main, separate out the FIBER observations and
+    # ADM append to the files.
+    if survey == "main":
+        # ADM the filename for FIBER observations.
+        fiberfn = filename.replace("ToO.", "ToO-fiber.")
+        # ADM whether an obervations is a FIBER observation.
+        isfiber = data["TOO_TYPE"] == "FIBER"
+        # ADM write once for the FIBER ToOs, once for the TILE ToOs.
+        for fn, isfibornot in zip([filename, fiberfn], [~isfiber, isfiber]):
+            done = data[isfibornot]
+            # ADM we only need to append to the old data if there is any.
+            if os.path.exists(fn):
+                olddata = Table.read(fn)
+                # ADM a second check that there is some old data.
+                if len(olddata) > 0:
+                    s = set(olddata["TARGETID"])
+                    isnew = ~np.array([tid in s for tid in done["TARGETID"]])
+                    # ADM append any new data to the old data.
+                    if np.any(isnew):
+                        done = np.concatenate([olddata, done[isnew]])
+                    else:
+                        done = olddata
+            # ADM create necessary directories, if they don't exist.
+            os.makedirs(os.path.dirname(fn), exist_ok=True)
+            # ADM write the file.
+            io.write_with_units(fn, done, extname="TOO", header=hdr, ecsv=ecsv)
+            log.info("Wrote {} ToOs to {}".format(len(done), fn))
+
+    # ADM if survey isn't main, just write out a monolithic file.
+    else:
+        # ADM create necessary directories, if they don't exist.
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        # ADM write the file.
+        io.write_with_units(filename, data, extname="TOO", header=hdr, ecsv=ecsv)
+        log.info("Wrote {} ToOs to {}".format(len(data), filename))
 
     return
 
@@ -310,8 +345,6 @@ def _check_ledger(inledger, survey="main"):
     inledger : :class:`~astropy.table.Table`
         A Table of input Targets of Opportunity from the ToO ledger.
     survey : :class:`str`, optional, defaults to ``'main'``
-        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
-        for the main survey and different iterations of SV, respectively.
         Certain extra checks are only conducted if survey is ``'main'``.
 
     None
