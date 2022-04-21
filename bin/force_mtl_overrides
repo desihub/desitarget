@@ -28,12 +28,20 @@ ap.add_argument("-p", "--pixlist",
                 Send as a comma-separated string (e.g. 12167,53,455,9). The     \
                 default is to run all possible pixels.",
                 default=None)
+ap.add_argument("--test", action="store_true",
+                help="In general, when we force overrides we want to do so for  \
+                all pixels so the Alternate MTLs can do the same. Therefore, to \
+                have a higher bar, this must be passed with pixlist.")
 
 ns = ap.parse_args()
 
 hpxlist = ns.pixlist
 if ns.pixlist is not None:
     hpxlist = [ pix for pix in ns.pixlist.split(',') ]
+    if not ns.test:
+        msg = "Passing a list of pixels is only for testing purposes!!!"
+        log.critical(msg)
+        raise ValueError
 
 outdir = force_overrides(ns.obscon, survey=ns.survey, secondary=ns.secondary,
                          mtldir=ns.mtldir, pixlist=hpxlist)
