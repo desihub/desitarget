@@ -332,7 +332,7 @@ def get_zcat_dir(zcatdir=None):
     return zcatdir
 
 
-def get_mtl_tile_file_name(secondary=False):
+def get_mtl_tile_file_name(secondary=False, override=False):
     """Convenience function to grab the name of the MTL tile file.
 
     Parameters
@@ -340,6 +340,9 @@ def get_mtl_tile_file_name(secondary=False):
     secondary : :class:`bool`, optional, defaults to ``False``
         If ``True`` return the name of the MTL tile file for secondary
         targets instead of the standard, primary MTL tile file.
+    override : :class:`bool`, optional, defaults to ``False``
+        If ``True`` return the name of the override tile file instead
+        of the mtl tile file.
 
     Returns
     -------
@@ -349,6 +352,8 @@ def get_mtl_tile_file_name(secondary=False):
     fn = "mtl-done-tiles.ecsv"
     if secondary:
         fn = "scnd-mtl-done-tiles.ecsv"
+    if override:
+        fn = fn.replace("tiles", "overrides")
 
     return fn
 
