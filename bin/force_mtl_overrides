@@ -4,26 +4,38 @@ from desitarget.mtl import force_overrides
 from desiutil.log import get_logger
 log = get_logger()
 
+# ADM default survey to run.
+survey = "main"
+
 from argparse import ArgumentParser
 ap = ArgumentParser(description='Force override ledgers to be processed and added to the MTL ledgers without running the full MTL loop.')
-ap.add_argument("hpdirname",
-                help="Full path to a directory containing MTL ledgers that are  \
-                partitioned by HEALPixel (i.e. as made by `make_ledger`). NOTE: \
-                send the directory of the MTL ledgers, NOT the override ledgers")
-ap.add_argument("pixlist",
+ap.add_argument("obscon",
+                help="String matching ONE obscondition in the bitmask yaml file \
+                (e.g. 'BRIGHT'). Controls priorities when merging targets,      \
+                which tiles to process, etc.", choices=["DARK", "BRIGHT", "BACKUP"])
+ap.add_argument("-s", "--survey",
+                help="Flavor of survey to run. Defaults to [{}]".format(survey),
+                default=survey, choices=["main", "sv3", "sv2"])
+ap.add_argument('--mtldir',
+                help="Full path to the directory that hosts the MTL ledgers.    \
+                Default is to use the $MTL_DIR environment variable",
+                default=None)
+ap.add_argument("-sec", "--secondary", action='store_true',
+                help="Pass if overrides are being forced into secondary, rather \
+                than primary ledgers.")
+ap.add_argument("-p", "--pixlist",
                 help="A list of HEALPixels signifying the ledgers to be updated.\
-                Send as a comma-separated string (e.g. 12167,53,455,9)")
+                Send as a comma-separated string (e.g. 12167,53,455,9). The     \
+                default is to run all possible pixels.",
+                default=None)
 
 ns = ap.parse_args()
 
-# ADM a check that we didn't accidentally pass the directory that hosts
-# ADM the override ledgers.
-if "override" in ns.hpdirname:
-    msg = "Did you pass the override directory instead of the MTL directory?"
-    log.warning(msg)
+hpxlist = ns.pixlist
+if ns.pixlist is not None:
+    hpxlist = [ pix for pix in ns.pixlist.split(',') ]
 
-hpxlist = [ pix for pix in ns.pixlist.split(',') ]
-
-outdir = force_overrides(ns.hpdirname, hpxlist)
+outdir = force_overrides(ns.obscon, survey=ns.survey, secondary=ns.secondary,
+                         mtldir=ns.mtldir, pixlist=hpxlist)
 
 log.info("Overrode ledgers in {}".format(outdir))

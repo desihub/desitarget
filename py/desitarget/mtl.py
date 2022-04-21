@@ -1429,51 +1429,82 @@ def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
     return outdir
 
 
-def force_overrides(hpdirname, pixlist):
+def force_overrides(obscon, survey='main', secondary=False, mtldir=None,
+                    pixlist=None):
     """
     Force override ledgers to be processed and added to the MTL ledgers.
 
     Parameters
     ----------
-    hpdirname : :class:`str`
-        Full path to a directory containing an MTL ledger that has been
-        partitioned by HEALPixel (i.e. as made by `make_ledger`).
-    pixlist : :class:`list`
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Governs how priorities are set when merging targets.
+    survey : :class:`str`, optional, defaults to "main"
+        Used to look up the correct ledger, in combination with `obscon`.
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
+    secondary : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then force overrides for secondary targets instead of
+        primaries for passed `survey` and `obscon`.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    pixlist : :class:`list`, optional, defaults to ``None``
         A list of HEALPixels corresponding to the ledgers to be updated.
+        If ``None`` is sent, then all possible ledgers are updated at
+        the default MTL `nside` (which is `_get_mtl_nside()`).
 
     Returns
     -------
     :class:`str`
         The directory containing the ledgers that were updated.
     """
+    # ADM first construct the directory name for ledgers.
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+    # ADM construct the relevant sub-directory for this survey and
+    # ADM set of observing conditions..
+    resolve = True
+    msg = "running on {} ledger with obscon={} and survey={}"
+    if secondary:
+        log.info(msg.format("SECONDARY", obscon, survey))
+        resolve = None
+    else:
+        log.info(msg.format("PRIMARY", obscon, survey))
+    hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
+                                     survey=survey, obscon=obscon)
+
     # ADM find the general format for the ledger files in `hpdirname`.
     fileform = io.find_mtl_file_format_from_header(hpdirname)
     # ADM this is the format for any associated override ledgers.
     overrideff = io.find_mtl_file_format_from_header(hpdirname,
                                                      forceoverride=True)
 
-    # ADM before making updates, check all suggested ledgers exist.
-    for pix in pixlist:
-        overfn = overrideff.format(pix)
-        fn = fileform.format(pix)
-        for f in overfn, fn:
-            if not os.path.exists(f):
-                msg = "no ledger exists at: {}".format(f)
-                log.error(msg)
-                raise OSError
+    # ADM default to running all pixels.
+    if pixlist is None:
+        pixlist = np.arange(hp.nside2npix(_get_mtl_nside()))
 
+    # ADM force in the overrides for every pixel. Where a ledger doesn't
+    # ADM exist, warn and take no action.
     for pix in pixlist:
         # ADM the correct filenames for this pixel number.
         fn = fileform.format(pix)
         overfn = overrideff.format(pix)
 
-        # ADM update override ledger and recover relevant MTL entries.
-        overmtl = process_overrides(overfn)
-
-        # ADM append override entries to the ledger.
-        f = open(fn, "a")
-        ascii.write(overmtl, f, format='no_header', formats=mtlformatdict)
-        f.close()
+        # ADM to check the files exist.
+        files_exist = os.path.exists(fn) and os.path.exists(overfn)
+        if not files_exist:
+            msg = "no ledger exists at either: {} or {}".format(fn, overfn)
+            log.warning(msg)
+        else:
+            # ADM update override ledger and recover relevant MTL entries.
+            overmtl = process_overrides(overfn)
+            # ADM append override entries to the ledger.
+            f = open(fn, "a")
+            ascii.write(overmtl, f, format='no_header', formats=mtlformatdict)
+            f.close()
 
     return hpdirname
 
