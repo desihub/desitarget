@@ -1517,7 +1517,9 @@ def force_overrides(obscon, survey='main', secondary=False, mtldir=None,
 
     # ADM initialize the output array and add the tiles.
     mocktiles = np.zeros(1, dtype=mtltilefiledm.dtype)
-    # ADM look up the time.
+    # ADM look up the time. Remember to delay so done-time is later than
+    # ADM any ledger-time.
+    sleep(1)
     mocktiles["TIMESTAMP"] = get_utc_date(survey=survey)
     # ADM add the version of desitarget.
     mocktiles["VERSION"] = dt_version

@@ -5,10 +5,20 @@ desitarget Change Log
 2.4.1 (unreleased)
 ------------------
 
+* Better functionality for fiber-based ToOs and overrides [`PR #795`_]:
+    * Append new ToOs to the ledger rather than fully overwriting it.
+    * Create a separate ToO-fiber file for ``TOO_TYPE==FIBER`` targets.
+    * Don't allow high-priority fiber-override ToOs in the Main Survey.
+        * Addresses `issue #794`_.
+    * Create new mtl-done files to log when MTL overrides were forced.
+    * When forcing MTL overrides, always process all ledgers:
+        * This makes reproducibility easier to track for alt MTL ledgers.
 * Added a notebook about running Main Survey targeting [`PR #791`_].
     * To accompany the DESI target selection pipeline paper.
 
 .. _`PR #791`: https://github.com/desihub/desitarget/pull/791
+.. _`issue #794`: https://github.com/desihub/desitarget/issues/794
+.. _`PR #795`: https://github.com/desihub/desitarget/pull/795
 
 2.4.0 (2022-01-20)
 ------------------
