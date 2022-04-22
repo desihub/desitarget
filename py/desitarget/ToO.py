@@ -40,14 +40,6 @@ tooformatdict = {"PARALLAX": '%16.8f', 'PMRA': '%16.8f', 'PMDEC': '%16.8f'}
 # ADM This RELEASE means Target of Opportunity in TARGETID.
 release = 9999
 
-# ADM Constrain how many high-priority ToOs are allowed in a given time.
-# ADM dictionary keys are total nights, dictionary vals are total fibers.
-# ADM so, e.g., 365: 500 means no more than 500 fibers per year.
-# ADM There are separate allocations for tile and fiber overrides.
-# ADM Only apply to high-priority ToOs, which can override primaries.
-constraints = {"FIBER": {1: 2, 30: 50, 365: 500},
-               "TILE": {1: 5000, 30: 5000, 365: 10000}}
-
 log = get_logger()
 
 
@@ -82,7 +74,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True):
+def _write_too_files(filename, data, ecsv=True, survey="main"):
     """Write ToO ledgers and files.
 
     Parameters
@@ -94,26 +86,61 @@ def _write_too_files(filename, data, ecsv=True):
     ecsv : :class:`bool`, optional, defaults to ``True``
         If ``True`` then write as a .ecsv file, if ``False`` then write
         as a .fits file.
+    survey : :class:`str`, optional, defaults to ``'main'``
+        If survey is "main", create a separate file that holds the fiber
+        observations, which resembles the output file but with ToO.
+        replaced by ToO-fiber. in the filename. Also, again if survey is
+        main append new entries to files rather than writing a full, new
+        file. Performs a look up on TARGETID to find existing entries
+        in the ToO. and Too-fiber. files to only append new entries.
 
     Returns
     -------
     None
         But `data` is written to `filename` with standard ToO formalism.
     """
-    log.info("Writing ToO file to {}".format(filename))
-
     # ADM grab the standard header.
     hdr = _get_too_header()
-
-    # ADM create necessary directories, if they don't exist.
-    os.makedirs(os.path.dirname(filename), exist_ok=True)
 
     # ADM io.write_with_units expects an array, not a Table.
     if isinstance(data, Table):
         data = data.as_array()
 
-    # ADM write the file.
-    io.write_with_units(filename, data, extname="TOO", header=hdr, ecsv=ecsv)
+    # ADM if survey is main, separate out the FIBER observations and
+    # ADM append to the files.
+    if survey == "main":
+        # ADM the filename for FIBER observations.
+        fiberfn = filename.replace("ToO.", "ToO-fiber.")
+        # ADM whether an obervations is a FIBER observation.
+        isfiber = data["TOO_TYPE"] == "FIBER"
+        # ADM write once for the FIBER ToOs, once for the TILE ToOs.
+        for fn, isfibornot in zip([filename, fiberfn], [~isfiber, isfiber]):
+            done = data[isfibornot]
+            # ADM we only need to append to the old data if there is any.
+            if os.path.exists(fn):
+                olddata = Table.read(fn)
+                # ADM a second check that there is some old data.
+                if len(olddata) > 0:
+                    s = set(olddata["TARGETID"])
+                    isnew = ~np.array([tid in s for tid in done["TARGETID"]])
+                    # ADM append any new data to the old data.
+                    if np.any(isnew):
+                        done = np.concatenate([olddata, done[isnew]])
+                    else:
+                        done = olddata
+            # ADM create necessary directories, if they don't exist.
+            os.makedirs(os.path.dirname(fn), exist_ok=True)
+            # ADM write the file.
+            io.write_with_units(fn, done, extname="TOO", header=hdr, ecsv=ecsv)
+            log.info("Wrote {} ToOs to {}".format(len(done), fn))
+
+    # ADM if survey isn't main, just write out a monolithic file.
+    else:
+        # ADM create necessary directories, if they don't exist.
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        # ADM write the file.
+        io.write_with_units(filename, data, extname="TOO", header=hdr, ecsv=ecsv)
+        log.info("Wrote {} ToOs to {}".format(len(data), filename))
 
     return
 
@@ -310,13 +337,15 @@ def max_integers_in_interval(ibegin, iend, narray):
     return maxes
 
 
-def _check_ledger(inledger):
+def _check_ledger(inledger, survey="main"):
     """Perform checks that the ledger conforms to requirements.
 
     Parameters
     ----------
     inledger : :class:`~astropy.table.Table`
         A Table of input Targets of Opportunity from the ToO ledger.
+    survey : :class:`str`, optional, defaults to ``'main'``
+        Certain extra checks are only conducted if survey is ``'main'``.
 
     None
         But a series of checks of the ledger are conducted.
@@ -343,43 +372,21 @@ def _check_ledger(inledger):
             log.critical(msg)
             raise ValueError(msg)
 
+    # ADM for main survey ToOs check that there are not high-priority
+    # ADM fiber-override observations.
+    if survey == "main":
+        ii = (inledger["TOO_TYPE"] == "FIBER") & (inledger["TOO_PRIO"] == "HI")
+        if np.any(ii):
+            msg = "High-priority fiber-overrides disallowed in {} survey".format(
+                survey)
+            log.critical(msg)
+            raise ValueError(msg)
+
     # ADM basic check that the dates are formatted correctly.
     if np.any(inledger["MJD_BEGIN"] > inledger["MJD_END"]):
         msg = "Some MJD_BEGINs are later than their associated MJD_END!"
         log.critical(msg)
         raise ValueError(msg)
-
-    # ADM check that the requested ToOs don't exceed allocations. There
-    # ADM are different constraints for different types of observations.
-    for tootype in "FIBER", "TILE":
-        log.info("Working on ToO observations of type {}".format(tootype))
-        # ADM only restrict observations at higher-than-primary priority.
-        ii = (inledger["TOO_TYPE"] == tootype) & (inledger["TOO_PRIO"] == "HI")
-        # ADM work with discretized days that run from noon until noon
-        # ADM so each observing night is encompassed by an integer day.
-        if np.any(ii):
-            jdbegin = inledger["MJD_BEGIN"][ii]+0.5
-            jdend = inledger["MJD_END"][ii]+0.5
-            jdbegin, jdend = jdbegin.astype(int), jdend.astype(int)
-            # ADM grab the allowed fibers for each interval in nights.
-            nights = np.array(list(constraints[tootype].keys()))
-            allowed = np.array(list(constraints[tootype].values()))
-            # ADM check the total nights covered by the MJD ranges.
-            fibers = max_integers_in_interval(jdbegin, jdend, nights)
-            for fiber, night, allow in zip(fibers, nights, allowed):
-                log.info(
-                    "Max of {} HIP fibers requested over {} nights ({} allowed)"
-                    .format(fiber, night, allow)
-                    )
-            excess = fibers > allowed
-            if np.any(excess):
-                msg = "Allocation exceeded! Number of HIP fibers requested over"
-                msg += "{} nights is {} (but only {} are allowed)".format(
-                    nights[excess], fibers[excess], allowed[excess])
-                log.critical(msg)
-                raise ValueError(msg)
-        else:
-            log.info("No fibers requested")
 
     return
 
@@ -469,14 +476,14 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
 
     Parameters
     ----------
+    toodir : :class:`str`, optional, defaults to ``None``
+        The directory to treat as the Targets of Opportunity I/O directory.
+        If ``None`` then look up from the $TOO_DIR environment variable.
     survey : :class:`str`, optional, defaults to ``'main'``
         Specifies which target masks yaml file to use for bits, and which
         column names to add in the output file. Options are ``'main'``
         and ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and
         different iterations of SV, respectively.
-    toodir : :class:`str`, optional, defaults to ``None``
-        The directory to treat as the Targets of Opportunity I/O directory.
-        If ``None`` then look up from the $TOO_DIR environment variable.
     ecsv : :class:`bool`, optional, defaults to ``True``
         If ``True`` then write as a .ecsv file, if ``False`` then write
         as a .fits file.
@@ -505,7 +512,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     indata = Table.read(fn, comment='#', format='ascii.basic', guess=False)
 
     # ADM check the ledger conforms to requirements.
-    _check_ledger(indata)
+    _check_ledger(indata, survey=survey)
 
     # ADM add the output targeting columns.
     outdata = finalize_too(indata, survey=survey)
