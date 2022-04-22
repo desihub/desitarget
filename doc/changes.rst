@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.4.1 (unreleased)
+2.5.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.5.0 (2022-04-22)
 ------------------
 
 * Better functionality for fiber-based ToOs and overrides [`PR #795`_]:
