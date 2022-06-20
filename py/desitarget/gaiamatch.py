@@ -612,7 +612,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
             else:
                 # ADM as of dr3, Gaia writes empty columns as "null".
                 if dr != "dr2" and dr != "edr3":
-                    ii = fitstable[col.lower()] == "null"
+                    ii = np.array([val == "null"
+                                   for val in fitstable[col.lower()]])
                     fitstable[col.lower()][ii] = 0
                 done[col] = fitstable[col.lower()]
         fitsio.write(outfile, done, extname='GAIAFITS')
