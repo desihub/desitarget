@@ -100,6 +100,40 @@ edr3datamodel = np.array([], dtype=[
     ('EDR3_PMDEC', '>f4'), ('EDR3_PMDEC_IVAR', '>f4')
 ])
 
+# ADM the current data model for READING from Gaia EDR3 files.
+indr3datamodel = np.array([], dtype=[
+    ('SOURCE_ID', '>i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', '>f4'), ('RA', '>f8'),
+    ('RA_ERROR', '>f8'), ('DEC', '>f8'), ('DEC_ERROR', '>f8'),
+    ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'), ('PHOT_G_N_OBS', '>i4'),
+    ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
+    ('DUPLICATED_SOURCE', '?'), ('ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('RUWE', '>f4'),
+    ('IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
+    ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
+])
+
+# ADM the current data model for WRITING to Gaia EDR3 files.
+dr3datamodel = np.array([], dtype=[
+    ('REF_ID', '>i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', '>f4'), ('DR3_RA', '>f8'),
+    ('DR3_RA_IVAR', '>f8'), ('DR3_DEC', '>f8'), ('DR3_DEC_IVAR', '>f8'),
+    ('DR3_PHOT_G_MEAN_MAG', '>f4'), ('DR3_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('DR3_PHOT_BP_MEAN_MAG', '>f4'), ('DR3_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('DR3_PHOT_RP_MEAN_MAG', '>f4'), ('DR3_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('DR3_PHOT_BP_RP_EXCESS_FACTOR', '>f4'), ('DR3_PHOT_G_N_OBS', '>i4'),
+    ('DR3_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('DR3_ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
+    ('DR3_DUPLICATED_SOURCE', '?'), ('DR3_ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('DR3_ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('DR3_RUWE', '>f4'),
+    ('DR3_IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('DR3_IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('DR3_PARALLAX', '>f4'), ('DR3_PARALLAX_IVAR', '>f4'),
+    ('DR3_PMRA', '>f4'), ('DR3_PMRA_IVAR', '>f4'),
+    ('DR3_PMDEC', '>f4'), ('DR3_PMDEC_IVAR', '>f4')
+])
+
 
 def check_gaia_survey(dr):
     """Convenience function to check allowed Gaia Data Releases
@@ -418,7 +452,9 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3", "dr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
     nfiletest : :class:`int`, optional, defaults to ``None``
         If an integer is sent, only retrieve this number of files, for testing.
 
@@ -427,7 +463,7 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     Nothing
         But the archived Gaia CSV files are written to $GAIA_DIR/csv. For
         "edr3" the directory actually written to is $GAIA_DIR/../gaia_edr3.
-
+        For "dr3" the written directory is $GAIA_DIR/../gaia_dr3.
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
@@ -495,8 +531,9 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3". For
-        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
     numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
@@ -548,7 +585,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         outbase = os.path.basename(infile)
         outfilename = "{}.fits".format(outbase.split(".")[0])
         outfile = os.path.join(fitsdir, outfilename)
-        fitstable = ascii.read(infile, format='csv')
+        fitstable = ascii.read(infile, format='csv', comment='#')
 
         # ADM need to convert 5-string values to boolean.
         cols = np.array(fitstable.dtype.names)
@@ -562,13 +599,21 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
             done = np.zeros(nobjs, dtype=ingaiadatamodel.dtype)
         elif dr == "edr3":
             done = np.zeros(nobjs, dtype=inedr3datamodel.dtype)
+        elif dr == "dr3":
+            done = np.zeros(nobjs, dtype=indr3datamodel.dtype)
         for col in done.dtype.names:
             if col == 'REF_CAT':
                 if dr == "dr2":
                     done[col] = 'G2'
                 elif dr == "edr3":
                     done[col] = 'G3'
+                elif dr == "dr3":
+                    done[col] = 'GW'
             else:
+                # ADM as of dr3, Gaia writes empty columns as "null".
+                if dr != "dr2" and dr != "edr3":
+                    ii = fitstable[col.lower()] == "null"
+                    fitstable[col.lower()][ii] = 0
                 done[col] = fitstable[col.lower()]
         fitsio.write(outfile, done, extname='GAIAFITS')
 
