@@ -107,11 +107,11 @@ def check_gaia_survey(dr):
     Parameters
     ----------
     dr : :class:`str`
-        Name of a Gaia data release. Options are "dr2", "edr3". If one of
-        those options isn't passed, a ValueError is raised.
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3". If
+        one of those options isn't passed, a ValueError is raised.
     """
     # ADM allowed Data Releases for input.
-    droptions = ["dr2", "edr3"]
+    droptions = ["dr2", "edr3", "dr3"]
     if dr not in droptions:
         msg = "input dr must be one of {}".format(droptions)
         log.critical(msg)
@@ -124,7 +124,7 @@ def get_gaia_dir(dr="dr2"):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3"
 
     Returns
     -------
@@ -418,7 +418,7 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3"
     nfiletest : :class:`int`, optional, defaults to ``None``
         If an integer is sent, only retrieve this number of files, for testing.
 
@@ -438,7 +438,8 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     gaiadir = get_gaia_dir(dr)
 
     gdict = {"dr2": "http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/",
-             "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/"}
+             "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/",
+             "dr3": "http://cdn.gea.esac.esa.int/Gaia/gdr3/gaia_source/"}
     url = gdict[dr]
 
     # ADM construct the directory to which to write files.
@@ -475,7 +476,7 @@ def scrape_gaia(dr="dr2", nfiletest=None):
         cmd = 'wget -q {}/GaiaSource{} -P {}'.format(url, fileinfo[:-2], csvdir)
         os.system(cmd)
         nfil = nfile + 1
-        if nfil % stepper == 0 or test:
+        if test or nfil % stepper == 0:
             elapsed = time() - t0
             rate = nfil / elapsed
             log.info(
