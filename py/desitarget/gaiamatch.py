@@ -542,6 +542,11 @@ def hpx_pickle_from_fits(dr="dr2"):
         nested scheme HEALPixel and each entry is a list of the FITS
         files that touch that HEALPixel is written to
         $GAIA_DIR/fits/hpx-to-files.pickle.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+        - Runs in ~25 minutes for 3,386 Gaia DR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
@@ -765,8 +770,9 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3". For
-        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
     numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
@@ -785,6 +791,7 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
         - if numproc==1, use the serial code instead of the parallel code.
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
         - Runs in ~15 minutes with numproc=32 for 3,386 Gaia EDR3 files.
+        - Runs in ~20 minutes with numproc=32 for 3,386 Gaia DR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
