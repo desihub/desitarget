@@ -525,7 +525,77 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     return
 
 
-def gaia_csv_to_fits(dr="dr2", numproc=32):
+def hpx_pickle_from_fits(dr="dr2"):
+    """Make $GAIA_DIR/fits/hpx-to-files.pickle independently of gaia_csv_to_fits
+
+    Parameters
+    ----------
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
+
+    Returns
+    -------
+    Nothing
+        But a look-up table for which each index is a get_gaia_nside(),
+        nested scheme HEALPixel and each entry is a list of the FITS
+        files that touch that HEALPixel is written to
+        $GAIA_DIR/fits/hpx-to-files.pickle.
+    """
+    # ADM the resolution at which the Gaia HEALPix files should be stored.
+    nside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set.
+    gaiadir = get_gaia_dir(dr)
+
+    # ADM retrieve the FITS files to be read.
+    fitsdir = os.path.join(gaiadir, 'fits')
+    fitsfns = sorted(glob("{}/GaiaSource*fits".format(fitsdir)))
+    nfiles = len(fitsfns)
+
+    # ADM make sure the output file doesn't already exist.
+    outfilename = os.path.join(fitsdir, "hpx-to-files.pickle")
+    if os.path.exists(outfilename):
+        msg = "Cowardly: Can't make {} as it already exists".format(outfilename)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM loop through the files and create the lookup table.
+    t0 = time()
+    stepper = 5
+    pixinfile = []
+    for nfile, fn in enumerate(fitsfns):
+        objs = fitsio.read(fn)
+        pix = set(radec2pix(nside, objs["RA"], objs["DEC"]))
+        pixinfile.append([pix, os.path.basename(fn)])
+        if nfile > 0 and nfile % stepper == 0:
+            rate = nfile / (time() - t0)
+            elapsed = time() - t0
+            log.info(
+                '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
+                .format(nfile, nfiles, rate, elapsed/60.)
+            )
+
+    # ADM create a list for which each index is a HEALPixel and each
+    # ADM entry is a list of files that touch that HEALPixel.
+    npix = hp.nside2npix(nside)
+    pixlist = [[] for i in range(npix)]
+    for pixels, file in pixinfile:
+        for pix in pixels:
+            pixlist[pix].append(file)
+
+    # ADM write out the HEALPixel->files look-up table.
+    outfile = open(outfilename, "wb")
+    pickle.dump(pixlist, outfile)
+    outfile.close()
+
+    log.info('Wrote hpx file to {}...t={:.1f}s'.format(outfilename, time()-t0))
+
+    return
+
+
+def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
@@ -536,6 +606,11 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
     numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
+    mopup : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then just convert any remaining files, rather than
+        all of the the csv files. The $GAIA_DIR/fits/hpx-to-files.pickle
+        file is not produced in this case, and will need to be run
+        separately with the hpx_pickle_from_fits function.
 
     Returns
     -------
@@ -544,7 +619,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         to FITS files in the directory $GAIA_DIR/fits. Also, a look-up
         table is written to $GAIA_DIR/fits/hpx-to-files.pickle for which
         each index is an nside=_get_gaia_nside(), nested scheme HEALPixel
-        and each entry is a list of the FITS files that touch that HEAPixel.
+        and each entry is a list of the FITS files that touch that pixel.
 
     Notes
     -----
@@ -552,6 +627,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         - if numproc==1, use the serial code instead of the parallel code.
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
         - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
+        - Runs in ~4.5 hours with numproc=16 for 3,386 Gaia DR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
@@ -564,19 +640,27 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
     csvdir = os.path.join(gaiadir, 'csv')
     fitsdir = os.path.join(gaiadir, 'fits')
 
-    # ADM make sure the output directory is empty.
-    if os.path.exists(fitsdir):
-        if len(os.listdir(fitsdir)) > 0:
-            msg = "{} should be empty to make Gaia FITS files!".format(fitsdir)
-            log.critical(msg)
-            raise ValueError(msg)
-    # ADM make the output directory, if needed.
-    else:
-        log.info('Making Gaia directory for storing FITS files')
-        os.makedirs(fitsdir)
+    # ADM relevant directory already exists if we're "mopping up".
+    if not mopup:
+        # ADM make sure the output directory is empty.
+        if os.path.exists(fitsdir):
+            if len(os.listdir(fitsdir)) > 0:
+                msg = "{} should be empty to make Gaia FITS files!".format(
+                    fitsdir)
+                log.critical(msg)
+                raise ValueError(msg)
+        # ADM make the output directory, if needed.
+        else:
+            log.info('Making Gaia directory for storing FITS files')
+            os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
     infiles = sorted(glob("{}/GaiaSource*csv*".format(csvdir)))
+    # ADM if we're "mopping up", only process the remaining subset.
+    if mopup:
+        donefiles = sorted(glob("{}/GaiaSource*fits".format(fitsdir)))
+        donefns = [fn.replace("fits", "csv") + ".gz" for fn in donefiles]
+        infiles = list(set(infiles) - set(donefns))
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -659,11 +743,16 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         for pix in pixels:
             pixlist[pix].append(file)
 
-    # ADM write out the HEALPixel->files look-up table.
-    outfilename = os.path.join(fitsdir, "hpx-to-files.pickle")
-    outfile = open(outfilename, "wb")
-    pickle.dump(pixlist, outfile)
-    outfile.close()
+    # ADM write out the HEALPixel->files look-up table. We don't want
+    # ADM to produce this if we're only processing a subset of files.
+    if mopup:
+        log.info("You're mopping up! Remember to run hpx_pickle_from_fits() "
+                 "to make the pickle/lookup file!")
+    else:
+        outfilename = os.path.join(fitsdir, "hpx-to-files.pickle")
+        outfile = open(outfilename, "wb")
+        pickle.dump(pixlist, outfile)
+        outfile.close()
 
     log.info('Done...t={:.1f}s'.format(time()-t0))
 
