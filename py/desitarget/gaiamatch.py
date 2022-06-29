@@ -100,6 +100,40 @@ edr3datamodel = np.array([], dtype=[
     ('EDR3_PMDEC', '>f4'), ('EDR3_PMDEC_IVAR', '>f4')
 ])
 
+# ADM the current data model for READING from Gaia EDR3 files.
+indr3datamodel = np.array([], dtype=[
+    ('SOURCE_ID', '>i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', '>f4'), ('RA', '>f8'),
+    ('RA_ERROR', '>f8'), ('DEC', '>f8'), ('DEC_ERROR', '>f8'),
+    ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'), ('PHOT_G_N_OBS', '>i4'),
+    ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
+    ('DUPLICATED_SOURCE', '?'), ('ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('RUWE', '>f4'),
+    ('IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
+    ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4')
+])
+
+# ADM the current data model for WRITING to Gaia EDR3 files.
+dr3datamodel = np.array([], dtype=[
+    ('REF_ID', '>i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', '>f4'), ('DR3_RA', '>f8'),
+    ('DR3_RA_IVAR', '>f8'), ('DR3_DEC', '>f8'), ('DR3_DEC_IVAR', '>f8'),
+    ('DR3_PHOT_G_MEAN_MAG', '>f4'), ('DR3_PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('DR3_PHOT_BP_MEAN_MAG', '>f4'), ('DR3_PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('DR3_PHOT_RP_MEAN_MAG', '>f4'), ('DR3_PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('DR3_PHOT_BP_RP_EXCESS_FACTOR', '>f4'), ('DR3_PHOT_G_N_OBS', '>i4'),
+    ('DR3_ASTROMETRIC_EXCESS_NOISE', '>f4'), ('DR3_ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'),
+    ('DR3_DUPLICATED_SOURCE', '?'), ('DR3_ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('DR3_ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('DR3_RUWE', '>f4'),
+    ('DR3_IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('DR3_IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('DR3_PARALLAX', '>f4'), ('DR3_PARALLAX_IVAR', '>f4'),
+    ('DR3_PMRA', '>f4'), ('DR3_PMRA_IVAR', '>f4'),
+    ('DR3_PMDEC', '>f4'), ('DR3_PMDEC_IVAR', '>f4')
+])
+
 
 def check_gaia_survey(dr):
     """Convenience function to check allowed Gaia Data Releases
@@ -107,11 +141,11 @@ def check_gaia_survey(dr):
     Parameters
     ----------
     dr : :class:`str`
-        Name of a Gaia data release. Options are "dr2", "edr3". If one of
-        those options isn't passed, a ValueError is raised.
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3". If
+        one of those options isn't passed, a ValueError is raised.
     """
     # ADM allowed Data Releases for input.
-    droptions = ["dr2", "edr3"]
+    droptions = ["dr2", "edr3", "dr3"]
     if dr not in droptions:
         msg = "input dr must be one of {}".format(droptions)
         log.critical(msg)
@@ -124,7 +158,7 @@ def get_gaia_dir(dr="dr2"):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3"
 
     Returns
     -------
@@ -418,7 +452,9 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
     nfiletest : :class:`int`, optional, defaults to ``None``
         If an integer is sent, only retrieve this number of files, for testing.
 
@@ -427,7 +463,7 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     Nothing
         But the archived Gaia CSV files are written to $GAIA_DIR/csv. For
         "edr3" the directory actually written to is $GAIA_DIR/../gaia_edr3.
-
+        For "dr3" the written directory is $GAIA_DIR/../gaia_dr3.
     Notes
     -----
         - The environment variable $GAIA_DIR must be set.
@@ -438,7 +474,8 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     gaiadir = get_gaia_dir(dr)
 
     gdict = {"dr2": "http://cdn.gea.esac.esa.int/Gaia/gdr2/gaia_source/csv/",
-             "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/"}
+             "edr3": "http://cdn.gea.esac.esa.int/Gaia/gedr3/gaia_source/",
+             "dr3": "http://cdn.gea.esac.esa.int/Gaia/gdr3/gaia_source/"}
     url = gdict[dr]
 
     # ADM construct the directory to which to write files.
@@ -475,7 +512,7 @@ def scrape_gaia(dr="dr2", nfiletest=None):
         cmd = 'wget -q {}/GaiaSource{} -P {}'.format(url, fileinfo[:-2], csvdir)
         os.system(cmd)
         nfil = nfile + 1
-        if nfil % stepper == 0 or test:
+        if test or nfil % stepper == 0:
             elapsed = time() - t0
             rate = nfil / elapsed
             log.info(
@@ -488,16 +525,97 @@ def scrape_gaia(dr="dr2", nfiletest=None):
     return
 
 
-def gaia_csv_to_fits(dr="dr2", numproc=32):
+def hpx_pickle_from_fits(dr="dr2"):
+    """Make $GAIA_DIR/fits/hpx-to-files.pickle independently of gaia_csv_to_fits
+
+    Parameters
+    ----------
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
+
+    Returns
+    -------
+    Nothing
+        But a look-up table for which each index is a get_gaia_nside(),
+        nested scheme HEALPixel and each entry is a list of the FITS
+        files that touch that HEALPixel is written to
+        $GAIA_DIR/fits/hpx-to-files.pickle.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+        - Runs in ~25 minutes for 3,386 Gaia DR3 files.
+    """
+    # ADM the resolution at which the Gaia HEALPix files should be stored.
+    nside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set.
+    gaiadir = get_gaia_dir(dr)
+
+    # ADM retrieve the FITS files to be read.
+    fitsdir = os.path.join(gaiadir, 'fits')
+    fitsfns = sorted(glob("{}/GaiaSource*fits".format(fitsdir)))
+    nfiles = len(fitsfns)
+
+    # ADM make sure the output file doesn't already exist.
+    outfilename = os.path.join(fitsdir, "hpx-to-files.pickle")
+    if os.path.exists(outfilename):
+        msg = "Cowardly: Can't make {} as it already exists".format(outfilename)
+        log.critical(msg)
+        raise ValueError(msg)
+
+    # ADM loop through the files and create the lookup table.
+    t0 = time()
+    stepper = 5
+    pixinfile = []
+    for nfile, fn in enumerate(fitsfns):
+        objs = fitsio.read(fn)
+        pix = set(radec2pix(nside, objs["RA"], objs["DEC"]))
+        pixinfile.append([pix, os.path.basename(fn)])
+        if nfile > 0 and nfile % stepper == 0:
+            rate = nfile / (time() - t0)
+            elapsed = time() - t0
+            log.info(
+                '{}/{} files; {:.1f} files/sec; {:.1f} total mins elapsed'
+                .format(nfile, nfiles, rate, elapsed/60.)
+            )
+
+    # ADM create a list for which each index is a HEALPixel and each
+    # ADM entry is a list of files that touch that HEALPixel.
+    npix = hp.nside2npix(nside)
+    pixlist = [[] for i in range(npix)]
+    for pixels, file in pixinfile:
+        for pix in pixels:
+            pixlist[pix].append(file)
+
+    # ADM write out the HEALPixel->files look-up table.
+    outfile = open(outfilename, "wb")
+    pickle.dump(pixlist, outfile)
+    outfile.close()
+
+    log.info('Wrote hpx file to {}...t={:.1f}s'.format(outfilename, time()-t0))
+
+    return
+
+
+def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3". For
-        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
     numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
+    mopup : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then just convert any remaining files, rather than
+        all of the the csv files. The $GAIA_DIR/fits/hpx-to-files.pickle
+        file is not produced in this case, and will need to be run
+        separately with the hpx_pickle_from_fits function.
 
     Returns
     -------
@@ -506,7 +624,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         to FITS files in the directory $GAIA_DIR/fits. Also, a look-up
         table is written to $GAIA_DIR/fits/hpx-to-files.pickle for which
         each index is an nside=_get_gaia_nside(), nested scheme HEALPixel
-        and each entry is a list of the FITS files that touch that HEAPixel.
+        and each entry is a list of the FITS files that touch that pixel.
 
     Notes
     -----
@@ -514,6 +632,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         - if numproc==1, use the serial code instead of the parallel code.
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
         - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
+        - Runs in ~4.5 hours with numproc=16 for 3,386 Gaia DR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
@@ -526,19 +645,27 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
     csvdir = os.path.join(gaiadir, 'csv')
     fitsdir = os.path.join(gaiadir, 'fits')
 
-    # ADM make sure the output directory is empty.
-    if os.path.exists(fitsdir):
-        if len(os.listdir(fitsdir)) > 0:
-            msg = "{} should be empty to make Gaia FITS files!".format(fitsdir)
-            log.critical(msg)
-            raise ValueError(msg)
-    # ADM make the output directory, if needed.
-    else:
-        log.info('Making Gaia directory for storing FITS files')
-        os.makedirs(fitsdir)
+    # ADM relevant directory already exists if we're "mopping up".
+    if not mopup:
+        # ADM make sure the output directory is empty.
+        if os.path.exists(fitsdir):
+            if len(os.listdir(fitsdir)) > 0:
+                msg = "{} should be empty to make Gaia FITS files!".format(
+                    fitsdir)
+                log.critical(msg)
+                raise ValueError(msg)
+        # ADM make the output directory, if needed.
+        else:
+            log.info('Making Gaia directory for storing FITS files')
+            os.makedirs(fitsdir)
 
     # ADM construct the list of input files.
     infiles = sorted(glob("{}/GaiaSource*csv*".format(csvdir)))
+    # ADM if we're "mopping up", only process the remaining subset.
+    if mopup:
+        donefiles = sorted(glob("{}/GaiaSource*fits".format(fitsdir)))
+        donefns = [fn.replace("fits", "csv") + ".gz" for fn in donefiles]
+        infiles = list(set(infiles) - set(donefns))
     nfiles = len(infiles)
 
     # ADM the critical function to run on every file.
@@ -547,7 +674,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         outbase = os.path.basename(infile)
         outfilename = "{}.fits".format(outbase.split(".")[0])
         outfile = os.path.join(fitsdir, outfilename)
-        fitstable = ascii.read(infile, format='csv')
+        fitstable = ascii.read(infile, format='csv', comment='#')
 
         # ADM need to convert 5-string values to boolean.
         cols = np.array(fitstable.dtype.names)
@@ -561,13 +688,22 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
             done = np.zeros(nobjs, dtype=ingaiadatamodel.dtype)
         elif dr == "edr3":
             done = np.zeros(nobjs, dtype=inedr3datamodel.dtype)
+        elif dr == "dr3":
+            done = np.zeros(nobjs, dtype=indr3datamodel.dtype)
         for col in done.dtype.names:
             if col == 'REF_CAT':
                 if dr == "dr2":
                     done[col] = 'G2'
                 elif dr == "edr3":
                     done[col] = 'G3'
+                elif dr == "dr3":
+                    done[col] = 'GW'
             else:
+                # ADM as of dr3, Gaia writes empty columns as "null".
+                if dr != "dr2" and dr != "edr3":
+                    ii = np.array([val == "null"
+                                   for val in fitstable[col.lower()]])
+                    fitstable[col.lower()][ii] = 0
                 done[col] = fitstable[col.lower()]
         fitsio.write(outfile, done, extname='GAIAFITS')
 
@@ -612,11 +748,16 @@ def gaia_csv_to_fits(dr="dr2", numproc=32):
         for pix in pixels:
             pixlist[pix].append(file)
 
-    # ADM write out the HEALPixel->files look-up table.
-    outfilename = os.path.join(fitsdir, "hpx-to-files.pickle")
-    outfile = open(outfilename, "wb")
-    pickle.dump(pixlist, outfile)
-    outfile.close()
+    # ADM write out the HEALPixel->files look-up table. We don't want
+    # ADM to produce this if we're only processing a subset of files.
+    if mopup:
+        log.info("You're mopping up! Remember to run hpx_pickle_from_fits() "
+                 "to make the pickle/lookup file!")
+    else:
+        outfilename = os.path.join(fitsdir, "hpx-to-files.pickle")
+        outfile = open(outfilename, "wb")
+        pickle.dump(pixlist, outfile)
+        outfile.close()
 
     log.info('Done...t={:.1f}s'.format(time()-t0))
 
@@ -629,8 +770,9 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
     Parameters
     ----------
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3". For
-        "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        For "edr3" the directory used is actually $GAIA_DIR/../gaia_edr3
+        For "dr3" the directory used is actually $GAIA_DIR/../gaia_dr3
     numproc : :class:`int`, optional, defaults to 32
         The number of parallel processes to use.
 
@@ -649,6 +791,7 @@ def gaia_fits_to_healpix(dr="dr2", numproc=32):
         - if numproc==1, use the serial code instead of the parallel code.
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
         - Runs in ~15 minutes with numproc=32 for 3,386 Gaia EDR3 files.
+        - Runs in ~20 minutes with numproc=32 for 3,386 Gaia DR3 files.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()

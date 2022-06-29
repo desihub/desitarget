@@ -5,7 +5,9 @@ desitarget Change Log
 2.5.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Functionality to download and reformat files for Gaia DR3 [`PR #796`_]
+
+.. _`PR #796`: https://github.com/desihub/desitarget/pull/796
 
 2.5.0 (2022-04-22)
 ------------------
