@@ -2423,22 +2423,14 @@ def check_hp_target_dir(hpdirname):
     """
     # ADM glob all the files in the directory, read the pixel
     # ADM numbers and NSIDEs.
-    log.info('check_hp_target_dir')
     nside = []
     pixlist = []
     fns = sorted(glob(os.path.join(hpdirname, "*fits")))
     pixdict = {}
-    log.info('hpdirname')
-    log.info(hpdirname)
-    log.info('fns')
-    log.info(fns)
     for fn in fns:
-        log.info('fn')
-        log.info(fn)
         hdr = read_targets_header(fn)
         # ADM if there's no directory structure, maybe a file was meant.
         try:
-            log.info('try to read filensid')
             nside.append(hdr["FILENSID"])
         except KeyError:
             msg = "You passed a directory containing {}.".format(fns)
@@ -2446,44 +2438,31 @@ def check_hp_target_dir(hpdirname):
             log.error(msg)
             raise KeyError
         pixels = hdr["FILEHPX"]
-        log.info('pixels')
-        log.info(pixels)
         # ADM hdr["FILEHPX"] could be a str, depending on fitsio version.
         if isinstance(pixels, str):
-            log.info('is isnstance pixels str')
             pixels = list(map(int, pixels.split(',')))
         # ADM if this is a one-pixel file, or interpreted as a tuple,
         # ADM convert to a list.
         else:
-            log.info('is NOT instance pixels str')
             pixels = list(np.atleast_1d(pixels))
         # ADM check we haven't stored a pixel string that is too long.
         _check_hpx_length(pixels)
         # ADM create a look-up dictionary of file-for-each-pixel.
-        log.info('looking through pixels list')
         for pix in pixels:
-            log.info('pix')
-            log.info(pix)
             pixdict[pix] = fn
         pixlist.append(pixels)
-        log.info('pixlist')
-        log.info(pixlist)
     nside = np.array(nside)
     # ADM as well as having just an array of all the pixels.
-    log.info('pixlist')
-    log.info(pixlist)
     pixlist = np.hstack(pixlist)
 
     msg = None
     # ADM check all NSIDEs are the same.
     if not np.all(nside == nside[0]):
-        log.info('not all nside == nside[0]')
         msg = 'Not all files in {} are at the same NSIDE'     \
             .format(hpdirname)
 
     # ADM check that no two files contain the same HEALPixels.
     if not len(set(pixlist)) == len(pixlist):
-        log.info('found duplicate pixel')
         dup = set([pix for pix in pixlist if list(pixlist).count(pix) > 1])
         msg = 'Duplicate pixel ({}) in files in {}'           \
             .format(dup, hpdirname)
@@ -2492,11 +2471,9 @@ def check_hp_target_dir(hpdirname):
     goodpix = np.arange(hp.nside2npix(nside[0]))
     badpix = set(pixlist) - set(goodpix)
     if len(badpix) > 0:
-        log.info('found bad pixels')
         msg = 'Pixel ({}) not allowed at NSIDE={} in {}'.     \
               format(badpix, nside[0], hpdirname)
-    log.info('msg')
-    log.info(msg)
+
     if msg is not None:
         log.critical(msg)
         raise AssertionError(msg)
@@ -3310,35 +3287,24 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
           read_mtl_in_hp().
     """
     # ADM if quick is True, use the quick-code.
-    log.info('read_targets_in_hp')
     if quick:
-        log.info('quick')
         return read_targets_in_quick(
             hpdirname, shape='hp', nside=nside,
             pixlist=pixlist, columns=columns, header=header)
 
     if mtl:
-        log.info('mtl')
         return read_mtl_in_hp(
             hpdirname, nside, pixlist,
             unique=unique, isodate=isodate, initial=initial, leq=leq)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
-        if verbose:
-            log.debug('pixlist')
-            log.debug(pixlist)
         pixlist = [pixlist]
-    if verbose:
-        log.debug('pixlist')
-        log.debug(pixlist)
+
     # ADM we'll need RA/Dec for final cuts, so ensure they're read.
     addedcols = []
     columnscopy = None
     if columns is not None:
-        if verbose:
-            log.info('columns not None')
-            log.info(columns)
         # ADM make a copy of columns, as it's a kwarg we'll modify.
         columnscopy = columns.copy()
         for radec in ["RA", "DEC"]:
@@ -3347,17 +3313,9 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                 addedcols.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if verbose:
-        log.info('hpdirname')
-        log.info(hpdirname)
     if os.path.isdir(hpdirname):
-        if verbose:
-            log.info('os path isdir hpdirname')
         # ADM check, and grab information from, the target directory.
         filenside, filedict = check_hp_target_dir(hpdirname)
-        if verbose:
-            log.info('filenside')
-            log.info(filenside)
         # ADM read in the first file to grab the data model for
         # ADM cases where we find no targets in the passed pixlist.
         fn0 = list(filedict.values())[0]
@@ -3368,15 +3326,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
 
         # ADM change the passed pixels to the nside of the file schema.
         filepixlist = nside2nside(nside, filenside, pixlist)
-        if verbose:
-            log.info('filepixlist')
-            log.info(filepixlist)
-            log.info('pixlist')
-            log.info(pixlist)
-            log.info('nside')
-            log.info(nside)
-            log.info('filenside')
-            log.info(filenside)
+
         # ADM only consider pixels for which we have a file.
         isindict = [pix in filedict for pix in filepixlist]
         filepixlist = filepixlist[isindict]
@@ -3387,17 +3337,12 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         # ADM read in the files and concatenate the resulting targets.
         targets = []
         for infile in infiles:
-            if verbose:
-                log.info('infile')
-                log.info(infile)
             targs, hdr = read_target_files(
                 infile, columns=columnscopy, header=True,
                 downsample=downsample, verbose=verbose)
             targets.append(targs)
         # ADM if targets is empty, return no targets.
         if len(targets) == 0:
-            if verbose:
-                log.info('no targets')
             if header:
                 return notargs, nohdr
             else:
@@ -3751,10 +3696,6 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         - The environment variable $DESIMODEL must be set.
     """
     # ADM if quick is True, use the quick-code.
-    log.info('calling read_targets_in_tiles')
-    log.info('quick, oldstyle')
-    log.info(quick)
-    log.info(oldstyle)
     if quick:
         if oldstyle:
             return read_targets_in_quick(hpdirname, shape='tiles', tiles=tiles,
@@ -3793,8 +3734,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 
         # ADM determine the pixels that touch the tiles.
         pixlist = tiles2pix(nside, tiles=tiles)
-        log.info('pixlist')
-        log.info(pixlist)
+
         # ADM read in targets in these HEALPixels.
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist,
