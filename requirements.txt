@@ -14,4 +14,4 @@ git+https://github.com/desihub/specter.git@0.9.4#egg=specter
 git+https://github.com/desihub/desimodel.git@0.13.0#egg=desimodel
 # Don't forget to install desimodel test data.
 git+https://github.com/desihub/desispec.git@0.36.1#egg=desispec
-git+https://github.com/desihub/desisim.git@master#egg=desisim
+git+https://github.com/desihub/desisim.git@main#egg=desisim
