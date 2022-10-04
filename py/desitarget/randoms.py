@@ -1205,11 +1205,6 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM change target column names, and retrieve associated survey information.
     _, Mx, survey, targets = main_cmx_or_sv(targets, rename=True)
 
-    # ADM determine the areal coverage of the randoms at this nside.
-    log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
-    pw = pixweight(randoms, rand_density, nside=nside)
-    npix = len(pw)
-
     # ADM areal coverage for some combinations of MASKBITS.
     mbcomb = []
     mbstore = []
@@ -1222,6 +1217,7 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
         mbstore.append(pixweight(randoms, rand_density,
                                  nside=nside, maskbits=bitint))
 
+    # ADM determine the areal coverage of the randoms at this nside.
     log.info('Determining footprint...t = {:.1f}s'.format(time()-start))
     pw = pixweight(randoms, rand_density, nside=nside)
     npix = len(pw)
