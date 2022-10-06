@@ -48,6 +48,7 @@ class TestSV(unittest.TestCase):
         # ADM find all svX sub-directories in the desitarget directory.
         fns = sorted(glob(resource_filename('desitarget', 'sv*')))
         svlist = [os.path.basename(fn) for fn in fns if os.path.isdir(fn)]
+        self.assertEqual(len(svlist), 3)
 
         for survey in svlist:
             desicol, bgscol, mwscol = ["{}_{}_TARGET".format(survey.upper(), tc)
