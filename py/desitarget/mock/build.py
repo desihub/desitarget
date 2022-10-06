@@ -394,7 +394,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     areaperpixel = hp.nside2pixarea(nside, degrees=True)
     areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
 
-    nchunk = 4**np.int(np.log2(nside_chunk) - np.log2(nside))
+    nchunk = 4**int(np.log2(nside_chunk) - np.log2(nside))
     log.info('Dividing each nside={} healpixel ({:.2f} deg2) into {} nside={} healpixel(s) ({:.2f} deg2).'.format(
         nside, areaperpixel, nchunk, nside_chunk, areaperchunk))
 

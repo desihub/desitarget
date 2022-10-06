@@ -2201,7 +2201,7 @@ def _prepare_gaia(objects, colnames=None):
     Grr = gaiagmag - 22.5 + 2.5*np.log10(1e-16)
     ii = objects['FLUX_R'] > 0
     # ADM catch the case where Grr is a scalar.
-    if isinstance(Grr, np.float):
+    if isinstance(Grr, float):
         if ii:
             Grr = gaiagmag - 22.5 + 2.5*np.log10(objects['FLUX_R'])
     else:

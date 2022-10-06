@@ -8,7 +8,7 @@ log = get_logger()
 survey = "main"
 
 from argparse import ArgumentParser
-ap = ArgumentParser(description='Make an initial HEALPixel-split ledger for a Merged Target List based on a directory of targets')
+ap = ArgumentParser(description='Update ledgers for the Merged Target based on new spectroscopic observations')
 ap.add_argument("obscon",
                 help="String matching ONE obscondition in the bitmask yaml file \
                 (e.g. 'BRIGHT'). Controls priorities when merging targets,      \
