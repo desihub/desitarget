@@ -30,7 +30,7 @@ class TestSECONDARY(unittest.TestCase):
         """Test that secondary masks only have the allowed flavors.
         """
         # ADM for each mask...
-        self.assertEqual(self.Mxs, 4)
+        self.assertEqual(len(self.Mxs), 4)
         for Mx in self.Mxs:
             # ADM ...if we've already defined the flavor property...
             if "flavor" in dir(Mx[Mx[0]]):
