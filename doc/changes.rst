@@ -5,11 +5,13 @@ desitarget Change Log
 2.5.1 (unreleased)
 ------------------
 
-* Address deprecated np.int and np.float dependencies [`PR #797`_]
-* Functionality to download and reformat files for Gaia DR3 [`PR #796`_]
+* Address deprecated np.int and np.float dependencies [`PR #797`_].
+* Functionality to download and reformat files for Gaia DR3 [`PR #796`_].
+* Restore coverage for svX code [`PR #799`_].
 
 .. _`PR #796`: https://github.com/desihub/desitarget/pull/796
 .. _`PR #797`: https://github.com/desihub/desitarget/pull/797
+.. _`PR #799`: https://github.com/desihub/desitarget/pull/799
 
 2.5.0 (2022-04-22)
 ------------------
