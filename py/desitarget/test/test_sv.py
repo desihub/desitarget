@@ -68,6 +68,7 @@ class TestSV(unittest.TestCase):
                 bgs1 = (targets[desicol] & desi_mask.BGS_ANY) != 0
                 bgs2 = targets[bgscol] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
+                number_of_calls += 1
 
             self.assertEqual(number_of_calls, 6)
 
@@ -81,6 +82,7 @@ class TestSV(unittest.TestCase):
                 for col in desicol, bgscol, mwscol:
                     self.assertTrue(col in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets[desicol]))
+                number_of_calls += 1
 
             self.assertEqual(number_of_calls, 3)
 
