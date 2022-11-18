@@ -15,4 +15,4 @@ git+https://github.com/desihub/desimodel.git@0.17.0#egg=desimodel
 # Don't forget to install desimodel test data.
 git+https://github.com/desihub/desispec.git@0.53.1#egg=desispec
 git+https://github.com/desihub/desisim.git@0.36.0#egg=desisim
-git+https://github.com/desihub/redrock.git@0.15.4#egg=desisim
+git+https://github.com/desihub/redrock.git@0.15.4#egg=redrock
