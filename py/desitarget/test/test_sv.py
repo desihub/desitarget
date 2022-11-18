@@ -53,6 +53,7 @@ class TestSV(unittest.TestCase):
         for survey in svlist:
             desicol, bgscol, mwscol = ["{}_{}_TARGET".format(survey.upper(), tc)
                                        for tc in ["DESI", "BGS", "MWS"]]
+            number_of_calls = 0
             for filelist in [self.tractorfiles, self.sweepfiles]:
                 # ADM set backup to False as the Gaia unit test
                 # ADM files only cover a limited pixel range.
@@ -68,7 +69,10 @@ class TestSV(unittest.TestCase):
                 bgs2 = targets[bgscol] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
 
+            self.assertEqual(number_of_calls, 6)
+
             # ADM backup targets can only be run on sweep files.
+            number_of_calls = 0
             for filelist in self.sweepfiles:
                 # ADM also test the backup targets in the pixels covered
                 # ADM by the Gaia unit test files.
@@ -77,6 +81,8 @@ class TestSV(unittest.TestCase):
                 for col in desicol, bgscol, mwscol:
                     self.assertTrue(col in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets[desicol]))
+
+            self.assertEqual(number_of_calls, 3)
 
 
 if __name__ == '__main__':
