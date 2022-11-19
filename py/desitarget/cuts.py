@@ -2890,8 +2890,11 @@ def apply_cuts(objects, qso_selection='randomforest',
     # code or an iteration of SV.
     if survey == 'main':
         import desitarget.cuts as targcuts
+        assert targcuts.__name__ == 'desitarget.cuts'
     elif survey[:2] == 'sv':
-        targcuts = import_module("desitarget.{}.{}_cuts".format(survey, survey))
+        sv_module = "desitarget.{}.{}_cuts".format(survey, survey)
+        targcuts = import_module(sv_module)
+        assert targcuts.__name__ == sv_module
     else:
         msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
         log.critical(msg)

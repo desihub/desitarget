@@ -70,7 +70,7 @@ class TestSV(unittest.TestCase):
                 self.assertTrue(np.all(bgs1 == bgs2))
                 number_of_calls += 1
 
-            self.assertEqual(number_of_calls, 6)
+            self.assertEqual(number_of_calls, 2)
 
             # ADM backup targets can only be run on sweep files.
             number_of_calls = 0
