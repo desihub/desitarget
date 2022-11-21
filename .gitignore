@@ -1,7 +1,7 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
-.ipynb_checkpoints                                                                                            
+.ipynb_checkpoints
 # C extensions
 *.so
 
@@ -36,7 +36,7 @@ pip-delete-this-directory.txt
 # Unit test / coverage reports
 htmlcov/
 .tox/
-.coverage
+.coverage*
 .cache
 nosetests.xml
 coverage.xml
@@ -60,3 +60,7 @@ target/
 # VIM stuff
 *.swo
 *.swp
+
+# VS Code stuff
+.vscode
+.env

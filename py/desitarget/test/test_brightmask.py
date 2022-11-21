@@ -5,6 +5,7 @@
 import unittest
 from pkg_resources import resource_filename
 import os
+import sys
 import fitsio
 import numpy as np
 import numpy.lib.recfunctions as rfn
@@ -17,6 +18,8 @@ from desitarget import brightmask, io
 from desitarget.targetmask import desi_mask, targetid_mask
 
 from desiutil import brick
+
+_macos = sys.platform == 'darwin'
 
 
 class TestBRIGHTMASK(unittest.TestCase):
@@ -106,6 +109,7 @@ class TestBRIGHTMASK(unittest.TestCase):
         self.assertTrue(len(set(mx["REF_ID"]) - set(self.allmx["REF_ID"])) == 0)
         self.assertTrue(len(set(self.allmx["REF_ID"]) - set(mx["REF_ID"])) > 0)
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_make_bright_star_mask_parallel(self):
         """Check running the mask-making code in parallel.
         """

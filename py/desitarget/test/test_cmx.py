@@ -3,6 +3,7 @@
 """Test desitarget.cmx.
 """
 import unittest
+import sys
 from pkg_resources import resource_filename
 import os.path
 from uuid import uuid4
@@ -17,6 +18,8 @@ import healpy as hp
 
 from desitarget import io
 from desitarget.cmx import cmx_cuts as cuts
+
+_macos = sys.platform == 'darwin'
 
 
 class TestCMX(unittest.TestCase):
@@ -140,6 +143,7 @@ class TestCMX(unittest.TestCase):
         with self.assertRaises(ValueError):
             targets = cuts.select_targets(['blat.foo1234', ], numproc=1)
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_parallel_select(self):
         """Test multiprocessing parallelization works
         """

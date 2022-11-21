@@ -3,6 +3,7 @@
 """Test desitarget.sv.
 """
 import unittest
+import sys
 import fitsio
 import os
 import numpy as np
@@ -12,6 +13,8 @@ from glob import glob
 from pkg_resources import resource_filename
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
+
+_macos = sys.platform == 'darwin'
 
 
 class TestSV(unittest.TestCase):
@@ -42,16 +45,19 @@ class TestSV(unittest.TestCase):
         if cls.gaiadir_orig is not None:
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_sv_cuts(self):
         """Test SV cuts work.
         """
         # ADM find all svX sub-directories in the desitarget directory.
         fns = sorted(glob(resource_filename('desitarget', 'sv*')))
         svlist = [os.path.basename(fn) for fn in fns if os.path.isdir(fn)]
+        self.assertEqual(len(svlist), 3)
 
         for survey in svlist:
             desicol, bgscol, mwscol = ["{}_{}_TARGET".format(survey.upper(), tc)
                                        for tc in ["DESI", "BGS", "MWS"]]
+            number_of_calls = 0
             for filelist in [self.tractorfiles, self.sweepfiles]:
                 # ADM set backup to False as the Gaia unit test
                 # ADM files only cover a limited pixel range.
@@ -66,8 +72,12 @@ class TestSV(unittest.TestCase):
                 bgs1 = (targets[desicol] & desi_mask.BGS_ANY) != 0
                 bgs2 = targets[bgscol] != 0
                 self.assertTrue(np.all(bgs1 == bgs2))
+                number_of_calls += 1
+
+            self.assertEqual(number_of_calls, 2)
 
             # ADM backup targets can only be run on sweep files.
+            number_of_calls = 0
             for filelist in self.sweepfiles:
                 # ADM also test the backup targets in the pixels covered
                 # ADM by the Gaia unit test files.
@@ -76,6 +86,9 @@ class TestSV(unittest.TestCase):
                 for col in desicol, bgscol, mwscol:
                     self.assertTrue(col in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets[desicol]))
+                number_of_calls += 1
+
+            self.assertEqual(number_of_calls, 3)
 
 
 if __name__ == '__main__':
