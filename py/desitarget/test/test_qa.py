@@ -4,6 +4,7 @@
 """
 import unittest
 import os
+import sys
 import shutil
 import tempfile
 import warnings
@@ -15,6 +16,8 @@ from desitarget.QA import make_qa_page, _load_systematics
 from desitarget.QA import _parse_tcnames, _in_desi_footprint
 from desiutil.log import get_logger
 log = get_logger()
+
+_macos = sys.platform == 'darwin'
 
 
 class TestQA(unittest.TestCase):
@@ -56,6 +59,7 @@ class TestQA(unittest.TestCase):
                 if os.path.exists(filename):
                     os.remove(filename)
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_qa_main(self):
         """Test plots/pages made for some main survey target types.
         """
@@ -80,6 +84,7 @@ class TestQA(unittest.TestCase):
         # ADM there are only .html, .dat and .png files.
         self.assertEqual(pngs+htmls+dats, alls)
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_qa_cmx(self):
         """Test plots/pages are made for some commissioning targets.
         """

@@ -3,6 +3,7 @@
 """Test desitarget.sv.
 """
 import unittest
+import sys
 import fitsio
 import os
 import numpy as np
@@ -12,6 +13,8 @@ from glob import glob
 from pkg_resources import resource_filename
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
+
+_macos = sys.platform == 'darwin'
 
 
 class TestSV(unittest.TestCase):
@@ -42,6 +45,7 @@ class TestSV(unittest.TestCase):
         if cls.gaiadir_orig is not None:
             os.environ["GAIA_DIR"] = cls.gaiadir_orig
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_sv_cuts(self):
         """Test SV cuts work.
         """

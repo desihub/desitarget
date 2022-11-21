@@ -3,6 +3,7 @@
 """Test desitarget.cuts.
 """
 import unittest
+import sys
 from pkg_resources import resource_filename
 import os.path
 from uuid import uuid4
@@ -18,6 +19,8 @@ import healpy as hp
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
 from desitarget.geomask import hp_in_box, pixarea2nside, box_area
+
+_macos = sys.platform == 'darwin'
 
 
 class TestCuts(unittest.TestCase):
@@ -298,6 +301,7 @@ class TestCuts(unittest.TestCase):
 
                 self.assertTrue(np.all(t1[col][notNaN] == t2[col][notNaN]))
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_qso_selection_options(self):
         """Test the QSO selection options are passed correctly
         """
@@ -329,6 +333,7 @@ class TestCuts(unittest.TestCase):
         with self.assertRaises(ValueError):
             targets = cuts.select_targets(['blat.foo1234', ], numproc=1)
 
+    @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_parallel_select(self):
         """Test multiprocessing parallelization works
         """
