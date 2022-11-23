@@ -1270,13 +1270,18 @@ def process_overrides(ledgerfn):
       be NUMOVERRIDE - 1, TIMESTAMP updated to now, the second part of
       TARGET_STATE updated to OVERRIDE, the git VERSION updated, and the
       ZTILEID updated to -1.
+    - Will only update entries for which NUMOVERRIDE > 0.
     """
     log.info("Processing override ledgers")
 
     # ADM read in the relevant entries in the override ledger.
     mtl = Table(io.read_mtl_ledger(ledgerfn))
 
-    # ADM indicate that we've already overrode once.
+    # ADM limit to entries with NUMOVERRIDE > 0.
+    ii = mtl["NUMOVERRIDE"] > 0
+    mtl = mtl[ii]
+
+    # ADM indicate that we've overrode.
     mtl["NUMOVERRIDE"] -= 1
 
     # ADM update the standard information for override ledgers.
