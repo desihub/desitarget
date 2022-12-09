@@ -38,7 +38,7 @@ ap.add_argument('--mtldir',
                 default=None)
 ap.add_argument("-s", "--secondary", action='store_true',
                 help="Process secondary targets instead of primaries")
-ap.add_argument("-n", "--numoverride",
+ap.add_argument("-n", "--numoverride", type=int,
                 help="The override ledger is read each time the MTL loop is run.\
                 This is the number of times to override the standard results in \
                 the MTL loop. Defaults to {}".format(numoverride),

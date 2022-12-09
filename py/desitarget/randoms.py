@@ -5,6 +5,8 @@ desitarget.randoms
 ==================
 
 Monte Carlo Legacy Surveys imaging at the pixel level to model the imaging footprint
+
+.. _`Legacy Surveys bitmasks`: https://www.legacysurvey.org/dr9/bitmasks/
 """
 import os
 import numpy as np
@@ -481,7 +483,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     fileform = os.path.join(rootdir, 'legacysurvey-{}-{}-{}.fits.{}')
     # ADM loop through the filters and store the number of observations
     # ADM etc. at the RA and Dec positions of the passed points.
-    for filt in ['g', 'r', 'z']:
+    for filt in ['g', 'r', 'i', 'z']:
         # ADM the input file labels, and output column names and output
         # ADM formats for each of the quantities of interest.
         qnames = zip(['nexp', 'depth', 'galdepth', 'psfsize', 'image'],
@@ -792,35 +794,32 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
             Passed brick name.
         RA, DEC:
             Right Ascension, Declination of a random location.
-        NOBS_G, R, Z:
+        NOBS_G, R, I, Z:
             Number of observations in g, r, z-band.
-        PSFDEPTH_G, R, Z:
+        PSFDEPTH_G, R, I, Z:
             PSF depth at this location in g, r, z.
-        GALDEPTH_G, R, Z:
+        GALDEPTH_G, R, I, Z:
             Galaxy depth in g, r, z.
         PSFDEPTH_W1, W2:
             (PSF) depth in W1, W2 (AB mag system).
-        PSFSIZE_G, R, Z:
+        PSFSIZE_G, R, I, Z:
             Weighted average PSF FWHM (arcsec).
-        APFLUX_G, R, Z:
+        APFLUX_G, R, I, Z:
             Sky background extracted in `aprad`.
             Will be zero if `aprad` < 1e-8 is passed.
-        APFLUX_IVAR_G, R, Z:
+        APFLUX_IVAR_G, R, I, Z:
             Inverse variance of sky background.
             Will be zero if `aprad` < 1e-8 is passed.
         MASKBITS:
-            Mask information. See header of extension 1 of *e.g.*
-            ``coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz``
+            Mask information. See, e.g. the `Legacy Surveys bitmasks`_.
         WISEMASK_W1:
-            Mask information. See header of extension 2 of *e.g.*
-            ``coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz``
+            Mask information. See, e.g. the `Legacy Surveys bitmasks`_.
         WISEMASK_W2:
-            Mask information. See header of extension 3 of *e.g.*
-            ``coadd/132/1320p317/legacysurvey-1320p317-maskbits.fits.fz``
+            Mask information. See, e.g. the `Legacy Surveys bitmasks`_.
         EBV:
             E(B-V) at this location from the SFD dust maps.
         PHOTSYS:
-            resolved north/south ('N' for an MzLS/BASS location,
+            Resolved north/south ('N' for an MzLS/BASS location,
             'S' for a DECaLS location).
     """
     # ADM only intended to work on one brick, so die for larger arrays.
@@ -852,21 +851,21 @@ def get_quantities_in_a_brick(ramin, ramax, decmin, decmax, brickname,
             len(ras),
             dtype=[('RELEASE', '>i2'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
                    ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', 'f8'),
-                   ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
-                   ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_Z', 'f4'),
-                   ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_Z', 'f4'),
+                   ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_I', 'i2'), ('NOBS_Z', 'i2'),
+                   ('PSFDEPTH_G', 'f4'), ('PSFDEPTH_R', 'f4'), ('PSFDEPTH_I', 'f4'), ('PSFDEPTH_Z', 'f4'),
+                   ('GALDEPTH_G', 'f4'), ('GALDEPTH_R', 'f4'), ('GALDEPTH_I', 'f4'), ('GALDEPTH_Z', 'f4'),
                    ('PSFDEPTH_W1', 'f4'), ('PSFDEPTH_W2', 'f4'),
-                   ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_Z', 'f4'),
-                   ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_Z', 'f4'),
-                   ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
-                   ('MASKBITS', 'i2'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
+                   ('PSFSIZE_G', 'f4'), ('PSFSIZE_R', 'f4'), ('PSFSIZE_I', 'f4'), ('PSFSIZE_Z', 'f4'),
+                   ('APFLUX_G', 'f4'), ('APFLUX_R', 'f4'), ('APFLUX_I', 'f4'), ('APFLUX_Z', 'f4'),
+                   ('APFLUX_IVAR_G', 'f4'), ('APFLUX_IVAR_R', 'f4'), ('APFLUX_IVAR_I', 'f4'), ('APFLUX_IVAR_Z', 'f4'),
+                   ('MASKBITS', 'i4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
                    ('EBV', 'f4'), ('PHOTSYS', '|S1')]
         )
     else:
         qinfo = np.zeros(
             len(ras),
             dtype=[('BRICKID', '>i4'), ('BRICKNAME', 'S8'), ('RA', 'f8'), ('DEC', 'f8'),
-                   ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_Z', 'i2'),
+                   ('NOBS_G', 'i2'), ('NOBS_R', 'i2'), ('NOBS_I', 'i2'), ('NOBS_Z', 'i2'),
                    ('EBV', 'f4')]
         )
 

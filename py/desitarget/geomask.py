@@ -942,7 +942,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print('')
 
     # ADM extract the Data Release number from the survey directory
-    dr = surveydir.split('dr')[-1][0]
+    dr = surveydir.split("dr")[-1].split(os.path.sep)[0]
     # ADM if an integer can't be extracted, use X instead.
     try:
         drstr = "-dr{}".format(int(dr))

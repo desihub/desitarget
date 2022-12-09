@@ -1612,7 +1612,7 @@ def write_randoms(targdir, data, indir=None, hdr=None, nside=None, supp=False,
             depend.setdep(hdr, 'input-data-release', indir)
         # ADM use input directory to (try to) determine the Data Release.
         try:
-            drint = int(indir.split("dr")[1][0])
+            drint = int(indir.split("dr")[1].split(os.path.sep)[0])
             drstring = 'dr'+str(drint)
             depend.setdep(hdr, 'photcat', drstring)
         except (ValueError, IndexError, AttributeError):
