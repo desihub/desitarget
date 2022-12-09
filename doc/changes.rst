@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.5.1 (unreleased)
+2.6.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.6.0 (2022-12-08)
 ------------------
 
 * Updates to run random catalogs for Legacy Surveys DR10 [`PR #800`_].
