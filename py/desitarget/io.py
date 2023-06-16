@@ -45,7 +45,7 @@ log = get_logger()
 releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
                8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
                9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N',
-               9010: 'S', 9011: 'N', 9012: 'S', 9013: 'N'}
+               9010: 'S', 9011: 'N', 9012: 'S', 9013: 'N', 10000: 'S'}
 
 # ADM This is an empty array of most of the TS data model columns and
 # ADM dtypes. Note that other columns are added in read_tractor and
@@ -74,6 +74,17 @@ basetsdatamodel = np.array([], dtype=[
     ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
     ('MASKBITS', '>i2')
     ])
+
+# ADM columns that have updated dtypes in the DR10 data model.
+dr10replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
+                   ('LC_FLUX_W1', '>f4', (15,)): ('LC_FLUX_W1', '>f4', (17,)),
+                   ('LC_FLUX_W2', '>f4', (15,)): ('LC_FLUX_W2', '>f4', (17,)),
+                   ('LC_FLUX_IVAR_W1', '>f4', (15,)): ('LC_FLUX_IVAR_W1', '>f4', (17,)),
+                   ('LC_FLUX_IVAR_W2', '>f4', (15,)): ('LC_FLUX_IVAR_W2', '>f4', (17,)),
+                   ('LC_NOBS_W1', '>i2', (15,)): ('LC_NOBS_W1', '>i2', (17,)),
+                   ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (17,)),
+                   ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (17,)),
+                   ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (17,))}
 
 # ADM columns that are new for the DR9 data model.
 dr9addedcols = np.array([], dtype=[
@@ -196,13 +207,15 @@ def read_tractor(filename, header=False, columns=None, gaiasub=False):
         indata = sub_gaia_edr3(filename, objs=indata)
 
     # ADM form the final data model in a manner that maintains
-    # ADM backwards-compatability with DR8.
+    # ADM backwards-compatibility with earlier data releases.
     if "FRACDEV" in indata.dtype.names:
         tsdatamodel = np.array(
             [], dtype=basetsdatamodel.dtype.descr + dr8addedcols.dtype.descr)
     else:
-        tsdatamodel = np.array(
-            [], dtype=basetsdatamodel.dtype.descr + dr9addedcols.dtype.descr)
+        newdt = basetsdatamodel.dtype.descr + dr9addedcols.dtype.descr
+        if "FLUX_I" in indata.dtype.names:  # ADM i-fluxes were added for DR10.
+            newdt = [dr10replacecols.get(tup, tup) for tup in newdt]
+        tsdatamodel = np.array([], dtype=newdt)
 
     # ADM the full data model including Gaia columns.
     from desitarget.gaiamatch import gaiadatamodel
@@ -576,7 +589,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         drstring = "gaiadr{}".format(gaiadr)
     else:
         try:
-            drint = int(indir.split("dr")[1][0])
+            drint = int(indir.split("dr")[1].split(os.path.sep)[0])
             drstring = "dr{}".format(drint)
         except (ValueError, IndexError, AttributeError):
             drstring = "X"
@@ -1382,7 +1395,7 @@ def write_gfas(targdir, data, indir=None, indir2=None, nside=None,
     # ADM if passed, use the indir to determine the Data Release
     # ADM integer and string for the input targets.
     try:
-        drint = int(indir.split("dr")[1][0])
+        drint = int(indir.split("dr")[1].split(os.path.sep)[0])
         drstring = 'dr'+str(drint)
     except (ValueError, IndexError, AttributeError):
         drint = None

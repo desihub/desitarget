@@ -2171,6 +2171,8 @@ def _prepare_gaia(objects, colnames=None):
     gaia = objects['REF_ID'] > 0
     if "REF_CAT" in colnames:
         gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
+        # ADM as of DR10, we use Gaia EDR3 rather than DR2.
+        gaia |= (objects['REF_CAT'] == b'GE') | (objects['REF_CAT'] == 'GE')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     pmraivar = objects['PMRA_IVAR']
