@@ -5,7 +5,13 @@ desitarget Change Log
 2.6.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Updates to run targets for Legacy Surveys DR10 [`PR #801`_]. Includes:
+    * Add `RELEASE` number of `10000` (a "southern" release).
+    * DR10 has `REF_CAT == 'GE'` for Gaia EDR3 instead of `'G2`.
+    * Update data model to reflect altered columns in DR10.
+    * Parse both `drXX` and `drX` strings in output filenames.
+
+.. _`PR #801`: https://github.com/desihub/desitarget/pull/801
 
 2.6.0 (2022-12-08)
 ------------------
