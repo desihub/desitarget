@@ -5,7 +5,7 @@ desitarget Change Log
 2.6.1 (unreleased)
 ------------------
 
-* Fix bug where empty override MTLs can alter data types [`PR #802`_].
+* Fix bug where empty override MTLs can alter data types [`PR #803`_].
 * Updates to run targets for Legacy Surveys DR10 [`PR #801`_]. Includes:
     * Add `RELEASE` number of `10000` (a "southern" release).
     * DR10 has `REF_CAT == 'GE'` for Gaia EDR3 instead of `'G2`.
@@ -13,7 +13,7 @@ desitarget Change Log
     * Parse both `drXX` and `drX` strings in output filenames.
 
 .. _`PR #801`: https://github.com/desihub/desitarget/pull/801
-.. _`PR #802`: https://github.com/desihub/desitarget/pull/802
+.. _`PR #803`: https://github.com/desihub/desitarget/pull/803
 
 2.6.0 (2022-12-08)
 ------------------
