@@ -1239,11 +1239,13 @@ def standard_override_columns(mtl):
         TARGET_STATE updated to be OVERRIDE, the git VERSION updated, and
         ZTILEID set to -1.
     """
-    mtl["TIMESTAMP"] = get_utc_date(survey="main")
-    newts = ["{}|OVERRIDE".format(t.split("|")[0]) for t in mtl["TARGET_STATE"]]
-    mtl["TARGET_STATE"] = np.array(newts)
-    mtl["VERSION"] = dt_version
-    mtl["ZTILEID"] = -1
+    # ADM this ensures that data types are not altered for empty arrays.
+    if len(mtl) > 0:
+        mtl["TIMESTAMP"] = get_utc_date(survey="main")
+        newts = ["{}|OVERRIDE".format(t.split("|")[0]) for t in mtl["TARGET_STATE"]]
+        mtl["TARGET_STATE"] = np.array(newts)
+        mtl["VERSION"] = dt_version
+        mtl["ZTILEID"] = -1
 
     return mtl
 
