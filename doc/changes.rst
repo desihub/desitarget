@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.6.1 (unreleased)
+2.6.2 (unreleased)
+------------------
+
+No changes yet.
+
+2.6.1 (2023-08-23)
 ------------------
 
 * Fix bug where empty override MTLs can alter data types [`PR #803`_].
