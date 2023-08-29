@@ -5,7 +5,13 @@ desitarget Change Log
 2.6.2 (unreleased)
 ------------------
 
-No changes yet.
+* Option to read subset of columns from HEALPix-split MTLs [`PR #804`_].
+    * Specifically in :func:`io.read_mtl_in_hp()`.
+    * Partial fix for `issue #802`_.
+    * Also address some deprecation warnings.
+
+.. _`issue #802`: https://github.com/desihub/desitarget/issues/802
+.. _`PR #804`: https://github.com/desihub/desitarget/pull/804
 
 2.6.1 (2023-08-23)
 ------------------
