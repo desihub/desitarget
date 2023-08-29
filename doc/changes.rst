@@ -12,8 +12,8 @@ desitarget Change Log
     * Also address some deprecation warnings.
 
 .. _`issue #802`: https://github.com/desihub/desitarget/issues/802
-.. _`issue #802`: https://github.com/desihub/desitarget/issues/804
-.. _`PR #804`: https://github.com/desihub/desitarget/pull/805
+.. _`issue #804`: https://github.com/desihub/desitarget/issues/804
+.. _`PR #805`: https://github.com/desihub/desitarget/pull/805
 
 2.6.1 (2023-08-23)
 ------------------
