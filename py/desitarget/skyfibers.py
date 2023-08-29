@@ -472,8 +472,8 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
             imsigma[coiv == 0] = 0
         apxy = np.vstack((skyfibers.x, skyfibers.y)).T
         for irad, rad in enumerate(apertures):
-            aper = photutils.CircularAperture(apxy, rad)
-            p = photutils.aperture_photometry(coimg, aper, error=imsigma)
+            aper = photutils.aperture.CircularAperture(apxy, rad)
+            p = photutils.aperture.aperture_photometry(coimg, aper, error=imsigma)
             apflux[:, irad] = p.field('aperture_sum')
             err = p.field('aperture_sum_err')
             # ADM where the error is 0, that actually means infinite error

@@ -142,8 +142,8 @@ def add_photsys(indata):
         # ADM add PHOTSYS to the data model.
         # ADM the fitsio check is a hack for the v0.9 to v1.0 transition
         # ADM (v1.0 now converts all byte strings to unicode strings).
-        from distutils.version import LooseVersion
-        if LooseVersion(fitsio.__version__) >= LooseVersion('1'):
+        from packaging.version import Version
+        if Version(fitsio.__version__) >= Version('1'):
             pdt = [('PHOTSYS', '<U1')]
         else:
             pdt = [('PHOTSYS', '|S1')]
@@ -2041,12 +2041,12 @@ def check_fitsio_version(version='0.9.8'):
     ImportError
         If the fitsio version is insufficiently recent.
     """
-    from distutils.version import LooseVersion
+    from packaging.version import Version
     #
     # LooseVersion doesn't handle rc1 as we want, so also check for 0.9.8xxx.
     #
     if (
-        LooseVersion(fitsio.__version__) < LooseVersion(version) and
+        Version(fitsio.__version__) < Version(version) and
         not fitsio.__version__.startswith(version)
     ):
         raise ImportError(('ERROR: fitsio >{0}rc1 required ' +
