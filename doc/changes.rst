@@ -5,7 +5,9 @@ desitarget Change Log
 2.6.2 (unreleased)
 ------------------
 
-No changes yet.
+* Reproducible output from :func:`io.read_targets_in_hp()` [`PR #806`_].
+
+.. _`PR #806`: https://github.com/desihub/desitarget/pull/806
 
 2.6.1 (2023-08-23)
 ------------------
