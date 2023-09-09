@@ -3177,7 +3177,9 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         `isodate` instead of the default behavior of strictly before
         `isodate`. Only relevant if `isodate` is passed.
     columns : :class:`list`, optional
-        Only return these target columns.
+        Only return these target columns. `RA` and `DEC` will always be
+        included in the output, whether or not they're passed, as they
+        are critical for determining if a location is in a HEALPixel.
 
     Returns
     -------
@@ -3195,6 +3197,12 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
         pixlist = [pixlist]
+
+    # ADM if columns was passed without "RA" and "DEC", add them.
+    if columns is not None:
+        for radec in ["RA", "DEC"]:
+            if radec not in columns:
+                columns.append(radec)
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     outfns = {}
