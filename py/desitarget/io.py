@@ -3366,7 +3366,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         filepixlist = filepixlist[isindict]
 
         # ADM make sure each file is only read once.
-        infiles = set([filedict[pix] for pix in filepixlist])
+        infiles = sorted(set([filedict[pix] for pix in filepixlist]))
 
         # ADM read in the files and concatenate the resulting targets.
         targets = []
