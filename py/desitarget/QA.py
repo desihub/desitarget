@@ -981,7 +981,7 @@ def qagaia(cat, objtype, qadir='.', fileprefix="gaia", nobjscut=1000, seed=None)
     plt.xlabel(r'$PM_{RA}\,(mas\,yr^{-1})$')
     plt.ylabel(r'$PM_{DEC}\,(mas\,yr^{-1})$')
 
-    cmap = plt.cm.get_cmap('RdYlBu')
+    cmap = matplotlib.colormaps.get_cmap('RdYlBu')
 
     ralim = (-25, 25)
     declim = (-25, 25)
@@ -1244,7 +1244,7 @@ def mock_qanz(cat, objtype, qadir='.', area=1.0, dndz=None, nobjscut=1000,
     plt.clf()
     plt.xlabel(zlabel)
 
-    cmap = plt.cm.get_cmap('RdYlBu')
+    cmap = matplotlib.colormaps.get_cmap('RdYlBu')
 
     if 'LRG' in objtype:
         band = 'z'
@@ -1444,7 +1444,7 @@ def qacolor(cat, objtype, extinction, qadir='.', fileprefix="color",
     zW1lim = (-1.5, 3.5)
     W1W2lim = (-1.5, 1.5)
 
-    cmap = plt.cm.get_cmap('RdYlBu')
+    cmap = matplotlib.colormaps.get_cmap('RdYlBu')
 
     objcolor = {'ALL': 'black', objtype: 'black'}
     type2color = {**_type2color, **objcolor}

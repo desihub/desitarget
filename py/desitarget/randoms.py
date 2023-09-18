@@ -517,8 +517,8 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
                             imsigma[ivar == 0] = 0
                         # ADM aperture photometry at requested radius (aprad).
                         apxy = np.vstack((x, y)).T
-                        aper = photutils.CircularAperture(apxy, aprad)
-                        p = photutils.aperture_photometry(img.data, aper, error=imsigma)
+                        aper = photutils.aperture.CircularAperture(apxy, aprad)
+                        p = photutils.aperture.aperture_photometry(img.data, aper, error=imsigma)
                         # ADM store the results.
                         qdict[qout+'_'+filt] = np.array(p.field('aperture_sum'))
                         err = p.field('aperture_sum_err')

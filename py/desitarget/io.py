@@ -142,8 +142,8 @@ def add_photsys(indata):
         # ADM add PHOTSYS to the data model.
         # ADM the fitsio check is a hack for the v0.9 to v1.0 transition
         # ADM (v1.0 now converts all byte strings to unicode strings).
-        from distutils.version import LooseVersion
-        if LooseVersion(fitsio.__version__) >= LooseVersion('1'):
+        from packaging.version import Version
+        if Version(fitsio.__version__) >= Version('1'):
             pdt = [('PHOTSYS', '<U1')]
         else:
             pdt = [('PHOTSYS', '|S1')]
@@ -2041,12 +2041,12 @@ def check_fitsio_version(version='0.9.8'):
     ImportError
         If the fitsio version is insufficiently recent.
     """
-    from distutils.version import LooseVersion
+    from packaging.version import Version
     #
     # LooseVersion doesn't handle rc1 as we want, so also check for 0.9.8xxx.
     #
     if (
-        LooseVersion(fitsio.__version__) < LooseVersion(version) and
+        Version(fitsio.__version__) < Version(version) and
         not fitsio.__version__.startswith(version)
     ):
         raise ImportError(('ERROR: fitsio >{0}rc1 required ' +
@@ -2794,7 +2794,7 @@ def write_mtl_tile_file(filename, data):
 
 
 def read_mtl_ledger(filename, unique=True, isodate=None,
-                    initial=False, leq=False):
+                    initial=False, leq=False, columns=None):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -2820,6 +2820,8 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
         `isodate` instead of the default behavior of strictly before
         `isodate`. Only relevant if `isodate` is passed.
+    columns : :class:`list`, optional
+        Only return these target columns.
 
     Returns
     -------
@@ -2897,9 +2899,17 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         if not initial:
             mtl = np.flip(mtl)
         _, ii = np.unique(mtl["TARGETID"], return_index=True)
-        return mtl[ii]
-    else:
-        return mtl
+        mtl = mtl[ii]
+
+    # ADM limit to certain columns, if only a subset were requested.
+    if columns is not None:
+        dt = [col for col in mtl.dtype.descr if col[0] in columns]
+        mtlredux = np.zeros(len(mtl), dtype=dt)
+        for col in mtlredux.dtype.names:
+            mtlredux[col] = mtl[col]
+        return mtlredux
+
+    return mtl
 
 
 def read_target_files(filename, columns=None, rows=None, header=False,
@@ -3132,7 +3142,7 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False,
 
 
 def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
-                   returnfn=False, initial=False, leq=False):
+                   returnfn=False, initial=False, leq=False, columns=None):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -3166,6 +3176,10 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
         `isodate` instead of the default behavior of strictly before
         `isodate`. Only relevant if `isodate` is passed.
+    columns : :class:`list`, optional
+        Only return these target columns. `RA` and `DEC` will always be
+        included in the output, whether or not they're passed, as they
+        are critical for determining if a location is in a HEALPixel.
 
     Returns
     -------
@@ -3184,6 +3198,12 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
     if isinstance(pixlist, int):
         pixlist = [pixlist]
 
+    # ADM if columns was passed without "RA" and "DEC", add them.
+    if columns is not None:
+        for radec in ["RA", "DEC"]:
+            if radec not in columns:
+                columns.append(radec)
+
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     outfns = {}
     fileform = find_mtl_file_format_from_header(hpdirname)
@@ -3198,8 +3218,9 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         for pix in filepixlist:
             fn = fileform.format(pix)
             try:
-                targs = read_mtl_ledger(
-                    fn, unique=unique, isodate=isodate, initial=initial, leq=leq)
+                targs = read_mtl_ledger(fn, unique=unique, isodate=isodate,
+                                        initial=initial, leq=leq,
+                                        columns=columns)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -3209,7 +3230,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         if len(mtls) == 0:
             fns = iglob(fileform.format("*"))
             fn = next(fns)
-            mtl = read_mtl_ledger(fn)
+            mtl = read_mtl_ledger(fn, columns=columns)
             outly = np.zeros(0, dtype=mtl.dtype)
             if returnfn:
                 return outly, outfns
@@ -3218,8 +3239,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
-        mtl = read_mtl_ledger(
-            hpdirname, unique=unique, isodate=isodate, initial=initial, leq=leq)
+        mtl = read_mtl_ledger(hpdirname, unique=unique, isodate=isodate,
+                              initial=initial, leq=leq, columns=columns)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)

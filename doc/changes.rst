@@ -6,7 +6,15 @@ desitarget Change Log
 ------------------
 
 * Reproducible output from :func:`io.read_targets_in_hp()` [`PR #806`_].
+* Option to read subset of columns from HEALPix-split MTLs [`PR #805`_].
+    * Specifically in :func:`io.read_mtl_in_hp()`.
+    * Addresses `issue #802`_.
+    * Partial fix for `issue #804`_.
+    * Also address some deprecation warnings.
 
+.. _`issue #802`: https://github.com/desihub/desitarget/issues/802
+.. _`issue #804`: https://github.com/desihub/desitarget/issues/804
+.. _`PR #805`: https://github.com/desihub/desitarget/pull/805
 .. _`PR #806`: https://github.com/desihub/desitarget/pull/806
 
 2.6.1 (2023-08-23)
