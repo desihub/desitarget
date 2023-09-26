@@ -412,6 +412,42 @@ def get_mtl_ledger_format():
     return ff
 
 
+def check_archiving(zcatdir=None, mtldir=None):
+    """Check the previous archiving state of tiles.
+
+    Parameters
+    ----------
+    zcatdir : :class:`str`, optional
+        Full path to the directory that hosts redshift catalogs. Defaults
+        to the directory stored in the $ZCAT_DIR environment variable.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+
+    Notes
+    -----
+    - The basic check is that the latest archive date for tiles in the
+      "archive" sub-directory of the redshift catalog directory matches
+      the `ARCHIVEDATE` recorded in the `tiles-specstatus.ecsv` file.
+    - The check is limited to BRIGHT/DARK main survey tiles.
+    """
+    # ADM use the default $ZCAT_DIR, if needed.
+    zcatdir = get_zcat_dir(zcatdir)
+    # ADM grab the tile-based sub-directories in the archive directory.
+    archivedir = os.path.join(zcatdir, "tiles", "archive")
+    fns = sorted(glob(os.path.join(archivedir, "*", "*")))
+
+    # ADM grab tile files, use default environment variables, if needed.
+    ztilefn = get_ztile_file_name(survey="main")
+    mtldir = get_mtl_dir(mtldir)
+    opsdir = os.path.join(os.path.dirname(mtldir), "ops")
+    ztilefn = os.path.join(opsdir, ztilefn)
+    # ADM need to check which specstatus tiles are Main Survey tiles.
+    maintilefn = ztilefn.replace("specstatus", "main")
+    
+
+
 def make_mtl(targets, obscon, zcat=None, scnd=None,
              trim=False, trimcols=False, trimtozcat=False):
     """Add zcat columns to a targets table, update priorities and NUMOBS.
