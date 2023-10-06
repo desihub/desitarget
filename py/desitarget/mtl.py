@@ -483,7 +483,7 @@ def check_archiving(zcatdir=None, mtldir=None):
     ii = ~np.isin(arxiv["TA"], specs["TA"])
     mismatch1 = np.array(arxiv[ii]["TILEID"])
     msg1 = f"archived tiles not in specstatus file: {mismatch1}; "
-    
+
     # ADM tiles in tiles-specstatus file that are not archived.
     ii = ~np.isin(specs["TA"], arxiv["TA"])
     mismatch2 = np.array(specs[ii]["TILEID"])
