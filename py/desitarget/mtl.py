@@ -431,21 +431,67 @@ def check_archiving(zcatdir=None, mtldir=None):
       "archive" sub-directory of the redshift catalog directory matches
       the `ARCHIVEDATE` recorded in the `tiles-specstatus.ecsv` file.
     - The check is limited to BRIGHT/DARK main survey tiles.
+    - Based on work by Anand Raichoor.
     """
-    # ADM use the default $ZCAT_DIR, if needed.
-    zcatdir = get_zcat_dir(zcatdir)
-    # ADM grab the tile-based sub-directories in the archive directory.
-    archivedir = os.path.join(zcatdir, "tiles", "archive")
-    fns = sorted(glob(os.path.join(archivedir, "*", "*")))
-
     # ADM grab tile files, use default environment variables, if needed.
     ztilefn = get_ztile_file_name(survey="main")
     mtldir = get_mtl_dir(mtldir)
     opsdir = os.path.join(os.path.dirname(mtldir), "ops")
     ztilefn = os.path.join(opsdir, ztilefn)
-    # ADM need to check which specstatus tiles are Main Survey tiles.
+
+    # ADM need to check which tiles are in Main Survey and bright/dark.
     maintilefn = ztilefn.replace("specstatus", "main")
+    maintiles = Table.read(maintilefn)
+    dorb = (maintiles["PROGRAM"] == "DARK") | (maintiles["PROGRAM"] == "BRIGHT")
+    maintiles = maintiles[dorb]
+
+    # ADM grab the tile-based sub-directories in the archive directory.
+    # ADM use the default $ZCAT_DIR, if zcatdir was not passed.
+    zcatdir = get_zcat_dir(zcatdir)
+    archivedir = os.path.join(zcatdir, "tiles", "archive")
+    fns = sorted(glob(os.path.join(archivedir, "*", "*")))
+
+    # ADM create a table of dates of the archived directories.
+    arxiv = Table()
+    arxiv["TILEID"] = [int(fn.split(os.path.sep)[-2]) for fn in fns]
+    arxiv["ARCHIVEDATE"] = [int(fn.split(os.path.sep)[-1]) for fn in fns]
+    arxiv["TA"] = ["{}-{}".format(tileid, archdate) for tileid,
+                   archdate in zip(arxiv["TILEID"], arxiv["ARCHIVEDATE"])]
+
+    # ADM limit to just bright/dark Main Survey tiles.
+    ii = np.isin(arxiv["TILEID"], maintiles["TILEID"])
+    arxiv = arxiv[ii]
+
+    # ADM only retain the latest ARCHIVEDATE for a given TILEID.
+    ii = np.lexsort((-arxiv["ARCHIVEDATE"], arxiv["TILEID"]))
+    arxiv = arxiv[ii]
+    _, ii = np.unique(arxiv["TILEID"], return_index=True)
+    arxiv = arxiv[ii]
+
+    # ADM now grab the tiles recorded in the specstatus file.
+    specs = Table.read(ztilefn)
+    specs["TA"] = ["{}-{}".format(tileid, archdate) for tileid,
+                   archdate in zip(specs["TILEID"], specs["ARCHIVEDATE"])]
+    ii = (specs["FAFLAVOR"] == "mainbright") | (specs["FAFLAVOR"] == "maindark")
+    ii &= specs["ARCHIVEDATE"] != 0
+    specs = specs[ii]
+
+    # ADM archived tiles that are not in tiles-specstatus file.
+    ii = ~np.isin(arxiv["TA"], specs["TA"])
+    mismatch1 = np.array(arxiv[ii]["TILEID"])
+    msg1 = f"archived tiles not in specstatus file: {mismatch1}; "
     
+    # ADM tiles in tiles-specstatus file that are not archived.
+    ii = ~np.isin(specs["TA"], arxiv["TA"])
+    mismatch2 = np.array(specs[ii]["TILEID"])
+    msg2 = f"tiles in specstatus file that aren't archived: {mismatch2}"
+
+    # ADM if there are any mismatches, raise an exception.
+    if len(mismatch1) > 0 or len(mismatch2) > 0:
+        log.error(msg1 + msg2)
+        raise ValueError(msg1 + msg2)
+
+    return
 
 
 def make_mtl(targets, obscon, zcat=None, scnd=None,
