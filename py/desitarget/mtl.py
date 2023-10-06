@@ -433,6 +433,9 @@ def check_archiving(zcatdir=None, mtldir=None):
     - The check is limited to BRIGHT/DARK main survey tiles.
     - Based on work by Anand Raichoor.
     """
+    start = time()
+    log.info("Checking archived tiles match tiles-specstatus file...")
+
     # ADM grab tile files, use default environment variables, if needed.
     ztilefn = get_ztile_file_name(survey="main")
     mtldir = get_mtl_dir(mtldir)
@@ -490,6 +493,8 @@ def check_archiving(zcatdir=None, mtldir=None):
     if len(mismatch1) > 0 or len(mismatch2) > 0:
         log.error(msg1 + msg2)
         raise ValueError(msg1 + msg2)
+
+    log.info(f"Finished archiving check...t={time()-start:.1f}s")
 
     return
 
