@@ -6,6 +6,7 @@ desitarget Change Log
 ------------------
 
 * Add check that archived tiles match tiles-specstatus file [`PR #808`_].
+* Reproducible output from :func:`io.read_targets_in_hp()` [`PR #806`_].
 * Option to read subset of columns from HEALPix-split MTLs [`PR #805`_].
     * Specifically in :func:`io.read_mtl_in_hp()`.
     * Addresses `issue #802`_.
