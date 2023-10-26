@@ -41,7 +41,8 @@ if ns.obscon == "BACKUP" and ns.survey == "main":
     log.error(msg)
 
 if not ns.noarchivecheck:
-    check_archiving(zcatdir=ns.zcatdir, mtldir=ns.mtldir)
+    check_archiving(ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir,
+                    mtldir=ns.mtldir)
 
 scndstates = [False]
 

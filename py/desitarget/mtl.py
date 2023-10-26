@@ -412,11 +412,18 @@ def get_mtl_ledger_format():
     return ff
 
 
-def check_archiving(zcatdir=None, mtldir=None):
+def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
     """Check the previous archiving state of tiles.
 
     Parameters
     ----------
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+    survey : :class:`str`, optional, defaults to "main"
+        Used to look up the correct ledger, in combination with `obscon`.
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
     zcatdir : :class:`str`, optional
         Full path to the directory that hosts redshift catalogs. Defaults
         to the directory stored in the $ZCAT_DIR environment variable.
@@ -436,17 +443,24 @@ def check_archiving(zcatdir=None, mtldir=None):
     start = time()
     log.info("Checking archived tiles match tiles-specstatus file...")
 
+    # ADM add a warning for non-standard cases:
+    if survey != "main" or obscon not in ["BRIGHT", "DARK"]:
+        msg = "Archiving checks are only valid for main/BRIGHT or main/DARK!"
+        msg += " If using run_mtl_loop, try passing --noarchivecheck" 
+        log.error(msg)
+        raise ValueError(msg)
+
     # ADM grab tile files, use default environment variables, if needed.
-    ztilefn = get_ztile_file_name(survey="main")
+    ztilefn = get_ztile_file_name(survey=survey)
     mtldir = get_mtl_dir(mtldir)
     opsdir = os.path.join(os.path.dirname(mtldir), "ops")
     ztilefn = os.path.join(opsdir, ztilefn)
 
     # ADM need to check which tiles are in Main Survey and bright/dark.
-    maintilefn = ztilefn.replace("specstatus", "main")
-    maintiles = Table.read(maintilefn)
-    dorb = (maintiles["PROGRAM"] == "DARK") | (maintiles["PROGRAM"] == "BRIGHT")
-    maintiles = maintiles[dorb]
+    tilefn = ztilefn.replace("specstatus", survey)
+    tiles = Table.read(tilefn)
+    ii = tiles["PROGRAM"] == obscon.upper()
+    tiles = tiles[ii]
 
     # ADM grab the tile-based sub-directories in the archive directory.
     # ADM use the default $ZCAT_DIR, if zcatdir was not passed.
@@ -462,7 +476,7 @@ def check_archiving(zcatdir=None, mtldir=None):
                    archdate in zip(arxiv["TILEID"], arxiv["ARCHIVEDATE"])]
 
     # ADM limit to just bright/dark Main Survey tiles.
-    ii = np.isin(arxiv["TILEID"], maintiles["TILEID"])
+    ii = np.isin(arxiv["TILEID"], tiles["TILEID"])
     arxiv = arxiv[ii]
 
     # ADM only retain the latest ARCHIVEDATE for a given TILEID.
@@ -475,22 +489,23 @@ def check_archiving(zcatdir=None, mtldir=None):
     specs = Table.read(ztilefn)
     specs["TA"] = ["{}-{}".format(tileid, archdate) for tileid,
                    archdate in zip(specs["TILEID"], specs["ARCHIVEDATE"])]
-    ii = (specs["FAFLAVOR"] == "mainbright") | (specs["FAFLAVOR"] == "maindark")
+    # ADM here survey + obscon is, e.g., "maindark"
+    ii = specs["FAFLAVOR"] == survey + obscon.lower()
     ii &= specs["ARCHIVEDATE"] != 0
     specs = specs[ii]
 
     # ADM archived tiles that are not in tiles-specstatus file.
     ii = ~np.isin(arxiv["TA"], specs["TA"])
-    mismatch1 = np.array(arxiv[ii]["TILEID"])
-    msg1 = f"archived tiles not in specstatus file: {mismatch1}; "
+    mis1 = np.array(arxiv[ii]["TILEID"])
+    msg1 = f"archived {survey}/{obscon} tiles not in specstatus file: {mis1}; "
 
     # ADM tiles in tiles-specstatus file that are not archived.
     ii = ~np.isin(specs["TA"], arxiv["TA"])
-    mismatch2 = np.array(specs[ii]["TILEID"])
-    msg2 = f"tiles in specstatus file that aren't archived: {mismatch2}"
+    mis2 = np.array(specs[ii]["TILEID"])
+    msg2 = f"tiles in specstatus file that aren't archived: {mis2}"
 
     # ADM if there are any mismatches, raise an exception.
-    if len(mismatch1) > 0 or len(mismatch2) > 0:
+    if len(mis1) > 0 or len(mis2) > 0:
         log.error(msg1 + msg2)
         raise ValueError(msg1 + msg2)
 
