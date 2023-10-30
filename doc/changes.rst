@@ -5,6 +5,7 @@ desitarget Change Log
 2.6.2 (unreleased)
 ------------------
 
+* Add check that archived tiles match tiles-specstatus file [`PR #808`_].
 * Reproducible output from :func:`io.read_targets_in_hp()` [`PR #806`_].
 * Option to read subset of columns from HEALPix-split MTLs [`PR #805`_].
     * Specifically in :func:`io.read_mtl_in_hp()`.
@@ -16,6 +17,7 @@ desitarget Change Log
 .. _`issue #804`: https://github.com/desihub/desitarget/issues/804
 .. _`PR #805`: https://github.com/desihub/desitarget/pull/805
 .. _`PR #806`: https://github.com/desihub/desitarget/pull/806
+.. _`PR #808`: https://github.com/desihub/desitarget/pull/808
 
 2.6.1 (2023-08-23)
 ------------------

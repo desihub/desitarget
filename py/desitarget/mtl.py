@@ -412,6 +412,108 @@ def get_mtl_ledger_format():
     return ff
 
 
+def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
+    """Check the previous archiving state of tiles.
+
+    Parameters
+    ----------
+    obscon : :class:`str`
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+    survey : :class:`str`, optional, defaults to "main"
+        Used to look up the correct ledger, in combination with `obscon`.
+        Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
+        for the main survey and different iterations of SV, respectively.
+    zcatdir : :class:`str`, optional
+        Full path to the directory that hosts redshift catalogs. Defaults
+        to the directory stored in the $ZCAT_DIR environment variable.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+
+    Notes
+    -----
+    - The basic check is that the latest archive date for tiles in the
+      "archive" sub-directory of the redshift catalog directory matches
+      the `ARCHIVEDATE` recorded in the `tiles-specstatus.ecsv` file.
+    - The check is limited to BRIGHT/DARK main survey tiles.
+    - Based on work by Anand Raichoor.
+    """
+    start = time()
+    log.info("Checking archived tiles match tiles-specstatus file...")
+
+    # ADM add a warning for non-standard cases:
+    if survey != "main" or obscon not in ["BRIGHT", "DARK"]:
+        msg = "Archiving checks are only valid for main/BRIGHT or main/DARK!"
+        msg += " If using run_mtl_loop, try passing --noarchivecheck" 
+        log.error(msg)
+        raise ValueError(msg)
+
+    # ADM grab tile files, use default environment variables, if needed.
+    ztilefn = get_ztile_file_name(survey=survey)
+    mtldir = get_mtl_dir(mtldir)
+    opsdir = os.path.join(os.path.dirname(mtldir), "ops")
+    ztilefn = os.path.join(opsdir, ztilefn)
+
+    # ADM need to check which tiles are in Main Survey and bright/dark.
+    tilefn = ztilefn.replace("specstatus", survey)
+    tiles = Table.read(tilefn)
+    ii = tiles["PROGRAM"] == obscon.upper()
+    tiles = tiles[ii]
+
+    # ADM grab the tile-based sub-directories in the archive directory.
+    # ADM use the default $ZCAT_DIR, if zcatdir was not passed.
+    zcatdir = get_zcat_dir(zcatdir)
+    archivedir = os.path.join(zcatdir, "tiles", "archive")
+    fns = sorted(glob(os.path.join(archivedir, "*", "*")))
+
+    # ADM create a table of dates of the archived directories.
+    arxiv = Table()
+    arxiv["TILEID"] = [int(fn.split(os.path.sep)[-2]) for fn in fns]
+    arxiv["ARCHIVEDATE"] = [int(fn.split(os.path.sep)[-1]) for fn in fns]
+    arxiv["TA"] = ["{}-{}".format(tileid, archdate) for tileid,
+                   archdate in zip(arxiv["TILEID"], arxiv["ARCHIVEDATE"])]
+
+    # ADM limit to just bright/dark Main Survey tiles.
+    ii = np.isin(arxiv["TILEID"], tiles["TILEID"])
+    arxiv = arxiv[ii]
+
+    # ADM only retain the latest ARCHIVEDATE for a given TILEID.
+    ii = np.lexsort((-arxiv["ARCHIVEDATE"], arxiv["TILEID"]))
+    arxiv = arxiv[ii]
+    _, ii = np.unique(arxiv["TILEID"], return_index=True)
+    arxiv = arxiv[ii]
+
+    # ADM now grab the tiles recorded in the specstatus file.
+    specs = Table.read(ztilefn)
+    specs["TA"] = ["{}-{}".format(tileid, archdate) for tileid,
+                   archdate in zip(specs["TILEID"], specs["ARCHIVEDATE"])]
+    # ADM here survey + obscon is, e.g., "maindark"
+    ii = specs["FAFLAVOR"] == survey + obscon.lower()
+    ii &= specs["ARCHIVEDATE"] != 0
+    specs = specs[ii]
+
+    # ADM archived tiles that are not in tiles-specstatus file.
+    ii = ~np.isin(arxiv["TA"], specs["TA"])
+    mis1 = np.array(arxiv[ii]["TILEID"])
+    msg1 = f"archived {survey}/{obscon} tiles not in specstatus file: {mis1}; "
+
+    # ADM tiles in tiles-specstatus file that are not archived.
+    ii = ~np.isin(specs["TA"], arxiv["TA"])
+    mis2 = np.array(specs[ii]["TILEID"])
+    msg2 = f"tiles in specstatus file that aren't archived: {mis2}"
+
+    # ADM if there are any mismatches, raise an exception.
+    if len(mis1) > 0 or len(mis2) > 0:
+        log.error(msg1 + msg2)
+        raise ValueError(msg1 + msg2)
+
+    log.info(f"Finished archiving check...t={time()-start:.1f}s")
+
+    return
+
+
 def make_mtl(targets, obscon, zcat=None, scnd=None,
              trim=False, trimcols=False, trimtozcat=False):
     """Add zcat columns to a targets table, update priorities and NUMOBS.

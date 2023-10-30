@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from desitarget.mtl import loop_ledger
+from desitarget.mtl import loop_ledger, check_archiving
 from desiutil.log import get_logger
 log = get_logger()
 
@@ -30,6 +30,8 @@ ap.add_argument("-nosec", "--nosecondary", action='store_true',
                 there are no secondaries to process")
 ap.add_argument("--reprocess", action='store_true',
                 help="Run reprocessed tiles (instead of the standard loop)")
+ap.add_argument("--noarchivecheck", action='store_true',
+                help="Do NOT check if tiles-specstatus and archived tiles match")
 
 ns = ap.parse_args()
 
@@ -37,6 +39,10 @@ if ns.obscon == "BACKUP" and ns.survey == "main":
     msg = "Updating BACKUP ledgers is not yet supported for the Main Survey!!!"
     raise RuntimeError(msg)
     log.error(msg)
+
+if not ns.noarchivecheck:
+    check_archiving(ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir,
+                    mtldir=ns.mtldir)
 
 scndstates = [False]
 
