@@ -600,7 +600,7 @@ def hpx_pickle_from_fits(dr="dr2"):
     return
 
 
-def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
+def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
@@ -616,6 +616,11 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
         all of the the csv files. The $GAIA_DIR/fits/hpx-to-files.pickle
         file is not produced in this case, and will need to be run
         separately with the hpx_pickle_from_fits function.
+    full : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then write out all of the columns in the Gaia csv
+        files rather than just those in the Gaia data model. Also, if
+        ``True``, write to a directory named "fits-full" instead of to
+        a directory named "fits".
 
     Returns
     -------
@@ -644,6 +649,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
     # ADM construct the directories for reading/writing files.
     csvdir = os.path.join(gaiadir, 'csv')
     fitsdir = os.path.join(gaiadir, 'fits')
+    if full:
+        fitsdir = os.path.join(gaiadir, 'fits-full')
 
     # ADM relevant directory already exists if we're "mopping up".
     if not mopup:
