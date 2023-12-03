@@ -753,7 +753,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False, outdir=None)
         cols = np.array(fitstable.dtype.names)
         boolcols = cols[np.hstack(fitstable.dtype.descr)[1::2] == '<U5']
         for col in boolcols:
-            fitstable[col] = fitstable[col] == 'true'
+            fitstable[col] = ( (fitstable[col] == 'true') |
+                               (fitstable[col] == 'True') )
 
         # ADM only write out the columns we need for targeting.
         nobjs = len(fitstable)
