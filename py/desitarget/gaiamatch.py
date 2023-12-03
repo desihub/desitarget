@@ -655,7 +655,7 @@ def hpx_pickle_from_fits(dr="dr2"):
     return
 
 
-def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False):
+def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False, outdir=None):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
@@ -675,7 +675,10 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False):
         If ``True`` then write out all of the columns in the Gaia csv
         files rather than just those in the Gaia data model. Also, if
         ``True``, write to a directory named "fits-full" instead of to
-        a directory named "fits".
+        a directory named "fits". This is ONLY IMPLEMENTED for dr="dr3".
+        The code will flag an error for other values of `dr`.
+    outdir : :class:`str`, optional, defaults to writing to $GAIA_DIR
+        Write to the passed directory instead of to $GAIA_DIR.
 
     Returns
     -------
@@ -705,7 +708,15 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False):
     csvdir = os.path.join(gaiadir, 'csv')
     fitsdir = os.path.join(gaiadir, 'fits')
     if full:
+        if dr != "dr3":
+            msg = "Writing full files (full=True) is only implemented for dr3!"
+            log.critical(msg)
+            raise ValueError(msg)
         fitsdir = os.path.join(gaiadir, 'fits-full')
+
+    # ADM if requested, write to a different directory than $GAIA_DIR.
+    if outdir is not None:
+        fitsdir = fitsdir.replace(gaiadir, outdir)
 
     # ADM relevant directory already exists if we're "mopping up".
     if not mopup:
@@ -752,6 +763,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False):
             done = np.zeros(nobjs, dtype=inedr3datamodel.dtype)
         elif dr == "dr3":
             done = np.zeros(nobjs, dtype=indr3datamodel.dtype)
+            if full:
+                done = np.zeros(nobjs, dtype=indr3datamodelfull.dtype)
         for col in done.dtype.names:
             if col == 'REF_CAT':
                 if dr == "dr2":
