@@ -655,7 +655,8 @@ def hpx_pickle_from_fits(dr="dr2"):
     return
 
 
-def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False, outdir=None):
+def gaia_csv_to_fits(dr="dr2", numproc=32,
+                     mopup=False, full=False, boolfix=False, outdir=None):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
@@ -677,6 +678,13 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False, outdir=None)
         ``True``, write to a directory named "fits-full" instead of to
         a directory named "fits". This is ONLY IMPLEMENTED for dr="dr3".
         The code will flag an error for other values of `dr`.
+    boolfix : :class:`bool`, optional, defaults to ``False``
+        Files generated with this code before version 2.7.0 of desitarget
+        included a parsing bug where ALL Boolean columns for edr3 or dr3
+        would be set to ``False``. For backward compatibility, the old
+        behavior is retained for dr2 and edr3 UNLESS `boolfix` is passed
+        as ``True``. The old behavior is retained for edr3 because DESI
+        target files were generated with the buggy code version.
     outdir : :class:`str`, optional, defaults to writing to $GAIA_DIR
         Write to the passed directory instead of to $GAIA_DIR.
 
@@ -753,9 +761,17 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False, outdir=None)
         # ADM need to convert 5-string values to boolean.
         cols = np.array(fitstable.dtype.names)
         boolcols = cols[np.hstack(fitstable.dtype.descr)[1::2] == '<U5']
-        for col in boolcols:
-            fitstable[col] = ((fitstable[col] == 'true') |
-                              (fitstable[col] == 'True'))
+
+        # ADM this was a bug for dr="edr" that led to Boolean columns
+        # ADM being parsed as False. It is not fixed unless specified
+        # ADM to retain backward compatibility.
+        if dr in ["dr2", "edr3"] and not boolfix:
+            for col in boolcols:
+                fitstable[col] = fitstable[col] == 'true'
+        else:
+            for col in boolcols:
+                fitstable[col] = ((fitstable[col] == 'true') |
+                                  (fitstable[col] == 'True'))
 
         # ADM only write out the columns we need for targeting.
         nobjs = len(fitstable)
