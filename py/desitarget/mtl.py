@@ -446,7 +446,7 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
     # ADM add a warning for non-standard cases:
     if survey != "main" or obscon not in ["BRIGHT", "DARK"]:
         msg = "Archiving checks are only valid for main/BRIGHT or main/DARK!"
-        msg += " If using run_mtl_loop, try passing --noarchivecheck" 
+        msg += " If using run_mtl_loop, try passing --noarchivecheck"
         log.error(msg)
         raise ValueError(msg)
 

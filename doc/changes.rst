@@ -5,6 +5,8 @@ desitarget Change Log
 2.6.2 (unreleased)
 ------------------
 
+* Option to write all columns for Gaia DR3 FITS files [`PR #809`_].
+    * Also adds a new higher-priority bit for the BACKUP DIB program.
 * Add check that archived tiles match tiles-specstatus file [`PR #808`_].
 * Reproducible output from :func:`io.read_targets_in_hp()` [`PR #806`_].
 * Option to read subset of columns from HEALPix-split MTLs [`PR #805`_].
@@ -18,6 +20,7 @@ desitarget Change Log
 .. _`PR #805`: https://github.com/desihub/desitarget/pull/805
 .. _`PR #806`: https://github.com/desihub/desitarget/pull/806
 .. _`PR #808`: https://github.com/desihub/desitarget/pull/808
+.. _`PR #809`: https://github.com/desihub/desitarget/pull/809
 
 2.6.1 (2023-08-23)
 ------------------

@@ -696,6 +696,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False, outdir=None)
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
         - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
         - Runs in ~4.5 hours with numproc=16 for 3,386 Gaia DR3 files.
+        - Runs in 1-2 hours with numproc=64 for DR3 on Perlmutter CPUs.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
@@ -753,8 +754,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False, full=False, outdir=None)
         cols = np.array(fitstable.dtype.names)
         boolcols = cols[np.hstack(fitstable.dtype.descr)[1::2] == '<U5']
         for col in boolcols:
-            fitstable[col] = ( (fitstable[col] == 'true') |
-                               (fitstable[col] == 'True') )
+            fitstable[col] = ((fitstable[col] == 'true') |
+                              (fitstable[col] == 'True'))
 
         # ADM only write out the columns we need for targeting.
         nobjs = len(fitstable)
