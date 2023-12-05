@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.6.2 (unreleased)
+2.7.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.7.0 (2023-12-05)
 ------------------
 
 * Option to write all columns for Gaia DR3 FITS files [`PR #809`_].
