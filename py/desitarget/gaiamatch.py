@@ -134,6 +134,61 @@ dr3datamodel = np.array([], dtype=[
     ('DR3_PMDEC', '>f4'), ('DR3_PMDEC_IVAR', '>f4')
 ])
 
+# ADM the data model for reading ALL columns from Gaia EDR3 files.
+indr3datamodelfull = np.array([], dtype=[
+    ('SOLUTION_ID', '>i8'), ('DESIGNATION', '<U26'), ('SOURCE_ID', '>i8'),
+    ('RANDOM_INDEX', '>i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', '>f4'), ('RA', '>f8'),
+    ('RA_ERROR', '>f8'), ('DEC', '>f8'), ('DEC_ERROR', '>f8'),
+    ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'), ('PARALLAX_OVER_ERROR', '>f4'),
+    ('PM', '>f4'), ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4'), ('RA_DEC_CORR', '>f4'),
+    ('RA_PARALLAX_CORR', '>f4'), ('RA_PMRA_CORR', '>f4'), ('RA_PMDEC_CORR', '>f4'),
+    ('DEC_PARALLAX_CORR', '>f4'), ('DEC_PMRA_CORR', '>f4'), ('DEC_PMDEC_CORR', '>f4'),
+    ('PARALLAX_PMRA_CORR', '>f4'), ('PARALLAX_PMDEC_CORR', '>f4'), ('PMRA_PMDEC_CORR', '>f4'),
+    ('ASTROMETRIC_N_OBS_AL', '>i2'), ('ASTROMETRIC_N_OBS_AC', '>i2'), ('ASTROMETRIC_N_GOOD_OBS_AL', '>i2'),
+    ('ASTROMETRIC_N_BAD_OBS_AL', '>i2'), ('ASTROMETRIC_GOF_AL', '>f4'), ('ASTROMETRIC_CHI2_AL', '>f4'),
+    ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'), ('ASTROMETRIC_PARAMS_SOLVED', '>i1'),
+    ('ASTROMETRIC_PRIMARY_FLAG', '<U5'), ('NU_EFF_USED_IN_ASTROMETRY', '>f4'), ('PSEUDOCOLOUR', '>f4'),
+    ('PSEUDOCOLOUR_ERROR', '>f4'), ('RA_PSEUDOCOLOUR_CORR', '>f4'), ('DEC_PSEUDOCOLOUR_CORR', '>f4'),
+    ('PARALLAX_PSEUDOCOLOUR_CORR', '>f4'), ('PMRA_PSEUDOCOLOUR_CORR', '>f4'), ('PMDEC_PSEUDOCOLOUR_CORR', '>f4'),
+    ('ASTROMETRIC_MATCHED_TRANSITS', '>i2'), ('VISIBILITY_PERIODS_USED', '>i2'), ('ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('MATCHED_TRANSITS', '>i2'), ('NEW_MATCHED_TRANSITS', '>i2'), ('MATCHED_TRANSITS_REMOVED', '>i2'),
+    ('IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('IPD_GOF_HARMONIC_PHASE', '>f4'), ('IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('IPD_FRAC_ODD_WIN', '|u1'), ('RUWE', '>f4'), ('SCAN_DIRECTION_STRENGTH_K1', '>f4'),
+    ('SCAN_DIRECTION_STRENGTH_K2', '>f4'), ('SCAN_DIRECTION_STRENGTH_K3', '>f4'), ('SCAN_DIRECTION_STRENGTH_K4', '>f4'),
+    ('SCAN_DIRECTION_MEAN_K1', '>f4'), ('SCAN_DIRECTION_MEAN_K2', '>f4'), ('SCAN_DIRECTION_MEAN_K3', '>f4'),
+    ('SCAN_DIRECTION_MEAN_K4', '>f4'), ('DUPLICATED_SOURCE', '?'), ('PHOT_G_N_OBS', '>i4'),
+    ('PHOT_G_MEAN_FLUX', '>f8'), ('PHOT_G_MEAN_FLUX_ERROR', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_BP_N_OBS', '>i4'), ('PHOT_BP_MEAN_FLUX', '>f8'),
+    ('PHOT_BP_MEAN_FLUX_ERROR', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'), ('PHOT_BP_MEAN_MAG', '>f4'),
+    ('PHOT_RP_N_OBS', '>i4'), ('PHOT_RP_MEAN_FLUX', '>f8'), ('PHOT_RP_MEAN_FLUX_ERROR', '>f4'),
+    ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'), ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('PHOT_BP_N_CONTAMINATED_TRANSITS', '>i2'), ('PHOT_BP_N_BLENDED_TRANSITS', '>i2'), ('PHOT_RP_N_CONTAMINATED_TRANSITS', '>i2'),
+    ('PHOT_RP_N_BLENDED_TRANSITS', '>i2'), ('PHOT_PROC_MODE', '|u1'), ('BP_RP', '>f4'),
+    ('BP_G', '>f4'), ('G_RP', '>f4'), ('RADIAL_VELOCITY', '>f4'),
+    ('RADIAL_VELOCITY_ERROR', '>f4'), ('RV_METHOD_USED', '|u1'), ('RV_NB_TRANSITS', '>i2'),
+    ('RV_NB_DEBLENDED_TRANSITS', '>i2'), ('RV_VISIBILITY_PERIODS_USED', '>i2'), ('RV_EXPECTED_SIG_TO_NOISE', '>f4'),
+    ('RV_RENORMALISED_GOF', '>f4'), ('RV_CHISQ_PVALUE', '>f4'), ('RV_TIME_DURATION', '>f4'),
+    ('RV_AMPLITUDE_ROBUST', '>f4'), ('RV_TEMPLATE_TEFF', '>f4'), ('RV_TEMPLATE_LOGG', '>f4'),
+    ('RV_TEMPLATE_FE_H', '>f4'), ('RV_ATM_PARAM_ORIGIN', '>i2'), ('VBROAD', '>f4'),
+    ('VBROAD_ERROR', '>f4'), ('VBROAD_NB_TRANSITS', '>i2'), ('GRVS_MAG', '>f4'),
+    ('GRVS_MAG_ERROR', '>f4'), ('GRVS_MAG_NB_TRANSITS', '>i2'), ('RVS_SPEC_SIG_TO_NOISE', '>f4'),
+    ('PHOT_VARIABLE_FLAG', '<U13'), ('L', '>f8'), ('B', '>f8'),
+    ('ECL_LON', '>f8'), ('ECL_LAT', '>f8'), ('IN_QSO_CANDIDATES', '<U5'),
+    ('IN_GALAXY_CANDIDATES', '<U5'), ('NON_SINGLE_STAR', '>i2'), ('HAS_XP_CONTINUOUS', '<U5'),
+    ('HAS_XP_SAMPLED', '<U5'), ('HAS_RVS', '<U5'), ('HAS_EPOCH_PHOTOMETRY', '<U5'),
+    ('HAS_EPOCH_RV', '<U5'), ('HAS_MCMC_GSPPHOT', '<U5'), ('HAS_MCMC_MSC', '<U5'),
+    ('IN_ANDROMEDA_SURVEY', '<U5'), ('CLASSPROB_DSC_COMBMOD_QUASAR', '>f4'), ('CLASSPROB_DSC_COMBMOD_GALAXY', '>f4'),
+    ('CLASSPROB_DSC_COMBMOD_STAR', '>f4'), ('TEFF_GSPPHOT', '>f4'), ('TEFF_GSPPHOT_LOWER', '>f4'),
+    ('TEFF_GSPPHOT_UPPER', '>f4'), ('LOGG_GSPPHOT', '>f4'), ('LOGG_GSPPHOT_LOWER', '>f4'),
+    ('LOGG_GSPPHOT_UPPER', '>f4'), ('MH_GSPPHOT', '>f4'), ('MH_GSPPHOT_LOWER', '>f4'),
+    ('MH_GSPPHOT_UPPER', '>f4'), ('DISTANCE_GSPPHOT', '>f4'), ('DISTANCE_GSPPHOT_LOWER', '>f4'),
+    ('DISTANCE_GSPPHOT_UPPER', '>f4'), ('AZERO_GSPPHOT', '>f4'), ('AZERO_GSPPHOT_LOWER', '>f4'),
+    ('AZERO_GSPPHOT_UPPER', '>f4'), ('AG_GSPPHOT', '>f4'), ('AG_GSPPHOT_LOWER', '>f4'),
+    ('AG_GSPPHOT_UPPER', '>f4'), ('EBPMINRP_GSPPHOT', '>f4'), ('EBPMINRP_GSPPHOT_LOWER', '>f4'),
+    ('EBPMINRP_GSPPHOT_UPPER', '>f4'), ('LIBNAME_GSPPHOT', '<U13')
+])
+
 
 def check_gaia_survey(dr):
     """Convenience function to check allowed Gaia Data Releases
@@ -600,7 +655,8 @@ def hpx_pickle_from_fits(dr="dr2"):
     return
 
 
-def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
+def gaia_csv_to_fits(dr="dr2", numproc=32,
+                     mopup=False, full=False, boolfix=False, outdir=None):
     """Convert files in $GAIA_DIR/csv to files in $GAIA_DIR/fits.
 
     Parameters
@@ -616,6 +672,21 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
         all of the the csv files. The $GAIA_DIR/fits/hpx-to-files.pickle
         file is not produced in this case, and will need to be run
         separately with the hpx_pickle_from_fits function.
+    full : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then write out all of the columns in the Gaia csv
+        files rather than just those in the Gaia data model. Also, if
+        ``True``, write to a directory named "fits-full" instead of to
+        a directory named "fits". This is ONLY IMPLEMENTED for dr="dr3".
+        The code will flag an error for other values of `dr`.
+    boolfix : :class:`bool`, optional, defaults to ``False``
+        Files generated with this code before version 2.7.0 of desitarget
+        included a parsing bug where ALL Boolean columns for edr3 or dr3
+        would be set to ``False``. For backward compatibility, the old
+        behavior is retained for dr2 and edr3 UNLESS `boolfix` is passed
+        as ``True``. The old behavior is retained for edr3 because DESI
+        target files were generated with the buggy code version.
+    outdir : :class:`str`, optional, defaults to writing to $GAIA_DIR
+        Write to the passed directory instead of to $GAIA_DIR.
 
     Returns
     -------
@@ -633,6 +704,7 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
         - Runs in 1-2 hours with numproc=32 for 61,234 Gaia DR2 files.
         - Runs in 1-2 hours with numproc=32 for 3,386 Gaia EDR3 files.
         - Runs in ~4.5 hours with numproc=16 for 3,386 Gaia DR3 files.
+        - Runs in 1-2 hours with numproc=64 for DR3 on Perlmutter CPUs.
     """
     # ADM the resolution at which the Gaia HEALPix files should be stored.
     nside = _get_gaia_nside()
@@ -644,6 +716,16 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
     # ADM construct the directories for reading/writing files.
     csvdir = os.path.join(gaiadir, 'csv')
     fitsdir = os.path.join(gaiadir, 'fits')
+    if full:
+        if dr != "dr3":
+            msg = "Writing full files (full=True) is only implemented for dr3!"
+            log.critical(msg)
+            raise ValueError(msg)
+        fitsdir = os.path.join(gaiadir, 'fits-full')
+
+    # ADM if requested, write to a different directory than $GAIA_DIR.
+    if outdir is not None:
+        fitsdir = fitsdir.replace(gaiadir, outdir)
 
     # ADM relevant directory already exists if we're "mopping up".
     if not mopup:
@@ -679,8 +761,17 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
         # ADM need to convert 5-string values to boolean.
         cols = np.array(fitstable.dtype.names)
         boolcols = cols[np.hstack(fitstable.dtype.descr)[1::2] == '<U5']
-        for col in boolcols:
-            fitstable[col] = fitstable[col] == 'true'
+
+        # ADM this was a bug for dr="edr" that led to Boolean columns
+        # ADM being parsed as False. It is not fixed unless specified
+        # ADM to retain backward compatibility.
+        if dr in ["dr2", "edr3"] and not boolfix:
+            for col in boolcols:
+                fitstable[col] = fitstable[col] == 'true'
+        else:
+            for col in boolcols:
+                fitstable[col] = ((fitstable[col] == 'true') |
+                                  (fitstable[col] == 'True'))
 
         # ADM only write out the columns we need for targeting.
         nobjs = len(fitstable)
@@ -690,6 +781,8 @@ def gaia_csv_to_fits(dr="dr2", numproc=32, mopup=False):
             done = np.zeros(nobjs, dtype=inedr3datamodel.dtype)
         elif dr == "dr3":
             done = np.zeros(nobjs, dtype=indr3datamodel.dtype)
+            if full:
+                done = np.zeros(nobjs, dtype=indr3datamodelfull.dtype)
         for col in done.dtype.names:
             if col == 'REF_CAT':
                 if dr == "dr2":
