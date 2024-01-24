@@ -11,6 +11,10 @@ Borrows heavily from Sergey Koposov's `astrolibpy routines`_.
 import numpy as np
 import astropy.coordinates as acoo
 import astropy.units as auni
+import yaml
+import os
+from pkg_resources import resource_filename
+from scipy.interpolate import UnivariateSpline
 
 # ADM Galactic reference frame. Use astropy v4.0 defaults.
 GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
@@ -289,6 +293,44 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
 
     return ((C.pm_ra_cosdec - C1.pm_ra_cosdec).to_value(masyr),
             (C.pm_dec - C1.pm_dec).to_value(masyr))
+
+
+def get_CMD_interpolator(stream_name):
+    """Isochrones via interpolating over points in color-magnitude space.
+
+    Parameters
+    ----------
+    stream_name : :class:`str`
+        Name of a stream that appears in the ../data/streams.yaml file.
+        Possibilities include 'GD1'.
+
+    Returns
+    -------
+    A scipy interpolated UnivariateSpline.
+
+    Notes
+    -----
+    - Parameters for each stream are in the ../data/streams.yaml file.
+    """
+    # ADM open and load the parameter yaml file.
+    fn = resource_filename('desitarget', os.path.join('data', 'streams.yaml'))
+    with open(fn) as f:
+        stream = yaml.safe_load(f)
+
+    # ADM retrieve the color and magnitude offsets.
+    coloff = stream[stream_name]["COLOFF"]
+    magoff = stream[stream_name]["MAGOFF"]
+
+    # ADM the isochrones to interpolate over.
+    iso_dartmouth_g = np.array(stream[stream_name]["ISO_G"])
+    iso_dartmouth_r = np.array(stream[stream_name]["ISO_R"])
+
+    # ADM UnivariateSpline is from scipy.interpolate.
+    CMD_II = UnivariateSpline(iso_dartmouth_r[::-1] + magoff,
+                              (iso_dartmouth_g - iso_dartmouth_r - coloff)[::-1],
+                              s=0)
+
+    return CMD_II
 
 
 def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
