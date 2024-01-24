@@ -250,7 +250,7 @@ def rotate_pm(ra, dec, pmra, pmdec, rapol, decpol, ra0, revert=False):
 
 
 def correct_pm(ra, dec, pmra, pmdec, dist):
-    """Corrects proper motions for the Sun's motion.
+    """Correct proper motions for the Sun's motion.
 
     Parameters
     ----------
@@ -289,3 +289,85 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
 
     return ((C.pm_ra_cosdec - C1.pm_ra_cosdec).to_value(masyr),
             (C.pm_dec - C1.pm_dec).to_value(masyr))
+
+
+def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
+    """Select stream members using proper motion, padded by some error.
+
+    Parameters
+    ----------
+    pm1track : :class:`~numpy.ndarray` or `float`
+        Allowed proper motions of stream targets, RA-sense.
+
+    pm2track : :class:`~numpy.ndarray` or `float`
+        Allowed proper motions of stream targets, Dec-sense.
+
+    pmfi1 : :class:`~numpy.ndarray` or `float`
+        Proper motion in stream coordinates of possible targets, derived
+        from RA.
+
+    pmfi2 : :class:`~numpy.ndarray` or `float`
+        Proper motion in stream coordinates of possible targets, derived
+        from Dec.
+
+    pm_err : :class:`~numpy.ndarray` or `float`
+        Proper motion error in stream coordinates of possible targets,
+        combined across `pmfi1` and `pmfi2` errors.
+
+    pad: : :class:`float` or `int`, defaults to 2
+        Extra offset with which to pad `mult`*proper_motion_error.
+
+    mult : :class:`float` or `int`, defaults to 2.5
+        Multiple of the proper motion error to use for padding.
+
+    Returns
+    -------
+    :class:`array_like` or `boolean`
+        ``True`` for stream members.
+    """
+
+    return np.sqrt((pmfi2 - pm2track)**2 +
+                   (pmfi1 - pm1track)**2) < pad + mult * pm_err
+
+
+def plx_sel_func(dist, D, mult, plx_sys=0.05):
+    """Select stream members using parallax, padded by some error.
+
+    Parameters
+    ----------
+    dist : :class:`~numpy.ndarray` or `float`
+        Distance of possible stream members.
+
+    D : :class:`~numpy.ndarray`
+        Numpy structured array of Gaia information that contains at least
+        the columns `RA`, `ASTROMETRIC_PARAMS_SOLVED`, `PHOT_G_MEAN_MAG`, 
+        `NU_EFF_USED_IN_ASTRONOMY`, `PSEUDOCOLOUR`, `ECL_LAT`, `PARALLAX`
+        `PARALLAX_ERROR`.
+
+    mult : :class:`float` or `int`
+        Multiple of the parallax error to use for padding.
+
+    plx_sys: : :class:`float`
+        Extra offset with which to pad `mult`*parallax_error.
+
+    Returns
+    -------
+    :class:`array_like` or `boolean`
+        ``True`` for stream members.
+    """
+    # extra plx systematic error padding
+    plx_sys = 0.05
+    subset = np.in1d(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
+    plx_zpt_tmp = gaia_zpt.zpt.get_zpt(D['PHOT_G_MEAN_MAG'][subset],
+                                       D['NU_EFF_USED_IN_ASTROMETRY'][subset],
+                                       D['PSEUDOCOLOUR'][subset],
+                                       D['ECL_LAT'][subset],
+                                       D['ASTROMETRIC_PARAMS+SOLVED'][subset],
+                                       _warnings=False)
+    plx_zpt = np.zeros(len(D['RA']))
+    plx_zpt_tmp[~np.isfinite(plx_zpt_tmp)] = 0
+    plx_zpt[subset] = plx_zpt_tmp
+    plx = D['PARALLAX'] - plx_zpt
+    dplx = 1 / dist - plx
+
+    return np.abs(dplx) < plx_sys + mult * D['PARALLAX_ERROR']
