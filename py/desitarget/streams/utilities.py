@@ -8,13 +8,27 @@ Borrows heavily from Sergey Koposov's `astrolibpy routines`_.
 
 .. _`astrolibpy routines`: https://github.com/segasai/astrolibpy/blob/master/my_utils
 """
-import numpy as np
-import astropy.coordinates as acoo
-import astropy.units as auni
 import yaml
 import os
+import fitsio
+import numpy as np
+import healpy as hp
+import astropy.coordinates as acoo
+import astropy.units as auni
 from pkg_resources import resource_filename
 from scipy.interpolate import UnivariateSpline
+from time import time
+
+from desitarget import io
+from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touch_hp
+from desitarget.targets import resolve
+
+# ADM set up the DESI default logger.
+from desiutil.log import get_logger
+log = get_logger()
+
+# ADM start the clock.
+start = time()
 
 # ADM Galactic reference frame. Use astropy v4.0 defaults.
 GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
@@ -312,6 +326,9 @@ def get_CMD_interpolator(stream_name):
     -----
     - Parameters for each stream are in the ../data/streams.yaml file.
     """
+    # ADM guard against stream being passed as lower-case.
+    stream_name = stream_name.upper()
+
     # ADM open and load the parameter yaml file.
     fn = resource_filename('desitarget', os.path.join('data', 'streams.yaml'))
     with open(fn) as f:
@@ -382,14 +399,14 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
 
     D : :class:`~numpy.ndarray`
         Numpy structured array of Gaia information that contains at least
-        the columns `RA`, `ASTROMETRIC_PARAMS_SOLVED`, `PHOT_G_MEAN_MAG`, 
+        the columns `RA`, `ASTROMETRIC_PARAMS_SOLVED`, `PHOT_G_MEAN_MAG`,
         `NU_EFF_USED_IN_ASTRONOMY`, `PSEUDOCOLOUR`, `ECL_LAT`, `PARALLAX`
         `PARALLAX_ERROR`.
 
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
 
-    plx_sys: : :class:`float`
+    plx_sys : :class:`float`
         Extra offset with which to pad `mult`*parallax_error.
 
     Returns
@@ -413,3 +430,147 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     dplx = 1 / dist - plx
 
     return np.abs(dplx) < plx_sys + mult * D['PARALLAX_ERROR']
+
+
+def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
+              cache=True, addnors=True):
+    """Assemble the data needed for a particular stream program.
+
+    Example values for GD1:
+    swdir = "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0"
+    rapol, decpol, ra_ref = 34.5987, 29.7331, 200
+    mind, maxd = 80, 100
+
+    Parameters
+    ----------
+    swdir : :class:`str`
+        Root directory of Legacy Surveys sweep files for a given data
+        release for ONE of EITHER north or south, e.g.
+        "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
+
+    rapol, decpol : :class:`float`
+        Pole in the stream coordinate system in DEGREES.
+
+    ra_ref : :class:`float`
+        Zero latitude in the stream coordinate system in DEGREES.
+
+    mind, maxd : :class:`float` or `int`
+        Minimum and maximum angular distance from the pole of the stream
+        coordinate system to search for members in DEGREES.
+
+    stream_name : :class:`str`
+        Name of a stream. Used to make the cached filename, e.g. "GD1".
+
+    cache : :class:`bool`
+        If ``True`` read from a previously constructed and cached file
+        automatically, IF such a file exists.
+        $TARG_DIR/streamcache/streamname-drX-cache.fits is the name of
+        the cached file, where streamname is the lower-case version of
+        the passed `stream_name` and drX is the Legacy Surveys Data
+        Release (parsed from `swdir`).
+
+    addnors : :class:`bool`
+        If ``True`` then if `swdir` contains "north" add sweep files from
+        the south by substituting "south" in place of "north" (and vice
+        versa, i.e. if `swdir` contains "south" add sweep files from the
+        north by substituting "north" in place of "south").
+
+    Returns
+    -------
+    :class:`array_like` or `boolean`
+        ``True`` for stream members.
+
+    Notes
+    -----
+    - The $TARG_DIR environment variable must be set to read/write from
+      a cache. If $TARG_DIR is not set, no cache will be written.
+    """
+    # ADM check whether $TARG_DIR exists. If it does, agree to read from
+    # ADM and write to the cache.
+    writecache = True
+    targdir = os.environ.get("TARG_DIR")
+    if targdir is None and cache:
+        msg = "Set $TARG_DIR environment variable to use the cache!"
+        log.info(msg)
+        cache = False
+        writecache = False
+    else:
+        # ADM retrieve the data release from the passed sweep directory.
+        dr = [i for i in swdir.split(os.sep) if "dr" in i]
+        # ADM fail if this doesn't look like a standard sweep directory.
+        if len(dr) != 1:
+            msg = 'swdir not parsed: should include a construction like '
+            msg += '"dr9" or "dr10"'
+            raise ValueError(msg)
+        cachefile = os.path.join(os.getenv("TARG_DIR"), "streamcache",
+                                 f"{stream_name.lower()}-{dr[0]}-cache.fits")
+
+    # ADM if we have a cache, simply read it and return the data.
+    if cache:
+        if os.path.isfile(cachefile):
+            objs = fitsio.read(cachefile, ext="STREAMCACHE")
+            msg = f"Read {len(objs)} objects from {cachefile} cache file"
+            log.info(msg)
+            return objs
+        else:
+            msg = f"{cachefile} file doesn't exist. Proceeding as if cache=False"
+            log.info(msg)
+
+    # ADM read in the sweep files.
+    infiles = io.list_sweepfiles(swdir)
+    # ADM read both the north and south directories, if requested.
+    if addnors:
+        if "south" in swdir:
+            infiles2 = swdir.replace("south", "north")
+        elif "north" in swdir:
+            infiles2 = swdir.replace("north", "south")
+        else:
+            msg = "addnors passed but swdir does not contain north or south!"
+            raise ValueError(msg)
+        infiles += io.list_sweepfiles(infiles2)
+
+    # ADM calculate nside for HEALPixel of approximately 1o to limit
+    # ADM number of sweeps files that need to be read.
+    nside = pixarea2nside(1)
+    # ADM determine RA, Dec of all HEALPixels at this nside.
+    allpix = np.arange(hp.nside2npix(pixarea2nside(1)))
+    theta, phi = hp.pix2ang(nside, allpix, nest=True)
+    ra, dec = np.degrees(phi), 90-np.degrees(theta)
+    # ADM only retain HEALPixels in the stream, based on mind and maxd.
+    cpix = acoo.SkyCoord(ra*auni.degree, dec*auni.degree)
+    cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
+    sep = cpix.separation(cstream)
+    ii = betw(sep.value, mind, maxd)
+    pixlist = allpix[ii]
+    # ADM determine which sweep files touch the relevant HEALPixels.
+    filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
+    infiles = list(np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
+    # ADM loop through the sweep files and limit to objects in the stream.
+    allobjs = []
+    for i, filename in enumerate(infiles[:11]):
+        objs = io.read_tractor(filename)
+        cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
+        sep = cobjs.separation(cstream)
+        # ADM only retain objects in the stream...
+        ii = betw(sep.value, mind, maxd)
+        # ADM ...that aren't very faint (> 22.5 mag).
+        ii &= objs["FLUX_R"] > 1
+        objs = objs[ii]
+        # ADM limit to northern objects in northern imaging and southern
+        # ADM objects in southern imaging.
+        objs = resolve(objs)
+        allobjs.append(objs)
+        if i % 10 == 9:
+            log.info(f"Ran {i+1}/{len(infiles)} files...t={time()-start:.1f}s")
+    # ADM assemble all of the relevant objects.
+    allobjs = np.concatenate(allobjs)
+    log.info(f"Found {len(allobjs)} total objects...t={time()-start:.1f}s")
+
+    # ADM if cache was passed and $TARG_DIR was set write the data.
+    if writecache:
+        # ADM if the file doesn't exist we may need to make the directory.
+        log.info(f"Writing cache...t={time()-start:.1f}s")
+        os.makedirs(os.path.dirname(cachefile), exist_ok=True)
+        io.write_with_units(cachefile, allobjs, extname="STREAMCACHE")
+
+    return allobjs
