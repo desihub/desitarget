@@ -433,7 +433,7 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
 
 
 def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
-              cache=True, addnors=True):
+              readcache=True, addnors=True):
     """Assemble the data needed for a particular stream program.
 
     Example values for GD1:
@@ -461,13 +461,13 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     stream_name : :class:`str`
         Name of a stream. Used to make the cached filename, e.g. "GD1".
 
-    cache : :class:`bool`
+    readcache : :class:`bool`
         If ``True`` read from a previously constructed and cached file
-        automatically, IF such a file exists.
-        $TARG_DIR/streamcache/streamname-drX-cache.fits is the name of
-        the cached file, where streamname is the lower-case version of
-        the passed `stream_name` and drX is the Legacy Surveys Data
-        Release (parsed from `swdir`).
+        automatically, IF such a file exists. If ``False`` OVERWRITE the
+        cached file, if it exists. The cached file is named
+        $TARG_DIR/streamcache/streamname-drX-cache.fits, where streamname
+        is the lower-case version of the passed `stream_name` and drX is
+        the Legacy Surveys Data Release (parsed from `swdir`).
 
     addnors : :class:`bool`
         If ``True`` then if `swdir` contains "north" add sweep files from
@@ -483,16 +483,16 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     Notes
     -----
     - The $TARG_DIR environment variable must be set to read/write from
-      a cache. If $TARG_DIR is not set, no cache will be written.
+      a cache. If $TARG_DIR is not set, caching is completely ignored.
     """
     # ADM check whether $TARG_DIR exists. If it does, agree to read from
     # ADM and write to the cache.
     writecache = True
     targdir = os.environ.get("TARG_DIR")
-    if targdir is None and cache:
+    if targdir is None:
         msg = "Set $TARG_DIR environment variable to use the cache!"
         log.info(msg)
-        cache = False
+        readcache = False
         writecache = False
     else:
         # ADM retrieve the data release from the passed sweep directory.
@@ -505,15 +505,16 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         cachefile = os.path.join(os.getenv("TARG_DIR"), "streamcache",
                                  f"{stream_name.lower()}-{dr[0]}-cache.fits")
 
-    # ADM if we have a cache, simply read it and return the data.
-    if cache:
+    # ADM if we have a cache, read it if requested and return the data.
+    if readcache:
         if os.path.isfile(cachefile):
             objs = fitsio.read(cachefile, ext="STREAMCACHE")
             msg = f"Read {len(objs)} objects from {cachefile} cache file"
             log.info(msg)
             return objs
         else:
-            msg = f"{cachefile} file doesn't exist. Proceeding as if cache=False"
+            msg = f"{cachefile} cache file doesn't exist. "
+            msg += f"Proceeding as if readcache=False"
             log.info(msg)
 
     # ADM read in the sweep files.
@@ -542,6 +543,11 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     sep = cpix.separation(cstream)
     ii = betw(sep.value, mind, maxd)
     pixlist = allpix[ii]
+    # ADM pad with neighboring pixels to ensure stream is fully covered.
+    print(len(pixlist))
+    newpixlist = add_hp_neighbors(nside, pixlist)
+    print(len(newpixlist), len(set(newpixlist)-set(pixlist)))
+    import pdb; pdb.set_trace()
     # ADM determine which sweep files touch the relevant HEALPixels.
     filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
     infiles = list(np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
