@@ -1131,12 +1131,12 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
             outcol = "{}_{}".format(prefix, col)
             w = np.where(outdata[outcol] != 0)[0]
             outdata[outcol][w] = 1./(outdata[outcol][w]**2.)
-    else:
+    elif dr == "dr2":
         readcolumns = list(ingaiadatamodel.dtype.names)
         outdata = fx[1].read(columns=readcolumns)
         # ADM basic check for mismatched files.
         if 'G3' in outdata["REF_CAT"]:
-            msg = "{} is a dr3 file, but the dr input is {}".format(filename, dr)
+            msg = "{} is an edr3 file, but dr input is {}".format(filename, dr)
             log.error(msg)
             raise ValueError(msg)
         outdata.dtype.names = gaiadatamodel.dtype.names
@@ -1146,6 +1146,24 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
         for col in ['PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
             w = np.where(outdata[col] != 0)[0]
             outdata[col][w] = 1./(outdata[col][w]**2.)
+    # ADM as of DR3 I decided to deprecate different column names as it's
+    # ADM hard to maintain. Instead try to pass Gaia DR in file headers.
+    else:
+        readcolumns = list(indr3datamodelfull.dtype.names)
+        outdata = fx[1].read(columns=readcolumns)
+        # ADM basic check for mismatched files.
+        if 'G2' in outdata["REF_CAT"] or 'G3' in outdata["REF_CAT"]:
+            msg = "{} is a dr2/edr3 file, but dr set to {}".format(filename, dr)
+            log.error(msg)
+            raise ValueError(msg)
+        # ADM the output data model.
+        outdata.dtype.names = [nm.replace("ERROR", "IVAR") if "ERROR" in nm
+                               else nm for nm in indr3datamodelfull.dtype.names]
+        # ADM convert any errors to IVARs.
+        cols = [nom for nom in outdata.dtype.names if "IVAR" in nom]
+        for col in cols:
+            ii = outdata[outcol] != 0
+            outdata[outcol][ii] = 1./(outdata[outcol][ii]**2.)
 
     # ADM if requested, add an object identifier for each file row.
     if addobjid:
