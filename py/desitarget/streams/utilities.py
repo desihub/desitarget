@@ -38,6 +38,17 @@ GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
 kms = auni.km / auni.s
 masyr = auni.mas / auni.year
 
+# ADM the standard data model for working with streams.
+streamcols = np.array([], dtype=[
+    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'S4'),
+    ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
+    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
+    ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
+    ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4'),
+    ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('NU_EFF_USED_IN_ASTROMETRY', '>f4'),
+    ('PSEUDOCOLOUR', '>f4'), ('PHOT_G_MEAN_MAG', '>f4'), ('ECL_LAT', '>f8')
+])
 
 def cosd(x):
     """Return cos(x) for an angle x in degrees.
@@ -463,11 +474,11 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
 
     readcache : :class:`bool`
         If ``True`` read from a previously constructed and cached file
-        automatically, IF such a file exists. If ``False`` OVERWRITE the
-        cached file, if it exists. The cached file is named
-        $TARG_DIR/streamcache/streamname-drX-cache.fits, where streamname
-        is the lower-case version of the passed `stream_name` and drX is
-        the Legacy Surveys Data Release (parsed from `swdir`).
+        automatically, IF such a file exists. If ``False`` don't read
+        from the cache AND OVERWRITE the cached file, if it exists. The
+        cached file is $TARG_DIR/streamcache/streamname-drX-cache.fits,
+        where streamname is the lower-case passed `stream_name` and drX
+        is the Legacy Surveys Data Release (parsed from `swdir`).
 
     addnors : :class:`bool`
         If ``True`` then if `swdir` contains "north" add sweep files from
@@ -533,41 +544,54 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     # ADM calculate nside for HEALPixel of approximately 1o to limit
     # ADM number of sweeps files that need to be read.
     nside = pixarea2nside(1)
+
     # ADM determine RA, Dec of all HEALPixels at this nside.
-    allpix = np.arange(hp.nside2npix(pixarea2nside(1)))
+    allpix = np.arange(hp.nside2npix(nside))
     theta, phi = hp.pix2ang(nside, allpix, nest=True)
     ra, dec = np.degrees(phi), 90-np.degrees(theta)
+
     # ADM only retain HEALPixels in the stream, based on mind and maxd.
     cpix = acoo.SkyCoord(ra*auni.degree, dec*auni.degree)
     cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
     sep = cpix.separation(cstream)
     ii = betw(sep.value, mind, maxd)
     pixlist = allpix[ii]
+
     # ADM pad with neighboring pixels to ensure stream is fully covered.
-    print(len(pixlist))
     newpixlist = add_hp_neighbors(nside, pixlist)
-    print(len(newpixlist), len(set(newpixlist)-set(pixlist)))
-    import pdb; pdb.set_trace()
+
     # ADM determine which sweep files touch the relevant HEALPixels.
     filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
     infiles = list(np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
     # ADM loop through the sweep files and limit to objects in the stream.
     allobjs = []
-    for i, filename in enumerate(infiles[:11]):
+    for i, filename in enumerate(infiles):
         objs = io.read_tractor(filename)
         cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
         sep = cobjs.separation(cstream)
+
         # ADM only retain objects in the stream...
         ii = betw(sep.value, mind, maxd)
+
         # ADM ...that aren't very faint (> 22.5 mag).
         ii &= objs["FLUX_R"] > 1
         objs = objs[ii]
+
         # ADM limit to northern objects in northern imaging and southern
         # ADM objects in southern imaging.
         objs = resolve(objs)
-        allobjs.append(objs)
+
+        # ADM only retain critical columns from the global data model.
+        data = np.zeros(len(objs), dtype=streamcols.dtype)
+        sharedcols = set(data.dtype.names).intersection(set(objs.dtype.names))
+        for col in sharedcols:
+            data[col] = objs[col]
+
+        # ADM retain the data from this part of the loop.
+        allobjs.append(data)
         if i % 10 == 9:
             log.info(f"Ran {i+1}/{len(infiles)} files...t={time()-start:.1f}s")
+
     # ADM assemble all of the relevant objects.
     allobjs = np.concatenate(allobjs)
     log.info(f"Found {len(allobjs)} total objects...t={time()-start:.1f}s")
@@ -575,7 +599,7 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     # ADM if cache was passed and $TARG_DIR was set write the data.
     if writecache:
         # ADM if the file doesn't exist we may need to make the directory.
-        log.info(f"Writing cache...t={time()-start:.1f}s")
+        log.info(f"Writing cache to {cachefile}...t={time()-start:.1f}s")
         os.makedirs(os.path.dirname(cachefile), exist_ok=True)
         io.write_with_units(cachefile, allobjs, extname="STREAMCACHE")
 

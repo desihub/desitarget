@@ -134,7 +134,7 @@ dr3datamodel = np.array([], dtype=[
     ('DR3_PMDEC', '>f4'), ('DR3_PMDEC_IVAR', '>f4')
 ])
 
-# ADM the data model for reading ALL columns from Gaia EDR3 files.
+# ADM the data model for reading ALL columns from Gaia DR3 files.
 indr3datamodelfull = np.array([], dtype=[
     ('SOLUTION_ID', '>i8'), ('DESIGNATION', '<U26'), ('SOURCE_ID', '>i8'),
     ('RANDOM_INDEX', '>i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', '>f4'), ('RA', '>f8'),
