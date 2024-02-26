@@ -189,6 +189,61 @@ indr3datamodelfull = np.array([], dtype=[
     ('EBPMINRP_GSPPHOT_UPPER', '>f4'), ('LIBNAME_GSPPHOT', '<U13')
 ])
 
+# ADM the data model for reading ALL columns from Gaia DR3 files.
+dr3datamodelfull = np.array([], dtype=[
+    ('SOLUTION_ID', '>i8'), ('DESIGNATION', '<U26'), ('REF_ID', '>i8'),
+    ('RANDOM_INDEX', '>i8'), ('REF_CAT', 'S2'), ('REF_EPOCH', '>f4'), ('RA', '>f8'),
+    ('RA_IVAR', '>f8'), ('DEC', '>f8'), ('DEC_IVAR', '>f8'),
+    ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'), ('PARALLAX_OVER_ERROR', '>f4'),
+    ('PM', '>f4'), ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'), ('RA_DEC_CORR', '>f4'),
+    ('RA_PARALLAX_CORR', '>f4'), ('RA_PMRA_CORR', '>f4'), ('RA_PMDEC_CORR', '>f4'),
+    ('DEC_PARALLAX_CORR', '>f4'), ('DEC_PMRA_CORR', '>f4'), ('DEC_PMDEC_CORR', '>f4'),
+    ('PARALLAX_PMRA_CORR', '>f4'), ('PARALLAX_PMDEC_CORR', '>f4'), ('PMRA_PMDEC_CORR', '>f4'),
+    ('ASTROMETRIC_N_OBS_AL', '>i2'), ('ASTROMETRIC_N_OBS_AC', '>i2'), ('ASTROMETRIC_N_GOOD_OBS_AL', '>i2'),
+    ('ASTROMETRIC_N_BAD_OBS_AL', '>i2'), ('ASTROMETRIC_GOF_AL', '>f4'), ('ASTROMETRIC_CHI2_AL', '>f4'),
+    ('ASTROMETRIC_EXCESS_NOISE', '>f4'), ('ASTROMETRIC_EXCESS_NOISE_SIG', '>f4'), ('ASTROMETRIC_PARAMS_SOLVED', '>i1'),
+    ('ASTROMETRIC_PRIMARY_FLAG', '<U5'), ('NU_EFF_USED_IN_ASTROMETRY', '>f4'), ('PSEUDOCOLOUR', '>f4'),
+    ('PSEUDOCOLOUR_ERROR', '>f4'), ('RA_PSEUDOCOLOUR_CORR', '>f4'), ('DEC_PSEUDOCOLOUR_CORR', '>f4'),
+    ('PARALLAX_PSEUDOCOLOUR_CORR', '>f4'), ('PMRA_PSEUDOCOLOUR_CORR', '>f4'), ('PMDEC_PSEUDOCOLOUR_CORR', '>f4'),
+    ('ASTROMETRIC_MATCHED_TRANSITS', '>i2'), ('VISIBILITY_PERIODS_USED', '>i2'), ('ASTROMETRIC_SIGMA5D_MAX', '>f4'),
+    ('MATCHED_TRANSITS', '>i2'), ('NEW_MATCHED_TRANSITS', '>i2'), ('MATCHED_TRANSITS_REMOVED', '>i2'),
+    ('IPD_GOF_HARMONIC_AMPLITUDE', '>f4'), ('IPD_GOF_HARMONIC_PHASE', '>f4'), ('IPD_FRAC_MULTI_PEAK', '>i1'),
+    ('IPD_FRAC_ODD_WIN', '|u1'), ('RUWE', '>f4'), ('SCAN_DIRECTION_STRENGTH_K1', '>f4'),
+    ('SCAN_DIRECTION_STRENGTH_K2', '>f4'), ('SCAN_DIRECTION_STRENGTH_K3', '>f4'), ('SCAN_DIRECTION_STRENGTH_K4', '>f4'),
+    ('SCAN_DIRECTION_MEAN_K1', '>f4'), ('SCAN_DIRECTION_MEAN_K2', '>f4'), ('SCAN_DIRECTION_MEAN_K3', '>f4'),
+    ('SCAN_DIRECTION_MEAN_K4', '>f4'), ('DUPLICATED_SOURCE', '?'), ('PHOT_G_N_OBS', '>i4'),
+    ('PHOT_G_MEAN_FLUX', '>f8'), ('PHOT_G_MEAN_FLUX_ERROR', '>f4'), ('PHOT_G_MEAN_FLUX_OVER_ERROR', '>f4'),
+    ('PHOT_G_MEAN_MAG', '>f4'), ('PHOT_BP_N_OBS', '>i4'), ('PHOT_BP_MEAN_FLUX', '>f8'),
+    ('PHOT_BP_MEAN_FLUX_ERROR', '>f4'), ('PHOT_BP_MEAN_FLUX_OVER_ERROR', '>f4'), ('PHOT_BP_MEAN_MAG', '>f4'),
+    ('PHOT_RP_N_OBS', '>i4'), ('PHOT_RP_MEAN_FLUX', '>f8'), ('PHOT_RP_MEAN_FLUX_ERROR', '>f4'),
+    ('PHOT_RP_MEAN_FLUX_OVER_ERROR', '>f4'), ('PHOT_RP_MEAN_MAG', '>f4'), ('PHOT_BP_RP_EXCESS_FACTOR', '>f4'),
+    ('PHOT_BP_N_CONTAMINATED_TRANSITS', '>i2'), ('PHOT_BP_N_BLENDED_TRANSITS', '>i2'), ('PHOT_RP_N_CONTAMINATED_TRANSITS', '>i2'),
+    ('PHOT_RP_N_BLENDED_TRANSITS', '>i2'), ('PHOT_PROC_MODE', '|u1'), ('BP_RP', '>f4'),
+    ('BP_G', '>f4'), ('G_RP', '>f4'), ('RADIAL_VELOCITY', '>f4'),
+    ('RADIAL_VELOCITY_ERROR', '>f4'), ('RV_METHOD_USED', '|u1'), ('RV_NB_TRANSITS', '>i2'),
+    ('RV_NB_DEBLENDED_TRANSITS', '>i2'), ('RV_VISIBILITY_PERIODS_USED', '>i2'), ('RV_EXPECTED_SIG_TO_NOISE', '>f4'),
+    ('RV_RENORMALISED_GOF', '>f4'), ('RV_CHISQ_PVALUE', '>f4'), ('RV_TIME_DURATION', '>f4'),
+    ('RV_AMPLITUDE_ROBUST', '>f4'), ('RV_TEMPLATE_TEFF', '>f4'), ('RV_TEMPLATE_LOGG', '>f4'),
+    ('RV_TEMPLATE_FE_H', '>f4'), ('RV_ATM_PARAM_ORIGIN', '>i2'), ('VBROAD', '>f4'),
+    ('VBROAD_ERROR', '>f4'), ('VBROAD_NB_TRANSITS', '>i2'), ('GRVS_MAG', '>f4'),
+    ('GRVS_MAG_ERROR', '>f4'), ('GRVS_MAG_NB_TRANSITS', '>i2'), ('RVS_SPEC_SIG_TO_NOISE', '>f4'),
+    ('PHOT_VARIABLE_FLAG', '<U13'), ('L', '>f8'), ('B', '>f8'),
+    ('ECL_LON', '>f8'), ('ECL_LAT', '>f8'), ('IN_QSO_CANDIDATES', '<U5'),
+    ('IN_GALAXY_CANDIDATES', '<U5'), ('NON_SINGLE_STAR', '>i2'), ('HAS_XP_CONTINUOUS', '<U5'),
+    ('HAS_XP_SAMPLED', '<U5'), ('HAS_RVS', '<U5'), ('HAS_EPOCH_PHOTOMETRY', '<U5'),
+    ('HAS_EPOCH_RV', '<U5'), ('HAS_MCMC_GSPPHOT', '<U5'), ('HAS_MCMC_MSC', '<U5'),
+    ('IN_ANDROMEDA_SURVEY', '<U5'), ('CLASSPROB_DSC_COMBMOD_QUASAR', '>f4'), ('CLASSPROB_DSC_COMBMOD_GALAXY', '>f4'),
+    ('CLASSPROB_DSC_COMBMOD_STAR', '>f4'), ('TEFF_GSPPHOT', '>f4'), ('TEFF_GSPPHOT_LOWER', '>f4'),
+    ('TEFF_GSPPHOT_UPPER', '>f4'), ('LOGG_GSPPHOT', '>f4'), ('LOGG_GSPPHOT_LOWER', '>f4'),
+    ('LOGG_GSPPHOT_UPPER', '>f4'), ('MH_GSPPHOT', '>f4'), ('MH_GSPPHOT_LOWER', '>f4'),
+    ('MH_GSPPHOT_UPPER', '>f4'), ('DISTANCE_GSPPHOT', '>f4'), ('DISTANCE_GSPPHOT_LOWER', '>f4'),
+    ('DISTANCE_GSPPHOT_UPPER', '>f4'), ('AZERO_GSPPHOT', '>f4'), ('AZERO_GSPPHOT_LOWER', '>f4'),
+    ('AZERO_GSPPHOT_UPPER', '>f4'), ('AG_GSPPHOT', '>f4'), ('AG_GSPPHOT_LOWER', '>f4'),
+    ('AG_GSPPHOT_UPPER', '>f4'), ('EBPMINRP_GSPPHOT', '>f4'), ('EBPMINRP_GSPPHOT_LOWER', '>f4'),
+    ('EBPMINRP_GSPPHOT_UPPER', '>f4'), ('LIBNAME_GSPPHOT', '<U13')
+])
+
 
 def check_gaia_survey(dr):
     """Convenience function to check allowed Gaia Data Releases
@@ -1091,14 +1146,14 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
         file and a column "GAIA_BRICKID" that is the integer number of
         the file itself.
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3". Used to
-        format the output data model.
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        Used to format the output data model.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        Gaia data translated to targeting format (upper-case etc.) with the
-        columns corresponding to `desitarget.gaiamatch.gaiadatamodel`
+        Gaia data in targeting format (upper-case etc.) with the columns
+        corresponding to, e.g., `desitarget.gaiamatch.gaiadatamodel`.
 
     Notes
     -----
@@ -1124,7 +1179,7 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
             raise ValueError(msg)
         outdata.dtype.names = edr3datamodel.dtype.names
         prefix = "EDR3"
-        # ADM the ERRORS need to be converted to IVARs.
+        # ADM some of the ERRORS need to be converted to IVARs.
         # ADM remember to leave 0 entries as 0.
         for col in ['RA_IVAR', 'DEC_IVAR',
                     'PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
@@ -1157,13 +1212,13 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
             log.error(msg)
             raise ValueError(msg)
         # ADM the output data model.
-        outdata.dtype.names = [nm.replace("ERROR", "IVAR") if "ERROR" in nm
-                               else nm for nm in indr3datamodelfull.dtype.names]
-        # ADM convert any errors to IVARs.
-        cols = [nom for nom in outdata.dtype.names if "IVAR" in nom]
-        for col in cols:
-            ii = outdata[outcol] != 0
-            outdata[outcol][ii] = 1./(outdata[outcol][ii]**2.)
+        outdata.dtype.names = dr3datamodelfull.dtype.names
+        # ADM some of the ERRORS need to be converted to IVARs.
+        # ADM remember to leave 0 entries as 0.
+        for col in ['RA_IVAR', 'DEC_IVAR',
+                    'PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
+            w = np.where(outdata[col] != 0)[0]
+            outdata[col][w] = 1./(outdata[col][w]**2.)
 
     # ADM if requested, add an object identifier for each file row.
     if addobjid:
@@ -1207,7 +1262,7 @@ def find_gaia_files(objs, neighbors=True, radec=False, dr="dr2"):
         If ``True`` then the passed `objs` is an [RA, Dec] list instead of
         a rec array.
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
 
     Returns
     -------
@@ -1244,7 +1299,7 @@ def find_gaia_files_hp(nside, pixlist, neighbors=True, dr="dr2"):
         pixels in `pixlist` to prevent edge effects (e.g. a Gaia source
         is 1 arcsec outside of `pixlist` and so in an adjacent pixel).
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
 
     Returns
     -------
@@ -1293,7 +1348,7 @@ def find_gaia_files_box(gaiabounds, neighbors=True, dr="dr2"):
         the files that touch the box in order to prevent edge effects (e.g. if a Gaia
         source might be 1 arcsec outside of the box and so in an adjacent pixel)
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3"
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
 
     Returns
     -------
@@ -1343,7 +1398,7 @@ def find_gaia_files_beyond_gal_b(mingalb, neighbors=True, dr="dr2"):
         in order to prevent edge effects (e.g. if a Gaia source might be
         1 arcsec beyond mingalb and so in an adjacent pixel).
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3".
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
 
     Returns
     -------
@@ -1391,7 +1446,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
         in order to prevent edge effects (e.g. if a Gaia source is 1 arcsec
         away from a primary source and so in an adjacent pixel).
     dr : :class:`str`, optional, defaults to "dr2"
-        Name of a Gaia data release. Options are "dr2", "edr3".
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
 
     Returns
     -------
@@ -1452,14 +1507,16 @@ def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
         retrieve Gaia objects that don't match a sweeps object. Pass a
         4-entry (corresponding to [RAmin, RAmax, DECmin, DECmax]).
     dr : :class:`str`, optional, defaults to "edr3"
-        Name of a Gaia data release. Options are "dr2", "edr3". Specifies
-        which output data model to use.
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        Specifies which REF_EPOCH to use for matching and the output
+        data model.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         Gaia information for each matching object, in a format like
-        `gaiadatamodel` (for `dr=dr2`) or `edr3datamodel` (`dr=edr3`).
+        `gaiadatamodel` (for `dr=dr2`), `edr3datamodel` (`dr=edr3`)
+        or `dr3datamodelfull` (for `dr=dr3`).
 
     Notes
     -----
@@ -1486,11 +1543,15 @@ def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
     if dr == "edr3":
         gaiainfo = np.zeros(nobjs, dtype=edr3datamodel.dtype)
         suppgaiainfo = np.zeros(0, dtype=edr3datamodel.dtype)
-        prefix = "EDR3"
-    else:
+        prefix = "EDR3_"
+    elif dr == "dr2":
         gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
         suppgaiainfo = np.zeros(0, dtype=gaiadatamodel.dtype)
-        prefix = "GAIA"
+        prefix = "GAIA_"
+    else:
+        gaiainfo = np.zeros(nobjs, dtype=dr3datamodelfull.dtype)
+        suppgaiainfo = np.zeros(0, dtype=dr3datamodelfull.dtype)
+        prefix = ""
 
     # ADM objects without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
@@ -1502,17 +1563,20 @@ def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
         gaiafiles = find_gaia_files(objs, dr=dr)
 
     # ADM loop through the Gaia files and match to the passed objects.
-    gracol, gdeccol = "{}_RA".format(prefix), "{}_DEC".format(prefix)
+    gracol, gdeccol = f"{prefix}RA", f"{prefix}DEC"
+    gpmracol, gpmdeccol = f"{prefix}PMRA", f"{prefix}PMDEC"
     for fn in gaiafiles:
         gaia = read_gaia_file(fn, dr=dr)
-        # ADM rewind the coordinates in the case of Gaia EDR3, which is
-        # ADM at a reference epoch of 2016.0 not 2015.5.
-        if dr == 'edr3':
-            rarew, decrew = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
-                                          gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
+        # ADM rewind the coordinates in the case of Gaia EDR3 or DR3,
+        # ADM which are at a reference epoch of 2016.0 not 2015.5.
+        if dr == 'edr3' or dr == 'dr3':
+            rarew, decrew = rewind_coords(gaia[gracol], gaia[gdeccol],
+                                          gaia[gpmracol], gaia[gpmdeccol],
                                           epochnow=2016.0, epochpast=2015.5)
-            gaia["EDR3_RA"] = rarew
-            gaia["EDR3_DEC"] = decrew
+            gaia[gracol] = rarew
+            gaia[gdeccol] = decrew
+            gaia["REF_EPOCH"] = 2015.5
+
         cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
         idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
         # ADM assign the Gaia info to the array that corresponds to the passed objects.
@@ -1551,8 +1615,9 @@ def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
     matchrad : :class:`float`, optional, defaults to 0.2 arcsec
         The matching radius in arcseconds.
     dr : :class:`str`, optional, defaults to "edr3"
-        Name of a Gaia data release. Options are "dr2", "edr3". Specifies
-        which output data model to use.
+        Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+        Specifies which REF_EPOCH to use for matching and the output
+        data model.
 
     Returns
     -------
@@ -1574,10 +1639,13 @@ def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
     # ADM set up the output arrays, contingent on the Gaia Data Release.
     if dr == "edr3":
         gaiainfo = np.zeros(nobjs, dtype=edr3datamodel.dtype)
-        prefix = "EDR3"
-    else:
+        prefix = "EDR3_"
+    elif dr == "dr2":
         gaiainfo = np.zeros(nobjs, dtype=gaiadatamodel.dtype)
-        prefix = "GAIA"
+        prefix = "GAIA_"
+    else:
+        gaiainfo = np.zeros(nobjs, dtype=dr3datamodelfull.dtype)
+        prefix = ""
 
     # ADM an object without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
@@ -1586,17 +1654,19 @@ def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
     gaiafiles = find_gaia_files(objs, dr=dr)
 
     # ADM loop through the Gaia files and match to the passed object.
-    gracol, gdeccol = "{}_RA".format(prefix), "{}_DEC".format(prefix)
+    gracol, gdeccol = f"{prefix}RA", f"{prefix}DEC"
+    gpmracol, gpmdeccol = f"{prefix}PMRA", f"{prefix}PMDEC"
     for fn in gaiafiles:
         gaia = read_gaia_file(fn, dr=dr)
         # ADM rewind the coordinates in the case of Gaia EDR3, which is
         # ADM at a reference epoch of 2016.0 not 2015.5.
-        if dr == 'edr3':
-            rarew, decrew = rewind_coords(gaia["EDR3_RA"], gaia["EDR3_DEC"],
-                                          gaia["EDR3_PMRA"], gaia["EDR3_PMDEC"],
+        if dr == 'edr3' or dr == 'dr3':
+            rarew, decrew = rewind_coords(gaia[gracol], gaia[gdeccol],
+                                          gaia[gpmracol], gaia[gpmdeccol],
                                           epochnow=2016.0, epochpast=2015.5)
-            gaia["EDR3_RA"] = rarew
-            gaia["EDR3_DEC"] = decrew
+            gaia[gracol] = rarew
+            gaia[gdeccol] = decrew
+            gaia["REF_EPOCH"] = 2015.5
 
         cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
         sep = cobjs.separation(cgaia)

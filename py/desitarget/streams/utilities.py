@@ -21,6 +21,7 @@ from time import time
 
 from desitarget import io
 from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touch_hp
+from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.targets import resolve
 
 # ADM set up the DESI default logger.
@@ -43,12 +44,13 @@ streamcols = np.array([], dtype=[
     ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'S4'),
     ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
     ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
-    ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('PARALLAX_ERROR', '>f4'),
-    ('PMRA', '>f4'), ('PMRA_ERROR', '>f4'),
-    ('PMDEC', '>f4'), ('PMDEC_ERROR', '>f4'),
+    ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
+    ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
+    ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
     ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('NU_EFF_USED_IN_ASTROMETRY', '>f4'),
     ('PSEUDOCOLOUR', '>f4'), ('PHOT_G_MEAN_MAG', '>f4'), ('ECL_LAT', '>f8')
 ])
+
 
 def cosd(x):
     """Return cos(x) for an angle x in degrees.
@@ -412,7 +414,8 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
         Numpy structured array of Gaia information that contains at least
         the columns `RA`, `ASTROMETRIC_PARAMS_SOLVED`, `PHOT_G_MEAN_MAG`,
         `NU_EFF_USED_IN_ASTRONOMY`, `PSEUDOCOLOUR`, `ECL_LAT`, `PARALLAX`
-        `PARALLAX_ERROR`.
+        `PARALLAX_ERROR`. `PARALLAX_IVAR` will be used instead of
+        `PARALLAX_ERROR` if `PARALLAX_ERROR` is not present.
 
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
@@ -440,11 +443,19 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     plx = D['PARALLAX'] - plx_zpt
     dplx = 1 / dist - plx
 
-    return np.abs(dplx) < plx_sys + mult * D['PARALLAX_ERROR']
+    if 'PARALLAX_ERROR' in D.dtype.names:
+        parallax_error = D['PARALLAX_ERROR']
+    elif 'PARALLAX_IVAR' in D.dtype.names:
+        parallax_error = 1./np.sqrt(D['PARALLAX_IVAR'])
+    else:
+        msg = "Either PARALLAX_ERROR or PARALLAX_IVAR must be passed!"
+        log.error(msg)
+
+    return np.abs(dplx) < plx_sys + mult * parallax_error
 
 
 def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
-              readcache=True, addnors=True):
+              readcache=True, addnors=True, test=False):
     """Assemble the data needed for a particular stream program.
 
     Example values for GD1:
@@ -485,6 +496,9 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         the south by substituting "south" in place of "north" (and vice
         versa, i.e. if `swdir` contains "south" add sweep files from the
         north by substituting "north" in place of "south").
+
+    test : :class:`bool`
+        Read a subset of the data for testing purposes.
 
     Returns
     -------
@@ -530,6 +544,7 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
 
     # ADM read in the sweep files.
     infiles = io.list_sweepfiles(swdir)
+
     # ADM read both the north and south directories, if requested.
     if addnors:
         if "south" in swdir:
@@ -563,6 +578,13 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     # ADM determine which sweep files touch the relevant HEALPixels.
     filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
     infiles = list(np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
+
+    # ADM read a subset of the data for testing purposes, if requested.
+    if test:
+        msg = "Limiting data to first 20 files for testing purposes"
+        log.info(msg)
+        infiles = infiles[:20]
+
     # ADM loop through the sweep files and limit to objects in the stream.
     allobjs = []
     for i, filename in enumerate(infiles):
@@ -573,19 +595,31 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         # ADM only retain objects in the stream...
         ii = betw(sep.value, mind, maxd)
 
-        # ADM ...that aren't very faint (> 22.5 mag).
+        # ADM ...that aren't very faint (> 22.5 mag)...
         ii &= objs["FLUX_R"] > 1
         objs = objs[ii]
 
         # ADM limit to northern objects in northern imaging and southern
         # ADM objects in southern imaging.
-        objs = resolve(objs)
+        LSobjs = resolve(objs)
+
+        # ADM match to Gaia DR3.
+        # ADM catch the case where there are no objects meeting the cuts.
+        if len(LSobjs) > 0:
+            gaiaobjs = match_gaia_to_primary(LSobjs, matchrad=1., dr='dr3')
+        else:
+            gaiaobjs = LSobjs
+
+        # ADM a (probably unnecessary) sanity check.
+        assert(len(gaiaobjs) == len(LSobjs))
 
         # ADM only retain critical columns from the global data model.
-        data = np.zeros(len(objs), dtype=streamcols.dtype)
-        sharedcols = set(data.dtype.names).intersection(set(objs.dtype.names))
-        for col in sharedcols:
-            data[col] = objs[col]
+        data = np.zeros(len(LSobjs), dtype=streamcols.dtype)
+        # ADM for both Gaia and Legacy Surveys, overwriting with Gaia.
+        for objs in LSobjs, gaiaobjs:
+            sharedcols = set(data.dtype.names).intersection(set(objs.dtype.names))
+            for col in sharedcols:
+                data[col] = objs[col]
 
         # ADM retain the data from this part of the loop.
         allobjs.append(data)
