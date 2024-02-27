@@ -18,6 +18,7 @@ import astropy.units as auni
 from pkg_resources import resource_filename
 from scipy.interpolate import UnivariateSpline
 from time import time
+from zero_point import zero_point as gaia_zpt
 
 from desitarget import io
 from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touch_hp
@@ -30,6 +31,9 @@ log = get_logger()
 
 # ADM start the clock.
 start = time()
+
+# ADM load the Gaia zeropoints.
+gaia_zpt.zpt.load_tables()
 
 # ADM Galactic reference frame. Use astropy v4.0 defaults.
 GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
@@ -71,10 +75,8 @@ def betw(x, x1, x2):
     ----------
     x : :class:`~numpy.ndarray` or `int` or `float`
         Value(s) that need checked against x1, x2.
-
     x1 : :class:`~numpy.ndarray` or `int` or `float`
         Lower range to check against (inclusive).
-
     x2 : :class:`~numpy.ndarray` or `int` or `float`
         Upper range to check against (exclusive).
 
@@ -103,7 +105,6 @@ def torect(ra, dec):
     ----------
     ra : :class:`~numpy.ndarray` or `float`
         Right Ascension in DEGREES.
-
     dec : :class:`~numpy.ndarray` or `float`
         Declination in DEGREES.
 
@@ -150,7 +151,6 @@ def rotation_matrix(rapol, decpol, ra0):
     ----------
     rapol, decpol : :class:`float`
         Pole of the new coordinate system in DEGREES.
-
     ra0 : :class:`float`
         Zero latitude of the new coordinate system in DEGREES.
 
@@ -178,16 +178,12 @@ def sphere_rotate(ra, dec, rapol, decpol, ra0, revert=False):
     ----------
     ra : :class:`~numpy.ndarray` or `float`
         Right Ascension in DEGREES.
-
     dec : :class:`~numpy.ndarray` or `float`
         Declination in DEGREES.
-
     rapol, decpol : :class:`float`
         Pole of the new coordinate system in DEGREES.
-
     ra0 : :class:`float`
         Zero latitude of the new coordinate system in DEGREES.
-
     revert : :class:`bool`, optional, defaults to ``False``
         Reverse the rotation.
 
@@ -225,19 +221,14 @@ def rotate_pm(ra, dec, pmra, pmdec, rapol, decpol, ra0, revert=False):
     ----------
     ra, dec : :class:`~numpy.ndarray` or `float`
         Right Ascension, Declination in DEGREES.
-
     pmra, pmdec : :class:`~numpy.ndarray` or `float`
         Proper motion in Right Ascension, Declination in mas/yr.
-
     pmdec : :class:`~numpy.ndarray` or `float`
         Proper motion in Declination in mas/yr.
-
     rapol, decpol : :class:`float`
         Pole of the new coordinate system in DEGREES.
-
     ra0 : :class:`float`
         Zero latitude of the new coordinate system in DEGREES.
-
     revert : :class:`bool`, optional, defaults to ``False``
         Reverse the rotation.
 
@@ -287,11 +278,9 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
     ----------
     ra, dec : :class:`~numpy.ndarray` or `float`
         Right Ascension, Declination in DEGREES.
-
     pmra, pmdec : :class:`~numpy.ndarray` or `float`
         Proper motion in Right Ascension, Declination in mas/yr.
         `pmra` includes the cosine term.
-
     dist : :class:`float`
         Distance in kpc.
 
@@ -370,25 +359,19 @@ def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
     ----------
     pm1track : :class:`~numpy.ndarray` or `float`
         Allowed proper motions of stream targets, RA-sense.
-
     pm2track : :class:`~numpy.ndarray` or `float`
         Allowed proper motions of stream targets, Dec-sense.
-
     pmfi1 : :class:`~numpy.ndarray` or `float`
         Proper motion in stream coordinates of possible targets, derived
         from RA.
-
     pmfi2 : :class:`~numpy.ndarray` or `float`
         Proper motion in stream coordinates of possible targets, derived
         from Dec.
-
     pm_err : :class:`~numpy.ndarray` or `float`
         Proper motion error in stream coordinates of possible targets,
         combined across `pmfi1` and `pmfi2` errors.
-
     pad: : :class:`float` or `int`, defaults to 2
         Extra offset with which to pad `mult`*proper_motion_error.
-
     mult : :class:`float` or `int`, defaults to 2.5
         Multiple of the proper motion error to use for padding.
 
@@ -409,17 +392,14 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     ----------
     dist : :class:`~numpy.ndarray` or `float`
         Distance of possible stream members.
-
     D : :class:`~numpy.ndarray`
         Numpy structured array of Gaia information that contains at least
         the columns `RA`, `ASTROMETRIC_PARAMS_SOLVED`, `PHOT_G_MEAN_MAG`,
         `NU_EFF_USED_IN_ASTRONOMY`, `PSEUDOCOLOUR`, `ECL_LAT`, `PARALLAX`
         `PARALLAX_ERROR`. `PARALLAX_IVAR` will be used instead of
         `PARALLAX_ERROR` if `PARALLAX_ERROR` is not present.
-
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
-
     plx_sys : :class:`float`
         Extra offset with which to pad `mult`*parallax_error.
 
@@ -454,6 +434,34 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     return np.abs(dplx) < plx_sys + mult * parallax_error
 
 
+def stream_distance(fi1, stream_name):
+    """The distance to members of a stellar stream.
+
+    Parameters
+    ----------
+    fi1 : :class:`~numpy.ndarray` or `float`
+        Phi1 stream coordinate of possible targets, derived from RA.
+    stream_name : :class:`str`
+        Name of a stream, e.g. "GD1".
+
+    Returns
+    -------
+    :class:`array_like` or `float`
+        The distance to the passed members of the stream.
+
+    Notes
+    -----
+    - Output type is the same as that of the passed `fi1`.
+    """
+    if stream_name.upper() == "GD1":
+        # ADM The distance to GD1 (similar to Koposov et al. 2010 paper).
+        dm = 18.82 + ((fi1 + 48) / 57)**2 - 4.45
+        return 10**(dm / 5. - 2)
+    else:
+        msg = f"stream name {stream_name} not recognized"
+        log.error(msg)
+
+
 def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
               readcache=True, addnors=True, test=False):
     """Assemble the data needed for a particular stream program.
@@ -469,20 +477,15 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         Root directory of Legacy Surveys sweep files for a given data
         release for ONE of EITHER north or south, e.g.
         "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
-
     rapol, decpol : :class:`float`
         Pole in the stream coordinate system in DEGREES.
-
     ra_ref : :class:`float`
         Zero latitude in the stream coordinate system in DEGREES.
-
     mind, maxd : :class:`float` or `int`
         Minimum and maximum angular distance from the pole of the stream
         coordinate system to search for members in DEGREES.
-
     stream_name : :class:`str`
         Name of a stream. Used to make the cached filename, e.g. "GD1".
-
     readcache : :class:`bool`
         If ``True`` read from a previously constructed and cached file
         automatically, IF such a file exists. If ``False`` don't read
@@ -490,13 +493,11 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         cached file is $TARG_DIR/streamcache/streamname-drX-cache.fits,
         where streamname is the lower-case passed `stream_name` and drX
         is the Legacy Surveys Data Release (parsed from `swdir`).
-
     addnors : :class:`bool`
         If ``True`` then if `swdir` contains "north" add sweep files from
         the south by substituting "south" in place of "north" (and vice
         versa, i.e. if `swdir` contains "south" add sweep files from the
         north by substituting "north" in place of "south").
-
     test : :class:`bool`
         Read a subset of the data for testing purposes.
 
@@ -510,6 +511,9 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     - The $TARG_DIR environment variable must be set to read/write from
       a cache. If $TARG_DIR is not set, caching is completely ignored.
     """
+    # ADM The Gaia DR to which to match.
+    gaiadr = "dr3"
+
     # ADM check whether $TARG_DIR exists. If it does, agree to read from
     # ADM and write to the cache.
     writecache = True
@@ -603,10 +607,9 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         # ADM objects in southern imaging.
         LSobjs = resolve(objs)
 
-        # ADM match to Gaia DR3.
         # ADM catch the case where there are no objects meeting the cuts.
         if len(LSobjs) > 0:
-            gaiaobjs = match_gaia_to_primary(LSobjs, matchrad=1., dr='dr3')
+            gaiaobjs = match_gaia_to_primary(LSobjs, matchrad=1., dr=gaiadr)
         else:
             gaiaobjs = LSobjs
 
@@ -630,11 +633,16 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     allobjs = np.concatenate(allobjs)
     log.info(f"Found {len(allobjs)} total objects...t={time()-start:.1f}s")
 
-    # ADM if cache was passed and $TARG_DIR was set write the data.
+    # ADM if cache was passed and $TARG_DIR was set then write the data.
     if writecache:
         # ADM if the file doesn't exist we may need to make the directory.
         log.info(f"Writing cache to {cachefile}...t={time()-start:.1f}s")
         os.makedirs(os.path.dirname(cachefile), exist_ok=True)
-        io.write_with_units(cachefile, allobjs, extname="STREAMCACHE")
+        # ADM at least add the Gaia DR used to the header.
+        hdr = fitsio.FITSHDR()
+        hdr.add_record(dict(name="GAIADR", value=gaiadr,
+                            comment="GAIA Data Release matched to"))
+        io.write_with_units(cachefile, allobjs,
+                            header=hdr, extname="STREAMCACHE")
 
     return allobjs
