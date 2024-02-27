@@ -311,8 +311,8 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
             (C.pm_dec - C1.pm_dec).to_value(masyr))
 
 
-def get_CMD_interpolator(stream_name):
-    """Isochrones via interpolating over points in color-magnitude space.
+def get_stream_parameters(stream_name):
+    """Look up information for a given stream.
 
     Parameters
     ----------
@@ -322,7 +322,9 @@ def get_CMD_interpolator(stream_name):
 
     Returns
     -------
-    A scipy interpolated UnivariateSpline.
+    :class:`~dict`
+        A dictionary of stream parameters for the passed `stream_name`.
+        Includes isochrones and positional information.
 
     Notes
     -----
@@ -336,13 +338,32 @@ def get_CMD_interpolator(stream_name):
     with open(fn) as f:
         stream = yaml.safe_load(f)
 
+    return stream[stream_name]
+
+
+def get_CMD_interpolator(stream_name):
+    """Isochrones via interpolating over points in color-magnitude space.
+
+    Parameters
+    ----------
+    stream_name : :class:`str`
+        Name of a stream that appears in the ../data/streams.yaml file.
+        Possibilities include 'GD1'.
+
+    Returns
+    -------
+    A scipy interpolated UnivariateSpline.
+    """
+    # ADM get information for the stream of interest.
+    stream = get_stream_parameters(stream_name)
+
     # ADM retrieve the color and magnitude offsets.
-    coloff = stream[stream_name]["COLOFF"]
-    magoff = stream[stream_name]["MAGOFF"]
+    coloff = stream["COLOFF"]
+    magoff = stream["MAGOFF"]
 
     # ADM the isochrones to interpolate over.
-    iso_dartmouth_g = np.array(stream[stream_name]["ISO_G"])
-    iso_dartmouth_r = np.array(stream[stream_name]["ISO_R"])
+    iso_dartmouth_g = np.array(stream["ISO_G"])
+    iso_dartmouth_r = np.array(stream["ISO_R"])
 
     # ADM UnivariateSpline is from scipy.interpolate.
     CMD_II = UnivariateSpline(iso_dartmouth_r[::-1] + magoff,
@@ -415,7 +436,7 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
                                        D['NU_EFF_USED_IN_ASTROMETRY'][subset],
                                        D['PSEUDOCOLOUR'][subset],
                                        D['ECL_LAT'][subset],
-                                       D['ASTROMETRIC_PARAMS+SOLVED'][subset],
+                                       D['ASTROMETRIC_PARAMS_SOLVED'][subset],
                                        _warnings=False)
     plx_zpt = np.zeros(len(D['RA']))
     plx_zpt_tmp[~np.isfinite(plx_zpt_tmp)] = 0

@@ -23,10 +23,9 @@ import numpy as np
 import astropy.table as atpy
 
 from desitarget.cuts import _psflike
-from desitarget.streams.utilities import read_data, sphere_rotate
-from desitarget.streams.utilities import correct_pm, rotate_pm, betw
-from desitarget.streams.utilities import pm12_sel_func, plx_sel_func
-
+from desitarget.streams.utilities import read_data, sphere_rotate, correct_pm, \
+    rotate_pm, betw, pm12_sel_func, plx_sel_func, get_CMD_interpolator,        \
+    get_stream_parameters
 
 def is_in_GD1(objs):
     """Whether a target lies within the GD1 stellar stream.
@@ -49,14 +48,15 @@ def is_in_GD1(objs):
     -----
 
     """
-    # ADM the parameters that define the coordinates of the stream.
-    rapol, decpol, ra_ref = 34.5987, 29.7331, 200
-
-    # ADM the parameters that define the extent of the stream.
-    mind, maxd = 80, 100
-
     # ADM the name of the stream.
     stream_name = "GD1"
+
+    # ADM look up the defining parameters of the stream.
+    stream = get_stream_parameters(stream_name)
+    # ADM the parameters that define the coordinates of the stream.
+    rapol, decpol, ra_ref = stream["RAPOL"], stream["DECPOL"], stream["RA_REF"]
+    # ADM the parameters that define the extent of the stream.
+    mind, maxd = stream["MIND"], stream["MAXD"]
 
     # ADM collect the data, including Gaia-matching to DR3.
     D = read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
@@ -67,7 +67,7 @@ def is_in_GD1(objs):
 
     # ADM distance of the stream (similar to Koposov et al. 2010 paper).
     dist = stream_distance(fi1, stream_name)
-    
+
     # ADM heliocentric correction to proper motion.
     xpmra, xpmdec = correct_pm(objs['RA'], objs['DEC'],
                                objs['PMRA'], objs['PMDEC'], dist)
@@ -80,7 +80,7 @@ def is_in_GD1(objs):
     pmra_error = 1./np.sqrt(objs['PMRA_IVAR'])
     pmdec_error = 1./np.sqrt(objs['PMDEC_IVAR'])
     pm_err = np.sqrt(0.5 * (pmra_error**2 + pmdec_error**2))
-    
+
     # ADM dust correction.
     ext_coeff = dict(g=3.237, r=2.176, z=1.217)
     eg, er, ez = [ext_coeff[_] * objs['EBV'] for _ in 'grz']
@@ -151,7 +151,7 @@ def is_in_GD1(objs):
     faint_sel &= stellar_locus_sel
     tot = np.sum(faint_sel & field_sel)
     log.info(f"Objects in the field that meet the faint selection: {tot}")
-    
+
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)
     common_filler_sel &= betw(r, 19, faint_limit)
@@ -165,5 +165,5 @@ def is_in_GD1(objs):
     filler_red_sel = common_filler_sel & betw(g - r, 1.2, 2.2)
     tot = np.sum(filler_sel & field_sel)
     log.info(f"Objects in the field that meet the filler selection: {tot}")
-    
+
     return

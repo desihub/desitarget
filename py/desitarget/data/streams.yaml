@@ -1,7 +1,14 @@
-# ADM This yaml file stores isochrones for stellar streams.
+# ADM This yaml file stores isochrones and coordinate information for stellar streams.
 
 # ADM the gd1 stream.
 GD1:
+    # ADM stream coordinates.
+    RAPOL: 34.5987
+    DECPOL: 29.7331
+    RA_REF: 200
+    # ADM stream extent.
+    MIND: 80
+    MAXD: 100
     # ADM color offset.
     COLOFF: -0.01
     # ADM magnitude offset.
