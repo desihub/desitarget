@@ -620,8 +620,12 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         # ADM only retain objects in the stream...
         ii = betw(sep.value, mind, maxd)
 
-        # ADM ...that aren't very faint (> 22.5 mag)...
+        # ADM ...that aren't very faint (> 22.5 mag in r).
         ii &= objs["FLUX_R"] > 1
+        # ADM Also guard against negative fluxes in g/r.
+        ii &= objs["FLUX_G"] > 0.
+        ii &= objs["FLUX_Z"] > 0.
+
         objs = objs[ii]
 
         # ADM limit to northern objects in northern imaging and southern
@@ -647,7 +651,7 @@ def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
 
         # ADM retain the data from this part of the loop.
         allobjs.append(data)
-        if i % 10 == 9:
+        if i % 5 == 4:
             log.info(f"Ran {i+1}/{len(infiles)} files...t={time()-start:.1f}s")
 
     # ADM assemble all of the relevant objects.

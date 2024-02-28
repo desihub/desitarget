@@ -423,7 +423,7 @@ def write_with_units(filename, data, extname=None, header=None, ecsv=False):
 
     Returns
     -------
-    Nothing, but writes the `data` to the `filename` in chunks with units
+    Nothing, but writes the `data` to the `filename` with units
     added from the desitarget units yaml file (see `/data/units.yaml`).
 
     Notes
