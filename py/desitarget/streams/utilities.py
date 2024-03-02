@@ -1,6 +1,6 @@
 """
-desitarget.streamutilties
-=========================
+desitarget.streams.utilties
+===========================
 
 Utilities for the DESI MWS Stellar Stream programs.
 
@@ -447,7 +447,10 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     if 'PARALLAX_ERROR' in D.dtype.names:
         parallax_error = D['PARALLAX_ERROR']
     elif 'PARALLAX_IVAR' in D.dtype.names:
-        parallax_error = 1./np.sqrt(D['PARALLAX_IVAR'])
+        # ADM guard against dividing by zero.
+        parallax_error = np.zeros_like(D["PARALLAX_IVAR"]) + 1e8
+        ii = D['PARALLAX_IVAR'] != 0
+        parallax_error[ii] = 1./np.sqrt(D[ii]['PARALLAX_IVAR'])
     else:
         msg = "Either PARALLAX_ERROR or PARALLAX_IVAR must be passed!"
         log.error(msg)

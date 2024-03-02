@@ -1,7 +1,6 @@
 """
-
-desitarget.streamcuts
-=====================
+desitarget.streams.cuts
+=======================
 
 Target selection cuts for the DESI MWS Stellar Stream programs.
 
@@ -19,7 +18,9 @@ import astropy.table as atpy
 from desitarget.cuts import _psflike
 from desitarget.streams.utilities import sphere_rotate, correct_pm, rotate_pm, \
     betw, pm12_sel_func, plx_sel_func, get_CMD_interpolator, stream_distance,  \
-    get_stream_parameters
+    get_stream_parameters, read_data
+from desitarget.targets import resolve
+from desitarget.streams.targets import finalize
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -184,3 +185,125 @@ def is_in_GD1(objs):
         log.error(msg)
 
     return bright_pm, faint_no_pm, filler
+
+
+def set_target_bits(objs, stream_names=["GD1"]):
+    """Select stream targets, returning target mask arrays.
+
+    Parameters
+    ----------
+    objects : :class:`~numpy.ndarray`
+        numpy structured array with UPPERCASE columns needed for
+        stream target selection. See, e.g.,
+        :func:`~desitarget.stream.cuts.is_in_GD1` for column names.
+    stream_names : :class:`list`
+        A list of stream names to process. Defaults to all streams.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        (desi_target, bgs_target, mws_target, scnd_target) where each
+        element is an array of target selection bitmasks for each object.
+
+    Notes
+    -----
+    - See ../data/targetmask.yaml for the definition of each bit.
+    """
+    from desitarget.targetmask import desi_mask, scnd_mask
+
+    # ADM set up a zerod scnd_target array to |= with later.
+    scnd_target = np.zeros_like(objs["RA"], dtype='int64')
+
+    # ADM might be able to make this more general by putting the
+    # ADM bit names in the data/yaml file and using globals()
+    # ADM to recover the is_in() functions.
+
+    if "GD1" in stream_names:
+        gd1_bright_pm, gd1_faint_no_pm, gd1_filler = is_in_GD1(objs)
+
+        scnd_target |= gd1_bright_pm * scnd_mask.GD1_BRIGHT_PM
+        scnd_target |= gd1_faint_no_pm * scnd_mask.GD1_FAINT_NO_PM
+        scnd_target |= gd1_filler * scnd_mask.GD1_FILLER
+
+    # ADM tell DESI_TARGET where SCND_ANY was updated.
+    desi_target = (scnd_target != 0) * desi_mask.SCND_ANY
+
+    # ADM set BGS_TARGET and MWS_TARGET to zeros.
+    bgs_target = np.zeros_like(scnd_target)
+    mws_target = np.zeros_like(scnd_target)
+
+    return desi_target, bgs_target, mws_target, scnd_target
+
+
+def select_targets(swdir, stream_names=["GD1"], readcache=True):
+    """Process files from an input directory to select targets.
+
+    Parameters
+    ----------
+    swdir : :class:`str`
+        Root directory of Legacy Surveys sweep files for a given data
+        release for ONE of EITHER north or south, e.g.
+        "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
+    stream_names : :class:`list`
+        A list of stream names to process. Defaults to all streams.
+    readcache : :class:`bool`
+        If ``True`` read all data from previously made cache files,
+        in cases where such files exist. If ``False`` don't read
+        from caches AND OVERWRITE any cached files, if they exist. Cache
+        files are named $TARG_DIR/streamcache/streamname-drX-cache.fits,
+        where streamname is the lower-case name from `stream_names` and
+        drX is the Legacy Surveys Data Release (parsed from `swdir`).
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Targets in the input `swdir` which pass the cuts with added
+        targeting columns such as ``TARGETID``, and ``DESI_TARGET``,
+        ``BGS_TARGET``, ``MWS_TARGET``, ``SCND_TARGET`` (i.e. target
+        selection bitmasks).
+    """
+    # ADM loop over streams and read in the data.
+    # ADM eventually, for multiple streams, we would likely switch this
+    # ADM to reading in each sweep file and parallelizing across files.
+    allobjs = []
+    for stream_name in stream_names:
+        # ADM read in the data.
+        strm = get_stream_parameters(stream_name)
+        # ADM the parameters that define the coordinates of the stream.
+        rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
+        # ADM the parameters that define the extent of the stream.
+        mind, maxd = strm["MIND"], strm["MAXD"]
+        # ADM read in the data.
+        objs = read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
+                         readcache=readcache)
+        allobjs.append(objs)
+    objects = np.concatenate(allobjs)
+
+    # ADM process the targets.
+    desi_target, bgs_target, mws_target, scnd_target = set_target_bits(
+        objs, stream_names=[stream_name])
+
+    # ADM finalize the targets.
+    # ADM anything with DESI_TARGET !=0 is truly a target.
+    ii = (desi_target != 0)
+    objects = objects[ii]
+    desi_target = desi_target[ii]
+    bgs_target = bgs_target[ii]
+    mws_target = mws_target[ii]
+    scnd_target = scnd_target[ii]
+
+    # ADM add TARGETID and targeting bitmask columns.
+    targets = finalize(objects, desi_target, bgs_target, mws_target, scnd_target)
+
+    # ADM resolve any duplicates between imaging data releases.
+    targets = resolve(targets)
+
+    # ADM we'll definitely need to update the read_data loop if we ever
+    # ADM have overlapping targets in overlapping streams.
+    if len(np.unique(targets["TARGETID"])) != len(targets):
+        msg = ("Targets are not unique. The code needs updated to read in the "
+               "sweep files one-by-one (as in desitarget.cuts.select_targets()) "
+               "rather than caching each individual stream")
+        log.error(msg)
+
+    return targets
