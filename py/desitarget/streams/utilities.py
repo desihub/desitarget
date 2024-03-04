@@ -10,20 +10,13 @@ Borrows heavily from Sergey Koposov's `astrolibpy routines`_.
 """
 import yaml
 import os
-import fitsio
 import numpy as np
-import healpy as hp
 import astropy.coordinates as acoo
 import astropy.units as auni
 from pkg_resources import resource_filename
 from scipy.interpolate import UnivariateSpline
 from time import time
 from zero_point import zero_point as gaia_zpt
-
-from desitarget import io
-from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touch_hp
-from desitarget.gaiamatch import match_gaia_to_primary
-from desitarget.targets import resolve
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -42,18 +35,6 @@ GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
 # ADM some standard units.
 kms = auni.km / auni.s
 masyr = auni.mas / auni.year
-
-# ADM the standard data model for working with streams.
-streamcols = np.array([], dtype=[
-    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'S4'),
-    ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
-    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
-    ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
-    ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
-    ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
-    ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('NU_EFF_USED_IN_ASTROMETRY', '>f4'),
-    ('PSEUDOCOLOUR', '>f4'), ('PHOT_G_MEAN_MAG', '>f4'), ('ECL_LAT', '>f8')
-])
 
 
 def cosd(x):
@@ -485,192 +466,3 @@ def stream_distance(fi1, stream_name):
         msg = f"stream name {stream_name} not recognized"
         log.error(msg)
 
-
-def read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
-              readcache=True, addnors=True, test=False):
-    """Assemble the data needed for a particular stream program.
-
-    Example values for GD1:
-    swdir = "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0"
-    rapol, decpol, ra_ref = 34.5987, 29.7331, 200
-    mind, maxd = 80, 100
-
-    Parameters
-    ----------
-    swdir : :class:`str`
-        Root directory of Legacy Surveys sweep files for a given data
-        release for ONE of EITHER north or south, e.g.
-        "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
-    rapol, decpol : :class:`float`
-        Pole in the stream coordinate system in DEGREES.
-    ra_ref : :class:`float`
-        Zero latitude in the stream coordinate system in DEGREES.
-    mind, maxd : :class:`float` or `int`
-        Minimum and maximum angular distance from the pole of the stream
-        coordinate system to search for members in DEGREES.
-    stream_name : :class:`str`
-        Name of a stream. Used to make the cached filename, e.g. "GD1".
-    readcache : :class:`bool`
-        If ``True`` read from a previously constructed and cached file
-        automatically, IF such a file exists. If ``False`` don't read
-        from the cache AND OVERWRITE the cached file, if it exists. The
-        cached file is $TARG_DIR/streamcache/streamname-drX-cache.fits,
-        where streamname is the lower-case passed `stream_name` and drX
-        is the Legacy Surveys Data Release (parsed from `swdir`).
-    addnors : :class:`bool`
-        If ``True`` then if `swdir` contains "north" add sweep files from
-        the south by substituting "south" in place of "north" (and vice
-        versa, i.e. if `swdir` contains "south" add sweep files from the
-        north by substituting "north" in place of "south").
-    test : :class:`bool`
-        Read a subset of the data for testing purposes.
-
-    Returns
-    -------
-    :class:`array_like` or `boolean`
-        ``True`` for stream members.
-
-    Notes
-    -----
-    - The $TARG_DIR environment variable must be set to read/write from
-      a cache. If $TARG_DIR is not set, caching is completely ignored.
-    """
-    # ADM The Gaia DR to which to match.
-    gaiadr = "dr3"
-
-    # ADM check whether $TARG_DIR exists. If it does, agree to read from
-    # ADM and write to the cache.
-    writecache = True
-    targdir = os.environ.get("TARG_DIR")
-    if targdir is None:
-        msg = "Set $TARG_DIR environment variable to use the cache!"
-        log.info(msg)
-        readcache = False
-        writecache = False
-    else:
-        # ADM retrieve the data release from the passed sweep directory.
-        dr = [i for i in swdir.split(os.sep) if "dr" in i]
-        # ADM fail if this doesn't look like a standard sweep directory.
-        if len(dr) != 1:
-            msg = 'swdir not parsed: should include a construction like '
-            msg += '"dr9" or "dr10"'
-            raise ValueError(msg)
-        cachefile = os.path.join(os.getenv("TARG_DIR"), "streamcache",
-                                 f"{stream_name.lower()}-{dr[0]}-cache.fits")
-
-    # ADM if we have a cache, read it if requested and return the data.
-    if readcache:
-        if os.path.isfile(cachefile):
-            objs = fitsio.read(cachefile, ext="STREAMCACHE")
-            msg = f"Read {len(objs)} objects from {cachefile} cache file"
-            log.info(msg)
-            return objs
-        else:
-            msg = f"{cachefile} cache file doesn't exist. "
-            msg += f"Proceeding as if readcache=False"
-            log.info(msg)
-
-    # ADM read in the sweep files.
-    infiles = io.list_sweepfiles(swdir)
-
-    # ADM read both the north and south directories, if requested.
-    if addnors:
-        if "south" in swdir:
-            infiles2 = swdir.replace("south", "north")
-        elif "north" in swdir:
-            infiles2 = swdir.replace("north", "south")
-        else:
-            msg = "addnors passed but swdir does not contain north or south!"
-            raise ValueError(msg)
-        infiles += io.list_sweepfiles(infiles2)
-
-    # ADM calculate nside for HEALPixel of approximately 1o to limit
-    # ADM number of sweeps files that need to be read.
-    nside = pixarea2nside(1)
-
-    # ADM determine RA, Dec of all HEALPixels at this nside.
-    allpix = np.arange(hp.nside2npix(nside))
-    theta, phi = hp.pix2ang(nside, allpix, nest=True)
-    ra, dec = np.degrees(phi), 90-np.degrees(theta)
-
-    # ADM only retain HEALPixels in the stream, based on mind and maxd.
-    cpix = acoo.SkyCoord(ra*auni.degree, dec*auni.degree)
-    cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
-    sep = cpix.separation(cstream)
-    ii = betw(sep.value, mind, maxd)
-    pixlist = allpix[ii]
-
-    # ADM pad with neighboring pixels to ensure stream is fully covered.
-    newpixlist = add_hp_neighbors(nside, pixlist)
-
-    # ADM determine which sweep files touch the relevant HEALPixels.
-    filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
-    infiles = list(np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
-
-    # ADM read a subset of the data for testing purposes, if requested.
-    if test:
-        msg = "Limiting data to first 20 files for testing purposes"
-        log.info(msg)
-        infiles = infiles[:20]
-
-    # ADM loop through the sweep files and limit to objects in the stream.
-    allobjs = []
-    for i, filename in enumerate(infiles):
-        objs = io.read_tractor(filename)
-        cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
-        sep = cobjs.separation(cstream)
-
-        # ADM only retain objects in the stream...
-        ii = betw(sep.value, mind, maxd)
-
-        # ADM ...that aren't very faint (> 22.5 mag in r).
-        ii &= objs["FLUX_R"] > 1
-        # ADM Also guard against negative fluxes in g/r.
-        ii &= objs["FLUX_G"] > 0.
-        ii &= objs["FLUX_Z"] > 0.
-
-        objs = objs[ii]
-
-        # ADM limit to northern objects in northern imaging and southern
-        # ADM objects in southern imaging.
-        LSobjs = resolve(objs)
-
-        # ADM catch the case where there are no objects meeting the cuts.
-        if len(LSobjs) > 0:
-            gaiaobjs = match_gaia_to_primary(LSobjs, matchrad=1., dr=gaiadr)
-        else:
-            gaiaobjs = LSobjs
-
-        # ADM a (probably unnecessary) sanity check.
-        assert(len(gaiaobjs) == len(LSobjs))
-
-        # ADM only retain critical columns from the global data model.
-        data = np.zeros(len(LSobjs), dtype=streamcols.dtype)
-        # ADM for both Gaia and Legacy Surveys, overwriting with Gaia.
-        for objs in LSobjs, gaiaobjs:
-            sharedcols = set(data.dtype.names).intersection(set(objs.dtype.names))
-            for col in sharedcols:
-                data[col] = objs[col]
-
-        # ADM retain the data from this part of the loop.
-        allobjs.append(data)
-        if i % 5 == 4:
-            log.info(f"Ran {i+1}/{len(infiles)} files...t={time()-start:.1f}s")
-
-    # ADM assemble all of the relevant objects.
-    allobjs = np.concatenate(allobjs)
-    log.info(f"Found {len(allobjs)} total objects...t={time()-start:.1f}s")
-
-    # ADM if cache was passed and $TARG_DIR was set then write the data.
-    if writecache:
-        # ADM if the file doesn't exist we may need to make the directory.
-        log.info(f"Writing cache to {cachefile}...t={time()-start:.1f}s")
-        os.makedirs(os.path.dirname(cachefile), exist_ok=True)
-        # ADM at least add the Gaia DR used to the header.
-        hdr = fitsio.FITSHDR()
-        hdr.add_record(dict(name="GAIADR", value=gaiadr,
-                            comment="GAIA Data Release matched to"))
-        io.write_with_units(cachefile, allobjs,
-                            header=hdr, extname="STREAMCACHE")
-
-    return allobjs

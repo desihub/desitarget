@@ -18,15 +18,16 @@ import astropy.table as atpy
 from desitarget.cuts import _psflike
 from desitarget.streams.utilities import sphere_rotate, correct_pm, rotate_pm, \
     betw, pm12_sel_func, plx_sel_func, get_CMD_interpolator, stream_distance,  \
-    get_stream_parameters, read_data
+    get_stream_parameters
+from desitarget.streams.io import read_data_per_stream
 from desitarget.targets import resolve
 from desitarget.streams.targets import finalize
 
-# ADM set up the DESI default logger
+# ADM set up the DESI default logger.
 from desiutil.log import get_logger
 log = get_logger()
 
-# ADM start the clock
+# ADM start the clock.
 start = time()
 
 
@@ -235,7 +236,8 @@ def set_target_bits(objs, stream_names=["GD1"]):
     return desi_target, bgs_target, mws_target, scnd_target
 
 
-def select_targets(swdir, stream_names=["GD1"], readcache=True):
+def select_targets(swdir, stream_names=["GD1"], readperstream=True,
+                   readcache=True):
     """Process files from an input directory to select targets.
 
     Parameters
@@ -246,7 +248,12 @@ def select_targets(swdir, stream_names=["GD1"], readcache=True):
         "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
     stream_names : :class:`list`
         A list of stream names to process. Defaults to all streams.
-    readcache : :class:`bool`
+    readperstream : :class:`bool`, optional, defaults to ``True``
+        When set, read each stream's data individually instead of looping
+        through all possible sweeps files. This is likely quickest and
+        most useful when working with a single stream. For multiple
+        streams it may cause issues when duplicate targets are selected.
+    readcache : :class:`bool`, optional, defaults to ``True``
         If ``True`` read all data from previously made cache files,
         in cases where such files exist. If ``False`` don't read
         from caches AND OVERWRITE any cached files, if they exist. Cache
@@ -262,22 +269,28 @@ def select_targets(swdir, stream_names=["GD1"], readcache=True):
         ``BGS_TARGET``, ``MWS_TARGET``, ``SCND_TARGET`` (i.e. target
         selection bitmasks).
     """
-    # ADM loop over streams and read in the data.
-    # ADM eventually, for multiple streams, we would likely switch this
-    # ADM to reading in each sweep file and parallelizing across files.
-    allobjs = []
-    for stream_name in stream_names:
-        # ADM read in the data.
-        strm = get_stream_parameters(stream_name)
-        # ADM the parameters that define the coordinates of the stream.
-        rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
-        # ADM the parameters that define the extent of the stream.
-        mind, maxd = strm["MIND"], strm["MAXD"]
-        # ADM read in the data.
-        objs = read_data(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
-                         readcache=readcache)
+    if readperstream:
+        # ADM loop over streams and read in the data per-stream.
+        # ADM eventually, for multiple streams, we would likely switch
+        # ADM to read in each sweep file and parallelizing across files.
+        allobjs = []
+        for stream_name in stream_names:
+            # ADM read in the data.
+            strm = get_stream_parameters(stream_name)
+            # ADM the parameters that define the coordinates of the stream.
+            rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
+            # ADM the parameters that define the extent of the stream.
+            mind, maxd = strm["MIND"], strm["MAXD"]
+            # ADM read in the data.
+            objs = read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd,
+                                        stream_name, readcache=readcache)
         allobjs.append(objs)
-    objects = np.concatenate(allobjs)
+        objects = np.concatenate(allobjs)
+    else:
+        # ADM --TODO-- write loop across sweeps instead of streams.
+        msg = ("readperstream must be True until we implement looping "
+               "over sweeps instead of streams")
+        log.error(msg)
 
     # ADM process the targets.
     desi_target, bgs_target, mws_target, scnd_target = set_target_bits(

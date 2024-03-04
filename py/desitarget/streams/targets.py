@@ -1,6 +1,6 @@
 """
 desitarget.streams.targets
-===========================
+==========================
 
 Manipulate/add target bitmasks/priorities/numbers of observations for
 stream targets.
