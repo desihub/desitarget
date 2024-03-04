@@ -1,0 +1,76 @@
+#!/usr/bin/env python
+
+from __future__ import print_function, division
+
+import os, sys
+import numpy as np
+import fitsio
+
+from desitarget.streams import io, cuts
+
+from time import time
+start = time()
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description=("Generates DESI target bits from Legacy Surveys"
+                                 " sweeps files")
+                    )
+ap.add_argument("sweepdir",
+                help=("Root directory of LS sweeps for a given data release for "
+                      "ONE of EITHER north or south")
+                )
+ap.add_argument("dest",
+                help=("Output target selection directory (the file name is built"
+                      "on-the-fly from other inputs")
+                )
+ap.add_argument('-s','--streamnames', default="GD1",
+                help=("Comma-separated names of streams to run (e.g. x,y,z). "
+                      "Default is to just run GD1)")
+                )
+ap.add_argument("--donotaddnors", action="store_true",
+                help=("Both the south/north LS files are read by default. Pass "
+                      "this to read only the specific files in passed sweepdir.")
+                )
+ap.add_argument("--donotreadperstream", action="store_true",
+                help=("Default is to read targets in a loop per-stream instead "
+                      "of in a loor per-sweeps file. Pass this to loop over "
+                      " sweep files instead of streams.")
+                )
+ap.add_argument("--donotreadcache", action="store_true",
+                help=("Default is to read from previously cached data files "
+                      "where possible. Pass this to start from scratch (and "
+                      "overwrite caches). Only relevant for --readperstream.")
+                )
+
+ns = ap.parse_args()
+
+# ADM build the list of command line arguments to
+# ADM write to the output header.
+hdr = fitsio.FITSHDR()
+nsdict = vars(ns)
+for k in nsdict:
+    hdr[k.upper()] = nsdict[k]
+
+# ADM change the input comma-separated string of stream names to a list.
+sn = ns.streamnames
+if sn is not None:
+    streamnames = sn.split(',')
+
+print(streamnames, hdr)
+
+# ADM flip the sense of some inputs.
+addnors = not(ns.donotaddnors)
+readperstream = not(ns.donotreadperstream)
+readcache = not(ns.donotreadcache)
+
+targets = cuts.select_targets(
+    ns.sweepdir, stream_names=streamnames, readperstream=readperstream,
+    addnors=addnors, readcache=readcache
+)
+
+ntargs, filename = io.write_targets(ns.dest, targets, header)
+
+log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")
