@@ -18,6 +18,7 @@ from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touc
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.targets import resolve
 from desitarget.streams.utilities import betw
+from desiutil import depend
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -234,17 +235,22 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     return allobjs
 
 
-def write_targets(filename, targs, header):
+def write_targets(dirname, targs, header, streamnames=""):
     """Write stream targets to a FITS file.
 
     Parameters
     ----------
-    filename : :class:`str`
-        The output filename.
+    dirname : :class:`str`
+        The output directory name. Filenames are constructed from other
+        inputs.
     targs : :class:`~numpy.ndarray`
         The numpy structured array of data to write.
-    header : :class:`dict` optional
+    header : :class:`dict`
         Header for output file. Can be a FITShdr object or dictionary.
+        Pass {} if you have no additional header information.
+    streamnames : :class:`str, optional
+        Information about stream names that correspond to the targets.
+        Included in the output filename.
 
     Returns
     -------
@@ -257,14 +263,27 @@ def write_targets(filename, targs, header):
     -----
     - Must contain at least the columns:
         PHOT_G_MEAN_MAG, PHOT_BP_MEAN_MAG, PHOT_RP_MEAN_MAG and
-        FIBERTOTFLUX_G, FIBERTOTFLUX_R, FIBERTOTFLUX_Z
+        FIBERTOTFLUX_G, FIBERTOTFLUX_R, FIBERTOTFLUX_Z, RELEASE
     - Always OVERWRITES existing files!
-    - Writes atomically. Any files that died mid-write will be
+    - Writes atomically. Any output files that died mid-write will be
       appended by ".tmp".
     - Units are automatically added from the desitarget units yaml file
       (see `/data/units.yaml`).
-    - Currently mostly wraps :func:`~desitarget.io.write_with_units`.
+    - Mostly wraps :func:`~desitarget.io.write_with_units`.
     """
+    # ADM construct the output filename.
+    drs = list(set(targs["RELEASE"]//1000))
+    if len(drs) == 1:
+        drint = drs[0]
+        drstr = f"dr{drint}"
+    else:
+        log.info("Couldn't parse LS data release. Defaulting to drX.")
+        drint = "X"
+        drstr = "drX"
+    outfn = f"streamtargets-{streamnames.lower()}-bright.fits"
+    outfn = os.path.join(dirname, drstr, io.desitarget_version,
+                         "streamtargets", "main", "resolve", "bright", outfn)
+
     # ADM check if any targets are too bright.
     maglim = 15
     fluxlim = 10**((22.5-maglim)/2.5)
@@ -275,8 +294,25 @@ def write_targets(filename, targs, header):
         toobright |= (targs[col] != 0) & (targs[col] > fluxlim)
     if np.any(toobright):
         tids = targs["TARGETID"][toobright]
-        log.warning(f"Targets TOO BRIGHT to be written to {filename}: {tids}")
+        log.warning(f"Targets TOO BRIGHT to be written to {outfn}: {tids}")
 
-    io.write_with_units(filename, targs, extname="STREAMTARGETS", header=header)
+    # ADM add the DESI dependencies.
+    depend.add_dependencies(header)
+    # ADM some other useful header information.
+    depend.setdep(header, 'desitarget', io.desitarget_version)
+    depend.setdep(header, 'desitarget-git', io.gitversion())
+    depend.setdep(header, 'photcat', drstr)
 
-    return len(targs), filename
+    # ADM add information to construct the filename to the header.
+    header["OBSCON"] = "bright"
+    header["SURVEY"] = "main"
+    header["RESOLVE"] = True
+    header["DR"] = drint
+    header["GAIADR"] = gaiadr
+
+    # ADM create necessary directories, if they don't exist.
+    os.makedirs(os.path.dirname(outfn), exist_ok=True)
+    # ADM and, finally, write out the targets.
+    io.write_with_units(outfn, targs, extname="STREAMTARGETS", header=header)
+
+    return len(targs), outfn
