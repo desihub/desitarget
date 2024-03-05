@@ -465,4 +465,3 @@ def stream_distance(fi1, stream_name):
     else:
         msg = f"stream name {stream_name} not recognized"
         log.error(msg)
-

@@ -237,7 +237,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
 
 
 def select_targets(swdir, stream_names=["GD1"], readperstream=True,
-                   readcache=True):
+                   addnors=True, readcache=True):
     """Process files from an input directory to select targets.
 
     Parameters
@@ -253,6 +253,11 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
         through all possible sweeps files. This is likely quickest and
         most useful when working with a single stream. For multiple
         streams it may cause issues when duplicate targets are selected.
+    addnors : :class:`bool`
+        If ``True`` then if `swdir` contains "north" add sweep files from
+        the south by substituting "south" in place of "north" (and vice
+        versa, i.e. if `swdir` contains "south" add sweep files from the
+        north by substituting "north" in place of "south").
     readcache : :class:`bool`, optional, defaults to ``True``
         If ``True`` read all data from previously made cache files,
         in cases where such files exist. If ``False`` don't read
@@ -283,7 +288,8 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
             mind, maxd = strm["MIND"], strm["MAXD"]
             # ADM read in the data.
             objs = read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd,
-                                        stream_name, readcache=readcache)
+                                        stream_name,
+                                        addnors=addnors, readcache=readcache)
         allobjs.append(objs)
         objects = np.concatenate(allobjs)
     else:

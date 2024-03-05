@@ -70,11 +70,9 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
     targets = rfn.rename_fields(targets,
                                 {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
 
-
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                brickid=targets['BRICKID'],
                                release=targets['RELEASE'])
-
 
     nodata = np.zeros(ntargets, dtype='int')-1
     subpriority = np.zeros(ntargets, dtype='float')

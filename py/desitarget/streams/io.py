@@ -9,12 +9,15 @@ from time import time
 import os
 import fitsio
 import numpy as np
+import healpy as hp
+import astropy.coordinates as acoo
+import astropy.units as auni
 
 from desitarget import io
 from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touch_hp
 from desitarget.gaiamatch import match_gaia_to_primary
 from desitarget.targets import resolve
-
+from desitarget.streams.utilities import betw
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -27,12 +30,15 @@ start = time()
 streamcols = np.array([], dtype=[
     ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'S4'),
     ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
-    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
+    ('FLUX_G', '>f4'), ('FIBERTOTFLUX_G', '>f4'),
+    ('FLUX_R', '>f4'), ('FIBERTOTFLUX_R', '>f4'),
+    ('FLUX_Z', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
     ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
     ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
     ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
     ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('NU_EFF_USED_IN_ASTROMETRY', '>f4'),
-    ('PSEUDOCOLOUR', '>f4'), ('PHOT_G_MEAN_MAG', '>f4'), ('ECL_LAT', '>f8')
+    ('PSEUDOCOLOUR', '>f4'), ('ECL_LAT', '>f8'), ('PHOT_G_MEAN_MAG', '>f4'),
+    ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_MAG', '>f4')
 ])
 
 # ADM the Gaia Data Release for matching throughout this module.
@@ -40,7 +46,7 @@ gaiadr = "dr3"
 
 
 def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
-              readcache=True, addnors=True, test=False):
+                         readcache=True, addnors=True, test=False):
     """Assemble the data needed for a particular stream program.
 
     Parameters
@@ -226,3 +232,51 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
                             header=hdr, extname="STREAMCACHE")
 
     return allobjs
+
+
+def write_targets(filename, targs, header):
+    """Write stream targets to a FITS file.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The output filename.
+    targs : :class:`~numpy.ndarray`
+        The numpy structured array of data to write.
+    header : :class:`dict` optional
+        Header for output file. Can be a FITShdr object or dictionary.
+
+    Returns
+    -------
+    :class:`int`
+        The number of targets that were written to file.
+    :class:`str`
+        The name of the file to which targets were written.
+
+    Notes
+    -----
+    - Must contain at least the columns:
+        PHOT_G_MEAN_MAG, PHOT_BP_MEAN_MAG, PHOT_RP_MEAN_MAG and
+        FIBERTOTFLUX_G, FIBERTOTFLUX_R, FIBERTOTFLUX_Z
+    - Always OVERWRITES existing files!
+    - Writes atomically. Any files that died mid-write will be
+      appended by ".tmp".
+    - Units are automatically added from the desitarget units yaml file
+      (see `/data/units.yaml`).
+    - Currently mostly wraps :func:`~desitarget.io.write_with_units`.
+    """
+    # ADM check if any targets are too bright.
+    maglim = 15
+    fluxlim = 10**((22.5-maglim)/2.5)
+    toobright = np.zeros(len(targs), dtype="?")
+    for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"]:
+        toobright |= (targs[col] != 0) & (targs[col] < maglim)
+    for col in ["FIBERTOTFLUX_G", "FIBERTOTFLUX_R", "FIBERTOTFLUX_Z"]:
+        toobright |= (targs[col] != 0) & (targs[col] > fluxlim)
+    if np.any(toobright):
+        tids = targs["TARGETID"][toobright]
+        log.warning(f"Targets TOO BRIGHT to be written to {filename}: {tids}")
+
+    io.write_with_units(filename, targs, extname="STREAMTARGETS", header=header)
+
+    return len(targs), filename
