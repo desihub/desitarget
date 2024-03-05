@@ -9,7 +9,7 @@ for details and attribution.
 ## License
 
 The contents of this (and only this) directory retain the original
-GNU LESSER GENERAL PUBLIC LICENSE included herein.
+[GNU LESSER GENERAL PUBLIC LICENSE included herein](./LICENSE).
 
 ## Justification
 
