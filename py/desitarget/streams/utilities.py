@@ -16,7 +16,7 @@ import astropy.units as auni
 from pkg_resources import resource_filename
 from scipy.interpolate import UnivariateSpline
 from time import time
-from zero_point import zero_point as gaia_zpt
+import desitarget.streams.gaia_dr3_parallax_zero_point.zpt as gaia_zpt
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
