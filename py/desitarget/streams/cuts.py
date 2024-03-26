@@ -27,9 +27,6 @@ from desitarget.streams.targets import finalize
 from desiutil.log import get_logger
 log = get_logger()
 
-# ADM start the clock.
-start = time()
-
 
 def is_in_GD1(objs):
     """Whether a target lies within the GD1 stellar stream.
@@ -52,6 +49,9 @@ def is_in_GD1(objs):
     :class:`array_like`
         ``True`` if the object is a white dwarf "FILLER" target.
     """
+    # ADM start the clock.
+    start = time()
+
     # ADM the name of the stream.
     stream_name = "GD1"
 
