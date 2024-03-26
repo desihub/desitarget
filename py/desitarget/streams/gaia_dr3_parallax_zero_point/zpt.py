@@ -6,10 +6,13 @@ import os
 import numpy as np
 import warnings
 
-__mypath = os.path.dirname(os.path.abspath(__file__))
+from importlib import resources as importlib_resources
 
-_file5_currentversion = __mypath + '/coefficients/z5_200720.txt'
-_file6_currentversion = __mypath + '/coefficients/z6_200720.txt'
+__mypath = importlib_resources.files('desitarget')
+__mypath = __mypath / 'streams' / 'gaia_dr3_parallax_zero_point'
+
+_file5_currentversion = __mypath / 'coefficients' / 'z5_200720.txt'
+_file6_currentversion = __mypath / 'coefficients' / 'z6_200720.txt'
 
 
 # Definition of functions that load the coefficient tables and initialize the global variables

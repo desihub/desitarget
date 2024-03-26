@@ -25,8 +25,8 @@ log = get_logger()
 # ADM start the clock.
 start = time()
 
-# ADM load the Gaia zeropoints.
-gaia_zpt.zpt.load_tables()
+# ADM load the Gaia zero points.
+gaia_zpt.load_tables()
 
 # ADM Galactic reference frame. Use astropy v4.0 defaults.
 GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
@@ -413,12 +413,12 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     # extra plx systematic error padding
     plx_sys = 0.05
     subset = np.in1d(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
-    plx_zpt_tmp = gaia_zpt.zpt.get_zpt(D['PHOT_G_MEAN_MAG'][subset],
-                                       D['NU_EFF_USED_IN_ASTROMETRY'][subset],
-                                       D['PSEUDOCOLOUR'][subset],
-                                       D['ECL_LAT'][subset],
-                                       D['ASTROMETRIC_PARAMS_SOLVED'][subset],
-                                       _warnings=False)
+    plx_zpt_tmp = gaia_zpt.get_zpt(D['PHOT_G_MEAN_MAG'][subset],
+                                   D['NU_EFF_USED_IN_ASTROMETRY'][subset],
+                                   D['PSEUDOCOLOUR'][subset],
+                                   D['ECL_LAT'][subset],
+                                   D['ASTROMETRIC_PARAMS_SOLVED'][subset],
+                                   _warnings=False)
     plx_zpt = np.zeros(len(D['RA']))
     plx_zpt_tmp[~np.isfinite(plx_zpt_tmp)] = 0
     plx_zpt[subset] = plx_zpt_tmp
