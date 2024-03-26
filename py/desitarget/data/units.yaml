@@ -13,7 +13,7 @@ BRICKID:
 BRICKNAME:
 DCHISQ:
 DEC: deg
-DEC_IVAR: 1/deg^2
+DEC_IVAR: deg^-2
 EBV: mag
 FIBERFLUX_G: nanomaggy
 FIBERFLUX_R: nanomaggy
@@ -22,13 +22,13 @@ FIBERTOTFLUX_G: nanomaggy
 FIBERTOTFLUX_R: nanomaggy
 FIBERTOTFLUX_Z: nanomaggy
 FLUX_G: nanomaggy
-FLUX_IVAR_G: 1/nanomaggy^2
-FLUX_IVAR_R: 1/nanomaggy^2
-FLUX_IVAR_W1: 1/nanomaggy^2
-FLUX_IVAR_W2: 1/nanomaggy^2
-FLUX_IVAR_W3: 1/nanomaggy^2
-FLUX_IVAR_W4: 1/nanomaggy^2
-FLUX_IVAR_Z: 1/nanomaggy^2
+FLUX_IVAR_G: nanomaggy^-2
+FLUX_IVAR_R: nanomaggy^-2
+FLUX_IVAR_W1: nanomaggy^-2
+FLUX_IVAR_W2: nanomaggy^-2
+FLUX_IVAR_W3: nanomaggy^-2
+FLUX_IVAR_W4: nanomaggy^-2
+FLUX_IVAR_Z: nanomaggy^-2
 FLUX_R: nanomaggy
 FLUX_W1: nanomaggy
 FLUX_W2: nanomaggy
@@ -46,11 +46,11 @@ FRACIN_Z:
 FRACMASKED_G:
 FRACMASKED_R:
 FRACMASKED_Z:
-GALDEPTH_G: 1/nanomaggy^2
-GALDEPTH_R: 1/nanomaggy^2
-GALDEPTH_Z: 1/nanomaggy^2
-LC_FLUX_IVAR_W1: 1/nanomaggy^2
-LC_FLUX_IVAR_W2: 1/nanomaggy^2
+GALDEPTH_G: nanomaggy^-2
+GALDEPTH_R: nanomaggy^-2
+GALDEPTH_Z: nanomaggy^-2
+LC_FLUX_IVAR_W1: nanomaggy^-2
+LC_FLUX_IVAR_W2: nanomaggy^-2
 LC_FLUX_W1: nanomaggy
 LC_FLUX_W2: nanomaggy
 LC_MJD_W1:
@@ -69,11 +69,11 @@ NOBS_G:
 NOBS_R:
 NOBS_Z:
 OBJID:
-PSFDEPTH_G: 1/nanomaggy^2
-PSFDEPTH_R: 1/nanomaggy^2
-PSFDEPTH_Z: 1/nanomaggy^2
+PSFDEPTH_G: nanomaggy^-2
+PSFDEPTH_R: nanomaggy^-2
+PSFDEPTH_Z: nanomaggy^-2
 RA: deg
-RA_IVAR: 1/deg^2
+RA_IVAR: deg^-2
 REF_EPOCH: yr
 RELEASE:
 SERSIC:
@@ -83,13 +83,13 @@ SHAPEDEV_E1_IVAR:
 SHAPEDEV_E2:
 SHAPEDEV_E2_IVAR:
 SHAPEDEV_R: arcsec
-SHAPEDEV_R_IVAR: 1/arcsec^2
+SHAPEDEV_R_IVAR: arcsec^-2
 SHAPEEXP_E1:
 SHAPEEXP_E1_IVAR:
 SHAPEEXP_E2:
 SHAPEEXP_E2_IVAR:
 SHAPEEXP_R: arcsec
-SHAPEEXP_R_IVAR: 1/arcsec^2
+SHAPEEXP_R_IVAR: arcsec^-2
 SHAPE_E1:
 SHAPE_E1_IVAR:
 SHAPE_E2:
@@ -117,11 +117,11 @@ GAIA_DUPLICATED_SOURCE:
 GAIA_ASTROMETRIC_SIGMA5D_MAX:
 GAIA_ASTROMETRIC_PARAMS_SOLVED:
 PARALLAX: mas
-PARALLAX_IVAR: 1/mas^2
+PARALLAX_IVAR: mas^-2
 PMRA: mas / yr
-PMRA_IVAR: yr^2 / mas^2
+PMRA_IVAR: yr2 / mas2
 PMDEC: mas / yr
-PMDEC_IVAR: yr^2 / mas^2
+PMDEC_IVAR: yr2 / mas2
 
 # ADM columns specifically added by target selection.
 BGS_TARGET:
@@ -140,9 +140,9 @@ TARGETID:
 
 # ADM sky-related units:
 BLOBDIST: pix
-FIBERFLUX_IVAR_G: 1/nanomaggy^2
-FIBERFLUX_IVAR_R: 1/nanomaggy^2
-FIBERFLUX_IVAR_Z: 1/nanomaggy^2
+FIBERFLUX_IVAR_G: nanomaggy^-2
+FIBERFLUX_IVAR_R: nanomaggy^-2
+FIBERFLUX_IVAR_Z: nanomaggy^-2
 
 # ADM GFA-related units:
 URAT_ID:
@@ -150,15 +150,15 @@ URAT_SEP: arcsec
 
 # ADM randoms-related units:
 APFLUX_G: nanomaggy
-APFLUX_IVAR_G: 1/nanomaggy^2
-APFLUX_IVAR_R: 1/nanomaggy^2
-APFLUX_IVAR_Z: 1/nanomaggy^2
+APFLUX_IVAR_G: nanomaggy^-2
+APFLUX_IVAR_R: nanomaggy^-2
+APFLUX_IVAR_Z: nanomaggy^-2
 APFLUX_R: nanomaggy
 APFLUX_Z: nanomaggy
 NUMOBS_MORE:
 PRIORITY:
-PSFDEPTH_W1: 1/nanomaggy^2
-PSFDEPTH_W2: 1/nanomaggy^2
+PSFDEPTH_W1: nanomaggy^-2
+PSFDEPTH_W2: nanomaggy^-2
 PSFSIZE_G: arcsec
 PSFSIZE_R: arcsec
 PSFSIZE_Z: arcsec
@@ -182,5 +182,5 @@ TILEID:
 
 # ADM ToO-related units:
 CHECKER:
-MJD_BEGIN: day
-MJD_END: day
+MJD_BEGIN: d
+MJD_END: d

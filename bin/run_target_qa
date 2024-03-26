@@ -79,7 +79,7 @@ else:
     max_bin_area = 1.0
 
 if ns.prepare:
-    fn = os.path.join(os.getenv("CSCRATCH"), ns.dest)
+    fn = os.path.join(os.getenv("SCRATCH"), ns.dest)
     objs, _, _, hdr = read_data(ns.src, header=True, downsample=ns.downsample)
     fitsio.write(fn+'.tmp', objs, extname='TARGETS', header=hdr, clobber=True)
     os.rename(fn+'.tmp', fn)

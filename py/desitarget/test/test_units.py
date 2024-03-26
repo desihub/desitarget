@@ -42,12 +42,12 @@ class TestUNITS(unittest.TestCase):
         uniq = set(self.units.values())
         uniq.remove(None)
 
-        # ADM nmgy isn't an allowed unit in earlier versions of astropy.
-        if astropyversion.major < 4:
-            uniq = set([i for i in list(uniq) if 'nanomaggy' not in i])
+        # ADM allowed versions of units that aren't FITS-compliant.
+        allowed = ["nanomaggy", "nanomaggy^-2"]
+        uniq = set([i for i in list(uniq) if i not in allowed])
 
         # ADM parse the units to check they're allowed astropy units.
-        parsed = [u.Unit(unit) for unit in uniq]
+        parsed = [u.Unit(unit, format="fits") for unit in uniq]
 
         # ADM these should be equivalent, even though, formally, parsed
         # ADM contains items of type astropy.units.core.Unit.
