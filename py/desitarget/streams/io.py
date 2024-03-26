@@ -24,9 +24,6 @@ from desiutil import depend
 from desiutil.log import get_logger
 log = get_logger()
 
-# ADM start the clock.
-start = time()
-
 # ADM the standard data model for working with streams.
 streamcols = np.array([], dtype=[
     ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'S4'),
@@ -97,6 +94,9 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
       is likely a better choice for looping over the entire LS sweeps
       data when targeting multiple streams.
     """
+    # ADM start the clock.
+    start = time()
+
     # ADM check whether $TARG_DIR exists. If it does, agree to read from
     # ADM and write to the cache.
     writecache = True
