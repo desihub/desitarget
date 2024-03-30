@@ -182,6 +182,9 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         # ADM only retain objects in the stream...
         ii = betw(sep.value, mind, maxd)
 
+        # ADM at a declination of > -20o
+        ii &= objs["DEC"] > -20.
+
         # ADM ...that aren't very faint (> 22.5 mag in r).
         ii &= objs["FLUX_R"] > 1
         # ADM Also guard against negative fluxes in g/r.
