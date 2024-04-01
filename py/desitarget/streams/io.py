@@ -204,24 +204,24 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         # ADM catch the case where there are no objects meeting the cuts.
         if len(LSobjs) > 0:
             gaiaobjs = match_gaia_to_primary(LSobjs, matchrad=1., dr=gaiadr)
-        else:
-            gaiaobjs = LSobjs
 
-        # ADM a (probably unnecessary) sanity check.
-        assert(len(gaiaobjs) == len(LSobjs))
+            # ADM a (probably unnecessary) sanity check.
+            assert(len(gaiaobjs) == len(LSobjs))
 
-        # ADM only retain critical columns from the global data model.
-        data = np.zeros(len(LSobjs), dtype=
-                        streamcolsLS.dtype.descr + streamcolsGaia.dtype.descr)
-        # ADM add data for the Legacy Surveys columns.
-        for col in streamcolsLS.dtype.names:
-            data[col] = LSobjs[col]
-        # ADM add data for the Gaia columns.
-        for col in streamcolsGaia.dtype.names:
-            data[col] = gaiaobjs[col]
+            # ADM only retain critical columns from the global data model.
+            data = np.zeros(len(LSobjs), dtype=streamcolsLS.dtype.descr +
+                            streamcolsGaia.dtype.descr)
 
-        # ADM retain the data from this part of the loop.
-        allobjs.append(data)
+            # ADM add data for the Legacy Surveys columns.
+            for col in streamcolsLS.dtype.names:
+                data[col] = LSobjs[col]
+            # ADM add data for the Gaia columns.
+            for col in streamcolsGaia.dtype.names:
+                data[col] = gaiaobjs[col]
+
+            # ADM retain the data from this part of the loop.
+            allobjs.append(data)
+
         if i % 5 == 4:
             log.info(f"Ran {i+1}/{len(infiles)} files...t={time()-start:.1f}s")
 
