@@ -194,7 +194,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
 
     Parameters
     ----------
-    objects : :class:`~numpy.ndarray`
+    objs : :class:`~numpy.ndarray`
         numpy structured array with UPPERCASE columns needed for
         stream target selection. See, e.g.,
         :func:`~desitarget.stream.cuts.is_in_GD1` for column names.
@@ -291,7 +291,7 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
             objs = read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd,
                                         stream_name,
                                         addnors=addnors, readcache=readcache)
-        allobjs.append(objs)
+            allobjs.append(objs)
         objects = np.concatenate(allobjs)
     else:
         # ADM --TODO-- write loop across sweeps instead of streams.
@@ -301,7 +301,7 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
 
     # ADM process the targets.
     desi_target, bgs_target, mws_target, scnd_target = set_target_bits(
-        objs, stream_names=[stream_name])
+        objects, stream_names=stream_names)
 
     # ADM finalize the targets.
     # ADM anything with DESI_TARGET !=0 is truly a target.
