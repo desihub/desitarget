@@ -24,13 +24,17 @@ from desiutil import depend
 from desiutil.log import get_logger
 log = get_logger()
 
-# ADM the standard data model for working with streams.
-streamcols = np.array([], dtype=[
+# ADM the Legacy Surveys part of the data model for working with streams.
+streamcolsLS = np.array([], dtype=[
     ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'S4'),
     ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
     ('FLUX_G', '>f4'), ('FIBERTOTFLUX_G', '>f4'),
     ('FLUX_R', '>f4'), ('FIBERTOTFLUX_R', '>f4'),
     ('FLUX_Z', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+])
+
+# ADM the Gaia part of the data model for working with streams.
+streamcolsGaia = np.array([], dtype=[
     ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
     ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
     ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
@@ -135,13 +139,13 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     # ADM read both the north and south directories, if requested.
     if addnors:
         if "south" in swdir:
-            infiles2 = swdir.replace("south", "north")
+            swdir2 = swdir.replace("south", "north")
         elif "north" in swdir:
-            infiles2 = swdir.replace("north", "south")
+            swdir2 = swdir.replace("north", "south")
         else:
             msg = "addnors passed but swdir does not contain north or south!"
             raise ValueError(msg)
-        infiles += io.list_sweepfiles(infiles2)
+        infiles += io.list_sweepfiles(swdir2)
 
     # ADM calculate nside for HEALPixel of approximately 1o to limit
     # ADM number of sweeps files that need to be read.
@@ -182,7 +186,7 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         # ADM only retain objects in the stream...
         ii = betw(sep.value, mind, maxd)
 
-        # ADM at a declination of > -20o
+        # ADM ...at a declination of > -20o...
         ii &= objs["DEC"] > -20.
 
         # ADM ...that aren't very faint (> 22.5 mag in r).
@@ -207,12 +211,14 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
         assert(len(gaiaobjs) == len(LSobjs))
 
         # ADM only retain critical columns from the global data model.
-        data = np.zeros(len(LSobjs), dtype=streamcols.dtype)
-        # ADM for both Gaia and Legacy Surveys, overwriting with Gaia.
-        for objs in LSobjs, gaiaobjs:
-            sharedcols = set(data.dtype.names).intersection(set(objs.dtype.names))
-            for col in sharedcols:
-                data[col] = objs[col]
+        data = np.zeros(len(LSobjs), dtype=
+                        streamcolsLS.dtype.descr + streamcolsGaia.dtype.descr)
+        # ADM add data for the Legacy Surveys columns.
+        for col in streamcolsLS.dtype.names:
+            data[col] = LSobjs[col]
+        # ADM add data for the Gaia columns.
+        for col in streamcolsGaia.dtype.names:
+            data[col] = gaiaobjs[col]
 
         # ADM retain the data from this part of the loop.
         allobjs.append(data)
