@@ -1094,7 +1094,7 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
 
 
 def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
-                         verbose=True):
+                         timestamp=None, verbose=True):
     """
     Add new targets to an existing set of ledgers.
 
@@ -1112,6 +1112,8 @@ def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`).
         Governs the sub-directory for which the ledgers are appended.
+    timestamp : :class:`str`, optional
+        A timestamp to use in place of that assigned by `make_mtl`.
     verbose : :class:`bool`, optional, defaults to ``True``
         If ``True`` then log target and file information.
 
@@ -1127,6 +1129,8 @@ def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
       bits are merged across target classes.
     """
     t0 = time()
+    # ADM a dictionary to hold header keywords for the ouput file.
+    hdr = {}
 
     # ADM get the standard nside.
     nside = _get_mtl_nside()
@@ -1139,6 +1143,13 @@ def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
 
     # ADM execute MTL.
     mtl = make_mtl(targets, obscon, trimcols=True)
+
+    # ADM if requested, substitute a bespoke timestamp.
+    if timestamp is not None:
+        # ADM check the timestamp is valid.
+        _ = check_timestamp(timestamp)
+        hdr["TSFORCED"] = timestamp
+        mtl["TIMESTAMP"] = timestamp
 
     # ADM the HEALPixel within which each target in the MTL lies.
     theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
@@ -1194,7 +1205,8 @@ def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
                 # ADM append new state to bottom of existing file.
                 nt, fn = io.write_mtl(
                     mtldir, oldmatches, ecsv=True, survey="main", obscon=obscon,
-                    nsidefile=nside, hpxlist=pix, scnd=scnd, append=True)
+                    nsidefile=nside, hpxlist=pix, scnd=scnd, extra=hdr,
+                    append=True)
                 if verbose:
                     log.info(
                         f"{nt} targets appended to {fn}...t={time()-t0:.1f}s")
