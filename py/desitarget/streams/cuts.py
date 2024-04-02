@@ -98,7 +98,7 @@ def is_in_GD1(objs):
 
     g, r, z = [22.5 - 2.5 * np.log10(objs['FLUX_' + _]) - ext[_] for _ in 'GRZ']
 
-    # ADM some spline function over which to interpolate.
+    # ADM some spline functions over which to interpolate.
     TRACK = scipy.interpolate.CubicSpline([-90, -70, -50, -40, -20, 0, 20],
                                           [-3, -1.5, -.2, -0., -.0, -1.2, -3])
     PM1TRACK = scipy.interpolate.UnivariateSpline(
@@ -144,7 +144,7 @@ def is_in_GD1(objs):
     stellar_locus_sel = stellar_locus_blue_sel | stellar_locus_red_sel
 
     tot = np.sum(field_sel & gaia_astrom_sel & bright_cmd_sel)
-    print(f"With correct astrometry AND cmd: {tot}...t={time()-start:.1f}s")
+    print(f"Objects meeting bright selection: {tot}...t={time()-start:.1f}s")
 
     # ADM selection for objects that lack Gaia astrometry.
     # ADM has type PSF and in a reasonable isochrone window.
@@ -158,7 +158,7 @@ def is_in_GD1(objs):
     faint_sel &= startyp
     faint_sel &= stellar_locus_sel
     tot = np.sum(faint_sel & field_sel)
-    log.info(f"Objects that meet faint selection: {tot}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting faint selection: {tot}...t={time()-start:.1f}s")
 
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)

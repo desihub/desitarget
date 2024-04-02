@@ -69,6 +69,9 @@ targets = cuts.select_targets(
     addnors=addnors, readcache=readcache
 )
 
-ntargs, outfile = io.write_targets(ns.dest, targets, hdr, streamnames=sn)
+# ADM note that we hardcode for bright conditions. This could change in
+# ADM the future if we add new streams or programs.
+ntargs, outfile = io.write_targets(ns.dest, targets, hdr,
+                                   streamnames=sn, obscon="BRIGHT")
 
 log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

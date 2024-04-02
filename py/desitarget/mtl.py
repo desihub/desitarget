@@ -1093,6 +1093,106 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
     return Table(np.concatenate(gonetargs)), gonetiles
 
 
+def add_to_ledgers_in_hp(targets, nside, pixlist, mtldir=None, obscon="DARK",
+                         verbose=True):
+    """
+    Add new targets to an existing set of ledgers.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.array`
+        Targets made by, e.g. `desitarget.streams.cuts.select_targets()`.
+    nside : :class:`int`
+        (NESTED) HEALPixel nside that corresponds to `pixlist`.
+    pixlist : :class:`list` or `int`
+        HEALPixels at `nside` at which to write the MTLs.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`).
+        Governs the sub-directory for which the ledgers are appended.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log target and file information.
+
+    Returns
+    -------
+    Nothing, but appends the `targets` to the appropriate ledgers in
+    `outdirname`.
+
+    Notes
+    -----
+    - Where there is a matching TARGETID, the priority and number
+      of observations are both set to the higher number and the
+      bits are merged across target classes.
+    """
+    t0 = time()
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM execute MTL.
+    mtl = make_mtl(targets, obscon, trimcols=True)
+
+    # ADM the HEALPixel within which each target in the MTL lies.
+    theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
+    mtlpix = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM Run through each pixel and compare the existing and new MTLs.
+    for pix in pixlist:
+        inpix = mtlpix == pix
+        if np.any(inpix):
+            # ADM the new MTL information.
+            mtlinpix = mtl[inpix]
+            # ADM find existing targets in primary and secondary ledgers.
+            for resolve, scnd in zip([True, None], [False, True]):
+                # ADM read in the existing ledgers.
+                fn = io.find_target_files(mtldir, flavor="mtl", survey="main",
+                                          hp=pix, resolve=resolve, obscon=obscon,
+                                          ender="ecsv")
+                old = io.read_mtl_ledger(fn)
+                # ADM match targets in the new and existing primary MTLs.
+                iim, iio = match(mtlinpix["TARGETID"], old["TARGETID"])
+                # ADM extract the matches and remove them from the new MTLs.
+                mtlmatches = mtlinpix[iim]
+                mtlinpix["TARGETID"][iim] = -1
+                mtlinpix = mtlinpix[mtlinpix["TARGETID"] != -1]
+                # ADM also extract the primary/secondary ledger matches.
+                oldmatches = old[iio]
+                # ADM combine the target bits.
+                for col in ["DESI_TARGET", "BGS_TARGET",
+                            "MWS_TARGET", "SCND_TARGET"]:
+                    oldmatches[col] |= mtlmatches[col]
+                # ADM set NUMOBS_MORE to the larger number.
+                ii = mtlmatches["NUMOBS_MORE"] > oldmatches["NUMOBS_MORE"]
+                oldmatches["NUMOBS_MORE"][ii] = mtlmatches["NUMOBS_MORE"][ii]
+                # ADM set PRIORITY to larger number (+ inherit TARGET_STATE).
+                ii = mtlmatches["PRIORITY"] > oldmatches["PRIORITY"]
+                oldmatches["PRIORITY"][ii] = mtlmatches["PRIORITY"][ii]
+                oldmatches["TARGET_STATE"][ii] = mtlmatches["TARGET_STATE"][ii]
+                # ADM also need to inherit the new timestamp and code version.
+                oldmatches["TIMESTAMP"] = mtlmatches["TIMESTAMP"]
+                oldmatches["VERSION"] = mtlmatches["VERSION"]
+                if scnd==True:
+                    # ADM when done matching to old secondary targets add all
+                    # ADM the remaining new targets to the secondary ledgers.
+                    oldmatches = np.concatenate([oldmatches, mtlinpix])
+                # ADM append new state to bottom of existing file.
+                nt, fn = io.write_mtl(
+                    mtldir, oldmatches, ecsv=True, survey="main", obscon=obscon,
+                    nsidefile=nside, hpxlist=pix, scnd=scnd, append=True)
+                if verbose:
+                    log.info(
+                        f"{nt} targets appended to {fn}...t={time()-t0:.1f}s")
+
+    return
+
+
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
                       timestamp=None, append=False):

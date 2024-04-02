@@ -244,7 +244,7 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     return allobjs
 
 
-def write_targets(dirname, targs, header, streamnames=""):
+def write_targets(dirname, targs, header, streamnames="", obscon=None):
     """Write stream targets to a FITS file.
 
     Parameters
@@ -260,6 +260,13 @@ def write_targets(dirname, targs, header, streamnames=""):
     streamnames : :class:`str, optional
         Information about stream names that correspond to the targets.
         Included in the output filename.
+    obscon : :class:`str`, optional, defaults to `None`
+        Can pass one of "DARK" or "BRIGHT". If passed, don't write the
+        full set of data, rather only write targets appropriate for
+        "DARK" or "BRIGHT" observing conditions. The relevant
+        `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
+        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
+        "dark" appended to the lowest DIRECTORY in the input `filename`.
 
     Returns
     -------
@@ -280,6 +287,11 @@ def write_targets(dirname, targs, header, streamnames=""):
       (see `/data/units.yaml`).
     - Mostly wraps :func:`~desitarget.io.write_with_units`.
     """
+    # ADM limit to just BRIGHT or DARK targets, if requested.
+    # ADM Ignore the filename output, we'll build that on-the-fly.
+    if obscon is not None:
+        _, header, targs = io._bright_or_dark(dirname, header, targs, obscon)
+
     # ADM construct the output filename.
     drs = list(set(targs["RELEASE"]//1000))
     if len(drs) == 1:
