@@ -244,7 +244,8 @@ def read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd, stream_name,
     return allobjs
 
 
-def write_targets(dirname, targs, header, streamnames="", obscon=None):
+def write_targets(dirname, targs, header, streamnames="", obscon=None,
+                  subpriority=True):
     """Write stream targets to a FITS file.
 
     Parameters
@@ -267,6 +268,10 @@ def write_targets(dirname, targs, header, streamnames="", obscon=None):
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
+   subpriority : :class:`bool`, optional, defaults to ``True``
+        If ``True`` and a `SUBPRIORITY` column is in the input `targs`,
+        then `SUBPRIORITY==0.0` entries are overwritten by a random float
+        in the range 0 to 1, using a seed of 816.
 
     Returns
     -------
@@ -316,6 +321,18 @@ def write_targets(dirname, targs, header, streamnames="", obscon=None):
     if np.any(toobright):
         tids = targs["TARGETID"][toobright]
         log.warning(f"Targets TOO BRIGHT to be written to {outfn}: {tids}")
+        # ADM remove the targets that are too bright.
+        targs = targs[~toobright]
+
+    # ADM populate SUBPRIORITY with a reproducible random float.
+    if "SUBPRIORITY" in targs.dtype.names and subpriority:
+        subpseed = 816
+        np.random.seed(subpseed)
+        # SB only set subpriorities that aren't already set, but keep
+        # original full random sequence order.
+        ii = targs["SUBPRIORITY"] == 0.0
+        targs["SUBPRIORITY"][ii] = np.random.random(len(targs))[ii]
+        header["SUBPSEED"] = subpseed
 
     # ADM add the DESI dependencies.
     depend.add_dependencies(header)
