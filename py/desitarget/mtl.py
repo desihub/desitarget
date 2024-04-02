@@ -1093,7 +1093,7 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
     return Table(np.concatenate(gonetargs)), gonetiles
 
 
-def add_to_ledgers_in_hp(targets, nside, pixlist, mtldir=None, obscon="DARK",
+def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
                          verbose=True):
     """
     Add new targets to an existing set of ledgers.
@@ -1102,10 +1102,8 @@ def add_to_ledgers_in_hp(targets, nside, pixlist, mtldir=None, obscon="DARK",
     ----------
     targets : :class:`~numpy.array`
         Targets made by, e.g. `desitarget.streams.cuts.select_targets()`.
-    nside : :class:`int`
-        (NESTED) HEALPixel nside that corresponds to `pixlist`.
     pixlist : :class:`list` or `int`
-        HEALPixels at `nside` at which to write the MTLs.
+        HEALPixels at :func:`_get_mtl_nside()` in which to add to MTLs.
     mtldir : :class:`str`, optional, defaults to ``None``
         Full path to the directory that hosts the MTL ledgers and the MTL
         tile file. If ``None``, then look up the MTL directory from the
@@ -1130,6 +1128,9 @@ def add_to_ledgers_in_hp(targets, nside, pixlist, mtldir=None, obscon="DARK",
     """
     t0 = time()
 
+    # ADM get the standard nside.
+    nside = _get_mtl_nside()
+
     # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
     mtldir = get_mtl_dir(mtldir)
 
@@ -1149,6 +1150,8 @@ def add_to_ledgers_in_hp(targets, nside, pixlist, mtldir=None, obscon="DARK",
         if np.any(inpix):
             # ADM the new MTL information.
             mtlinpix = mtl[inpix]
+            if verbose:
+                log.info(f"Working with {len(mtlinpix)} targets in pixel {pix}")
             # ADM find existing targets in primary and secondary ledgers.
             for resolve, scnd in zip([True, None], [False, True]):
                 # ADM read in the existing ledgers.
@@ -1171,17 +1174,23 @@ def add_to_ledgers_in_hp(targets, nside, pixlist, mtldir=None, obscon="DARK",
                 # ADM set NUMOBS_MORE to the larger number.
                 ii = mtlmatches["NUMOBS_MORE"] > oldmatches["NUMOBS_MORE"]
                 oldmatches["NUMOBS_MORE"][ii] = mtlmatches["NUMOBS_MORE"][ii]
-                # ADM set PRIORITY to larger number (+ inherit TARGET_STATE).
+                # ADM set PRIORITY to larger number
+                # ADM (+ inherit TARGET_STATE and SUBPRIORITY).
                 ii = mtlmatches["PRIORITY"] > oldmatches["PRIORITY"]
                 oldmatches["PRIORITY"][ii] = mtlmatches["PRIORITY"][ii]
+                oldmatches["SUBPRIORITY"][ii] = mtlmatches["SUBPRIORITY"][ii]
                 oldmatches["TARGET_STATE"][ii] = mtlmatches["TARGET_STATE"][ii]
                 # ADM also need to inherit the new timestamp and code version.
                 oldmatches["TIMESTAMP"] = mtlmatches["TIMESTAMP"]
                 oldmatches["VERSION"] = mtlmatches["VERSION"]
-                if scnd==True:
-                    # ADM when done matching to old secondary targets add all
-                    # ADM the remaining new targets to the secondary ledgers.
-                    oldmatches = np.concatenate([oldmatches, mtlinpix])
+                if scnd:
+                    # ADM when done matching to old secondaries add all
+                    # ADM remaining new targets to the secondary ledgers.
+                    # ADM make sure to retain "secondary" column order.
+                    reordered = np.zeros(len(mtlinpix), dtype=oldmatches.dtype.descr)
+                    for col in reordered.dtype.names:
+                        reordered[col] = mtlinpix[col]
+                    oldmatches = np.concatenate([oldmatches, reordered])
                 # ADM append new state to bottom of existing file.
                 nt, fn = io.write_mtl(
                     mtldir, oldmatches, ecsv=True, survey="main", obscon=obscon,
