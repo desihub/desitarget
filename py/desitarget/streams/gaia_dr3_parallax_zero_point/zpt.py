@@ -46,7 +46,7 @@ def load_tables(file5=_file5_currentversion, file6=_file6_currentversion, sep=',
     Initialises the tables containing the coefficients of the interpolations for the Z5 and Z6 functions.
 
     NOTE: USE THE DEFAULT VALUES unless you are very sure of what you are doing.
-    
+
     Inputs
         file5: path to the file with the Z5 coefficients (.txt or similar)
         file6: path to the file with the Z6 coefficients (.txt or similar)
@@ -64,15 +64,15 @@ def load_tables(file5=_file5_currentversion, file6=_file6_currentversion, sep=',
 # astrometric_params_solved
 
 def _calc_zpt(phot_g_mean_mag, nu_eff_used_in_astrometry, pseudocolour, sinBeta, source_type):
-    """ 
+    """
     Compute the zero-point parallax for an array of stars.
-    
+
     WARNING! This function is meant to be auxiliary, therefore it assumes that the inputs are well formatted (see
     get_zpt()) and that all the sources have the same value for astrometric_params_solved. That is, either all are 5p
     (source_type: 5) or 6p (source_type: 6). Never 2p.
     """
 
-    # load the right coefficients: 
+    # load the right coefficients:
     if source_type == 5:
         colour = nu_eff_used_in_astrometry
         j, k, g, q_jk, n, m = j_5, k_5, g_5, q_jk5, n_5, m_5
@@ -141,7 +141,7 @@ def get_zpt(phot_g_mean_mag, nu_eff_used_in_astrometry, pseudocolour, ecl_lat, a
     try:
         global j_5, k_5, g_5, q_jk5, n_5, m_5, j_6, k_6, g_6, q_jk6, n_6, m_6
         len(g_5) + len(g_6)
-    except:
+    except NameError:
         raise ValueError("The table of coefficients have not been initialized!!\n Run load_tables().")
 
     # check input types
@@ -154,7 +154,7 @@ def get_zpt(phot_g_mean_mag, nu_eff_used_in_astrometry, pseudocolour, ecl_lat, a
             # if not an iterable, has to be int or float
             if not (np.can_cast(inp, float) or np.can_cast(inp, int)):
                 raise ValueError(
-                    """The input '{}' is of an unknown type. 
+                    """The input '{}' is of an unknown type.
                        Only types accepted are: float, int, ndarray, list or tuple.""".format(inputs_names[i]))
 
     # check coherence among inputs
@@ -189,7 +189,7 @@ def get_zpt(phot_g_mean_mag, nu_eff_used_in_astrometry, pseudocolour, ecl_lat, a
     # check astrometric_params_solved
     if not np.all((astrometric_params_solved == 31) | (astrometric_params_solved == 95)):
         raise ValueError(
-            """Some of the sources have an invalid number of the astrometric_params_solved and are not one of the two 
+            """Some of the sources have an invalid number of the astrometric_params_solved and are not one of the two
             possible values (31,95). Please provide an acceptable value.""")
 
     # define 5p and 6p sources
@@ -206,7 +206,7 @@ def get_zpt(phot_g_mean_mag, nu_eff_used_in_astrometry, pseudocolour, ecl_lat, a
     if np.any(phot_g_mean_mag >= 21) or np.any(phot_g_mean_mag <= 6):
         if _warnings:
             warnings.warn(
-                """The apparent magnitude of one or more of the sources is outside the expected range (6-21 mag). 
+                """The apparent magnitude of one or more of the sources is outside the expected range (6-21 mag).
                 Outside this range, there is no further interpolation, thus the values at 6 or 21 are returned.""",
                 UserWarning)
             # raise ValueError('The apparent magnitude of the source is outside the valid range (6-21 mag)')
@@ -221,7 +221,7 @@ def get_zpt(phot_g_mean_mag, nu_eff_used_in_astrometry, pseudocolour, ecl_lat, a
             nu_eff_used_in_astrometry[sources_5p] <= 1.1)):
         if _warnings:
             warnings.warn(
-                """The nu_eff_used_in_astrometry of some of the 5p source(s) is outside the expected range (1.1-1.9 
+                """The nu_eff_used_in_astrometry of some of the 5p source(s) is outside the expected range (1.1-1.9
                 mag). Outside this range, the zero-point calculated can be seriously wrong.""",
                 UserWarning)
         else:
@@ -282,14 +282,14 @@ def zpt_wrapper(pandas_row):
     - pseudocolour: effective wavenumber for a 6-parameter solution
     - ecl_lat: ecliptic latitude in degrees
     - astrometric_params_solved (3 -> 2p, 31 -> 5p, 95 -> 6p)
-    
+
     Errors are set to False, therefore stars that are NOT inside the valid range of the interpolators will receive a
     NaN.
-    
+
     Example: df.apply(zpt_wrapper,axis=1)
     """
 
     return get_zpt(pandas_row.phot_g_mean_mag, pandas_row.nu_eff_used_in_astrometry,
-                   pandas_row.pseudocolour,pandas_row.ecl_lat,
+                   pandas_row.pseudocolour, pandas_row.ecl_lat,
                    pandas_row.astrometric_params_solved,
                    _warnings=False)
