@@ -127,7 +127,7 @@ def is_in_GD1(objs):
     pm_pad = 2  # mas/yr padding in pm selection
     gaia_astrom_sel = pm12_sel_func(PM1TRACK(fi1), PM2TRACK(fi1), pmfi1, pmfi2,
                                     pm_err, pm_pad, 2.5)
-    gaia_astrom_sel &= plx_sel_func(fi1, objs, 2.5)
+    gaia_astrom_sel &= plx_sel_func(dist, objs, 2.5)
     gaia_astrom_sel &= r > bright_limit
 
     log.info(f"Objects in the field: {field_sel.sum()}...t={time()-start:.1f}s")
