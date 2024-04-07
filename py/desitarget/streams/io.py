@@ -35,7 +35,8 @@ streamcolsLS = np.array([], dtype=[
 
 # ADM the Gaia part of the data model for working with streams.
 streamcolsGaia = np.array([], dtype=[
-    ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
+    ('REF_EPOCH', '>f4'),  ('SOURCE_ID', '>i8'),
+    ('PARALLAX', '>f4'), ('PARALLAX_IVAR', '>f4'),
     ('PMRA', '>f4'), ('PMRA_IVAR', '>f4'),
     ('PMDEC', '>f4'), ('PMDEC_IVAR', '>f4'),
     ('ASTROMETRIC_PARAMS_SOLVED', '>i1'), ('NU_EFF_USED_IN_ASTROMETRY', '>f4'),
