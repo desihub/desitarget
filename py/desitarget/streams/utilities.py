@@ -17,6 +17,7 @@ from pkg_resources import resource_filename
 from scipy.interpolate import UnivariateSpline
 from time import time
 import desitarget.streams.gaia_dr3_parallax_zero_point.zpt as gaia_zpt
+from numpy.lib import recfunctions as rfn
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -35,6 +36,46 @@ GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
 # ADM some standard units.
 kms = auni.km / auni.s
 masyr = auni.mas / auni.year
+
+
+def ivars_to_errors(objs, colnames=[]):
+    """
+    Convert inverse variances to errors without dividing by zero.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Array that contains the columns to be converted from inverse
+        variances to errors.
+    colnames : :class:`list`
+        The names of the columns to convert.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The input `objs`, modified so that any columns in `colnames` are
+        converted from inverse variances to errors and occurrences of
+        "IVAR" in column names are converted to "ERROR".
+
+    Notes
+    -----
+    - Column names are assumed to be upper case for the conversion of
+      IVAR->ERROR in the column names.
+    - No copy is made to save memory. So `objs` will be modified in place
+      and calls like a = ivars_to_errors(b, colnames=["X"]) will alter
+      values in b as well as returning a.
+    """
+    for colname in colnames:
+        # ADM guard against dividing by zero.
+        error = np.zeros_like(objs[colname]) + 1e8
+        ii = objs[colname] != 0
+        error[ii] = 1./np.sqrt(objs[ii][colname])
+        objs[colname] = error
+        newcolname = colname.replace("IVAR", "ERROR")
+        # ADM rename any IVAR columns.
+        objs = rfn.rename_fields(objs, {colname:newcolname})
+
+    return objs
 
 
 def cosd(x):
