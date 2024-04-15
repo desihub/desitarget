@@ -114,7 +114,8 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
         for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"
                     , "PMRA", "PMDEC"]:
             ii = gaiaobjs[col] < 1e-16
-            gaiaobjs[ii][col] = np.nan
+            ii &= gaiaobjs[col] > -1e-16
+            gaiaobjs[col][ii] = np.nan
 
         # ADM a (probably unnecessary) sanity check.
         assert(len(gaiaobjs) == len(LSobjs))

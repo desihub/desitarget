@@ -79,14 +79,7 @@ def is_in_GD1(objs):
                              rapol, decpol, ra_ref)
 
     # ADM derive the combined proper motion error.
-    # ADM guard against dividing by zero.
-    pmra_error = np.zeros_like(objs["PMRA_IVAR"]) + 1e8
-    ii = objs['PMRA_IVAR'] != 0
-    pmra_error[ii] = 1./np.sqrt(objs[ii]['PMRA_IVAR'])
-    pmdec_error = np.zeros_like(objs["PMDEC_IVAR"]) + 1e8
-    ii = objs['PMDEC_IVAR'] != 0
-    pmdec_error[ii] = 1./np.sqrt(objs[ii]['PMDEC_IVAR'])
-    pm_err = np.sqrt(0.5 * (pmra_error**2 + pmdec_error**2))
+    pm_err = np.sqrt(0.5 * (objs["PMRA_ERROR"]**2 + objs["PMDEC_ERROR"]**2))
 
     # ADM dust correction.
     ext_coeff = dict(g=3.237, r=2.176, z=1.217)
@@ -288,7 +281,7 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
             # ADM the parameters that define the extent of the stream.
             mind, maxd = strm["MIND"], strm["MAXD"]
             # ADM read in the data.
-            objs = read_data_per_stream(swdir, rapol, decpol, ra_ref, mind, maxd,
+            objs = read_data_per_stream(swdir, rapol, decpol, mind, maxd,
                                         stream_name,
                                         addnors=addnors, readcache=readcache)
             allobjs.append(objs)

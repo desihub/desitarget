@@ -67,7 +67,7 @@ def ivars_to_errors(objs, colnames=[]):
     """
     for colname in colnames:
         # ADM guard against dividing by zero.
-        error = np.zeros_like(objs[colname]) + 1e8
+        error = np.zeros_like(objs[colname]) + np.nan
         ii = objs[colname] != 0
         error[ii] = 1./np.sqrt(objs[ii][colname])
         objs[colname] = error
