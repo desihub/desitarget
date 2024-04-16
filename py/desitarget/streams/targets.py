@@ -10,6 +10,7 @@ import numpy.lib.recfunctions as rfn
 
 from desitarget.targets import initial_priority_numobs, set_obsconditions, \
     encode_targetid
+from desitarget.streams.utilities import errors_to_ivars
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -108,6 +109,16 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
 
     # ADM set the OBSCONDITIONS.
     done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)
+
+    # ADM replace any NaNs with zeros.
+    for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG",
+                "PARALLAX", "PMRA", "PMDEC"]:
+        ii = np.isnan(done[col])
+        done[col][ii] = 0.
+
+    # ADM change errors to IVARs.
+    done = errors_to_ivars(
+        done, colnames=["PARALLAX_ERROR", "PMRA_ERROR", "PMDEC_ERROR"])
 
     # ADM some final checks that the targets conform to expectations...
     # ADM check that each target has a unique ID.
