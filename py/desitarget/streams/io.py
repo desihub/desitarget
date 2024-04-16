@@ -112,7 +112,7 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
             gaiaobjs, colnames=["PARALLAX_IVAR", "PMRA_IVAR", "PMDEC_IVAR"])
 
         for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"
-                    , "PMRA", "PMDEC"]:
+                    , "PARALLAX", "PMRA", "PMDEC"]:
             ii = gaiaobjs[col] < 1e-16
             ii &= gaiaobjs[col] > -1e-16
             gaiaobjs[col][ii] = np.nan

@@ -78,6 +78,46 @@ def ivars_to_errors(objs, colnames=[]):
     return objs
 
 
+def errors_to_ivars(objs, colnames=[]):
+    """
+    Convert errors to ivars, correctly dealing with NaNs.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Array that contains the columns to be converted from errors
+        to inverse variances.
+    colnames : :class:`list`
+        The names of the columns to convert.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The input `objs`, modified so that any columns in `colnames` are
+        converted from errors to inverse variances and occurrences of
+        "ERROR" in column names are converted to "IVAR".
+
+    Notes
+    -----
+    - Column names are assumed to be upper case for the conversion of
+      ERROR->IVAR in the column names.
+    - No copy is made to save memory. So `objs` will be modified in place
+      and calls like a = errors_to_ivars(b, colnames=["X"]) will alter
+      values in b as well as returning a.
+    """
+    for colname in colnames:
+        # ADM remove any NaNs.
+        ivar = np.zeros_like(objs[colname])
+        ii = ~np.isnan(objs[colname])
+        ivar[ii] = 1./objs[ii][colname]**2
+        objs[colname] = ivar
+        newcolname = colname.replace("ERROR", "IVAR")
+        # ADM rename any IVAR columns.
+        objs = rfn.rename_fields(objs, {colname:newcolname})
+
+    return objs
+
+
 def cosd(x):
     """Return cos(x) for an angle x in degrees.
     """
