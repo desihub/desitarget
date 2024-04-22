@@ -87,8 +87,8 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
     # ADM ...that aren't very faint (> 22.5 mag in r).
     ii &= objs["FLUX_R"] > 1
     # ADM Also guard against negative fluxes in g/r.
-    ii &= objs["FLUX_G"] > 0.
-    ii &= objs["FLUX_Z"] > 0.
+    # ii &= objs["FLUX_G"] > 0.
+    # ii &= objs["FLUX_Z"] > 0.
 
     objs = objs[ii]
 
