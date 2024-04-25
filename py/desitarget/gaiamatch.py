@@ -1516,8 +1516,8 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
     """
     # ADM issue a warning that this code is intended for use post-DR3.
     if dr in ["dr2", "edr3"]:
-        log.warning("For Gaia Data Releases earlier than DR3, you may \
-        want to use the function match_gaia_to_primary() instead")
+        log.warning("For Gaia Data Releases earlier than DR3, you may want"
+                    " to use the function match_gaia_to_primary() instead")
 
     # ADM set up the output array for Gaia information.
     gaiainfo = np.zeros(len(objs), dtype=dr3datamodelfull.dtype)
