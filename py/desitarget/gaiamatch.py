@@ -24,8 +24,8 @@ from desiutil import depend
 from desitarget import io
 from desitarget.io import check_fitsio_version, gitversion
 from desitarget.internal import sharedmem
-from desitarget.geomask import hp_in_box, add_hp_neighbors, pixarea2nside
-from desitarget.geomask import hp_beyond_gal_b, nside2nside, rewind_coords
+from desitarget.geomask import hp_in_box, add_hp_neighbors, pixarea2nside, \
+    hp_beyond_gal_b, nside2nside, rewind_coords, radec_match_to
 from desimodel.footprint import radec2pix
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -1485,6 +1485,76 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
     return gaiafiles
 
 
+def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
+    """Match objects to Gaia healpix files starting with Gaia DR3.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE
+        EPOCH OF 2015.5 and EQUINOX J2000/ICRS.
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
+        The matching radius in arcseconds.
+    dr : :class:`str`, optional, defaults to "dr3"
+        Name of a Gaia data release. Specifies which REF_EPOCH to use.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Gaia information for each matching object, in a format like
+        `dr3datamodelfull`.
+
+    Notes
+    -----
+        - Returned objects correspond row-by-row to `objs`.
+        - For objects that do NOT have a match in Gaia, the "REF_ID"
+          column is set to -1, and all other columns are zero.
+        - This code fixes a number of minor issues related to close pairs
+          in Gaia that were discovered after running Main Survey targets
+          (i.e. starting with Gaia DR3). To reproduce DESI Main Survey
+          targets, :func:`match_gaia_to_primary()` should be used.
+    """
+    # ADM issue a warning that this code is intended for use post-DR3.
+    if dr in ["dr2", "edr3"]:
+        log.warning("For Gaia Data Releases earlier than DR3, you may \
+        want to use the function match_gaia_to_primary() instead")
+
+    # ADM set up the output array for Gaia information.
+    gaiainfo = np.zeros(len(objs), dtype=dr3datamodelfull.dtype)
+
+    # ADM objects without matches should have REF_ID of -1.
+    gaiainfo['REF_ID'] = -1
+
+    # ADM compile the list of relevant Gaia files.
+    gaiafiles = find_gaia_files(objs, dr=dr)
+
+    gaia = []
+    for fn in gaiafiles:
+        gaia.append(read_gaia_file(fn, dr=dr))
+    gaia = np.concatenate(gaia)
+
+    # ADM the name of the relevant RA/Dec columns in the Gaia data model.
+    gracol, gdeccol = "RA", "DEC"
+    gpmracol, gpmdeccol = "PMRA", "PMDEC"
+
+    # ADM rewind coordinates from the Gaia DR3 2016.0 epoch to 2015.5.
+    rarew, decrew = rewind_coords(gaia[gracol], gaia[gdeccol],
+                                  gaia[gpmracol], gaia[gpmdeccol],
+                                  epochnow=2016.0, epochpast=2015.5)
+    gaia[gracol] = rarew
+    gaia[gdeccol] = decrew
+    gaia["REF_EPOCH"] = 2015.5
+
+    # ADM perform the match.
+    # ADM sense is key! Need unique Gaia match for each primary object.
+    idgaia, idobjs = radec_match_to(gaia, objs, matchrad)
+
+    # ADM assign Gaia info to array corresponding to passed objects.
+    gaiainfo[idobjs] = gaia[idgaia]
+
+    return gaiainfo
+
+
 def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
                           gaiabounds=[0., 360., -90., 90.], dr="edr3"):
     """Match objects to Gaia healpix files and return Gaia information.
@@ -1526,6 +1596,13 @@ def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
         - If `retaingaia` is ``True`` then objects after the first
           len(`objs`) objects are Gaia objects that do not have a sweeps
           match but are in the area bounded by `gaiabounds`.
+        - After running targets for the DESI Main Survey (i.e. starting
+          with Gaia DR3) a minor bug was identified where a match within
+          `matchrad` was returned that wasn't necessarily the CLOSEST
+          match for instances of very close Gaia pairs. Therefore, for
+          releases subsequent to Gaia DR3, this function is modified to
+          always find the CLOSEST Gaia match rather than just ANY match
+          that satisfies the `matchrad` constraint.
     """
     # ADM retain all Gaia objects in a sweeps-like box.
     if retaingaia:
@@ -1578,8 +1655,17 @@ def match_gaia_to_primary(objs, matchrad=0.2, retaingaia=False,
             gaia["REF_EPOCH"] = 2015.5
 
         cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
-        idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs, matchrad*u.arcsec)
-        # ADM assign the Gaia info to the array that corresponds to the passed objects.
+        # ADM updated behavior after DR3 to always find the closest pair
+        # ADM rather than just a pair that meets the matchrad constraint.
+        if dr == 'dr2' or dr == 'edr3':
+            idobjs, idgaia, _, _ = cgaia.search_around_sky(cobjs,
+                                                           matchrad*u.arcsec)
+        else:
+            # ADM sense is key! Need unique Gaia match for each primary.
+            idgaia, idobjs = radec_match_to([cgaia.ra.value, cgaia.dec.value],
+                                            [cobjs.ra.value, cobjs.dec.value],
+                                            matchrad, radec=True)
+        # ADM assign Gaia info to array corresponding to passed objects.
         gaiainfo[idobjs] = gaia[idgaia]
 
         # ADM if retaingaia was set, also build an array of Gaia objects that
@@ -1629,6 +1715,13 @@ def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
     -----
         - If the object does NOT have a match in the Gaia files, the "REF_ID"
           column is set to -1, and all other columns are zero
+        - After running targets for the DESI Main Survey (i.e. starting
+          with Gaia DR3) a minor bug was identified where a match within
+          `matchrad` was returned that wasn't necessarily the CLOSEST
+          match for instances of very close Gaia pairs. Therefore, for
+          releases subsequent to Gaia DR3, this function is modified to
+          always find the CLOSEST Gaia match rather than just ANY match
+          that satisfies the `matchrad` constraint.
     """
     # ADM convert the coordinates of the input objects to a SkyCoord object.
     cobjs = SkyCoord(objs["RA"]*u.degree, objs["DEC"]*u.degree)
@@ -1669,8 +1762,17 @@ def match_gaia_to_primary_single(objs, matchrad=0.2, dr="edr3"):
             gaia["REF_EPOCH"] = 2015.5
 
         cgaia = SkyCoord(gaia[gracol]*u.degree, gaia[gdeccol]*u.degree)
-        sep = cobjs.separation(cgaia)
-        idgaia = np.where(sep < matchrad*u.arcsec)[0]
+
+        # ADM updated behavior after DR3 to always find the closest pair
+        # ADM rather than just a pair that meets the matchrad constraint.
+        if dr == 'dr2' or dr == 'edr3':
+            sep = cobjs.separation(cgaia)
+            idgaia = np.where(sep < matchrad*u.arcsec)[0]
+        else:
+            # ADM sense is key! Need unique Gaia match for each primary.
+            idgaia, idobjs = radec_match_to([cgaia.ra.value, cgaia.dec.value],
+                                            [cobjs.ra.value, cobjs.dec.value],
+                                            matchrad, radec=True)
         # ADM assign the Gaia info to the array that corresponds to the passed object.
         if len(idgaia) > 0:
             gaiainfo = gaia[idgaia]

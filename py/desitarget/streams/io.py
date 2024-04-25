@@ -15,7 +15,7 @@ import astropy.units as auni
 
 from desitarget import io
 from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touch_hp
-from desitarget.gaiamatch import match_gaia_to_primary
+from desitarget.gaiamatch import match_gaia_to_primary_post_dr3
 from desitarget.targets import resolve
 from desitarget.streams.utilities import betw, ivars_to_errors
 from desitarget.internal import sharedmem
@@ -103,7 +103,7 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
 
     # ADM catch the case where there are no objects meeting the cuts.
     if len(LSobjs) > 0:
-        gaiaobjs = match_gaia_to_primary(LSobjs, matchrad=1., dr=gaiadr)
+        gaiaobjs = match_gaia_to_primary_post_dr3(LSobjs, matchrad=1., dr=gaiadr)
 
         # ADM to try and better resemble Gaia data, set zero
         # ADM magnitudes and proper motions to NaNs and change
