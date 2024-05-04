@@ -158,7 +158,7 @@ def match_to_main_survey(ras, decs, sep=1.):
         log.info(f"Running on primary {oc} targets...t={time()-t0:.1f}s")
         # ADM loop through pixels and perform the match.
         for i, pixnum in enumerate(pixnums):
-            if i%20==19:
+            if i % 20 == 19:
                 log.info(f"Done {i+1}/{npix} pixels...t={time()-t0:.1f}s")
             # ADM get the filename for the target file in each pixel.
             fn = find_target_files(targdir, dr=9, flavor="targets", obscon=oc,
