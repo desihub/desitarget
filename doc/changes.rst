@@ -5,7 +5,11 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Function to match RA/Dec positions to Main Survey targets [`PR #820`_].
+* Bump astropy from 5.0 to 5.3.3 (dependabot) [`PR #815`_].
+
+.. _`PR #815`: https://github.com/desihub/desitarget/pull/815
+.. _`PR #820`: https://github.com/desihub/desitarget/pull/820
 
 2.7.0 (2023-12-05)
 ------------------
