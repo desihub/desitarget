@@ -137,7 +137,10 @@ def match_to_main_survey(ras, decs, sep=1.):
     nlocs = len(ras)
     done = np.zeros(nlocs, dtype=[
         ('RA', '>f8'), ('DEC', '>f8'), ('BRIGHT', '?'), ('DARK', '?'),
-        ('BRIGHTSEC', '?'), ('DARKSEC', '?')])
+        ('BRIGHTSEC', '?'), ('DARKSEC', '?'),
+        ('TARGETID_BRIGHT', '>i8'), ('TARGETID_DARK', '>i8'),
+        ('TARGETID_BRIGHTSEC', '>i8'), ('TARGETID_DARKSEC', '>i8')
+    ])
     done["RA"] = ras
     done["DEC"] = decs
 
@@ -175,6 +178,7 @@ def match_to_main_survey(ras, decs, sep=1.):
             iitargs, iidone = radec_match_to(targs, done, sep=sep)
             # ADM ...and set the matching targets to True
             done[oc][iidone] = True
+            done[f"TARGETID_{oc}"][iidone] = targs["TARGETID"][iitargs]
 
         # ADM we're done with primary targets, perform a similar match
         # ADM for secondaries, which are in single monolithic files.
@@ -200,6 +204,7 @@ def match_to_main_survey(ras, decs, sep=1.):
             # ADM ...and set the matching targets to True.
             colname = f"{oc}SEC"
             done[colname][iidone] = True
+            done[f"TARGETID_{colname}"][iidone] = targs["TARGETID"][iitargs]
 
     log.info("Summary of matches:")
     for ps, coladd in zip(["primary", "secondary"], ["", "SEC"]):
