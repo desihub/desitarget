@@ -129,7 +129,7 @@ def match_to_main_survey(ras, decs, sep=1.):
     Notes
     -----
     - Must have set up the correct environment by running, e.g.,
-      source /global/cfs/projectdirs/desi/software/desi_environment.sh
+      source /global/common/software/desi/desi_environment.sh
     - Prints summary statistics of the number of matches to screen.
     """
     t0 = time()
