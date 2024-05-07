@@ -145,7 +145,7 @@ def is_in_GD1(objs):
     cmd_win = 0.1 + 10**(-2 + (r - 20) / 2.5)
 
     # ADM overall faint selection.
-    faint_sel = objs['PMRA'] == 0
+    faint_sel = ~np.isfinite(objs['PMRA'])
     faint_sel &= betw(r, 20, faint_limit)
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
