@@ -1219,11 +1219,12 @@ def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
                 for col in ["DESI_TARGET", "BGS_TARGET",
                             "MWS_TARGET", "SCND_TARGET"]:
                     oldmatches[col] |= mtlmatches[col]
-                # ADM set PRIORITY to larger number
-                # ADM (+ inherit TARGET_STATE, SUBPRIORITY, NUMOBS_MORE).
+                # ADM set PRIORITY to larger number (plus, inherit
+                # ADM TARGET_STATE, SUBPRIORITY, NUMOBS_MORE/_INIT).
                 ii = mtlmatches["PRIORITY"] > oldmatches["PRIORITY"]
                 oldmatches["PRIORITY"][ii] = mtlmatches["PRIORITY"][ii]
                 oldmatches["NUMOBS_MORE"][ii] = mtlmatches["NUMOBS_MORE"][ii]
+                oldmatches["NUMOBS_INIT"][ii] = mtlmatches["NUMOBS_INIT"][ii]
                 oldmatches["SUBPRIORITY"][ii] = mtlmatches["SUBPRIORITY"][ii]
                 oldmatches["TARGET_STATE"][ii] = mtlmatches["TARGET_STATE"][ii]
                 # ADM also need to inherit the new timestamp and code version.
