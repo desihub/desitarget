@@ -112,7 +112,7 @@ class TestMTL(unittest.TestCase):
         _, _, survey = main_cmx_or_sv(cat)
         truedm = survey_data_model(cat, survey=survey)
         addedcols = list(set(truedm.dtype.names) - set(cat.dtype.names))
-        # ADM We set Main Survey QN columnsin the SetUp. Add any others.
+        # ADM We set Main Survey QN columns in the SetUp. Add any others.
         for col in addedcols:
             cat[col] = [-1] * len(cat)
         # ADM Set QN redshifts ('Z_QN') to mimic redrock redshifts ('Z').
