@@ -1274,7 +1274,7 @@ def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
 def add_to_ledgers(targs, mtldir=None, pixlist=None, obscon="DARK",
                    numproc=1, updatedonefiles=True):
     """
-    Make initial MTL ledger files for HEALPixels, in parallel.
+    Add new targets to MTL ledger files for HEALPixels, in parallel.
 
     Parameters
     ----------
@@ -1295,14 +1295,14 @@ def add_to_ledgers(targs, mtldir=None, pixlist=None, obscon="DARK",
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
         Governs how priorities are set based on "obsconditions". Also
-        governs the sub-directory to which the ledger is written.
+        governs the sub-directory to which the ledgers are added.
     numproc : :class:`int`, optional, defaults to 1 for serial
         Number of processes to parallelize across.
     updatedonefiles: :class:`bool`, optional, defaults to ``True``
         If ``False`` then do NOT write a timestamp to the MTL
         override "done" files indicating an update has occurred.
-        USE WITH CAUTION. In general, the alt-MTL schema needs to
-        know when updates happened.
+        USE WITH CAUTION. In general, the alt-MTL schema NEEDS TO
+        KNOW WHEN UPDATES HAPPENED.
 
     Returns
     -------

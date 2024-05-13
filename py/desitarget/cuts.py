@@ -2392,7 +2392,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     south_cuts = [False, True]
     if resolvetargs:
         # ADM if only southern objects were sent this will be [True], if
-        # ADM only northern it will be [False], else it wil be both.
+        # ADM only northern it will be [False], else it will be both.
         south_cuts = list(set(np.atleast_1d(photsys_south)))
 
     # ADM default for target classes we WON'T process is all False.
@@ -2597,21 +2597,21 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_faint_red = (mws_faint_red_n & photsys_north) | (mws_faint_red_s & photsys_south)
     mws_faint_blue = (mws_faint_blue_n & photsys_north) | (mws_faint_blue_s & photsys_south)
 
-    # Construct the targetflag bits for DECaLS (i.e. South).
+    # Construct the target flag bits for DECaLS (i.e. South).
     desi_target = lrg_south * desi_mask.LRG_SOUTH
     desi_target |= elg_south * desi_mask.ELG_SOUTH
     desi_target |= elg_vlo_south * desi_mask.ELG_VLO_SOUTH
     desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
     desi_target |= qso_south * desi_mask.QSO_SOUTH
 
-    # Construct the targetflag bits for MzLS and BASS (i.e. North).
+    # Construct the target flag bits for MzLS and BASS (i.e. North).
     desi_target |= lrg_north * desi_mask.LRG_NORTH
     desi_target |= elg_north * desi_mask.ELG_NORTH
     desi_target |= elg_vlo_north * desi_mask.ELG_VLO_NORTH
     desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
     desi_target |= qso_north * desi_mask.QSO_NORTH
 
-    # Construct the targetflag bits combining north and south.
+    # Construct the target flag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= elg_vlo * desi_mask.ELG_VLO
