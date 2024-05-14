@@ -73,7 +73,7 @@ def ivars_to_errors(objs, colnames=[]):
         objs[colname] = error
         newcolname = colname.replace("IVAR", "ERROR")
         # ADM rename any IVAR columns.
-        objs = rfn.rename_fields(objs, {colname:newcolname})
+        objs = rfn.rename_fields(objs, {colname: newcolname})
 
     return objs
 
@@ -113,7 +113,7 @@ def errors_to_ivars(objs, colnames=[]):
         objs[colname] = ivar
         newcolname = colname.replace("ERROR", "IVAR")
         # ADM rename any IVAR columns.
-        objs = rfn.rename_fields(objs, {colname:newcolname})
+        objs = rfn.rename_fields(objs, {colname: newcolname})
 
     return objs
 

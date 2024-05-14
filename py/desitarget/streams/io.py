@@ -111,8 +111,8 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
         gaiaobjs = ivars_to_errors(
             gaiaobjs, colnames=["PARALLAX_IVAR", "PMRA_IVAR", "PMDEC_IVAR"])
 
-        for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"
-                    , "PARALLAX", "PMRA", "PMDEC"]:
+        for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG",
+                    "PARALLAX", "PMRA", "PMDEC"]:
             ii = gaiaobjs[col] < 1e-16
             ii &= gaiaobjs[col] > -1e-16
             gaiaobjs[col][ii] = np.nan
@@ -266,6 +266,7 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
 
     nbrick = np.zeros((), dtype='i8')
     t0 = time()
+
     def _update_status(result):
         """wrapper for critical reduction operation on main parallel process"""
         if nbrick % 5 == 0 and nbrick > 0:
@@ -287,7 +288,6 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         allobjs = list()
         for fn in infiles:
             allobjs.append(_update_status(_read_data_per_stream_one_file(fn)))
-
 
     # ADM assemble all of the relevant objects.
     allobjs = np.concatenate(allobjs)

@@ -124,4 +124,3 @@ def test_suite():
         python setup.py test -m desitarget.test.test_mtl_streams
     """
     return unittest.defaultTestLoader.loadTestsFromName(__name__)
-
