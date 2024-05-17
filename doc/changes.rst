@@ -5,11 +5,15 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
+* Allow different Table reader options when reading MTLs [`PR #822`_].
+    * Addresses `issue #818`_.
 * Function to match RA/Dec positions to Main Survey targets [`PR #820`_].
 * Bump astropy from 5.0 to 5.3.3 (dependabot) [`PR #815`_].
 
 .. _`PR #815`: https://github.com/desihub/desitarget/pull/815
+.. _`issue #818`: https://github.com/desihub/desitarget/issues/818
 .. _`PR #820`: https://github.com/desihub/desitarget/pull/820
+.. _`PR #822`: https://github.com/desihub/desitarget/pull/822
 
 2.7.0 (2023-12-05)
 ------------------
