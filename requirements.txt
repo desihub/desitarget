@@ -1,7 +1,7 @@
 # Based on desimodules/22.5.
 pytz
 requests
-astropy==5.0
+astropy==5.3.3
 numba
 healpy
 speclite

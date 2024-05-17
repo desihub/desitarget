@@ -52,12 +52,13 @@ from importlib import import_module
 from collections import defaultdict
 
 from desitarget.internal import sharedmem
+from desitarget.io import find_target_files
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
 from desitarget.gaiamatch import gaiadatamodel
-
 from desitarget.targets import encode_targetid, main_cmx_or_sv, resolve
 from desitarget.targets import set_obsconditions, initial_priority_numobs
 from desitarget.targetmask import obsconditions
+from desitarget import __version__ as dt_version
 
 from desiutil import brick
 from desiutil.log import get_logger
@@ -100,6 +101,118 @@ outdatamodel = np.array([], dtype=[
 suppdatamodel = np.array([], dtype=[
     ('SCND_TARGET_INIT', '>i8'), ('PRIM_MATCH', '?')
 ])
+
+
+def match_to_main_survey(ras, decs, sep=1.):
+    """Standalone code to match RA/Dec positions to Main Survey targets.
+
+    Parameters
+    ----------
+    ras : :class:`~numpy.array` or `list`
+        Right Ascensions of interest (degrees).
+    decs : :class:`~numpy.array` or `list`
+        Declinations of interest (degrees).
+    sep : :class:`float`, defaults to 1 arcsecond
+        Separation (arcsec) to match `ras`/`decs` to Main Survey targets.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        An array that includes 6 columns:
+            RA: The input `ras`
+            DEC: The input `decs`
+            BRIGHT: ``True`` for locations matching a bright-time target.
+            DARK: ``True`` for locations matching a dark-time target.
+            BRIGHTSEC: ``True`` for matching a bright-time secondary.
+            DARKSEC: ``True`` for matching a dark-time secondary.
+
+    Notes
+    -----
+    - Must have set up the correct environment by running, e.g.,
+      source /global/common/software/desi/desi_environment.sh
+    - Prints summary statistics of the number of matches to screen.
+    """
+    t0 = time()
+    # ADM set up the output array.
+    nlocs = len(ras)
+    done = np.zeros(nlocs, dtype=[
+        ('RA', '>f8'), ('DEC', '>f8'), ('BRIGHT', '?'), ('DARK', '?'),
+        ('BRIGHTSEC', '?'), ('DARKSEC', '?'),
+        ('TARGETID_BRIGHT', '>i8'), ('TARGETID_DARK', '>i8'),
+        ('TARGETID_BRIGHTSEC', '>i8'), ('TARGETID_DARKSEC', '>i8')
+    ])
+    done["RA"] = ras
+    done["DEC"] = decs
+
+    # ADM determine the HEALPixels corresponding to the passed locations.
+    nside = 8  # ADM the nside at which Main Survey targets are stored.
+    theta, phi = np.radians(90-done["DEC"]), np.radians(done["RA"])
+    pixnums = hp.ang2pix(nside, theta, phi, nest=True)
+    # ADM have to add the neighboring HEALPixels to ensure matches are
+    # ADM found beyond pixel boundaries.
+    pixnums = add_hp_neighbors(nside, pixnums)
+    npix = len(pixnums)
+
+    # ADM root directory of the relevant files for Main Survey targets.
+    targdir = os.getenv("TARG_DIR")
+
+    # ADM loop through the observing conditions.
+    for oc in "DARK", "BRIGHT":
+        log.info(f"Running on primary {oc} targets...t={time()-t0:.1f}s")
+        # ADM loop through pixels and perform the match.
+        for i, pixnum in enumerate(pixnums):
+            if i % 20 == 19:
+                log.info(f"Done {i+1}/{npix} pixels...t={time()-t0:.1f}s")
+            # ADM get the filename for the target file in each pixel.
+            fn = find_target_files(targdir, dr=9, flavor="targets", obscon=oc,
+                                   hp=pixnum, nside=nside)
+            # ADM have to replace current version of desitarget with version
+            # ADM 1.1.1 (the version used for Main Survey targets).
+            fn = fn.replace(dt_version, "1.1.1")
+
+            # ADM read in the targets. Skip if the file doesn't exist.
+            if os.path.isfile(fn):
+                targs = fitsio.read(fn, "TARGETS")
+
+            # ADM match the targets to the locations...
+            iitargs, iidone = radec_match_to(targs, done, sep=sep)
+            # ADM ...and set the matching targets to True
+            done[oc][iidone] = True
+            done[f"TARGETID_{oc}"][iidone] = targs["TARGETID"][iitargs]
+
+        # ADM we're done with primary targets, perform a similar match
+        # ADM for secondaries, which are in single monolithic files.
+        # ADM secondaries have a series of possible "main" directories.
+        rootdir, _ = fn.split("main")
+        survs = [os.path.basename(d) for d in
+                 sorted(glob(os.path.join(rootdir, "main*")))]
+
+        for surv in survs:
+            log.info(
+                f"Running on secondary {surv} {oc} targets...t={time()-t0:.1f}s")
+
+            fn = find_target_files(
+                targdir, dr=9, flavor="targets", resolve=None, obscon=oc,
+                nside=nside, survey=surv, nohp=True)
+            fn = fn.replace(dt_version, "1.1.1")
+
+            if os.path.isfile(fn):
+                targs = fitsio.read(fn, "SCND_TARGETS")
+
+            # ADM match the targets to the locations...
+            iitargs, iidone = radec_match_to(targs, done, sep=sep)
+            # ADM ...and set the matching targets to True.
+            colname = f"{oc}SEC"
+            done[colname][iidone] = True
+            done[f"TARGETID_{colname}"][iidone] = targs["TARGETID"][iitargs]
+
+    log.info("Summary of matches:")
+    for ps, coladd in zip(["primary", "secondary"], ["", "SEC"]):
+        for oc in ["DARK", "BRIGHT"]:
+            cnt = np.sum(done[f"{oc+coladd}"])
+            log.info(f"{cnt}/{nlocs} locations match {ps}, {oc.lower()} targets")
+
+    return done
 
 
 def duplicates(seq):

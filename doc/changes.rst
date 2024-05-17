@@ -5,12 +5,16 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
+* Function to match RA/Dec positions to Main Survey targets [`PR #820`_].
+* Bump astropy from 5.0 to 5.3.3 (dependabot) [`PR #815`_].
 * Add the GD1 dark matter streams program [`PR #814`_].
   * Substantial new code in the `streams` directory.
   * Addresses `issue #812`_.
 
 .. _`issue #812`: https://github.com/desihub/desitarget/issues/812
 .. _`PR #814`: https://github.com/desihub/desitarget/pull/814
+.. _`PR #815`: https://github.com/desihub/desitarget/pull/815
+.. _`PR #820`: https://github.com/desihub/desitarget/pull/820
 
 2.7.0 (2023-12-05)
 ------------------
