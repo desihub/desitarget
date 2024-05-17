@@ -17,6 +17,7 @@ from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
 from desiutil.log import get_logger
 log = get_logger()
 
+
 class TestMTLStreams(unittest.TestCase):
 
     def setUp(self):
