@@ -14,6 +14,8 @@ from desitarget.targetmask import scnd_mask as sMx
 from desitarget.mtl import make_mtl, mtldatamodel, survey_data_model
 from desitarget.targets import initial_priority_numobs, main_cmx_or_sv
 
+from desiutil.log import get_logger
+log = get_logger()
 
 class TestMTLStreams(unittest.TestCase):
 
@@ -64,14 +66,17 @@ class TestMTLStreams(unittest.TestCase):
         zwarn = [sMx[t].priorities['MORE_ZWARN'] for t in self.types[~iigood]]
         # ADM PRIORITY after zero, one, two, three passes through MTL.
         self.post_prio = pinit
-        self.post_prio = np.vstack([self.post_prio, zgood + zwarn])
-        self.post_prio = np.vstack([self.post_prio, zgood + zwarn])
-        self.post_prio = np.vstack([self.post_prio, zgood + zwarn])
+        # ADM scalar version of initial numbers of observations. Should
+        # ADM (deliberately) fail if classes have different NUMOBS_INIT.
+        self.ninit_int = int(np.unique(ninit))
+        # ADM loop through the numbers of observations, retain priority.
+        for i in range(self.ninit_int - 1):
+            self.post_prio = np.vstack([self.post_prio, zgood + zwarn])
         self.post_prio = np.vstack(
             [self.post_prio, [sMx[t].priorities['DONE'] for t in self.types]])
         # ADM NUMOBS after zero, one, two, three passes through MTL.
         self.post_nom = ninit
-        for numobs in np.arange(1, 5):
+        for numobs in np.arange(1, self.ninit_int + 1):
             self.post_nom = np.vstack([self.post_nom,
                                        np.array(self.nom) - numobs])
 
@@ -95,6 +100,8 @@ class TestMTLStreams(unittest.TestCase):
         t = self.targs.copy()
         t = self.flesh_out_data_model(t)
         mtl = make_mtl(t, "BRIGHT")
+        log.info(f"Initial: {mtl['PRIORITY']}, {self.post_prio[0]}")
+        log.info(f"Initial: {mtl['NUMOBS_MORE']}, {self.post_nom[0]}")
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.post_nom[0]))
         self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio[0]))
 
@@ -107,9 +114,11 @@ class TestMTLStreams(unittest.TestCase):
         zc = self.zcat.copy()
         zc = self.flesh_out_data_model(zc)
 
-        for numobs in range(1, 5):
+        for numobs in range(1, self.ninit_int + 1):
             zc["NUMOBS"] = numobs
             mtl = make_mtl(t, "BRIGHT", zcat=zc, trim=False)
+            log.info(f"{numobs}, {mtl['PRIORITY']}, {self.post_prio[numobs]}")
+            log.info(f"{numobs}, {mtl['NUMOBS_MORE']}, {self.post_nom[numobs]}")
             self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio[numobs]))
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.post_nom[numobs]))
 
