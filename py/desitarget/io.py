@@ -2793,8 +2793,8 @@ def write_mtl_tile_file(filename, data):
     return len(data), filename
 
 
-def read_mtl_ledger(filename, unique=True, isodate=None,
-                    initial=False, leq=False, columns=None):
+def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
+                    leq=False, columns=None, tabform='ascii.basic'):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -2822,6 +2822,10 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
         `isodate`. Only relevant if `isodate` is passed.
     columns : :class:`list`, optional
         Only return these target columns.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
 
     Returns
     -------
@@ -2861,8 +2865,7 @@ def read_mtl_ledger(filename, unique=True, isodate=None,
 #        prelim = pd.read_csv(filename, dtype=dt, comment="#", delimiter=" ")
         # ADM faster for astropy 4; although pandas is still faster.
 #        prelim = Table.read(filename, comment="#", delimiter=" ", format='pandas.csv', dtype=dt)
-        prelim = Table.read(filename, comment='#', format='ascii.basic',
-                            guess=False)
+        prelim = Table.read(filename, comment='#', format=tabform, guess=False)
         mtl = np.zeros(len(prelim), dtype=dt)
         for col in mtl.dtype.names:
             mtl[col] = prelim[col]
@@ -3142,7 +3145,8 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False,
 
 
 def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
-                   returnfn=False, initial=False, leq=False, columns=None):
+                   returnfn=False, initial=False, leq=False, columns=None,
+                   tabform='ascii.basic'):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -3180,6 +3184,10 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         Only return these target columns. `RA` and `DEC` will always be
         included in the output, whether or not they're passed, as they
         are critical for determining if a location is in a HEALPixel.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
 
     Returns
     -------
@@ -3220,7 +3228,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
             try:
                 targs = read_mtl_ledger(fn, unique=unique, isodate=isodate,
                                         initial=initial, leq=leq,
-                                        columns=columns)
+                                        columns=columns, tabform=tabform)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -3230,7 +3238,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         if len(mtls) == 0:
             fns = iglob(fileform.format("*"))
             fn = next(fns)
-            mtl = read_mtl_ledger(fn, columns=columns)
+            mtl = read_mtl_ledger(fn, columns=columns, tabform=tabform)
             outly = np.zeros(0, dtype=mtl.dtype)
             if returnfn:
                 return outly, outfns
@@ -3239,8 +3247,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
-        mtl = read_mtl_ledger(hpdirname, unique=unique, isodate=isodate,
-                              initial=initial, leq=leq, columns=columns)
+        mtl = read_mtl_ledger(hpdirname, unique=unique, isodate=isodate, leq=leq,
+                              initial=initial, columns=columns, tabform=tabform)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)
@@ -3253,7 +3261,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False, mtl=False,
-                       unique=True, isodate=None, initial=False, leq=False):
+                       unique=True, isodate=None, initial=False, leq=False,
+                       tabform='ascii.basic'):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -3305,6 +3314,11 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         `isodate` instead of the default behavior of strictly before
         `isodate`. Only relevant if `isodate` is passed. Only used if
         `mtl` is ``True``.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+        Only relevant when `mtl` is ``True``.
 
     Returns
     -------
@@ -3328,8 +3342,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
 
     if mtl:
         return read_mtl_in_hp(
-            hpdirname, nside, pixlist,
-            unique=unique, isodate=isodate, initial=initial, leq=leq)
+            hpdirname, nside, pixlist, unique=unique, isodate=isodate,
+            initial=initial, leq=leq, tabform=tabform)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -3666,7 +3680,8 @@ def read_targets_in_quick(hpdirname, shape=None,
 
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                           quick=False, mtl=False, oldstyle=False, verbose=False,
-                          unique=True, isodate=None, initial=False, leq=False):
+                          unique=True, isodate=None, initial=False, leq=False,
+                          tabform='ascii.basic'):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
     Parameters
@@ -3717,6 +3732,11 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         `isodate` instead of the default behavior of strictly before
         `isodate`. Only relevant if `isodate` is passed. Only used if
         `mtl` is ``True``.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+        Only relevant when `mtl` is ``True``.
 
     Returns
     -------
@@ -3771,10 +3791,9 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 
         # ADM read in targets in these HEALPixels.
         targets = read_targets_in_hp(
-            hpdirname, nside, pixlist,
-            columns=columnscopy, header=header,
-            mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq)
-
+            hpdirname, nside, pixlist, columns=columnscopy, header=header,
+            mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq,
+            tabform=tabform)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
@@ -3800,7 +3819,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
                         columns=None, header=False, quick=False, downsample=None,
                         mtl=False, unique=True, isodate=None,
-                        initial=False, leq=False):
+                        initial=False, leq=False, tabform='ascii.basic'):
     """Read in targets in an RA/Dec box.
 
     Parameters
@@ -3849,6 +3868,11 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         `isodate` instead of the default behavior of strictly before
         `isodate`. Only relevant if `isodate` is passed. Only used if
         `mtl` is ``True``.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+        Only relevant when `mtl` is ``True``.
 
     Returns
     -------
@@ -3884,9 +3908,9 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
         pixlist = hp_in_box(nside, radecbox)
         # ADM read in targets in these HEALPixels.
         targets = read_targets_in_hp(
-            hpdirname, nside, pixlist,
-            columns=columnscopy, header=header, downsample=downsample,
-            mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq)
+            hpdirname, nside, pixlist, columns=columnscopy, header=header,
+            downsample=downsample, mtl=mtl, unique=unique, isodate=isodate,
+            initial=initial, leq=leq, tabform=tabform)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
@@ -3910,8 +3934,8 @@ def read_targets_in_box(hpdirname, radecbox=[0., 360., -90., 90.],
 
 
 def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
-                        quick=False, mtl=False,
-                        unique=True, isodate=None, initial=False, leq=False):
+                        quick=False, mtl=False, unique=True, isodate=None,
+                        initial=False, leq=False, tabform='ascii.basic'):
     """Read in targets in an RA, Dec, radius cap.
 
     Parameters
@@ -3956,6 +3980,11 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
         `isodate` instead of the default behavior of strictly before
         `isodate`. Only relevant if `isodate` is passed. Only used if
         `mtl` is ``True``.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+        Only relevant when `mtl` is ``True``.
 
     Returns
     -------
@@ -3988,9 +4017,9 @@ def read_targets_in_cap(hpdirname, radecrad, columns=None, header=False,
 
         # ADM read in targets in these HEALPixels.
         targets = read_targets_in_hp(
-            hpdirname, nside, pixlist,
-            mtl=mtl, columns=columnscopy, header=header,
-            unique=unique, isodate=isodate, initial=initial, leq=leq)
+            hpdirname, nside, pixlist, mtl=mtl, columns=columnscopy,
+            header=header, unique=unique, isodate=isodate, initial=initial,
+            leq=leq, tabform=tabform)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
