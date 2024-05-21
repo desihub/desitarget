@@ -33,6 +33,8 @@ accept an existing target, override it and make a new TARGETID." It
 should be True (override) or False (do not override) for each target.
 In .txt files it should be 1 or 0 instead of True/False, and will be
 loaded from the text file as the corresponding Boolean.
+
+.. _`second DESI call for secondary targets`: https://desi.lbl.gov/trac/wiki/TargetSelectionWG/SpareFiber#Fileformats
 """
 import os
 import re
@@ -69,10 +71,20 @@ bricks = brick.Bricks(bricksize=0.25)
 log = get_logger()
 start = time()
 
+# ADM this was the original SV/main data model for secondary targets.
 indatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
     ('REF_EPOCH', '>f4'), ('OVERRIDE', '?')
 ])
+
+# ADM this is the updated, circa 2024 data model.
+newindatamodel = np.array([], dtype=[
+    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('OBJID', '>i4'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'),
+    ('PMDEC', '>f4'), ('REF_EPOCH', '>f4'), ('FLUX_G', '>f4'),
+    ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'), ('OVERRIDE', '?')
+])
+
 
 # ADM the columns not in the primary target files are:
 #  OVERRIDE - If True/1 force as a target even if there is a primary.
@@ -501,6 +513,151 @@ def read_files(scxdir, scnd_mask, subset=False):
             scxall.append(scxout)
 
     return np.concatenate(scxall)
+
+
+def check_file_format(filename, docfilename=None, new_program=True):
+    """Check a (circa 2024) input secondary file is correctly formatted.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The full path to the file to check.
+    docfilename : :class:`str`, optional
+        If passed, then also check the format of the documentation file.
+        Again, this should be the full path to the documentation file.
+    new_program : :class:`bool`, optional, defaults to ``True``
+        Pass ``False`` if your targets correspond to an existing program.
+        Passing ``False`` will skip the check that you aren't duplicating
+        an existing target bit-name.
+
+    Returns
+    -------
+    :class:`bool`
+        ``True`` if the file is correctly formatted.
+
+    Notes
+    -----
+    - This specifically checks the 2024 file format from the
+      `second DESI call for secondary targets`_
+    """
+    # ADM check the filename has an allowed extension and is upper-case.
+    basename = os.path.basename(filename)
+    bitname = basename.strip(".fits")
+    if bitname != bitname.upper() or ".fits" not in filename:
+        msg = (f"Filename (omitting extension) should be upper-case "
+               f"but filename is actually {basename}")
+        log.error(msg)
+        raise ValueError(msg)
+
+    # ADM If the docfile was passed, check it has an allowed extension,
+    # ADM is upper-case, and that the doc and data filenames correspond.
+    if docfilename is not None:
+        docbasename = os.path.basename(docfilename)
+        docbitname, docext = os.path.splitext(docbasename)
+        if docext not in [".txt", ".ipynb"]:
+            msg = (f"Documentation file should be in .txt or .ipynb format but "
+                   f"filename is {docfilename}")
+            log.error(msg)
+            raise ValueError(msg)
+        if docbitname != docbitname.upper():
+            msg = (f"Documentation file (omitting extension) should be upper-"
+                   f"case but filename is actually {docbasename}")
+            log.error(msg)
+            raise ValueError(msg)
+        # ADM check that the doc and data filenames correspond.
+        if docbitname != bitname:
+            msg = ("Data and documentation filenames should correspond (omitting"
+                   f" extensions). But they are {docbasename} and {basename}")
+            log.error(msg)
+            raise ValueError(msg)
+
+    # ADM check bit-part of filename isn't longer than 20 characters.
+    if len(bitname) > 20:
+        msg = (f"length of filename (omitting extension) should not exceed "
+               f"20 characters, but filename is actually {basename}")
+        log.error(msg)
+        raise ValueError(msg)
+
+    # ADM check bit name doesn't match any previous bit name.
+    bitlist = []
+    for surv in "main", "sv1", "sv2", "sv3":
+        if surv == "main":
+            Mx = import_module("desitarget.targetmask")
+        else:
+            Mx = import_module(f"desitarget.{surv}.{surv}_targetmask")
+        bitlist += Mx.desi_mask.names() + Mx.bgs_mask.names()
+        bitlist += Mx.mws_mask.names() + Mx.scnd_mask.names()
+    if bitname in bitlist and new_program:
+        msg = (f"Your filename {basename} matches an existing DESI target bit. "
+               f"Please choose a different filename.")
+        log.error(msg)
+        raise ValueError(msg)
+
+    # ADM check the FITS file doesn't have data in extension 0.
+    data_in_zero = fitsio.read(filename, 0)
+    if data_in_zero is not None:
+        msg = (f"Only extension 1 in {filename} should contain data, but "
+               f"the following data is in extension 0: {data_in_zero}")
+        log.error(msg)
+        raise OSError(msg)
+
+    # ADM check the FITS file doesn't have more than 1 extension.
+    n_ext = len(fitsio.FITS(filename))
+    if n_ext > 2:
+        msg = (f"{filename} should only contain extensions 0 and 1, but "
+               f"{filename} actually includes {n_ext} total extensions")
+        log.error(msg)
+        raise OSError(msg)
+
+    # ADM read in the FITS file. fitsio will flag its own meaningful
+    # ADM exception if the data model is wrong.
+    datamodel = newindatamodel.dtype
+    scxin = fitsio.read(filename,
+                        columns=datamodel.names)
+
+    # ADM check the column names are all correct (and upper-case).
+    if set(datamodel.names) != set(scxin.dtype.names):
+        msg = (f"Columns in {filename} should be {datamodel.names} but are "
+               f"actually {scxin.dtype.names}.")
+        log.error(msg)
+        raise ValueError(msg)
+
+    # ADM check the overall data model.
+    msg = f"Data model mismatch: {datamodel.descr} in {filename} column "
+    for col in datamodel.names:
+        if scxin[col].dtype != newindatamodel[col].dtype:
+            msg += f"{col} is {scxin[col].dtype} not {newindatamodel[col].dtype}"
+            log.error(msg)
+            raise ValueError(msg)
+
+    # ADM check RA/Dec are reasonable.
+    outofbounds = ((scxin["RA"] >= 360.) | (scxin["RA"] < 0) |
+                   (scxin["DEC"] > 90) | (scxin["DEC"] < -90))
+    if np.any(outofbounds):
+        msg = (f"RA/Dec outside of range in {filename}: "
+               f"RA={scxin['RA'][outofbounds]}, Dec={scxin['DEC'][outofbounds]}")
+        log.error(msg)
+        raise ValueError(msg)
+
+    # ADM check for NaNs which are not allowed in downstream DESI code.
+    for col in datamodel.names:
+        if np.any(np.isnan(scxin[col])):
+            msg = f"Column {col} in {filename} includes at least one NaN value."
+            log.error(msg)
+            raise ValueError(msg)
+
+    # ADM check fluxes are not zero.
+    zeroval = False
+    for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
+        zeroval |= np.any((scxin[col] < 1e-16) & (scxin[col] > -1e-16))
+    if zeroval:
+        msg = (f"Some fluxes in {filename} have values of zero. These targets "
+               f"will be interpreted as very bright and discarded. Please "
+               f"provide meaningful (and honest!) values of flux.")
+        log.error(msg)
+        raise ValueError(msg)
+
+    return True
 
 
 def add_primary_info(scxtargs, priminfodir):
