@@ -5,6 +5,10 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
+* Add function to check format of secondary target files [`PR #824`_].
+* When resolving, only set bits for northern cuts/imaging [`PR #823`_].
+    * And, similarly, for southern cuts in southern imaging.
+    * Addresses `issue #821`_.
 * Allow different Table reader options when reading MTLs [`PR #822`_].
     * Addresses `issue #818`_.
 * Function to match RA/Dec positions to Main Survey targets [`PR #820`_].
@@ -13,7 +17,10 @@ desitarget Change Log
 .. _`PR #815`: https://github.com/desihub/desitarget/pull/815
 .. _`issue #818`: https://github.com/desihub/desitarget/issues/818
 .. _`PR #820`: https://github.com/desihub/desitarget/pull/820
+.. _`issue #821`: https://github.com/desihub/desitarget/issues/821
 .. _`PR #822`: https://github.com/desihub/desitarget/pull/822
+.. _`PR #823`: https://github.com/desihub/desitarget/pull/823
+.. _`PR #824`: https://github.com/desihub/desitarget/pull/824
 
 2.7.0 (2023-12-05)
 ------------------
