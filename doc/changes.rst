@@ -16,6 +16,7 @@ desitarget Change Log
 * Add the GD1 dark matter streams program [`PR #814`_].
   * Substantial new code in the `streams` directory.
   * Addresses `issue #812`_.
+  * General unit tests fixes, including one introduced in `PR #823`_
 
 .. _`issue #812`: https://github.com/desihub/desitarget/issues/812
 .. _`PR #814`: https://github.com/desihub/desitarget/pull/814
