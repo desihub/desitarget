@@ -2599,7 +2599,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM when resolving, strictly only set bits for targets that pass
     # ADM the northern (southern) cuts in northern (southern) imaging.
-    # ADM first, guard against photsys quantities passed as scalars.
+    # ADM first guard against photsys quantities bring passed as scalars.
     if isinstance(photsys_north, bool):
         res_north = True
         res_south = True
