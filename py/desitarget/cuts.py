@@ -2599,13 +2599,21 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM when resolving, strictly only set bits for targets that pass
     # ADM the northern (southern) cuts in northern (southern) imaging.
-    res_north = np.ones_like(photsys_north)
-    res_south = np.ones_like(photsys_south)
-    if resolvetargs:
-        # ADM this construction guards against mutability but is far
-        # ADM quicker than making a copy.
-        res_north[:] = photsys_north[:]
-        res_south[:] = photsys_south[:]
+    # ADM first, guard against photsys quantities passed as scalars.
+    if isinstance(photsys_north, bool):
+        res_north = True
+        res_south = True
+        if resolvetargs:
+            res_north = photsys_north
+            res_south = photsys_south
+    else:
+        res_north = np.ones_like(photsys_north)
+        res_south = np.ones_like(photsys_south)
+        if resolvetargs:
+            # ADM this construction guards against mutability but is far
+            # ADM quicker than making a copy.
+            res_north[:] = photsys_north[:]
+            res_south[:] = photsys_south[:]
 
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = (lrg_south & res_south) * desi_mask.LRG_SOUTH
