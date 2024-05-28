@@ -21,6 +21,7 @@ jobs:
                 astropy-version: ['==5.0', '<6']  # fuji version
                 fitsio-version: ['==1.1.6']  # fuji version
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy
+                matplotlib-version: ['<3.6.3'] # later versions of matplotlib require later versions of numpy.
 
         env:
             DESIUTIL_VERSION: 3.2.5
@@ -43,6 +44,7 @@ jobs:
                 python -m pip install -r requirements.txt
                 python -m pip install -U 'numpy${{ matrix.numpy-version }}'
                 python -m pip install -U 'astropy${{ matrix.astropy-version }}'
+                python -m pip install -U 'matplotlib${{ matrix.matplotlib-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
                 svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
@@ -59,6 +61,7 @@ jobs:
                 python-version: [3.9]
                 fitsio-version: ['==1.1.6']  # fuji version
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy
+                matplotlib-version: ['<3.6.3'] # later versions of matplotlib require later versions of numpy.
         env:
             DESIUTIL_VERSION: 3.2.5
             DESIMODEL_DATA: branches/test-0.17
@@ -79,6 +82,7 @@ jobs:
                 python -m pip install git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
                 python -m pip install -r requirements.txt
                 python -m pip install -U 'numpy${{ matrix.numpy-version }}'
+                python -m pip install -U 'matplotlib${{ matrix.matplotlib-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
                 svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data

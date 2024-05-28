@@ -46,22 +46,49 @@ mtldatamodel = np.array([], dtype=[
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
     ('TIMESTAMP', 'U25'), ('VERSION', 'U14'), ('TARGET_STATE', 'U30'),
     ('ZTILEID', '>i4')
-    ])
+])
+
+# ADM at some point the primary and secondary data models for the MTLs
+# ADM are trimmed and reordered. These record their exact format on disk.
+mtlprimdatamodel = np.array([], dtype=[
+    ('RA', '<f8'), ('DEC', '<f8'), ('REF_EPOCH', '<f4'),
+    ('PARALLAX', '<f4'), ('PMRA', '<f4'), ('PMDEC', '<f4'),
+    ('TARGETID', '<i8'), ('DESI_TARGET', '<i8'), ('BGS_TARGET', '<i8'),
+    ('MWS_TARGET', '<i8'), ('SUBPRIORITY', '<f8'), ('OBSCONDITIONS', '<i4'),
+    ('PRIORITY_INIT', '<i8'), ('NUMOBS_INIT', '<i8'), ('SCND_TARGET', '<i8'),
+    ('NUMOBS_MORE', '<i8'), ('NUMOBS', '<i8'),  ('Z', '<f8'), ('ZWARN', '<i8'),
+    ('ZTILEID', '<i4'), ('Z_QN', '<f8'), ('IS_QSO_QN', '<i2'),
+    ('DELTACHI2', '<f8'), ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'),
+    ('VERSION', '<U14'), ('PRIORITY', '<i8')
+])
+
+mtlsecdatamodel = np.array([], dtype=[
+    ('RA', '<f8'), ('DEC', '<f8'), ('PMRA', '<f4'), ('PMDEC', '<f4'),
+    ('REF_EPOCH', '<f4'), ('PARALLAX', '<f4'), ('TARGETID', '<i8'),
+    ('DESI_TARGET', '<i8'), ('SCND_TARGET', '<i8'), ('SUBPRIORITY', '<f8'),
+    ('OBSCONDITIONS', '<i4'), ('PRIORITY_INIT', '<i8'), ('NUMOBS_INIT', '<i8'),
+    ('BGS_TARGET', '<i8'), ('MWS_TARGET', '<i8'), ('NUMOBS_MORE', '<i8'),
+    ('NUMOBS', '<i8'), ('Z', '<f8'), ('ZWARN', '<i8'), ('ZTILEID', '<i4'),
+    ('Z_QN', '<f8'), ('IS_QSO_QN', '<i2'), ('DELTACHI2', '<f8'),
+    ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'), ('VERSION', '<U14'),
+    ('PRIORITY', '<i8')
+])
+
 
 # ADM columns to add to the mtl/zcat data models for the Main Survey.
 msaddcols = np.array([], dtype=[
     ('Z_QN', '>f8'), ('IS_QSO_QN', '>i2'), ('DELTACHI2', '>f8'),
-    ])
+])
 
 zcatdatamodel = np.array([], dtype=[
     ('RA', '>f8'), ('DEC', '>f8'), ('TARGETID', '>i8'),
     ('NUMOBS', '>i4'), ('Z', '>f8'), ('ZWARN', '>i8'), ('ZTILEID', '>i4')
-    ])
+])
 
 mtltilefiledm = np.array([], dtype=[
     ('TILEID', '>i4'), ('TIMESTAMP', 'U25'), ('VERSION', 'U14'),
     ('PROGRAM', 'U6'), ('ZDATE', '>i8'), ('ARCHIVEDATE', '>i8')
-    ])
+])
 
 
 # ADM when using basic or csv ascii writes, specifying the formats of
@@ -1091,6 +1118,270 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
                         ecsv=True)
 
     return Table(np.concatenate(gonetargs)), gonetiles
+
+
+def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
+                         timestamp=None, verbose=True, updatedonefiles=False):
+    """
+    Add new targets to an existing set of ledgers.
+
+    Parameters
+    ----------
+    targets : :class:`~numpy.array`
+        Targets made by, e.g. `desitarget.streams.cuts.select_targets()`.
+    pixlist : :class:`list` or `int`
+        HEALPixels at :func:`_get_mtl_nside()` in which to add to MTLs.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`).
+        Governs the sub-directory for which the ledgers are appended.
+    timestamp : :class:`str`, optional
+        A timestamp to use in place of that assigned by `make_mtl`.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log target and file information.
+    updatedonefiles: :class:`bool`, optional, defaults to ``True``
+        If ``False`` then do NOT write a timestamp to the MTL
+        override "done" files indicating an update has occurred.
+
+    Returns
+    -------
+    Nothing, but appends the `targets` to the appropriate ledgers in
+    the `mtldir`.
+
+    Notes
+    -----
+    - Where there is a matching TARGETID, the priority and number
+      of observations are both set to the higher number and the
+      bits are merged across target classes.
+    """
+    t0 = time()
+    # ADM a dictionary to hold header keywords for the ouput file.
+    hdr = {}
+
+    # ADM get the standard nside.
+    nside = _get_mtl_nside()
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM execute MTL.
+    mtl = make_mtl(targets, obscon, trimcols=True)
+
+    # ADM if requested, substitute a bespoke timestamp.
+    if timestamp is not None:
+        # ADM check the timestamp is valid.
+        _ = check_timestamp(timestamp)
+        hdr["TSFORCED"] = timestamp
+        mtl["TIMESTAMP"] = timestamp
+
+    # ADM the HEALPixel within which each target in the MTL lies.
+    theta, phi = np.radians(90-mtl["DEC"]), np.radians(mtl["RA"])
+    mtlpix = hp.ang2pix(nside, theta, phi, nest=True)
+
+    # ADM Run through each pixel and compare the existing and new MTLs.
+    for pix in pixlist:
+        inpix = mtlpix == pix
+        if np.any(inpix):
+            # ADM the new MTL information.
+            mtlinpix = mtl[inpix]
+            if verbose:
+                log.info(f"Working with {len(mtlinpix)} targets in pixel {pix}")
+            # ADM find existing targets in primary and secondary ledgers.
+            for resolve, scnd in zip([True, None], [False, True]):
+                # ADM read in the existing ledgers.
+                fn = io.find_target_files(mtldir, flavor="mtl", survey="main",
+                                          hp=pix, resolve=resolve, obscon=obscon,
+                                          ender="ecsv")
+                try:
+                    old = io.read_mtl_ledger(fn)
+                # ADM the file may not exist, in which case work with an
+                # ADM empty set of "old" information.
+                except FileNotFoundError:
+                    old = np.zeros(0, dtype=mtlprimdatamodel.dtype)
+                    if scnd:
+                        old = np.zeros(0, dtype=mtlsecdatamodel.dtype)
+                # ADM match targets in the new and existing primary MTLs.
+                iim, iio = match(mtlinpix["TARGETID"], old["TARGETID"])
+                # ADM extract the matches and remove them from the new MTLs.
+                mtlmatches = mtlinpix[iim]
+                mtlinpix["TARGETID"][iim] = -1
+                mtlinpix = mtlinpix[mtlinpix["TARGETID"] != -1]
+                # ADM also extract the primary/secondary ledger matches.
+                oldmatches = old[iio]
+                # ADM combine the target bits.
+                for col in ["DESI_TARGET", "BGS_TARGET",
+                            "MWS_TARGET", "SCND_TARGET"]:
+                    oldmatches[col] |= mtlmatches[col]
+                # ADM set PRIORITY to larger number (plus, inherit
+                # ADM TARGET_STATE, SUBPRIORITY, NUMOBS_MORE/_INIT).
+                ii = mtlmatches["PRIORITY"] > oldmatches["PRIORITY"]
+                oldmatches["PRIORITY"][ii] = mtlmatches["PRIORITY"][ii]
+                oldmatches["NUMOBS_MORE"][ii] = mtlmatches["NUMOBS_MORE"][ii]
+                oldmatches["NUMOBS_INIT"][ii] = mtlmatches["NUMOBS_INIT"][ii]
+                oldmatches["SUBPRIORITY"][ii] = mtlmatches["SUBPRIORITY"][ii]
+                oldmatches["TARGET_STATE"][ii] = mtlmatches["TARGET_STATE"][ii]
+                # ADM also need to inherit the new timestamp and code version.
+                oldmatches["TIMESTAMP"] = mtlmatches["TIMESTAMP"]
+                oldmatches["VERSION"] = mtlmatches["VERSION"]
+                if scnd:
+                    # ADM when done matching to old secondaries add all
+                    # ADM remaining new targets to the secondary ledgers.
+                    # ADM make sure to retain "secondary" column order.
+                    reordered = np.zeros(len(mtlinpix), dtype=oldmatches.dtype.descr)
+                    for col in reordered.dtype.names:
+                        reordered[col] = mtlinpix[col]
+                    oldmatches = np.concatenate([oldmatches, reordered])
+                # ADM append new state to bottom of existing file.
+                nt, fn = io.write_mtl(
+                    mtldir, oldmatches, ecsv=True, survey="main", obscon=obscon,
+                    nsidefile=nside, hpxlist=pix, scnd=scnd, extra=hdr,
+                    append=True)
+                if verbose:
+                    log.info(
+                        f"{nt} targets appended to {fn}...t={time()-t0:.1f}s")
+        else:
+            log.info(f"No targets in pixel {pix}")
+
+    # ADM Note the update in the MTL tile file.
+    if updatedonefiles:
+        for sec in [True, False]:
+            mtltilefn = os.path.join(
+                mtldir, get_mtl_tile_file_name(secondary=sec, override=True))
+            # ADM initialize the output array and add the tiles.
+            mocktiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+            mocktiles["TIMESTAMP"] = timestamp
+            # ADM add the version of desitarget.
+            mocktiles["VERSION"] = dt_version
+            # ADM add the program/obscon.
+            mocktiles["PROGRAM"] = obscon
+            # ADM special numbers to indicate this type of update.
+            mocktiles["TILEID"] = -1
+            mocktiles["ZDATE"] = -1
+            mocktiles["ARCHIVEDATE"] = -1
+
+            # ADM write to file.
+            io.write_mtl_tile_file(mtltilefn, mocktiles)
+
+    return
+
+
+def add_to_ledgers(targs, mtldir=None, pixlist=None, obscon="DARK",
+                   numproc=1, updatedonefiles=True):
+    """
+    Add new targets to MTL ledger files for HEALPixels, in parallel.
+
+    Parameters
+    ----------
+    targs : :class:`str` or `~numpy.ndarray`
+        Full path to a file containing targets to be added to ledgers, or
+        the targets themselves. A string is interpreted as a filename,
+        anything else is interpreted as an array of targets.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+    pixlist : :class:`list` or `int`, defaults to ``None``
+        (Nested) HEALPixels for which to write the MTLs at the default
+        `nside` (which is `_get_mtl_nside()`). Defaults to ``None``,
+        which runs all of the pixels at `_get_mtl_nside()` that are
+        present in the input `targs`.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        Governs how priorities are set based on "obsconditions". Also
+        governs the sub-directory to which the ledgers are added.
+    numproc : :class:`int`, optional, defaults to 1 for serial
+        Number of processes to parallelize across.
+    updatedonefiles: :class:`bool`, optional, defaults to ``True``
+        If ``False`` then do NOT write a timestamp to the MTL
+        override "done" files indicating an update has occurred.
+        USE WITH CAUTION. In general, the alt-MTL schema NEEDS TO
+        KNOW WHEN UPDATES HAPPENED.
+
+    Returns
+    -------
+    Nothing, but appends the `targs` to the appropriate ledgers in
+    the `mtldir`.
+    """
+    # ADM a universal timestamp for use in all the new ledger entries.
+    timestamp = get_utc_date(survey="main")
+
+    # ADM read in the targets, if necessary.
+    if isinstance(targs, str):
+        targs = fitsio.read(targs)
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM the nside at which to append to the MTLs.
+    mtlnside = _get_mtl_nside()
+    # ADM default to running pixels covered by the input targets.
+    if pixlist is None:
+        theta, phi = np.radians(90-targs["DEC"]), np.radians(targs["RA"])
+        pixlist = np.unique(hp.ang2pix(mtlnside, theta, phi, nest=True))
+    npixels = len(pixlist)
+
+    # ADM the common function that is actually parallelized across.
+    def _add_to_ledgers_in_hp(pixnum):
+        """add to ledgers in a single HEALPixel"""
+        # ADM write MTLs for the targets split over HEALPixels in pixlist.
+        # ADM note, here that we don't want to update the done files for
+        # ADM EVERY pixel. Just once at the end.
+        return add_to_ledgers_in_hp(targs, pixnum, mtldir=mtldir, obscon=obscon,
+                                    timestamp=timestamp, updatedonefiles=False)
+
+    # ADM this is just to count pixels in _update_status.
+    npix = np.ones((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrap key reduction operation on the main parallel process"""
+        if npix % 2 == 0 and npix > 0:
+            rate = (time() - t0) / npix
+            log.info(f"Updated {npix}/{npixels} HEALPixels; {rate:.1f}"
+                     f"secs/pixel...t = {(time()-t0)/60.:.1f} mins")
+        npix[...] += 1
+        return result
+
+    # ADM Parallel process across HEALPixels.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            pool.map(_add_to_ledgers_in_hp, pixlist, reduce=_update_status)
+    else:
+        for pixel in pixlist:
+            _update_status(_add_to_ledgers_in_hp(pixel))
+
+    # ADM Note the update in the MTL tile file.
+    if updatedonefiles:
+        for sec in [True, False]:
+            mtltilefn = os.path.join(
+                mtldir, get_mtl_tile_file_name(secondary=sec, override=True))
+            # ADM initialize the output array and add the tiles.
+            mocktiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+            mocktiles["TIMESTAMP"] = timestamp
+            # ADM add the version of desitarget.
+            mocktiles["VERSION"] = dt_version
+            # ADM add the program/obscon.
+            mocktiles["PROGRAM"] = obscon
+            # ADM special numbers to indicate this type of update.
+            mocktiles["TILEID"] = -1
+            mocktiles["ZDATE"] = -1
+            mocktiles["ARCHIVEDATE"] = -1
+
+            # ADM write to file.
+            io.write_mtl_tile_file(mtltilefn, mocktiles)
+
+    log.info(f"Updated ledgers in {mtldir}...t = {(time()-t0)/60.:.1f} mins")
+
+    return
 
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",

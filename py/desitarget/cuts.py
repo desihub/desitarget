@@ -2392,7 +2392,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     south_cuts = [False, True]
     if resolvetargs:
         # ADM if only southern objects were sent this will be [True], if
-        # ADM only northern it will be [False], else it wil be both.
+        # ADM only northern it will be [False], else it will be both.
         south_cuts = list(set(np.atleast_1d(photsys_south)))
 
     # ADM default for target classes we WON'T process is all False.
@@ -2599,13 +2599,21 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM when resolving, strictly only set bits for targets that pass
     # ADM the northern (southern) cuts in northern (southern) imaging.
-    res_north = np.ones_like(photsys_north)
-    res_south = np.ones_like(photsys_south)
-    if resolvetargs:
-        # ADM this construction guards against mutability but is far
-        # ADM quicker than making a copy.
-        res_north[:] = photsys_north[:]
-        res_south[:] = photsys_south[:]
+    # ADM first guard against photsys quantities bring passed as scalars.
+    if isinstance(photsys_north, bool):
+        res_north = True
+        res_south = True
+        if resolvetargs:
+            res_north = photsys_north
+            res_south = photsys_south
+    else:
+        res_north = np.ones_like(photsys_north)
+        res_south = np.ones_like(photsys_south)
+        if resolvetargs:
+            # ADM this construction guards against mutability but is far
+            # ADM quicker than making a copy.
+            res_north[:] = photsys_north[:]
+            res_south[:] = photsys_south[:]
 
     # Construct the targetflag bits for DECaLS (i.e. South).
     desi_target = (lrg_south & res_south) * desi_mask.LRG_SOUTH
@@ -2621,7 +2629,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= (elg_lop_north & res_north) * desi_mask.ELG_LOP_NORTH
     desi_target |= (qso_north & res_north) * desi_mask.QSO_NORTH
 
-    # Construct the targetflag bits combining north and south.
+    # Construct the target flag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
     desi_target |= elg * desi_mask.ELG
     desi_target |= elg_vlo * desi_mask.ELG_VLO
