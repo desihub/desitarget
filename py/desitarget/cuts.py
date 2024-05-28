@@ -2597,19 +2597,29 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_faint_red = (mws_faint_red_n & photsys_north) | (mws_faint_red_s & photsys_south)
     mws_faint_blue = (mws_faint_blue_n & photsys_north) | (mws_faint_blue_s & photsys_south)
 
-    # Construct the target flag bits for DECaLS (i.e. South).
-    desi_target = lrg_south * desi_mask.LRG_SOUTH
-    desi_target |= elg_south * desi_mask.ELG_SOUTH
-    desi_target |= elg_vlo_south * desi_mask.ELG_VLO_SOUTH
-    desi_target |= elg_lop_south * desi_mask.ELG_LOP_SOUTH
-    desi_target |= qso_south * desi_mask.QSO_SOUTH
+    # ADM when resolving, strictly only set bits for targets that pass
+    # ADM the northern (southern) cuts in northern (southern) imaging.
+    res_north = np.ones_like(photsys_north)
+    res_south = np.ones_like(photsys_south)
+    if resolvetargs:
+        # ADM this construction guards against mutability but is far
+        # ADM quicker than making a copy.
+        res_north[:] = photsys_north[:]
+        res_south[:] = photsys_south[:]
 
-    # Construct the target flag bits for MzLS and BASS (i.e. North).
-    desi_target |= lrg_north * desi_mask.LRG_NORTH
-    desi_target |= elg_north * desi_mask.ELG_NORTH
-    desi_target |= elg_vlo_north * desi_mask.ELG_VLO_NORTH
-    desi_target |= elg_lop_north * desi_mask.ELG_LOP_NORTH
-    desi_target |= qso_north * desi_mask.QSO_NORTH
+    # Construct the targetflag bits for DECaLS (i.e. South).
+    desi_target = (lrg_south & res_south) * desi_mask.LRG_SOUTH
+    desi_target |= (elg_south & res_south) * desi_mask.ELG_SOUTH
+    desi_target |= (elg_vlo_south & res_south) * desi_mask.ELG_VLO_SOUTH
+    desi_target |= (elg_lop_south & res_south) * desi_mask.ELG_LOP_SOUTH
+    desi_target |= (qso_south & res_south) * desi_mask.QSO_SOUTH
+
+    # Construct the targetflag bits for MzLS and BASS (i.e. North).
+    desi_target |= (lrg_north & res_north) * desi_mask.LRG_NORTH
+    desi_target |= (elg_north & res_north) * desi_mask.ELG_NORTH
+    desi_target |= (elg_vlo_north & res_north) * desi_mask.ELG_VLO_NORTH
+    desi_target |= (elg_lop_north & res_north) * desi_mask.ELG_LOP_NORTH
+    desi_target |= (qso_north & res_north) * desi_mask.QSO_NORTH
 
     # Construct the target flag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
@@ -2627,14 +2637,14 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= std_wd * desi_mask.STD_WD
 
     # BGS targets, south.
-    bgs_target = bgs_bright_south * bgs_mask.BGS_BRIGHT_SOUTH
-    bgs_target |= bgs_faint_south * bgs_mask.BGS_FAINT_SOUTH
-    bgs_target |= bgs_wise_south * bgs_mask.BGS_WISE_SOUTH
+    bgs_target = (bgs_bright_south & res_south) * bgs_mask.BGS_BRIGHT_SOUTH
+    bgs_target |= (bgs_faint_south & res_south) * bgs_mask.BGS_FAINT_SOUTH
+    bgs_target |= (bgs_wise_south & res_south) * bgs_mask.BGS_WISE_SOUTH
 
     # BGS targets, north.
-    bgs_target |= bgs_bright_north * bgs_mask.BGS_BRIGHT_NORTH
-    bgs_target |= bgs_faint_north * bgs_mask.BGS_FAINT_NORTH
-    bgs_target |= bgs_wise_north * bgs_mask.BGS_WISE_NORTH
+    bgs_target |= (bgs_bright_north & res_north) * bgs_mask.BGS_BRIGHT_NORTH
+    bgs_target |= (bgs_faint_north & res_north) * bgs_mask.BGS_FAINT_NORTH
+    bgs_target |= (bgs_wise_north & res_north) * bgs_mask.BGS_WISE_NORTH
 
     # BGS targets, combined.
     bgs_target |= bgs_bright * bgs_mask.BGS_BRIGHT
@@ -2651,24 +2661,16 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_target |= mws_bhb * mws_mask.MWS_BHB
 
     # ADM MWS main north/south split.
-    mws_target |= mws_broad_n * mws_mask.MWS_BROAD_NORTH
-    mws_target |= mws_broad_s * mws_mask.MWS_BROAD_SOUTH
+    mws_target |= (mws_broad_n & res_north) * mws_mask.MWS_BROAD_NORTH
+    mws_target |= (mws_broad_s & res_south) * mws_mask.MWS_BROAD_SOUTH
 
     # ADM MWS main blue/red split.
     mws_target |= mws_blue * mws_mask.MWS_MAIN_BLUE
-    mws_target |= mws_blue_n * mws_mask.MWS_MAIN_BLUE_NORTH
-    mws_target |= mws_blue_s * mws_mask.MWS_MAIN_BLUE_SOUTH
+    mws_target |= (mws_blue_n & res_north) * mws_mask.MWS_MAIN_BLUE_NORTH
+    mws_target |= (mws_blue_s & res_south) * mws_mask.MWS_MAIN_BLUE_SOUTH
     mws_target |= mws_red * mws_mask.MWS_MAIN_RED
-    mws_target |= mws_red_n * mws_mask.MWS_MAIN_RED_NORTH
-    mws_target |= mws_red_s * mws_mask.MWS_MAIN_RED_SOUTH
-
-    # Add MWS FAINT blue/red split. Only ever set in v1.1 of desitarget.
-#    mws_target |= mws_faint_blue * mws_mask.MWS_FAINT_BLUE
-#    mws_target |= mws_faint_blue_n * mws_mask.MWS_FAINT_BLUE_NORTH
-#    mws_target |= mws_faint_blue_s * mws_mask.MWS_FAINT_BLUE_SOUTH
-#    mws_target |= mws_faint_red * mws_mask.MWS_FAINT_RED
-#    mws_target |= mws_faint_red_n * mws_mask.MWS_FAINT_RED_NORTH
-#    mws_target |= mws_faint_red_s * mws_mask.MWS_FAINT_RED_SOUTH
+    mws_target |= (mws_red_n & res_north) * mws_mask.MWS_MAIN_RED_NORTH
+    mws_target |= (mws_red_s & res_south) * mws_mask.MWS_MAIN_RED_SOUTH
 
     # Are any BGS or MWS bit set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
