@@ -1643,7 +1643,7 @@ def standard_override_columns(mtl):
     return mtl
 
 
-def process_overrides(ledgerfn):
+def process_overrides(ledgerfn, tabform='ascii.basic'):
     """
     Recover MTL entries from override ledgers and update those ledgers.
 
@@ -1651,6 +1651,10 @@ def process_overrides(ledgerfn):
     ----------
     ledgerfn : :class:`str`
         Name of the override ledger to process.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
 
     Returns
     -------
@@ -1670,7 +1674,7 @@ def process_overrides(ledgerfn):
     log.info("Processing override ledgers")
 
     # ADM read in the relevant entries in the override ledger.
-    mtl = Table(io.read_mtl_ledger(ledgerfn))
+    mtl = Table(io.read_mtl_ledger(ledgerfn, tabform=tabform))
 
     # ADM limit to entries with NUMOVERRIDE > 0.
     ii = mtl["NUMOVERRIDE"] > 0
@@ -2228,7 +2232,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
 
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
-                  numobs_from_ledger=False):
+                  numobs_from_ledger=False, tabform='ascii.basic'):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -2255,6 +2259,10 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         If ``True`` then inherit the number of observations so far from
         the ledger rather than expecting it to have a reasonable value
         in the `zcat.`
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
 
     Returns
     -------
@@ -2282,7 +2290,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         pixnum = list(set(pixnum))
         # ADM we'll read in too many targets, here, but that's OK as
         # ADM make_mtl(trimtozcat=True) only returns the updated targets.
-        targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=True)
+        targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=True,
+                                    tabform=tabform)
 
     # ADM if requested, use the previous values in the ledger to set
     # ADM NUMOBS in the zcat.
@@ -2319,7 +2328,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         # ADM if an override ledger exists, update it and recover its
         # ADM relevant MTL entries.
         if os.path.exists(overfn):
-            overmtl = process_overrides(overfn)
+            overmtl = process_overrides(overfn, tabform=tabform)
             # ADM add any override entries TO THE END OF THE LEDGER.
             mtlpix = vstack([mtlpix, overmtl])
 
