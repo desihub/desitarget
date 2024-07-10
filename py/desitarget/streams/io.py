@@ -378,7 +378,8 @@ def write_targets(dirname, targs, header, streamnames="", obscon=None,
     maglim = 15
     fluxlim = 10**((22.5-maglim)/2.5)
     toobright = np.zeros(len(targs), dtype="?")
-    for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"]:
+    for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
+                "GAIA_PHOT_RP_MEAN_MAG"]:
         toobright |= (targs[col] != 0) & (targs[col] < maglim)
     for col in ["FIBERTOTFLUX_G", "FIBERTOTFLUX_R", "FIBERTOTFLUX_Z"]:
         toobright |= (targs[col] != 0) & (targs[col] > fluxlim)

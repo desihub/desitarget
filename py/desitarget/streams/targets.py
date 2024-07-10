@@ -66,11 +66,15 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
     assert ntargets == len(mws_target)
     assert ntargets == len(scnd_target)
 
-    # - OBJID in tractor files is only unique within the brick; rename and
-    # - create a new unique TARGETID
+    # ADM rename some columns for downstream code.
     targets = rfn.rename_fields(targets,
-                                {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE'})
+                                {'OBJID': 'BRICK_OBJID', 'TYPE': 'MORPHTYPE',
+                                 'PHOT_G_MEAN_MAG': 'GAIA_PHOT_G_MEAN_MAG',
+                                 'PHOT_BP_MEAN_MAG': 'GAIA_PHOT_BP_MEAN_MAG',
+                                 'PHOT_RP_MEAN_MAG': 'GAIA_PHOT_RP_MEAN_MAG'}
+                                )
 
+    # ADM create the unique TARGETID.
     targetid = encode_targetid(objid=targets['BRICK_OBJID'],
                                brickid=targets['BRICKID'],
                                release=targets['RELEASE'])
@@ -111,8 +115,8 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
     done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)
 
     # ADM replace any NaNs with zeros.
-    for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG",
-                "PARALLAX", "PMRA", "PMDEC"]:
+    for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
+                "GAIA_PHOT_RP_MEAN_MAG", "PARALLAX", "PMRA", "PMDEC"]:
         ii = np.isnan(done[col])
         done[col][ii] = 0.
 
