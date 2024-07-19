@@ -19,6 +19,8 @@ desitarget Change Log
   * Substantial new code in the `streams` directory.
   * Addresses `issue #812`_.
   * General unit tests fixes, including one introduced in `PR #823`_
+* module file removed vars that are now defined in desimodules:
+  DUST_DIR, QN_MODEL_FILE, SQ_MODEL_FILE [`PR #826`_].
 
 .. _`issue #812`: https://github.com/desihub/desitarget/issues/812
 .. _`PR #814`: https://github.com/desihub/desitarget/pull/814
@@ -30,6 +32,7 @@ desitarget Change Log
 .. _`PR #823`: https://github.com/desihub/desitarget/pull/823
 .. _`PR #824`: https://github.com/desihub/desitarget/pull/824
 .. _`PR #825`: https://github.com/desihub/desitarget/pull/825
+.. _`PR #826`: https://github.com/desihub/desitarget/pull/826
 
 2.7.0 (2023-12-05)
 ------------------
