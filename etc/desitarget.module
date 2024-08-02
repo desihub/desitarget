@@ -78,7 +78,6 @@ setenv [string toupper $product] $PRODUCT_DIR
 #
 setenv TARG_DIR $env(DESI_ROOT)/target/catalogs
 setenv MTL_DIR  $env(DESI_ROOT)/target/surveyops/mtl
-setenv DUST_DIR $env(DESI_ROOT)/external/dust/v0_1
 setenv CMX_DIR  $env(DESI_ROOT)/target/cmx_files
 setenv SCND_DIR $env(DESI_ROOT)/target/secondary
 setenv MASK_DIR $env(DESI_ROOT)/target/masks
@@ -87,6 +86,4 @@ setenv URAT_DIR $env(DESI_ROOT)/target/urat_dr1
 setenv TYCHO_DIR $env(DESI_ROOT)/target/tycho_dr2
 setenv TOO_DIR  $env(DESI_ROOT)/target/ToO
 setenv ZCAT_DIR $env(DESI_ROOT)/spectro/redux/daily
-setenv QN_MODEL_FILE $env(DESI_ROOT)/target/catalogs/lya/qn_models/qn_train_coadd_indtrain_0_0_boss10.h5
-setenv SQ_MODEL_FILE $env(DESI_ROOT)/target/catalogs/lya/sq_models/BOSS_train_64plates_model.json
 setenv SKYBRICKS_DIR $env(DESI_ROOT)/target/skybricks/v3
