@@ -6,6 +6,7 @@ desitarget Change Log
 ------------------
 
 * Change match routines to test input arrays for duplicates [`PR #828`_].
+  * Addresses `issue #811`_.
 * Add `GAIA_` prefix to `PHOT_*_MEAN_MAG` column names [`PR #827`_].
     * So GD1/streams files conform to downstream data model.
 * Module file removed vars that are now defined in desimodules:
@@ -25,6 +26,7 @@ desitarget Change Log
   * Addresses `issue #812`_.
   * General unit tests fixes, including one introduced in `PR #823`_
 
+.. _`issue #811`: https://github.com/desihub/desitarget/issues/811
 .. _`issue #812`: https://github.com/desihub/desitarget/issues/812
 .. _`PR #814`: https://github.com/desihub/desitarget/pull/814
 .. _`PR #815`: https://github.com/desihub/desitarget/pull/815
