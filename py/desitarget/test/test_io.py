@@ -20,7 +20,7 @@ class TestIO(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.datadir = resources.files('desitarget').joinpath('test/t')
+        cls.datadir = str(resources.files('desitarget').joinpath('test/t'))
 
     def setUp(self):
         self.testdir = 'test-{}'.format(uuid4().hex)
