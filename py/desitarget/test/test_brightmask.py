@@ -3,7 +3,7 @@
 """Test desitarget.brightmask.
 """
 import unittest
-from pkg_resources import resource_filename
+from importlib import resources
 import os
 import sys
 import fitsio
@@ -28,12 +28,12 @@ class TestBRIGHTMASK(unittest.TestCase):
     def setUpClass(cls):
         # ADM set up the necessary environment variables.
         cls.gaiadir_orig = os.getenv("GAIA_DIR")
-        testdir = 'desitarget.test'
-        os.environ["GAIA_DIR"] = resource_filename(testdir, 't4')
+        testdir = resources.files('desitarget').joinpath('test')
+        os.environ["GAIA_DIR"] = os.path.join(testdir, 't4')
         cls.tychodir_orig = os.getenv("TYCHO_DIR")
-        os.environ["TYCHO_DIR"] = resource_filename(testdir, 't4/tycho')
+        os.environ["TYCHO_DIR"] = os.path.join(testdir, 't4', 'tycho')
         cls.uratdir_orig = os.getenv("URAT_DIR")
-        os.environ["URAT_DIR"] = resource_filename(testdir, 't4/urat')
+        os.environ["URAT_DIR"] = os.path.join(testdir, 't4', 'urat')
 
         # ADM a temporary output directory to test writing masks.
         cls.maskdir = tempfile.mkdtemp()
@@ -60,7 +60,7 @@ class TestBRIGHTMASK(unittest.TestCase):
             maglim=cls.maglim, maskepoch=cls.maskepoch)
 
         # ADM read in some targets.
-        targdir = resource_filename(testdir, 't')
+        targdir = os.path.join(testdir, 't')
         fn = os.path.join(targdir, 'sweep-320m005-330p000.fits')
         ts = fitsio.read(fn)
         # ADM targets are really sweeps objects, so add target fields.
@@ -262,15 +262,3 @@ class TestBRIGHTMASK(unittest.TestCase):
         brickidset = np.array(
             [int(bintargid[-lmostbit:-rmostbit], 2) for bintargid in bintargids])
         self.assertTrue(np.all(brickidset == bid))
-
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_brightmask
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

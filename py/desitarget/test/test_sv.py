@@ -10,7 +10,7 @@ import numpy as np
 import healpy as hp
 from glob import glob
 
-from pkg_resources import resource_filename
+from importlib import resources
 from desitarget import io, cuts
 from desitarget.targetmask import desi_mask
 
@@ -21,7 +21,7 @@ class TestSV(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.datadir = resource_filename('desitarget.test', 't')
+        cls.datadir = resources.files('desitarget').joinpath('test/t')
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
 
@@ -37,7 +37,7 @@ class TestSV(unittest.TestCase):
 
         # ADM set up the GAIA_DIR environment variable.
         cls.gaiadir_orig = os.getenv("GAIA_DIR")
-        os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
+        os.environ["GAIA_DIR"] = str(resources.files('desitarget').joinpath('test/t4'))
 
     @classmethod
     def tearDownClass(cls):
@@ -50,7 +50,7 @@ class TestSV(unittest.TestCase):
         """Test SV cuts work.
         """
         # ADM find all svX sub-directories in the desitarget directory.
-        fns = sorted(glob(resource_filename('desitarget', 'sv*')))
+        fns = sorted(glob(str(resources.files('desitarget').joinpath('sv*'))))
         svlist = [os.path.basename(fn) for fn in fns if os.path.isdir(fn)]
         self.assertEqual(len(svlist), 3)
 
@@ -90,14 +90,3 @@ class TestSV(unittest.TestCase):
 
             self.assertEqual(number_of_calls, 3)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_sv
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

@@ -11,7 +11,7 @@ An old copy of the Main Survey cuts (../cuts.py) that were used for commissionin
 """
 
 import numpy as np
-from pkg_resources import resource_filename
+from importlib import resources
 from desitarget.geomask import imaging_mask
 
 # ADM set up the DESI default logger
@@ -545,7 +545,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         colorsReducedIndex = colorsIndex[preSelection]
 
         # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
+        pathToRF = str(resources.files('desitarget').joinpath('data'))
         # rf filenames
         rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
         rf_DR7_fileName = pathToRF + '/rf_model_dr7.npz'

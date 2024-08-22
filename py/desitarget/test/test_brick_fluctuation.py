@@ -57,15 +57,3 @@ class TestBrickFluctuation(unittest.TestCase):
             self.assertTrue(isinstance(self.depth[k], np.ndarray))
             self.assertEqual(len(self.depth[k]), len(self.b['RA']))
             self.assertEqual(len(self.depth[k]), len(self.b['DEC']))
-
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_brick_fluctuation
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

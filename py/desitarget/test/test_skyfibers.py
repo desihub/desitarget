@@ -3,7 +3,7 @@
 """Test desitarget.skyfibers.
 """
 import unittest
-from pkg_resources import resource_filename
+from importlib import resources
 import numpy as np
 
 from glob import glob
@@ -23,7 +23,7 @@ class TestSKYFIBERS(unittest.TestCase):
     @classmethod
     def setUp(self):
         # ADM location of input test survey directory structure.
-        self.sd = resource_filename('desitarget.test', 'dr6')
+        self.sd = str(resources.files('desitarget').joinpath('test/dr6'))
 
         # ADM create the survey object.
         self.survey = LegacySurveyData(self.sd)
@@ -183,14 +183,3 @@ class TestSKYFIBERS(unittest.TestCase):
         # ADM check the wrapper generates a single brick correctly.
         self.assertTrue(np.all(ss == skies))
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_skyfibers
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

@@ -14,7 +14,7 @@ import fitsio
 import requests
 import pickle
 
-from pkg_resources import resource_filename
+from importlib import resources
 from time import time
 from astropy.io import ascii
 from glob import glob
@@ -177,8 +177,8 @@ def urat_binary_to_csv():
              .format(time()-start))
 
     # ADM check the v1dump executable has been compiled.
-    readme = resource_filename('desitarget', 'urat/fortran/README')
-    cmd = resource_filename('desitarget', 'urat/fortran/v1dump')
+    readme = resources.files('desitarget').joinpath('urat/fortran/README')
+    cmd = resources.files('desitarget').joinpath('urat/fortran/v1dump')
     if not (os.path.exists(cmd) and os.access(cmd, os.X_OK)):
         msg = "{} must have been compiled (see {})".format(cmd, readme)
         log.critical(msg)

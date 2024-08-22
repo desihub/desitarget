@@ -1,8 +1,5 @@
-def test_suite():
-    """Returns unittest.TestSuite for this package"""
-    import unittest
-    from os.path import dirname
-    basedir = dirname(dirname(__file__))
-    # print(desispec_dir)
-    return unittest.defaultTestLoader.discover(basedir,
-                                               top_level_dir=dirname(basedir))
+# Licensed under a 3-clause BSD style license - see LICENSE.rst
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import
+
+from .desitarget_test_suite import runtests

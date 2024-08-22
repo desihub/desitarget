@@ -347,14 +347,3 @@ class TestPriorities(unittest.TestCase):
 
         self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_priorities
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)
