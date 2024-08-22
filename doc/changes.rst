@@ -5,6 +5,7 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
+* Fix `pkg_resources`/`scipy.ndimage`/`pytest` deprecations [`PR #829`_].
 * Change match routines to test input arrays for duplicates [`PR #828`_].
     * Addresses `issue #811`_.
 * Add `GAIA_` prefix to `PHOT_*_MEAN_MAG` column names [`PR #827`_].
@@ -40,6 +41,7 @@ desitarget Change Log
 .. _`PR #826`: https://github.com/desihub/desitarget/pull/826
 .. _`PR #827`: https://github.com/desihub/desitarget/pull/827
 .. _`PR #828`: https://github.com/desihub/desitarget/pull/828
+.. _`PR #829`: https://github.com/desihub/desitarget/pull/829
 
 2.7.0 (2023-12-05)
 ------------------

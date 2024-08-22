@@ -7,7 +7,7 @@ if __name__ == "__main__":
     import fitsio
     import numpy as np
     from time import time
-    from pkg_resources import resource_filename
+    from importlib import resources
     from desitarget.gaiamatch import find_gaia_files
     from desitarget.tychomatch import find_tycho_files
     from desitarget.uratmatch import find_urat_files
@@ -17,7 +17,7 @@ if __name__ == "__main__":
 
     # ADM choose the Gaia files to cover the same object
     # ADM locations as the sweeps/tractor files.
-    datadir = resource_filename('desitarget.test', 't')
+    datadir = resources.files('desitarget').joinpath('test/t')
     tractorfiles = sorted(io.list_tractorfiles(datadir))
     sweepfiles = sorted(io.list_sweepfiles(datadir))
 

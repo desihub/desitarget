@@ -22,7 +22,7 @@ import numpy.lib.recfunctions as rfn
 import healpy as hp
 from glob import glob, iglob
 from time import time
-from pkg_resources import resource_filename
+from importlib import resources
 import yaml
 import hashlib
 
@@ -435,7 +435,7 @@ def write_with_units(filename, data, extname=None, header=None, ecsv=False):
           conversion is applied to `data`.
     """
     # ADM read the desitarget units yaml file.
-    fn = resource_filename('desitarget', os.path.join('data', 'units.yaml'))
+    fn = resources.files('desitarget').joinpath('data/units.yaml')
     with open(fn) as f:
         unitdict = yaml.safe_load(f)
 

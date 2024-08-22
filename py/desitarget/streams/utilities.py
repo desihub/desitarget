@@ -13,7 +13,7 @@ import os
 import numpy as np
 import astropy.coordinates as acoo
 import astropy.units as auni
-from pkg_resources import resource_filename
+from importlib import resources
 from scipy.interpolate import UnivariateSpline
 from time import time
 import desitarget.streams.gaia_dr3_parallax_zero_point.zpt as gaia_zpt
@@ -396,7 +396,7 @@ def get_stream_parameters(stream_name):
     stream_name = stream_name.upper()
 
     # ADM open and load the parameter yaml file.
-    fn = resource_filename('desitarget', os.path.join('data', 'streams.yaml'))
+    fn = resources.files('desitarget').joinpath('data/streams.yaml')
     with open(fn) as f:
         stream = yaml.safe_load(f)
 

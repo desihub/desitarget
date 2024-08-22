@@ -23,7 +23,7 @@ import astropy.units as u
 from astropy.coordinates import SkyCoord
 from astropy.table import Table, Row
 
-from pkg_resources import resource_filename
+from importlib import resources
 
 from desitarget import io
 from desitarget.cuts import _psflike, _is_row, _get_colnames, _prepare_gaia
@@ -1008,7 +1008,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         colorsReducedIndex = colorsIndex[preSelection]
 
         # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
+        pathToRF = str(resources.files('desitarget').joinpath('data'))
         # ADM Use RF trained over DR7
         rf_fileName = pathToRF + '/rf_model_dr7.npz'
         rf_HighZ_fileName = pathToRF + '/rf_model_dr7_HighZ.npz'

@@ -4,7 +4,7 @@ import numpy as np
 import joblib
 
 from desitarget.myRF import myRF
-from pkg_resources import resource_filename
+from importlib import resources
 
 import matplotlib.pyplot as plt
 from matplotlib.gridspec import GridSpec
@@ -59,7 +59,7 @@ def compute_proba_desitarget(sample):
     attributes = build_attributes(len(sample), nfeatures, sample)
 
     print("NOT FINAL VERSION 888")
-    pathToRF = resource_filename('desitarget', 'data')
+    pathToRF = str(resources.files('desitarget').joinpath('data'))
     rf_fileName = pathToRF + f'/rf_model_dr9.npz'
     rf_Highz_fileName = pathToRF + f'/rf_model_dr9_HighZ.npz'
 

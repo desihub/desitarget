@@ -4,7 +4,7 @@
 """
 import unittest
 import sys
-from pkg_resources import resource_filename
+from importlib import resources
 import os.path
 from uuid import uuid4
 import numbers
@@ -26,10 +26,10 @@ class TestCMX(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.datadir = resource_filename('desitarget.test', 't')
+        cls.datadir = resources.files('desitarget').joinpath('test/t')
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
-        cls.cmxdir = resource_filename('desitarget.test', 't3')
+        cls.cmxdir = resources.files('desitarget').joinpath('test/t3')
 
         # ADM find which HEALPixels are covered by test sweeps files.
         cls.nside = 32
@@ -43,7 +43,7 @@ class TestCMX(unittest.TestCase):
 
         # ADM set up the GAIA_DIR environment variable.
         cls.gaiadir_orig = os.getenv("GAIA_DIR")
-        os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
+        os.environ["GAIA_DIR"] = str(resources.files('desitarget').joinpath('test/t4'))
 
     @classmethod
     def tearDownClass(cls):
@@ -157,14 +157,3 @@ class TestCMX(unittest.TestCase):
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['CMX_TARGET']))
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_cmx
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

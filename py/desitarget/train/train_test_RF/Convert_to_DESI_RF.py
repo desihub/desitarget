@@ -17,7 +17,6 @@ import numpy as np
 import time
 
 from desitarget.myRF import myRF
-from pkg_resources import resource_filename
 
 import joblib
 from sklearn.ensemble import RandomForestClassifier

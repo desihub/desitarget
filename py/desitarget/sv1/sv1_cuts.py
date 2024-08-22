@@ -16,7 +16,7 @@ import numpy as np
 import warnings
 
 from time import time
-from pkg_resources import resource_filename
+from importlib import resources
 import healpy as hp
 import fitsio
 
@@ -780,7 +780,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, w1flux=None,
         colorsReducedIndex = colorsIndex[preSelection]
 
         # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
+        pathToRF = str(resources.files('desitarget').joinpath('data'))
         # Use RF trained over DR9
         rf_fileName = pathToRF + '/rf_model_dr9.npz'
         rf_HighZ_fileName = pathToRF + '/rf_model_dr9_HighZ.npz'
@@ -911,7 +911,7 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
         colorsReducedIndex = colorsIndex[preSelection]
 
         # Path to random forest files.
-        pathToRF = resource_filename('desitarget', 'data')
+        pathToRF = str(resources.files('desitarget').joinpath('data'))
         # Use RF trained over DR9.
         rf_fileName = pathToRF + '/rf_model_dr9.npz'
 

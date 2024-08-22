@@ -20,7 +20,7 @@ import sys
 import fitsio
 import numpy as np
 import healpy as hp
-from pkg_resources import resource_filename
+from importlib import resources
 import numpy.lib.recfunctions as rfn
 from importlib import import_module
 
@@ -1721,7 +1721,7 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
         colorsReducedIndex = colorsIndex[preSelection]
 
         # Path to random forest files
-        pathToRF = resource_filename('desitarget', 'data')
+        pathToRF = str(resources.files('desitarget').joinpath('data'))
         # rf filenames
         rf_DR3_fileName = pathToRF + '/rf_model_dr3.npz'
         rf_DR7_fileName = pathToRF + '/rf_model_dr7.npz'

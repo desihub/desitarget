@@ -15,9 +15,9 @@ from time import time
 import photutils
 import healpy as hp
 from glob import glob
-from scipy.ndimage.morphology import binary_dilation, binary_erosion
-from scipy.ndimage.measurements import label, find_objects, center_of_mass
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import binary_dilation, binary_erosion
+from scipy.ndimage import label, find_objects, center_of_mass
+from scipy.ndimage import gaussian_filter
 
 # ADM some utility code taken from legacypipe and astrometry.net.
 from desitarget.skyutilities.astrometry.fits import fits_table

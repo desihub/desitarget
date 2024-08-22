@@ -10,7 +10,7 @@ Read mock catalogs and assign spectra.
 import os
 import numpy as np
 from glob import glob
-from pkg_resources import resource_filename
+from importlib import resources
 
 import fitsio
 import healpy as hp
@@ -514,11 +514,11 @@ class SelectTargets(object):
                 pass
                 #return
 
-            gmmdir = resource_filename('desitarget', 'mock/data/dr9')
+            gmmdir = resources.files('desitarget').joinpath('mock/data/dr9')
             if not os.path.isdir:
                 log.warning('DR9 GMM directory {} not found!'.format(gmmdir))
                 raise IOError
-            
+
             fracfile = os.path.join(gmmdir, 'fractype_{}.fits'.format(target.lower()))
             fractype = Table.read(fracfile)
 
