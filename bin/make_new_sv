@@ -6,7 +6,7 @@ import numpy as np
 #import warnings
 #warnings.simplefilter('error')
 
-from pkg_resources import resource_filename
+from importlib import resources
 from glob import glob
 from time import time
 start = time()
@@ -19,7 +19,7 @@ ap = ArgumentParser("Make a new sv directory, based on the highest existing sv d
 _ = ap.parse_args()
 
 # ADM the standard root name for a desitarget SV directory.
-svroot = resource_filename('desitarget', 'sv')
+svroot = str(resources.files('desitarget').joinpath('sv'))
 
 # ADM retrieve the highest current sv directory.
 fns = sorted(glob(svroot+'*'))
