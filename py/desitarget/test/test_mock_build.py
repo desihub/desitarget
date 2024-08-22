@@ -106,12 +106,3 @@ class TestMockBuild(unittest.TestCase):
         skypix = hp.ang2pix(nside, theta, phi, nest=True)
         self.assertEqual(set(surveypix), set(skypix))
 
-if __name__ == '__main__':
-    unittest.main()
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_mock_build
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

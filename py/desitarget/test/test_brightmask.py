@@ -262,15 +262,3 @@ class TestBRIGHTMASK(unittest.TestCase):
         brickidset = np.array(
             [int(bintargid[-lmostbit:-rmostbit], 2) for bintargid in bintargids])
         self.assertTrue(np.all(brickidset == bid))
-
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_brightmask
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

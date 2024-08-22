@@ -99,14 +99,3 @@ class TestTargetID(unittest.TestCase):
             self.assertLess(np.abs(ra1-ra), delta)
             self.assertLess(np.abs(dec1-dec), delta)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_geomask
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

@@ -183,14 +183,3 @@ class TestSKYFIBERS(unittest.TestCase):
         # ADM check the wrapper generates a single brick correctly.
         self.assertTrue(np.all(ss == skies))
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_skyfibers
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

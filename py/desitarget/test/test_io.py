@@ -185,14 +185,3 @@ class TestIO(unittest.TestCase):
         self.assertEqual(bt['SUBPRIORITY'][0], 2.0)
         self.assertNotEqual(bt['SUBPRIORITY'][1], 0.0)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_io
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

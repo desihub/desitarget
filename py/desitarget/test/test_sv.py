@@ -90,14 +90,3 @@ class TestSV(unittest.TestCase):
 
             self.assertEqual(number_of_calls, 3)
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_sv
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

@@ -67,14 +67,3 @@ class TestSECONDARY(unittest.TestCase):
         # ADM check downsample is always less than 1 (< 100%).
         self.assertTrue(np.all(np.array(ds) <= 1))
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_mtl
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)

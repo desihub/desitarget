@@ -157,14 +157,3 @@ class TestCMX(unittest.TestCase):
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['CMX_TARGET']))
 
-
-if __name__ == '__main__':
-    unittest.main()
-
-
-def test_suite():
-    """Allows testing of only this module with the command:
-
-        python setup.py test -m desitarget.test.test_cmx
-    """
-    return unittest.defaultTestLoader.loadTestsFromName(__name__)
