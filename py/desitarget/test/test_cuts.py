@@ -4,7 +4,7 @@
 """
 import unittest
 import sys
-from pkg_resources import resource_filename
+from importlib import resources
 import os.path
 from uuid import uuid4
 import numbers
@@ -27,7 +27,7 @@ class TestCuts(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.datadir = resource_filename('desitarget.test', 't')
+        cls.datadir = resources.files('desitarget').joinpath('test/t')
         cls.tractorfiles = sorted(io.list_tractorfiles(cls.datadir))
         cls.sweepfiles = sorted(io.list_sweepfiles(cls.datadir))
 
@@ -43,7 +43,7 @@ class TestCuts(unittest.TestCase):
 
         # ADM set up the GAIA_DIR environment variable.
         cls.gaiadir_orig = os.getenv("GAIA_DIR")
-        os.environ["GAIA_DIR"] = resource_filename('desitarget.test', 't4')
+        os.environ["GAIA_DIR"] = str(resources.files('desitarget').joinpath('test/t4'))
 
     @classmethod
     def tearDownClass(cls):

@@ -9,7 +9,7 @@ import astropy.version as astropyversion
 import astropy.units as u
 import numpy as np
 from astropy.table import Table
-from pkg_resources import resource_filename
+from importlib import resources
 from desitarget.brightmask import maskdatamodel as dma
 from desitarget.gaiamatch import gaiadatamodel as dmb
 from desitarget.gfa import gfadatamodel as dmc
@@ -25,7 +25,7 @@ class TestUNITS(unittest.TestCase):
     def setUp(self):
         # ADM load the units yaml file.
         basefn = os.path.join('data', 'units.yaml')
-        self.fn = resource_filename('desitarget', basefn)
+        self.fn = resources.files('desitarget').joinpath(basefn)
         with open(self.fn) as f:
             self.units = yaml.safe_load(f)
 

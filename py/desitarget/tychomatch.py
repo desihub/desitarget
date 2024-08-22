@@ -13,7 +13,6 @@ import requests
 import pickle
 from datetime import datetime
 
-from pkg_resources import resource_filename
 from time import time
 from astropy.io import ascii
 from glob import glob

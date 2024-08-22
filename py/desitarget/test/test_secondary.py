@@ -7,7 +7,7 @@ import numpy as np
 import unittest
 from importlib import import_module
 from glob import glob
-from pkg_resources import resource_filename
+from importlib import resources
 
 
 class TestSECONDARY(unittest.TestCase):
@@ -16,7 +16,7 @@ class TestSECONDARY(unittest.TestCase):
         # ADM these are the allowed types of observations of secondaries.
         self.flavors = {"SPARE", "DEDICATED", "SSV", "QSO", "TOO"}
         # ADM this is the list of defined directories for SV.
-        fns = sorted(glob(resource_filename('desitarget', 'sv*')))
+        fns = sorted(glob(str(resources.files('desitarget').joinpath('sv*'))))
         svlist = [os.path.basename(fn) for fn in fns if os.path.isdir(fn)]
         # ADM loop over all SV flavors and main survey to get all masks.
         from desitarget.targetmask import scnd_mask as Mx

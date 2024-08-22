@@ -6,7 +6,7 @@ import unittest
 import tempfile
 import os
 import shutil
-from pkg_resources import resource_filename
+from importlib import resources
 import numpy as np
 from astropy.table import Table
 import healpy as hp
@@ -19,7 +19,7 @@ from desitarget.mock.build import targets_truth
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
 class TestMockBuild(unittest.TestCase):
-    
+
     def setUp(self):
         self.outdir = tempfile.mkdtemp()
 
@@ -29,7 +29,7 @@ class TestMockBuild(unittest.TestCase):
 
     @unittest.skipUnless('DESITARGET_RUN_MOCK_UNITTEST' in os.environ, '$DESITARGET_RUN_MOCK_UNITTEST not set; skipping expensive mock tests')
     def test_targets_truth(self):
-        configfile = resource_filename('desitarget.mock', 'data/select-mock-targets.yaml')
+        configfile = resources.files('desitarget').joinpath('mock/data/select-mock-targets.yaml')
 
         import yaml
         with open(configfile) as fx:

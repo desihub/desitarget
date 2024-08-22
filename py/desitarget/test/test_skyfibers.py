@@ -3,7 +3,7 @@
 """Test desitarget.skyfibers.
 """
 import unittest
-from pkg_resources import resource_filename
+from importlib import resources
 import numpy as np
 
 from glob import glob
@@ -23,7 +23,7 @@ class TestSKYFIBERS(unittest.TestCase):
     @classmethod
     def setUp(self):
         # ADM location of input test survey directory structure.
-        self.sd = resource_filename('desitarget.test', 'dr6')
+        self.sd = str(resources.files('desitarget').joinpath('test/dr6'))
 
         # ADM create the survey object.
         self.survey = LegacySurveyData(self.sd)

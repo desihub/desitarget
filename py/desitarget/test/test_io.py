@@ -3,7 +3,7 @@
 """Test desitarget.io.
 """
 import unittest
-from pkg_resources import resource_filename
+from importlib import resources
 import shutil
 import os.path
 from uuid import uuid4
@@ -20,7 +20,7 @@ class TestIO(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.datadir = resource_filename('desitarget.test', 't')
+        cls.datadir = resources.files('desitarget').joinpath('test/t')
 
     def setUp(self):
         self.testdir = 'test-{}'.format(uuid4().hex)

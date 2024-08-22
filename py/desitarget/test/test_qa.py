@@ -10,7 +10,7 @@ import tempfile
 import warnings
 import numpy as np
 import healpy as hp
-from pkg_resources import resource_filename
+from importlib import resources
 from glob import glob
 from desitarget.QA import make_qa_page, _load_systematics
 from desitarget.QA import _parse_tcnames, _in_desi_footprint
@@ -24,7 +24,7 @@ class TestQA(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.datadir = resource_filename('desitarget.test', 't/')
+        cls.datadir = resources.files('desitarget').joinpath('test/t')
         cls.targfile = os.path.join(cls.datadir, 'targets.fits')
         cls.mocktargfile = os.path.join(cls.datadir, 'targets-mocks.fits')
         cls.cmxfile = os.path.join(cls.datadir, 'cmx-targets.fits')

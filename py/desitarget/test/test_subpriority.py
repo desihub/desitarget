@@ -3,7 +3,6 @@
 """Test desitarget.subpriority
 """
 import unittest
-from pkg_resources import resource_filename
 import numpy as np
 import os
 from astropy.table import Table
