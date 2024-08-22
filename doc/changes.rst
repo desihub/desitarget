@@ -5,6 +5,7 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
+* Fix `pkg_resources`, `scipy.ndimage`, and `pytest` deprecation warnings [`PR #829`_].
 * Add `GAIA_` prefix to `PHOT_*_MEAN_MAG` column names [`PR #827`_].
     * So GD1/streams files conform to downstream data model.
 * Module file removed vars that are now defined in desimodules:
@@ -36,6 +37,7 @@ desitarget Change Log
 .. _`PR #825`: https://github.com/desihub/desitarget/pull/825
 .. _`PR #826`: https://github.com/desihub/desitarget/pull/826
 .. _`PR #827`: https://github.com/desihub/desitarget/pull/827
+.. _`PR #829`: https://github.com/desihub/desitarget/pull/829
 
 2.7.0 (2023-12-05)
 ------------------
