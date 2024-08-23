@@ -5,7 +5,9 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
-* Fix `pkg_resources`, `scipy.ndimage`, and `pytest` deprecation warnings [`PR #829`_].
+* Fix `pkg_resources`/`scipy.ndimage`/`pytest` deprecations [`PR #829`_].
+* Change match routines to test input arrays for duplicates [`PR #828`_].
+    * Addresses `issue #811`_.
 * Add `GAIA_` prefix to `PHOT_*_MEAN_MAG` column names [`PR #827`_].
     * So GD1/streams files conform to downstream data model.
 * Module file removed vars that are now defined in desimodules:
@@ -25,6 +27,7 @@ desitarget Change Log
   * Addresses `issue #812`_.
   * General unit tests fixes, including one introduced in `PR #823`_
 
+.. _`issue #811`: https://github.com/desihub/desitarget/issues/811
 .. _`issue #812`: https://github.com/desihub/desitarget/issues/812
 .. _`PR #814`: https://github.com/desihub/desitarget/pull/814
 .. _`PR #815`: https://github.com/desihub/desitarget/pull/815
@@ -37,6 +40,7 @@ desitarget Change Log
 .. _`PR #825`: https://github.com/desihub/desitarget/pull/825
 .. _`PR #826`: https://github.com/desihub/desitarget/pull/826
 .. _`PR #827`: https://github.com/desihub/desitarget/pull/827
+.. _`PR #828`: https://github.com/desihub/desitarget/pull/828
 .. _`PR #829`: https://github.com/desihub/desitarget/pull/829
 
 2.7.0 (2023-12-05)
