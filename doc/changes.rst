@@ -5,6 +5,8 @@ desitarget Change Log
 2.7.1 (unreleased)
 ------------------
 
+* Attempt to fix coverage tests [`PR #831`_]
+    * Didn't appear to fully work, but partial progress so merged.
 * Fix `pkg_resources`/`scipy.ndimage`/`pytest` deprecations [`PR #829`_].
 * Change match routines to test input arrays for duplicates [`PR #828`_].
     * Addresses `issue #811`_.
@@ -42,6 +44,7 @@ desitarget Change Log
 .. _`PR #827`: https://github.com/desihub/desitarget/pull/827
 .. _`PR #828`: https://github.com/desihub/desitarget/pull/828
 .. _`PR #829`: https://github.com/desihub/desitarget/pull/829
+.. _`PR #831`: https://github.com/desihub/desitarget/pull/831
 
 2.7.0 (2023-12-05)
 ------------------
