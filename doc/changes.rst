@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-2.7.1 (unreleased)
+2.8.1 (unreleased)
+------------------
+
+* No changes yet.
+
+2.8.0 (2024-08-23)
 ------------------
 
 * Attempt to fix coverage tests [`PR #831`_]
