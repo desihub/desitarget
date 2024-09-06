@@ -90,9 +90,10 @@ jobs:
               run: DESIMODEL=$(pwd) pytest --cov
             - name: Coveralls
               env:
-                COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-              run: coveralls --service=github
+                COVERALLS_SERVICE_NAME: github
+                COVERALLS_SERVICE_NUMBER: "${{ github.workflow }}-${{ github.run_number }}"
+              run: coveralls
 
     docs:
         name: Doc test
