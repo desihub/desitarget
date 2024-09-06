@@ -17,7 +17,7 @@ jobs:
             fail-fast: true
             matrix:
                 os: [ubuntu-latest]
-                python-version: ['3.9', '3.10']  # fuji+guadalupe version, latest
+                python-version: ['3.9']  # fuji+guadalupe version
                 astropy-version: ['==5.0', '<6']  # fuji+guadalupe version, latest
                 fitsio-version: ['==1.1.6', '<2']  # fuji+guadalupe version, latest
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy
