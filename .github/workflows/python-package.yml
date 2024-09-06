@@ -17,15 +17,15 @@ jobs:
             fail-fast: true
             matrix:
                 os: [ubuntu-latest]
-                python-version: [3.9]
-                astropy-version: ['==5.0', '<6']  # fuji version
-                fitsio-version: ['==1.1.6']  # fuji version
+                python-version: ['3.9', '3.10']  # fuji+guadalupe version, latest
+                astropy-version: ['==5.0', '<6']  # fuji+guadalupe version, latest
+                fitsio-version: ['==1.1.6', '<2']  # fuji+guadalupe version, latest
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy
                 matplotlib-version: ['<3.6.3'] # later versions of matplotlib require later versions of numpy.
 
         env:
-            DESIUTIL_VERSION: 3.2.5
-            DESIMODEL_DATA: branches/test-0.17
+            DESIUTIL_VERSION: 3.4.2
+            DESIMODEL_DATA: branches/test-0.18
 
         steps:
             - name: Checkout code
