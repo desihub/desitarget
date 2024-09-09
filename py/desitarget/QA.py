@@ -549,7 +549,7 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
     # ADM if downclip was passed as a number, turn it to a string with
     # ADM an exclamation mark to mask the plot background completely.
     if downclip is not None:
-        if type(downclip) != str:
+        if not isinstance(downclip, str)
             downclip = '!' + str(downclip)
 
     # ADM prepare the data to be plotted by matplotlib routines.
@@ -2139,7 +2139,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
             html.write('<table COLS=3 WIDTH="100%">\n')
             html.write('<tr>\n')
             # ADM add the plots...
-            while(len(sysnames) > 2):
+            while (len(sysnames) > 2):
                 for sys in sysnames[:3]:
                     html.write('<td align=center><A HREF="sysdens-{}-{}.png"><img SRC="sysdens-{}-{}.png" height=auto width=95%></A></td>\n'
                                .format(sys, objtype, sys, objtype))
@@ -2216,7 +2216,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
         htmlmain.write('<table COLS=2 WIDTH="100%">\n')
         htmlmain.write('<tr>\n')
         # ADM add the plots...
-        while(len(sysnames) > 1):
+        while (len(sysnames) > 1):
             for sys in sysnames[:2]:
                 htmlmain.write('<td align=center><A HREF="systematics-{}.png"><img SRC="systematics-{}.png" height=auto width=95%></A></td>\n'
                                .format(sys, sys))
