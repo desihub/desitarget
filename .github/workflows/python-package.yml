@@ -24,7 +24,7 @@ jobs:
                 matplotlib-version: ['<3.6.3'] # later versions of matplotlib require later versions of numpy.
 
         env:
-            DESIUTIL_VERSION: 3.4.2
+            DESIUTIL_VERSION: 3.4.3
             DESIMODEL_DATA: branches/test-0.18
 
         steps:
@@ -64,7 +64,7 @@ jobs:
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy.
                 matplotlib-version: ['<3.6.3'] # later versions of matplotlib require later versions of numpy.
         env:
-            DESIUTIL_VERSION: 3.4.2
+            DESIUTIL_VERSION: 3.4.3
             DESIMODEL_DATA: branches/test-0.18
 
         steps:
