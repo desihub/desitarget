@@ -894,7 +894,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         resolve = None
 
     # ADM set output format to ecsv if passed, or fits otherwise.
-    form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
+    form = 'ecsv'*ecsv + 'fits'*(not (ecsv))
     fn = find_target_files(mtldir, dr=drstring, flavor="mtl", survey=survey,
                            resolve=resolve, obscon=obscon, hp=hpx,
                            override=override, ender=form)

@@ -1318,7 +1318,7 @@ def select_secondary(priminfodir, sep=1., scxdir=None, darkbright=False,
     log.info("Reading secondary files...t={:.1f}m".format((time()-start)/60.))
     # ADM retrieve the scxdir, check it's structure and fidelity...
     scxdir = _get_scxdir(scxdir)
-    _check_files(scxdir, scnd_mask, bits2files=not(nomerge))
+    _check_files(scxdir, scnd_mask, bits2files=not (nomerge))
     # ADM ...and read in all of the secondary targets.
     scxtargs = read_files(scxdir, scnd_mask, subset=nomerge)
 

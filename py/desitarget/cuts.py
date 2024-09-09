@@ -2067,7 +2067,7 @@ def _prepare_optical_wise(objects, mask=True):
     photsys_south = ~photsys_north
     # ADM catch case where single object or row is passed.
     if isinstance(photsys_north, bool):
-        photsys_south = not(photsys_north)
+        photsys_south = not (photsys_north)
 
     # ADM the observed r-band flux (used for F standards and MWS, below).
     # ADM make copies of values that we may reassign due to NaNs.

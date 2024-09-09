@@ -1457,7 +1457,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                 survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix,
                 scnd=scnd, extra=hdr, append=append)
             if verbose:
-                writ = int(append)*"appended" + int(not(append))*"written"
+                writ = int(append)*"appended" + int(not (append))*"written"
                 log.info('{} targets {} to {}...t={:.1f}s'.format(
                     nt, writ, fn, time()-t0))
 
@@ -1589,7 +1589,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     npix = np.ones((), dtype='i8')
     t0 = time()
     # ADM this is just to log whether we're in write or append mode.
-    writ = int(append)*"Appending" + int(not(append))*"Writing"
+    writ = int(append)*"Appending" + int(not (append))*"Writing"
 
     def _update_status(result):
         """wrap key reduction operation on the main parallel process"""

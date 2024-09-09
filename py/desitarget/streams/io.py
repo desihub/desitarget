@@ -118,7 +118,7 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
             gaiaobjs[col][ii] = np.nan
 
         # ADM a (probably unnecessary) sanity check.
-        assert(len(gaiaobjs) == len(LSobjs))
+        assert (len(gaiaobjs) == len(LSobjs))
 
         # ADM add data for the Legacy Surveys columns.
         for col in streamcolsLS.dtype.names:

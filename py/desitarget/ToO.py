@@ -519,7 +519,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
 
     # ADM determine the output filename.
     # ADM set output format to ecsv if passed, or fits otherwise.
-    form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
+    form = 'ecsv'*ecsv + 'fits'*(not (ecsv))
     if outdir is None:
         fn = get_filename(tdir, outname=True, ender=form)
     else:

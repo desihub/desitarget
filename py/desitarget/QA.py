@@ -1780,10 +1780,10 @@ def make_qa_plots(targs, qadir='.', targdens=None, max_bin_area=1.0, weight=True
         if 'ALL' in objtype:
             ii = np.ones(len(targs)).astype('bool')
         else:
-            if ('BGS' in objtype) and not('S_ANY' in objtype) and not(cmx):
+            if ('BGS' in objtype) and not ('S_ANY' in objtype) and not (cmx):
                 ii = targs["BGS_TARGET"] & b_mask[objtype] != 0
             elif (('MWS' in objtype or 'BACKUP' in objtype or 'GAIA_STD' in objtype) and
-                  not('S_ANY' in objtype) and not(cmx)):
+                  not ('S_ANY' in objtype) and not (cmx)):
                 ii = targs["MWS_TARGET"] & m_mask[objtype] != 0
             else:
                 ii = targs["DESI_TARGET"] & d_mask[objtype] != 0
@@ -2127,7 +2127,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 
         # ADM add target density vs. systematics plots, if systematics plots were requested.
         # ADM these plots aren't useful if we're looking at commissioning data.
-        if systematics and not(cmx):
+        if systematics and not (cmx):
             # ADM fail if the pixel systematics weights file was not passed.
             if imaging_map_file is None:
                 log.error("imaging_map_file was not passed so systematics cannot be tracked. Try again passing systematics=False.")
@@ -2242,7 +2242,7 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
                                       qadir=qadir, downclip=down, upclip=up, plottitle=plotlabel)
                 # ADM make the systematics vs. target density scatter plots
                 # ADM for each target type. These plots aren't useful for commissioning.
-                if not(cmx):
+                if not (cmx):
                     for objtype in targdens.keys():
                         # ADM hack to have different FRACAREA quantities for the sky maps and
                         # ADM the scatter plots.
