@@ -549,7 +549,7 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
     # ADM if downclip was passed as a number, turn it to a string with
     # ADM an exclamation mark to mask the plot background completely.
     if downclip is not None:
-        if not isinstance(downclip, str)
+        if not isinstance(downclip, str):
             downclip = '!' + str(downclip)
 
     # ADM prepare the data to be plotted by matplotlib routines.
