@@ -64,16 +64,16 @@ jobs:
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy.
                 matplotlib-version: ['<3.6.3'] # later versions of matplotlib require later versions of numpy.
         env:
-            DESIUTIL_VERSION: 3.4.2
+            DESIUTIL_VERSION: 3.4.3
             DESIMODEL_DATA: branches/test-0.18
 
         steps:
             - name: Checkout code
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
               with:
                 fetch-depth: 0
             - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v2
+              uses: actions/setup-python@v5
               with:
                 python-version: ${{ matrix.python-version }}
             - name: Install Python dependencies
@@ -88,12 +88,15 @@ jobs:
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
                 svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
             - name: Run the test with coverage
-              run: DESIMODEL=$(pwd) pytest --cov
+              run: pytest --cov
             - name: Coveralls
               env:
-                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-                  COVERALLS_SERVICE_NAME: github
-                  COVERALLS_SERVICE_NUMBER: "${{ github.workflow }}-${{ github.run_number }}"
+                GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                COVERALLS_PARALLEL: true
+                COVERALLS_FLAG_NAME: "${{ matrix.os }},${{ matrix.python-version }},${{ matrix.package_level }}"
+                COVERALLS_SERVICE_NAME: github
+                COVERALLS_SERVICE_JOB_ID: "${{ github.run_id }}"
+                COVERALLS_SERVICE_NUMBER: "${{ github.workflow }}-${{ github.run_number }}"
               run: coveralls
 
     docs:
