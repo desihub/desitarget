@@ -17,7 +17,7 @@ jobs:
             fail-fast: true
             matrix:
                 os: [ubuntu-latest]
-                python-version: ['3.9']  # ADM fuji+guadalupe version. 3.10 fails on a single unit test.
+                python-version: ['3.10']  # ADM fuji+guadalupe version. 3.10 fails on a single unit test.
                 astropy-version: ['==5.0', '<6']  # ADM fuji+guadalupe version, latest.
                 fitsio-version: ['==1.1.6', '<2']  # ADM fuji+guadalupe version, latest.
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy.
