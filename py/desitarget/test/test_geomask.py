@@ -55,4 +55,3 @@ class TestGEOMASK(unittest.TestCase):
         iia, iib = geomask.match(a, b)
         self.assertTrue(np.all(a[iia] == b[iib]))
         self.assertTrue(len(iia), len(a))
-

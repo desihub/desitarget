@@ -184,4 +184,3 @@ class TestIO(unittest.TestCase):
         self.assertTrue(np.all(bt['SUBPRIORITY'] > 0.0))
         self.assertEqual(bt['SUBPRIORITY'][0], 2.0)
         self.assertNotEqual(bt['SUBPRIORITY'][1], 0.0)
-

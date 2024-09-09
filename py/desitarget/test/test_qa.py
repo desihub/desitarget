@@ -148,4 +148,3 @@ class TestQA(unittest.TestCase):
 
         self.assertEqual(len(tin[0]), 1)
         self.assertEqual(len(tout[0]), 0)
-

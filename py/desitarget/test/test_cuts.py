@@ -444,4 +444,3 @@ class TestCuts(unittest.TestCase):
                 timesthrown += 1
 
         self.assertEqual(timesthrown, 3)
-

@@ -346,4 +346,3 @@ class TestPriorities(unittest.TestCase):
                                   lowest_mws_priority_zgood)
 
         self.assertLess(lowest_bgs_priority_zgood, lowest_mws_priority)
-

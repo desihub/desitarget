@@ -87,4 +87,3 @@ class TestUNITS(unittest.TestCase):
         msg = "\n*** Unit list is:\n {} \n*** But Table units are:\n {}".format(
             unitlist, tabunits)
         self.assertTrue(np.all(unitlist[tabunits != unitlist] == ""), msg=msg)
-
