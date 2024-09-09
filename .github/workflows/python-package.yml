@@ -55,10 +55,10 @@ jobs:
         name: Test coverage
         runs-on: ${{ matrix.os }}
         strategy:
-            fail-fast: true
+            fail-fast: false
             matrix:
                 os: [ubuntu-latest]
-                python-version: ['3.10']  # ADM fuji+guadalupe version. 3.10 fails on a single unit test.
+                python-version: ['3.9']  # ADM fuji+guadalupe version. 3.10 fails on a single unit test.
                 astropy-version: ['<6']  # ADM latest version.
                 fitsio-version: ['<2']  # ADM latest version.
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy.
@@ -88,7 +88,7 @@ jobs:
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
                 svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
             - name: Run the test with coverage
-              run: pytest --cov
+              run: DESIMODEL=$(pwd) pytest --cov
             - name: Coveralls
               env:
                 GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
