@@ -25,6 +25,10 @@ desi_mask:
     - [ELG_LOP_SOUTH,     19, "ELG at standard (ELG) priority tuned for DECam data",                       {obsconditions: DARK}]
     - [ELG_VLO_SOUTH,     20, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
 
+    # ADM LRG sub-classes
+    - [LRG_EXT1,     21, "LRG for DESI extension possible selection 1",              {obsconditions: DARK}]
+    - [LRG_EXT2,     22, "LRG for DESI extension possible selection 2",              {obsconditions: DARK}]
+
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",                                       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [STD_FAINT,   33, "Standard stars for dark/gray conditions",                   {obsconditions: DARK}]
@@ -294,6 +298,10 @@ priorities:
         ELG_LOP_SOUTH: SAME_AS_LRG_NORTH
         ELG_VLO_SOUTH: SAME_AS_LRG_NORTH
 
+# ADM DESI extension targets same as LRGs.
+        LRG_EXT1: SAME_AS_LRG
+        LRG_EXT2: SAME_AS_LRG
+
 # ADM calibration and other non-standard targets.
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, MORE_MIDZQSO: 0}
         #- Standards and sky are treated specially; priorities don't apply
@@ -449,6 +457,10 @@ numobs:
         ELG_LOP_SOUTH: 0
         ELG_VLO_SOUTH: 0
         BAD_SKY:       0
+
+# ADM LRG extension targets.
+        LRG_EXT1: 2
+        LRG_EXT2: 2
 
 #- Standards and sky are treated specially; NUMOBS doesn't apply.
         STD_FAINT:         -1
