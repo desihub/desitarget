@@ -601,7 +601,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  & (rmag - w1mag > (w1mag - 16.33 - 0.19) * 1.))
                 | (rmag - w1mag > 3.3 - 0.1)
             )  # double sliding cuts and high-z extension.
-            lrgext = (((r-z-(-0.1))**2 + (g-r-(2.3))**2) > 2**2) & (r-z > 0.4)
+            lrgext = (((rmag - zmag -(-0.1))**2 + (gmag - rmag -(2.3))**2) > 2**2) & (rmag - zmag > 0.4)
             lrg &= lrgmain | lrgext
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
