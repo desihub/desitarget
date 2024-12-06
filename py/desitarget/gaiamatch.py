@@ -1529,6 +1529,15 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
     gaiainfo['REF_ID'] = -1
 
     # ADM compile the list of relevant Gaia files.
+    # ADM this is slightly buggy, as really we should find Gaia files by
+    # ADM matching the epoch of the objs and Gaia Data release. But the
+    # ADM HEALPix resolution for find_gaia_files() is more than a degree
+    # ADM and the time between DR3 (2016) and objs (2015.5) is tiny.
+    # ADM Even Barnard's Star only moves 5 microarcsec in 0.5 years.
+    if dr not in ["dr3"]:
+        msg = "Check above comment holds before allowing new DRs"
+        log.error(msg)
+        raise ValueError(msg)
     gaiafiles = find_gaia_files(objs, dr=dr)
 
     gaia = []
@@ -1541,6 +1550,10 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
     gpmracol, gpmdeccol = "PMRA", "PMDEC"
 
     # ADM rewind coordinates from the Gaia DR3 2016.0 epoch to 2015.5.
+    if dr not in ["dr3"]:
+        msg = "Will need to update code to allow epochs of later DRs"
+        log.error(msg)
+        raise ValueError(msg)
     rarew, decrew = rewind_coords(gaia[gracol], gaia[gdeccol],
                                   gaia[gpmracol], gaia[gpmdeccol],
                                   epochnow=2016.0, epochpast=2015.5)
