@@ -1488,7 +1488,7 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
     return gaiafiles
 
 
-def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
+def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3", maglim=None):
     """Match objects to Gaia healpix files starting with Gaia DR3.
 
     Parameters
@@ -1500,6 +1500,9 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
         The matching radius in arcseconds.
     dr : :class:`str`, optional, defaults to "dr3"
         Name of a Gaia data release. Specifies which REF_EPOCH to use.
+    maglim : :class:`float`, optional
+        Only return Gaia objects brighter than maglim in any Gaia band.
+        Saves memory when matching to bright objects.
 
     Returns
     -------
@@ -1542,7 +1545,13 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
 
     gaia = []
     for fn in gaiafiles:
-        gaia.append(read_gaia_file(fn, dr=dr))
+        g = read_gaia_file(fn, dr=dr)
+        if maglim is not None:
+            ii = (g['PHOT_G_MEAN_MAG'] < maglim) & (g['PHOT_G_MEAN_MAG'] !=0)
+            ii |= (g['PHOT_BP_MEAN_MAG'] < maglim) & (g['PHOT_BP_MEAN_MAG'] !=0)
+            ii |= (g['PHOT_RP_MEAN_MAG'] < maglim) & (g['PHOT_RP_MEAN_MAG'] !=0)
+            g = g[ii]
+        gaia.append(g)
     gaia = np.concatenate(gaia)
 
     # ADM the name of the relevant RA/Dec columns in the Gaia data model.
