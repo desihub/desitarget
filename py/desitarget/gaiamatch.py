@@ -1488,6 +1488,69 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
     return gaiafiles
 
 
+def match_gaia_to_primary_post_dr3_quick(objs, matchrad=0.2, dr="dr3",
+                                         maglim=None, nside=None):
+    """Typically quicker version of match_gaia_to_primary_post_dr3().
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE
+        EPOCH OF 2015.5 and EQUINOX J2000/ICRS.
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
+        The matching radius in arcseconds.
+    dr : :class:`str`, optional, defaults to "dr3"
+        Name of a Gaia data release. Specifies which REF_EPOCH to use.
+    maglim : :class:`float`, optional
+        Only return Gaia objects brighter than maglim in any Gaia band.
+        Speed-up that also saves memory when matching to bright objects.
+   nside : :class:`int`, optional
+        The HEALPixel nside number used to sort and organize the match. Defaults
+        to half the resolution of _get_gaia_nside() as the Gaia files are read
+        at the _get_gaia_nside() resolution ((NESTED scheme).
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Gaia information for each matching object, in a format like
+        `dr3datamodelfull`.
+
+    Notes
+    -----
+        - Returned objects correspond row-by-row to `objs`.
+        - For objects that do NOT have a match in Gaia, the "REF_ID"
+          column is set to -1, and all other columns are zero.
+        - Passing maglim might return different objects as well as
+          speeding up the code. This is because matches will only be
+          performed to brighter objects and their could be a bright
+          object in the match radius farther away than a fainter object.
+    """
+    if nside is None:
+        # ADM the next-biggest resolution compared to the nside at which
+        # ADM the Gaia HEALPix files are stored.
+        nside = _get_gaia_nside()//2
+
+    # ADM the HEALPixel occupied by each catalog object.
+    hpx = hp.ang2pix(nside, objs["RA"], objs["DEC"], lonlat=True, nest=True)
+    # ADM the enture set of relevant HEALPixels.
+    allpix = sorted(set(hpx))
+
+    # ADM include a tracker to retain the input catalog order.
+    tracker = np.arange(len(objs))
+
+    # ADM set up the output array for Gaia information.
+    gaiainfo = np.zeros(len(objs), dtype=dr3datamodelfull.dtype)
+
+    # ADM loop through the pixels and determine the matches.
+    for pix in allpix:
+        inpix = hpx == pix
+        gi = match_gaia_to_primary_post_dr3(objs[inpix], matchrad=matchrad,
+                                            dr=dr, maglim=maglim)
+        # ADM populate the output array, retaining original order.
+        gaiainfo[tracker[inpix]] == gi
+
+    return gaiainfo
+
+
 def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3", maglim=None):
     """Match objects to Gaia healpix files starting with Gaia DR3.
 
@@ -1502,7 +1565,7 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3", maglim=None):
         Name of a Gaia data release. Specifies which REF_EPOCH to use.
     maglim : :class:`float`, optional
         Only return Gaia objects brighter than maglim in any Gaia band.
-        Saves memory when matching to bright objects.
+        Speed-up that also saves memory when matching to bright objects.
 
     Returns
     -------
@@ -1519,6 +1582,10 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3", maglim=None):
           in Gaia that were discovered after running Main Survey targets
           (i.e. starting with Gaia DR3). To reproduce DESI Main Survey
           targets, :func:`match_gaia_to_primary()` should be used.
+        - Passing maglim might return different objects as well as
+          speeding up the code. This is because matches will only be
+          performed to brighter objects and their could be a bright
+          object in the match radius farther away than a fainter object.
     """
     # ADM issue a warning that this code is intended for use post-DR3.
     if dr in ["dr2", "edr3"]:
