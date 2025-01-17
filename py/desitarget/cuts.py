@@ -479,7 +479,7 @@ def isBACKUP(ra=None, dec=None,
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rfluxivar=None, zfluxivar=None, w1fluxivar=None,
           gaiagmag=None, gnobs=None, rnobs=None, znobs=None, maskbits=None,
-          zfibertotflux=None, primary=None, south=True, ext=None):
+          zfibertotflux=None, primary=None, south=True, ext=False):
     """
     Parameters
     ----------
@@ -487,9 +487,9 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS)
         if ``south=False``, otherwise use cuts appropriate to the
         Southern imaging survey (DECaLS).
-    ext: int, defaults to ``None``
-        Use a possible DESI extension selection. Pass ``None`` to ignore,
-        or 1 or 2 for DESI extension selection 1 or 2.
+    ext: int, defaults to ``False``
+        If ``True``, then apply the DESI extension selection instead of
+        the standard Main Survey selection.
 
     Returns
     -------
@@ -561,7 +561,7 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  gfiberflux=None, rfiberflux=None, zfiberflux=None,
                  ggood=None, w2flux=None, primary=None, south=True,
-                 ext=None):
+                 ext=False):
     """(see, e.g., :func:`~desitarget.cuts.isLRG`).
 
     Notes:
@@ -583,26 +583,18 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg &= zfibermag < 21.6                   # faint limit
         lrg &= (gmag - w1mag > 2.9) | (rmag - w1mag > 1.8)  # low-z cuts
-        if ext is None:
+        if not ext:
             lrg &= (
                 ((rmag - w1mag > (w1mag - 17.14) * 1.8)
                  & (rmag - w1mag > (w1mag - 16.33) * 1.))
                 | (rmag - w1mag > 3.3)
             )  # double sliding cuts and high-z extension.
-        elif ext == 1:
+        else:
             lrg &= (
                 ((rmag - w1mag > (w1mag - 17.14 - 0.275) * 1.8)
                  & (rmag - w1mag > (w1mag - 16.33 - 0.275) * 1.))
                 | (rmag - w1mag > 3.3 - 0.1)
             )  # double sliding cuts and high-z extension.
-        elif ext == 2:
-            lrgmain = (
-                ((rmag - w1mag > (w1mag - 17.14 - 0.19) * 1.8)
-                 & (rmag - w1mag > (w1mag - 16.33 - 0.19) * 1.))
-                | (rmag - w1mag > 3.3 - 0.1)
-            )  # double sliding cuts and high-z extension.
-            lrgext = (((rmag - zmag -(-0.1))**2 + (gmag - rmag -(2.3))**2) > 2**2) & (rmag - zmag > 0.4)
-            lrg &= lrgmain | lrgext
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg &= zfibermag < 21.61                   # faint limit
@@ -2435,7 +2427,8 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     # ADM combine LRG target bits for an LRG target based on any imaging.
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
 
-    # ADM initially set everything to arrays of False for LRG ext-1 selection.
+    # ADM add the LRG extension selection.
+    # ADM initially set to arrays of False for LRG extension selection.
     # ADM zeroth element stores the northern targets bits (south=False).
     lrg_classes = [tcfalse, tcfalse]
     if "LRG" in tcnames:
@@ -2446,30 +2439,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
                 zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
                 rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
                 gaiagmag=gaiagmag, zfibertotflux=zfibertotflux,
-                maskbits=maskbits, south=south, ext=1
+                maskbits=maskbits, south=south, ext=True
             )
-    lrg_north_ext1, lrg_south_ext1 = lrg_classes
+    lrg_north_ext, lrg_south_ext = lrg_classes
 
     # ADM combine LRG target bits for an LRG target based on any imaging.
-    lrg_ext1 = (lrg_north_ext1 & photsys_north) | (lrg_south_ext1 & photsys_south)
-
-    # ADM initially set everything to arrays of False for LRG selection.
-    # ADM zeroth element stores the northern targets bits (south=False).
-    lrg_classes = [tcfalse, tcfalse]
-    if "LRG" in tcnames:
-        for south in south_cuts:
-            lrg_classes[int(south)] = isLRG(
-                primary=primary,
-                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-                zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
-                gaiagmag=gaiagmag, zfibertotflux=zfibertotflux,
-                maskbits=maskbits, south=south, ext=2
-            )
-    lrg_north_ext2, lrg_south_ext2 = lrg_classes
-
-    # ADM combine LRG target bits for an LRG target based on any imaging.
-    lrg_ext2 = (lrg_north_ext2 & photsys_north) | (lrg_south_ext2 & photsys_south)
+    lrg_ext = (lrg_north_ext & photsys_north) | (lrg_south_ext & photsys_south)
 
     # ADM initially set everything to arrays of False for ELG selection.
     # ADM zeroth element stores the northern targets bits (south=False).
@@ -2676,6 +2651,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= (elg_vlo_south & res_south) * desi_mask.ELG_VLO_SOUTH
     desi_target |= (elg_lop_south & res_south) * desi_mask.ELG_LOP_SOUTH
     desi_target |= (qso_south & res_south) * desi_mask.QSO_SOUTH
+    desi_target |= (lrg_south_ext & res_south) * desi_mask.LGE_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= (lrg_north & res_north) * desi_mask.LRG_NORTH
@@ -2683,6 +2659,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= (elg_vlo_north & res_north) * desi_mask.ELG_VLO_NORTH
     desi_target |= (elg_lop_north & res_north) * desi_mask.ELG_LOP_NORTH
     desi_target |= (qso_north & res_north) * desi_mask.QSO_NORTH
+    desi_target |= (lrg_north_ext & res_north) * desi_mask.LGE_NORTH
 
     # Construct the target flag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
@@ -2690,8 +2667,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= elg_vlo * desi_mask.ELG_VLO
     desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= qso * desi_mask.QSO
-    desi_target |= lrg_ext1 * desi_mask.LRG_EXT1
-    desi_target |= lrg_ext2 * desi_mask.LRG_EXT2
+    desi_target |= lrg_ext * desi_mask.LGE
 
     # ADM set fraction of the ELG_LOP/ELG_VLO targets to ELG_HIP.
     desi_target |= elg_hip * desi_mask.ELG_HIP
