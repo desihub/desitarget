@@ -1465,7 +1465,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
 
 def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
-                numproc=1, timestamp=None, append=False):
+                numproc=1, timestamp=None, append=False, tcnames=None):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -1496,6 +1496,11 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         If ``True`` then append to any existing ledgers rather than
         creating new ones. In this mode, if a ledger exists it will be
         appended to and if it doesn't exist it will be created.
+    tcnames : :class:`list`, defaults to processing all target classes
+        A list of strings, e.g. ['QSO','LRG']. If passed, produce
+        ledgers for only those target classes. The passed classes
+        must be from the DESI_TARGET column, which must exist in the
+        target files associated with `hpdirname`.
 
     Returns
     -------
@@ -1508,6 +1513,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     - For _get_mtl_nside()=16, takes about 50 minutes with `numproc=8`.
       `numproc>8` can run into memory issues.
     """
+    # ADM the desi_mask will be needed if tcnames was passed.
+    if tcnames is not None:
+        from desitarget.targetmask import desi_mask
+
     # ADM grab information regarding how the targets were constructed.
     hdr, dt = io.read_targets_header(hpdirname, dtype=True)
     # ADM check the obscon for which the targets were made is
@@ -1569,6 +1578,13 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
         if len(targs) == 0:
             return
+        # ADM if requested, limit to only certain target classes.
+        if tcnames is not None:
+            ii = np.zeros(len(targs), dtype="?")
+            for tcname in tcnames:
+                ii |= targs["DESI_TARGET"] & desi_mask[tcname] != 0
+            targs = targs[ii]
+
         # ADM the secondary targeting files don't include the BGS_TARGET
         # ADM and MWS_TARGET columns, which are needed for MTL.
         neededcols, _, _ = main_cmx_or_sv(targs)
