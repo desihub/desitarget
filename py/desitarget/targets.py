@@ -704,7 +704,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                     ii = (targets[desi_target] & desi_mask[name]) != 0
                     target_state[ii] = "CALIB"
 
-            names = ('ELG_VLO', 'ELG_LOP', 'ELG_HIP', 'LRG')
+            names = ('ELG_VLO', 'ELG_LOP', 'ELG_HIP', 'LRG', 'LGE')
             # ADM for sv3 the ELG guiding columns were ELG and ELG_HIP.
             if survey == 'sv3':
                 names = ('ELG_LOP', 'ELG_HIP', 'LRG')
