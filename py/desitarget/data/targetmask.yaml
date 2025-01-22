@@ -3,7 +3,7 @@ desi_mask:
     - [LRG,         0, "LRG",                    {obsconditions: DARK}]
     - [ELG,         1, "ELG",                    {obsconditions: DARK}]
     - [QSO,         2, "QSO",                    {obsconditions: DARK}]
-    - [LGE,         3, "LRG for DESI extension", {obsconditions: DARK}]
+    - [LGE,         3, "LRG for DESI extension", {obsconditions: DARK1B}]
 
     #- ADM QSO sub-classes. Used in SV but ultimately deprecated for the Main Survey.
     - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
@@ -19,14 +19,14 @@ desi_mask:
     - [QSO_NORTH,         10, "QSO cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
     - [ELG_LOP_NORTH,     11, "ELG at standard (ELG) priority tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
     - [ELG_VLO_NORTH,     12, "Very-low priority ELG (filler) tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
-    - [LGE_NORTH,         13, "LRG extension cuts tuned for Bok/Mosaic data",                              {obsconditions: DARK}]
+    - [LGE_NORTH,         13, "LRG extension cuts tuned for Bok/Mosaic data",                              {obsconditions: DARK1B}]
 
     - [LRG_SOUTH,         16, "LRG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_SOUTH,         17, "ELG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [QSO_SOUTH,         18, "QSO cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_LOP_SOUTH,     19, "ELG at standard (ELG) priority tuned for DECam data",                       {obsconditions: DARK}]
     - [ELG_VLO_SOUTH,     20, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
-    - [LGE_SOUTH,         21, "LRG extension cuts tuned for DECam data",                                   {obsconditions: DARK}]
+    - [LGE_SOUTH,         21, "LRG extension cuts tuned for DECam data",                                   {obsconditions: DARK1B}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",                                       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -203,6 +203,8 @@ obsconditions:
     - [CLOSED,      7, "Nighttime but dome is closed due to rain, wind, dew..."]
     - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]
     - [IGNORE,      9, "Used to indicate that obsconditions are set by a sub-bit rather than this bit"]
+    - [DARK1B,     10, "Moon is down, DESI extension survey"]
+    - [BRIGHT1B,   11, "Moon up and bright, DESI extension survey"]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
