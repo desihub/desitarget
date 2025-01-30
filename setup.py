@@ -11,7 +11,7 @@ from setuptools import setup, find_packages
 #
 # DESI support code.
 #
-from desiutil.setup import DesiTest, DesiVersion, get_version
+from desiutil.setup import DesiVersion, get_version
 #
 # Begin setup
 #
@@ -52,7 +52,7 @@ setup_keywords['zip_safe'] = False
 setup_keywords['use_2to3'] = False
 setup_keywords['packages'] = find_packages('py')
 setup_keywords['package_dir'] = {'':'py'}
-setup_keywords['cmdclass'] = {'version': DesiVersion,'test': DesiTest}
+setup_keywords['cmdclass'] = {'version': DesiVersion}
 setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.format(**setup_keywords)
 #
 # Autogenerate command-line scripts.
@@ -70,6 +70,13 @@ setup_keywords['package_data'] = {'desitarget': ['data/*',],
                                   'desitarget.mock': [os.path.relpath(_,'py/desitarget/mock') for _ in [os.path.join(_[0],'*') for _ in os.walk('py/desitarget/mock/data')]],
                                   'desitarget.streams.gaia_dr3_parallax_zero_point': ['coefficients/*',],
                                   }
+
+#
+# Print informative message if user tried "python setup.py test"
+if "test" in sys.argv:
+    print("Please run pytest instead")
+    sys.exit(1)
+
 #
 # Run setup command.
 #

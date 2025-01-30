@@ -15,7 +15,7 @@ from astropy.wcs import WCS
 from time import time
 import healpy as hp
 import fitsio
-import photutils
+import photutils.aperture
 from glob import glob, iglob
 
 from desitarget.gaiamatch import get_gaia_dir
