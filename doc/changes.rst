@@ -5,7 +5,10 @@ desitarget Change Log
 2.8.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Fix installation when using desiutil/3.5.0, dropping support of
+  `python setup.py test` as a side-effect [`PR #832`_]
+
+.. _`PR #832`: https://github.com/desihub/desitarget/pull/832
 
 2.8.0 (2024-08-23)
 ------------------
