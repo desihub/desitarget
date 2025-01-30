@@ -20,8 +20,8 @@ jobs:
                 python-version: [3.11]
                 astropy-version: ['==5.0', '<6']  # fuji version
                 fitsio-version: ['==1.1.6']  # fuji version
-                numpy-version: ['<1.23']  # to keep asscalar, used by astropy
-                matplotlib-version: ['<3.6.3'] # later versions of matplotlib require later versions of numpy.
+                numpy-version: ['<2']  # 2 not yet supported by desi
+                matplotlib-version: ['3.10.0']
 
         env:
             DESIUTIL_VERSION: 3.2.5
