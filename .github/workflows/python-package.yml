@@ -17,10 +17,10 @@ jobs:
             fail-fast: true
             matrix:
                 os: [ubuntu-22.04]
-                python-version: [3.11]
+                python-version: [3.9]
                 astropy-version: ['==5.0', '<6']  # fuji version
                 fitsio-version: ['==1.1.6']  # fuji version
-                numpy-version: ['<2']  # 2 not yet supported by desi
+                numpy-version: ['<1.23']  # 2 not yet supported by desi
                 matplotlib-version: ['<3.6.3']
 
         env:
