@@ -21,6 +21,7 @@ jobs:
                 astropy-version: ['==5.0', '<6.1']
                 fitsio-version: ['==1.2.1']
                 numpy-version: ['<1.23']  # to keep asscalar, used by astropy
+                numba-version: ['<0.61.0'] # for compatibility with old numpy
                 scipy-version: ['<1.9']
                 matplotlib-version: ['<3.7']
 
@@ -45,7 +46,7 @@ jobs:
                 python -m pip install pytest
                 python -m pip install git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
                 python -m pip install -r requirements.txt
-                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
+                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}' 'numba${{ matrix.numba-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
                 svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
