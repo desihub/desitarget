@@ -44,6 +44,7 @@ jobs:
                 python -m pip install -r requirements.txt
                 python -m pip install -U 'numpy${{ matrix.numpy-version }}'
                 python -m pip install -U 'astropy${{ matrix.astropy-version }}'
+                python -m pip install PIL
                 python -m pip install --no-deps -U 'matplotlib${{ matrix.matplotlib-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
