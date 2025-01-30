@@ -17,11 +17,12 @@ jobs:
             fail-fast: true
             matrix:
                 os: [ubuntu-22.04]
-                python-version: [3.9]
-                astropy-version: ['==5.0', '<6']  # fuji version
-                fitsio-version: ['==1.1.6']  # fuji version
-                numpy-version: ['<1.23']  # 2 not yet supported by desi
-                matplotlib-version: ['<3.6.3']
+                python-version: [3.10]
+                astropy-version: ['==5.0', '<6.1']
+                fitsio-version: ['==1.2.1']
+                numpy-version: ['<2']
+                scipy-version: ['<1.9']
+                matplotlib-version: ['<3.7']
 
         env:
             DESIUTIL_VERSION: 3.2.5
@@ -42,10 +43,7 @@ jobs:
                 python -m pip install pytest
                 python -m pip install git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
                 python -m pip install -r requirements.txt
-                python -m pip install -U 'numpy${{ matrix.numpy-version }}'
-                python -m pip install -U 'astropy${{ matrix.astropy-version }}'
-                python -m pip install PIL
-                python -m pip install --no-deps -U 'matplotlib${{ matrix.matplotlib-version }}'
+                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
                 svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
