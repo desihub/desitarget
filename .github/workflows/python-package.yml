@@ -29,6 +29,8 @@ jobs:
             DESIMODEL_DATA: branches/test-0.17
 
         steps:
+            - name: Install System Packages
+              run: sudo apt install libbz2-dev subversion
             - name: Checkout code
               uses: actions/checkout@v2
               with:
@@ -66,6 +68,8 @@ jobs:
             DESIMODEL_DATA: branches/test-0.17
 
         steps:
+            - name: Install System Packages
+              run: sudo apt install libbz2-dev subversion
             - name: Checkout code
               uses: actions/checkout@v2
               with:
@@ -80,8 +84,7 @@ jobs:
                 python -m pip install pytest\<7 pytest-cov\<4 coveralls
                 python -m pip install git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
                 python -m pip install -r requirements.txt
-                python -m pip install -U 'numpy${{ matrix.numpy-version }}'
-                python -m pip install -U 'matplotlib${{ matrix.matplotlib-version }}'
+                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
                 svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
