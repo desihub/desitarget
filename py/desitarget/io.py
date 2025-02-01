@@ -2795,6 +2795,142 @@ def write_mtl_tile_file(filename, data):
 
 def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
                     leq=False, columns=None, tabform='ascii.basic'):
+    """Read one or two MTL ledger files.
+
+    Parameters
+    ----------
+    filename : :class:`str` or `list`
+        If a string:
+            Then this is the name of a ledger file containing a Merged
+            Target List. If filename contains ".ecsv" then it will be
+            read as an ECSV file. If it contains ".fits" then it will be
+            read as a FITS file.
+        If a list:
+            Then this must be a list of two strings, with the strings
+            having the same meaning as if one string is passed. The code
+            switches to "multi-MTL" mode, where two MTLs are merged by
+            matching on TARGETID and taking the highest-priority target.
+            Extra columns are added to the output, indicating which of
+            the MTLs was interested in each target.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
+    isodate : :class:`str`, defaults to ``None``
+        A date in ISO format, such as returned by
+        :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
+        to entries strictly BEFORE `isodate` before being extracted.
+        If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
+    columns : :class:`list`, optional
+        Only return these target columns.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured numpy array of the MTL.
+    """
+    if isinstance(filename, str):
+        # ADM for one filename, run the standard "old" single-MTL code.
+        return read_one_mtl_ledger(
+            filename, unique=unique, isodate=isodate, initial=initial, leq=leq,
+            columns=columns, tabform=tabform)
+    elif isinstance(filename, list):
+        # ADM for two filenames, read in both the files.
+        return read_two_mtl_ledgers(
+            filename, unique=unique, isodate=isodate, initial=initial, leq=leq,
+            columns=columns, tabform=tabform)
+    else:
+        msg = f"Input filename={filename} should be a string or list"
+        log.critical(msg)
+        raise IOError(msg)
+
+
+def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
+                         leq=False, columns=None, tabform='ascii.basic'):
+    """Wrapper to read and merge two MTL ledger files.
+
+    Parameters
+    ----------
+    filelist : :class:`str`
+        A list of two strings, each as described for `filename` in
+        read_one_mtl_ledger(). The two MTLs in the list are merged by
+        matching on TARGETID and taking the highest-priority target.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
+    isodate : :class:`str`, defaults to ``None``
+        A date in ISO format, such as returned by
+        :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
+        to entries strictly BEFORE `isodate` before being extracted.
+        If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
+    columns : :class:`list`, optional
+        Only return these target columns.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured numpy array of the merged MTL. Extra columns are
+        added to the output, indicating which of the MTLs in `filelist`
+        was interested in each target.
+    """
+    # ADM only currently written for two files.
+    if len(filelist) != 2:
+        msg = f"Input list of filenames {filelist} should be of length 2"
+        log.critical(msg)
+        raise IOError(msg)
+
+    # ADM read in each MTL of interest from the list.
+    fn1, fn2 = filelist
+    mtl1 = read_one_mtl_ledger(
+        fn1, unique=unique, isodate=isodate, initial=initial, leq=leq,
+        columns=columns, tabform=tabform)
+    mtl2 = read_one_mtl_ledger(
+        fn2, unique=unique, isodate=isodate, initial=initial, leq=leq,
+        columns=columns, tabform=tabform)
+
+    # ADM determine which program/obscon corresponds to each filename.
+    oc1 = fn1.split("mtl-")[-1].split("-")[0].upper()
+    oc2 = fn2.split("mtl-")[-1].split("-")[0].upper()
+
+    # ADM match the MTLs on TARGETID to merge.
+    iimtl1, iimtl2 = match(mtl1["TARGETID"], mtl2["TARGETID"])
+
+    # ADM set up the output merged MTL.
+    nmerge = len(mtl1) + len(mtl2) - len(iimtl1)
+    dt = mtl1.dtype.descr + [("MTL_HIGHEST", ">i4"), ("MTL_WANTED", ">i4"),
+                             ("MTL_CONTAINS", ">i4")]
+    done = np.zeros(nmerge, dtype=dt)
+
+    return mtl1, mtl2, oc1, oc2
+
+
+def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
+                        leq=False, columns=None, tabform='ascii.basic'):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
