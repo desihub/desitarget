@@ -27,7 +27,7 @@ import yaml
 import hashlib
 
 from desiutil import depend
-from desitarget.geomask import hp_in_box, box_area, is_in_box
+from desitarget.geomask import hp_in_box, box_area, is_in_box, match
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
@@ -2918,15 +2918,31 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     oc2 = fn2.split("mtl-")[-1].split("-")[0].upper()
 
     # ADM match the MTLs on TARGETID to merge.
-    iimtl1, iimtl2 = match(mtl1["TARGETID"], mtl2["TARGETID"])
+    imtl1, imtl2 = match(mtl1["TARGETID"], mtl2["TARGETID"])
+    # ADM convert match indexes to Booleans to access non-matches too.
+    iimtl1 = np.zeros(len(mtl1), dtype="?")
+    iimtl2 = np.zeros(len(mtl2), dtype="?")
+    iimtl1[imtl1] = True
+    iimtl2[imtl2] = True
 
-    # ADM set up the output merged MTL.
-    nmerge = len(mtl1) + len(mtl2) - len(iimtl1)
+    # ADM add the new columns to the MTL data model.
     dt = mtl1.dtype.descr + [("MTL_HIGHEST", ">i4"), ("MTL_WANTED", ">i4"),
                              ("MTL_CONTAINS", ">i4")]
-    done = np.zeros(nmerge, dtype=dt)
 
-    return mtl1, mtl2, oc1, oc2
+    # ADM generate the output for targets unique to mtl1.
+    done1 = np.zeros(np.sum(~iimtl1), dtype=dt)
+    for col in mtl1.dtype.names:
+        done1[col] = mtl1[col]
+
+    # ADM generate the output for targets unique to mtl2.
+    done2 = np.zeros(np.sum(~iimtl2), dtype=dt)
+    for col in mtl2.dtype.names:
+        done2[col] = mtl2[col]
+
+    # ADM generate the output for targets that are in both MTLs.
+    done3 = np.zeros(np.sum(iimtl1), dtype=dt)
+
+    return done1
 
 
 def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
