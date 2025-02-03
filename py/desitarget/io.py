@@ -2840,6 +2840,9 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
     -------
     :class:`~numpy.ndarray`
         A structured numpy array of the MTL.
+    :class:`list`
+        If `filename` is a list, then a list of the obsconditions/program
+        corresponding to the MTLs passed in `filename` is also returned.
     """
     if isinstance(filename, str):
         # ADM for one filename, run the standard "old" single-MTL code.
@@ -2897,6 +2900,9 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
         A structured numpy array of the merged MTL. Extra columns are
         added to the output, indicating which of the MTLs in `filelist`
         was interested in each target.
+    :class:`list`
+        A list of the obsconditions/program that correspond to the two
+        MTLs passed in `filelist`.
     """
     # ADM only currently written for two files.
     if len(filelist) != 2:
@@ -2932,17 +2938,40 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     # ADM generate the output for targets unique to mtl1.
     done1 = np.zeros(np.sum(~iimtl1), dtype=dt)
     for col in mtl1.dtype.names:
-        done1[col] = mtl1[col]
+        done1[col] = mtl1[~iimtl1][col]
+    for col in ["MTL_HIGHEST", "MTL_WANTED", "MTL_CONTAINS"]:
+        done1[col] = obsconditions[oc1]
 
     # ADM generate the output for targets unique to mtl2.
     done2 = np.zeros(np.sum(~iimtl2), dtype=dt)
     for col in mtl2.dtype.names:
-        done2[col] = mtl2[col]
+        done2[col] = mtl2[~iimtl2][col]
+    for col in ["MTL_HIGHEST", "MTL_WANTED", "MTL_CONTAINS"]:
+        done2[col] = obsconditions[oc2]
 
+    # ADM first merge the matches, taking the highest priority target.
+    mtl1match = mtl1[iimtl1]
+    mtl2match = mtl2[iimtl2]
+    ii = mtl1match["PRIORITY"] + mtl1match["SUBPRIORITY"] > \
+        mtl2match["PRIORITY"] + mtl2match["SUBPRIORITY"]
+    mtlmerged = np.where(ii, mtl1match, mtl2match)
     # ADM generate the output for targets that are in both MTLs.
     done3 = np.zeros(np.sum(iimtl1), dtype=dt)
+    for col in mtl1.dtype.names:
+        done3[col] = mtlmerged[col]
+    # ADM MTL_HIGHEST is whichever target won the priority battle, above.
+    done3["MTL_HIGHEST"] = np.where(ii, obsconditions[oc1], obsconditions[oc2])
+    # ADM MTL_CONTAINS is always both MTLs.
+    oc = obsconditions[oc1] | obsconditions[oc2]
+    done3["MTL_CONTAINS"] = oc
+    # ADM TODO: Add unit test to check DONE's always priority 2 or lower.
+    # ADM if the merged priority is less than 2, both MTLs WANTED it.
+    done3["MTL_WANTED"] |= (mtlmerged["PRIORITY"] <= 2) * oc
+    # ADM if the priority for either MTL is > 2/DONE then it's WANTED.
+    done3["MTL_WANTED"] |= (mtl1match["PRIORITY"] > 2) * obsconditions[oc1]
+    done3["MTL_WANTED"] |= (mtl2match["PRIORITY"] > 2) * obsconditions[oc2]
 
-    return done1
+    return np.concatenate([done1, done2, done3]), [oc1, oc2]
 
 
 def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
