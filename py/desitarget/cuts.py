@@ -571,6 +571,9 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
+    # ADM this stores the Main Survey double sliding cuts, which is used
+    # ADM in multiple places in the code.
+    lrgmaindsc = primary.copy()
 
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
     # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
@@ -580,30 +583,41 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
 
     if south:
-        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg &= zfibermag < 21.6                   # faint limit
-        lrg &= (gmag - w1mag > 2.9) | (rmag - w1mag > 1.8)  # low-z cuts
+        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut.
+        lrg &= zfibermag < 21.6                   # faint limit.
+        lrg &= (gmag - w1mag > 2.9) | (rmag - w1mag > 1.8)  # low-z cuts.
+        lrgmaindsc &= (
+            ((rmag - w1mag > (w1mag - 17.14) * 1.8)
+             & (rmag - w1mag > (w1mag - 16.33) * 1.))
+            | (rmag - w1mag > 3.3)
+        )  # double sliding cuts and high-z extension.
         if not ext:
-            lrg &= (
-                ((rmag - w1mag > (w1mag - 17.14) * 1.8)
-                 & (rmag - w1mag > (w1mag - 16.33) * 1.))
-                | (rmag - w1mag > 3.3)
-            )  # double sliding cuts and high-z extension.
+            lrg &= lrgmaindsc
         else:
             lrg &= (
                 ((rmag - w1mag > (w1mag - 17.14 - 0.275) * 1.8)
                  & (rmag - w1mag > (w1mag - 16.33 - 0.275) * 1.))
                 | (rmag - w1mag > 3.3 - 0.1)
             )  # double sliding cuts and high-z extension.
+            lrg &= ~lrgmaindsc # exclude DESI-1 LRGs.
     else:
-        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg &= zfibermag < 21.61                   # faint limit
-        lrg &= (gmag - w1mag > 2.97) | (rmag - w1mag > 1.8)  # low-z cuts
-        lrg &= (
+        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut.
+        lrg &= zfibermag < 21.61                   # faint limit.
+        lrg &= (gmag - w1mag > 2.97) | (rmag - w1mag > 1.8)  # low-z cuts.
+        lrgmaindsc &= (
             ((rmag - w1mag > (w1mag - 17.13) * 1.83)
              & (rmag - w1mag > (w1mag - 16.31) * 1.))
             | (rmag - w1mag > 3.4)
-        )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension.
+        if not ext:
+            lrg &= lrgmaindsc
+        else:
+            lrg &= (
+                ((rmag - w1mag > ((w1mag - 0.275) - 17.13) * 1.83)
+                 & (rmag - w1mag > ((w1mag - 0.275) - 16.31) * 1.))
+                | (rmag - w1mag > 3.4 - 0.1)
+            )  # double sliding cuts and high-z extension.
+            lrg &= ~lrgmaindsc  # exclude DESI-1 LRGs.
 
     return lrg
 
