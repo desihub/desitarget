@@ -2840,9 +2840,6 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
     -------
     :class:`~numpy.ndarray`
         A structured numpy array of the MTL.
-    :class:`list`
-        If `filename` is a list, then a list of the obsconditions/program
-        corresponding to the MTLs passed in `filename` is also returned.
     """
     if isinstance(filename, str):
         # ADM for one filename, run the standard "old" single-MTL code.
@@ -2850,10 +2847,22 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
             filename, unique=unique, isodate=isodate, initial=initial, leq=leq,
             columns=columns, tabform=tabform)
     elif isinstance(filename, list):
+        # ADM need to catch cases where only one file actually exists.
+        f1exists = os.path.isfile(filename[0])
+        f2exists = os.path.isfile(filename[1])
+        if f1exists & ~f2exists:
+            return read_one_mtl_ledger(
+                filename[0], unique=unique, isodate=isodate, initial=initial,
+                leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
+        elif f2exists & ~f1exists:
+            return read_one_mtl_ledger(
+                filename[1], unique=unique, isodate=isodate, initial=initial,
+                leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
         # ADM for two filenames, read in both the files.
-        return read_two_mtl_ledgers(
-            filename, unique=unique, isodate=isodate, initial=initial, leq=leq,
-            columns=columns, tabform=tabform)
+        else:
+            return read_two_mtl_ledgers(
+                filename, unique=unique, isodate=isodate, initial=initial,
+                leq=leq, columns=columns, tabform=tabform)
     else:
         msg = f"Input filename={filename} should be a string or list"
         log.critical(msg)
@@ -2900,9 +2909,6 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
         A structured numpy array of the merged MTL. Extra columns are
         added to the output, indicating which of the MTLs in `filelist`
         was interested in each target.
-    :class:`list`
-        A list of the obsconditions/program that correspond to the two
-        MTLs passed in `filelist`.
     """
     # ADM only currently written for two files.
     if len(filelist) != 2:
@@ -2971,11 +2977,12 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     done3["MTL_WANTED"] |= (mtl1match["PRIORITY"] > 2) * obsconditions[oc1]
     done3["MTL_WANTED"] |= (mtl2match["PRIORITY"] > 2) * obsconditions[oc2]
 
-    return np.concatenate([done1, done2, done3]), [oc1, oc2]
+    return np.concatenate([done1, done2, done3])
 
 
 def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
-                        leq=False, columns=None, tabform='ascii.basic'):
+                        leq=False, columns=None, tabform='ascii.basic',
+                        maketwostyle=False):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -3007,6 +3014,9 @@ def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         Format to pass to the astropy Table.read() function. The default
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`.
 
     Returns
     -------
@@ -3084,6 +3094,21 @@ def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
             mtl = np.flip(mtl)
         _, ii = np.unique(mtl["TARGETID"], return_index=True)
         mtl = mtl[ii]
+
+    # ADM if requested, add the columns expected in multi-MTL mode.
+    if maketwostyle:
+        # ADM determine which program/obscon corresponds to the filename.
+        oc = filename.split("mtl-")[-1].split("-")[0].upper()
+        # ADM add the new columns to the MTL data model.
+        dt = mtl.dtype.descr + [("MTL_HIGHEST", ">i4"), ("MTL_WANTED", ">i4"),
+                                ("MTL_CONTAINS", ">i4")]
+        # ADM simple output for a single mtl.
+        done = np.zeros(len(mtl), dtype=dt)
+        for col in mtl.dtype.names:
+            done[col] = mtl[col]
+        for col in ["MTL_HIGHEST", "MTL_WANTED", "MTL_CONTAINS"]:
+            done[col] = obsconditions[oc]
+        mtl = done
 
     # ADM limit to certain columns, if only a subset were requested.
     if columns is not None:
@@ -3332,11 +3357,21 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 
     Parameters
     ----------
-    hpdirname : :class:`str`
-        Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
-        `select_targets` with the `bundle_files` option). Or the
-        name of a single file of targets.
+    hpdirname : :class:`str` or `list`
+        if a string:
+            Full path to either a directory containing targets that
+            have been partitioned by HEALPixel (i.e. as made by
+            `select_targets` with the `bundle_files` option). Or the
+            name of a single file of targets.
+        If a list:
+            Then this must be a list of two strings, with the strings
+            having the same meaning as if one string is passed. The code
+            switches to "multi-MTL" mode, where two MTLs are merged by
+            matching on TARGETID and taking the highest-priority target.
+            Extra columns are added to the output, indicating which of
+            the MTLs was interested in each target. The strings must be
+            the same input type, i.e. either two directories or files.
+            The directories or files must share the same `nside`.
     nside : :class:`int`
         The (NESTED) HEALPixel nside.
     pixlist : :class:`list` or `int` or `~numpy.ndarray`
@@ -3395,17 +3430,34 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     outfns = {}
-    fileform = find_mtl_file_format_from_header(hpdirname)
-    filenside = int(read_keyword_from_mtl_header(hpdirname, "FILENSID"))
-    if os.path.isdir(hpdirname):
+    # ADM make input string a list to cover the two-strings case.
+    if isinstance(hpdirname, str):
+        hpdirname = [hpdirname]
+    if os.path.isdir(hpdirname[0]):
+        fileforms, filensides = [], []
+        for hpd in hpdirname:
+            fileforms.append(find_mtl_file_format_from_header(hpd))
+            filensides.append(int(read_keyword_from_mtl_header(hpd, "FILENSID")))
+
+        # ADM check pixel consistency for multiple input directories.
+        if set(filensides) == {filensides[0]}:
+            filenside = filensides[0]
+        else:
+            msg = f"directories passed with inconsistent FILNSIDs {filenside}!"
+            log.critical(msg)
+            raise IOError(msg)
+
         # ADM change the passed pixels to the nside of the file schema.
-        filepixlist = nside2nside(nside, filenside, pixlist)
+        filepixlist.append(sorted(nside2nside(nside, filenside, pixlist)))
 
         # ADM read in the files and concatenate the resulting targets.
         mtls = []
         outfns = {}
         for pix in filepixlist:
-            fn = fileform.format(pix)
+            fn = [fileform.format(pix) for fileform in fileforms]
+            # ADM remember the original one-directory case.
+            if len(fn) == 1:
+                fn = fn[0]
             try:
                 targs = read_mtl_ledger(fn, unique=unique, isodate=isodate,
                                         initial=initial, leq=leq,
@@ -3428,6 +3480,9 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
+        # ADM turn the list back into a string.
+        if len(hpdirname) == 1:
+            hpdirname = hpdirname[0]
         mtl = read_mtl_ledger(hpdirname, unique=unique, isodate=isodate, leq=leq,
                               initial=initial, columns=columns, tabform=tabform)
 
