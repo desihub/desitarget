@@ -3448,7 +3448,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
             raise IOError(msg)
 
         # ADM change the passed pixels to the nside of the file schema.
-        filepixlist.append(sorted(nside2nside(nside, filenside, pixlist)))
+        filepixlist = nside2nside(nside, filenside, pixlist)
 
         # ADM read in the files and concatenate the resulting targets.
         mtls = []
