@@ -3469,10 +3469,14 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 
         # ADM if no mtls, look up the data model, return an empty array.
         if len(mtls) == 0:
-            fns = iglob(fileform.format("*"))
+            fns = iglob(fileforms[0].format("*"))
             fn = next(fns)
             mtl = read_mtl_ledger(fn, columns=columns, tabform=tabform)
-            outly = np.zeros(0, dtype=mtl.dtype)
+            dt = mtl.dtype.descr
+            if len(hpdirname) > 1:
+                dt += [("MTL_HIGHEST", ">i4"), ("MTL_WANTED", ">i4"),
+                       ("MTL_CONTAINS", ">i4")]
+            outly = np.zeros(0, dtype=dt)
             if returnfn:
                 return outly, outfns
             return outly
