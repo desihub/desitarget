@@ -27,7 +27,7 @@ import yaml
 import hashlib
 
 from desiutil import depend
-from desitarget.geomask import hp_in_box, box_area, is_in_box
+from desitarget.geomask import hp_in_box, box_area, is_in_box, match
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
@@ -2794,7 +2794,199 @@ def write_mtl_tile_file(filename, data):
 
 
 def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
-                    leq=False, columns=None, tabform='ascii.basic'):
+                    leq=False, columns=None, tabform='ascii.basic',
+                    maketwostyle=False):
+    """Read one or two MTL ledger files.
+
+    Parameters
+    ----------
+    filename : :class:`str` or `list`
+        If a string:
+            Then this is the name of a ledger file containing a Merged
+            Target List. If filename contains ".ecsv" then it will be
+            read as an ECSV file. If it contains ".fits" then it will be
+            read as a FITS file.
+        If a list:
+            Then this must be a list of two strings, with the strings
+            having the same meaning as if one string is passed. The code
+            switches to "multi-MTL" mode, where two MTLs are merged by
+            matching on TARGETID and taking the highest-priority target.
+            Extra columns are added to the output, indicating which of
+            the MTLs was interested in each target.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
+    isodate : :class:`str`, defaults to ``None``
+        A date in ISO format, such as returned by
+        :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
+        to entries strictly BEFORE `isodate` before being extracted.
+        If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
+    columns : :class:`list`, optional
+        Only return these target columns.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured numpy array of the MTL.
+    """
+    if isinstance(filename, str):
+        # ADM for one filename, run the standard "old" single-MTL code.
+        return read_one_mtl_ledger(
+            filename, unique=unique, isodate=isodate, initial=initial, leq=leq,
+            columns=columns, tabform=tabform, maketwostyle=maketwostyle)
+    elif isinstance(filename, list):
+        # ADM need to catch cases where only one file actually exists.
+        f1exists = os.path.isfile(filename[0])
+        f2exists = os.path.isfile(filename[1])
+        if f1exists & ~f2exists:
+            return read_one_mtl_ledger(
+                filename[0], unique=unique, isodate=isodate, initial=initial,
+                leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
+        elif f2exists & ~f1exists:
+            return read_one_mtl_ledger(
+                filename[1], unique=unique, isodate=isodate, initial=initial,
+                leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
+        # ADM for two filenames, read in both the files.
+        else:
+            return read_two_mtl_ledgers(
+                filename, unique=unique, isodate=isodate, initial=initial,
+                leq=leq, columns=columns, tabform=tabform)
+    else:
+        msg = f"Input filename={filename} should be a string or list"
+        log.critical(msg)
+        raise IOError(msg)
+
+
+def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
+                         leq=False, columns=None, tabform='ascii.basic'):
+    """Wrapper to read and merge two MTL ledger files.
+
+    Parameters
+    ----------
+    filelist : :class:`str`
+        A list of two strings, each as described for `filename` in
+        read_one_mtl_ledger(). The two MTLs in the list are merged by
+        matching on TARGETID and taking the highest-priority target.
+    unique : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the last occurrence of the target in the ledger is the one that
+        is retained. If ``False`` then read the entire ledger.
+    isodate : :class:`str`, defaults to ``None``
+        A date in ISO format, such as returned by
+        :func:`desitarget.mtl.get_utc_date() `. The ledger is restricted
+        to entries strictly BEFORE `isodate` before being extracted.
+        If ``None`` is passed then no date restrictions are applied.
+    initial : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then only read targets with unique `TARGETID`, where
+        the FIRST occurrence of the target in the ledger is retained.
+        i.e. read the initial state of the ledger. Overrides `unique`.
+    leq : :class:`bool`, optional, defaults to ``False``
+        If ``True``, restrict the ledger to entries BEFORE or EQUAL TO
+        `isodate` instead of the default behavior of strictly before
+        `isodate`. Only relevant if `isodate` is passed.
+    columns : :class:`list`, optional
+        Only return these target columns.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured numpy array of the merged MTL. Extra columns are
+        added to the output, indicating which of the MTLs in `filelist`
+        was interested in each target.
+    """
+    # ADM only currently written for two files.
+    if len(filelist) != 2:
+        msg = f"Input list of filenames {filelist} should be of length 2"
+        log.critical(msg)
+        raise IOError(msg)
+
+    # ADM read in each MTL of interest from the list.
+    fn1, fn2 = filelist
+    mtl1 = read_one_mtl_ledger(
+        fn1, unique=unique, isodate=isodate, initial=initial, leq=leq,
+        columns=columns, tabform=tabform)
+    mtl2 = read_one_mtl_ledger(
+        fn2, unique=unique, isodate=isodate, initial=initial, leq=leq,
+        columns=columns, tabform=tabform)
+
+    # ADM determine which program/obscon corresponds to each filename.
+    oc1 = fn1.split("mtl-")[-1].split("-")[0].upper()
+    oc2 = fn2.split("mtl-")[-1].split("-")[0].upper()
+
+    # ADM match the MTLs on TARGETID to merge.
+    imtl1, imtl2 = match(mtl1["TARGETID"], mtl2["TARGETID"])
+    # ADM convert match indexes to Booleans to access non-matches too.
+    iimtl1 = np.zeros(len(mtl1), dtype="?")
+    iimtl2 = np.zeros(len(mtl2), dtype="?")
+    iimtl1[imtl1] = True
+    iimtl2[imtl2] = True
+
+    # ADM add the new columns to the MTL data model.
+    dt = mtl1.dtype.descr + [("MTL_HIGHEST", ">i4"), ("MTL_WANTED", ">i4"),
+                             ("MTL_CONTAINS", ">i4")]
+
+    # ADM generate the output for targets unique to mtl1.
+    done1 = np.zeros(np.sum(~iimtl1), dtype=dt)
+    for col in mtl1.dtype.names:
+        done1[col] = mtl1[~iimtl1][col]
+    for col in ["MTL_HIGHEST", "MTL_WANTED", "MTL_CONTAINS"]:
+        done1[col] = obsconditions[oc1]
+
+    # ADM generate the output for targets unique to mtl2.
+    done2 = np.zeros(np.sum(~iimtl2), dtype=dt)
+    for col in mtl2.dtype.names:
+        done2[col] = mtl2[~iimtl2][col]
+    for col in ["MTL_HIGHEST", "MTL_WANTED", "MTL_CONTAINS"]:
+        done2[col] = obsconditions[oc2]
+
+    # ADM first merge the matches, taking the highest priority target.
+    mtl1match = mtl1[iimtl1]
+    mtl2match = mtl2[iimtl2]
+    ii = mtl1match["PRIORITY"] + mtl1match["SUBPRIORITY"] > \
+        mtl2match["PRIORITY"] + mtl2match["SUBPRIORITY"]
+    mtlmerged = np.where(ii, mtl1match, mtl2match)
+    # ADM generate the output for targets that are in both MTLs.
+    done3 = np.zeros(np.sum(iimtl1), dtype=dt)
+    for col in mtl1.dtype.names:
+        done3[col] = mtlmerged[col]
+    # ADM MTL_HIGHEST is whichever target won the priority battle, above.
+    done3["MTL_HIGHEST"] = np.where(ii, obsconditions[oc1], obsconditions[oc2])
+    # ADM MTL_CONTAINS is always both MTLs.
+    oc = obsconditions[oc1] | obsconditions[oc2]
+    done3["MTL_CONTAINS"] = oc
+    # ADM TODO: Add unit test to check DONE's always priority 2 or lower.
+    # ADM if the merged priority is less than 2, both MTLs WANTED it.
+    done3["MTL_WANTED"] |= (mtlmerged["PRIORITY"] <= 2) * oc
+    # ADM if the priority for either MTL is > 2/DONE then it's WANTED.
+    done3["MTL_WANTED"] |= (mtl1match["PRIORITY"] > 2) * obsconditions[oc1]
+    done3["MTL_WANTED"] |= (mtl2match["PRIORITY"] > 2) * obsconditions[oc2]
+
+    return np.concatenate([done1, done2, done3])
+
+
+def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
+                        leq=False, columns=None, tabform='ascii.basic',
+                        maketwostyle=False):
     """Wrapper to read individual MTL ledger files.
 
     Parameters
@@ -2826,6 +3018,9 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         Format to pass to the astropy Table.read() function. The default
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`.
 
     Returns
     -------
@@ -2903,6 +3098,21 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
             mtl = np.flip(mtl)
         _, ii = np.unique(mtl["TARGETID"], return_index=True)
         mtl = mtl[ii]
+
+    # ADM if requested, add the columns expected in multi-MTL mode.
+    if maketwostyle:
+        # ADM determine which program/obscon corresponds to the filename.
+        oc = filename.split("mtl-")[-1].split("-")[0].upper()
+        # ADM add the new columns to the MTL data model.
+        dt = mtl.dtype.descr + [("MTL_HIGHEST", ">i4"), ("MTL_WANTED", ">i4"),
+                                ("MTL_CONTAINS", ">i4")]
+        # ADM simple output for a single mtl.
+        done = np.zeros(len(mtl), dtype=dt)
+        for col in mtl.dtype.names:
+            done[col] = mtl[col]
+        for col in ["MTL_HIGHEST", "MTL_WANTED", "MTL_CONTAINS"]:
+            done[col] = obsconditions[oc]
+        mtl = done
 
     # ADM limit to certain columns, if only a subset were requested.
     if columns is not None:
@@ -3146,16 +3356,26 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False,
 
 def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                    returnfn=False, initial=False, leq=False, columns=None,
-                   tabform='ascii.basic'):
+                   tabform='ascii.basic', maketwostyle=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
     ----------
-    hpdirname : :class:`str`
-        Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
-        `select_targets` with the `bundle_files` option). Or the
-        name of a single file of targets.
+    hpdirname : :class:`str` or `list`
+        if a string:
+            Full path to either a directory containing targets that
+            have been partitioned by HEALPixel (i.e. as made by
+            `select_targets` with the `bundle_files` option). Or the
+            name of a single file of targets.
+        If a list:
+            Then this must be a list of two strings, with the strings
+            having the same meaning as if one string is passed. The code
+            switches to "multi-MTL" mode, where two MTLs are merged by
+            matching on TARGETID and taking the highest-priority target.
+            Extra columns are added to the output, indicating which of
+            the MTLs was interested in each target. The strings must be
+            the same input type, i.e. either two directories or files.
+            The directories or files must share the same `nside`.
     nside : :class:`int`
         The (NESTED) HEALPixel nside.
     pixlist : :class:`list` or `int` or `~numpy.ndarray`
@@ -3188,6 +3408,9 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         Format to pass to the astropy Table.read() function. The default
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
 
     Returns
     -------
@@ -3214,9 +3437,23 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     outfns = {}
-    fileform = find_mtl_file_format_from_header(hpdirname)
-    filenside = int(read_keyword_from_mtl_header(hpdirname, "FILENSID"))
-    if os.path.isdir(hpdirname):
+    # ADM make input string a list to cover the two-strings case.
+    if isinstance(hpdirname, str):
+        hpdirname = [hpdirname]
+    if os.path.isdir(hpdirname[0]):
+        fileforms, filensides = [], []
+        for hpd in hpdirname:
+            fileforms.append(find_mtl_file_format_from_header(hpd))
+            filensides.append(int(read_keyword_from_mtl_header(hpd, "FILENSID")))
+
+        # ADM check pixel consistency for multiple input directories.
+        if set(filensides) == {filensides[0]}:
+            filenside = filensides[0]
+        else:
+            msg = f"directories passed with inconsistent FILNSIDs {filenside}!"
+            log.critical(msg)
+            raise IOError(msg)
+
         # ADM change the passed pixels to the nside of the file schema.
         filepixlist = nside2nside(nside, filenside, pixlist)
 
@@ -3224,11 +3461,15 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         mtls = []
         outfns = {}
         for pix in filepixlist:
-            fn = fileform.format(pix)
+            fn = [fileform.format(pix) for fileform in fileforms]
+            # ADM remember the original one-directory case.
+            if len(fn) == 1:
+                fn = fn[0]
             try:
                 targs = read_mtl_ledger(fn, unique=unique, isodate=isodate,
                                         initial=initial, leq=leq,
-                                        columns=columns, tabform=tabform)
+                                        columns=columns, tabform=tabform,
+                                        maketwostyle=maketwostyle)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -3236,10 +3477,11 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 
         # ADM if no mtls, look up the data model, return an empty array.
         if len(mtls) == 0:
-            fns = iglob(fileform.format("*"))
+            fns = iglob(fileforms[0].format("*"))
             fn = next(fns)
-            mtl = read_mtl_ledger(fn, columns=columns, tabform=tabform)
-            outly = np.zeros(0, dtype=mtl.dtype)
+            mtl = read_mtl_ledger(fn, columns=columns, tabform=tabform,
+                                  maketwostyle=maketwostyle)
+            outly = np.zeros(0, dtype=mtl.dtype.descr)
             if returnfn:
                 return outly, outfns
             return outly
@@ -3247,8 +3489,12 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         mtl = np.concatenate(mtls)
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
+        # ADM turn the list back into a string.
+        if len(hpdirname) == 1:
+            hpdirname = hpdirname[0]
         mtl = read_mtl_ledger(hpdirname, unique=unique, isodate=isodate, leq=leq,
-                              initial=initial, columns=columns, tabform=tabform)
+                              initial=initial, columns=columns, tabform=tabform,
+                              maketwostyle=maketwostyle)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)

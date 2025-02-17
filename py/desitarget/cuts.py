@@ -479,7 +479,7 @@ def isBACKUP(ra=None, dec=None,
 def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
           zfiberflux=None, rfluxivar=None, zfluxivar=None, w1fluxivar=None,
           gaiagmag=None, gnobs=None, rnobs=None, znobs=None, maskbits=None,
-          zfibertotflux=None, primary=None, south=True):
+          zfibertotflux=None, primary=None, south=True, ext=False):
     """
     Parameters
     ----------
@@ -487,6 +487,9 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         Use cuts appropriate to the Northern imaging surveys (BASS/MzLS)
         if ``south=False``, otherwise use cuts appropriate to the
         Southern imaging survey (DECaLS).
+    ext: int, defaults to ``False``
+        If ``True``, then apply the DESI extension selection instead of
+        the standard Main Survey selection.
 
     Returns
     -------
@@ -514,7 +517,7 @@ def isLRG(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     # ADM color-based selection of LRGs.
     lrg = isLRG_colors(
         gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
-        zfiberflux=zfiberflux, south=south, primary=primary
+        zfiberflux=zfiberflux, south=south, primary=primary, ext=ext
     )
 
     lrg &= lrg_quality
@@ -557,7 +560,8 @@ def notinLRG_mask(primary=None, rflux=None, zflux=None, w1flux=None,
 
 def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  gfiberflux=None, rfiberflux=None, zfiberflux=None,
-                 ggood=None, w2flux=None, primary=None, south=True):
+                 ggood=None, w2flux=None, primary=None, south=True,
+                 ext=False):
     """(see, e.g., :func:`~desitarget.cuts.isLRG`).
 
     Notes:
@@ -567,6 +571,9 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
     lrg = primary.copy()
+    # ADM this stores the Main Survey double sliding cuts, which is used
+    # ADM in multiple places in the code.
+    lrgmaindsc = primary.copy()
 
     gmag = 22.5 - 2.5 * np.log10(gflux.clip(1e-7))
     # ADM safe as these fluxes are set to > 0 in notinLRG_mask.
@@ -576,23 +583,41 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
     zfibermag = 22.5 - 2.5 * np.log10(zfiberflux.clip(1e-7))
 
     if south:
-        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg &= zfibermag < 21.6                   # faint limit
-        lrg &= (gmag - w1mag > 2.9) | (rmag - w1mag > 1.8)  # low-z cuts
-        lrg &= (
+        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut.
+        lrg &= zfibermag < 21.6                   # faint limit.
+        lrg &= (gmag - w1mag > 2.9) | (rmag - w1mag > 1.8)  # low-z cuts.
+        lrgmaindsc &= (
             ((rmag - w1mag > (w1mag - 17.14) * 1.8)
              & (rmag - w1mag > (w1mag - 16.33) * 1.))
             | (rmag - w1mag > 3.3)
-        )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension.
+        if not ext:
+            lrg &= lrgmaindsc
+        else:
+            lrg &= (
+                ((rmag - w1mag > (w1mag - 17.14 - 0.275) * 1.8)
+                 & (rmag - w1mag > (w1mag - 16.33 - 0.275) * 1.))
+                | (rmag - w1mag > 3.3 - 0.1)
+            )  # double sliding cuts and high-z extension.
+            lrg &= ~lrgmaindsc # exclude DESI-1 LRGs.
     else:
-        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
-        lrg &= zfibermag < 21.61                   # faint limit
-        lrg &= (gmag - w1mag > 2.97) | (rmag - w1mag > 1.8)  # low-z cuts
-        lrg &= (
+        lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut.
+        lrg &= zfibermag < 21.61                   # faint limit.
+        lrg &= (gmag - w1mag > 2.97) | (rmag - w1mag > 1.8)  # low-z cuts.
+        lrgmaindsc &= (
             ((rmag - w1mag > (w1mag - 17.13) * 1.83)
              & (rmag - w1mag > (w1mag - 16.31) * 1.))
             | (rmag - w1mag > 3.4)
-        )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension.
+        if not ext:
+            lrg &= lrgmaindsc
+        else:
+            lrg &= (
+                ((rmag - w1mag > ((w1mag - 0.275) - 17.13) * 1.83)
+                 & (rmag - w1mag > ((w1mag - 0.275) - 16.31) * 1.))
+                | (rmag - w1mag > 3.4 - 0.1)
+            )  # double sliding cuts and high-z extension.
+            lrg &= ~lrgmaindsc  # exclude DESI-1 LRGs.
 
     return lrg
 
@@ -2351,7 +2376,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process only
         only those specific target classes. A useful speed-up for tests.
-        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+        Options are ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "LGE"].
     qso_optical_cuts : :class:`boolean` defaults to ``False``
         Apply just optical color-cuts when selecting QSOs with
         ``qso_selection="colorcuts"``.
@@ -2415,6 +2440,25 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
 
     # ADM combine LRG target bits for an LRG target based on any imaging.
     lrg = (lrg_north & photsys_north) | (lrg_south & photsys_south)
+
+    # ADM add the LRG extension selection.
+    # ADM initially set to arrays of False for LRG extension selection.
+    # ADM zeroth element stores the northern targets bits (south=False).
+    lrg_classes = [tcfalse, tcfalse]
+    if "LGE" in tcnames:
+        for south in south_cuts:
+            lrg_classes[int(south)] = isLRG(
+                primary=primary,
+                gflux=gflux, rflux=rflux, zflux=zflux, w1flux=w1flux,
+                zfiberflux=zfiberflux, gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+                rfluxivar=rfluxivar, zfluxivar=zfluxivar, w1fluxivar=w1fluxivar,
+                gaiagmag=gaiagmag, zfibertotflux=zfibertotflux,
+                maskbits=maskbits, south=south, ext=True
+            )
+    lrg_north_ext, lrg_south_ext = lrg_classes
+
+    # ADM combine LRG target bits for an LRG target based on any imaging.
+    lrg_ext = (lrg_north_ext & photsys_north) | (lrg_south_ext & photsys_south)
 
     # ADM initially set everything to arrays of False for ELG selection.
     # ADM zeroth element stores the northern targets bits (south=False).
@@ -2621,6 +2665,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= (elg_vlo_south & res_south) * desi_mask.ELG_VLO_SOUTH
     desi_target |= (elg_lop_south & res_south) * desi_mask.ELG_LOP_SOUTH
     desi_target |= (qso_south & res_south) * desi_mask.QSO_SOUTH
+    desi_target |= (lrg_south_ext & res_south) * desi_mask.LGE_SOUTH
 
     # Construct the targetflag bits for MzLS and BASS (i.e. North).
     desi_target |= (lrg_north & res_north) * desi_mask.LRG_NORTH
@@ -2628,6 +2673,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= (elg_vlo_north & res_north) * desi_mask.ELG_VLO_NORTH
     desi_target |= (elg_lop_north & res_north) * desi_mask.ELG_LOP_NORTH
     desi_target |= (qso_north & res_north) * desi_mask.QSO_NORTH
+    desi_target |= (lrg_north_ext & res_north) * desi_mask.LGE_NORTH
 
     # Construct the target flag bits combining north and south.
     desi_target |= lrg * desi_mask.LRG
@@ -2635,6 +2681,7 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     desi_target |= elg_vlo * desi_mask.ELG_VLO
     desi_target |= elg_lop * desi_mask.ELG_LOP
     desi_target |= qso * desi_mask.QSO
+    desi_target |= lrg_ext * desi_mask.LGE
 
     # ADM set fraction of the ELG_LOP/ELG_VLO targets to ELG_HIP.
     desi_target |= elg_hip * desi_mask.ELG_HIP
@@ -2817,7 +2864,7 @@ def apply_cuts_gaia(numproc=4, survey='main', nside=None, pixlist=None,
 
 
 def apply_cuts(objects, qso_selection='randomforest',
-               tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
+               tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "LGE"],
                qso_optical_cuts=False, survey='main', resolvetargs=True,
                mask=True):
     """Perform target selection on objects, returning target mask arrays.
@@ -2833,7 +2880,7 @@ def apply_cuts(objects, qso_selection='randomforest',
     tcnames : :class:`list`, defaults to running all target classes
         A list of strings, e.g. ['QSO','LRG']. If passed, process targets
         only for those specific classes. A useful speed-up when testing.
-        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+        Options are ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "LGE"].
     qso_optical_cuts : :class:`boolean` defaults to ``False``
         Apply just optical color-cuts when selecting QSOs with
         ``qso_selection="colorcuts"``.
@@ -2937,7 +2984,7 @@ qso_selection_options = ['colorcuts', 'randomforest']
 def select_targets(infiles, numproc=4, qso_selection='randomforest',
                    gaiasub=False, nside=None, pixlist=None, bundlefiles=None,
                    extra=None, radecbox=None, radecrad=None, mask=True,
-                   tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD"],
+                   tcnames=["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "LGE"],
                    survey='main', resolvetargs=True, backup=True,
                    return_infiles=False, test=False):
     """Process input files in parallel to select targets.
@@ -2982,7 +3029,7 @@ def select_targets(infiles, numproc=4, qso_selection='randomforest',
     tcnames : :class:`list`, defaults to running all target classes
         List of strings, e.g. ['QSO','LRG']. If passed, process targets
         only for those specific classes. A useful speed-up when testing.
-        Options include ["ELG", "QSO", "LRG", "MWS", "BGS", "STD"].
+        Options are ["ELG", "QSO", "LRG", "MWS", "BGS", "STD", "LGE"].
     survey : :class:`str`, defaults to ``'main'``
         Which target masks yaml file and target selection cuts to use.
         Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)

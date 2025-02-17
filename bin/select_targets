@@ -215,12 +215,13 @@ if ns.bundlefiles is None:
     _, _, _, _, _, gaiadr = decode_targetid(targets["TARGETID"])
     isgaia = gaiadr > 0
     # ADM write out bright-time and dark-time targets separately,
-    # ADM together with the Gaia-only back-up objects.
+    # ADM together with the Gaia-only back-up objects
+    # ADM and the extension targets.
     # ADM can use DARK for the back-up/supp objects as they never
     # ADM need merged with another target.
-    obscons = ["BRIGHT", "DARK", "BACKUP"]
-    iis = [~isgaia, ~isgaia, isgaia]
-    supps = [False, False, True]
+    obscons = ["BRIGHT", "DARK", "BACKUP", "BRIGHT1B", "DARK1B"]
+    iis = [~isgaia, ~isgaia, isgaia, ~isgaia, ~isgaia]
+    supps = [False, False, True, False, False]
     if ns.writeall:
         obscons.append(None)
         iis.append(~isgaia)

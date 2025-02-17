@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from desitarget.mtl import make_ledger, get_mtl_dir, _get_mtl_nside
+from desitarget.QA import _parse_tcnames
 
 # ADM this is the upper-limit for memory for mtl._get_mtl_nside()=32.
 nproc = 12
@@ -44,6 +45,9 @@ ap.add_argument('--timestamp',
 ap.add_argument('--append', action='store_true',
                 help="Append to existing ledgers, instead of writing new ones.  \
                 Particularly useful when adding new secondary targets")
+ap.add_argument('--tcnames', default=None,
+                help="Comma-separated names of target classes to run (e.g. QSO,LGE).")
+
 
 ns = ap.parse_args()
 
@@ -52,5 +56,12 @@ pixlist = ns.healpixels
 if pixlist is not None:
     pixlist = [int(pix) for pix in pixlist.split(',')]
 
+# ADM parse and check the list of target classes to run.
+if ns.tcnames is None:
+    tcnames = None
+else:
+    tcnames = _parse_tcnames(tcstring=ns.tcnames, add_all=False)
+
 make_ledger(ns.targdir, ns.dest, pixlist=pixlist, obscon=ns.obscon,
-            numproc=ns.numproc, timestamp=ns.timestamp, append=ns.append)
+            numproc=ns.numproc, timestamp=ns.timestamp, append=ns.append,
+            tcnames=tcnames)
