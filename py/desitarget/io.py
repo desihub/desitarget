@@ -2794,7 +2794,8 @@ def write_mtl_tile_file(filename, data):
 
 
 def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
-                    leq=False, columns=None, tabform='ascii.basic'):
+                    leq=False, columns=None, tabform='ascii.basic',
+                    maketwostyle=False):
     """Read one or two MTL ledger files.
 
     Parameters
@@ -2835,6 +2836,9 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         Format to pass to the astropy Table.read() function. The default
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
 
     Returns
     -------
@@ -2845,7 +2849,7 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         # ADM for one filename, run the standard "old" single-MTL code.
         return read_one_mtl_ledger(
             filename, unique=unique, isodate=isodate, initial=initial, leq=leq,
-            columns=columns, tabform=tabform)
+            columns=columns, tabform=tabform, maketwostyle=maketwostyle)
     elif isinstance(filename, list):
         # ADM need to catch cases where only one file actually exists.
         f1exists = os.path.isfile(filename[0])
@@ -3352,7 +3356,7 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False,
 
 def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                    returnfn=False, initial=False, leq=False, columns=None,
-                   tabform='ascii.basic'):
+                   tabform='ascii.basic', maketwostyle=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -3404,6 +3408,9 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         Format to pass to the astropy Table.read() function. The default
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
 
     Returns
     -------
@@ -3461,7 +3468,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
             try:
                 targs = read_mtl_ledger(fn, unique=unique, isodate=isodate,
                                         initial=initial, leq=leq,
-                                        columns=columns, tabform=tabform)
+                                        columns=columns, tabform=tabform,
+                                        maketwostyle=maketwostyle)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -3471,12 +3479,9 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         if len(mtls) == 0:
             fns = iglob(fileforms[0].format("*"))
             fn = next(fns)
-            mtl = read_mtl_ledger(fn, columns=columns, tabform=tabform)
-            dt = mtl.dtype.descr
-            if len(hpdirname) > 1:
-                dt += [("MTL_HIGHEST", ">i4"), ("MTL_WANTED", ">i4"),
-                       ("MTL_CONTAINS", ">i4")]
-            outly = np.zeros(0, dtype=dt)
+            mtl = read_mtl_ledger(fn, columns=columns, tabform=tabform,
+                                  maketwostyle=maketwostyle)
+            outly = np.zeros(0, dtype=mtl.dtype.descr)
             if returnfn:
                 return outly, outfns
             return outly
@@ -3488,7 +3493,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         if len(hpdirname) == 1:
             hpdirname = hpdirname[0]
         mtl = read_mtl_ledger(hpdirname, unique=unique, isodate=isodate, leq=leq,
-                              initial=initial, columns=columns, tabform=tabform)
+                              initial=initial, columns=columns, tabform=tabform,
+                              maketwostyle=maketwostyle)
 
     # ADM restrict the targets to the actual requested HEALPixels...
     ii = is_in_hp(mtl, nside, pixlist)
