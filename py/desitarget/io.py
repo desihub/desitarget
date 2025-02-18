@@ -3363,10 +3363,10 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
     ----------
     hpdirname : :class:`str` or `list`
         if a string:
-            Full path to either a directory containing targets that
+            Full path to either a directory containing MTLs that
             have been partitioned by HEALPixel (i.e. as made by
             `select_targets` with the `bundle_files` option). Or the
-            name of a single file of targets.
+            name of a single MTL of targets.
         If a list:
             Then this must be a list of two strings, with the strings
             having the same meaning as if one string is passed. The code
@@ -3508,16 +3508,27 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False, mtl=False,
                        unique=True, isodate=None, initial=False, leq=False,
-                       tabform='ascii.basic'):
+                       tabform='ascii.basic', maketwostyle=False):
     """Read in targets in a set of HEALPixels.
 
     Parameters
     ----------
-    hpdirname : :class:`str`
-        Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (i.e. as made by
-        `select_targets` with the `bundle_files` option). Or the
-        name of a single file of targets.
+    hpdirname : :class:`str` or `list`
+        if a string:
+            Full path to either a directory containing MTLs or targets
+            partitioned by HEALPixel (i.e. as made by `select_targets`
+            with the `bundle_files` option). Or the name of a single MTL
+            or file of targets.
+        If a list:
+            Then this must be a list of two strings, with the strings
+            having the same meaning as if one string is passed. The code
+            switches to "multi-MTL" mode, where two MTLs are merged by
+            matching on TARGETID and taking the highest-priority target.
+            Extra columns are added to the output, indicating which of
+            the MTLs was interested in each target. The strings must be
+            the same input type, i.e. either two directories or files.
+            The directories or files must share the same `nside`. For
+            this mode, the input `mtl` must be ``True``.
     nside : :class:`int`
         The (NESTED) HEALPixel nside.
     pixlist : :class:`list` or `int` or `~numpy.ndarray`
@@ -3565,6 +3576,10 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
         Only relevant when `mtl` is ``True``.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
+        Only works when reading in MTLs rather than target files.
 
     Returns
     -------
@@ -3589,7 +3604,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
     if mtl:
         return read_mtl_in_hp(
             hpdirname, nside, pixlist, unique=unique, isodate=isodate,
-            initial=initial, leq=leq, tabform=tabform)
+            initial=initial, leq=leq, tabform=tabform, maketwostyle=maketwostyle)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -3927,16 +3942,27 @@ def read_targets_in_quick(hpdirname, shape=None,
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                           quick=False, mtl=False, oldstyle=False, verbose=False,
                           unique=True, isodate=None, initial=False, leq=False,
-                          tabform='ascii.basic'):
+                          tabform='ascii.basic', maketwostyle=False):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
     Parameters
     ----------
-    hpdirname : :class:`str`
-        Full path to either a directory containing targets that
-        have been partitioned by HEALPixel (e.g. as made by
-        `select_targets` with the `bundle_files` option). Or the
-        name of a single file of targets.
+    hpdirname : :class:`str` or `list`
+        if a string:
+            Full path to either a directory containing MTLs or targets
+            partitioned by HEALPixel (i.e. as made by `select_targets`
+            with the `bundle_files` option). Or the name of a single MTL
+            or file of targets.
+        If a list:
+            Then this must be a list of two strings, with the strings
+            having the same meaning as if one string is passed. The code
+            switches to "multi-MTL" mode, where two MTLs are merged by
+            matching on TARGETID and taking the highest-priority target.
+            Extra columns are added to the output, indicating which of
+            the MTLs was interested in each target. The strings must be
+            the same input type, i.e. either two directories or files.
+            The directories or files must share the same `nside`. For
+            this mode the input `mtl` must be ``True``.
     tiles : :class:`~numpy.ndarray`, optional
         Array of tiles in the desimodel format, or ``None`` to use all
         DESI tiles from :func:`desimodel.io.load_tiles`.
@@ -3983,6 +4009,10 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
         Only relevant when `mtl` is ``True``.
+    maketwostyle : :class:`bool`, optional, defaults to ``False``
+        If passed, add the extra columns that are added when running
+        :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
+        Only works when reading in MTLs rather than target files.
 
     Returns
     -------
@@ -4027,8 +4057,14 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                 columnscopy.append(radec)
                 addedcols.append(radec)
 
+    # ADM check some ways for which we must be reading MTLs.
+    if isinstance(hpdirname, list):
+        mtlmode=True
+    elif os.path.isdir(hpdirname):
+        mtlmode=True
+
     # ADM if a directory was passed, do fancy HEALPixel parsing...
-    if os.path.isdir(hpdirname) or mtl:
+    if mtlmode or mtl:
         # ADM closest nside to DESI tile area of ~7 deg.
         nside = pixarea2nside(7.)
 
@@ -4039,7 +4075,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist, columns=columnscopy, header=header,
             mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq,
-            tabform=tabform)
+            tabform=tabform, maketwostyle=maketwostyle)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
