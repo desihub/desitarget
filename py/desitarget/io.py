@@ -4057,11 +4057,16 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                 columnscopy.append(radec)
                 addedcols.append(radec)
 
-    # ADM check some ways for which we must be reading MTLs.
+    # ADM check some ways for which we *must* be reading MTLs...
+    # ADM ...multi-mode must be MTL-like...
     if isinstance(hpdirname, list):
         mtlmode=True
+    # ADM ...a directory rather than a file must be MTL-like...
     elif os.path.isdir(hpdirname):
         mtlmode=True
+    # ADM ...a file isn't necessarily MTL-like unless mtl=True is passed.
+    else:
+        mtlmode=False
 
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     if mtlmode or mtl:
