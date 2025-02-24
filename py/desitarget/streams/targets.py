@@ -107,12 +107,14 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
         done[col] = val
 
     # ADM add PRIORITY/NUMOBS columns.
+    # CMR scnd=False for extension
     for edr, oc in zip(ender, obscon):
         pc, nc = "PRIORITY_INIT"+edr, "NUMOBS_INIT"+edr
-        done[pc], done[nc] = initial_priority_numobs(done, obscon=oc, scnd=True)
+        done[pc], done[nc] = initial_priority_numobs(done, obscon=oc, scnd=False)
 
     # ADM set the OBSCONDITIONS.
-    done["OBSCONDITIONS"] = set_obsconditions(done, scnd=True)
+    # CMR scnd=False for extension
+    done["OBSCONDITIONS"] = set_obsconditions(done, scnd=False)
 
     # ADM replace any NaNs with zeros.
     for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",

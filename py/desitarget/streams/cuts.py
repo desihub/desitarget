@@ -204,28 +204,39 @@ def set_target_bits(objs, stream_names=["GD1"]):
     -----
     - See ../data/targetmask.yaml for the definition of each bit.
     """
-    from desitarget.targetmask import desi_mask, scnd_mask
+    from desitarget.targetmask import desi_mask, mws_mask
 
-    # ADM set up a zerod scnd_target array to |= with later.
-    scnd_target = np.zeros_like(objs["RA"], dtype='int64')
+    # ADM set up a zerod mws_target array to |= with later.
+    # CMR changed to mws
+    mws_target = np.zeros_like(objs["RA"], dtype='int64')
 
     # ADM might be able to make this more general by putting the
     # ADM bit names in the data/yaml file and using globals()
     # ADM to recover the is_in() functions.
 
+    # CMR updated for extension
     if "GD1" in stream_names:
-        gd1_bright_pm, gd1_faint_no_pm, gd1_filler = is_in_GD1(objs)
+        gd1_bright_pm1, gd1_bright_pm2, gd1_bright_pm3, gd1_faint_no_pm, gd1_filler = is_in_GD1(objs, 'GD1')
 
-        scnd_target |= gd1_bright_pm * scnd_mask.GD1_BRIGHT_PM
-        scnd_target |= gd1_faint_no_pm * scnd_mask.GD1_FAINT_NO_PM
-        scnd_target |= gd1_filler * scnd_mask.GD1_FILLER
+        # CMR set mws desi extension bit
+        mws_target |= (mws_target != 0) * mws_mask.MWS_EXT
+        # CMR set stream name bit
+        mws_target |= (mws_target != 0) * mws_mask.MWS_GD1
+        # CMR now set target subclass bit masks
+        mws_target |= gd1_bright_pm1 * mws_mask.MWS_BRIGHT_PM1
+        mws_target |= gd1_bright_pm2 * mws_mask.MWS_BRIGHT_PM2
+        mws_target |= gd1_bright_pm3 * mws_mask.MWS_BRIGHT_PM3
+        mws_target |= gd1_faint_no_pm * mws_mask.FAINT_NO_PM
+        mws_target |= gd1_filler * mws_mask.FILLER
 
-    # ADM tell DESI_TARGET where SCND_ANY was updated.
-    desi_target = (scnd_target != 0) * desi_mask.SCND_ANY
+    # ADM tell DESI_TARGET where MWS_ANY was updated.
+    # CMR updated to MWS 
+    desi_target = (mws_target != 0) * desi_mask.MWS_ANY
 
-    # ADM set BGS_TARGET and MWS_TARGET to zeros.
-    bgs_target = np.zeros_like(scnd_target)
-    mws_target = np.zeros_like(scnd_target)
+    # OBSOLETE: ADM set BGS_TARGET and MWS_TARGET to zeros.
+    # CMR guessed scnd_target needs to get set to zero now
+    bgs_target = np.zeros_like(mws_target)
+    scnd_target = np.zeros_like(mws_target)
 
     return desi_target, bgs_target, mws_target, scnd_target
 

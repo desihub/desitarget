@@ -7,12 +7,32 @@ GD1:
     DECPOL: 29.7331
     RA_REF: 200
     # ADM stream extent.
+    # CMR for intial data read
     MIND: 80
     MAXD: 100
     # ADM color offset.
     COLOFF: -0.01
     # ADM magnitude offset.
     MAGOFF: -0.1
+    # CMR stream range in phi1 and phi2 for selection, deg
+    # tracks should be defined over the range in phi1
+    DPHI2_MINUS: -10
+    DPHI2_PLUS: 10
+    PHI1_MINUS: -90
+    PHI1_PLUS: 21
+    # CMR range around PM track for selection, mas/yr, not including errors
+    PM_PAD: 2
+    # CMR number of sigma to include for parallax selection
+    PLX_NSIG: 2.5
+    # CMR number of sigma to include for PM  selection
+    PM_NSIG: 2.5
+    # CMR magnitude selection limits, all in ext corrected r mag
+    BRIGHT_LIMIT: 16
+    BRIGHTPM1_LIMIT: 17.5
+    BRIGHTPM2_LIMIT: 19
+    BRIGHTPM3_LIMIT: 20.5
+    FAINT_NO_PM_LIMIT: 20
+    FAINT_LIMIT: 21
     # ADM g-band isochrone.
     ISO_G: [
         14.1916, 13.8004, 13.4031, 12.9995, 12.6317, 12.3286, 12.0868, 11.8791,
@@ -80,4 +100,28 @@ GD1:
         -2.0117, -2.0847, -2.1561, -2.2251, -2.2923, -2.357, -2.42, -2.4803,
         -2.5395, -2.5976, -2.6541, -2.7092, -2.7626, -2.8146, -2.8653, -2.9145,
         -2.9622, -3.0091, -3.0542, -3.0979, -3.1371
+    ]
+    # CMR stream track on sky, stream coordinates, longitude coord Phi1
+    PHI1T: [
+         -90, -70, -50, -40, -20, 0, 20
+    ]
+    # CMR stream track on sky, stream coordinates, latitude coord Phi2
+    PHI2T: [
+         -3, -1.5, -.2, -0., -.0, -1.2, -3
+    ]
+    # CMR stream track in proper motion, pm_phi1_cosphi2(phi1)
+    PMPHI1_PHI1T: [
+         -90, -70, -50, -30, -15, 0, 20
+    ]
+    # CMR stream track in proper motion, pm_phi1_cosphi2(phi1)
+    PMPHI1T: [
+         -5.5, -6.3, -8, -6.5, -5.7, -5, -3.5
+    ]
+    # CMR stream track in proper motion, pm_phi2(phi1)
+    PMPHI2_PHI1T: [
+         -90, -60, -45, -30, 0, 20
+    ]
+    # CMR stream track in proper motion, pm_phi2(phi1)
+    PMPHI2T: [
+         -0.7, -0.7, -0.35, -0.1, 0.2, 0.5
     ]
