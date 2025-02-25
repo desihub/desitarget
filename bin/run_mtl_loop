@@ -11,8 +11,9 @@ from argparse import ArgumentParser
 ap = ArgumentParser(description='Update ledgers for the Merged Target based on new spectroscopic observations')
 ap.add_argument("obscon",
                 help="String matching ONE obscondition in the bitmask yaml file \
-                (e.g. 'BRIGHT'). Controls priorities when merging targets,      \
-                which tiles to process, etc.", choices=["DARK", "BRIGHT", "BACKUP"])
+                (e.g. 'BRIGHT'). Controls priorities when merging targets, which\
+                tiles to process, etc.", choices=["DARK", "BRIGHT", "BACKUP",
+                                                  "DARK1B", "BRIGHT1B"])
 ap.add_argument("-s", "--survey",
                 help="Flavor of survey to run. Defaults to [{}]".format(survey),
                 default=survey, choices=["main", "sv3", "sv2"])
@@ -48,11 +49,19 @@ scndstates = [False]
 
 # ADM if nosecondary wasn't passed, also process the secondary ledger
 # ADM for programs that actually have secondary ledgers (BRIGHT/DARK).
-if ns.obscon in ["BRIGHT", "DARK"]:
+if ns.obscon in ["BRIGHT", "DARK", "BRIGHT1B", "DARK1B"]:
     if not(ns.nosecondary):
         scndstates = [True, False]
 
 premsg = ["Processed", "REprocessed"][ns.reprocess]
+
+# ADM for the DESI extension (1B) first use the redshifts on the 1B tiles
+# ADM to update the Main Survey ledgers.
+if "1B" in ns.obscon:
+    obscon = ns.obscon.split("1B")[0]
+    loop_ledger(
+        obscon, survey='main', zcatdir=ns.zcatdir, mtldir=ns.mtldir,
+        secondary=False, reprocess=ns.reprocess, ext=True)
 
 for secondary in scndstates:
     # ADM run through the regular loop once.
