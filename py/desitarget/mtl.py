@@ -2965,7 +2965,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     else:
         log.info(msg.format("PRIMARY", obscon, survey))
     if ext:
-        log.info(f"Running on {obscon} ledgers but using {obscon}1B tiles")
+        log.info(f"1B: Running on {obscon} ledgers but using {obscon}1B tiles")
     hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
