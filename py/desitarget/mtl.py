@@ -2885,7 +2885,8 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
-                numobs_from_ledger=True, secondary=False, reprocess=False):
+                numobs_from_ledger=True, secondary=False, reprocess=False
+                1b=False):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -2918,6 +2919,13 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         the tiles-specstatus file later than their TIMESTAMP in the
         mtl-done-tiles file) instead of tiles that are newly done and
         process using special reprocessing logic.
+    1b : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then we're operating in DESI extension mode for DARK
+        or BRIGHT tiles. The tiles looked up will be, e.g., DARK1B tiles,
+        but the ledgers (and rules) used for updating will be for DARK.
+        In this mode, the tile file is not updates indicating that a tile
+        has been considered, because, e.g., DARK1B tiles should only be
+        marked as considered once the DARK1B ledgers are done.
 
     Returns
     -------
@@ -2956,15 +2964,20 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         resolve = None
     else:
         log.info(msg.format("PRIMARY", obscon, survey))
+    if 1b:
+        log.info(f"Running on {obscon} ledgers but using {obscon}{1B} tiles")
     hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
     zcatdir = get_zcat_dir(zcatdir)
 
     # ADM grab an array of tiles that are yet to be processed.
-    tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey,
-                                  reprocess=reprocess)
-
+    if 1b:
+        tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon+"1B", survey,
+                                      reprocess=reprocess)
+    else:
+        tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey,
+                                      reprocess=reprocess)
     # ADM contruct the ZTILE filename, for logging purposes.
     ztilefn = get_ztile_file_name(survey=survey)
     # ADM directory structure used to be different for sv and main.
@@ -3022,6 +3035,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
             tiles["TIMESTAMP"] = get_utc_date(survey=survey)
 
     # ADM write the processed tiles to the MTL tile file.
-    io.write_mtl_tile_file(mtltilefn, tiles)
+    # ADM although not in the 1b/extension case
+    # ADM of, e.g., dark1b-tiles-with-dark-ledgers.
+    if not 1b:
+        io.write_mtl_tile_file(mtltilefn, tiles)
 
     return hpdirname, mtltilefn, ztilefn, tiles
