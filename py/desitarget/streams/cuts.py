@@ -27,7 +27,7 @@ from desitarget.streams.targets import finalize
 from desiutil.log import get_logger
 log = get_logger()
 
-
+# CMR modified for DESI extension
 def is_in_GD1(objs):
     """Whether a target lies within the GD1 stellar stream.
 
@@ -43,7 +43,11 @@ def is_in_GD1(objs):
     Returns
     -------
     :class:`array_like`
-        ``True`` if the object is a bright "BRIGHT_PM" target.
+        ``True`` if the object is a bright "BRIGHT_PM1" target.
+    :class:`array_like`
+        ``True`` if the object is a bright "BRIGHT_PM2" target.
+    :class:`array_like`
+        ``True`` if the object is a bright "BRIGHT_PM3" target.
     :class:`array_like`
         ``True`` if the object is a faint "FAINT_NO_PM" target.
     :class:`array_like`
@@ -64,21 +68,22 @@ def is_in_GD1(objs):
     # ADM the parameters that define the extent of the stream.
     mind, maxd = stream["MIND"], stream["MAXD"]
 
-    # ADM rotate the data into the coordinate system of the stream.
+    # ADM rotate the position data into the coordinate system of the stream.
     fi1, fi2 = sphere_rotate(objs['RA'], objs['DEC'], rapol, decpol, ra_ref)
 
     # ADM distance of the stream (similar to Koposov et al. 2010 paper).
     dist = stream_distance(fi1, stream_name)
 
-    # ADM heliocentric correction to proper motion.
+    # ADM/CMR REFLEX CORRECTION to proper motion.
     xpmra, xpmdec = correct_pm(objs['RA'], objs['DEC'],
                                objs['PMRA'], objs['PMDEC'], dist)
 
-    # ADM reflex correction for proper motions.
+    # ADM/CMR rotate the REFLEX-CORRECTED proper motions into the coordinate system of the stream.
     pmfi1, pmfi2 = rotate_pm(objs['RA'], objs['DEC'], xpmra, xpmdec,
                              rapol, decpol, ra_ref)
 
     # ADM derive the combined proper motion error.
+    # CMR: RMS error, appropriate for PM ~< PM_err. See Lindegren GAIA-C3-TN-LU-LL-129-01
     pm_err = np.sqrt(0.5 * (objs["PMRA_ERROR"]**2 + objs["PMDEC_ERROR"]**2))
 
     # ADM dust correction.
@@ -92,16 +97,15 @@ def is_in_GD1(objs):
     g, r, z = [22.5 - 2.5 * np.log10(objs['FLUX_' + _]) - ext[_] for _ in 'GRZ']
 
     # ADM some spline functions over which to interpolate.
-    TRACK = scipy.interpolate.CubicSpline([-90, -70, -50, -40, -20, 0, 20],
-                                          [-3, -1.5, -.2, -0., -.0, -1.2, -3])
-    PM1TRACK = scipy.interpolate.UnivariateSpline(
-        [-90, -70, -50, -30, -15, 0, 20],
-        [-5.5, -6.3, -8, -6.5, -5.7, -5, -3.5])
-    PM2TRACK = scipy.interpolate.UnivariateSpline(
-        [-90, -60, -45, -30, 0, 20],
-        [-.7, -.7, -0.35, -0.1, 0.2, .5], s=0)
+    # CMR stream track in stream coordinates, phi2(phi1)
+    TRACK = scipy.interpolate.CubicSpline(stream['PHI1T'],stream['PHI2T'])
+    # CMR phi1_cosphi2 proper motion trace, pm_phi1(phi1)
+    PM1TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI1_PHI1T'],stream['PMPHI1T'])
+    # CMR phi2 proper motion trace, pm_phi2(phi1)
+    PM2TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI2_PHI1T'],stream['PMPHI2T'],s=0)
 
     # ADM create an interpolated set of phi2 coords (in stream coords).
+    # CMR this is the distance, in phi2, of each star from the track phi2(phi1)
     dfi2 = fi2 - TRACK(fi1)
 
     # ADM derive the isochrone track for the stream.
@@ -111,17 +115,25 @@ def is_in_GD1(objs):
     delta_cmd = g - r - CMD_II(r - 5 * np.log10(dist * 1e3) + 5)
 
     # ADM necessary parameters are set up; perform the actual selection.
-    bright_limit, faint_limit = 16, 21
+    # CNR bright, faint and intermediate magnitude limits now in yaml file
 
     # ADM lies in the stream.
-    field_sel = betw(dfi2, -10, 10) & betw(fi1, -90, 21)
+    # CMR modified to use limits from yaml file 
+    field_sel = betw(dfi2, stream['DPHI2_MINUS'], stream['DPHI2_PLUS']) & betw(fi1, stream['PHI1_MINUS'],stream['PHI1_PLUS'])
 
     # ADM Gaia-based selection (proper motion and parallax).
-    pm_pad = 2  # mas/yr padding in pm selection
+    # CMR modified to use PM_PAD and PM_NSIG from yaml file
     gaia_astrom_sel = pm12_sel_func(PM1TRACK(fi1), PM2TRACK(fi1), pmfi1, pmfi2,
-                                    pm_err, pm_pad, 2.5)
-    gaia_astrom_sel &= plx_sel_func(dist, objs, 2.5)
-    gaia_astrom_sel &= r > bright_limit
+                                    pm_err, stream['PM_PAD'],stream['PM_NSIG'])
+    # CMR modified to use PLX_NSIG from yaml file
+    gaia_astrom_sel &= plx_sel_func(dist, objs, stream['PLX_NSIG'])
+    # CMR we need gaia_astrom_sel later to exclude all astrom sel from filler and faint_no_pm
+    gaia_astrom_sel &= r > stream['BRIGHT_LIMIT']
+
+    # CMR magnitude ranges
+    brightpm1_magsel = (r > stream['BRIGHT_LIMIT']) & (r <= stream['BRIGHTPM1_LIMIT'])
+    brightpm2_magsel = (r > stream['BRIGHTPM1_LIMIT']) & (r <= stream['BRIGHTPM2_LIMIT'])
+    brightpm3_magsel = (r > stream['BRIGHTPM2_LIMIT']) & (r <= stream['BRIGHTPM3_LIMIT'])
 
     log.info(f"Objects in the field: {field_sel.sum()}...t={time()-start:.1f}s")
     log.info(f"With correct astrometry: {(gaia_astrom_sel & field_sel).sum()}")
@@ -134,10 +146,7 @@ def is_in_GD1(objs):
                                & ((g - r) <= 1.1)))
     stellar_locus_red_sel = (((g - r > 1.1)
                               & betw(g - r - (1.05 + .25 * (r - z)), -.2, .2)))
-    stellar_locus_sel = stellar_locus_blue_sel | stellar_locus_red_sel
-
-    tot = np.sum(field_sel & gaia_astrom_sel & bright_cmd_sel)
-    print(f"Objects meeting bright selection: {tot}...t={time()-start:.1f}s")
+    stellar_locus_sel = stellar_locus_blue_sel | stellar_locus_red_sel   
 
     # ADM selection for objects that lack Gaia astrometry.
     # ADM has type PSF and in a reasonable isochrone window.
@@ -145,41 +154,50 @@ def is_in_GD1(objs):
     cmd_win = 0.1 + 10**(-2 + (r - 20) / 2.5)
 
     # ADM overall faint selection.
-    faint_sel = ~np.isfinite(objs['PMRA'])
-    faint_sel &= betw(r, 20, faint_limit)
+    # CMR modified to use mag limts from yaml file
+    faint_sel = ~np.isfinite(objs['PMRA']) # no PM information
+    faint_sel &= betw(r, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
     faint_sel &= stellar_locus_sel
-    tot = np.sum(faint_sel & field_sel)
-    log.info(f"Objects meeting faint selection: {tot}...t={time()-start:.1f}s")
 
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)
-    common_filler_sel = betw(r, 19, faint_limit)
+    # CMR modified to use limits from yaml file
+    common_filler_sel = betw(r, stream['BRIGHTPM2_LIMIT'], stream['FAINT_LIMIT'])
     common_filler_sel &= startyp
     common_filler_sel &= ~faint_sel
     common_filler_sel &= ~gaia_astrom_sel
     common_filler_sel &= stellar_locus_sel
 
     filler_sel = common_filler_sel & betw(g - r, -.3, 1.2)
-
     filler_red_sel = common_filler_sel & betw(g - r, 1.2, 2.2)
-    tot = np.sum(filler_sel & field_sel)
-    log.info(f"Objects meeting filler selection: {tot}...t={time()-start:.1f}s")
-
-    log.info(f"Finished selection for {stream_name}...t={time()-start:.1f}s")
 
     bright_pm = bright_cmd_sel & gaia_astrom_sel & field_sel
+    bright_pm1 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm1_magsel
+    bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
+    bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
     faint_no_pm = faint_sel & field_sel
     filler = filler_sel & field_sel
 
+    # CMR moved these here so we write numbers of the final selections, but less useful for timing
+    log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting bright pm1 selection: {np.sum(bright_pm1)}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting bright pm2 selection: {np.sum(bright_pm2)}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting bright pm3 selection: {np.sum(bright_pm3)}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting faint_no_pm selection: {np.sum(faint_no_pm)}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting filler selection: {np.sum(filler)}...t={time()-start:.1f}s")
+
+    log.info(f"Finished selection for {stream_name}...t={time()-start:.1f}s")
+
     # ADM sanity check that selections do not overlap.
-    check = bright_pm.astype(int) + faint_no_pm.astype(int) + filler.astype(int)
+    check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_no_pm.astype(int) + filler.astype(int)
     if np.max(check) > 1:
         msg = "Selections should be unique but they overlap!"
         log.error(msg)
 
-    return bright_pm, faint_no_pm, filler
+    return bright_pm1, bright_pm2, bright_pm3, faint_no_pm, filler
+
 
 
 def set_target_bits(objs, stream_names=["GD1"]):
@@ -216,7 +234,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
 
     # CMR updated for extension
     if "GD1" in stream_names:
-        gd1_bright_pm1, gd1_bright_pm2, gd1_bright_pm3, gd1_faint_no_pm, gd1_filler = is_in_GD1(objs, 'GD1')
+        gd1_bright_pm1, gd1_bright_pm2, gd1_bright_pm3, gd1_faint_no_pm, gd1_filler = is_in_GD1(objs)
 
         # CMR set mws desi extension bit
         mws_target |= (mws_target != 0) * mws_mask.MWS_EXT
@@ -226,8 +244,8 @@ def set_target_bits(objs, stream_names=["GD1"]):
         mws_target |= gd1_bright_pm1 * mws_mask.MWS_BRIGHT_PM1
         mws_target |= gd1_bright_pm2 * mws_mask.MWS_BRIGHT_PM2
         mws_target |= gd1_bright_pm3 * mws_mask.MWS_BRIGHT_PM3
-        mws_target |= gd1_faint_no_pm * mws_mask.FAINT_NO_PM
-        mws_target |= gd1_filler * mws_mask.FILLER
+        mws_target |= gd1_faint_no_pm * mws_mask.MWS_FAINT_NO_PM
+        mws_target |= gd1_filler * mws_mask.MWS_FILLER
 
     # ADM tell DESI_TARGET where MWS_ANY was updated.
     # CMR updated to MWS 
