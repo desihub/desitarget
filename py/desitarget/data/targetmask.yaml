@@ -224,10 +224,10 @@ obsmask:
     - [MORE_ZWARN,     3, "ambiguous redshift; need more observations"]
     - [MORE_ZGOOD,     4, "redshift known; need more observations"]
     - [MORE_MIDZQSO,   8, "mid-z QSO; more observations at very low priority"]
+    - [MORE_NOBS1,     9, "good rv, reprioritize until reach NOBS1"]
+    - [MORE_NOBS2,    10, "reached first SN goal, reprioritize until reach NOBS2"]
+    - [MORE_NOBS3,    11, "reached second SN goal, reprioritize until reach NDONE"]
     - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
-    - [MORE_NOBS1,    32, "good rv, reprioritize until reach NOBS1"]
-    - [MORE_NOBS2,    64, "reached first SN goal, reprioritize until reach NOBS2"]
-    - [MORE_NOBS3,   128, "reached second SN goal, reprioritize until reach NDONE"]
 
 #- Bits that can be set in TARGETID. See the schema at
 #- https://desi.lbl.gov/DocDB/cgi-bin/private/RetrieveFile?docid=2348
