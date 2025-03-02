@@ -127,8 +127,7 @@ def is_in_GD1(objs):
                                     pm_err, stream['PM_PAD'],stream['PM_NSIG'])
     # CMR modified to use PLX_NSIG from yaml file
     gaia_astrom_sel &= plx_sel_func(dist, objs, stream['PLX_NSIG'])
-    # CMR we need gaia_astrom_sel later to exclude all astrom sel from filler and faint_no_pm
-    gaia_astrom_sel &= r > stream['BRIGHT_LIMIT']
+    #gaia_astrom_sel &= r > stream['BRIGHT_LIMIT'] don't need this
 
     # CMR magnitude ranges
     brightpm1_magsel = (r > stream['BRIGHT_LIMIT']) & (r <= stream['BRIGHTPM1_LIMIT'])
@@ -167,7 +166,7 @@ def is_in_GD1(objs):
     common_filler_sel = betw(r, stream['BRIGHTPM2_LIMIT'], stream['FAINT_LIMIT'])
     common_filler_sel &= startyp
     common_filler_sel &= ~faint_sel
-    common_filler_sel &= ~gaia_astrom_sel
+    #common_filler_sel &= ~gaia_astrom_sel # CMR no: we want get objs with gaia astrom fainter than bright_pm3 faint lim
     common_filler_sel &= stellar_locus_sel
 
     filler_sel = common_filler_sel & betw(g - r, -.3, 1.2)
@@ -178,7 +177,7 @@ def is_in_GD1(objs):
     bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
     faint_no_pm = faint_sel & field_sel
-    filler = filler_sel & field_sel
+    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3
 
     # CMR moved these here so we write numbers of the final selections, but less useful for timing
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
