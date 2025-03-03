@@ -521,12 +521,12 @@ numobs:
 
 # CMR initial number of observations for targets in the DESI Extension dSph or stream targets
         MWS_EXT:                     -1
-        MWS_BRIGHT_PM1:              3
-        MWS_BRIGHT_PM2:              3
-        MWS_BRIGHT_PM3:              5
-        MWS_PM_ONLY:                 2
-        MWS_FAINT_NO_PM:             2
-        MWS_FILLER:                  2
+        MWS_BRIGHT_PM1:              13
+        MWS_BRIGHT_PM2:              13
+        MWS_BRIGHT_PM3:              13
+        MWS_PM_ONLY:                 5
+        MWS_FAINT_NO_PM:             13
+        MWS_FILLER:                  10
         MWS_GD1:                     -1
         MWS_ORPHAN:                  -1
 
