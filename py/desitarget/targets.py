@@ -846,7 +846,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                         # at NUMOBS2 and NUMOBS3 there is a priority reduction
                         atnumobs1 = (zcat["NUMOBS"] > 0) & ~done &  ((((mws_target['MWS_BRIGHT_PM1'] !=0) | (mws_target['MWS_BRIGHT_PM2'] !=0)) & (zcat["NUMOBS"] < 3) ) | ((mws_target['MWS_BRIGHT_PM3'] !=0) & (zcat["NUMOBS"] < 5)))
                         atnumobs2 = ~done & (zcat["NUMOBS"] < 10) &  ((((mws_target['MWS_BRIGHT_PM1'] !=0) | (mws_target['MWS_BRIGHT_PM2'] !=0)) & (zcat["NUMOBS"] >= 3)) | ((mws_target['MWS_BRIGHT_PM3'] !=0) & (zcat["NUMOBS"] >= 5)))
-                        atnumobs3 =~done & (((mws_target['MWS_BRIGHT_PM1'] !=0) | (mws_target['MWS_BRIGHT_PM2'] !=0) | (mws_target['MWS_BRIGHT_PM3'] !=0)) & (zcat["NUMOBS"] >= 10)
+                        atnumobs3 = (~done & ((mws_target['MWS_BRIGHT_PM1'] !=0) | (mws_target['MWS_BRIGHT_PM2'] !=0) | (mws_target['MWS_BRIGHT_PM3'] !=0)) & (zcat["NUMOBS"] >= 10))
                         # MWS_FAINT_NO_PM MWS_FILLER MWS_PM_ONLY do not use nummobs2 
                         # add threhold info for MWS_FAINT_NO_PM and MWS_FILLER
                         atnumobs1 |= (~done & (zcat["NUMOBS"] > 0) & (zcat["NUMOBS"] < 10) & ((mws_target['MWS_FAINT_NO_PM'] !=0) | (mws_target['MWS_FILLER'] !=0)))
