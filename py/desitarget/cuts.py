@@ -599,7 +599,7 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
                  & (rmag - w1mag > (w1mag - 16.33 - 0.275) * 1.))
                 | (rmag - w1mag > 3.3 - 0.1)
             )  # double sliding cuts and high-z extension.
-            lrg &= ~lrgmaindsc # exclude DESI-1 LRGs.
+            lrg &= ~lrgmaindsc  # exclude DESI-1 LRGs.
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut.
         lrg &= zfibermag < 21.61                   # faint limit.
