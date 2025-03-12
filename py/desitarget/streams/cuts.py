@@ -236,9 +236,10 @@ def set_target_bits(objs, stream_names=["GD1"]):
         gd1_bright_pm1, gd1_bright_pm2, gd1_bright_pm3, gd1_faint_no_pm, gd1_filler = is_in_GD1(objs)
 
         # CMR set mws desi extension bit
-        mws_target |= (mws_target != 0) * mws_mask.MWS_EXT
+        any_set = gd1_bright_pm1 | gd1_bright_pm2 | gd1_bright_pm3 | gd1_faint_no_pm | gd1_filler
+        mws_target |= any_set * mws_mask.MWS_EXT
         # CMR set stream name bit
-        mws_target |= (mws_target != 0) * mws_mask.MWS_GD1
+        mws_target |= any_set * mws_mask.MWS_GD1
         # CMR now set target subclass bit masks
         mws_target |= gd1_bright_pm1 * mws_mask.MWS_BRIGHT_PM1
         mws_target |= gd1_bright_pm2 * mws_mask.MWS_BRIGHT_PM2
