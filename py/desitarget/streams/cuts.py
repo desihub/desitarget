@@ -209,7 +209,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
         stream target selection. See, e.g.,
         :func:`~desitarget.stream.cuts.is_in_GD1` for column names.
     stream_names : :class:`list`
-        A list of stream names to process. Defaults to all streams.
+        A list of stream names to process. Default is available streams.
 
     Returns
     -------
@@ -232,27 +232,30 @@ def set_target_bits(objs, stream_names=["GD1"]):
     # ADM to recover the is_in() functions.
 
     # CMR updated for extension
-    if "GD1" in stream_names:
-        gd1_bright_pm1, gd1_bright_pm2, gd1_bright_pm3, gd1_faint_no_pm, gd1_filler = is_in_GD1(objs)
+    for stream in stream_names:
+        bit_name = f"MWS_{stream}"
+        func_name = f"is_in_{stream}"
+        func_call = globals()[func_name]
 
-        # CMR set mws desi extension bit
-        any_set = gd1_bright_pm1 | gd1_bright_pm2 | gd1_bright_pm3 | gd1_faint_no_pm | gd1_filler
+        bright_pm1, bright_pm2, bright_pm3, faint_no_pm, filler = func_call(objs)
+
+        # ADM/CMR set mws desi extension bit
+        any_set = bright_pm1 | bright_pm2 | bright_pm3 | faint_no_pm | filler
         mws_target |= any_set * mws_mask.MWS_EXT
         # CMR set stream name bit
-        mws_target |= any_set * mws_mask.MWS_GD1
+        mws_target |= any_set * mws_mask[bit_name]
         # CMR now set target subclass bit masks
-        mws_target |= gd1_bright_pm1 * mws_mask.MWS_BRIGHT_PM1
-        mws_target |= gd1_bright_pm2 * mws_mask.MWS_BRIGHT_PM2
-        mws_target |= gd1_bright_pm3 * mws_mask.MWS_BRIGHT_PM3
-        mws_target |= gd1_faint_no_pm * mws_mask.MWS_FAINT_NO_PM
-        mws_target |= gd1_filler * mws_mask.MWS_FILLER
+        mws_target |= bright_pm1 * mws_mask.MWS_BRIGHT_PM1
+        mws_target |= bright_pm2 * mws_mask.MWS_BRIGHT_PM2
+        mws_target |= bright_pm3 * mws_mask.MWS_BRIGHT_PM3
+        mws_target |= faint_no_pm * mws_mask.MWS_FAINT_NO_PM
+        mws_target |= filler * mws_mask.MWS_FILLER
 
     # ADM tell DESI_TARGET where MWS_ANY was updated.
     # CMR updated to MWS 
     desi_target = (mws_target != 0) * desi_mask.MWS_ANY
 
-    # OBSOLETE: ADM set BGS_TARGET and MWS_TARGET to zeros.
-    # CMR guessed scnd_target needs to get set to zero now
+    # ADM/CMR set BGS_TARGET and SCND_TARGET to zeros.
     bgs_target = np.zeros_like(mws_target)
     scnd_target = np.zeros_like(mws_target)
 
