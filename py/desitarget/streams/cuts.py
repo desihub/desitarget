@@ -14,6 +14,8 @@ import os
 import scipy.interpolate
 import numpy as np
 import astropy.table as atpy
+import astropy.coordinates as acoo
+import astropy.units as auni
 
 from desitarget.cuts import _psflike
 from desitarget.streams.utilities import sphere_rotate, correct_pm, rotate_pm, \
@@ -67,6 +69,18 @@ def is_in_GD1(objs):
     rapol, decpol, ra_ref = stream["RAPOL"], stream["DECPOL"], stream["RA_REF"]
     # ADM the parameters that define the extent of the stream.
     mind, maxd = stream["MIND"], stream["MAXD"]
+
+    # ADM limit input coordinates to region of the stream.
+    cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
+    cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
+
+    # ADM separation between the objects of interest and the stream.
+    sep = cobjs.separation(cstream)
+
+    # ADM only retain objects in the stream...
+    ii = betw(sep.value, mind, maxd)
+    objs = objs[ii]
+    log.info(f"Objects near the stream: {ii.sum()}...t={time()-start:.1f}s")
 
     # ADM rotate the position data into the coordinate system of the stream.
     fi1, fi2 = sphere_rotate(objs['RA'], objs['DEC'], rapol, decpol, ra_ref)
@@ -262,8 +276,8 @@ def set_target_bits(objs, stream_names=["GD1"]):
     return desi_target, bgs_target, mws_target, scnd_target
 
 
-def select_targets(swdir, stream_names=["GD1"], readperstream=True,
-                   addnors=True, readcache=True):
+def select_targets(swdir, stream_names=["GD1"], readperstream=False,
+                   addnors=True, readcache=True, numproc=1, mindec=-20):
     """Process files from an input directory to select targets.
 
     Parameters
@@ -274,7 +288,7 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
         "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
     stream_names : :class:`list`
         A list of stream names to process. Defaults to all streams.
-    readperstream : :class:`bool`, optional, defaults to ``True``
+    readperstream : :class:`bool`, optional, defaults to ``False``
         When set, read each stream's data individually instead of looping
         through all possible sweeps files. This is likely quickest and
         most useful when working with a single stream. For multiple
@@ -291,6 +305,11 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
         files are named $TARG_DIR/streamcache/streamname-drX-cache.fits,
         where streamname is the lower-case name from `stream_names` and
         drX is the Legacy Surveys Data Release (parsed from `swdir`).
+    numproc : :class:`int`, optional, defaults to 1 for serial
+        The number of parallel processes to use. `numproc` of 16 is a
+        good balance between speed and file I/O.
+    mindec : :class:`float` or `int`, optional, defaults to -20 (20oS)
+        Hard limit on data (objects south of this are not returned).
 
     Returns
     -------
@@ -302,8 +321,6 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
     """
     if readperstream:
         # ADM loop over streams and read in the data per-stream.
-        # ADM eventually, for multiple streams, we would likely switch
-        # ADM to read in each sweep file and parallelizing across files.
         allobjs = []
         for stream_name in stream_names:
             # ADM read in the data.
@@ -313,16 +330,18 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=True,
             # ADM the parameters that define the extent of the stream.
             mind, maxd = strm["MIND"], strm["MAXD"]
             # ADM read in the data.
-            objs = read_data_per_stream(swdir, rapol, decpol, mind, maxd,
-                                        stream_name,
-                                        addnors=addnors, readcache=readcache)
+            objs = read_data_per_stream(
+                swdir, rapol, decpol, mind, maxd, stream_name, numproc=numproc,
+                mindec=mindec, addnors=addnors, readcache=readcache, readall=False
+            )
             allobjs.append(objs)
         objects = np.concatenate(allobjs)
     else:
-        # ADM --TODO-- write loop across sweeps instead of streams.
-        msg = ("readperstream must be True until we implement looping "
-               "over sweeps instead of streams")
-        log.error(msg)
+        # ADM otherwise, read in all of the sweeps. This requires
+        # ADM some dummy inputs.
+        objects = read_data_per_stream(
+            swdir, 0, 0, 0, 0, "", numproc=numproc, mindec=mindec,
+            addnors=addnors, readcache=readcache, readall=True)
 
     # ADM process the targets.
     desi_target, bgs_target, mws_target, scnd_target = set_target_bits(

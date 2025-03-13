@@ -50,7 +50,8 @@ streamcolsGaia = np.array([], dtype=[
 gaiadr = "dr3"
 
 
-def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
+def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd,
+                                  mindec=-20., readall=False):
     """Assemble the data needed for a stream program from one file
 
     Parameters
@@ -62,6 +63,11 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
     mind, maxd : :class:`float` or `int`
         Minimum and maximum angular distance from the pole of the stream
         coordinate system to search for members in DEGREES.
+    mindec : :class:`float` or `int`, optional, defaults to -20 (20oS)
+        Hard limit on data (objects south of this are not returned).
+    readall : :class:`bool`, optional, defaults to ``False``
+        Ignore the stream-related inputs (`decpol`, `mind`, `maxd`) and
+        instead read _all_ of the sweep files.
 
     Returns
     -------
@@ -71,20 +77,22 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
     """
     objs = io.read_tractor(filename)
 
-    # ADM codinates of the stream.
-    cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
-    cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
+    # ADM Only consider sources at a declination of > decmin...
+    ii = objs["DEC"] > mindec
 
-    # ADM separation between the objects of interest and the stream.
-    sep = cobjs.separation(cstream)
+    # ADM ...limit to rough stream location, unless readall is passed...
+    if not readall:
+        # ADM coordinates of the stream.
+        cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
+        cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
 
-    # ADM only retain objects in the stream...
-    ii = betw(sep.value, mind, maxd)
+        # ADM separation between the objects of interest and the stream.
+        sep = cobjs.separation(cstream)
 
-    # ADM ...at a declination of > -20o...
-    ii &= objs["DEC"] > -20.
+        # ADM only retain objects in the stream...
+        ii &= betw(sep.value, mind, maxd)
 
-    # ADM ...that aren't very faint (> 22.5 mag in r).
+    # ADM ...limit to sources that aren't very faint (> 22.5 mag in r).
     ii &= objs["FLUX_R"] > 1
     # ADM Also guard against negative fluxes in g/r.
     # ii &= objs["FLUX_G"] > 0.
@@ -131,7 +139,8 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd):
 
 
 def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
-                         readcache=True, addnors=True, test=False, numproc=1):
+                         readcache=True, addnors=True, test=False, numproc=1,
+                         mindec=-20, readall=False):
     """Assemble the data needed for a particular stream program.
 
     Parameters
@@ -147,23 +156,28 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         coordinate system to search for members in DEGREES.
     stream_name : :class:`str`
         Name of a stream. Used to make the cached filename, e.g. "GD1".
-    readcache : :class:`bool`
+    readcache : :class:`bool`, optional, defaults to ``True``
         If ``True`` read from a previously constructed and cached file
         automatically, IF such a file exists. If ``False`` don't read
         from the cache AND OVERWRITE the cached file, if it exists. The
         cached file is $TARG_DIR/streamcache/streamname-drX-cache.fits,
         where streamname is the lower-case passed `stream_name` and drX
         is the Legacy Surveys Data Release (parsed from `swdir`).
-    addnors : :class:`bool`
+    addnors : :class:`bool`, optional, defaults to ``True``
         If ``True`` then if `swdir` contains "north" add sweep files from
         the south by substituting "south" in place of "north" (and vice
         versa, i.e. if `swdir` contains "south" add sweep files from the
         north by substituting "north" in place of "south").
-    test : :class:`bool`
+    test : :class:`bool`, optional, defaults to ``False``
         Read a subset of the data for testing purposes.
     numproc : :class:`int`, optional, defaults to 1 for serial
         The number of parallel processes to use. `numproc` of 16 is a
         good balance between speed and file I/O.
+    mindec : :class:`float` or `int`, optional, defaults to -20 (20oS)
+        Hard limit on data (objects south of this are not returned).
+    readall : :class:`bool`, optional, defaults to ``False``
+        Ignore all of the other inputs except for `addnors` and instead
+        read (and cache) _all_ of the sweep files.
 
     Returns
     -------
@@ -178,9 +192,8 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         mind, maxd = 80, 100
     - The $TARG_DIR environment variable must be set to read/write from
       a cache. If $TARG_DIR is not set, caching is completely ignored.
-    - This is useful for a single stream. The :func:`~read_data` function
-      is likely a better choice for looping over the entire LS sweeps
-      data when targeting multiple streams.
+    - This is useful for a single stream. Caching all of the sweeps using
+      the `readall` kwarg is likely best for multiple large streams.
     """
     # ADM start the clock.
     start = time()
@@ -202,8 +215,17 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
             msg = 'swdir not parsed: should include a construction like '
             msg += '"dr9" or "dr10"'
             raise ValueError(msg)
-        cachefile = os.path.join(os.getenv("TARG_DIR"), "streamcache",
-                                 f"{stream_name.lower()}-{dr[0]}-cache.fits")
+        formatter = os.path.join(os.getenv("TARG_DIR"), "streamcache",
+                                 "{}-{}-streams-{}-cache.fits")
+        if readall:
+            if addnors:
+                cachefile = formatter.format(mindec, "all", dr[0])
+            elif "south" in swdir:
+                cachefile = formatter.format(mindec, "south", dr[0])
+            else:
+                cachefile = formatter.format(mindec, "north", dr[0])
+        else:
+            cachefile = formatter.format(mindec, stream_name.lower(), dr[0])
 
     # ADM if we have a cache, read it if requested and return the data.
     if readcache:
@@ -231,28 +253,31 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
             raise ValueError(msg)
         infiles += io.list_sweepfiles(swdir2)
 
-    # ADM calculate nside for HEALPixel of approximately 1o to limit
-    # ADM number of sweeps files that need to be read.
-    nside = pixarea2nside(1)
+    # ADM if readall was sent, simply read in all of the sweeps.
+    if not readall:
+        # ADM calculate nside for HEALPixel of approximately 1o to limit
+        # ADM number of sweeps files that need to be read.
+        nside = pixarea2nside(1)
 
-    # ADM determine RA, Dec of all HEALPixels at this nside.
-    allpix = np.arange(hp.nside2npix(nside))
-    theta, phi = hp.pix2ang(nside, allpix, nest=True)
-    ra, dec = np.degrees(phi), 90-np.degrees(theta)
+        # ADM determine RA, Dec of all HEALPixels at this nside.
+        allpix = np.arange(hp.nside2npix(nside))
+        theta, phi = hp.pix2ang(nside, allpix, nest=True)
+        ra, dec = np.degrees(phi), 90-np.degrees(theta)
 
-    # ADM only retain HEALPixels in the stream, based on mind and maxd.
-    cpix = acoo.SkyCoord(ra*auni.degree, dec*auni.degree)
-    cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
-    sep = cpix.separation(cstream)
-    ii = betw(sep.value, mind, maxd)
-    pixlist = allpix[ii]
+        # ADM only HEALPixels in the stream, based on mind and maxd.
+        cpix = acoo.SkyCoord(ra*auni.degree, dec*auni.degree)
+        cstream = acoo.SkyCoord(rapol*auni.degree, decpol*auni.degree)
+        sep = cpix.separation(cstream)
+        ii = betw(sep.value, mind, maxd)
+        pixlist = allpix[ii]
 
-    # ADM pad with neighboring pixels to ensure stream is fully covered.
-    newpixlist = add_hp_neighbors(nside, pixlist)
+       # ADM pad with neighbor pixels to ensure stream is fully covered.
+        newpixlist = add_hp_neighbors(nside, pixlist)
 
-    # ADM determine which sweep files touch the relevant HEALPixels.
-    filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
-    infiles = list(np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
+        # ADM determine which sweep files touch the relevant HEALPixels.
+        filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
+        infiles = list(
+            np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
 
     # ADM read a subset of the data for testing purposes, if requested.
     if test:
@@ -262,7 +287,8 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
 
     def _read_data_per_stream_one_file(filename):
         """Determine the stream objects for a single sweep file"""
-        return read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd)
+        return read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd,
+                                             mindec=mindec, readall=readall)
 
     nbrick = np.zeros((), dtype='i8')
     t0 = time()

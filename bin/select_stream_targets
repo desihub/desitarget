@@ -28,20 +28,28 @@ ap.add_argument('-s','--streamnames', default="GD1",
                 help=("Comma-separated names of streams to run (e.g. x,y,z). "
                       "Default is to just run GD1")
                 )
+ap.add_argument("--readperstream", action="store_true",
+                help=("Default is to read targets by looping over all sweeps. "
+                      "Pass this to instead loop over all streams."
+                      )
+                )
 ap.add_argument("--donotaddnors", action="store_true",
                 help=("Both the south/north LS files are read by default. Pass "
                       "this to read only the specific files in passed sweepdir")
-                )
-ap.add_argument("--donotreadperstream", action="store_true",
-                help=("Default is to read targets in a loop per-stream instead "
-                      "of in a loor per-sweeps file. Pass this to loop over "
-                      " sweep files instead of streams")
                 )
 ap.add_argument("--donotreadcache", action="store_true",
                 help=("Default is to read from previously cached data files "
                       "where possible. Pass this to start from scratch (and "
                       "overwrite caches). Only relevant for --readperstream")
                 )
+ap.add_argument("--numproc", type=int, default=1,
+                help=("Number of parallel processes to use. numproc of 16 is a "
+                "good balance between speed and I/O. Defaults to 1 for serial.")
+                )
+ap.add_argument("--mindec", type=float, default=-20,
+                help=("Hard data limit. Objects south of this are not returned")
+                )
+
 
 ns = ap.parse_args()
 
@@ -61,12 +69,11 @@ if sn is not None:
 
 # ADM flip the sense of some inputs.
 addnors = not(ns.donotaddnors)
-readperstream = not(ns.donotreadperstream)
 readcache = not(ns.donotreadcache)
 
 targets = cuts.select_targets(
-    ns.sweepdir, stream_names=streamnames, readperstream=readperstream,
-    addnors=addnors, readcache=readcache
+    ns.sweepdir, stream_names=streamnames, readperstream=ns.readperstream,
+    addnors=addnors, readcache=readcache, numproc=ns.numproc, mindec=ns.mindec
 )
 
 # ADM note that we hardcode for bright conditions. This could change in
