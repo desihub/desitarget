@@ -224,9 +224,9 @@ obsmask:
     - [MORE_ZWARN,     3, "ambiguous redshift; need more observations"]
     - [MORE_ZGOOD,     4, "redshift known; need more observations"]
     - [MORE_MIDZQSO,   8, "mid-z QSO; more observations at very low priority"]
-    - [MORE_NOBS1,     9, "good rv, reprioritize until reach NOBS1"]
-    - [MORE_NOBS2,    10, "reached first SN goal, reprioritize until reach NOBS2"]
-    - [MORE_NOBS3,    11, "reached second SN goal, reprioritize until reach NDONE"]
+    - [MORE_NOB1,      9, "good rv, reprioritize until reach NOBS1"]
+    - [MORE_NOB2,     10, "reached first SN goal, reprioritize until reach NOBS2"]
+    - [MORE_NOB3,     11, "reached second SN goal, reprioritize until reach NDONE"]
     - [DONOTOBSERVE,  16, "Do not observe this target (possibly temporarily)"]
 
 #- Bits that can be set in TARGETID. See the schema at
@@ -368,15 +368,15 @@ priorities:
         MWS_FAINT_RED_SOUTH:          SAME_AS_MWS_BROAD_NORTH
 
 # CMR stream and dSph targets: 1630-1690
-        MWS_EXT:                      {UNOBS: 0, MORE_NOBS1: 0, MORE_NOBS2: 0, MORE_NOBS3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_BRIGHT_PM1:               {UNOBS: 1690, MORE_NOBS1: 1661, MORE_NOBS2: 1660, MORE_NOBS3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_BRIGHT_PM2:               {UNOBS: 1680, MORE_NOBS1: 1672, MORE_NOBS2: 1661, MORE_NOBS3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_BRIGHT_PM3:               {UNOBS: 1670, MORE_NOBS1: 1671, MORE_NOBS2: 1662, MORE_NOBS3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_PM_ONLY:                  {UNOBS: 1650, MORE_NOBS1: 1649, MORE_NOBS2: 1649, MORE_NOBS3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_FAINT_NO_PM:              {UNOBS: 1640, MORE_NOBS1: 1641, MORE_NOBS2: 1641, MORE_NOBS3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_FILLER:                   {UNOBS: 1630, MORE_NOBS1: 1631, MORE_NOBS2: 1631, MORE_NOBS3: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_GD1:                      {UNOBS: 0, MORE_NOBS1: 0, MORE_NOBS2: 0, MORE_NOBS3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        MWS_ORPHAN:                   {UNOBS: 0, MORE_NOBS1: 0, MORE_NOBS2: 0, MORE_NOBS3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_EXT:                      {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_BRIGHT_PM1:               {UNOBS: 1690, MORE_NOB1: 1661, MORE_NOB2: 1660, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_BRIGHT_PM2:               {UNOBS: 1680, MORE_NOB1: 1672, MORE_NOB2: 1661, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_BRIGHT_PM3:               {UNOBS: 1670, MORE_NOB1: 1671, MORE_NOB2: 1662, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_PM_ONLY:                  {UNOBS: 1650, MORE_NOB1: 1649, MORE_NOB2: 1649, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_FAINT_NO_PM:              {UNOBS: 1640, MORE_NOB1: 1641, MORE_NOB2: 1641, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_FILLER:                   {UNOBS: 1630, MORE_NOB1: 1631, MORE_NOB2: 1631, MORE_NOB3: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_GD1:                      {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_ORPHAN:                   {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM backup targets.
         BACKUP_DIB:                   {UNOBS: 45, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}

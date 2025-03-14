@@ -860,12 +860,12 @@ def calc_priority(targets, zcat, obscon, state=False):
 
                         for sbool, sname in zip(
                                 [unobs & mws_ext, done & mws_ext, atnumobs1, atnumobs2, atnumobs3],
-                                ["UNOBS", "DONE", "MORE_NOBS1", "MORE_NOBS2", "MORE_NOBS3"]
+                                ["UNOBS", "DONE", "MORE_NOB1", "MORE_NOB2", "MORE_NOB3"]
                         ):
                             # CMR use ADM's update priorities and target states.
                             Mxp = mws_mask[name].priorities[sname]
                             # CMR use ADM's update states BEFORE changing priorities.
-                            # CMR is worried about setting target_state to e.g. MORE_NOBS1
+                            # CMR is worried about setting target_state to e.g. MORE_NOB1
                             ts = "{}|{}".format(name, sname)
                             target_state[ii & sbool] = np.where(
                                 priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
