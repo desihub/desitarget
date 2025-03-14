@@ -13,6 +13,13 @@ desitarget Change Log
 2.8.0 (2024-08-23)
 ------------------
 
+* Implement multi-MTL procedure for the DESI extension [`PR #833`_].
+    * New dark-time targets for the DESI extension.
+    * New ledger types for DARK1B and BRIGHT1B.
+    * Update :func:`io.read_mtl_ledger()` to handle two sets of ledgers.
+    * Upate readers that wrap :func:`io.read_mtl_ledger()`.
+    * Add `HIGHEST`/`WANTED`/`CONTAINS` columns in multi-MTL mode.
+    * MTL loop updates Main Survey *and* 1B ledgers for extension tiles.
 * Attempt to fix coverage tests [`PR #831`_]
     * Didn't appear to fully work, but partial progress so merged.
 * Fix `pkg_resources`/`scipy.ndimage`/`pytest` deprecations [`PR #829`_].
@@ -53,6 +60,7 @@ desitarget Change Log
 .. _`PR #828`: https://github.com/desihub/desitarget/pull/828
 .. _`PR #829`: https://github.com/desihub/desitarget/pull/829
 .. _`PR #831`: https://github.com/desihub/desitarget/pull/831
+.. _`PR #833`: https://github.com/desihub/desitarget/pull/833
 
 2.7.0 (2023-12-05)
 ------------------

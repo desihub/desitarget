@@ -1,8 +1,9 @@
 #- DESI primary survey target bit mask: dark survey + calib +
 desi_mask:
-    - [LRG,         0, "LRG", {obsconditions: DARK}]
-    - [ELG,         1, "ELG", {obsconditions: DARK}]
-    - [QSO,         2, "QSO", {obsconditions: DARK}]
+    - [LRG,         0, "LRG",                    {obsconditions: DARK}]
+    - [ELG,         1, "ELG",                    {obsconditions: DARK}]
+    - [QSO,         2, "QSO",                    {obsconditions: DARK}]
+    - [LGE,         3, "LRG for DESI extension", {obsconditions: DARK1B}]
 
     #- ADM QSO sub-classes. Used in SV but ultimately deprecated for the Main Survey.
     - [QSO_HIZ,     4, "QSO selected using high-redshift Random Forest (informational bit)", {obsconditions: DARK}]
@@ -18,12 +19,14 @@ desi_mask:
     - [QSO_NORTH,         10, "QSO cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
     - [ELG_LOP_NORTH,     11, "ELG at standard (ELG) priority tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
     - [ELG_VLO_NORTH,     12, "Very-low priority ELG (filler) tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
+    - [LGE_NORTH,         13, "LRG extension cuts tuned for Bok/Mosaic data",                              {obsconditions: DARK1B}]
 
     - [LRG_SOUTH,         16, "LRG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_SOUTH,         17, "ELG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [QSO_SOUTH,         18, "QSO cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_LOP_SOUTH,     19, "ELG at standard (ELG) priority tuned for DECam data",                       {obsconditions: DARK}]
     - [ELG_VLO_SOUTH,     20, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
+    - [LGE_SOUTH,         21, "LRG extension cuts tuned for DECam data",                                   {obsconditions: DARK1B}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",                                       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -200,6 +203,8 @@ obsconditions:
     - [CLOSED,      7, "Nighttime but dome is closed due to rain, wind, dew..."]
     - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]
     - [IGNORE,      9, "Used to indicate that obsconditions are set by a sub-bit rather than this bit"]
+    - [DARK1B,     10, "Moon is down, DESI extension survey"]
+    - [BRIGHT1B,   11, "Moon up and bright, DESI extension survey"]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -273,6 +278,9 @@ priorities:
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
+# ADM DESI extension LRGs. Cancun meeting conclusion was to have these a little higher than the Main Survey LRGs.
+        LGE: {UNOBS: 3210, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+
 # ADM different priority ELGs.
         ELG_LOP: {UNOBS: 3100, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         ELG_HIP: SAME_AS_LRG
@@ -287,12 +295,14 @@ priorities:
         QSO_NORTH: SAME_AS_LRG_NORTH
         ELG_LOP_NORTH: SAME_AS_LRG_NORTH
         ELG_VLO_NORTH: SAME_AS_LRG_NORTH
+        LGE_NORTH: SAME_AS_LRG_NORTH
 
         LRG_SOUTH: SAME_AS_LRG_NORTH
         ELG_SOUTH: SAME_AS_LRG_NORTH
         QSO_SOUTH: SAME_AS_LRG_NORTH
         ELG_LOP_SOUTH: SAME_AS_LRG_NORTH
         ELG_VLO_SOUTH: SAME_AS_LRG_NORTH
+        LGE_SOUTH: SAME_AS_LRG_NORTH
 
 # ADM calibration and other non-standard targets.
         BAD_SKY: {UNOBS: 0, OBS: 0, DONE: 0, MORE_ZWARN: 0, MORE_ZGOOD: 0, MORE_MIDZQSO: 0}
@@ -432,6 +442,9 @@ numobs:
         LRG: 2
         QSO: 4
 
+# ADM LRG targets for the DESI extension.
+        LGE: 2
+
 # ADM different flavors of ELGs.
         ELG_LOP: 2
         ELG_HIP: 2
@@ -449,6 +462,8 @@ numobs:
         ELG_LOP_SOUTH: 0
         ELG_VLO_SOUTH: 0
         BAD_SKY:       0
+        LGE_NORTH:     0
+        LGE_SOUTH:     0
 
 #- Standards and sky are treated specially; NUMOBS doesn't apply.
         STD_FAINT:         -1

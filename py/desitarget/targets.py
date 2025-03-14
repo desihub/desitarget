@@ -704,7 +704,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                     ii = (targets[desi_target] & desi_mask[name]) != 0
                     target_state[ii] = "CALIB"
 
-            names = ('ELG_VLO', 'ELG_LOP', 'ELG_HIP', 'LRG')
+            names = ('ELG_VLO', 'ELG_LOP', 'ELG_HIP', 'LRG', 'LGE')
             # ADM for sv3 the ELG guiding columns were ELG and ELG_HIP.
             if survey == 'sv3':
                 names = ('ELG_LOP', 'ELG_HIP', 'LRG')
@@ -1131,7 +1131,8 @@ def finalize(targets, desi_target, bgs_target, mws_target,
         If sent, then split `NUMOBS_INIT` and `PRIORITY_INIT` into
         `NUMOBS_INIT_DARK`, `NUMOBS_INIT_BRIGHT`, `PRIORITY_INIT_DARK`
         and `PRIORITY_INIT_BRIGHT` and calculate values appropriate
-        to "BRIGHT" and "DARK|GRAY" observing conditions.
+        to "BRIGHT" and "DARK|GRAY" observing conditions. Will also
+        split by, e.g. DARK1B for the extension.
     gaiadr : :class:`int`, optional, defaults to ``None``
         If passed and not ``None``, then build the `TARGETID` from the
         "GAIA_OBJID" and "GAIA_BRICKID" columns in the passed `targets`,
@@ -1226,11 +1227,12 @@ def finalize(targets, desi_target, bgs_target, mws_target,
 
     # ADM set the initial PRIORITY and NUMOBS.
     if darkbright:
-        # ADM populate bright/dark if splitting by survey OBSCONDITIONS.
-        ender = ["_DARK", "_BRIGHT", "_BACKUP"]
-        obscon = ["DARK|GRAY", "BRIGHT", "BACKUP"]
+        # ADM populate bright/dark/etc. if splitting by OBSCONDITIONS.
+        ender = ["_DARK", "_BRIGHT", "_BACKUP", "_DARK1B", "_BRIGHT1B"]
+        obscon = ["DARK|GRAY", "BRIGHT", "BACKUP", "DARK1B", "BRIGHT1B"]
     else:
-        ender, obscon = [""], ["DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18"]
+        ender, obscon = [""], \
+            ["DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18|DARK1B|BRIGHT1B"]
     for edr, oc in zip(ender, obscon):
         cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
         vals += [nodata, nodata]

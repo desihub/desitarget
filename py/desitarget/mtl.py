@@ -1465,7 +1465,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
 
 def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
-                numproc=1, timestamp=None, append=False):
+                numproc=1, timestamp=None, append=False, tcnames=None):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -1496,6 +1496,11 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         If ``True`` then append to any existing ledgers rather than
         creating new ones. In this mode, if a ledger exists it will be
         appended to and if it doesn't exist it will be created.
+    tcnames : :class:`list`, defaults to processing all target classes
+        A list of strings, e.g. ['QSO','LRG']. If passed, produce
+        ledgers for only those target classes. The passed classes
+        must be from the DESI_TARGET column, which must exist in the
+        target files associated with `hpdirname`.
 
     Returns
     -------
@@ -1508,6 +1513,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     - For _get_mtl_nside()=16, takes about 50 minutes with `numproc=8`.
       `numproc>8` can run into memory issues.
     """
+    # ADM the desi_mask will be needed if tcnames was passed.
+    if tcnames is not None:
+        from desitarget.targetmask import desi_mask
+
     # ADM grab information regarding how the targets were constructed.
     hdr, dt = io.read_targets_header(hpdirname, dtype=True)
     # ADM check the obscon for which the targets were made is
@@ -1569,6 +1578,13 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
         if len(targs) == 0:
             return
+        # ADM if requested, limit to only certain target classes.
+        if tcnames is not None:
+            ii = np.zeros(len(targs), dtype="?")
+            for tcname in tcnames:
+                ii |= targs["DESI_TARGET"] & desi_mask[tcname] != 0
+            targs = targs[ii]
+
         # ADM the secondary targeting files don't include the BGS_TARGET
         # ADM and MWS_TARGET columns, which are needed for MTL.
         neededcols, _, _ = main_cmx_or_sv(targs)
@@ -2869,7 +2885,8 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
-                numobs_from_ledger=True, secondary=False, reprocess=False):
+                numobs_from_ledger=True, secondary=False, reprocess=False,
+                ext=False):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -2902,6 +2919,13 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         the tiles-specstatus file later than their TIMESTAMP in the
         mtl-done-tiles file) instead of tiles that are newly done and
         process using special reprocessing logic.
+    ext : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then we're operating in DESI extension mode for DARK
+        or BRIGHT tiles. The tiles looked up will be, e.g., DARK1B tiles,
+        but the ledgers (and rules) used for updating will be for DARK.
+        In this mode, the tile file is not updated indicating that a tile
+        has been considered, because, e.g., DARK1B tiles should only be
+        marked as considered once the DARK1B ledgers are done.
 
     Returns
     -------
@@ -2940,15 +2964,20 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         resolve = None
     else:
         log.info(msg.format("PRIMARY", obscon, survey))
+    if ext:
+        log.info(f"1B: Running on {obscon} ledgers but using {obscon}1B tiles")
     hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
     zcatdir = get_zcat_dir(zcatdir)
 
     # ADM grab an array of tiles that are yet to be processed.
-    tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey,
-                                  reprocess=reprocess)
-
+    if ext:
+        tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon+"1B", survey,
+                                      reprocess=reprocess)
+    else:
+        tiles = tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey,
+                                      reprocess=reprocess)
     # ADM contruct the ZTILE filename, for logging purposes.
     ztilefn = get_ztile_file_name(survey=survey)
     # ADM directory structure used to be different for sv and main.
@@ -3006,6 +3035,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
             tiles["TIMESTAMP"] = get_utc_date(survey=survey)
 
     # ADM write the processed tiles to the MTL tile file.
-    io.write_mtl_tile_file(mtltilefn, tiles)
+    # ADM although not in the 1b/extension case
+    # ADM of, e.g., dark1b-tiles-with-dark-ledgers.
+    if not ext:
+        io.write_mtl_tile_file(mtltilefn, tiles)
 
     return hpdirname, mtltilefn, ztilefn, tiles
