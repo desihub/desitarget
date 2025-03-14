@@ -66,4 +66,3 @@ class TestSECONDARY(unittest.TestCase):
                 raise AttributeError(msg)
         # ADM check downsample is always less than 1 (< 100%).
         self.assertTrue(np.all(np.array(ds) <= 1))
-

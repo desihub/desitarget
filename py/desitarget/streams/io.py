@@ -271,7 +271,7 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         ii = betw(sep.value, mind, maxd)
         pixlist = allpix[ii]
 
-       # ADM pad with neighbor pixels to ensure stream is fully covered.
+        # ADM pad with neighbor pixels to ensure stream is fully covered.
         newpixlist = add_hp_neighbors(nside, pixlist)
 
         # ADM determine which sweep files touch the relevant HEALPixels.

@@ -37,4 +37,3 @@ class TestTopLevel(unittest.TestCase):
             self.assertRegex(theVersion, self.versionre)
         else:
             self.assertRegexpMatches(theVersion, self.versionre)
-

@@ -29,7 +29,7 @@ from desitarget.streams.targets import finalize
 from desiutil.log import get_logger
 log = get_logger()
 
-# CMR modified for DESI extension
+
 def is_in_GD1(objs):
     """Whether a target lies within the GD1 stellar stream.
 
@@ -55,6 +55,7 @@ def is_in_GD1(objs):
     :class:`array_like`
         ``True`` if the object is a white dwarf "FILLER" target.
     """
+    # CWR modified for DESI extension.
     # ADM start the clock.
     start = time()
 
@@ -110,11 +111,13 @@ def is_in_GD1(objs):
 
     # ADM some spline functions over which to interpolate.
     # CMR stream track in stream coordinates, phi2(phi1)
-    TRACK = scipy.interpolate.CubicSpline(stream['PHI1T'],stream['PHI2T'])
+    TRACK = scipy.interpolate.CubicSpline(stream['PHI1T'], stream['PHI2T'])
     # CMR phi1_cosphi2 proper motion trace, pm_phi1(phi1)
-    PM1TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI1_PHI1T'],stream['PMPHI1T'])
+    PM1TRACK = scipy.interpolate.UnivariateSpline(
+        stream['PMPHI1_PHI1T'], stream['PMPHI1T'])
     # CMR phi2 proper motion trace, pm_phi2(phi1)
-    PM2TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI2_PHI1T'],stream['PMPHI2T'],s=0)
+    PM2TRACK = scipy.interpolate.UnivariateSpline(
+        stream['PMPHI2_PHI1T'], stream['PMPHI2T'], s=0)
 
     # ADM create an interpolated set of phi2 coords (in stream coords).
     # CMR this is the distance, in phi2, of each star from the track phi2(phi1)
@@ -130,17 +133,17 @@ def is_in_GD1(objs):
     # CNR bright, faint and intermediate magnitude limits now in yaml file
 
     # ADM lies in the stream.
-    # CMR modified to use limits from yaml file 
+    # CMR modified to use limits from yaml file.
     field_sel = betw(dfi2, stream['DPHI2_MINUS'], stream['DPHI2_PLUS'])
     field_sel &= betw(fi1, stream['PHI1_MINUS'], stream['PHI1_PLUS'])
 
     # ADM Gaia-based selection (proper motion and parallax).
     # CMR modified to use PM_PAD and PM_NSIG from yaml file
     gaia_astrom_sel = pm12_sel_func(PM1TRACK(fi1), PM2TRACK(fi1), pmfi1, pmfi2,
-                                    pm_err, stream['PM_PAD'],stream['PM_NSIG'])
+                                    pm_err, stream['PM_PAD'], stream['PM_NSIG'])
     # CMR modified to use PLX_NSIG from yaml file
     gaia_astrom_sel &= plx_sel_func(dist, isobjs, stream['PLX_NSIG'])
-    #gaia_astrom_sel &= r > stream['BRIGHT_LIMIT'] don't need this
+    # gaia_astrom_sel &= r > stream['BRIGHT_LIMIT'] CWR don't need this.
 
     # CMR magnitude ranges
     brightpm1_magsel = (r > stream['BRIGHT_LIMIT']) & (r <= stream['BRIGHTPM1_LIMIT'])
@@ -158,7 +161,7 @@ def is_in_GD1(objs):
                                & ((g - r) <= 1.1)))
     stellar_locus_red_sel = (((g - r > 1.1)
                               & betw(g - r - (1.05 + .25 * (r - z)), -.2, .2)))
-    stellar_locus_sel = stellar_locus_blue_sel | stellar_locus_red_sel   
+    stellar_locus_sel = stellar_locus_blue_sel | stellar_locus_red_sel
 
     # ADM selection for objects that lack Gaia astrometry.
     # ADM has type PSF and in a reasonable isochrone window.
@@ -167,7 +170,7 @@ def is_in_GD1(objs):
 
     # ADM overall faint selection.
     # CMR modified to use mag limts from yaml file
-    faint_sel = ~np.isfinite(isobjs['PMRA']) # no PM information
+    faint_sel = ~np.isfinite(isobjs['PMRA'])  # CWR no PM information.
     faint_sel &= betw(r, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
@@ -180,7 +183,7 @@ def is_in_GD1(objs):
     common_filler_sel &= startyp
     common_filler_sel &= ~faint_sel
     # CMR no: want objs with gaia astrom fainter than bright_pm3 faint lim.
-    #common_filler_sel &= ~gaia_astrom_sel
+    # common_filler_sel &= ~gaia_astrom_sel
     common_filler_sel &= stellar_locus_sel
 
     filler_sel = common_filler_sel & betw(g - r, -.3, 1.2)
@@ -226,7 +229,6 @@ def is_in_GD1(objs):
     f_filler[in_stream] = filler
 
     return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_faint_no_pm, f_filler
-
 
 
 def set_target_bits(objs, stream_names=["GD1"]):
@@ -282,7 +284,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
         mws_target |= filler * mws_mask.MWS_FILLER
 
     # ADM tell DESI_TARGET where MWS_ANY was updated.
-    # CMR updated to MWS 
+    # CMR updated to MWS.
     desi_target = (mws_target != 0) * desi_mask.MWS_ANY
 
     # ADM/CMR set BGS_TARGET and SCND_TARGET to zeros.
@@ -385,5 +387,10 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=False,
                "sweep files one-by-one (as in desitarget.cuts.select_targets()) "
                "rather than caching each individual stream")
         log.error(msg)
+
+    # ADM a final sort on RA to mitigate reproducibility issues.
+    # ADM for instance, we've had conflicting SUBPRIORITY in the past.
+    ii = np.argsort(targets)
+    targets = targets[ii]
 
     return targets

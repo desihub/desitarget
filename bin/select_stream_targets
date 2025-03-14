@@ -78,7 +78,8 @@ targets = cuts.select_targets(
 
 # ADM note that we hardcode for bright conditions. This could change in
 # ADM the future if we add new streams or programs.
+fnstreamnames = sn.replace(",", "-")
 ntargs, outfile = io.write_targets(ns.dest, targets, hdr,
-                                   streamnames=sn, obscon="BRIGHT")
+                                   streamnames=fnstreamnames, obscon="BRIGHT")
 
 log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

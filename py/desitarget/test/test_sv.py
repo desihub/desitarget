@@ -89,4 +89,3 @@ class TestSV(unittest.TestCase):
                 number_of_calls += 1
 
             self.assertEqual(number_of_calls, 3)
-
