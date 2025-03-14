@@ -75,40 +75,38 @@ def is_in_GD1(objs):
     cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
 
     # ADM separation between the objects of interest and the stream.
-    sep = cobjs.separation(cstream)
-
-    # ADM only retain objects in the stream...
-    ii = betw(sep.value, mind, maxd)
-    objs = objs[ii]
-    log.info(f"Objects near the stream: {ii.sum()}...t={time()-start:.1f}s")
+    sep = cobjs.separation(cstream)    # ADM only retain objects in the stream based on their indexes.
+    in_stream = np.where(betw(sep.value, mind, maxd))[0]
+    isobjs = objs[in_stream]
+    log.info(f"Objects near stream: {len(in_stream)}...t={time()-start:.1f}s")
 
     # ADM rotate the position data into the coordinate system of the stream.
-    fi1, fi2 = sphere_rotate(objs['RA'], objs['DEC'], rapol, decpol, ra_ref)
+    fi1, fi2 = sphere_rotate(isobjs['RA'], isobjs['DEC'], rapol, decpol, ra_ref)
 
     # ADM distance of the stream (similar to Koposov et al. 2010 paper).
     dist = stream_distance(fi1, stream_name)
 
     # ADM/CMR REFLEX CORRECTION to proper motion.
-    xpmra, xpmdec = correct_pm(objs['RA'], objs['DEC'],
-                               objs['PMRA'], objs['PMDEC'], dist)
+    xpmra, xpmdec = correct_pm(isobjs['RA'], isobjs['DEC'],
+                               isobjs['PMRA'], isobjs['PMDEC'], dist)
 
     # ADM/CMR rotate the REFLEX-CORRECTED proper motions into the coordinate system of the stream.
-    pmfi1, pmfi2 = rotate_pm(objs['RA'], objs['DEC'], xpmra, xpmdec,
-                             rapol, decpol, ra_ref)
+    pmfi1, pmfi2 = rotate_pm(isobjs['RA'], isobjs['DEC'],
+                             xpmra, xpmdec, rapol, decpol, ra_ref)
 
     # ADM derive the combined proper motion error.
     # CMR: RMS error, appropriate for PM ~< PM_err. See Lindegren GAIA-C3-TN-LU-LL-129-01
-    pm_err = np.sqrt(0.5 * (objs["PMRA_ERROR"]**2 + objs["PMDEC_ERROR"]**2))
+    pm_err = np.sqrt(0.5 * (isobjs["PMRA_ERROR"]**2 + isobjs["PMDEC_ERROR"]**2))
 
     # ADM dust correction.
     ext_coeff = dict(g=3.237, r=2.176, z=1.217)
-    eg, er, ez = [ext_coeff[_] * objs['EBV'] for _ in 'grz']
+    eg, er, ez = [ext_coeff[_] * isobjs['EBV'] for _ in 'grz']
     ext = {}
     ext['G'] = eg
     ext['R'] = er
     ext['Z'] = ez
 
-    g, r, z = [22.5 - 2.5 * np.log10(objs['FLUX_' + _]) - ext[_] for _ in 'GRZ']
+    g, r, z = [22.5 - 2.5 * np.log10(isobjs['FLUX_' + _]) - ext[_] for _ in 'GRZ']
 
     # ADM some spline functions over which to interpolate.
     # CMR stream track in stream coordinates, phi2(phi1)
@@ -133,14 +131,15 @@ def is_in_GD1(objs):
 
     # ADM lies in the stream.
     # CMR modified to use limits from yaml file 
-    field_sel = betw(dfi2, stream['DPHI2_MINUS'], stream['DPHI2_PLUS']) & betw(fi1, stream['PHI1_MINUS'],stream['PHI1_PLUS'])
+    field_sel = betw(dfi2, stream['DPHI2_MINUS'], stream['DPHI2_PLUS'])
+    field_sel &= betw(fi1, stream['PHI1_MINUS'], stream['PHI1_PLUS'])
 
     # ADM Gaia-based selection (proper motion and parallax).
     # CMR modified to use PM_PAD and PM_NSIG from yaml file
     gaia_astrom_sel = pm12_sel_func(PM1TRACK(fi1), PM2TRACK(fi1), pmfi1, pmfi2,
                                     pm_err, stream['PM_PAD'],stream['PM_NSIG'])
     # CMR modified to use PLX_NSIG from yaml file
-    gaia_astrom_sel &= plx_sel_func(dist, objs, stream['PLX_NSIG'])
+    gaia_astrom_sel &= plx_sel_func(dist, isobjs, stream['PLX_NSIG'])
     #gaia_astrom_sel &= r > stream['BRIGHT_LIMIT'] don't need this
 
     # CMR magnitude ranges
@@ -163,12 +162,12 @@ def is_in_GD1(objs):
 
     # ADM selection for objects that lack Gaia astrometry.
     # ADM has type PSF and in a reasonable isochrone window.
-    startyp = _psflike(objs["TYPE"])
+    startyp = _psflike(isobjs["TYPE"])
     cmd_win = 0.1 + 10**(-2 + (r - 20) / 2.5)
 
     # ADM overall faint selection.
     # CMR modified to use mag limts from yaml file
-    faint_sel = ~np.isfinite(objs['PMRA']) # no PM information
+    faint_sel = ~np.isfinite(isobjs['PMRA']) # no PM information
     faint_sel &= betw(r, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
@@ -180,7 +179,8 @@ def is_in_GD1(objs):
     common_filler_sel = betw(r, stream['BRIGHTPM2_LIMIT'], stream['FAINT_LIMIT'])
     common_filler_sel &= startyp
     common_filler_sel &= ~faint_sel
-    #common_filler_sel &= ~gaia_astrom_sel # CMR no: we want get objs with gaia astrom fainter than bright_pm3 faint lim
+    # CMR no: want objs with gaia astrom fainter than bright_pm3 faint lim.
+    #common_filler_sel &= ~gaia_astrom_sel
     common_filler_sel &= stellar_locus_sel
 
     filler_sel = common_filler_sel & betw(g - r, -.3, 1.2)
@@ -193,7 +193,7 @@ def is_in_GD1(objs):
     faint_no_pm = faint_sel & field_sel
     filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3
 
-    # CMR moved these here so we write numbers of the final selections, but less useful for timing
+    # CMR moved here to write numbers of final selections, but less useful for timing.
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm1 selection: {np.sum(bright_pm1)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm2 selection: {np.sum(bright_pm2)}...t={time()-start:.1f}s")
@@ -209,7 +209,23 @@ def is_in_GD1(objs):
         msg = "Selections should be unique but they overlap!"
         log.error(msg)
 
-    return bright_pm1, bright_pm2, bright_pm3, faint_no_pm, filler
+    # ADM we sub-selected objects to just those in the stream, so we need
+    # ADM to expand back to all of the passed objects. Objects that are
+    # ADM not in the stream should be retained as False.
+    nobjs = len(objs)
+    f_bright_pm1 = np.zeros(nobjs, dtype=bool)
+    f_bright_pm2 = np.zeros(nobjs, dtype=bool)
+    f_bright_pm3 = np.zeros(nobjs, dtype=bool)
+    f_faint_no_pm = np.zeros(nobjs, dtype=bool)
+    f_filler = np.zeros(nobjs, dtype=bool)
+
+    f_bright_pm1[in_stream] = bright_pm1
+    f_bright_pm2[in_stream] = bright_pm2
+    f_bright_pm3[in_stream] = bright_pm3
+    f_faint_no_pm[in_stream] = faint_no_pm
+    f_filler[in_stream] = filler
+
+    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_faint_no_pm, f_filler
 
 
 
