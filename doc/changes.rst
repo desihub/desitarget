@@ -2,13 +2,27 @@
 desitarget Change Log
 =====================
 
-2.8.1 (unreleased)
+2.9.1 (unreleased)
 ------------------
+
+* No changes yet.
+
+2.9.0 (2025-03-14)
+------------------
+
+Major:
+
+* Implement multi-MTL procedure for the DESI extension [`PR #833`_]
+
+Minor:
 
 * Fix installation when using desiutil/3.5.0, dropping support of
   `python setup.py test` as a side-effect [`PR #832`_]
+* Update readthedocs configuration [`PR #834`_]
 
 .. _`PR #832`: https://github.com/desihub/desitarget/pull/832
+.. _`PR #833`: https://github.com/desihub/desitarget/pull/833
+.. _`PR #834`: https://github.com/desihub/desitarget/pull/834
 
 2.8.0 (2024-08-23)
 ------------------
