@@ -368,10 +368,14 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
                               v_z=Cg.v_z * 0,
                               **GCPARAMS)
     C1 = Cg1.transform_to(acoo.ICRS())
-
-    return ((C.pm_ra_cosdec - C1.pm_ra_cosdec).to_value(masyr),
-            (C.pm_dec - C1.pm_dec).to_value(masyr))
-
+    # CMR modified to free up some memory, otherwise fails
+    pmracorrfac = C1.pm_ra_cosdec.to_value(masyr)
+    pmdeccorrfac = C1.pm_dec.to_value(masyr)
+    del C
+    del Cg1
+    #return ((C.pm_ra_cosdec - C1.pm_ra_cosdec).to_value(masyr),
+    #        (C.pm_dec - C1.pm_dec).to_value(masyr))
+    return pmra - pmracorrfac, pmdec-pmdeccorrfac
 
 def get_stream_parameters(stream_name):
     """Look up information for a given stream.
@@ -468,6 +472,40 @@ def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
                    (pmfi1 - pm1track)**2) < pad + mult * pm_err
 
 
+def pm12_distdep_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, dist, velpad, mult=2.5):
+    """Select stream members using proper motion, padded by some error.
+
+    Parameters
+    ----------
+    pm1track : :class:`~numpy.ndarray` or `float`
+        Allowed proper motions of stream targets, RA-sense.
+    pm2track : :class:`~numpy.ndarray` or `float`
+        Allowed proper motions of stream targets, Dec-sense.
+    pmfi1 : :class:`~numpy.ndarray` or `float`
+        Proper motion in stream coordinates of possible targets, derived
+        from RA.
+    pmfi2 : :class:`~numpy.ndarray` or `float`
+        Proper motion in stream coordinates of possible targets, derived
+        from Dec.
+    pm_err : :class:`~numpy.ndarray` or `float`
+        Proper motion error in stream coordinates of possible targets,
+        combined across `pmfi1` and `pmfi2` errors.
+    pad: : :class:`float` or `int`
+        Width of PM selection in km/s, with `mult`*proper_motion_error
+    mult : :class:`float` or `int`, defaults to 2.5
+        Multiple of the proper motion error to use for padding.
+
+    Returns
+    -------
+    :class:`array_like` or `boolean`
+        ``True`` for stream members.
+    """
+
+    dpmtot = np.sqrt((pmfi2 - pm2track)**2 + (pmfi1 - pm1track)**2)
+    dpmlim = velpad/(4.74*dist)
+    return dpmtot < (dpmlim + mult * pm_err)
+
+
 def plx_sel_func(dist, D, mult, plx_sys=0.05):
     """Select stream members using parallax, padded by some error.
 
@@ -520,7 +558,7 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     return np.abs(dplx) < plx_sys + mult * parallax_error
 
 
-def stream_distance(fi1, stream_name):
+def stream_distance(fi1, stream_name, stream):
     """The distance to members of a stellar stream.
 
     Parameters
@@ -540,9 +578,127 @@ def stream_distance(fi1, stream_name):
     - Output type is the same as that of the passed `fi1`.
     """
     if stream_name.upper() == "GD1":
-        # ADM The distance to GD1 (similar to Koposov et al. 2010 paper).
-        dm = 18.82 + ((fi1 + 48) / 57)**2 - 4.45
-        return 10**(dm / 5. - 2)
+    #    # ADM The distance to GD1 (similar to Koposov et al. 2010 paper).
+    #    dm = 18.82 + ((fi1 + 48) / 57)**2 - 4.45
+    #    return 10**(dm / 5. - 2)
+        DISTSP = UnivariateSpline(stream['DIST_PHI1T'],stream['DISTT'],s=0)
+        return DISTSP(fi1)
+    if stream_name.upper() == "ORPHAN":
+        DISTSP = UnivariateSpline(stream['DIST_PHI1T'],stream['DISTT'])
+        return DISTSP(fi1)
     else:
         msg = f"stream name {stream_name} not recognized"
         log.error(msg)
+
+# select BHB for an old metal-poor population
+# this uses an M92 horizontal branch
+# distance to the stream, in kpc, at the phi1 location of each star.
+# i.e., dist ance to each star if it were in the stream
+def oldpop_bhb_sel(gmag, rmag, distance):
+
+    """Select stream members with the CMD properties of BHBs belonging to the stream.
+
+    Parameters
+    ----------
+    distance : :class:`~numpy.ndarray` or `float`
+        Distance of possible stream members, in kpc.
+    gmag : :class:`~numpy.ndarray` or `float`
+        extinction-corrected g magnitude of candidates
+    rmag:  :class:`~numpy.ndarray` or `float`
+        extinction-corrected r magnitude of candidates
+
+    Returns
+    -------
+    :class:`array_like` or `boolean`
+        ``True`` for stream members.
+    """
+
+    # convert target distance to abs mag
+    dm =  5 * np.log10(distance * 1e3) - 5
+    absr = rmag - dm
+
+    # define the horizontal branch in absolute mag
+    # based in the M92 horizontal branch
+    hb_r = np.array([2.72079, 1.21161, 0.78141, 0.48101, 0.42081, 0.36061,
+                     0.30041, 0.24021])
+    hb_g = np.array([2.297328, 0.877968, 0.547568, 0.446768, 0.486368,
+                     0.525968, 0.565568, 0.605168])
+
+    # Now make CMD cut for BHB
+    grw_bhb = 0.5 # BHB width in gr
+    rw_bhb = 0.5  # BHB width in r
+    grmin_bhb = -0.45 # min g-r of BHB
+    grmax_bhb = 0.4 # max g-r of BHB
+    # first select in the correct gmr range
+    gmr_range_bhb = (gmag - rmag < grmax_bhb) & (gmag - rmag > grmin_bhb)
+
+    # interpolate gmr vs r using the HB
+    gr_bhb = np.interp(absr, hb_r[::-1] , hb_g[::-1] - hb_r[::-1],
+                       left=np.nan, right=np.nan)
+    # interpolate r vs. gmr using the HB
+    absr_bhb = np.interp(gmag - rmag, hb_g - hb_r, hb_r, left=np.nan,
+                         right=np.nan)
+    rr_bhb = absr_bhb + dm
+    # data_gmr - interp_gmr
+    del_color_cmd_bhb = gmag - rmag - gr_bhb
+    # data_r - interp_r
+    del_r_cmd_bhb = rmag - rr_bhb
+
+    # select if abs(data_gmr - interp_gmr_) < grw_bhb or
+    # abs(data_r - interp_r) < rw_bhb
+    cmdsel_bhb = (gmr_range_bhb)&((abs(del_color_cmd_bhb) < grw_bhb) | (abs(del_r_cmd_bhb) < rw_bhb))
+    return cmdsel_bhb
+
+
+def simple_plx_sel(dist, D, multfac, plxlim, plx_sys=0.05):
+
+    """Select stream members using a parallax upper limit, padded by some error.
+
+    Parameters
+    ----------
+    dist : :class:`~numpy.ndarray` or `float`
+        Distance of possible stream members.
+    D : :class:`~numpy.ndarray`
+        Numpy structured array of Gaia information that contains at least
+        the columns `RA`, `ASTROMETRIC_PARAMS_SOLVED`, `PHOT_G_MEAN_MAG`,
+        `NU_EFF_USED_IN_ASTRONOMY`, `PSEUDOCOLOUR`, `ECL_LAT`, `PARALLAX`
+        `PARALLAX_ERROR`. `PARALLAX_IVAR` will be used instead of
+        `PARALLAX_ERROR` if `PARALLAX_ERROR` is not present.
+    mult : :class:`float` or `int`
+        Multiple of the parallax error to use for padding.
+    plx_sys : :class:`float`
+        Extra offset with which to pad `mult`*parallax_error.
+    plxlim : :class:`float` select possible stream members with plx < plx_lim, plus pad
+
+    Returns
+    -------
+    :class:`array_like` or `boolean`
+        ``True`` for stream members.
+    """
+    # CMR first block of code to fix zpt and ivars is identical to plx_sel
+    subset = np.in1d(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
+    plx_zpt_tmp = gaia_zpt.get_zpt(D['PHOT_G_MEAN_MAG'][subset],
+                                   D['NU_EFF_USED_IN_ASTROMETRY'][subset],
+                                   D['PSEUDOCOLOUR'][subset],
+                                   D['ECL_LAT'][subset],
+                                   D['ASTROMETRIC_PARAMS_SOLVED'][subset],
+                                   _warnings=False)
+    plx_zpt = np.zeros(len(D['RA']))
+    plx_zpt_tmp[~np.isfinite(plx_zpt_tmp)] = 0
+    plx_zpt[subset] = plx_zpt_tmp
+    plx = D['PARALLAX'] - plx_zpt
+
+    if 'PARALLAX_ERROR' in D.dtype.names:
+        parallax_error = D['PARALLAX_ERROR']
+    elif 'PARALLAX_IVAR' in D.dtype.names:
+        # ADM guard against dividing by zero.
+        parallax_error = np.zeros_like(D["PARALLAX_IVAR"]) + 1e8
+        ii = D['PARALLAX_IVAR'] != 0
+        parallax_error[ii] = 1./np.sqrt(D[ii]['PARALLAX_IVAR'])
+    else:
+        msg = "Either PARALLAX_ERROR or PARALLAX_IVAR must be passed!"
+        log.error(msg)
+
+    # CMR select plx < the upper  limit give by plxlim
+    psel = plx < (multfac*parallax_error + plx_sys + plxlim)
+    return psel

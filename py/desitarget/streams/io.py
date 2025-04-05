@@ -230,6 +230,8 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     # ADM if we have a cache, read it if requested and return the data.
     if readcache:
         if os.path.isfile(cachefile):
+            msg = f"Will read from cache file {cachefile}"
+            log.info(msg)
             objs = fitsio.read(cachefile, ext="STREAMCACHE")
             msg = f"Read {len(objs)} objects from {cachefile} cache file"
             log.info(msg)
