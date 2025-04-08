@@ -20,7 +20,8 @@ import astropy.units as auni
 from desitarget.cuts import _psflike
 from desitarget.streams.utilities import sphere_rotate, correct_pm, rotate_pm, \
     betw, pm12_sel_func, plx_sel_func, get_CMD_interpolator, stream_distance,  \
-    get_stream_parameters, simple_plx_sel, oldpop_bhb_sel, pm12_distdep_sel_func
+    get_targthing_parameters, simple_plx_sel, oldpop_bhb_sel, pm12_distdep_sel_func, \
+    spatial_sel_func, dwarf_plx_sel_func, pm0_sel_func, cmd_sel_func
 from desitarget.streams.io import read_data_per_stream
 from desitarget.targets import resolve
 from desitarget.streams.targets import finalize
@@ -30,7 +31,7 @@ from desiutil.log import get_logger
 log = get_logger()
 
 
-def is_in_GD1(objs):
+def is_in_GD1(objs, streamname):
     """Whether a target lies within the GD1 stellar stream.
 
     Parameters
@@ -65,7 +66,7 @@ def is_in_GD1(objs):
     log.info(f"Starting selection for {stream_name}...t={time()-start:.1f}s")
 
     # ADM look up the defining parameters of the stream.
-    stream = get_stream_parameters(stream_name)
+    stream = get_targthing_parameters(stream_name)
     # ADM the parameters that define the coordinates of the stream.
     rapol, decpol, ra_ref = stream["RAPOL"], stream["DECPOL"], stream["RA_REF"]
     # ADM the parameters that define the extent of the stream.
@@ -225,17 +226,19 @@ def is_in_GD1(objs):
     f_bright_pm3 = np.zeros(nobjs, dtype=bool)
     f_faint_no_pm = np.zeros(nobjs, dtype=bool)
     f_filler = np.zeros(nobjs, dtype=bool)
-
+    # return an arry for pm_only for consistency with dSph and UFD targeting
+    f_pm_only = np.zeros(nobjs, dtype=bool)
+    
     f_bright_pm1[in_stream] = bright_pm1
     f_bright_pm2[in_stream] = bright_pm2
     f_bright_pm3[in_stream] = bright_pm3
     f_faint_no_pm[in_stream] = faint_no_pm
     f_filler[in_stream] = filler
 
-    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_faint_no_pm, f_filler
+    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_filler
 
 # based on Sergey's is_in_GD1
-def is_in_ORPHAN(objs):
+def is_in_ORPHAN(objs, streamname):
     """Whether a target lies within the Orphan stellar stream.
 
     Parameters
@@ -264,7 +267,7 @@ def is_in_ORPHAN(objs):
     log.info(f"Starting selection for {stream_name}...t={time()-start:.1f}s")
     
     # CMR get the defining parameters of the stream
-    stream = get_stream_parameters(stream_name)
+    stream = get_targthing_parameters(stream_name)
     # parameters that define the coordinates of the stream.
     rapol, decpol, ra_ref = stream["RAPOL"], stream["DECPOL"], stream["RA_REF"]
     # parameters that define the extent of the stream, angular distance from the poles of the stream coord system
@@ -426,18 +429,151 @@ def is_in_ORPHAN(objs):
     f_bright_pm3 = np.zeros(nobjs, dtype=bool)
     f_faint_no_pm = np.zeros(nobjs, dtype=bool)
     f_filler = np.zeros(nobjs, dtype=bool)
-
+    # return an array for pm_only for consistency with dwarf and ufd targeting
+    f_pm_only = np.zeros(nobjs,dtype=bool)
+    
     f_bright_pm1[in_stream] = bright_pm1
     f_bright_pm2[in_stream] = bright_pm2
     f_bright_pm3[in_stream] = bright_pm3
     f_faint_no_pm[in_stream] = faint_no_pm
     f_filler[in_stream] = filler
 
-    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_faint_no_pm, f_filler
-    
+    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_filler
 
-def set_target_bits(objs, stream_names=["GD1"]):
-    """Select stream targets, returning target mask arrays.
+
+def is_in_dwarf(objs, dwarf_name):
+    """Performs target selection on a source catalog for a given dwarf galaxy.
+
+    Parameters
+    ----------
+    objs : :class:`array_like`
+        Numpy rec array with at least the Legacy Surveys/Gaia columns:
+        RA, DEC, PARALLAX, PMRA, PMDEC, PARALLAX_IVAR, PMRA_IVAR,
+        PMDEC_IVAR, EBV, FLUX_G, FLUX_R, FLUX_Z, PSEUDOCOLOUR, TYPE,
+        ASTROMETRIC_PARAMS_SOLVED, NU_EFF_USED_IN_ASTROMETRY,
+        ECL_LAT, PHOT_G_MEAN_MAG.
+    dwarf_name : :class:`str`
+        Name of a dwarf galaxy that appears in the ../data/dwarfs.yaml file.
+        Possibilities include 'BOOTES_1', 'CANES_VENATICI_1', 'DRACO_1', 'SEXTANS_1', and 'URSA_MINOR_1'.
+    visually_validate : :class:`bool`
+        Plot spatial, proper motion, and CMD selections
+
+
+    Returns
+    -------
+    :class:`array_like`
+        ``True`` if the object is a bright "BRIGHT_PM1" target.
+    :class:`array_like`
+        ``True`` if the object is a bright "BRIGHT_PM2" target.
+    :class:`array_like`
+        ``True`` if the object is a bright "BRIGHT_PM3" target.
+    :class:`array_like`
+        ``True`` if the object is a faint "PM_ONLY" target.
+    :class:`array_like`
+        ``True`` if the object is a faint "FAINT_NO_PM" target.
+    :class:`array_like`
+        ``True`` if the object is a white dwarf "FILLER" target.
+    """
+    # NRS modified from DESI extesion stream selection.
+    # ADM start the clock.
+    start = time()
+    log.info(f"Starting selection for {dwarf_name}...t={time()-start:.1f}s")
+
+    # NRS look up the defining parameters of the dwarf.
+    dwarf = get_targthing_parameters(dwarf_name)
+    # NRS galaxy coordinates in degrees.
+    ra0, dec0 = dwarf["RA"], dwarf["DEC"]
+    # NRS galaxy proper motions in mas/yr.
+    pmra0, pmdec0 = dwarf["PMRA"], dwarf["PMDEC"]
+    # NRS spatial extent in degrees for initial data read.
+    maxd = dwarf["MAXD"]
+    # NRS galaxy distance in kpc.
+    dist = dwarf["DIST"]
+
+    # ADM dust correction.
+    ext_coeff = dict(g=3.237, r=2.176, z=1.217)
+    g, r, z = [22.5 - 2.5 * np.log10(objs['FLUX_' + _]) for _ in 'GRZ']
+    eg, er, ez = [ext_coeff[_] * objs['EBV'] for _ in 'grz']
+    g0 = g - eg
+    r0 = r - er
+    z0 = z - ez
+    g0_r0 = g0 - r0
+    r0_z0 = r0 - z0
+
+    # NRS spatial selection; currently redundant with catalog creation.
+    field_sel = spatial_sel_func(ra0, dec0, maxd, objs)
+    log.info(f"Objects in the field: {field_sel.sum()}...t={time()-start:.1f}s")
+    # NRS Gaia-based selection (proper motion, parallax, bright limit).
+    gaia_pm_sel = pm0_sel_func(
+        pmra0, pmdec0, objs, pad=dwarf['PM_PAD'], mult=dwarf['PM_NSIG']
+    )
+    gaia_plx_sel = dwarf_plx_sel_func(
+        dist, objs, plx_sys=dwarf['PLX_SYS'], mult=dwarf['PLX_NSIG'],
+        keep_all_neg=True, min_plx_plxerr=-5
+    )
+    gaia_astrom_sel = gaia_pm_sel & gaia_plx_sel
+    log.info(f"With correct astrometry: {(gaia_astrom_sel & field_sel).sum()}")
+
+    # NRS CMD selection
+    cmd_sel = cmd_sel_func(dwarf_name, objs)
+
+    # NRS magnitude ranges
+    brightpm1_magsel = (r > dwarf['BRIGHT_LIMIT']) & (z <= dwarf['BRIGHTPM1_LIMIT'])
+    brightpm2_magsel = betw(z, dwarf['BRIGHTPM1_LIMIT'], dwarf['BRIGHTPM2_LIMIT'])
+    brightpm3_magsel = betw(z, dwarf['BRIGHTPM2_LIMIT'], dwarf['BRIGHTPM3_LIMIT'])
+    pm_only_magsel = (r > dwarf['BRIGHT_LIMIT']) & (z <= dwarf['PM_ONLY_LIMIT'])
+    faint_no_pm_magsel = betw(z, dwarf['FAINT_NO_PM_LIMIT'], dwarf['FAINT_LIMIT'])
+    filler_magsel = betw(z, dwarf['FILLER_LIMIT'], dwarf['FAINT_LIMIT'])
+
+    # NRS FILLER stellar locus selection.
+    stellar_locus_blue_sel = (
+        betw(r0_z0 - (-0.17 + 0.67 * g0_r0), -0.2, 0.2)
+        & (g0_r0 <= 1.1)
+    )
+    stellar_locus_red_sel = (
+        betw(g0_r0 - (1.05 + 0.25 * r0_z0), -0.2, 0.2)
+        & (g0_r0 > 1.1)
+    )
+    stellar_locus_sel = stellar_locus_blue_sel | stellar_locus_red_sel
+
+    # NRS BRIGHT_PM targets
+    bright_pm1 = cmd_sel & gaia_astrom_sel & field_sel & brightpm1_magsel
+    bright_pm2 = cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
+    bright_pm3 = cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
+    bright_pm = bright_pm1 | bright_pm2 | bright_pm3
+
+    # NRS PM_ONLY targets
+    pm_only = ~cmd_sel & gaia_astrom_sel & field_sel & pm_only_magsel & betw(g0_r0, -0.3, 1.3)
+
+    # NRS FAINT_NO_PM targets
+    faint_no_pm = cmd_sel & field_sel & faint_no_pm_magsel & ~np.isfinite(objs['PMRA']) & _psflike(objs["TYPE"])
+
+    # NRS FILLER targets
+    filler = field_sel & filler_magsel & stellar_locus_sel & betw(g0_r0, -0.3, 1.2) & _psflike(objs["TYPE"]) \
+        & ~bright_pm & ~pm_only & ~faint_no_pm
+
+    # CMR moved these here so we write numbers of the final selections, but less useful for timing
+    log.info(f"Objects meeting BRIGHTPM selection: {np.sum(bright_pm)}")
+    log.info(f"Objects meeting BRIGHTPM1 selection: {np.sum(bright_pm1)}")
+    log.info(f"Objects meeting BRIGHTPM2 selection: {np.sum(bright_pm2)}")
+    log.info(f"Objects meeting BRIGHTPM3 selection: {np.sum(bright_pm3)}")
+    log.info(f"Objects meeting FAINT_NO_PM selection: {np.sum(faint_no_pm)}")
+    log.info(f"Objects meeting PM_ONLY selection: {np.sum(pm_only)}")
+    log.info(f"Objects meeting FILLER selection: {np.sum(filler)}")
+    log.info(f"Finished selection for {dwarf_name}...t={time()-start:.1f}s")
+
+    # ADM sanity check that selections do not overlap.
+    check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + pm_only.astype(int) \
+        + faint_no_pm.astype(int) + filler.astype(int)
+    if np.max(check) > 1:
+        msg = "Selections should be unique but they overlap!"
+        log.error(msg)
+
+    return bright_pm1, bright_pm2, bright_pm3, pm_only, faint_no_pm, filler
+
+
+def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
+    """Select stream and dwarf targets, returning target mask arrays.
 
     Parameters
     ----------
@@ -445,7 +581,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
         numpy structured array with UPPERCASE columns needed for
         stream target selection. See, e.g.,
         :func:`~desitarget.stream.cuts.is_in_GD1` for column names.
-    stream_names : :class:`list`
+    targthing_names : :class:`list`
         A list of stream names to process. Default is available streams.
 
     Returns
@@ -460,6 +596,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
     """
     from desitarget.targetmask import desi_mask, mws_mask
 
+    all_dwarf_names=['BOOTES_1', 'CANES_VENATICI_1', 'DRACO_1', 'SEXTANS_1', 'URSA_MINOR_1']
     # ADM set up a zerod mws_target array to |= with later.
     # CMR changed to mws
     mws_target = np.zeros_like(objs["RA"], dtype='int64')
@@ -469,25 +606,43 @@ def set_target_bits(objs, stream_names=["GD1"]):
     # ADM to recover the is_in() functions.
 
     # CMR updated for extension
-    for stream in stream_names:
-        bit_name = f"MWS_{stream}"
-        func_name = f"is_in_{stream}"
-        func_call = globals()[func_name]
-
-        bright_pm1, bright_pm2, bright_pm3, faint_no_pm, filler = func_call(objs)
-
+    for targthing in targthing_names:
+        if targthing in all_dwarf_names:
+            bit_name = f"MWS_{targthing}"
+            func_name = "is_in_dwarf"
+            func_call = globals()[func_name]
+        else:           # CMR probaby want to check against a stream list?
+            bit_name = f"MWS_{targthing}"
+            func_name = f"is_in_{targthing}"
+            func_call = globals()[func_name]
+            
+        bright_pm1, bright_pm2, bright_pm3, pm_only, faint_no_pm, filler = func_call(
+            objs, targthing)
+            
         # ADM/CMR set mws desi extension bit
         any_set = bright_pm1 | bright_pm2 | bright_pm3 | faint_no_pm | filler
         mws_target |= any_set * mws_mask.MWS_EXT
         # CMR set stream name bit
         mws_target |= any_set * mws_mask[bit_name]
         # CMR now set target subclass bit masks
-        mws_target |= bright_pm1 * mws_mask.MWS_BRIGHT_PM1
-        mws_target |= bright_pm2 * mws_mask.MWS_BRIGHT_PM2
-        mws_target |= bright_pm3 * mws_mask.MWS_BRIGHT_PM3
         mws_target |= faint_no_pm * mws_mask.MWS_FAINT_NO_PM
         mws_target |= filler * mws_mask.MWS_FILLER
-
+        mws_target |= pm_only * mws_mask.MWS_PM_ONLY
+        targthingpar = get_targthing_parameters(targthing)
+        target_bit_set = targthingpar["TARGET_BIT_SET"]
+        if target_bit_set == "STREAM":
+            mws_target |= bright_pm1 * mws_mask.MWS_STREAM_PM1
+            mws_target |= bright_pm2 * mws_mask.MWS_STREAM_PM2
+            mws_target |= bright_pm3 * mws_mask.MWS_STREAM_PM3
+        elif target_bit_set == "DSPH":
+            mws_target |= bright_pm1 * mws_mask.MWS_DSPH_PM1
+            mws_target |= bright_pm2 * mws_mask.MWS_DSPH_PM2
+            mws_target |= bright_pm3 * mws_mask.MWS_DSPH_PM3
+        elif target_bit_set == "UFD":
+            mws_target |= bright_pm1 * mws_mask.MWS_UFD_PM1
+            mws_target |= bright_pm2 * mws_mask.MWS_UFD_PM2
+            mws_target |= bright_pm3 * mws_mask.MWS_UFD_PM3        
+    
     # ADM tell DESI_TARGET where MWS_ANY was updated.
     # CMR updated to MWS.
     desi_target = (mws_target != 0) * desi_mask.MWS_ANY
@@ -499,7 +654,7 @@ def set_target_bits(objs, stream_names=["GD1"]):
     return desi_target, bgs_target, mws_target, scnd_target
 
 
-def select_targets(swdir, stream_names=["GD1"], readperstream=False,
+def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthings=False,
                    addnors=True, readcache=True, numproc=1, mindec=-20):
     """Process files from an input directory to select targets.
 
@@ -509,9 +664,9 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=False,
         Root directory of Legacy Surveys sweep files for a given data
         release for ONE of EITHER north or south, e.g.
         "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
-    stream_names : :class:`list`
-        A list of stream names to process. Defaults to all streams.
-    readperstream : :class:`bool`, optional, defaults to ``False``
+    targthing_names : :class:`list`
+        A list of stream and dwarf names to process. Defaults to all streams.
+    readpertargthing : :class:`bool`, optional, defaults to ``False``
         When set, read each stream's data individually instead of looping
         through all possible sweeps files. This is likely quickest and
         most useful when working with a single stream. For multiple
@@ -542,30 +697,49 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=False,
         ``BGS_TARGET``, ``MWS_TARGET``, ``SCND_TARGET`` (i.e. target
         selection bitmasks).
     """
-    if readperstream:
-        # ADM loop over streams and read in the data per-stream.
+    if readperthing:
+        # ADM loop over streams and read in the data per stream or dwarf
         allobjs = []
-        for stream_name in stream_names:
-            # ADM read in the data.
-            strm = get_stream_parameters(stream_name)
-            # ADM the parameters that define the coordinates of the stream.
-            rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
-            # ADM the parameters that define the extent of the stream.
-            mind, maxd = strm["MIND"], strm["MAXD"]
-            # ADM read in the data.
-            objs = read_data_per_stream(
-                swdir, rapol, decpol, mind, maxd, stream_name, numproc=numproc,
-                mindec=mindec, addnors=addnors, readcache=readcache, readall=False
-            )
+        for targthing in targthing_names:
+            if targthing in all_dwarf_names:
+                # NRS look up the defining parameters of the dwarf.
+                dwarf = get_targthing_parameters(dwarf_name)
+                # NRS galaxy coordinates in degrees.
+                ra0, dec0 = dwarf["RA"], dwarf["DEC"]
+                # NRS spatial extent in degrees for initial data read.
+                maxd = dwarf["MAXD"]
+                mind = 0
+                # NRS read in the data. CMR thinks we can use read_data_per_stream
+                objs = read_data_per_stream(
+                    swdir, ra0, dec0, mind, maxd, dwarf_name, numproc=numproc,
+                    mindec=mindec, addnors=addnors, readcache=readcache, readall=False
+                )
+            else:      # CMR check against a list of streams?
+                # ADM read in the data.
+                strm = get_targthing_parameters(stream_name)
+                # ADM the parameters that define the coordinates of the stream.
+                rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
+                # ADM the parameters that define the extent of the stream.
+                mind, maxd = strm["MIND"], strm["MAXD"]
+                # ADM read in the data.
+                objs = read_data_per_stream(
+                    swdir, rapol, decpol, mind, maxd, stream_name, numproc=numproc,
+                    mindec=mindec, addnors=addnors, readcache=readcache, readall=False
+                )
             allobjs.append(objs)
         objects = np.concatenate(allobjs)
     else:
+        allobj = []
         # ADM otherwise, read in all of the sweeps. This requires
         # ADM some dummy inputs.
-        objects = read_data_per_stream(
+        streamobjects = read_data_per_stream(
             swdir, 0, 0, 0, 0, "", numproc=numproc, mindec=mindec,
             addnors=addnors, readcache=readcache, readall=True)
-
+        dwarfobjects = read_data_per_dwarf(
+            swdir, 0, 0, 0, "", numproc=numproc, mindec=mindec,
+            addnors=addnors, readcache=readcache, readall=True)
+        objects = np.concatenate([streamobjects, dwarfobjects])
+        
     # ADM process the targets.
     desi_target, bgs_target, mws_target, scnd_target = set_target_bits(
         objects, stream_names=stream_names)
@@ -590,7 +764,7 @@ def select_targets(swdir, stream_names=["GD1"], readperstream=False,
     if len(np.unique(targets["TARGETID"])) != len(targets):
         msg = ("Targets are not unique. The code needs updated to read in the "
                "sweep files one-by-one (as in desitarget.cuts.select_targets()) "
-               "rather than caching each individual stream")
+               "rather than caching each individual stream and dwarf")
         log.error(msg)
 
     # ADM a final sort on RA to mitigate reproducibility issues.
