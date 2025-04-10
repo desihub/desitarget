@@ -368,12 +368,15 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
                               v_y=Cg.v_y * 0,
                               v_z=Cg.v_z * 0,
                               **GCPARAMS)
+    del Cg
+    del C
+    del frame
     C1 = Cg1.transform_to(acoo.ICRS())
+    del Cg1
     # CMR modified to free up some memory, otherwise fails
     pmracorrfac = C1.pm_ra_cosdec.to_value(masyr)
     pmdeccorrfac = C1.pm_dec.to_value(masyr)
-    del C
-    del Cg1
+    del C1
     #return ((C.pm_ra_cosdec - C1.pm_ra_cosdec).to_value(masyr),
     #        (C.pm_dec - C1.pm_dec).to_value(masyr))
     return pmra - pmracorrfac, pmdec-pmdeccorrfac

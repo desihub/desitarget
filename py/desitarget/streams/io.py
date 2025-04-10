@@ -398,7 +398,7 @@ def write_targets(dirname, targs, header, targthingnames="", obscon=None,
         log.info("Couldn't parse LS data release. Defaulting to drX.")
         drint = "X"
         drstr = "drX"
-    outfn = f"streamtargets-{streamnames.lower()}-bright.fits"
+    outfn = f"stream_and_dwarf_targets-{targthingnames.lower()}-bright.fits"
     outfn = os.path.join(dirname, drstr, io.desitarget_version,
                          "stream_dwarf_targets", "main", "resolve", "bright", outfn)
 
