@@ -554,7 +554,7 @@ numobs:
         MWS_UFD_PM2:                 20
         MWS_UFD_PM3:                 20
         MWS_PM_ONLY:                 5
-        MWS_FAINT_NO_PM:             20
+        MWS_FAINT_NO_PM:             10
         MWS_FILLER:                  10
         MWS_GD1:                     -1
         MWS_ORPHAN:                  -1

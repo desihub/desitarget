@@ -654,7 +654,7 @@ def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
     return desi_target, bgs_target, mws_target, scnd_target
 
 
-def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthings=False,
+def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthing=False,
                    addnors=True, readcache=True, numproc=1, mindec=-20):
     """Process files from an input directory to select targets.
 
@@ -697,33 +697,36 @@ def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthings=Fal
         ``BGS_TARGET``, ``MWS_TARGET``, ``SCND_TARGET`` (i.e. target
         selection bitmasks).
     """
+
+    # all_dwarf_names needs to live in one place only. Right now it is also in select_targets
+    all_dwarf_names=['BOOTES_1', 'CANES_VENATICI_1', 'DRACO_1', 'SEXTANS_1', 'URSA_MINOR_1'] 
     if readperthing:
         # ADM loop over streams and read in the data per stream or dwarf
         allobjs = []
         for targthing in targthing_names:
             if targthing in all_dwarf_names:
                 # NRS look up the defining parameters of the dwarf.
-                dwarf = get_targthing_parameters(dwarf_name)
+                dwarf = get_targthing_parameters(targthing)
                 # NRS galaxy coordinates in degrees.
                 ra0, dec0 = dwarf["RA"], dwarf["DEC"]
                 # NRS spatial extent in degrees for initial data read.
                 maxd = dwarf["MAXD"]
                 mind = 0
-                # NRS read in the data. CMR thinks we can use read_data_per_stream
+                # NRS read in the data. CMR reuse read_data_per_stream
                 objs = read_data_per_stream(
-                    swdir, ra0, dec0, mind, maxd, dwarf_name, numproc=numproc,
+                    swdir, ra0, dec0, mind, maxd, targthing, numproc=numproc,
                     mindec=mindec, addnors=addnors, readcache=readcache, readall=False
                 )
             else:      # CMR check against a list of streams?
                 # ADM read in the data.
-                strm = get_targthing_parameters(stream_name)
+                strm = get_targthing_parameters(targthing)
                 # ADM the parameters that define the coordinates of the stream.
                 rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
                 # ADM the parameters that define the extent of the stream.
                 mind, maxd = strm["MIND"], strm["MAXD"]
                 # ADM read in the data.
                 objs = read_data_per_stream(
-                    swdir, rapol, decpol, mind, maxd, stream_name, numproc=numproc,
+                    swdir, rapol, decpol, mind, maxd, targthing, numproc=numproc,
                     mindec=mindec, addnors=addnors, readcache=readcache, readall=False
                 )
             allobjs.append(objs)
@@ -742,7 +745,7 @@ def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthings=Fal
         
     # ADM process the targets.
     desi_target, bgs_target, mws_target, scnd_target = set_target_bits(
-        objects, stream_names=stream_names)
+        objects, targthing_names=targthing_names)
 
     # ADM finalize the targets.
     # ADM anything with DESI_TARGET !=0 is truly a target.

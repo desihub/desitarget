@@ -28,11 +28,11 @@ log = get_logger()
 
 # ADM the Legacy Surveys part of the data model for working with streams.
 streamcolsLS = np.array([], dtype=[
-    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'S4'),
+    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'U4'),
     ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
-    ('FLUX_G', '>f4'), ('FIBERTOTFLUX_G', '>f4'),
-    ('FLUX_R', '>f4'), ('FIBERTOTFLUX_R', '>f4'),
-    ('FLUX_Z', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('FLUX_G', '>f4'), ('FIBERTOTFLUX_G', '>f4'), ('FLUX_IVAR_G', '>f4'),
+    ('FLUX_R', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FLUX_IVAR_R', '>f4'),
+    ('FLUX_Z', '>f4'), ('FIBERTOTFLUX_Z', '>f4'), ('FLUX_IVAR_Z', '>f4'),
 ])
 
 # ADM the Gaia part of the data model for working with streams.
@@ -336,9 +336,9 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     return allobjs
 
 
-def write_targets(dirname, targs, header, streamnames="", obscon=None,
+def write_targets(dirname, targs, header, targthingnames="", obscon=None,
                   subpriority=True):
-    """Write stream targets to a FITS file.
+    """Write stream and dwarf targets to a FITS file.
 
     Parameters
     ----------
@@ -350,8 +350,8 @@ def write_targets(dirname, targs, header, streamnames="", obscon=None,
     header : :class:`dict`
         Header for output file. Can be a FITShdr object or dictionary.
         Pass {} if you have no additional header information.
-    streamnames : :class:`str, optional
-        Information about stream names that correspond to the targets.
+    targthingnames : :class:`str, optional
+        Information about stream and dwarf names that correspond to the targets.
         Included in the output filename.
     obscon : :class:`str`, optional, defaults to `None`
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
@@ -400,7 +400,7 @@ def write_targets(dirname, targs, header, streamnames="", obscon=None,
         drstr = "drX"
     outfn = f"streamtargets-{streamnames.lower()}-bright.fits"
     outfn = os.path.join(dirname, drstr, io.desitarget_version,
-                         "streamtargets", "main", "resolve", "bright", outfn)
+                         "stream_dwarf_targets", "main", "resolve", "bright", outfn)
 
     # ADM check if any targets are too bright.
     maglim = 15
@@ -444,6 +444,6 @@ def write_targets(dirname, targs, header, streamnames="", obscon=None,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(outfn), exist_ok=True)
     # ADM and, finally, write out the targets.
-    io.write_with_units(outfn, targs, extname="STREAMTARGETS", header=header)
+    io.write_with_units(outfn, targs, extname="STREAM_DWARF_TARGETS", header=header)
 
     return len(targs), outfn
