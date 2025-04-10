@@ -1,5 +1,5 @@
 """
-desitarget.streams.cuts
+Desitarge.streams.cuts
 =======================
 
 Target selection cuts for the DESI MWS Stellar Stream programs.
@@ -299,13 +299,13 @@ def is_in_ORPHAN(objs, streamname):
         
     # ADM dust correction.
     ext_coeff = dict(g=3.237, r=2.176, z=1.217)
-    eg, er, ez = [ext_coeff[_] * objs['EBV'] for _ in 'grz']
+    eg, er, ez = [ext_coeff[_] * isobjs['EBV'] for _ in 'grz']
     ext = {}
     ext['G'] = eg
     ext['R'] = er
     ext['Z'] = ez
 
-    g, r, z = [22.5 - 2.5 * np.log10(objs['FLUX_' + _]) - ext[_] for _ in 'GRZ']
+    g, r, z = [22.5 - 2.5 * np.log10(isobjs['FLUX_' + _]) - ext[_] for _ in 'GRZ']
 
     # ADM some spline functions over which to interpolate.
     # CMR stream track in stream coordinates, phi2(phi1)
@@ -372,7 +372,7 @@ def is_in_ORPHAN(objs, streamname):
 
     # ADM selection for objects that lack Gaia astrometry.
     # ADM has type PSF and in a reasonable isochrone window.
-    startyp = _psflike(objs["TYPE"])
+    startyp = _psflike(isobjs["TYPE"])
     cmd_win = 0.1 + 10**(-2 + (r - 20) / 2.5)
 
     # CMR overall faint selection, using limits from yaml file
@@ -487,13 +487,24 @@ def is_in_dwarf(objs, dwarf_name):
     pmra0, pmdec0 = dwarf["PMRA"], dwarf["PMDEC"]
     # NRS spatial extent in degrees for initial data read.
     maxd = dwarf["MAXD"]
+    mind = 0.0
     # NRS galaxy distance in kpc.
     dist = dwarf["DIST"]
 
+    # CMR limit input coordinates to region of the dwarf
+    cdwarf = acoo.SkyCoord(ra0*auni.degree, dec0*auni.degree)
+    cobjs = acoo.SkyCoord(objs["RA"]*auni.degree, objs["DEC"]*auni.degree)
+
+    # ADM separation between the objects of interest and the dwarf.
+    sep = cobjs.separation(cdwarf)    # ADM only retain objects in the dwarf based on their indexes.
+    in_dwarf = np.where(betw(sep.value, mind, maxd))[0]
+    idobjs = objs[in_dwarf]
+    log.info(f"Objects near dwarf: {len(in_dwarf)}...t={time()-start:.1f}s")
+    
     # ADM dust correction.
     ext_coeff = dict(g=3.237, r=2.176, z=1.217)
-    g, r, z = [22.5 - 2.5 * np.log10(objs['FLUX_' + _]) for _ in 'GRZ']
-    eg, er, ez = [ext_coeff[_] * objs['EBV'] for _ in 'grz']
+    g, r, z = [22.5 - 2.5 * np.log10(idobjs['FLUX_' + _]) for _ in 'GRZ']
+    eg, er, ez = [ext_coeff[_] * idobjs['EBV'] for _ in 'grz']
     g0 = g - eg
     r0 = r - er
     z0 = z - ez
@@ -501,21 +512,21 @@ def is_in_dwarf(objs, dwarf_name):
     r0_z0 = r0 - z0
 
     # NRS spatial selection; currently redundant with catalog creation.
-    field_sel = spatial_sel_func(ra0, dec0, maxd, objs)
+    field_sel = spatial_sel_func(ra0, dec0, maxd, idobjs)
     log.info(f"Objects in the field: {field_sel.sum()}...t={time()-start:.1f}s")
     # NRS Gaia-based selection (proper motion, parallax, bright limit).
     gaia_pm_sel = pm0_sel_func(
-        pmra0, pmdec0, objs, pad=dwarf['PM_PAD'], mult=dwarf['PM_NSIG']
+        pmra0, pmdec0, idobjs, pad=dwarf['PM_PAD'], mult=dwarf['PM_NSIG']
     )
     gaia_plx_sel = dwarf_plx_sel_func(
-        dist, objs, plx_sys=dwarf['PLX_SYS'], mult=dwarf['PLX_NSIG'],
+        dist, idobjs, plx_sys=dwarf['PLX_SYS'], mult=dwarf['PLX_NSIG'],
         keep_all_neg=True, min_plx_plxerr=-5
     )
     gaia_astrom_sel = gaia_pm_sel & gaia_plx_sel
     log.info(f"With correct astrometry: {(gaia_astrom_sel & field_sel).sum()}")
 
     # NRS CMD selection
-    cmd_sel = cmd_sel_func(dwarf_name, objs)
+    cmd_sel = cmd_sel_func(dwarf_name, idobjs)
 
     # NRS magnitude ranges
     brightpm1_magsel = (r > dwarf['BRIGHT_LIMIT']) & (z <= dwarf['BRIGHTPM1_LIMIT'])
@@ -546,10 +557,10 @@ def is_in_dwarf(objs, dwarf_name):
     pm_only = ~cmd_sel & gaia_astrom_sel & field_sel & pm_only_magsel & betw(g0_r0, -0.3, 1.3)
 
     # NRS FAINT_NO_PM targets
-    faint_no_pm = cmd_sel & field_sel & faint_no_pm_magsel & ~np.isfinite(objs['PMRA']) & _psflike(objs["TYPE"])
+    faint_no_pm = cmd_sel & field_sel & faint_no_pm_magsel & ~np.isfinite(idobjs['PMRA']) & _psflike(idobjs["TYPE"])
 
     # NRS FILLER targets
-    filler = field_sel & filler_magsel & stellar_locus_sel & betw(g0_r0, -0.3, 1.2) & _psflike(objs["TYPE"]) \
+    filler = field_sel & filler_magsel & stellar_locus_sel & betw(g0_r0, -0.3, 1.2) & _psflike(idobjs["TYPE"]) \
         & ~bright_pm & ~pm_only & ~faint_no_pm
 
     # CMR moved these here so we write numbers of the final selections, but less useful for timing
@@ -568,8 +579,26 @@ def is_in_dwarf(objs, dwarf_name):
     if np.max(check) > 1:
         msg = "Selections should be unique but they overlap!"
         log.error(msg)
+        
+    # ADM we sub-selected objects to just those in the stream, so we need
+    # ADM to expand back to all of the passed objects. Objects that are
+    # ADM not in the stream should be retained as False.
+    nobjs = len(objs)
+    f_bright_pm1 = np.zeros(nobjs, dtype=bool)
+    f_bright_pm2 = np.zeros(nobjs, dtype=bool)
+    f_bright_pm3 = np.zeros(nobjs, dtype=bool)
+    f_faint_no_pm = np.zeros(nobjs, dtype=bool)
+    f_filler = np.zeros(nobjs, dtype=bool)
+    f_pm_only = np.zeros(nobjs,dtype=bool)
+    
+    f_bright_pm1[in_dwarf] = bright_pm1
+    f_bright_pm2[in_dwarf] = bright_pm2
+    f_bright_pm3[in_dwarf] = bright_pm3
+    f_pm_only[in_dwarf] = pm_only
+    f_faint_no_pm[in_dwarf] = faint_no_pm
+    f_filler[in_dwarf] = filler
 
-    return bright_pm1, bright_pm2, bright_pm3, pm_only, faint_no_pm, filler
+    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_filler
 
 
 def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
