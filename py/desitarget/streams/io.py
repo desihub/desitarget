@@ -14,7 +14,8 @@ import astropy.coordinates as acoo
 import astropy.units as auni
 
 from desitarget import io
-from desitarget.geomask import pixarea2nside, add_hp_neighbors, sweep_files_touch_hp
+from desitarget.geomask import pixarea2nside, add_hp_neighbors, \
+    sweep_files_touch_hp, is_in_hp
 from desitarget.gaiamatch import match_gaia_to_primary_post_dr3
 from desitarget.targets import resolve
 from desitarget.streams.utilities import betw, ivars_to_errors
@@ -140,7 +141,7 @@ def read_data_per_stream_one_file(filename, rapol, decpol, mind, maxd,
 
 def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
                          readcache=True, addnors=True, test=False, numproc=1,
-                         mindec=-20, readall=False):
+                         mindec=-20, nside=None, pixint=None, readall=False):
     """Assemble the data needed for a particular stream program.
 
     Parameters
@@ -158,10 +159,9 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         Name of a stream. Used to make the cached filename, e.g. "GD1".
     readcache : :class:`bool`, optional, defaults to ``True``
         If ``True`` read from a previously constructed and cached file
-        automatically, IF such a file exists. If ``False`` don't read
-        from the cache AND OVERWRITE the cached file, if it exists. The
-        cached file is $TARG_DIR/streamcache/streamname-drX-cache.fits,
-        where streamname is the lower-case passed `stream_name` and drX
+        automatically, IF such a file exists. If ``False`` don't read a
+        cache file AND OVERWRITE the cache file, if it exists. Caches
+        are stored in the $TARG_DIR/streamcache/drX/ directory, where drX
         is the Legacy Surveys Data Release (parsed from `swdir`).
     addnors : :class:`bool`, optional, defaults to ``True``
         If ``True`` then if `swdir` contains "north" add sweep files from
@@ -175,9 +175,16 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         good balance between speed and file I/O.
     mindec : :class:`float` or `int`, optional, defaults to -20 (20oS)
         Hard limit on data (objects south of this are not returned).
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPixel nside used with `pixint`. Only used if
+        `readall` is ``True``.
+    pixint : :class:`int`, optional, defaults to `None`
+        Only read and cache targets in (NESTED) HEALpixels at `nside`.
+        Useful for parallelizing. Only used if `readall` is ``True``.
     readall : :class:`bool`, optional, defaults to ``False``
-        Ignore all of the other inputs except for `addnors` and instead
-        read (and cache) _all_ of the sweep files.
+        Ignore all inputs except `addnors`, `nside` and `pixint` and
+        instead read and cache the sweep files in the appropriate pixels
+        Reads _all_ sweep files if `nside` and `pixint` are ``None``.
 
     Returns
     -------
@@ -198,6 +205,13 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     # ADM start the clock.
     start = time()
 
+    # ADM check that if either pixint or nside is set then both are.
+    if (pixint is None) or (nside is None):
+        if not ((pixint is None) and (nside is None)):
+            msg = "If one of pixint or nside is set then both must be set"
+            log.error(msg)
+            raise ValueError(msg)
+
     # ADM check whether $TARG_DIR exists. If it does, agree to read from
     # ADM and write to the cache.
     writecache = True
@@ -214,18 +228,23 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         if len(dr) != 1:
             msg = 'swdir not parsed: should include a construction like '
             msg += '"dr9" or "dr10"'
+            log.error(msg)
             raise ValueError(msg)
-        formatter = os.path.join(os.getenv("TARG_DIR"), "streamcache",
-                                 "{}-{}-streams-{}-cache.fits")
+        formatter = os.path.join(os.getenv("TARG_DIR"), "streamcache", dr[0],
+                                 "streams-cache-{}.fits")
         if readall:
             if addnors:
-                cachefile = formatter.format(mindec, "all", dr[0])
+                # ADM can read/write in HEALPixels.
+                if nside is not None:
+                    cachefile = formatter.format(f"hp-{pixint}")
+                else:
+                    cachefile = formatter.format("all")
             elif "south" in swdir:
-                cachefile = formatter.format(mindec, "south", dr[0])
+                cachefile = formatter.format("south")
             else:
-                cachefile = formatter.format(mindec, "north", dr[0])
+                cachefile = formatter.format("north")
         else:
-            cachefile = formatter.format(mindec, stream_name.lower(), dr[0])
+            cachefile = formatter.format(stream_name.lower().replace("_", "-"))
 
     # ADM if we have a cache, read it if requested and return the data.
     if readcache:
@@ -252,18 +271,19 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
             swdir2 = swdir.replace("north", "south")
         else:
             msg = "addnors passed but swdir does not contain north or south!"
+            log.error(msg)
             raise ValueError(msg)
         infiles += io.list_sweepfiles(swdir2)
 
-    # ADM if readall was sent, simply read in all of the sweeps.
+    # ADM if readall wasn't sent, identify sweeps on a per-stream basis.
     if not readall:
         # ADM calculate nside for HEALPixel of approximately 1o to limit
         # ADM number of sweeps files that need to be read.
-        nside = pixarea2nside(1)
+        nsidestream = pixarea2nside(1)
 
         # ADM determine RA, Dec of all HEALPixels at this nside.
-        allpix = np.arange(hp.nside2npix(nside))
-        theta, phi = hp.pix2ang(nside, allpix, nest=True)
+        allpix = np.arange(hp.nside2npix(nsidestream))
+        theta, phi = hp.pix2ang(nsidestream, allpix, nest=True)
         ra, dec = np.degrees(phi), 90-np.degrees(theta)
 
         # ADM only HEALPixels in the stream, based on mind and maxd.
@@ -274,12 +294,23 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         pixlist = allpix[ii]
 
         # ADM pad with neighbor pixels to ensure stream is fully covered.
-        newpixlist = add_hp_neighbors(nside, pixlist)
+        padpixlist = add_hp_neighbors(nsidestream, pixlist)
 
         # ADM determine which sweep files touch the relevant HEALPixels.
-        filesperpixel, _, _ = sweep_files_touch_hp(nside, pixlist, infiles)
+        filesperpixel, _, _ = sweep_files_touch_hp(nsidestream, padpixlist,
+                                                   infiles)
         infiles = list(
-            np.unique(np.hstack([filesperpixel[pix] for pix in pixlist])))
+            np.unique(np.hstack([filesperpixel[pix] for pix in padpixlist])))
+    # ADM simply read files in the specified HEALPixel.
+    elif nside is not None:
+        # ADM determine which sweep files touch the relevant HEALPixel.
+        filesperpixel, _, _ = sweep_files_touch_hp(nside, pixint, infiles)
+        try:
+            infiles = filesperpixel[pixint]
+        except IndexError:
+            msg = f"pixel number {pixint} is not valide at nside={nside}"
+            log.error(msg)
+            raise ValueError(msg)
 
     # ADM read a subset of the data for testing purposes, if requested.
     if test:
@@ -321,6 +352,11 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     allobjs = np.concatenate(allobjs)
     log.info(f"Found {len(allobjs)} total objects...t={time()-start:.1f}s")
 
+    # ADM limit to within a certain HEALPixel, if requested.
+    if nside is not None:
+        ii = is_in_hp(allobjs, nside, pixint)
+        allobjs = allobjs[ii]
+
     # ADM if cache was passed and $TARG_DIR was set then write the data.
     if writecache:
         # ADM if the file doesn't exist we may need to make the directory.
@@ -328,8 +364,19 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
         os.makedirs(os.path.dirname(cachefile), exist_ok=True)
         # ADM at least add the Gaia DR used to the header.
         hdr = fitsio.FITSHDR()
+        hdr.add_record(dict(name="DRFILES", value=infiles,
+                            comment="Input LS sweeps files considered"))
         hdr.add_record(dict(name="GAIADR", value=gaiadr,
                             comment="GAIA Data Release matched to"))
+        hdr.add_record(dict(name="MINDEC", value=mindec,
+                            comment="Minimum declination cut off for file"))
+        if nside is not None:
+            hdr.add_record(dict(name="FILENSID", value=nside,
+                                comment="HEALPix nside for objects in file"))
+            hdr.add_record(dict(name="FILEHPX", value=pixint,
+                                comment="HEALPix number for objects in file"))
+            hdr.add_record(dict(name="FILENEST", value=True,
+                                comment="True if nested HEALPix scheme used"))
         io.write_with_units(cachefile, allobjs,
                             header=hdr, extname="STREAMCACHE")
 
