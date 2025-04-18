@@ -2601,8 +2601,11 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
         allowed = ["targets", "truth", "sky"]
     else:
         allowed = ["targets", "skies", "gfas", "randoms", "masks", "mtl", "ToO"]
-    if flavor not in allowed:
-        msg = "flavor must be {}, not {}".format(' or '.join(allowed), flavor)
+
+    # ADM second clause as MW extension target names are more flexible.
+    if flavor not in allowed and flavor[:13] != "mwext-targets":
+        msg = "flavor must be {} or start mwext-targets, not be {}".format(
+            ' or '.join(allowed), flavor)
         log.critical(msg)
         raise ValueError(msg)
     res = "noresolve"

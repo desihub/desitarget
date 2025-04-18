@@ -206,11 +206,7 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     start = time()
 
     # ADM check that if either pixint or nside is set then both are.
-    if (pixint is None) or (nside is None):
-        if not ((pixint is None) and (nside is None)):
-            msg = "If one of pixint or nside is set then both must be set"
-            log.error(msg)
-            raise ValueError(msg)
+    io.check_both_set(pixint, nside)
 
     # ADM check whether $TARG_DIR exists. If it does, agree to read from
     # ADM and write to the cache.
@@ -350,12 +346,13 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
 
     # ADM assemble all of the relevant objects.
     allobjs = np.concatenate(allobjs)
-    log.info(f"Found {len(allobjs)} total objects...t={time()-start:.1f}s")
 
     # ADM limit to within a certain HEALPixel, if requested.
     if nside is not None:
         ii = is_in_hp(allobjs, nside, pixint)
         allobjs = allobjs[ii]
+
+    log.info(f"Found {len(allobjs)} total objects...t={time()-start:.1f}s")
 
     # ADM if cache was passed and $TARG_DIR was set then write the data.
     if writecache:
@@ -383,8 +380,8 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     return allobjs
 
 
-def write_targets(dirname, targs, header, targthingnames="", obscon=None,
-                  subpriority=True):
+def write_targets(dirname, targs, header, targnames=None, nside=None,
+                  pixint=None, subpriority=True):
     """Write stream and dwarf targets to a FITS file.
 
     Parameters
@@ -397,17 +394,18 @@ def write_targets(dirname, targs, header, targthingnames="", obscon=None,
     header : :class:`dict`
         Header for output file. Can be a FITShdr object or dictionary.
         Pass {} if you have no additional header information.
-    targthingnames : :class:`str, optional
-        Information about stream and dwarf names that correspond to the targets.
-        Included in the output filename.
-    obscon : :class:`str`, optional, defaults to `None`
-        Can pass one of "DARK" or "BRIGHT". If passed, don't write the
-        full set of data, rather only write targets appropriate for
-        "DARK" or "BRIGHT" observing conditions. The relevant
-        `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
-        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
-        "dark" appended to the lowest DIRECTORY in the input `filename`.
-   subpriority : :class:`bool`, optional, defaults to ``True``
+    targnames : :class:`str, optional
+        Information about MWS extension target class names that
+        corresponds to `targs`. Included in the output filename.
+    nside : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header that the targets
+        have been limited to only certain HEALPixels at a given
+        nside. Used in conjunction with `pixint`.
+    pixint : :class:`int`, optional, defaults to `None`
+        Passed to indicate in the output file header and name that the
+        targets have been limited to only this list of HEALPixels. Used in
+        conjunction with `nside`.
+    subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `targs`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
         in the range 0 to 1, using a seed of 816.
@@ -431,11 +429,6 @@ def write_targets(dirname, targs, header, targthingnames="", obscon=None,
       (see `/data/units.yaml`).
     - Mostly wraps :func:`~desitarget.io.write_with_units`.
     """
-    # ADM limit to just BRIGHT or DARK targets, if requested.
-    # ADM Ignore the filename output, we'll build that on-the-fly.
-    if obscon is not None:
-        _, header, targs = io._bright_or_dark(dirname, header, targs, obscon)
-
     # ADM construct the output filename.
     drs = list(set(targs["RELEASE"]//1000))
     if len(drs) == 1:
@@ -445,9 +438,18 @@ def write_targets(dirname, targs, header, targthingnames="", obscon=None,
         log.info("Couldn't parse LS data release. Defaulting to drX.")
         drint = "X"
         drstr = "drX"
-    outfn = f"stream_and_dwarf_targets-{targthingnames.lower()}-bright.fits"
-    outfn = os.path.join(dirname, drstr, io.desitarget_version,
-                         "stream_dwarf_targets", "main", "resolve", "bright", outfn)
+
+    # ADM add MW extension target class name to the filename, if passed.
+    flavor = "mwext-targets"
+    if targnames is not None:
+        flavor = f"mwext-targets-{targnames.lower()}"
+    # ADM set a default if targets aren't limited to a certain HEALPixel.
+    hpx = pixint
+    if pixint is None:
+        hpx = "X"
+
+    outfn = io.find_target_files(dirname, dr=drstr, flavor=flavor, survey="main",
+                                 obscon="bright", hp=hpx, resolve=True)
 
     # ADM check if any targets are too bright.
     maglim = 15
@@ -488,9 +490,20 @@ def write_targets(dirname, targs, header, targthingnames="", obscon=None,
     header["DR"] = drint
     header["GAIADR"] = gaiadr
 
+    # ADM record whether this file has been limited to only certain HEALPixels.
+    if pixint is not None or nside is not None:
+        # ADM hpxlist and nsidefile need to be passed together.
+        io.check_both_set(pixint, nside)
+        header.add_record(dict(name="FILENSID", value=nside,
+                               comment="HEALPix nside for objects in file"))
+        header.add_record(dict(name="FILEHPX", value=pixint,
+                               comment="HEALPix number for objects in file"))
+        header.add_record(dict(name="FILENEST", value=True,
+                               comment="True if nested HEALPix scheme used"))
+
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(outfn), exist_ok=True)
     # ADM and, finally, write out the targets.
-    io.write_with_units(outfn, targs, extname="STREAM_DWARF_TARGETS", header=header)
+    io.write_with_units(outfn, targs, extname="MWEXT_TARGETS", header=header)
 
     return len(targs), outfn
