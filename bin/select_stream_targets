@@ -95,7 +95,6 @@ if tn is None:
 else:
     fntargnames = tn.replace(",", "-")
 
-print(hdr)
 ntargs, outfile = io.write_targets(ns.dest, targets, hdr, targnames=fntargnames,
                                    nside=ns.nside, pixint=ns.pixint)
 
