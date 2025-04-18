@@ -88,13 +88,15 @@ targets = cuts.select_targets(
     nside=ns.nside, pixint=ns.pixint
 )
 
-# ADM note that we hardcode for bright conditions. This could change in
-# ADM the future if we add new streams or programs.
-if tn is None:
-    fntargnames = ""
-else:
+# ADM note the target class name...
+if tn is not None:
     fntargnames = tn.replace(",", "-")
+# ADM ...unless we're running all streams, in which case to stop the file
+# ADM name growing we'll rely on target class names in the file header.
+if ns.readpertarg is False:
+    fntargnames = None
 
+# ADM note that we hard code for BRIGHT, which is hidden in write_targets.
 ntargs, outfile = io.write_targets(ns.dest, targets, hdr, targnames=fntargnames,
                                    nside=ns.nside, pixint=ns.pixint)
 

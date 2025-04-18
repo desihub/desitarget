@@ -798,12 +798,10 @@ def select_targets(swdir, targnames=["GD1", "BOOTES_1"], readpertarg=False,
     # ADM resolve any duplicates between imaging data releases.
     targets = resolve(targets)
 
-    # ADM we'll definitely need to update the read_data loop if we ever
-    # ADM have overlapping targets in overlapping streams.
+    # ADM prudent to check we don't have duplicate TARGETIDs as we're
+    # ADM potentially processing overlapping streams.
     if len(np.unique(targets["TARGETID"])) != len(targets):
-        msg = ("Targets are not unique. The code needs updated to read in the "
-               "sweep files one-by-one (as in desitarget.cuts.select_targets()) "
-               "rather than caching each individual stream and dwarf")
+        msg = ("Targets must be unique but there are some duplicated TARGETIDs!")
         log.error(msg)
 
     # ADM a final sort on RA to mitigate reproducibility issues.
