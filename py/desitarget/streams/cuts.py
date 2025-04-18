@@ -151,9 +151,9 @@ def is_in_GD1(objs, streamname):
     # gaia_astrom_sel &= r > stream['BRIGHT_LIMIT'] CWR don't need this.
 
     # CMR magnitude ranges
-    brightpm1_magsel = (r > stream['BRIGHT_LIMIT']) & (r <= stream['BRIGHTPM1_LIMIT'])
-    brightpm2_magsel = (r > stream['BRIGHTPM1_LIMIT']) & (r <= stream['BRIGHTPM2_LIMIT'])
-    brightpm3_magsel = (r > stream['BRIGHTPM2_LIMIT']) & (r <= stream['BRIGHTPM3_LIMIT'])
+    brightpm1_magsel = (r > stream['BRIGHT_LIMIT']) & (z <= stream['BRIGHTPM1_LIMIT'])
+    brightpm2_magsel = (z > stream['BRIGHTPM1_LIMIT']) & (z <= stream['BRIGHTPM2_LIMIT'])
+    brightpm3_magsel = (z > stream['BRIGHTPM2_LIMIT']) & (z <= stream['BRIGHTPM3_LIMIT'])
 
     log.info(f"Objects in the field: {field_sel.sum()}...t={time()-start:.1f}s")
     log.info(f"With correct astrometry: {(gaia_astrom_sel & field_sel).sum()}")
@@ -176,17 +176,17 @@ def is_in_GD1(objs, streamname):
     # ADM overall faint selection.
     # CMR modified to use mag limts from yaml file
     faint_sel = ~np.isfinite(isobjs['PMRA'])  # CWR no PM information.
-    faint_sel &= betw(r, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
+    faint_sel &= betw(z, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
-    faint_sel &= stellar_locus_sel
+    #faint_sel &= stellar_locus_sel
 
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)
     # CMR modified to use limits from yaml file
-    common_filler_sel = betw(r, stream['BRIGHTPM2_LIMIT'], stream['FAINT_LIMIT'])
+    common_filler_sel = betw(z, stream['BRIGHTPM2_LIMIT'], stream['FAINT_LIMIT'])
     common_filler_sel &= startyp
-    common_filler_sel &= ~faint_sel
+    #common_filler_sel &= ~faint_sel
     # CMR no: want objs with gaia astrom fainter than bright_pm3 faint lim.
     # common_filler_sel &= ~gaia_astrom_sel
     common_filler_sel &= stellar_locus_sel
@@ -199,7 +199,7 @@ def is_in_GD1(objs, streamname):
     bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
     faint_no_pm = faint_sel & field_sel
-    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3
+    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_no_pm
 
     # CMR moved here to write numbers of final selections, but less useful for timing.
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
@@ -356,9 +356,9 @@ def is_in_ORPHAN(objs, streamname):
     bright_cmd_sel = bright_iso_sel | bright_bhb_sel
 
     # CMR magnitude ranges
-    brightpm1_magsel = (r > stream['BRIGHT_LIMIT']) & (r <= stream['BRIGHTPM1_LIMIT'])
-    brightpm2_magsel = (r > stream['BRIGHTPM1_LIMIT']) & (r <= stream['BRIGHTPM2_LIMIT'])
-    brightpm3_magsel = (r > stream['BRIGHTPM2_LIMIT']) & (r <= stream['BRIGHTPM3_LIMIT'])
+    brightpm1_magsel = (r > stream['BRIGHT_LIMIT']) & (z <= stream['BRIGHTPM1_LIMIT'])
+    brightpm2_magsel = (z > stream['BRIGHTPM1_LIMIT']) & (z <= stream['BRIGHTPM2_LIMIT'])
+    brightpm3_magsel = (z > stream['BRIGHTPM2_LIMIT']) & (z <= stream['BRIGHTPM3_LIMIT'])
 
     # ADM isochrone selection.
     stellar_locus_blue_sel = ((betw(r - z - (-.17 + .67 * (g - r)), -0.2, 0.2)
@@ -377,18 +377,18 @@ def is_in_ORPHAN(objs, streamname):
 
     # CMR overall faint selection, using limits from yaml file
     faint_sel = ~np.isfinite(isobjs['PMRA'])
-    faint_sel &= betw(r, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
+    faint_sel &= betw(z, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
-    faint_sel &= stellar_locus_sel
+    #faint_sel &= stellar_locus_sel
     #tot = np.sum(faint_sel & field_sel)
     #log.info(f"Objects meeting faint selection: {tot}...t={time()-start:.1f}s")
 
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)
-    common_filler_sel = betw(r, stream['BRIGHTPM2_LIMIT'], stream['FAINT_LIMIT'])
+    common_filler_sel = betw(z, stream['BRIGHTPM2_LIMIT'], stream['FAINT_LIMIT'])
     common_filler_sel &= startyp
-    common_filler_sel &= ~faint_sel
+    #common_filler_sel &= ~faint_sel
     #common_filler_sel &= ~gaia_astrom_sel
     common_filler_sel &= stellar_locus_sel
 
@@ -403,7 +403,7 @@ def is_in_ORPHAN(objs, streamname):
     bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
     faint_no_pm = faint_sel & field_sel
-    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3
+    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_no_pm
 
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm1 selection: {np.sum(bright_pm1)}...t={time()-start:.1f}s")
@@ -649,7 +649,7 @@ def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
             objs, targthing)
             
         # ADM/CMR set mws desi extension bit
-        any_set = bright_pm1 | bright_pm2 | bright_pm3 | faint_no_pm | filler
+        any_set = bright_pm1 | bright_pm2 | bright_pm3 | pm_only | faint_no_pm | filler
         mws_target |= any_set * mws_mask.MWS_EXT
         # CMR set stream name bit
         mws_target |= any_set * mws_mask[bit_name]
