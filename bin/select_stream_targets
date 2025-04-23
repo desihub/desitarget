@@ -14,40 +14,49 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description=("Generates DESI target bits from Legacy Surveys"
-                                 " sweep files")
+                                 " sweep files for the MW extension targets.")
                     )
 ap.add_argument("sweepdir",
                 help=("Root directory of LS sweeps for a given data release for "
-                      "ONE of EITHER north or south")
+                      "ONE of EITHER north or south.")
                 )
 ap.add_argument("dest",
                 help=("Output target selection directory (the file name is built"
-                      " on-the-fly from other inputs)")
+                      " on-the-fly from other inputs).")
                 )
-ap.add_argument('-s','--streamnames', default="GD1",
-                help=("Comma-separated names of streams to run (e.g. x,y,z). "
-                      "Default is to just run GD1")
+ap.add_argument('-t','--targnames', default="GD1",
+                help=("Comma-separated names of extension target classes to run "
+                      " (e.g. x,y,z). Default is to just run GD1.")
                 )
-ap.add_argument("--readperstream", action="store_true",
+ap.add_argument("--readpertarg", action="store_true",
                 help=("Default is to read targets by looping over all sweeps. "
-                      "Pass this to instead loop over all streams."
+                      "Pass to instead loop over MW extension target classes."
                       )
                 )
 ap.add_argument("--donotaddnors", action="store_true",
                 help=("Both the south/north LS files are read by default. Pass "
-                      "this to read only the specific files in passed sweepdir")
+                      "this to read only the specific files in passed sweepdir.")
                 )
 ap.add_argument("--donotreadcache", action="store_true",
                 help=("Default is to read from previously cached data files "
                       "where possible. Pass this to start from scratch (and "
-                      "overwrite caches). Only relevant for --readperstream")
+                      "overwrite caches).")
                 )
 ap.add_argument("--numproc", type=int, default=1,
                 help=("Number of parallel processes to use. numproc of 16 is a "
                 "good balance between speed and I/O. Defaults to 1 for serial.")
                 )
 ap.add_argument("--mindec", type=float, default=-20,
-                help=("Hard data limit. Objects south of this are not returned")
+                help=("Hard data limit. Targets south of this are not returned. "
+                      "Defaults to -20.")
+                )
+ap.add_argument("--nside", type=int, default=None,
+                help=("(NESTED) HEALPixel nside used with pixint. Only used if "
+                "readpertarg is False.")
+                )
+ap.add_argument("--pixint", type=int, default=None,
+                help=("Read and cache targets in (NESTED) HEALpixels at nside. "
+                "For parallelizing. Only used if readpertarg is False.")
                 )
 
 
@@ -58,28 +67,37 @@ ns = ap.parse_args()
 hdr = fitsio.FITSHDR()
 nsdict = vars(ns)
 for k in nsdict:
-    hdr[k.upper()] = nsdict[k]
+    # ADM we set the pixel information separately.
+    if k not in ["nside", "pixint"]:
+        hdr[k.upper()] = nsdict[k]
 # ADM also explicitly add the command used, just in case.
 hdr["CMDLINE"] = ' '.join(sys.argv)
 
-# ADM change the input comma-separated string of stream names to a list.
-sn = ns.streamnames
-if sn is not None:
-    streamnames = sn.split(',')
+# ADM change input comma-separated string of target class names to list.
+tn = ns.targnames
+if tn is not None:
+    targnames = tn.split(',')
 
 # ADM flip the sense of some inputs.
 addnors = not(ns.donotaddnors)
 readcache = not(ns.donotreadcache)
 
 targets = cuts.select_targets(
-    ns.sweepdir, stream_names=streamnames, readperstream=ns.readperstream,
-    addnors=addnors, readcache=readcache, numproc=ns.numproc, mindec=ns.mindec
+    ns.sweepdir, targnames=targnames, readpertarg=ns.readpertarg,
+    addnors=addnors, readcache=readcache, numproc=ns.numproc, mindec=ns.mindec,
+    nside=ns.nside, pixint=ns.pixint
 )
 
-# ADM note that we hardcode for bright conditions. This could change in
-# ADM the future if we add new streams or programs.
-fnstreamnames = sn.replace(",", "-")
-ntargs, outfile = io.write_targets(ns.dest, targets, hdr,
-                                   streamnames=fnstreamnames, obscon="BRIGHT")
+# ADM note the target class name...
+if tn is not None:
+    fntargnames = tn.replace(",", "-")
+# ADM ...unless we're running all streams, in which case to stop the file
+# ADM name growing we'll rely on target class names in the file header.
+if ns.readpertarg is False:
+    fntargnames = None
+
+# ADM note that we hard code for BRIGHT, which is hidden in write_targets.
+ntargs, outfile = io.write_targets(ns.dest, targets, hdr, targnames=fntargnames,
+                                   nside=ns.nside, pixint=ns.pixint)
 
 log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

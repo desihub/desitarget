@@ -1,5 +1,5 @@
 """
-Desitarge.streams.cuts
+desitarget.streams.cuts
 =======================
 
 Target selection cuts for the DESI MWS Stellar Stream programs.
@@ -213,9 +213,11 @@ def is_in_GD1(objs, streamname):
 
     # ADM sanity check that selections do not overlap.
     check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_no_pm.astype(int) + filler.astype(int)
-    if np.max(check) > 1:
-        msg = "Selections should be unique but they overlap!"
-        log.error(msg)
+    # ADM guard against check being an empty list if there are no targets.
+    if len(check) > 0:
+        if np.max(check) > 1:
+            msg = "Selections should be unique but they overlap!"
+            log.error(msg)
 
     # ADM we sub-selected objects to just those in the stream, so we need
     # ADM to expand back to all of the passed objects. Objects that are
@@ -416,9 +418,12 @@ def is_in_ORPHAN(objs, streamname):
     
     # ADM sanity check that selections do not overlap.
     check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_no_pm.astype(int) + filler.astype(int)
-    if np.max(check) > 1:
-        msg = "Selections should be unique but they overlap!"
-        log.error(msg)
+
+    # ADM guard against check being an empty list if there are no targets.
+    if len(check) > 0:
+        if np.max(check) > 1:
+            msg = "Selections should be unique but they overlap!"
+            log.error(msg)
 
     # ADM we sub-selected objects to just those in the stream, so we need
     # ADM to expand back to all of the passed objects. Objects that are
@@ -683,8 +688,9 @@ def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
     return desi_target, bgs_target, mws_target, scnd_target
 
 
-def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthing=False,
-                   addnors=True, readcache=True, numproc=1, mindec=-20):
+def select_targets(swdir, targnames=["GD1", "BOOTES_1"], readpertarg=False,
+                   addnors=True, readcache=True, numproc=1, mindec=-20,
+                   nside=None, pixint=None):
     """Process files from an input directory to select targets.
 
     Parameters
@@ -693,9 +699,10 @@ def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthing=Fals
         Root directory of Legacy Surveys sweep files for a given data
         release for ONE of EITHER north or south, e.g.
         "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
-    targthing_names : :class:`list`
-        A list of stream and dwarf names to process. Defaults to all streams.
-    readpertargthing : :class:`bool`, optional, defaults to ``False``
+    targnames : :class:`list`
+        A list of MWS extension target classes to process. Defaults to
+        all MWS extension target classes.
+    readpertarg : :class:`bool`, optional, defaults to ``False``
         When set, read each stream's data individually instead of looping
         through all possible sweeps files. This is likely quickest and
         most useful when working with a single stream. For multiple
@@ -708,34 +715,38 @@ def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthing=Fals
     readcache : :class:`bool`, optional, defaults to ``True``
         If ``True`` read all data from previously made cache files,
         in cases where such files exist. If ``False`` don't read
-        from caches AND OVERWRITE any cached files, if they exist. Cache
-        files are named $TARG_DIR/streamcache/streamname-drX-cache.fits,
-        where streamname is the lower-case name from `stream_names` and
-        drX is the Legacy Surveys Data Release (parsed from `swdir`).
+        from caches AND OVERWRITE any cached files, if they exist. Caches
+        are stored in the $TARG_DIR/streamcache/drX/ directory, where drX
+        is the Legacy Surveys Data Release (parsed from `swdir`).
     numproc : :class:`int`, optional, defaults to 1 for serial
         The number of parallel processes to use. `numproc` of 16 is a
         good balance between speed and file I/O.
     mindec : :class:`float` or `int`, optional, defaults to -20 (20oS)
         Hard limit on data (objects south of this are not returned).
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPixel nside used with `pixint`. Only used if
+        `readpertarg` is ``False``.
+    pixint : :class:`int`, optional, defaults to `None`
+        Only read and cache targets in (NESTED) HEALpixels at `nside`.
+        For parallelizing. Only used if `readpertarg` is ``False``.
 
     Returns
     -------
     :class:`~numpy.ndarray`
         Targets in the input `swdir` which pass the cuts with added
         targeting columns such as ``TARGETID``, and ``DESI_TARGET``,
-        ``BGS_TARGET``, ``MWS_TARGET``, ``SCND_TARGET`` (i.e. target
-        selection bitmasks).
+        ``BGS_TARGET``, ``MWS_TARGET`` (i.e. target selection bitmasks).
     """
 
     # all_dwarf_names needs to live in one place only. Right now it is also in select_targets
     all_dwarf_names=['BOOTES_1', 'CANES_VENATICI_1', 'DRACO_1', 'SEXTANS_1', 'URSA_MINOR_1'] 
-    if readperthing:
+    if readpertarg:
         # ADM loop over streams and read in the data per stream or dwarf
         allobjs = []
-        for targthing in targthing_names:
-            if targthing in all_dwarf_names:
+        for targ in targnames:
+            if targ in all_dwarf_names:
                 # NRS look up the defining parameters of the dwarf.
-                dwarf = get_targthing_parameters(targthing)
+                dwarf = get_targthing_parameters(targ)
                 # NRS galaxy coordinates in degrees.
                 ra0, dec0 = dwarf["RA"], dwarf["DEC"]
                 # NRS spatial extent in degrees for initial data read.
@@ -743,38 +754,34 @@ def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthing=Fals
                 mind = 0
                 # NRS read in the data. CMR reuse read_data_per_stream
                 objs = read_data_per_stream(
-                    swdir, ra0, dec0, mind, maxd, targthing, numproc=numproc,
+                    swdir, ra0, dec0, mind, maxd, targ, numproc=numproc,
                     mindec=mindec, addnors=addnors, readcache=readcache, readall=False
                 )
             else:      # CMR check against a list of streams?
                 # ADM read in the data.
-                strm = get_targthing_parameters(targthing)
+                strm = get_targthing_parameters(targ)
                 # ADM the parameters that define the coordinates of the stream.
                 rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
                 # ADM the parameters that define the extent of the stream.
                 mind, maxd = strm["MIND"], strm["MAXD"]
                 # ADM read in the data.
                 objs = read_data_per_stream(
-                    swdir, rapol, decpol, mind, maxd, targthing, numproc=numproc,
+                    swdir, rapol, decpol, mind, maxd, targ, numproc=numproc,
                     mindec=mindec, addnors=addnors, readcache=readcache, readall=False
                 )
             allobjs.append(objs)
         objects = np.concatenate(allobjs)
     else:
-        allobj = []
         # ADM otherwise, read in all of the sweeps. This requires
         # ADM some dummy inputs.
-        streamobjects = read_data_per_stream(
+        objects = read_data_per_stream(
             swdir, 0, 0, 0, 0, "", numproc=numproc, mindec=mindec,
-            addnors=addnors, readcache=readcache, readall=True)
-        dwarfobjects = read_data_per_dwarf(
-            swdir, 0, 0, 0, "", numproc=numproc, mindec=mindec,
-            addnors=addnors, readcache=readcache, readall=True)
-        objects = np.concatenate([streamobjects, dwarfobjects])
-        
+            addnors=addnors, readcache=readcache, nside=nside, pixint=pixint,
+            readall=True)
+
     # ADM process the targets.
     desi_target, bgs_target, mws_target, scnd_target = set_target_bits(
-        objects, targthing_names=targthing_names)
+        objects, targthing_names=targnames)
 
     # ADM finalize the targets.
     # ADM anything with DESI_TARGET !=0 is truly a target.
@@ -791,12 +798,10 @@ def select_targets(swdir, targthing_names=["GD1", "BOOTES_1"], readperthing=Fals
     # ADM resolve any duplicates between imaging data releases.
     targets = resolve(targets)
 
-    # ADM we'll definitely need to update the read_data loop if we ever
-    # ADM have overlapping targets in overlapping streams.
+    # ADM prudent to check we don't have duplicate TARGETIDs as we're
+    # ADM potentially processing overlapping streams.
     if len(np.unique(targets["TARGETID"])) != len(targets):
-        msg = ("Targets are not unique. The code needs updated to read in the "
-               "sweep files one-by-one (as in desitarget.cuts.select_targets()) "
-               "rather than caching each individual stream and dwarf")
+        msg = ("Targets must be unique but there are some duplicated TARGETIDs!")
         log.error(msg)
 
     # ADM a final sort on RA to mitigate reproducibility issues.

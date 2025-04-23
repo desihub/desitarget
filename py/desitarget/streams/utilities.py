@@ -1,6 +1,6 @@
 """
-desitarget.streams.utilties
-===========================
+desitarget.streams.utilities
+============================
 
 Utilities for the DESI MWS Stellar Stream programs.
 
@@ -411,9 +411,9 @@ def get_targthing_parameters(targthing_name):
         stream = yaml.safe_load(f)
     streamlist = list(stream.keys())
     fn2 = resources.files('desitarget').joinpath('data/dwarfs.yaml')
-    with open(fn2) as f:
-        dwarf = yaml.safe_load(f)
-    dwarflist = list(dwarf.keys())
+#    with open(fn2) as f:
+#        dwarf = yaml.safe_load(f)
+#    dwarflist = list(dwarf.keys())
 
     if targthing_name in streamlist:
         return stream[targthing_name]
