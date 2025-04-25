@@ -26,7 +26,7 @@ jobs:
                 matplotlib-version: ['<3.7']
 
         env:
-            DESIUTIL_VERSION: 3.5.0
+            DESIUTIL_VERSION: 3.4.3  # desisim has not been updated
             DESIMODEL_DATA: branches/test-0.17
 
         steps:
@@ -70,7 +70,7 @@ jobs:
                     # later versions of matplotlib require later versions of numpy.
                     - '<3.6.3'
         env:
-            DESIUTIL_VERSION: 3.5.0
+            DESIUTIL_VERSION: 3.4.3
             DESIMODEL_DATA: branches/test-0.19
 
         steps:
