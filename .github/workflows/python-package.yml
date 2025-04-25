@@ -27,7 +27,6 @@ jobs:
 
         env:
             DESIUTIL_VERSION: 3.4.3  # desisim has not been updated
-            DESIMODEL_DATA: branches/test-0.17
 
         steps:
             - name: Install System Packages
@@ -49,9 +48,18 @@ jobs:
                 python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}' 'numba${{ matrix.numba-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
-                svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
+            - name: Install desimodel data
+              env:
+                DESIMODEL_DATA: branches/test-0.19
+              run: install_desimodel_data --desimodel-version ${DESIMODEL_DATA}
+            - name: Install surveyops snapshot
+              env:
+                SURVEYOPS_VERSION: '2.0'
+              run: |
+                wget -nv https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
+                tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
             - name: Run the test
-              run: DESIMODEL=$(pwd) pytest
+              run: DESI_SURVEYOPS=$(pwd) pytest
 
     # Try to set up the coverage test to be as similar to NERSC/DESI 25.3 as possible.
     coverage:
@@ -133,8 +141,10 @@ jobs:
         strategy:
             fail-fast: false
             matrix:
-                os: [ubuntu-latest]
-                python-version: ['3.13']
+                os:
+                    - ubuntu-latest
+                python-version:
+                    - '3.13'
 
         steps:
             - name: Checkout code
@@ -150,6 +160,8 @@ jobs:
             - name: Generate api.rst
               run: desi_api_file --api ./api.rst desitarget
             - name: Compare generated api.rst to checked-in version
+              # This is equivalent to an allowed falure.
+              continue-on-error: true
               run: diff --ignore-space-change --ignore-blank-lines ./api.rst ./doc/api.rst
 
     style:

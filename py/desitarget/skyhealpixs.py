@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 desitarget.skyhealpixs
-====================
+======================
 
 Dynamic lookup of whether a given RA,Dec location is a good place to
 put a sky fiber.
