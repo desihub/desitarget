@@ -322,17 +322,17 @@ def write_targets(dirname, targs, header, streamnames="", obscon=None,
     header : :class:`dict`
         Header for output file. Can be a FITShdr object or dictionary.
         Pass {} if you have no additional header information.
-    streamnames : :class:`str, optional
+    streamnames : :class:`str`, optional
         Information about stream names that correspond to the targets.
         Included in the output filename.
-    obscon : :class:`str`, optional, defaults to `None`
+    obscon : :class:`str`, optional
         Can pass one of "DARK" or "BRIGHT". If passed, don't write the
         full set of data, rather only write targets appropriate for
         "DARK" or "BRIGHT" observing conditions. The relevant
         `PRIORITY_INIT` and `NUMOBS_INIT` columns will be derived from
         `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
         "dark" appended to the lowest DIRECTORY in the input `filename`.
-   subpriority : :class:`bool`, optional, defaults to ``True``
+    subpriority : :class:`bool`, optional
         If ``True`` and a `SUBPRIORITY` column is in the input `targs`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
         in the range 0 to 1, using a seed of 816.

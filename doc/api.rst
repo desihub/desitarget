@@ -110,20 +110,20 @@ desitarget API
 .. automodule:: desitarget.streams.cuts
     :members:
 
-.. automodule:: desitarget.streams.gaia_dr3_parallax_zero_point
-    :members:
+.. .. automodule:: desitarget.streams.gaia_dr3_parallax_zero_point
+..     :members:
 
-.. automodule:: desitarget.streams.gaia_dr3_parallax_zero_point.zpt
-    :members:
+.. .. automodule:: desitarget.streams.gaia_dr3_parallax_zero_point.zpt
+..     :members:
 
-.. automodule:: desitarget.streams.io
-    :members:
+.. .. automodule:: desitarget.streams.io
+..     :members:
 
-.. automodule:: desitarget.streams.targets
-    :members:
+.. .. automodule:: desitarget.streams.targets
+..     :members:
 
-.. automodule:: desitarget.streams.utilities
-    :members:
+.. .. automodule:: desitarget.streams.utilities
+..     :members:
 
 .. automodule:: desitarget.subpriority
     :members:

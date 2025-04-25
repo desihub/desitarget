@@ -414,7 +414,8 @@ def get_CMD_interpolator(stream_name):
 
     Returns
     -------
-    A scipy interpolated UnivariateSpline.
+    :class:`~scipy.interpolate.UnivariateSpline`
+        A scipy interpolated UnivariateSpline.
     """
     # ADM get information for the stream of interest.
     stream = get_stream_parameters(stream_name)
@@ -440,28 +441,28 @@ def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
 
     Parameters
     ----------
-    pm1track : :class:`~numpy.ndarray` or `float`
+    pm1track : :class:`~numpy.ndarray` or :class:`float`
         Allowed proper motions of stream targets, RA-sense.
-    pm2track : :class:`~numpy.ndarray` or `float`
+    pm2track : :class:`~numpy.ndarray` or :class:`float`
         Allowed proper motions of stream targets, Dec-sense.
-    pmfi1 : :class:`~numpy.ndarray` or `float`
+    pmfi1 : :class:`~numpy.ndarray` or :class:`float`
         Proper motion in stream coordinates of possible targets, derived
         from RA.
-    pmfi2 : :class:`~numpy.ndarray` or `float`
+    pmfi2 : :class:`~numpy.ndarray` or :class:`float`
         Proper motion in stream coordinates of possible targets, derived
         from Dec.
-    pm_err : :class:`~numpy.ndarray` or `float`
+    pm_err : :class:`~numpy.ndarray` or :class:`float`
         Proper motion error in stream coordinates of possible targets,
         combined across `pmfi1` and `pmfi2` errors.
-    pad: : :class:`float` or `int`, defaults to 2
-        Extra offset with which to pad `mult`*proper_motion_error.
-    mult : :class:`float` or `int`, defaults to 2.5
+    pad: : :class:`float` or :class:`int`, optional
+        Extra offset with which to pad `mult` times proper_motion_error.
+    mult : :class:`float` or :class:`int`, optional
         Multiple of the proper motion error to use for padding.
 
     Returns
     -------
-    :class:`array_like` or `boolean`
-        ``True`` for stream members.
+    array-like
+        An array with values that are ``True`` for stream members.
     """
 
     return np.sqrt((pmfi2 - pm2track)**2 +
@@ -473,23 +474,23 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
 
     Parameters
     ----------
-    dist : :class:`~numpy.ndarray` or `float`
+    dist : :class:`~numpy.ndarray` or :class:`float`
         Distance of possible stream members.
     D : :class:`~numpy.ndarray`
         Numpy structured array of Gaia information that contains at least
-        the columns `RA`, `ASTROMETRIC_PARAMS_SOLVED`, `PHOT_G_MEAN_MAG`,
-        `NU_EFF_USED_IN_ASTRONOMY`, `PSEUDOCOLOUR`, `ECL_LAT`, `PARALLAX`
-        `PARALLAX_ERROR`. `PARALLAX_IVAR` will be used instead of
-        `PARALLAX_ERROR` if `PARALLAX_ERROR` is not present.
-    mult : :class:`float` or `int`
+        the columns ``RA``, ``ASTROMETRIC_PARAMS_SOLVED``, ``PHOT_G_MEAN_MAG``,
+        ``NU_EFF_USED_IN_ASTRONOMY``, ``PSEUDOCOLOUR``, ``ECL_LAT``, ``PARALLAX``
+        ``PARALLAX_ERROR``. ``PARALLAX_IVAR`` will be used instead of
+        ``PARALLAX_ERROR`` if ``PARALLAX_ERROR`` is not present.
+    mult : :class:`float` or :class:`int`
         Multiple of the parallax error to use for padding.
-    plx_sys : :class:`float`
-        Extra offset with which to pad `mult`*parallax_error.
+    plx_sys : :class:`float`, optional
+        Extra offset with which to pad `mult` times parallax_error.
 
     Returns
     -------
-    :class:`array_like` or `boolean`
-        ``True`` for stream members.
+    array-like
+        An array of values that are ``True`` for stream members.
     """
     # extra plx systematic error padding
     plx_sys = 0.05

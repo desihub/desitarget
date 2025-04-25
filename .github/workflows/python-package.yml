@@ -25,9 +25,6 @@ jobs:
                 scipy-version: ['<1.9']
                 matplotlib-version: ['<3.7']
 
-        env:
-            DESIUTIL_VERSION: 3.4.3  # desisim has not been updated
-
         steps:
             - name: Install System Packages
               run: sudo apt install libbz2-dev subversion
@@ -40,6 +37,8 @@ jobs:
               with:
                 python-version: ${{ matrix.python-version }}
             - name: Install Python dependencies
+              env:
+                DESIUTIL_VERSION: 3.4.3  # desisim has not been updated
               run: |
                 python -m pip install --upgrade pip wheel
                 python -m pip install pytest
@@ -77,9 +76,6 @@ jobs:
                 matplotlib-version:
                     # later versions of matplotlib require later versions of numpy.
                     - '<3.6.3'
-        env:
-            DESIUTIL_VERSION: 3.4.3
-            DESIMODEL_DATA: branches/test-0.19
 
         steps:
             - name: Install System Packages
@@ -93,6 +89,8 @@ jobs:
               with:
                 python-version: ${{ matrix.python-version }}
             - name: Install Python dependencies
+              env:
+                DESIUTIL_VERSION: 3.4.3
               run: |
                 python -m pip install --upgrade pip setuptools wheel
                 python -m pip install pytest\<7 pytest-cov\<4 coveralls
@@ -101,9 +99,18 @@ jobs:
                 python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
                 python -m pip cache remove fitsio
                 python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
-                svn export https://desi.lbl.gov/svn/code/desimodel/${DESIMODEL_DATA}/data
+            - name: Install desimodel data
+              env:
+                DESIMODEL_DATA: branches/test-0.19
+              run: install_desimodel_data --desimodel-version ${DESIMODEL_DATA}
+            - name: Install surveyops snapshot
+              env:
+                SURVEYOPS_VERSION: '2.0'
+              run: |
+                wget -nv https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
+                tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
             - name: Run the test with coverage
-              run: DESIMODEL=$(pwd) pytest --cov
+              run: DESI_SURVEYOPS=$(pwd) pytest --cov
             - name: Coveralls
               env:
                 COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
