@@ -9,10 +9,10 @@ sqlalchemy
 fitsio
 photutils==1.6.0
 # Install desiutil separately since it is needed for the other installs.
-# git+https://github.com/desihub/desiutil.git@3.1.0#egg=desiutil
-git+https://github.com/desihub/specter.git@0.10.0#egg=specter
+# git+https://github.com/desihub/desiutil.git@3.5.1#egg=desiutil
+git+https://github.com/desihub/specter.git@0.10.1#egg=specter
 git+https://github.com/desihub/desimodel.git@0.19.3#egg=desimodel
 # Don't forget to install desimodel test data.
-git+https://github.com/desihub/desispec.git@0.53.1#egg=desispec
-git+https://github.com/desihub/desisim.git@0.36.0#egg=desisim
-git+https://github.com/desihub/redrock.git@0.15.4#egg=redrock
+git+https://github.com/desihub/desispec.git@0.69.0#egg=desispec
+git+https://github.com/desihub/desisim.git@0.38.2#egg=desisim
+git+https://github.com/desihub/redrock.git@0.20.4#egg=redrock
