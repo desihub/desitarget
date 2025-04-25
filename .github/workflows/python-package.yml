@@ -18,6 +18,13 @@ jobs:
             matrix:
                 include:
                   - os: ubuntu-latest
+                    python-version: '3.12'
+                    numpy-version: '<2.1'
+                    scipy-version: '<1.15'
+                    matplotlib-version: '<3.11'
+                    astropy-version: '<8.0'
+                    numba-version: ''
+                  - os: ubuntu-latest
                     python-version: '3.11'
                     numpy-version: '<2.0'
                     scipy-version: '<1.14'
@@ -53,7 +60,7 @@ jobs:
                 python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
                 python -m pip cache remove fitsio
                 python -m pip cache remove numba
-                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio numba
+                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio 'numba${{ matrix.numba-version }}
                 python -m pip install pytest
             - name: Install desimodel data
               env:
