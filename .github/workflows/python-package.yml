@@ -16,37 +16,42 @@ jobs:
         strategy:
             fail-fast: true
             matrix:
-                os: [ubuntu-22.04]
-                python-version: ['3.10']
-                astropy-version: ['==5.0', '<6.1']
-                fitsio-version: ['==1.2.1']
-                numpy-version: ['<1.23']  # to keep asscalar, used by astropy
-                numba-version: ['<0.61.0'] # for compatibility with old numpy
-                scipy-version: ['<1.9']
-                matplotlib-version: ['<3.7']
+                include:
+                  - os: ubuntu-latest
+                    python-version: '3.11'
+                    numpy-version: '<2.0'
+                    scipy-version: '<1.14'
+                    matplotlib-version: '<3.10'
+                    astropy-version: '<7.0'
+                  - os: ubuntu-latest
+                    python-version: '3.10'
+                    numpy-version: '<1.23'
+                    scipy-version: '<1.9'
+                    matplotlib-version: '<3.7'
+                    astropy-version: '<6.1'
 
         steps:
             - name: Install System Packages
               run: sudo apt install libbz2-dev subversion
             - name: Checkout code
-              uses: actions/checkout@v2
+              uses: actions/checkout@v4
               with:
                 fetch-depth: 0
             - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v2
+              uses: actions/setup-python@v5
               with:
                 python-version: ${{ matrix.python-version }}
             - name: Install Python dependencies
               env:
                 DESIUTIL_VERSION: 3.4.3  # desisim has not been updated
               run: |
-                python -m pip install --upgrade pip wheel
-                python -m pip install pytest
+                python -m pip install --upgrade pip setuptools wheel
                 python -m pip install git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
                 python -m pip install -r requirements.txt
-                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}' 'numba${{ matrix.numba-version }}'
-                python -m pip cache remove fitsio
-                python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
+                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
+                python -m pip cache remove fitsio numba
+                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio numba
+                python -m pip install pytest
             - name: Install desimodel data
               env:
                 DESIMODEL_DATA: branches/test-0.19
@@ -73,9 +78,13 @@ jobs:
                     - '3.10'
                 numpy-version:
                     - '<1.23'
+                scipy-version:
+                    - '<1.9'
                 matplotlib-version:
                     # later versions of matplotlib require later versions of numpy.
                     - '<3.6.3'
+                astropy-version:
+                    - '<6.1'
 
         steps:
             - name: Install System Packages
@@ -93,12 +102,12 @@ jobs:
                 DESIUTIL_VERSION: 3.4.3
               run: |
                 python -m pip install --upgrade pip setuptools wheel
-                python -m pip install pytest\<7 pytest-cov\<4 coveralls
                 python -m pip install git+https://github.com/desihub/desiutil.git@${DESIUTIL_VERSION}#egg=desiutil
                 python -m pip install -r requirements.txt
                 python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
-                python -m pip cache remove fitsio
-                python -m pip install --no-deps --force-reinstall --ignore-installed 'fitsio${{ matrix.fitsio-version }}'
+                python -m pip cache remove fitsio numba
+                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio numba
+                python -m pip install pytest pytest-cov coveralls
             - name: Install desimodel data
               env:
                 DESIMODEL_DATA: branches/test-0.19

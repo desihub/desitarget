@@ -107,8 +107,8 @@ desitarget API
 .. automodule:: desitarget.streams
     :members:
 
-.. automodule:: desitarget.streams.cuts
-    :members:
+.. .. automodule:: desitarget.streams.cuts
+..     :members:
 
 .. .. automodule:: desitarget.streams.gaia_dr3_parallax_zero_point
 ..     :members:
