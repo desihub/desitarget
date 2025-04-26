@@ -2,10 +2,15 @@
 desitarget Change Log
 =====================
 
-2.9.1 (unreleased)
+3.0.1 (unreleased)
 ------------------
 
 * No changes yet.
+
+3.0.0 (2025-04-25)
+------------------
+
+* No code changes, moving to 3.0.0 to tag first extension targets.
 
 2.9.0 (2025-03-14)
 ------------------
