@@ -26,9 +26,6 @@ log = get_logger()
 # ADM start the clock.
 start = time()
 
-# ADM load the Gaia zero points.
-gaia_zpt.load_tables()
-
 # ADM Galactic reference frame. Use astropy v4.0 defaults.
 GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
     "v4.0")['parameters']
@@ -492,6 +489,9 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     array-like
         An array of values that are ``True`` for stream members.
     """
+    # ADM load the Gaia zero points.
+    gaia_zpt.load_tables()
+
     # extra plx systematic error padding
     plx_sys = 0.05
     subset = np.in1d(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
