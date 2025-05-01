@@ -23,17 +23,6 @@ from numpy.lib import recfunctions as rfn
 from desiutil.log import get_logger
 log = get_logger()
 
-# ADM start the clock.
-start = time()
-
-# ADM Galactic reference frame. Use astropy v4.0 defaults.
-GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
-    "v4.0")['parameters']
-
-# ADM some standard units.
-kms = auni.km / auni.s
-masyr = auni.mas / auni.year
-
 
 def ivars_to_errors(objs, colnames=[]):
     """
@@ -349,6 +338,14 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
         A tuple of the the new (pmra, pmdec) values in DEGREES. If `ra`,
         `dec`, etc. are passed as arrays this will be a tuple of arrays.
     """
+    # ADM Galactic reference frame. Use astropy v4.0 defaults.
+    GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
+        "v4.0")['parameters']
+
+    # ADM some standard units.
+    kms = auni.km / auni.s
+    masyr = auni.mas / auni.year
+
     C = acoo.ICRS(ra=ra * auni.deg,
                   dec=dec * auni.deg,
                   radial_velocity=0 * kms,
