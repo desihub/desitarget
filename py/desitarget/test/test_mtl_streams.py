@@ -69,7 +69,8 @@ class TestMTLStreams(unittest.TestCase):
         self.post_prio = pinit
         # ADM scalar version of initial numbers of observations. Should
         # ADM (deliberately) fail if classes have different NUMOBS_INIT.
-        self.ninit_int = int(np.unique(ninit))
+        # Note that np.unique() does not return a scalar, so we do [0].
+        self.ninit_int = int(np.unique(ninit)[0])
         # ADM loop through the numbers of observations, retain priority.
         for i in range(self.ninit_int - 1):
             self.post_prio = np.vstack([self.post_prio, zgood + zwarn])

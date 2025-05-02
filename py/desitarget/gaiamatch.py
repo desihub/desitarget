@@ -1235,7 +1235,11 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
         hpnum = radec2pix(nside, outdata["{}_RA".format(prefix)],
                           outdata["{}_DEC".format(prefix)])
         # ADM int should fail if HEALPix in the file aren't unique.
-        newoutdata['{}_BRICKID'.format(prefix)] = int(np.unique(hpnum))
+        # However int(np.unique(hpnum)) is invalid because np.unique() does not
+        # return a scalar.
+        uhpnum = np.unique(hpnum)
+        assert len(uhpnum) == 1
+        newoutdata['{}_BRICKID'.format(prefix)] = int(uhpnum[0])
         outdata = newoutdata
 
     # ADM return data from the Gaia file, with the header if requested.
