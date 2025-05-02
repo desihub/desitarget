@@ -18,26 +18,33 @@ jobs:
             matrix:
                 include:
                   - os: ubuntu-latest
+                    python-version: '3.13'
+                    numpy-version: '<3.0'
+                    scipy-version: ''
+                    matplotlib-version: ''
+                    astropy-version: ''
+                    numba-version: ''
+                  - os: ubuntu-latest
                     python-version: '3.12'
-                    numpy-version: '<2.1'
-                    scipy-version: '<1.15'
-                    matplotlib-version: '<3.11'
+                    numpy-version: '<2.3'
+                    scipy-version: '<1.16'
+                    matplotlib-version: '<3.12'
                     astropy-version: '<8.0'
                     numba-version: ''
                   - os: ubuntu-latest
                     python-version: '3.11'
-                    numpy-version: '<2.0'
+                    numpy-version: '<2.1'
                     scipy-version: '<1.14'
                     matplotlib-version: '<3.10'
                     astropy-version: '<7.0'
                     numba-version: '<0.70'
                   - os: ubuntu-latest
                     python-version: '3.10'
-                    numpy-version: '<1.23'
-                    scipy-version: '<1.9'
-                    matplotlib-version: '<3.7'
-                    astropy-version: '<6.1'
-                    numba-version: '<0.60'
+                    numpy-version: '<2.0'
+                    scipy-version: '<1.14'
+                    matplotlib-version: '<3.10'
+                    astropy-version: '<7.0'
+                    numba-version: '<0.70'
 
         steps:
             - name: Install System Packages
