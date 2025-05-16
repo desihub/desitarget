@@ -381,12 +381,12 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
     #        (C.pm_dec - C1.pm_dec).to_value(masyr))
     return pmra - pmracorrfac, pmdec-pmdeccorrfac
 
-def get_targthing_parameters(targthing_name):
+def get_targmwext_parameters(targmwext_name):
     """Look up information for a given stream or dwarf
 
     Parameters
     ----------
-    targthing_name : :class:`str`
+    targmwext_name : :class:`str`
         Name of a stream that appears in the ../data/streams.yaml file
         or ../data/dwarf.yaml
         Possibilities include 'GD1'.
@@ -394,7 +394,7 @@ def get_targthing_parameters(targthing_name):
     Returns
     -------
     :class:`~dict`
-        A dictionary of stream parameters for the passed `targthing_name`.
+        A dictionary of stream parameters for the passed `targmwext_name`.
         Includes isochrones and positional information.
 
     Notes
@@ -403,7 +403,7 @@ def get_targthing_parameters(targthing_name):
     - Parameters for each dwarf are in the ../data/dwarfs.yaml file.
     """
     # ADM guard against stream being passed as lower-case.
-    targthing_name = targthing_name.upper()
+    targmwext_name = targmwext_name.upper()
 
     # ADM open and load the stream parameter yaml file.
     fn = resources.files('desitarget').joinpath('data/streams.yaml')
@@ -411,14 +411,14 @@ def get_targthing_parameters(targthing_name):
         stream = yaml.safe_load(f)
     streamlist = list(stream.keys())
     fn2 = resources.files('desitarget').joinpath('data/dwarfs.yaml')
-#    with open(fn2) as f:
-#        dwarf = yaml.safe_load(f)
-#    dwarflist = list(dwarf.keys())
+    with open(fn2) as f:
+        dwarf = yaml.safe_load(f)
+    dwarflist = list(dwarf.keys())
 
-    if targthing_name in streamlist:
-        return stream[targthing_name]
-    elif targthing_name in dwarflist:
-        return dwarf[targthing_name]
+    if targmwext_name in streamlist:
+        return stream[targmwext_name]
+    elif targmwext_name in dwarflist:
+        return dwarf[targmwext_name]
 
 
 def get_CMD_interpolator(stream_name):
@@ -435,7 +435,7 @@ def get_CMD_interpolator(stream_name):
     A scipy interpolated UnivariateSpline.
     """
     # ADM get information for the stream of interest.
-    stream = get_targthing_parameters(stream_name)
+    stream = get_targmwext_parameters(stream_name)
 
     # ADM retrieve the color and magnitude offsets.
     coloff = stream["COLOFF"]
@@ -808,8 +808,7 @@ def cmd_sel_func(
     rgb_rmin=16, rgb_rmax=23,
     hb_color_tol=0.1, hb_mag_tol=0.5,
     hb_grmin=-0.5, hb_grmax=0.5,
-    hb_rmin=16, hb_rmax=23,
-    show_magerr_plot=False
+    hb_rmin=16, hb_rmax=23
 ):
     """Select dwarf galaxy members using CMD cuts.
 
@@ -857,7 +856,7 @@ def cmd_sel_func(
         ``True`` for dwarf members.
     """
     # look up the defining parameters of the dwarf.
-    dwarf = get_targthing_parameters(dwarf_name)
+    dwarf = get_targmwext_parameters(dwarf_name)
     # distance to the dwarf
     dist = dwarf["DIST"]
     # distance modulus of the dwarf
@@ -871,7 +870,11 @@ def cmd_sel_func(
     # retrieve the color and magnitude offsets.
     coloff = dwarf["COLOFF"]
     magoff = dwarf["MAGOFF"]
-
+    # retrieve coefficients for the rmag - rmagerr linear fit
+    rmag_rmagerr_coeffs = np.array(dwarf["RMAG_RMAGERR_COEFFS"])
+    def log10_error_func(x, a, b):
+        return a * x + b
+    
     # apply isochrone offsets
     iso_rgb_gr = iso_rgb_g - iso_rgb_r
     iso_hb_gr = iso_hb_g - iso_hb_r
@@ -889,32 +892,10 @@ def cmd_sel_func(
     r0 = r - er
     z0 = z - ez
 
-    # fit log10(rmag error) vs rmag relation
-    def log10_error_func(x, a, b):
-        return a * x + b
-    popt, pcov = curve_fit(
-        log10_error_func,
-        r[betw(r, 15, 24) & betw(np.log10(rerr), -4, 0)],
-        np.log10(rerr)[betw(r, 15, 24) & betw(np.log10(rerr), -4, 0)]
-    )
-    if show_magerr_plot:
-        plt.figure(figsize=(5, 5))
-        plt.scatter(
-            r[betw(r, 15, 24) & betw(np.log10(rerr), -4, 0)],
-            np.log10(rerr)[betw(r, 15, 24) & betw(np.log10(rerr), -4, 0)],
-            marker='.',
-            alpha=0.1,
-            c='k'
-        )
-        xdata = np.linspace(15, 24, 100)
-        plt.plot(xdata, log10_error_func(xdata, *popt))
-        plt.xlabel("rmag")
-        plt.ylabel("log10(rmagerr)")
-        plt.show()
     # magnitude cut along RGB
     mag_sel_rgb = betw(r0, np.min(iso_rgb_r + dm) - 0.5, rgb_rmax) & betw(g0 - r0, rgb_grmin, rgb_grmax)
     # color cut along RGB
-    rgb_color_tol = np.sqrt(rgb_color_tol**2 + (3*10**log10_error_func(iso_rgb_r + dm, *popt))**2)
+    rgb_color_tol = np.sqrt(rgb_color_tol**2 + (3*10**log10_error_func(iso_rgb_r + dm, *rmag_rmagerr_coeffs))**2)
     grmax1 = np.interp(r0, iso_rgb_r[::-1] + dm, iso_rgb_gr[::-1] + rgb_color_tol[::-1], left=None, right=None)
     grmax2 = np.interp(r0, iso_rgb_r[::-1] + dm + rgb_mag_tol, iso_rgb_gr[::-1] + rgb_color_tol[::-1], left=None, right=None)
     grmax3 = np.interp(r0, iso_rgb_r[::-1] + dm - rgb_mag_tol, iso_rgb_gr[::-1] + rgb_color_tol[::-1], left=None, right=None)
@@ -964,3 +945,207 @@ def spatial_sel_func(ra0, dec0, maxd, D):
     sep = cobjs.separation(cdwarf)
     # lies in the the dwarf
     return sep.value < maxd
+
+
+def sort_targmwext_by_rank(in_targmwextlist):
+    """Return a list of all the stream and dwarf names in in_targmwextlist
+       ordered by their priority as given in TARGMWEXT_RANK. Smaller numbers
+       are higher priority.
+       
+    Parameters
+    ----------
+    in_targmwextlist : :class:string` 
+        List of dwarf and stream objects to be sorted
+
+    Returns:
+    :class:`string`
+        Sorted list of dwarf and stream objects
+    """
+    fn = resources.files('desitarget').joinpath('data/streams.yaml')
+    with open(fn) as f:
+        streaminfo = yaml.safe_load(f)
+    all_stream_names = list(streaminfo.keys())
+    fn2 = resources.files('desitarget').joinpath('data/dwarfs.yaml')
+    with open(fn2) as f:
+        dwarfinfo = yaml.safe_load(f)
+    all_dwarf_names = list(dwarfinfo.keys())
+
+    in_ranklist = []  # CMR in_prilist is 1-to-1 matched to names in in_targmwextlist 
+    for targmwext in in_targmwextlist:
+        if targmwext in all_stream_names:
+            sinfo = streaminfo[targmwext]            
+            rankval = sinfo['TARGMWEXT_RANK']
+        elif targmwext in all_dwarf_names:
+            dinfo = dwarfinfo[targmwext]
+            rankval = dinfo['TARGMWEXT_RANK']
+        in_ranklist.append(rankval)
+
+    in_ranklist = np.array(in_ranklist)
+    sortrankidx = np.argsort(in_ranklist)
+    sort_targmwextlist = []
+    out_ranklist = in_ranklist[sortrankidx]
+    out_targmwextlist = []
+    for i in range(len(sortrankidx)):
+        nextname = in_targmwextlist[sortrankidx[i]]
+        out_targmwextlist.append(nextname)
+    
+    return out_targmwextlist
+    
+def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibright_pm3, ipm_only,
+                      ifaint_no_pm, ifaint_cmd, ifiller):
+    """Resolve ambiguity with target subclass bits in the mwstarget mask 
+       using TARGMWEXT_RANK from the yaml file. Smaller numbers are  higher priority.
+       Streams and dwarfs are selected in rank order and targets selected for lower ranking
+       streams that are also selected in higher ranking dwarfs are only selected if their
+       target subclass outranks the target subclass they were selected as for the higher ranking
+       object.  All dwarfs outrank streams. GD1 is the highest ranking stream, Orphan the second.
+       Ranking of subtarget classes: bright_pm1, bright_pm2, bright_pm3, pm_only, faint_no_pm, faint_cmd, filler
+       We make assumptions, which avoid the brute-force implementation of these priorities:
+       - brightpm[123] never overlap in magnitude, so an object can't be, e.g., pm1 and pm2 in different stream/dwarfs
+       - pm_only can only overlap with brightpm[12]
+       - faint_no_pm and faint_cmd are never used in the same stream/dwarf
+       - faint_no_pm, faint_cmd and filler can only overlap with each other and bright_pm3 
+
+       The bright_pm1, bright_pm2 and bright_pm3 and pm_only outrank faint_cmd, faint_no_pm and filler. 
+       The only overlaps possible and their relative rankings are: 
+       1) bright_pm3 outranks faint_no_pm, faint_cmd and filler. bright_pm1 and bright_pm2 are too bright
+          to overlap with either of the faint selections. 
+       2) faint_no_pm and faint_cmd outrank filler.
+       3) pm_only can only overlap bright_pm1 and bright_pm2 (and it is only used for dwarfs)
+       Note that the mangnitude ranges of bright_pm[123] are always the same so that, e.g., 
+       bright_pm1 and  bright_pm2 can neve be set for the same object.  
+       See <insert pointer to Nathan's document>.
+
+    Parameters
+    ----------
+    targmwext_name : :class:`~numpy.ndarray` or `float`  CMR FIX THIS IS A STRING
+        Name of the stream or dwarf galaxy being selected
+    mws_target : :class:`~numpy.ndarray` or `float`
+        Numpy 1d array of target bits as set by PREVIOUS selections
+    ibright_pm1 : :class:`array_like` or `boolean`
+        Numpy 1d array, ``True`` for objects that pass the bright_pm1 selection criteria 
+    ibright_pm2 : :class:`array_like` or `boolean`
+        Numpy 1d array, ``True`` for objects that pass the bright_pm2 selection criteria 
+    ibright_pm3 : :class:`array_like` or `boolean`
+        Numpy 1d array, ``True`` for objects that pass the bright_pm3 selection criteria 
+    ipm_only : :class:`array_like` or `boolean`
+        Numpy 1d array, ``True`` for objects that pass pm_only. Use for dwarfs but not streams
+    ifaint_no_pm : :class:`array_like` or `boolean`
+        Numpy 1d array, ``True`` for objects that pass faint_no_pm. Use for dwarfs but not streams
+    ifaint_cmd : :class:`array_like` or `boolean`
+        Numpy 1d array, ``True`` for objects that pass faint_cmd. Use for streams but not dwarfs
+    ifiller : :class:`array_like` or `boolean`
+        Numpy 1d array, ``True`` for objects that pass the filler selection criteria  
+
+    Returns
+    -------
+   :class:`array_like`
+        ``True`` if the object is a "BRIGHT_PM1" target and has priorty for duplicates
+    :class:`array_like`
+        ``True`` if the object is a "BRIGHT_PM2" target and has priorty for duplicates
+    :class:`array_like`
+        ``True`` if the object is a "BRIGHT_PM3" target and has priorty for duplicates
+    :class:`array_like`
+        ``True`` if the object is a "PM_ONLY" target and has priorty for duplicates
+    :class:`array_like`
+        ``True`` if the object is a "FAINT_NO_PM" target and has priorty for duplicates
+    :class:`array_like`
+        ``True`` if the object is a "FAINT_CMD" target and has priorty for duplicates
+    :class:`array_like`
+        ``True`` if the object is a "FILLER" target and has priorty for duplicates
+    Notes
+    -----
+    - See ../data/targetmask.yaml for the definition of the target bits and targmwext_priority
+    """
+
+    from desitarget.targetmask import mws_mask
+
+    # target bits set selecting the current stream or dwarf 
+    any_set_here = ibright_pm1 | ibright_pm2 | ibright_pm3 | ipm_only | ifaint_no_pm | ifaint_cmd | ifiller
+    # target bits set when selecting streams and dwarfs that rank higher than this one
+    any_set_prev = mws_target & mws_mask['MWS_EXT']
+    # look for objects selected in this stream that were also previously targeted
+    # for a higher ranking stream or dwarf
+    iialldups = any_set_here & any_set_prev
+    ndups = np.sum(iialldups != 0)
+    if ndups > 0:
+        log.info(f"Found {ndups} duplicates")
+        #idxall = np.arange(len(mws_targ))
+        #dupidx = idxall[tuple(iialldups)]
+        # get the yaml file info for all streams and dwarfs so we can get TARGMWEXT_RANK
+        fn = resources.files('desitarget').joinpath('data/streams.yaml')
+        with open(fn) as f:
+            streaminfo = yaml.safe_load(f)
+            all_stream_names = list(streaminfo.keys())
+        fn2 = resources.files('desitarget').joinpath('data/dwarfs.yaml')
+        with open(fn2) as f:
+            dwarfinfo = yaml.safe_load(f)
+            all_dwarf_names = list(dwarfinfo.keys())
+        # get the yaml file info for our current stream or dwarf
+        if targmwext_name in all_stream_names:
+            thisinfo = streaminfo[targmwext_name]
+        elif targmwext_name in all_dwarf_names:
+            thisinfo = dwarfinfo[targmwext_name]
+        thisrank = thisinfo['TARGMWEXT_RANK']
+        # CMR go through all higher ranking streams and dwarfs and check for dups,
+        # find and resolve by subtarget_class.
+        # We should not have duplicates between dwarfs, but it is easy and useful to check
+        allchecknames = np.concatenate((all_dwarf_names, all_stream_names))
+        for icheckname in allchecknames:
+            if icheckname in all_dwarf_names:
+                iinfo = dwarfinfo[icheckname]
+            elif icheckname in all_stream_names:
+                iinfo = streaminfo[icheckname]
+            icheckrank = iinfo['TARGMWEXT_RANK']
+            icheckbit_name = f"MWS_{icheckname}"
+            # now figure out which bright_pm bits are set
+            target_bit_set = targmwextpar["TARGET_BIT_SET"]
+            if target_bit_set == "STREAM":
+                brightpm1bit = mws_mask.MWS_STREAM_PM1
+                brightpm2bit = mws_mask.MWS_STREAM_PM2
+                brightpm3bit = mws_mask.MWS_STREAM_PM3
+            elif target_bit_set == "DSPH":
+                brightpm1bit = mws_mask.MWS_DSPH_PM1
+                brightpm2bit = mws_mask.MWS_DSPH_PM2
+                brightpm3bit = mws_mask.MWS_DSPH_PM3
+            elif target_bit_set == "UFD":
+                brightpm1bit = mws_mask.MWS_UFD_PM1
+                brightpm2bit = mws_mask.MWS_UFD_PM2
+                brightpm3bit = mws_mask.MWS_UFD_PM3
+                
+            if icheckrank < thisrank:  # we should not have new dups with a lower ranked object
+                continue               # as lower-ranked objects get selected later
+            # if input stream or dwarf is lower ranking than the object we are checking
+            # we need to remove target subclasses that are lower ranked
+            iicheckdups = iialldups & mws_mask[bit_name]  # dups for the specifc stream or dwarf we are checking
+            if np.sum(iicheckdups) > 0:
+                log.info(f"Duplicate targets found in {icheckname} when selecting targets for {targmwext_name}.")
+                # Now resolve. See assumption list in the comments about possible duplicate target combinations
+                # bright_pm1 and bright_pm2 for the higher ranking object outranks pm_only for the lower rank obj
+                # so can't set pm_only for this object
+                iduppmonlybrightpm1 = iicheckdups & brightpm1bit & ipm_only 
+                if np.sum(iduppmonlybrightpm1) > 0:
+                    ipmonly[iduppmonlybrightpm1 != 0] = 0
+                iduppmonlybrightpm2 = iicheckdups & ibrightpm2bit & ipm_only
+                if np.sum(iduppmonlybrightpm2) > 0:
+                    ipmonly[iduppmonlybrightpm2 != 0] = 0
+                # our lower ranked object can't set faint_cmd or faint_no_pm or filler 
+                # if the higher ranked one has set bright_pm3
+                idupbrightpm3faintcmd = iicheckdups & brightpm3bit & ifaint_cmd  
+                if np.sum(idupbrightpm3faintcmd) > 0:
+                    ifaint_cmd[idupbrightpm3faintcmd != 0] = 0
+                idupbrightpm3faintnopm = iicheckdups & brightpm3bit & ifaint_no_pm  
+                if np.sum(idupbrightpm3faintnopm) > 0:
+                    ifaint_no_pm[idupbrightpm3faintnopm != 0] = 0
+                idupbrightpm3filler = iicheckdups & brigthpm3bit & ifiller  
+                if np.sum(idupbrightpm3filler) > 0:
+                    ifiller[idupbrightpm3filler != 0] = 0
+                # our lower ranked objectd cannot set filler if the higher ranked one set faint_no_pm or faint_cmd
+                idupfaintnopmfiller = iicheckdups & mws_mask['MWS_FAINT_NO_PM'] & ifiller
+                if np.sum(idupfaintnopmfiller) > 0:
+                    ifiller[idupfaintnopmfiller !=0] = 0
+                idupfaintcmdfiller = iicheckdups & mws_mask['FAINT_NO_PM'] & ifiller
+                if np.sum(idupfaintcmdfiller) > 0:
+                    ifiller[idupfaintcmdfiller !=0] = 0
+                    
+    return ibright_pm1, ibright_pm2, ibright_pm3, ipm_only, ifaint_no_pm, ifaint_cmd, ifiller

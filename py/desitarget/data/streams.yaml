@@ -31,9 +31,11 @@ GD1:
     BRIGHTPM1_LIMIT: 17.5
     BRIGHTPM2_LIMIT: 19
     BRIGHTPM3_LIMIT: 20.5
-    FAINT_NO_PM_LIMIT: 19
+    FAINT_CMD_LIMIT: 19
     FAINT_LIMIT: 21
     TARGET_BIT_SET: STREAM
+    # CMR ranking order for resolving conflicts if an obj is targeted as more than one dwarf or stream
+    TARGMWEXT_RANK: 2
     # ADM g-band isochrone.
     ISO_G: [
         14.1916, 13.8004, 13.4031, 12.9995, 12.6317, 12.3286, 12.0868, 11.8791,
@@ -160,9 +162,11 @@ ORPHAN:
     BRIGHTPM1_LIMIT: 17.5
     BRIGHTPM2_LIMIT: 19
     BRIGHTPM3_LIMIT: 20.5
-    FAINT_NO_PM_LIMIT: 19
+    FAINT_CMD_LIMIT: 19
     FAINT_LIMIT: 21
     TARGET_BIT_SET: STREAM
+    # CMR ranking order for resolving conflicts if an obj is targeted as more than one dwarf or stream
+    TARGMWEXT_RANK: 3
     ISO_G: [
         13.7826, 13.3581, 12.9341, 12.5427, 12.2215, 12.0005, 11.8383,
         11.6772, 11.2015, 10.8889, 10.8045, 10.5147, 10.3778, 10.2445,

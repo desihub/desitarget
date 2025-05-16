@@ -10,8 +10,10 @@ from time import time
 
 import healpy
 import datetime
+import yaml
 import os
 import scipy.interpolate
+from importlib import resources
 import numpy as np
 import astropy.table as atpy
 import astropy.coordinates as acoo
@@ -20,8 +22,9 @@ import astropy.units as auni
 from desitarget.cuts import _psflike
 from desitarget.streams.utilities import sphere_rotate, correct_pm, rotate_pm, \
     betw, pm12_sel_func, plx_sel_func, get_CMD_interpolator, stream_distance,  \
-    get_targthing_parameters, simple_plx_sel, oldpop_bhb_sel, pm12_distdep_sel_func, \
-    spatial_sel_func, dwarf_plx_sel_func, pm0_sel_func, cmd_sel_func
+    get_targmwext_parameters, simple_plx_sel, oldpop_bhb_sel, pm12_distdep_sel_func, \
+    spatial_sel_func, dwarf_plx_sel_func, pm0_sel_func, cmd_sel_func, targmwext_resolve,\
+    sort_targmwext_by_rank
 from desitarget.streams.io import read_data_per_stream
 from desitarget.targets import resolve
 from desitarget.streams.targets import finalize
@@ -66,7 +69,7 @@ def is_in_GD1(objs, streamname):
     log.info(f"Starting selection for {stream_name}...t={time()-start:.1f}s")
 
     # ADM look up the defining parameters of the stream.
-    stream = get_targthing_parameters(stream_name)
+    stream = get_targmwext_parameters(stream_name)
     # ADM the parameters that define the coordinates of the stream.
     rapol, decpol, ra_ref = stream["RAPOL"], stream["DECPOL"], stream["RA_REF"]
     # ADM the parameters that define the extent of the stream.
@@ -175,8 +178,8 @@ def is_in_GD1(objs, streamname):
 
     # ADM overall faint selection.
     # CMR modified to use mag limts from yaml file
-    faint_sel = ~np.isfinite(isobjs['PMRA'])  # CWR no PM information.
-    faint_sel &= betw(z, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
+    # faint_sel = ~np.isfinite(isobjs['PMRA'])  # obj with PM info removed with ~bright_pmX
+    faint_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT'])
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
     #faint_sel &= stellar_locus_sel
@@ -198,21 +201,21 @@ def is_in_GD1(objs, streamname):
     bright_pm1 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm1_magsel
     bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
-    faint_no_pm = faint_sel & field_sel
-    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_no_pm
+    faint_cmd = faint_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 
+    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_cmd
 
     # CMR moved here to write numbers of final selections, but less useful for timing.
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm1 selection: {np.sum(bright_pm1)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm2 selection: {np.sum(bright_pm2)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm3 selection: {np.sum(bright_pm3)}...t={time()-start:.1f}s")
-    log.info(f"Objects meeting faint_no_pm selection: {np.sum(faint_no_pm)}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting faint_cmd selection: {np.sum(faint_cmd)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting filler selection: {np.sum(filler)}...t={time()-start:.1f}s")
 
     log.info(f"Finished selection for {stream_name}...t={time()-start:.1f}s")
 
     # ADM sanity check that selections do not overlap.
-    check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_no_pm.astype(int) + filler.astype(int)
+    check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_cmd.astype(int) + filler.astype(int)
     # ADM guard against check being an empty list if there are no targets.
     if len(check) > 0:
         if np.max(check) > 1:
@@ -226,18 +229,21 @@ def is_in_GD1(objs, streamname):
     f_bright_pm1 = np.zeros(nobjs, dtype=bool)
     f_bright_pm2 = np.zeros(nobjs, dtype=bool)
     f_bright_pm3 = np.zeros(nobjs, dtype=bool)
-    f_faint_no_pm = np.zeros(nobjs, dtype=bool)
+    f_faint_cmd = np.zeros(nobjs, dtype=bool)
     f_filler = np.zeros(nobjs, dtype=bool)
-    # return an arry for pm_only for consistency with dSph and UFD targeting
+    # return arrys for pm_only and faint_no_pm for consistency with dSph and UFD targeting
     f_pm_only = np.zeros(nobjs, dtype=bool)
+    f_faint_no_pm = np.zeros(nobjs, dtype=bool)
     
     f_bright_pm1[in_stream] = bright_pm1
     f_bright_pm2[in_stream] = bright_pm2
     f_bright_pm3[in_stream] = bright_pm3
-    f_faint_no_pm[in_stream] = faint_no_pm
+    f_faint_cmd[in_stream] = faint_cmd
     f_filler[in_stream] = filler
 
-    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_filler
+    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_faint_cmd, f_filler
+
+    
 
 # based on Sergey's is_in_GD1
 def is_in_ORPHAN(objs, streamname):
@@ -269,7 +275,7 @@ def is_in_ORPHAN(objs, streamname):
     log.info(f"Starting selection for {stream_name}...t={time()-start:.1f}s")
     
     # CMR get the defining parameters of the stream
-    stream = get_targthing_parameters(stream_name)
+    stream = get_targmwext_parameters(stream_name)
     # parameters that define the coordinates of the stream.
     rapol, decpol, ra_ref = stream["RAPOL"], stream["DECPOL"], stream["RA_REF"]
     # parameters that define the extent of the stream, angular distance from the poles of the stream coord system
@@ -378,8 +384,8 @@ def is_in_ORPHAN(objs, streamname):
     cmd_win = 0.1 + 10**(-2 + (r - 20) / 2.5)
 
     # CMR overall faint selection, using limits from yaml file
-    faint_sel = ~np.isfinite(isobjs['PMRA'])
-    faint_sel &= betw(z, stream['FAINT_NO_PM_LIMIT'], stream['FAINT_LIMIT'])
+    # faint_sel = ~np.isfinite(isobjs['PMRA'])
+    faint_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT']) # remove obj with PM with ~bright_pmX
     faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
     faint_sel &= startyp
     #faint_sel &= stellar_locus_sel
@@ -404,20 +410,20 @@ def is_in_ORPHAN(objs, streamname):
     bright_pm1 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm1_magsel
     bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
-    faint_no_pm = faint_sel & field_sel
-    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_no_pm
+    faint_cmd = faint_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3
+    filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_cmd
 
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm1 selection: {np.sum(bright_pm1)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm2 selection: {np.sum(bright_pm2)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting bright pm3 selection: {np.sum(bright_pm3)}...t={time()-start:.1f}s")
-    log.info(f"Objects meeting faint_no_pm selection: {np.sum(faint_no_pm)}...t={time()-start:.1f}s")
+    log.info(f"Objects meeting faint_cmd selection: {np.sum(faint_cmd)}...t={time()-start:.1f}s")
     log.info(f"Objects meeting filler selection: {np.sum(filler)}...t={time()-start:.1f}s")
 
     log.info(f"Finished selection for {stream_name}...t={time()-start:.1f}s")
     
     # ADM sanity check that selections do not overlap.
-    check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_no_pm.astype(int) + filler.astype(int)
+    check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_cmd.astype(int) + filler.astype(int)
 
     # ADM guard against check being an empty list if there are no targets.
     if len(check) > 0:
@@ -432,18 +438,19 @@ def is_in_ORPHAN(objs, streamname):
     f_bright_pm1 = np.zeros(nobjs, dtype=bool)
     f_bright_pm2 = np.zeros(nobjs, dtype=bool)
     f_bright_pm3 = np.zeros(nobjs, dtype=bool)
-    f_faint_no_pm = np.zeros(nobjs, dtype=bool)
+    f_faint_cmd = np.zeros(nobjs, dtype=bool)
     f_filler = np.zeros(nobjs, dtype=bool)
-    # return an array for pm_only for consistency with dwarf and ufd targeting
+    # return arrays for pm_only and faint_no_pm for consistency with dwarf and ufd targeting
     f_pm_only = np.zeros(nobjs,dtype=bool)
+    f_faint_no_pm = np.zeros(nobjs,dtype=bool)
     
     f_bright_pm1[in_stream] = bright_pm1
     f_bright_pm2[in_stream] = bright_pm2
     f_bright_pm3[in_stream] = bright_pm3
-    f_faint_no_pm[in_stream] = faint_no_pm
+    f_faint_cmd[in_stream] = faint_cmd
     f_filler[in_stream] = filler
 
-    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_filler
+    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_faint_cmd, f_filler
 
 
 def is_in_dwarf(objs, dwarf_name):
@@ -485,7 +492,7 @@ def is_in_dwarf(objs, dwarf_name):
     log.info(f"Starting selection for {dwarf_name}...t={time()-start:.1f}s")
 
     # NRS look up the defining parameters of the dwarf.
-    dwarf = get_targthing_parameters(dwarf_name)
+    dwarf = get_targmwext_parameters(dwarf_name)
     # NRS galaxy coordinates in degrees.
     ra0, dec0 = dwarf["RA"], dwarf["DEC"]
     # NRS galaxy proper motions in mas/yr.
@@ -581,9 +588,10 @@ def is_in_dwarf(objs, dwarf_name):
     # ADM sanity check that selections do not overlap.
     check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + pm_only.astype(int) \
         + faint_no_pm.astype(int) + filler.astype(int)
-    if np.max(check) > 1:
-        msg = "Selections should be unique but they overlap!"
-        log.error(msg)
+    if len(check) > 0:
+        if np.max(check) > 1:
+            msg = "Selections should be unique but they overlap!"
+            log.error(msg)
         
     # ADM we sub-selected objects to just those in the stream, so we need
     # ADM to expand back to all of the passed objects. Objects that are
@@ -595,6 +603,8 @@ def is_in_dwarf(objs, dwarf_name):
     f_faint_no_pm = np.zeros(nobjs, dtype=bool)
     f_filler = np.zeros(nobjs, dtype=bool)
     f_pm_only = np.zeros(nobjs,dtype=bool)
+    # return faint_cmd for consistency with streams
+    f_faint_cmd = np.zeros(nobjs,dtype=bool)
     
     f_bright_pm1[in_dwarf] = bright_pm1
     f_bright_pm2[in_dwarf] = bright_pm2
@@ -603,10 +613,10 @@ def is_in_dwarf(objs, dwarf_name):
     f_faint_no_pm[in_dwarf] = faint_no_pm
     f_filler[in_dwarf] = filler
 
-    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_filler
+    return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_no_pm, f_faint_cmd, f_filler
 
 
-def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
+def set_target_bits(objs, targmwext_names=["GD1", "BOOTES_1"]):
     """Select stream and dwarf targets, returning target mask arrays.
 
     Parameters
@@ -615,7 +625,7 @@ def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
         numpy structured array with UPPERCASE columns needed for
         stream target selection. See, e.g.,
         :func:`~desitarget.stream.cuts.is_in_GD1` for column names.
-    targthing_names : :class:`list`
+    targmwext_names : :class:`list`
         A list of stream names to process. Default is available streams.
 
     Returns
@@ -630,7 +640,15 @@ def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
     """
     from desitarget.targetmask import desi_mask, mws_mask
 
-    all_dwarf_names=['BOOTES_1', 'CANES_VENATICI_1', 'DRACO_1', 'SEXTANS_1', 'URSA_MINOR_1']
+    # CMR get a list of all the streams and dwarfs we know about
+    fn = resources.files('desitarget').joinpath('data/streams.yaml')
+    with open(fn) as f:
+        streaminfo = yaml.safe_load(f)
+    all_stream_names = list(streaminfo.keys())
+    fn2 = resources.files('desitarget').joinpath('data/dwarfs.yaml')
+    with open(fn2) as f:
+        dwarfinfo = yaml.safe_load(f)
+    all_dwarf_names = list(dwarfinfo.keys())
     # ADM set up a zerod mws_target array to |= with later.
     # CMR changed to mws
     mws_target = np.zeros_like(objs["RA"], dtype='int64')
@@ -640,30 +658,35 @@ def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
     # ADM to recover the is_in() functions.
 
     # CMR updated for extension
-    for targthing in targthing_names:
-        if targthing in all_dwarf_names:
-            bit_name = f"MWS_{targthing}"
+    for targmwext in targmwext_names:
+        if targmwext in all_dwarf_names:
+            bit_name = f"MWS_{targmwext}"
             func_name = "is_in_dwarf"
             func_call = globals()[func_name]
-        else:           # CMR probaby want to check against a stream list?
-            bit_name = f"MWS_{targthing}"
-            func_name = f"is_in_{targthing}"
+        elif targmwext in all_stream_names:
+            bit_name = f"MWS_{targmwext}"
+            func_name = f"is_in_{targmwext}"
             func_call = globals()[func_name]
-            
-        bright_pm1, bright_pm2, bright_pm3, pm_only, faint_no_pm, filler = func_call(
-            objs, targthing)
-            
+
+        ibright_pm1, ibright_pm2, ibright_pm3, ipm_only, ifaint_no_pm, ifaint_cmd, ifiller = func_call(
+            objs, targmwext)
+
+        bright_pm1, bright_pm2, bright_pm3, pm_only, faint_no_pm, faint_cmd, filler = targmwext_resolve(
+            targmwext, mws_target, ibright_pm1, ibright_pm2, ibright_pm3, ipm_only, ifaint_no_pm, 
+            ifaint_cmd, ifiller)
+
         # ADM/CMR set mws desi extension bit
-        any_set = bright_pm1 | bright_pm2 | bright_pm3 | pm_only | faint_no_pm | filler
+        any_set = bright_pm1 | bright_pm2 | bright_pm3 | pm_only | faint_no_pm | faint_cmd | filler
         mws_target |= any_set * mws_mask.MWS_EXT
         # CMR set stream name bit
         mws_target |= any_set * mws_mask[bit_name]
         # CMR now set target subclass bit masks
         mws_target |= faint_no_pm * mws_mask.MWS_FAINT_NO_PM
+        mws_target |= faint_cmd * mws_mask.MWS_FAINT_CMD
         mws_target |= filler * mws_mask.MWS_FILLER
         mws_target |= pm_only * mws_mask.MWS_PM_ONLY
-        targthingpar = get_targthing_parameters(targthing)
-        target_bit_set = targthingpar["TARGET_BIT_SET"]
+        targmwextpar = get_targmwext_parameters(targmwext)
+        target_bit_set = targmwextpar["TARGET_BIT_SET"]
         if target_bit_set == "STREAM":
             mws_target |= bright_pm1 * mws_mask.MWS_STREAM_PM1
             mws_target |= bright_pm2 * mws_mask.MWS_STREAM_PM2
@@ -688,7 +711,7 @@ def set_target_bits(objs, targthing_names=["GD1", "BOOTES_1"]):
     return desi_target, bgs_target, mws_target, scnd_target
 
 
-def select_targets(swdir, targnames=["GD1", "BOOTES_1"], readpertarg=False,
+def select_targets(swdir, targnames_in=["GD1", "BOOTES_1"], readpertarg=False,
                    addnors=True, readcache=True, numproc=1, mindec=-20,
                    nside=None, pixint=None):
     """Process files from an input directory to select targets.
@@ -699,9 +722,9 @@ def select_targets(swdir, targnames=["GD1", "BOOTES_1"], readpertarg=False,
         Root directory of Legacy Surveys sweep files for a given data
         release for ONE of EITHER north or south, e.g.
         "/global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/sweep/9.0".
-    targnames : :class:`list`
+    targnames_in : :class:`list`
         A list of MWS extension target classes to process. Defaults to
-        all MWS extension target classes.
+        all MWS extension target classes. This will get sorted by rank.
     readpertarg : :class:`bool`, optional, defaults to ``False``
         When set, read each stream's data individually instead of looping
         through all possible sweeps files. This is likely quickest and
@@ -738,15 +761,29 @@ def select_targets(swdir, targnames=["GD1", "BOOTES_1"], readpertarg=False,
         ``BGS_TARGET``, ``MWS_TARGET`` (i.e. target selection bitmasks).
     """
 
-    # all_dwarf_names needs to live in one place only. Right now it is also in select_targets
-    all_dwarf_names=['BOOTES_1', 'CANES_VENATICI_1', 'DRACO_1', 'SEXTANS_1', 'URSA_MINOR_1'] 
+    # CMR rank order the streams and dwarfs for which we are selecting
+    # targets, using TARGMWEXT_RANK in the yaml files. This is for
+    # disambiguating possible duplicate targets if we have streams
+    # or dwarfs that overlap on the sky
+    targnames = sort_targmwext_by_rank(targnames_in)
+    
+    # CMR get a list of all the streams and dwarfs we know about
+    fn = resources.files('desitarget').joinpath('data/streams.yaml')
+    with open(fn) as f:
+        streaminfo = yaml.safe_load(f)
+    all_stream_names = list(streaminfo.keys())
+    fn2 = resources.files('desitarget').joinpath('data/dwarfs.yaml')
+    with open(fn2) as f:
+        dwarfinfo = yaml.safe_load(f)
+    all_dwarf_names = list(dwarfinfo.keys())
+    
     if readpertarg:
         # ADM loop over streams and read in the data per stream or dwarf
         allobjs = []
         for targ in targnames:
             if targ in all_dwarf_names:
                 # NRS look up the defining parameters of the dwarf.
-                dwarf = get_targthing_parameters(targ)
+                dwarf = get_targmwext_parameters(targ)
                 # NRS galaxy coordinates in degrees.
                 ra0, dec0 = dwarf["RA"], dwarf["DEC"]
                 # NRS spatial extent in degrees for initial data read.
@@ -757,9 +794,9 @@ def select_targets(swdir, targnames=["GD1", "BOOTES_1"], readpertarg=False,
                     swdir, ra0, dec0, mind, maxd, targ, numproc=numproc,
                     mindec=mindec, addnors=addnors, readcache=readcache, readall=False
                 )
-            else:      # CMR check against a list of streams?
+            elif targ in all_stream_names:  
                 # ADM read in the data.
-                strm = get_targthing_parameters(targ)
+                strm = get_targmwext_parameters(targ)
                 # ADM the parameters that define the coordinates of the stream.
                 rapol, decpol, ra_ref = strm["RAPOL"], strm["DECPOL"], strm["RA_REF"]
                 # ADM the parameters that define the extent of the stream.
@@ -781,7 +818,7 @@ def select_targets(swdir, targnames=["GD1", "BOOTES_1"], readpertarg=False,
 
     # ADM process the targets.
     desi_target, bgs_target, mws_target, scnd_target = set_target_bits(
-        objects, targthing_names=targnames)
+        objects, targmwext_names=targnames)
 
     # ADM finalize the targets.
     # ADM anything with DESI_TARGET !=0 is truly a target.

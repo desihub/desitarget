@@ -133,7 +133,8 @@ mws_mask:
     - [MWS_DRACO_1,         40, "DESI Extension Draco dSph target",                           {obsconditions: BRIGHT}]
     - [MWS_SEXTANS_1,       41, "DESI Extension Sextans  dSph target",                        {obsconditions: BRIGHT}]
     - [MWS_URSA_MINOR_1,    42, "DESI Extension Ursa Minor  dSph target",                     {obsconditions: BRIGHT}]
-
+    - [MWS_FAINT_CMD,       43, "DESI Extension cmd selection only, no Gaia info",            {obsconditions: BRIGHT}]
+    
     # ADM back-up targets for poor conditions and as filler.
     - [BACKUP_DIB,          57, "Diffuse interstellar bands (project 398)",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_GIANT_LOP,    58, "Giant candidate backup targets",            {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -392,6 +393,7 @@ priorities:
         MWS_UFD_PM3:                  {UNOBS: 1660, MORE_NOB1: 1663, MORE_NOB2: 1662, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_PM_ONLY:                  {UNOBS: 1650, MORE_NOB1: 1649, MORE_NOB2: 1649, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_FAINT_NO_PM:              {UNOBS: 1640, MORE_NOB1: 1641, MORE_NOB2: 1641, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_FAINT_CMD:                {UNOBS: 1640, MORE_NOB1: 1641, MORE_NOB2: 1641, MORE_NOB3: 1639, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_FILLER:                   {UNOBS: 1630, MORE_NOB1: 1631, MORE_NOB2: 1631, MORE_NOB3: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_GD1:                      {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_ORPHAN:                   {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -555,6 +557,7 @@ numobs:
         MWS_UFD_PM3:                 20
         MWS_PM_ONLY:                 5
         MWS_FAINT_NO_PM:             10
+        MWS_FAINT_CMD:               10
         MWS_FILLER:                  10
         MWS_GD1:                     -1
         MWS_ORPHAN:                  -1

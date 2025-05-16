@@ -24,7 +24,7 @@ ap.add_argument("dest",
                 help=("Output target selection directory (the file name is built"
                       " on-the-fly from other inputs).")
                 )
-ap.add_argument('-t','--targnames', default="GD1",
+ap.add_argument('-t','--targnames_in', default="GD1",
                 help=("Comma-separated names of extension target classes to run "
                       " (e.g. x,y,z). Default is to just run GD1.")
                 )
@@ -74,16 +74,16 @@ for k in nsdict:
 hdr["CMDLINE"] = ' '.join(sys.argv)
 
 # ADM change input comma-separated string of target class names to list.
-tn = ns.targnames
+tn = ns.targnames_in
 if tn is not None:
-    targnames = tn.split(',')
+    targnames_in = tn.split(',')
 
 # ADM flip the sense of some inputs.
 addnors = not(ns.donotaddnors)
 readcache = not(ns.donotreadcache)
 
 targets = cuts.select_targets(
-    ns.sweepdir, targnames=targnames, readpertarg=ns.readpertarg,
+    ns.sweepdir, targnames_in=targnames_in, readpertarg=ns.readpertarg,
     addnors=addnors, readcache=readcache, numproc=ns.numproc, mindec=ns.mindec,
     nside=ns.nside, pixint=ns.pixint
 )
