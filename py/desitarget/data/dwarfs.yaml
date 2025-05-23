@@ -49,8 +49,8 @@ BOOTES_1:
     BRIGHTPM3_LIMIT: 20.50
     # NRS faint z-band magnitude limit for PM_ONLY targets
     PM_ONLY_LIMIT: 19.00
-    # NRS bright z-band magnitude limit for FAINT_NO_PM targets
-    FAINT_NO_PM_LIMIT: 19.00
+    # NRS bright z-band magnitude limit for FAINT_CMD targets
+    FAINT_CMD_LIMIT: 19.00
     # NRS bright z-band magnitude limit for FILLER targets
     FILLER_LIMIT: 19.00
     # NRS faint z-band magnitude limit for all targets
@@ -109,8 +109,8 @@ CANES_VENATICI_1:
     BRIGHTPM3_LIMIT: 20.50
     # NRS faint z-band magnitude limit for PM_ONLY targets
     PM_ONLY_LIMIT: 19.00
-    # NRS bright z-band magnitude limit for FAINT_NO_PM targets
-    FAINT_NO_PM_LIMIT: 19.00
+    # NRS bright z-band magnitude limit for FAINT_CMD targets
+    FAINT_CMD_LIMIT: 19.00
     # NRS bright z-band magnitude limit for FILLER targets
     FILLER_LIMIT: 19.00
     # NRS faint z-band magnitude limit for all targets
@@ -169,8 +169,8 @@ DRACO_1:
     BRIGHTPM3_LIMIT: 20.50
     # NRS faint z-band magnitude limit for PM_ONLY targets
     PM_ONLY_LIMIT: 19.00
-    # NRS bright z-band magnitude limit for FAINT_NO_PM targets
-    FAINT_NO_PM_LIMIT: 19.00
+    # NRS bright z-band magnitude limit for FAINT_CMD targets
+    FAINT_CMD_LIMIT: 19.00
     # NRS bright z-band magnitude limit for FILLER targets
     FILLER_LIMIT: 19.00
     # NRS faint z-band magnitude limit for all targets
@@ -229,8 +229,8 @@ SEXTANS_1:
     BRIGHTPM3_LIMIT: 20.50
     # NRS faint z-band magnitude limit for PM_ONLY targets
     PM_ONLY_LIMIT: 19.00
-    # NRS bright z-band magnitude limit for FAINT_NO_PM targets
-    FAINT_NO_PM_LIMIT: 19.00
+    # NRS bright z-band magnitude limit for FAINT_CMD targets
+    FAINT_CMD_LIMIT: 19.00
     # NRS bright z-band magnitude limit for FILLER targets
     FILLER_LIMIT: 19.00
     # NRS faint z-band magnitude limit for all targets
@@ -289,8 +289,8 @@ URSA_MINOR_1:
     BRIGHTPM3_LIMIT: 20.50
     # NRS faint z-band magnitude limit for PM_ONLY targets
     PM_ONLY_LIMIT: 19.00
-    # NRS bright z-band magnitude limit for FAINT_NO_PM targets
-    FAINT_NO_PM_LIMIT: 19.00
+    # NRS bright z-band magnitude limit for FAINT_CMD targets
+    FAINT_CMD_LIMIT: 19.00
     # NRS bright z-band magnitude limit for FILLER targets
     FILLER_LIMIT: 19.00
     # NRS faint z-band magnitude limit for all targets
