@@ -352,7 +352,11 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
     :class:`tuple`
         A tuple of the the new (pmra, pmdec) values in DEGREES. If `ra`,
         `dec`, etc. are passed as arrays this will be a tuple of arrays.
+        If the input arrays are length zero, the input pmra, pmdec are returned unaltered
     """
+    if len(ra) == 0:
+        return pmra, pmdec
+    
     C = acoo.ICRS(ra=ra * auni.deg,
                   dec=dec * auni.deg,
                   radial_velocity=0 * kms,
@@ -972,12 +976,16 @@ def sort_targmwext_by_rank(in_targmwextlist):
 
     in_ranklist = []  # CMR in_prilist is 1-to-1 matched to names in in_targmwextlist 
     for targmwext in in_targmwextlist:
+        # guard against stream being passed as lower-case.
+        targmwext = targmwext.upper()
         if targmwext in all_stream_names:
             sinfo = streaminfo[targmwext]            
             rankval = sinfo['TARGMWEXT_RANK']
         elif targmwext in all_dwarf_names:
             dinfo = dwarfinfo[targmwext]
             rankval = dinfo['TARGMWEXT_RANK']
+        else:
+            log.info(f"{targmwext} not in the list of known streams or dwarfs")
         in_ranklist.append(rankval)
 
     in_ranklist = np.array(in_ranklist)
@@ -987,6 +995,7 @@ def sort_targmwext_by_rank(in_targmwextlist):
     out_targmwextlist = []
     for i in range(len(sortrankidx)):
         nextname = in_targmwextlist[sortrankidx[i]]
+        nextname = nextname.upper()
         out_targmwextlist.append(nextname)
     
     return out_targmwextlist

@@ -189,11 +189,23 @@ def is_in_GD1(objs, streamname):
     filler_sel = common_filler_sel & betw(g - r, -.3, 1.2)
     filler_red_sel = common_filler_sel & betw(g - r, 1.2, 2.2)
 
-    bright_pm = bright_cmd_sel & gaia_astrom_sel & field_sel
     bright_pm1 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm1_magsel
     bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
-    faint_cmd = faint_cmag_sel & startyp & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 
+    bright_pm = bright_pm1 | bright_pm2 | bright_pm3
+
+    # adapted to streams from NRS FAINT_CMD selection
+    # NRS passes CMD selection
+    # NRS does NOT have Gaia astrometry OR is fainter than BRIGHTPM3_LIMIT
+    # NRS passes phi2 stream selection
+    # NRS passes Magnitude selection
+    # NRS NOT in BRIGHT_PM
+    faint_cmd = (
+        faint_cmag_sel & field_sel & startyp
+        & (~np.isfinite(isobjs["PMRA"]) | (z > stream['BRIGHTPM3_LIMIT']))
+        & ~bright_pm
+    )
+
     filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_cmd
 
     # CMR moved here to write numbers of final selections, but less useful for timing.
@@ -372,9 +384,8 @@ def is_in_ORPHAN(objs, streamname):
     cmd_win = 0.1 + 10**(-2 + (r - 20) / 2.5)
 
     # CMR overall faint selection, using limits from yaml file
-    faint_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT']) # remove obj with PM with ~bright_pmX
-    faint_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
-    faint_sel &= startyp
+    faint_cmag_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT']) # remove obj with PM with ~bright_pmX
+    faint_cmag_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
 
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)
@@ -386,11 +397,23 @@ def is_in_ORPHAN(objs, streamname):
 
     filler_red_sel = common_filler_sel & betw(g - r, 1.2, 2.2)
 
-    bright_pm = bright_cmd_sel & gaia_astrom_sel & field_sel
     bright_pm1 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm1_magsel
     bright_pm2 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = bright_cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
-    faint_cmd = faint_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3
+    bright_pm = bright_pm1 | bright_pm2 | bright_pm3
+
+    # adapted to streams from NRS FAINT_CMD selection
+    # NRS passes CMD selection
+    # NRS does NOT have Gaia astrometry OR is fainter than BRIGHTPM3_LIMIT
+    # NRS passes phi2 stream selection
+    # NRS passes Magnitude selection
+    # NRS NOT in BRIGHT_PM
+    faint_cmd = (
+        faint_cmag_sel & field_sel & startyp
+        & (~np.isfinite(isobjs["PMRA"]) | (z > stream['BRIGHTPM3_LIMIT']))
+        & ~bright_pm
+    )
+    
     filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_cmd
 
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
@@ -805,6 +828,8 @@ def select_targets(swdir, targnames_in=["GD1", "BOOTES_1"], readpertarg=False,
                     swdir, rapol, decpol, mind, maxd, targ, numproc=numproc,
                     mindec=mindec, addnors=addnors, readcache=readcache, readall=False
                 )
+            else:
+                log.info(f"{targ} not found in list of known streams and dwarfs")
             allobjs.append(objs)
         objects = np.concatenate(allobjs)
     else:
