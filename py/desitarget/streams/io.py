@@ -415,7 +415,9 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
     :class:`int`
         The number of targets that were written to file.
     :class:`str`
-        The name of the file to which targets were written.
+        The name of the file to which targets were written. This is
+        ``None`` if zero targets were written to file (if the length of
+        `targs` is zero).
 
     Notes
     -----
@@ -429,6 +431,10 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
       (see `/data/units.yaml`).
     - Mostly wraps :func:`~desitarget.io.write_with_units`.
     """
+    # ADM return sharply if there are no targets to be written.
+    if len(targs) == 0:
+        return len(targs), None
+
     # ADM construct the output filename.
     drs = list(set(targs["RELEASE"]//1000))
     if len(drs) == 1:
