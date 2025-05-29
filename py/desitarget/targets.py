@@ -849,18 +849,18 @@ def calc_priority(targets, zcat, obscon, state=False):
                         # at NUMOBS2 and NUMOBS3 there is a priority reduction
                         # NRS All annotations of the atnumobs[123] assignments below are NRS
                         atnumobs1 = (  # (DSPH_PM1 or DSPH_PM2, 0 < NUMOBS < 3, not DONE) or (DSPH_PM3 or UFD_PM[123] or STREAM PM[123], 0 < NUMOBS < 5, not DONE)
-                            (zcat["NUMOBS"] > 0) # NUMOBS > 0
+                            (zcat["NUMOBS"] > 0)  # NUMOBS > 0
                             & ~done  # and not DONE
                             & (
-                                ( # if DSPH_PM1 or DSPH_PM2 and NUMOBS < 3 
+                                (  # if DSPH_PM1 or DSPH_PM2 and NUMOBS < 3
                                     (
                                         ((targets[mws_target] & mws_mask['MWS_DSPH_PM1']) != 0)
                                         | ((targets[mws_target] & mws_mask['MWS_DSPH_PM2']) != 0)
-                                    ) 
-                                    & (zcat["NUMOBS"] < 3) 
+                                    )
+                                    & (zcat["NUMOBS"] < 3)
                                 ) | (  # or if DSPH_PM3 or UFD_PM[123] or *STREAM PM[123]* and NUMOBS < 5
                                     (
-                                        (  # DSPH_PM3 or UFD_PM[123] 
+                                        (  # DSPH_PM3 or UFD_PM[123]
                                             ((targets[mws_target] & mws_mask['MWS_DSPH_PM3']) != 0)
                                             | ((targets[mws_target] & mws_mask['MWS_UFD_PM1']) != 0)
                                             | ((targets[mws_target] & mws_mask['MWS_UFD_PM2']) != 0)
@@ -938,7 +938,7 @@ def calc_priority(targets, zcat, obscon, state=False):
                             (zcat["NUMOBS"] > 0)  # NUMOBS > 0
                             & (zcat["NUMOBS"] < 10)  # NUMOBS < 10
                             & ~done  # and not DONE
-                            & ( # and MWS_FAINT_CMD or MWS_FILLER
+                            & (  # and MWS_FAINT_CMD or MWS_FILLER
                                 ((targets[mws_target] & mws_mask['MWS_FAINT_CMD']) != 0)
                                 | ((targets[mws_target] & mws_mask['MWS_FILLER']) != 0)
                             )

@@ -85,15 +85,15 @@ def is_in_GD1(objs, streamname):
     isobjs = objs[in_stream]
     log.info(f"Objects near stream: {len(in_stream)}...t={time()-start:.1f}s")
     del cobjs
-    
+
     # ADM rotate the position data into the coordinate system of the stream.
     fi1, fi2 = sphere_rotate(isobjs['RA'], isobjs['DEC'], rapol, decpol, ra_ref)
     log.info(f"done sphere_rotate...t={time()-start:.1f}s")
-    
+
     # ADM distance of the stream (similar to Koposov et al. 2010 paper).
     dist = stream_distance(fi1, stream_name, stream)
     log.info(f"done stream_distance...t={time()-start:.1f}s")
-    
+
     # ADM/CMR REFLEX CORRECTION to proper motion.
     xpmra, xpmdec = correct_pm(isobjs['RA'], isobjs['DEC'],
                                isobjs['PMRA'], isobjs['PMDEC'], dist)
@@ -178,7 +178,7 @@ def is_in_GD1(objs, streamname):
     # ADM overall faint selection.
     # CMR modified to use mag limts from yaml file
     faint_cmag_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT'])
-    faint_cmag_sel &= betw(np.abs(delta_cmd), 0, cmd_win)  
+    faint_cmag_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
 
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)
@@ -237,7 +237,7 @@ def is_in_GD1(objs, streamname):
     f_filler = np.zeros(nobjs, dtype=bool)
     # return arrys for pm_only and for consistency with dSph and UFD targeting
     f_pm_only = np.zeros(nobjs, dtype=bool)
-    
+
     f_bright_pm1[in_stream] = bright_pm1
     f_bright_pm2[in_stream] = bright_pm2
     f_bright_pm3[in_stream] = bright_pm3
@@ -246,9 +246,7 @@ def is_in_GD1(objs, streamname):
 
     return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_cmd, f_filler
 
-    
 
-# based on Sergey's is_in_GD1
 def is_in_ORPHAN(objs, streamname):
     """Whether a target lies within the Orphan stellar stream.
 
@@ -269,14 +267,18 @@ def is_in_ORPHAN(objs, streamname):
         ``True`` if the object is a faint "FAINT_CMD" target.
     :class:`array_like`
         ``True`` if the object is a white dwarf "FILLER" target.
+
+    Notes
+    -----
+    Based on Sergey Koposov's is_in_GD1() code.
     """
     # ADM start the clock.
     start = time()
 
     stream_name = "ORPHAN"
-    
+
     log.info(f"Starting selection for {stream_name}...t={time()-start:.1f}s")
-    
+
     # CMR get the defining parameters of the stream
     stream = get_targmwext_parameters(stream_name)
     # parameters that define the coordinates of the stream.
@@ -293,7 +295,7 @@ def is_in_ORPHAN(objs, streamname):
     in_stream = np.where(betw(sep.value, mind, maxd))[0]
     isobjs = objs[in_stream]
     log.info(f"Objects near stream: {len(in_stream)}...t={time()-start:.1f}s")
-    
+
     # ADM rotate the data into the coordinate system of the stream.
     fi1, fi2 = sphere_rotate(isobjs['RA'], isobjs['DEC'], rapol, decpol, ra_ref)
 
@@ -303,11 +305,11 @@ def is_in_ORPHAN(objs, streamname):
 
     # CMR rotate PMs to stream frame, NO reflex correction
     pmfi1, pmfi2 = rotate_pm(isobjs['RA'], isobjs['DEC'], isobjs['PMRA'], isobjs['PMDEC'], rapol, decpol, ra_ref)
-    
+
     # ADM derive the combined proper motion error.
     # CMR: RMS error, appropriate for PM ~< PM_err. See Lindegren GAIA-C3-TN-LU-LL-129-01
     pm_err = np.sqrt(0.5*(isobjs["PMRA_ERROR"]**2 + isobjs["PMDEC_ERROR"]**2))
-        
+
     # ADM dust correction.
     ext_coeff = dict(g=3.237, r=2.176, z=1.217)
     eg, er, ez = [ext_coeff[_] * isobjs['EBV'] for _ in 'grz']
@@ -322,23 +324,25 @@ def is_in_ORPHAN(objs, streamname):
     # CMR stream track in stream coordinates, phi2(phi1)
     TRACK = scipy.interpolate.CubicSpline(stream['PHI1T'], stream['PHI2T'])
     # CMR phi1_cosphi2 proper motion trace, pm_phi1(phi1)
-    PM1TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI1_PHI1T'], stream['PMPHI1T'], s=0.02,ext=3)
+    PM1TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI1_PHI1T'],
+                                                  stream['PMPHI1T'], s=0.02, ext=3)
     # CMR phi2 proper motion trace, pm_phi2(phi1)
-    PM2TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI2_PHI1T'], stream['PMPHI2T'], s=0.02,ext=3)
-    
+    PM2TRACK = scipy.interpolate.UnivariateSpline(stream['PMPHI2_PHI1T'],
+                                                  stream['PMPHI2T'], s=0.02, ext=3)
+
     # ADM create an interpolated set of phi2 coords (in stream coords).
     # CMR this is delta phi2, distance from the stream track in phi2
     dfi2 = fi2 - TRACK(fi1)
 
     # ADM derive the isochrone track for the stream.
     CMD_II = get_CMD_interpolator(stream_name)
-    
+
     # ADM how far the data lies from the isochrone.
     delta_cmd = g - r - CMD_II(r - 5 * np.log10(dist * 1e3) + 5)
 
     # ADM necessary parameters are set up; perform the actual selection.
     bright_limit, faint_limit = 16, 21
-    
+
     # CMR check if a star is in the stream track region, using stream extent in yaml file
     field_sel = betw(dfi2, stream['DPHI2_MINUS'], stream['DPHI2_PLUS'])
     field_sel &= betw(fi1, stream['PHI1_MINUS'], stream['PHI1_PLUS'])
@@ -348,18 +352,18 @@ def is_in_ORPHAN(objs, streamname):
                                             pm_err, dist, stream['VEL_PAD'], stream['PM_NSIG'])
     plx_sel = simple_plx_sel(dist, isobjs, stream['PLX_NSIG'], 0.1)
     gaia_astrom_sel &= plx_sel
-    #gaia_astrom_sel &= r > bright_limit
+    # gaia_astrom_sel &= r > bright_limit
 
     log.info(f"Objects in the field: {field_sel.sum()}...t={time()-start:.1f}s")
     log.info(f"With correct astrometry: {(gaia_astrom_sel & field_sel).sum()}")
 
-    # ADM select if within padding range of isochrone. 
+    # ADM select if within padding range of isochrone.
     # CMR Note: no magnitude limits imposed here despite the name
     bright_iso_sel = betw(delta_cmd, -.2, .2)
 
     # CMR select BHBs by color. Note: no magnitude limits imposed here despite the name
     bright_bhb_sel = oldpop_bhb_sel(g, r, dist)
-    
+
     # joint CMD selection
     bright_cmd_sel = bright_iso_sel | bright_bhb_sel
 
@@ -375,8 +379,8 @@ def is_in_ORPHAN(objs, streamname):
                               & betw(g - r - (1.05 + .25 * (r - z)), -.2, .2)))
     stellar_locus_sel = stellar_locus_blue_sel | stellar_locus_red_sel
 
-    #tot = np.sum(field_sel & gaia_astrom_sel & bright_cmd_sel)
-    #print(f"Obj meeting bright selection: {tot}...t={time()-start:.1f}s")
+    # tot = np.sum(field_sel & gaia_astrom_sel & bright_cmd_sel)
+    # print(f"Obj meeting bright selection: {tot}...t={time()-start:.1f}s")
 
     # ADM selection for objects that lack Gaia astrometry.
     # ADM has type PSF and in a reasonable isochrone window.
@@ -384,7 +388,7 @@ def is_in_ORPHAN(objs, streamname):
     cmd_win = 0.1 + 10**(-2 + (r - 20) / 2.5)
 
     # CMR overall faint selection, using limits from yaml file
-    faint_cmag_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT']) # remove obj with PM with ~bright_pmX
+    faint_cmag_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT'])
     faint_cmag_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
 
     # ADM "filler" selections.
@@ -413,7 +417,7 @@ def is_in_ORPHAN(objs, streamname):
         & (~np.isfinite(isobjs["PMRA"]) | (z > stream['BRIGHTPM3_LIMIT']))
         & ~bright_pm
     )
-    
+
     filler = filler_sel & field_sel & ~bright_pm1 & ~bright_pm2 & ~bright_pm3 & ~faint_cmd
 
     log.info(f"Objects meeting bright selection: {np.sum(bright_pm)}...t={time()-start:.1f}s")
@@ -424,7 +428,7 @@ def is_in_ORPHAN(objs, streamname):
     log.info(f"Objects meeting filler selection: {np.sum(filler)}...t={time()-start:.1f}s")
 
     log.info(f"Finished selection for {stream_name}...t={time()-start:.1f}s")
-    
+
     # ADM sanity check that selections do not overlap.
     check = bright_pm1.astype(int) + bright_pm2.astype(int) + bright_pm3.astype(int) + faint_cmd.astype(int) + filler.astype(int)
 
@@ -444,8 +448,8 @@ def is_in_ORPHAN(objs, streamname):
     f_faint_cmd = np.zeros(nobjs, dtype=bool)
     f_filler = np.zeros(nobjs, dtype=bool)
     # return arrays for pm_only for consistency with dwarf targeting
-    f_pm_only = np.zeros(nobjs,dtype=bool)
-    
+    f_pm_only = np.zeros(nobjs, dtype=bool)
+
     f_bright_pm1[in_stream] = bright_pm1
     f_bright_pm2[in_stream] = bright_pm2
     f_bright_pm3[in_stream] = bright_pm3
@@ -511,7 +515,7 @@ def is_in_dwarf(objs, dwarf_name):
     in_dwarf = np.where(betw(sep.value, mind, maxd))[0]
     idobjs = objs[in_dwarf]
     log.info(f"Objects near dwarf: {len(in_dwarf)}...t={time()-start:.1f}s")
-    
+
     # ADM dust correction.
     ext_coeff = dict(g=3.237, r=2.176, z=1.217)
     g, r, z = [22.5 - 2.5 * np.log10(idobjs['FLUX_' + _]) for _ in 'GRZ']
@@ -562,7 +566,7 @@ def is_in_dwarf(objs, dwarf_name):
     # NRS passes CMD selection
     # NRS passes PM + Parallax selection
     # NRS passes Spatial selection
-    # NRS passes Magnitude selection 
+    # NRS passes Magnitude selection
     bright_pm1 = cmd_sel & gaia_astrom_sel & field_sel & brightpm1_magsel
     bright_pm2 = cmd_sel & gaia_astrom_sel & field_sel & brightpm2_magsel
     bright_pm3 = cmd_sel & gaia_astrom_sel & field_sel & brightpm3_magsel
@@ -618,7 +622,7 @@ def is_in_dwarf(objs, dwarf_name):
         if np.max(check) > 1:
             msg = "Selections should be unique but they overlap!"
             log.error(msg)
-        
+
     # ADM we sub-selected objects to just those in the stream, so we need
     # ADM to expand back to all of the passed objects. Objects that are
     # ADM not in the stream should be retained as False.
@@ -628,8 +632,8 @@ def is_in_dwarf(objs, dwarf_name):
     f_bright_pm3 = np.zeros(nobjs, dtype=bool)
     f_faint_cmd = np.zeros(nobjs, dtype=bool)
     f_filler = np.zeros(nobjs, dtype=bool)
-    f_pm_only = np.zeros(nobjs,dtype=bool)
-    
+    f_pm_only = np.zeros(nobjs, dtype=bool)
+
     f_bright_pm1[in_dwarf] = bright_pm1
     f_bright_pm2[in_dwarf] = bright_pm2
     f_bright_pm3[in_dwarf] = bright_pm3
@@ -638,6 +642,7 @@ def is_in_dwarf(objs, dwarf_name):
     f_filler[in_dwarf] = filler
 
     return f_bright_pm1, f_bright_pm2, f_bright_pm3, f_pm_only, f_faint_cmd, f_filler
+
 
 def set_target_bits(objs, targmwext_names=["GD1", "BOOTES_1"]):
     """Select stream and dwarf targets, returning target mask arrays.
@@ -695,7 +700,7 @@ def set_target_bits(objs, targmwext_names=["GD1", "BOOTES_1"]):
             objs, targmwext)
 
         bright_pm1, bright_pm2, bright_pm3, pm_only, faint_cmd, filler = targmwext_resolve(
-            targmwext, mws_target, ibright_pm1, ibright_pm2, ibright_pm3, ipm_only,  
+            targmwext, mws_target, ibright_pm1, ibright_pm2, ibright_pm3, ipm_only,
             ifaint_cmd, ifiller)
 
         # ADM/CMR set mws desi extension bit
@@ -720,8 +725,8 @@ def set_target_bits(objs, targmwext_names=["GD1", "BOOTES_1"]):
         elif target_bit_set == "UFD":
             mws_target |= bright_pm1 * mws_mask.MWS_UFD_PM1
             mws_target |= bright_pm2 * mws_mask.MWS_UFD_PM2
-            mws_target |= bright_pm3 * mws_mask.MWS_UFD_PM3        
-    
+            mws_target |= bright_pm3 * mws_mask.MWS_UFD_PM3
+
     # ADM tell DESI_TARGET where MWS_ANY was updated.
     # CMR updated to MWS.
     desi_target = (mws_target != 0) * desi_mask.MWS_ANY
@@ -788,7 +793,7 @@ def select_targets(swdir, targnames_in=["GD1", "BOOTES_1"], readpertarg=False,
     # disambiguating possible duplicate targets if we have streams
     # or dwarfs that overlap on the sky
     targnames = sort_targmwext_by_rank(targnames_in)
-    
+
     # CMR get a list of all the streams and dwarfs we know about
     fn = resources.files('desitarget').joinpath('data/streams.yaml')
     with open(fn) as f:
@@ -798,7 +803,7 @@ def select_targets(swdir, targnames_in=["GD1", "BOOTES_1"], readpertarg=False,
     with open(fn2) as f:
         dwarfinfo = yaml.safe_load(f)
     all_dwarf_names = list(dwarfinfo.keys())
-    
+
     if readpertarg:
         # ADM loop over streams and read in the data per stream or dwarf
         allobjs = []
@@ -816,7 +821,7 @@ def select_targets(swdir, targnames_in=["GD1", "BOOTES_1"], readpertarg=False,
                     swdir, ra0, dec0, mind, maxd, targ, numproc=numproc,
                     mindec=mindec, addnors=addnors, readcache=readcache, readall=False
                 )
-            elif targ in all_stream_names:  
+            elif targ in all_stream_names:
                 # ADM read in the data.
                 strm = get_targmwext_parameters(targ)
                 # ADM the parameters that define the coordinates of the stream.
