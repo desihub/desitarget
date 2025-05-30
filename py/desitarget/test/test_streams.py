@@ -18,31 +18,31 @@ class TestSTREAMS(unittest.TestCase):
         with open(fn) as f:
             self.dwarfs = yaml.safe_load(f)
 
-    def test_stream_ranks(self):
-        """Test stream rankings aren't duplicated and increment by 1.
+    def test_ranks(self):
+        """Test stream/dwarf rankings aren't duplicated and increment.
         """
         # ADM gather the ranks from the streams yaml file.
-        ranks = []
+        stream_ranks = []
         for stream in self.streams:
-            ranks.append(self.streams[stream]['TARGMWEXT_RANK'])
-        ranks = np.array(ranks)
+            stream_ranks.append(self.streams[stream]['TARGMWEXT_RANK'])
+        stream_ranks = np.array(stream_ranks)
 
-        # ADM the expectation is that these ranks should increment by 1
-        # ADM and always increase.
-        expect_ranks = np.arange(len(ranks)) + 2
+        # ADM gather the ranks from the dwarfs yaml file.
+        dwarf_ranks = []
+        for dwarf in self.dwarfs:
+            dwarf_ranks.append(self.dwarfs[dwarf]['TARGMWEXT_RANK'])
+        dwarf_ranks = np.array(dwarf_ranks)
+
+        # ADM the combined ranks, in order.
+        ranks = sorted(np.concatenate([dwarf_ranks, stream_ranks]))
+
+        # ADM the expectation is that these ranks should include 5 1s for
+        # ADM the initial dwarf galaxies, and then any new ranks should
+        # ADM always increment by 1.
+        expect_ranks = np.concatenate([np.ones(5, dtype='int'),
+                                       np.arange(2, len(ranks)-5+2, dtype='int')
+                                       ])
 
         # ADM check the ranks match with expectation.
         msg = f"Ranks in streams file are: {ranks} but should be {expect_ranks}"
         self.assertTrue(np.all(expect_ranks == ranks), msg=msg)
-
-    def test_dwarf_ranks(self):
-        """Test dwarf rankings are all 1.
-        """
-        # ADM gather the ranks from the dwarfs yaml file.
-        ranks = []
-        for dwarf in self.dwarfs:
-            ranks.append(self.dwarfs[dwarf]['TARGMWEXT_RANK'])
-        ranks = np.array(ranks)
-
-        # ADM check all the ranks are 1.
-        self.assertTrue(np.all(ranks==1))
