@@ -503,6 +503,6 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(outfn), exist_ok=True)
     # ADM and, finally, write out the targets.
-    io.write_with_units(outfn, targs, extname="MWEXT_TARGETS", header=header)
+    io.write_with_units(outfn, targs, extname="TARGETS", header=header)
 
     return len(targs), outfn
