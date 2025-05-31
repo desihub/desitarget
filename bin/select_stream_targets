@@ -68,23 +68,18 @@ hdr = fitsio.FITSHDR()
 nsdict = vars(ns)
 for k in nsdict:
     # ADM we set the pixel information separately.
-    if k not in ["nside", "pixint"]:
+    if k not in ["nside", "pixint", "targnames_in"]:
         hdr[k.upper()] = nsdict[k]
 # ADM also explicitly add the command used, just in case.
 hdr["CMDLINE"] = ' '.join(sys.argv)
 
-# ADM note the target class name...
-tn = ns.targnames_in
-if tn is not None:
-    fntargnames = tn.replace(",", "-")
-# ADM ...unless we're running all streams, in which case to stop the file
-# ADM name growing we'll rely on target class names in the file header.
-if ns.readpertarg is False:
-    fntargnames = None
-
 # ADM change input comma-separated string of target class names to list.
+tn = ns.targnames_in
+hdr["TARGSRUN"] = "ALL"
 if tn is not None:
     tn = tn.split(',')
+    # ADM add the input target classes to the header to keep track.
+    hdr["TARGSRUN"] = tn
 
 # ADM flip the sense of some inputs.
 addnors = not(ns.donotaddnors)
@@ -97,7 +92,7 @@ targets = cuts.select_targets(
 )
 
 # ADM note that we hard code for BRIGHT, which is hidden in write_targets.
-ntargs, outfile = io.write_targets(ns.dest, targets, hdr, targnames=fntargnames,
-                                   nside=ns.nside, pixint=ns.pixint)
+ntargs, outfile = io.write_targets(ns.dest, targets, hdr, nside=ns.nside,
+                                   pixint=ns.pixint)
 
 log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

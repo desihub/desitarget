@@ -380,8 +380,8 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     return allobjs
 
 
-def write_targets(dirname, targs, header, targnames=None, nside=None,
-                  pixint=None, subpriority=True):
+def write_targets(dirname, targs, header, nside=None, pixint=None,
+                  subpriority=True):
     """Write stream and dwarf targets to a FITS file.
 
     Parameters
@@ -394,9 +394,6 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
     header : :class:`dict`
         Header for output file. Can be a FITShdr object or dictionary.
         Pass {} if you have no additional header information.
-    targnames : :class:`str, optional
-        Information about MWS extension target class names that
-        corresponds to `targs`. Included in the output filename.
     nside : :class:`int`, optional, defaults to `None`
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
