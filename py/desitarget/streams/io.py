@@ -483,7 +483,7 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     depend.setdep(header, 'photcat', drstr)
 
     # ADM add information to construct the filename to the header.
-    header["OBSCON"] = "bright"
+    header["OBSCON"] = "BRIGHT1B"
     header["SURVEY"] = "main"
     header["RESOLVE"] = True
     header["DR"] = drint
