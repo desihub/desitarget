@@ -445,17 +445,13 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
         drint = "X"
         drstr = "drX"
 
-    # ADM add MW extension target class name to the filename, if passed.
-    flavor = "mwext-targets"
-    if targnames is not None:
-        flavor = f"mwext-targets-{targnames.lower()}"
     # ADM set a default if targets aren't limited to a certain HEALPixel.
     hpx = pixint
     if pixint is None:
         hpx = "X"
 
-    outfn = io.find_target_files(dirname, dr=drstr, flavor=flavor, survey="main",
-                                 obscon="bright", hp=hpx, resolve=True)
+    outfn = io.find_target_files(dirname, dr=drstr, flavor="targets", survey="main",
+                                 obscon="bright1b", hp=hpx, resolve=True)
 
     # ADM check if any targets are too bright.
     maglim = 15
