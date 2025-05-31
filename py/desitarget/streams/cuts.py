@@ -738,7 +738,7 @@ def set_target_bits(objs, targmwext_names=["GD1", "BOOTES_1"]):
     return desi_target, bgs_target, mws_target, scnd_target
 
 
-def select_targets(swdir, targnames_in=["GD1", "BOOTES_1"], readpertarg=False,
+def select_targets(swdir, targnames_in=None, readpertarg=False,
                    addnors=True, readcache=True, numproc=1, mindec=-20,
                    nside=None, pixint=None):
     """Process files from an input directory to select targets.
@@ -787,6 +787,16 @@ def select_targets(swdir, targnames_in=["GD1", "BOOTES_1"], readpertarg=False,
         targeting columns such as ``TARGETID``, and ``DESI_TARGET``,
         ``BGS_TARGET``, ``MWS_TARGET`` (i.e. target selection bitmasks).
     """
+    # ADM ensure the default is to run everything.
+    if targnames_in is None:
+        fn = resources.files('desitarget').joinpath('data/streams.yaml')
+        with open(fn) as f:
+            streams = list(yaml.safe_load(f).keys())
+        fn = resources.files('desitarget').joinpath('data/dwarfs.yaml')
+        with open(fn) as f:
+            dwarfs = list(yaml.safe_load(f).keys())
+        targnames_in = streams + dwarfs
+    log.info(f"Running these target classes: {targnames_in}")
 
     # CMR rank order the streams and dwarfs for which we are selecting
     # targets, using TARGMWEXT_RANK in the yaml files. This is for
