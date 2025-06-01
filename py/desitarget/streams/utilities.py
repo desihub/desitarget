@@ -356,7 +356,7 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
     """
     if len(ra) == 0:
         return pmra, pmdec
-    
+
     C = acoo.ICRS(ra=ra * auni.deg,
                   dec=dec * auni.deg,
                   radial_velocity=0 * kms,
@@ -381,9 +381,10 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
     pmracorrfac = C1.pm_ra_cosdec.to_value(masyr)
     pmdeccorrfac = C1.pm_dec.to_value(masyr)
     del C1
-    #return ((C.pm_ra_cosdec - C1.pm_ra_cosdec).to_value(masyr),
+    # return ((C.pm_ra_cosdec - C1.pm_ra_cosdec).to_value(masyr),
     #        (C.pm_dec - C1.pm_dec).to_value(masyr))
     return pmra - pmracorrfac, pmdec-pmdeccorrfac
+
 
 def get_targmwext_parameters(targmwext_name):
     """Look up information for a given stream or dwarf
@@ -457,7 +458,6 @@ def get_CMD_interpolator(stream_name):
     return CMD_II
 
 
-
 def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
     """Select stream members in stream coordinates, using proper motion, padded by some error.
 
@@ -492,7 +492,7 @@ def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
 
 
 def pm12_distdep_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, dist, velpad, mult=2.5):
-    """Select stream members in stream coordinate, using a proper motion range defined by a 
+    """Select stream members in stream coordinate, using a proper motion range defined by a
        velocity width, padded by some multiple of the error.
 
     Parameters
@@ -525,9 +525,10 @@ def pm12_distdep_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, dist, velpad
     dpmlim = velpad/(4.74*dist)
     return dpmtot < (dpmlim + mult * pm_err)
 
+
 def pm0_sel_func(pmra0, pmdec0, D, pad=2, mult=2.5):
     """Select dwarf members using proper motion, using a PM range
-        around the systemtic PM of the dwarf padded by some error.
+       around the systemtic PM of the dwarf padded by some error.
 
     Parameters
     ----------
@@ -549,6 +550,7 @@ def pm0_sel_func(pmra0, pmdec0, D, pad=2, mult=2.5):
     # combine proper motion errors in RA and Dec
     pm_err = np.sqrt(0.5 * (D['PMRA_ERROR']**2 + D['PMDEC_ERROR']**2))
     return np.sqrt((D['PMRA'] - pmra0)**2 + (D['PMDEC'] - pmdec0)**2) < pad + mult * pm_err
+
 
 def apply_plx_zpt(D):
     """Apply zero-point correction to Gaia parallax
@@ -579,6 +581,7 @@ def apply_plx_zpt(D):
     plx_zpt[subset] = plx_zpt_tmp
     plx = D['PARALLAX'] - plx_zpt
     return plx
+
 
 def get_plx_error(D):
     """Gets parallax error from inverse variance if necessary.
@@ -636,6 +639,7 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     dplx = 1 / dist - plx
     return np.abs(dplx) < plx_sys + mult * parallax_error
 
+
 def simple_plx_sel(dist, D, multfac, plxlim, plx_sys=0.05):
 
     """Select stream members using a parallax upper limit, padded by some error.
@@ -658,8 +662,8 @@ def simple_plx_sel(dist, D, multfac, plxlim, plx_sys=0.05):
 
     Returns
     -------
-    :class:`array_like` or `boolean`
-	``True`` for stream members.
+    :class:`array_like` or `boolean1
+        ``True`` for stream members.
     """
     # CMR first block of code to fix zpt and ivars is identical to plx_sel
     plx = apply_plx_zpt(D)
@@ -668,6 +672,7 @@ def simple_plx_sel(dist, D, multfac, plxlim, plx_sys=0.05):
     # CMR select plx < the upper  limit give by plxlim
     psel = plx < (multfac*parallax_error + plx_sys + plxlim)
     return psel
+
 
 def dwarf_plx_sel_func(dist, D, plx_sys=0.05, mult=2.5, keep_all_neg=False, min_plx_plxerr=-5):
     """Select dwarf members using parallax, padded by some error.
@@ -714,6 +719,7 @@ def dwarf_plx_sel_func(dist, D, plx_sys=0.05, mult=2.5, keep_all_neg=False, min_
             & (plx / parallax_error > min_plx_plxerr)
     return sel
 
+
 def stream_distance(fi1, stream_name, stream):
     """The distance to members of a stellar stream.
 
@@ -734,13 +740,13 @@ def stream_distance(fi1, stream_name, stream):
     - Output type is the same as that of the passed `fi1`.
     """
     if stream_name.upper() == "GD1":
-    #    # ADM The distance to GD1 (similar to Koposov et al. 2010 paper).
-    #    dm = 18.82 + ((fi1 + 48) / 57)**2 - 4.45
-    #    return 10**(dm / 5. - 2)
-        DISTSP = UnivariateSpline(stream['DIST_PHI1T'],stream['DISTT'],s=0)
+        # ADM The distance to GD1 (similar to Koposov et al. 2010 paper).
+        # dm = 18.82 + ((fi1 + 48) / 57)**2 - 4.45
+        # return 10**(dm / 5. - 2)
+        DISTSP = UnivariateSpline(stream['DIST_PHI1T'], stream['DISTT'], s=0)
         return DISTSP(fi1)
     if stream_name.upper() == "ORPHAN":
-        DISTSP = UnivariateSpline(stream['DIST_PHI1T'],stream['DISTT'])
+        DISTSP = UnivariateSpline(stream['DIST_PHI1T'], stream['DISTT'])
         return DISTSP(fi1)
     if stream_name.upper() == "PAL5":
         DISTSP = UnivariateSpline(stream['DIST_PHI1T'],stream['DISTT'])
@@ -749,10 +755,7 @@ def stream_distance(fi1, stream_name, stream):
         msg = f"stream name {stream_name} not recognized"
         log.error(msg)
 
-# select BHB for an old metal-poor population
-# this uses an M92 horizontal branch
-# distance to the stream, in kpc, at the phi1 location of each star.
-# i.e., dist ance to each star if it were in the stream
+
 def oldpop_bhb_sel(gmag, rmag, distance):
 
     """Select stream members with the CMD properties of BHBs belonging to the stream.
@@ -770,10 +773,16 @@ def oldpop_bhb_sel(gmag, rmag, distance):
     -------
     :class:`array_like` or `boolean`
         ``True`` for stream members.
+
+    Notes
+    -----
+    Selects BHB for an old metal-poor population. This uses an M92
+    horizontal branch distance (kpc) to the stream at the phi1 location
+    of each star (i.e., distance to each star if it were in the stream.
     """
 
     # convert target distance to abs mag
-    dm =  5 * np.log10(distance * 1e3) - 5
+    dm = 5 * np.log10(distance * 1e3) - 5
     absr = rmag - dm
 
     # define the horizontal branch in absolute mag
@@ -784,15 +793,15 @@ def oldpop_bhb_sel(gmag, rmag, distance):
                      0.525968, 0.565568, 0.605168])
 
     # Now make CMD cut for BHB
-    grw_bhb = 0.5 # BHB width in gr
-    rw_bhb = 0.5  # BHB width in r
-    grmin_bhb = -0.45 # min g-r of BHB
-    grmax_bhb = 0.4 # max g-r of BHB
+    grw_bhb = 0.5  # BHB width in gr
+    rw_bhb = 0.5   # BHB width in r
+    grmin_bhb = -0.45  # min g-r of BHB
+    grmax_bhb = 0.4  # max g-r of BHB
     # first select in the correct gmr range
     gmr_range_bhb = (gmag - rmag < grmax_bhb) & (gmag - rmag > grmin_bhb)
 
     # interpolate gmr vs r using the HB
-    gr_bhb = np.interp(absr, hb_r[::-1] , hb_g[::-1] - hb_r[::-1],
+    gr_bhb = np.interp(absr, hb_r[::-1], hb_g[::-1] - hb_r[::-1],
                        left=np.nan, right=np.nan)
     # interpolate r vs. gmr using the HB
     absr_bhb = np.interp(gmag - rmag, hb_g - hb_r, hb_r, left=np.nan,
@@ -805,8 +814,9 @@ def oldpop_bhb_sel(gmag, rmag, distance):
 
     # select if abs(data_gmr - interp_gmr_) < grw_bhb or
     # abs(data_r - interp_r) < rw_bhb
-    cmdsel_bhb = (gmr_range_bhb)&((abs(del_color_cmd_bhb) < grw_bhb) | (abs(del_r_cmd_bhb) < rw_bhb))
+    cmdsel_bhb = (gmr_range_bhb) & ((abs(del_color_cmd_bhb) < grw_bhb) | (abs(del_r_cmd_bhb) < rw_bhb))
     return cmdsel_bhb
+
 
 def cmd_sel_func(
     dwarf_name, D,
@@ -879,9 +889,10 @@ def cmd_sel_func(
     magoff = dwarf["MAGOFF"]
     # retrieve coefficients for the rmag - rmagerr linear fit
     rmag_rmagerr_coeffs = np.array(dwarf["RMAG_RMAGERR_COEFFS"])
+
     def log10_error_func(x, a, b):
         return a * x + b
-    
+
     # apply isochrone offsets
     iso_rgb_gr = iso_rgb_g - iso_rgb_r
     iso_hb_gr = iso_hb_g - iso_hb_r
@@ -918,13 +929,14 @@ def cmd_sel_func(
     # magnitude cut along HB
     mag_sel_hb = betw(r0, hb_rmin, hb_rmax) & betw(g0 - r0, hb_grmin, hb_grmax)
     # color cut along HB
-    gr_hb = np.interp(r0, iso_hb_r[::-1] + dm , iso_hb_gr[::-1], left=np.nan, right=np.nan)
+    gr_hb = np.interp(r0, iso_hb_r[::-1] + dm, iso_hb_gr[::-1], left=np.nan, right=np.nan)
     rr_hb = np.interp(g0 - r0, iso_hb_gr, iso_hb_r + dm, left=np.nan, right=np.nan)
     color_sel_hb = mag_sel_hb & ((abs((g0 - r0) - gr_hb) < hb_color_tol) | (abs(r0 - rr_hb) < hb_mag_tol))
     # final HB selection
     hb_sel = mag_sel_hb & color_sel_hb
 
     return rgb_sel | hb_sel
+
 
 def spatial_sel_func(ra0, dec0, maxd, D):
     """Selects dwarf members within a given radius.
@@ -958,10 +970,10 @@ def sort_targmwext_by_rank(in_targmwextlist):
     """Return a list of all the stream and dwarf names in in_targmwextlist
        ordered by their priority as given in TARGMWEXT_RANK. Smaller numbers
        are higher priority.
-       
+
     Parameters
     ----------
-    in_targmwextlist : :class:string` 
+    in_targmwextlist : :class:string`
         List of dwarf and stream objects to be sorted
 
     Returns:
@@ -977,12 +989,12 @@ def sort_targmwext_by_rank(in_targmwextlist):
         dwarfinfo = yaml.safe_load(f)
     all_dwarf_names = list(dwarfinfo.keys())
 
-    in_ranklist = []  # CMR in_prilist is 1-to-1 matched to names in in_targmwextlist 
+    in_ranklist = []  # CMR in_prilist is 1-to-1 matched to names in in_targmwextlist.
     for targmwext in in_targmwextlist:
         # guard against stream being passed as lower-case.
         targmwext = targmwext.upper()
         if targmwext in all_stream_names:
-            sinfo = streaminfo[targmwext]            
+            sinfo = streaminfo[targmwext]
             rankval = sinfo['TARGMWEXT_RANK']
         elif targmwext in all_dwarf_names:
             dinfo = dwarfinfo[targmwext]
@@ -1000,12 +1012,13 @@ def sort_targmwext_by_rank(in_targmwextlist):
         nextname = in_targmwextlist[sortrankidx[i]]
         nextname = nextname.upper()
         out_targmwextlist.append(nextname)
-    
+
     return out_targmwextlist
-    
+
+
 def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibright_pm3, ipm_only,
                       ifaint_cmd, ifiller):
-    """Resolve ambiguity with target subclass bits in the mwstarget mask 
+    """Resolve ambiguity with target subclass bits in the mwstarget mask
        using TARGMWEXT_RANK from the yaml file. Smaller numbers are  higher priority.
        Streams and dwarfs are selected in rank order and targets selected for lower ranking
        streams that are also selected in higher ranking dwarfs are only selected if their
@@ -1015,16 +1028,16 @@ def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibri
        We make assumptions, which avoid the brute-force implementation of these priorities:
        - brightpm[123] never overlap in magnitude, so an object can't be, e.g., pm1 and pm2 in different stream/dwarfs
        - pm_only can only overlap with brightpm[12]
-       - faint_cmd and filler can only overlap with each other and bright_pm3 
+       - faint_cmd and filler can only overlap with each other and bright_pm3
 
-       The bright_pm1, bright_pm2 and bright_pm3 and pm_only outrank faint_cmd and filler. 
-       The only overlaps possible and their relative rankings are: 
+       The bright_pm1, bright_pm2 and bright_pm3 and pm_only outrank faint_cmd and filler.
+       The only overlaps possible and their relative rankings are:
        1) bright_pm3 outranks faint_cmd and filler. bright_pm1 and bright_pm2 are too bright
-          to overlap with either of the faint selections. 
+          to overlap with either of the faint selections.
        2) faint_cmd outranks filler.
        3) pm_only can only overlap bright_pm1 and bright_pm2 (and it is only used for dwarfs)
-       Note that the mangnitude ranges of bright_pm[123] are always the same so that, e.g., 
-       bright_pm1 and  bright_pm2 can neve be set for the same object.  
+       Note that the mangnitude ranges of bright_pm[123] are always the same so that, e.g.,
+       bright_pm1 and  bright_pm2 can neve be set for the same object.
        See <insert pointer to Nathan's document>.
 
     Parameters
@@ -1034,17 +1047,17 @@ def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibri
     mws_target : :class:`~numpy.ndarray` or `float`
         Numpy 1d array of target bits as set by PREVIOUS selections
     ibright_pm1 : :class:`array_like` or `boolean`
-        Numpy 1d array, ``True`` for objects that pass the bright_pm1 selection criteria 
+        Numpy 1d array, ``True`` for objects that pass the bright_pm1 selection criteria
     ibright_pm2 : :class:`array_like` or `boolean`
-        Numpy 1d array, ``True`` for objects that pass the bright_pm2 selection criteria 
+        Numpy 1d array, ``True`` for objects that pass the bright_pm2 selection criteria
     ibright_pm3 : :class:`array_like` or `boolean`
-        Numpy 1d array, ``True`` for objects that pass the bright_pm3 selection criteria 
+        Numpy 1d array, ``True`` for objects that pass the bright_pm3 selection criteria
     ipm_only : :class:`array_like` or `boolean`
         Numpy 1d array, ``True`` for objects that pass pm_only. Use for dwarfs but not streams
     ifaint_cmd : :class:`array_like` or `boolean`
         Numpy 1d array, ``True`` for objects that pass faint_cmd. Use for streams but not dwarfs
     ifiller : :class:`array_like` or `boolean`
-        Numpy 1d array, ``True`` for objects that pass the filler selection criteria  
+        Numpy 1d array, ``True`` for objects that pass the filler selection criteria.
 
     Returns
     -------
@@ -1060,21 +1073,21 @@ def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibri
         ``True`` if the object is a "FAINT_CMD" target and has priorty for duplicates
     :class:`array_like`
         ``True`` if the object is a "FILLER" target and has priorty for duplicates
+
     Notes
     -----
     - See ../data/targetmask.yaml for the definition of the target bits and targmwext_priority
     """
 
     from desitarget.targetmask import mws_mask
-    import pdb
-    
-    # target bits set selecting the current stream or dwarf 
+
+    # target bits set selecting the current stream or dwarf.
     any_set_here = ibright_pm1 | ibright_pm2 | ibright_pm3 | ipm_only | ifaint_cmd | ifiller
-    # target bits set when selecting streams and dwarfs that rank higher than this one
-    any_set_prev = (mws_target & mws_mask['MWS_EXT']) !=0
-    # look for objects selected in this stream that were also previously targeted
-    # for a higher ranking stream or dwarf
-    iialldups = any_set_here & any_set_prev # CMR this is boolean, not bitwise
+    # target bits set when selecting streams and dwarfs that rank higher than this one.
+    any_set_prev = (mws_target & mws_mask['MWS_EXT']) != 0
+    # look for objects selected in this stream that were also previously targeted.
+    # for a higher ranking stream or dwarf.
+    iialldups = any_set_here & any_set_prev  # CMR this is boolean, not bitwise.
     ndups = np.sum(iialldups != 0)
     log.info(f"Ndups {ndups}")
     if ndups > 0:
@@ -1125,32 +1138,32 @@ def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibri
             if icheckrank >= thisrank:  # we should not have new dups with a lower ranked object
                 continue               # as lower-ranked objects get selected later
             if icheckname == targmwext_name:  # no duplciates with the object we are currently targeting
-                continue  
+                continue
             # if input stream or dwarf is lower ranking than the object we are checking
             # we need to remove target subclasses that are lower ranked
-            iicheckdups = iialldups & (mws_target & mws_mask[icheckbit_name] !=0)  # dups for the specifc stream or dwarf we are checking
+            iicheckdups = iialldups & (mws_target & mws_mask[icheckbit_name] != 0)  # dups for the specifc stream or dwarf we are checking
             if np.sum(iicheckdups) > 0:
                 log.info(f"Duplicate targets found in {icheckname} when selecting targets for {targmwext_name}.")
                 # Now resolve. See assumption list in the comments about possible duplicate target combinations.
                 # bright_pm1 and bright_pm2 for the higher ranking object outranks pm_only for the lower rank obj
                 # so can't set pm_only for this object
-                iduppmonlybrightpm1 = iicheckdups & (mws_target & brightpm1bit !=0) & (ipm_only !=0) 
+                iduppmonlybrightpm1 = iicheckdups & (mws_target & brightpm1bit != 0) & (ipm_only != 0)
                 if np.sum(iduppmonlybrightpm1) > 0:
                     ipmonly[iduppmonlybrightpm1 != 0] = 0
-                iduppmonlybrightpm2 = iicheckdups & (mws_target & brightpm2bit !=0) & (ipm_only !=0)
+                iduppmonlybrightpm2 = iicheckdups & (mws_target & brightpm2bit != 0) & (ipm_only != 0)
                 if np.sum(iduppmonlybrightpm2) > 0:
                     ipmonly[iduppmonlybrightpm2 != 0] = 0
-                # our lower ranked object can't set faint_cmd or filler 
+                # our lower ranked object can't set faint_cmd or filler
                 # if the higher ranked one has set bright_pm3
-                idupbrightpm3faintcmd = iicheckdups & (mws_target & brightpm3bit !=0) & (ifaint_cmd !=0)  
+                idupbrightpm3faintcmd = iicheckdups & (mws_target & brightpm3bit != 0) & (ifaint_cmd != 0)
                 if np.sum(idupbrightpm3faintcmd) > 0:
                     ifaint_cmd[idupbrightpm3faintcmd != 0] = 0
-                idupbrightpm3filler = iicheckdups & (mws_target & brightpm3bit !=0) & (ifiller !=0)  
+                idupbrightpm3filler = iicheckdups & (mws_target & brightpm3bit != 0) & (ifiller != 0)
                 if np.sum(idupbrightpm3filler) > 0:
                     ifiller[idupbrightpm3filler != 0] = 0
                 # our lower ranked objectd cannot set filler if the higher ranked one set faint_cmd
-                idupfaintcmdfiller = iicheckdups & (mws_target & mws_mask['MWS_FAINT_CMD'] !=0)  & (ifiller !=0)
+                idupfaintcmdfiller = iicheckdups & (mws_target & mws_mask['MWS_FAINT_CMD'] != 0) & (ifiller != 0)
                 if np.sum(idupfaintcmdfiller) > 0:
-                    ifiller[idupfaintcmdfiller !=0] = 0
-                    
+                    ifiller[idupfaintcmdfiller != 0] = 0
+
     return ibright_pm1, ibright_pm2, ibright_pm3, ipm_only, ifaint_cmd, ifiller

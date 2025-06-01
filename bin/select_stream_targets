@@ -24,9 +24,9 @@ ap.add_argument("dest",
                 help=("Output target selection directory (the file name is built"
                       " on-the-fly from other inputs).")
                 )
-ap.add_argument('-t','--targnames_in', default="GD1",
+ap.add_argument('-t','--targnames_in', default=None,
                 help=("Comma-separated names of extension target classes to run "
-                      " (e.g. x,y,z). Default is to just run GD1.")
+                      " (e.g. x,y,z). Default is to run all MWS targets.")
                 )
 ap.add_argument("--readpertarg", action="store_true",
                 help=("Default is to read targets by looping over all sweeps. "
@@ -68,36 +68,31 @@ hdr = fitsio.FITSHDR()
 nsdict = vars(ns)
 for k in nsdict:
     # ADM we set the pixel information separately.
-    if k not in ["nside", "pixint"]:
+    if k not in ["nside", "pixint", "targnames_in"]:
         hdr[k.upper()] = nsdict[k]
 # ADM also explicitly add the command used, just in case.
 hdr["CMDLINE"] = ' '.join(sys.argv)
 
 # ADM change input comma-separated string of target class names to list.
 tn = ns.targnames_in
+hdr["TARGSRUN"] = "ALL"
 if tn is not None:
-    targnames_in = tn.split(',')
+    tn = tn.split(',')
+    # ADM add the input target classes to the header to keep track.
+    hdr["TARGSRUN"] = tn
 
 # ADM flip the sense of some inputs.
 addnors = not(ns.donotaddnors)
 readcache = not(ns.donotreadcache)
 
 targets = cuts.select_targets(
-    ns.sweepdir, targnames_in=targnames_in, readpertarg=ns.readpertarg,
+    ns.sweepdir, targnames_in=tn, readpertarg=ns.readpertarg,
     addnors=addnors, readcache=readcache, numproc=ns.numproc, mindec=ns.mindec,
     nside=ns.nside, pixint=ns.pixint
 )
 
-# ADM note the target class name...
-if tn is not None:
-    fntargnames = tn.replace(",", "-")
-# ADM ...unless we're running all streams, in which case to stop the file
-# ADM name growing we'll rely on target class names in the file header.
-if ns.readpertarg is False:
-    fntargnames = None
-
 # ADM note that we hard code for BRIGHT, which is hidden in write_targets.
-ntargs, outfile = io.write_targets(ns.dest, targets, hdr, targnames=fntargnames,
-                                   nside=ns.nside, pixint=ns.pixint)
+ntargs, outfile = io.write_targets(ns.dest, targets, hdr, nside=ns.nside,
+                                   pixint=ns.pixint)
 
 log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

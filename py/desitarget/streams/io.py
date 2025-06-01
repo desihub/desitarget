@@ -380,8 +380,8 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
     return allobjs
 
 
-def write_targets(dirname, targs, header, targnames=None, nside=None,
-                  pixint=None, subpriority=True):
+def write_targets(dirname, targs, header, nside=None, pixint=None,
+                  subpriority=True):
     """Write stream and dwarf targets to a FITS file.
 
     Parameters
@@ -394,9 +394,6 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
     header : :class:`dict`
         Header for output file. Can be a FITShdr object or dictionary.
         Pass {} if you have no additional header information.
-    targnames : :class:`str, optional
-        Information about MWS extension target class names that
-        corresponds to `targs`. Included in the output filename.
     nside : :class:`int`, optional, defaults to `None`
         Passed to indicate in the output file header that the targets
         have been limited to only certain HEALPixels at a given
@@ -415,7 +412,9 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
     :class:`int`
         The number of targets that were written to file.
     :class:`str`
-        The name of the file to which targets were written.
+        The name of the file to which targets were written. This is
+        ``None`` if zero targets were written to file (if the length of
+        `targs` is zero).
 
     Notes
     -----
@@ -429,6 +428,10 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
       (see `/data/units.yaml`).
     - Mostly wraps :func:`~desitarget.io.write_with_units`.
     """
+    # ADM return sharply if there are no targets to be written.
+    if len(targs) == 0:
+        return len(targs), None
+
     # ADM construct the output filename.
     drs = list(set(targs["RELEASE"]//1000))
     if len(drs) == 1:
@@ -439,17 +442,13 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
         drint = "X"
         drstr = "drX"
 
-    # ADM add MW extension target class name to the filename, if passed.
-    flavor = "mwext-targets"
-    if targnames is not None:
-        flavor = f"mwext-targets-{targnames.lower()}"
     # ADM set a default if targets aren't limited to a certain HEALPixel.
     hpx = pixint
     if pixint is None:
         hpx = "X"
 
-    outfn = io.find_target_files(dirname, dr=drstr, flavor=flavor, survey="main",
-                                 obscon="bright", hp=hpx, resolve=True)
+    outfn = io.find_target_files(dirname, dr=drstr, flavor="targets", survey="main",
+                                 obscon="bright1b", hp=hpx, resolve=True)
 
     # ADM check if any targets are too bright.
     maglim = 15
@@ -484,7 +483,7 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
     depend.setdep(header, 'photcat', drstr)
 
     # ADM add information to construct the filename to the header.
-    header["OBSCON"] = "bright"
+    header["OBSCON"] = "BRIGHT1B"
     header["SURVEY"] = "main"
     header["RESOLVE"] = True
     header["DR"] = drint
@@ -504,6 +503,6 @@ def write_targets(dirname, targs, header, targnames=None, nside=None,
     # ADM create necessary directories, if they don't exist.
     os.makedirs(os.path.dirname(outfn), exist_ok=True)
     # ADM and, finally, write out the targets.
-    io.write_with_units(outfn, targs, extname="MWEXT_TARGETS", header=header)
+    io.write_with_units(outfn, targs, extname="TARGETS", header=header)
 
     return len(targs), outfn
