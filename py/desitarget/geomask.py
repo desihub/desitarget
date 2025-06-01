@@ -1004,7 +1004,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             pixtracker.append(strgoodpix)
             if extra is not None:
                 strgoodpix += extra
-            print("srun -N 1 {}_{} {} $CSCRATCH {} --nside {} --healpixels {} &"
+            print("srun -N 1 {}_{} {} $SCRATCH {} --nside {} --healpixels {} &"
                   .format(cmd, prefix2, surveydir, s2, nside, strgoodpix))
     print("wait")
     print("")
@@ -1016,11 +1016,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             outfiles = []
             for pix in pixtracker:
                 outfn = find_target_files(
-                    "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, hp=pix,
+                    "$SCRATCH", dr=ddrr, flavor=prefix, seed=seed, hp=pix,
                     resolve=resolve, region=region)
                 outfiles.append(outfn)
             outfn = find_target_files(
-                "$CSCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
+                "$SCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
                 resolve=resolve, region=region)
             print("")
             # ADM split each pixel-file into 10 smaller catalogs.

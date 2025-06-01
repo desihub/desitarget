@@ -2,19 +2,45 @@
 desitarget Change Log
 =====================
 
-2.8.1 (unreleased)
+3.0.1 (unreleased)
 ------------------
 
 * Add target selection for streams and dSphs for BRIGHT1B [`PR #835`_].
+
+.. _`PR #835`: https://github.com/desihub/desitarget/pull/835
+
+3.0.0 (2025-04-25)
+------------------
+
+* No code changes, moving to 3.0.0 to tag first 1B targets.
+
+2.9.0 (2025-03-14)
+------------------
+
+Major:
+
+* Implement multi-MTL procedure for DESI 1B [`PR #833`_]
+
+Minor:
+
 * Fix installation when using desiutil/3.5.0, dropping support of
   `python setup.py test` as a side-effect [`PR #832`_]
+* Update readthedocs configuration [`PR #834`_]
 
 .. _`PR #832`: https://github.com/desihub/desitarget/pull/832
-.. _`PR #835`: https://github.com/desihub/desitarget/pull/835
+.. _`PR #833`: https://github.com/desihub/desitarget/pull/833
+.. _`PR #834`: https://github.com/desihub/desitarget/pull/834
 
 2.8.0 (2024-08-23)
 ------------------
 
+* Implement multi-MTL procedure for DESI 1B [`PR #833`_].
+    * New dark-time targets for DESI 1B.
+    * New ledger types for DARK1B and BRIGHT1B.
+    * Update :func:`io.read_mtl_ledger()` to handle two sets of ledgers.
+    * Upate readers that wrap :func:`io.read_mtl_ledger()`.
+    * Add `HIGHEST`/`WANTED`/`CONTAINS` columns in multi-MTL mode.
+    * MTL loop updates Main Survey *and* 1B ledgers for 1B tiles.
 * Attempt to fix coverage tests [`PR #831`_]
     * Didn't appear to fully work, but partial progress so merged.
 * Fix `pkg_resources`/`scipy.ndimage`/`pytest` deprecations [`PR #829`_].
@@ -55,6 +81,7 @@ desitarget Change Log
 .. _`PR #828`: https://github.com/desihub/desitarget/pull/828
 .. _`PR #829`: https://github.com/desihub/desitarget/pull/829
 .. _`PR #831`: https://github.com/desihub/desitarget/pull/831
+.. _`PR #833`: https://github.com/desihub/desitarget/pull/833
 
 2.7.0 (2023-12-05)
 ------------------
