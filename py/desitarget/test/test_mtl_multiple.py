@@ -127,4 +127,3 @@ class TestMTL(unittest.TestCase):
             toohigh = more_zgood > done
             toohigh |= more_zwarn > done
             self.assertFalse(toomany & toohigh, msg.format(bitname))
-

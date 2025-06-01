@@ -122,4 +122,3 @@ class TestMTLStreams(unittest.TestCase):
             log.info(f"{numobs}, {mtl['NUMOBS_MORE']}, {self.post_nom[numobs]}")
             self.assertTrue(np.all(mtl['PRIORITY'] == self.post_prio[numobs]))
             self.assertTrue(np.all(mtl['NUMOBS_MORE'] == self.post_nom[numobs]))
-

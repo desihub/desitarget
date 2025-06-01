@@ -98,4 +98,3 @@ class TestTargetID(unittest.TestCase):
             self.assertEqual(group1, group)
             self.assertLess(np.abs(ra1-ra), delta)
             self.assertLess(np.abs(dec1-dec), delta)
-

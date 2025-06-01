@@ -64,4 +64,3 @@ class TestSubpriority(unittest.TestCase):
                 self.assertEqual(targets['SUBPRIORITY'][i], override['SUBPRIORITY'][j])
             else:
                 self.assertEqual(targets['SUBPRIORITY'][i], orig_subpriority[i])
-

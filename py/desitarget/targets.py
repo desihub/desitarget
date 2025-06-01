@@ -827,6 +827,10 @@ def calc_priority(targets, zcat, obscon, state=False):
         if mws_target in targets.dtype.names:
             # ADM set initial state of CALIB for potential calibration targets.
             stdnames = ('GAIA_STD_FAINT', 'GAIA_STD_WD', 'GAIA_STD_BRIGHT')
+            extnames = ('MWS_STREAM_PM1', 'MWS_STREAM_PM2', 'MWS_STREAM_PM3',
+                        'MWS_DSPH_PM1', 'MWS_DSPH_PM2', 'MWS_DSPH_PM3',
+                        'MWS_UFD_PM1', 'MWS_UFD_PM2', 'MWS_UFD_PM3',
+                        'MWS_PM_ONLY', 'MWS_FAINT_CMD', 'MWS_FILLER')
             for name in mws_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(mws_mask[name].obsconditions)
@@ -835,6 +839,143 @@ def calc_priority(targets, zcat, obscon, state=False):
                     # ADM standards have no priority.
                     if name in stdnames:
                         target_state[ii] = "CALIB"
+                    # CMR  run for MWS_EXT targets
+                    elif name in extnames:
+                        # find where BRIGHT_PM1, BRIGHT_PM2 and BRIGHT_PM3 cross
+                        # threshohlds for NUMOBS1, NUMOBS2 and NUMOBS3
+                        # NUMOBS1 is the priority change after 1st observation
+                        # NUMOBS2 is when we have the min nobs for acceptable SN
+                        # NUMOBS3 is after 10 observations except for PM_ONLY for which it is 2
+                        # at NUMOBS2 and NUMOBS3 there is a priority reduction
+                        # NRS All annotations of the atnumobs[123] assignments below are NRS
+                        atnumobs1 = (  # (DSPH_PM1 or DSPH_PM2, 0 < NUMOBS < 3, not DONE) or (DSPH_PM3 or UFD_PM[123] or STREAM PM[123], 0 < NUMOBS < 5, not DONE)
+                            (zcat["NUMOBS"] > 0)  # NUMOBS > 0
+                            & ~done  # and not DONE
+                            & (
+                                (  # if DSPH_PM1 or DSPH_PM2 and NUMOBS < 3
+                                    (
+                                        ((targets[mws_target] & mws_mask['MWS_DSPH_PM1']) != 0)
+                                        | ((targets[mws_target] & mws_mask['MWS_DSPH_PM2']) != 0)
+                                    )
+                                    & (zcat["NUMOBS"] < 3)
+                                ) | (  # or if DSPH_PM3 or UFD_PM[123] or *STREAM PM[123]* and NUMOBS < 5
+                                    (
+                                        (  # DSPH_PM3 or UFD_PM[123]
+                                            ((targets[mws_target] & mws_mask['MWS_DSPH_PM3']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM1']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM2']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
+                                        ) | (  # or if STREAM PM[123] but not also a DSPH or UFD target. *(Dwarfs always have priority over streams)*
+                                            (
+                                                ((targets[mws_target] & mws_mask['MWS_STREAM_PM1']) != 0)
+                                                | ((targets[mws_target] & mws_mask['MWS_STREAM_PM2']) != 0)
+                                                | ((targets[mws_target] & mws_mask['MWS_STREAM_PM3']) != 0)
+                                            )
+                                            & ((targets[mws_target] & mws_mask['MWS_DSPH_PM1']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_DSPH_PM2']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_DSPH_PM3']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_UFD_PM1']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_UFD_PM2']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) == 0)
+                                        )
+                                    )
+                                    & (zcat["NUMOBS"] < 5)  # NOBS < 5
+                                )
+                            )
+                        )
+                        atnumobs2 = (  # (DSPH_PM1 or DSPH_PM2, 3 <= NUMOBS < 10, not DONE) or (DSPH_PM3 or UFD_PM[123] or STREAM PM[123], 5 <= NUMOBS < 10, not DONE)
+                            (zcat["NUMOBS"] < 10)  # NUMOBS < 10
+                            & ~done  # and not DONE
+                            & (
+                                (  # if DSPH_PM1 or DSPH_PM2 and NUMOBS >= 3
+                                    (
+                                        ((targets[mws_target] & mws_mask['MWS_DSPH_PM1']) != 0)
+                                        | ((targets[mws_target] & mws_mask['MWS_DSPH_PM2']) != 0)
+                                    )
+                                    & (zcat["NUMOBS"] >= 3)  # NOBS >= 3
+                                ) | (  # or if DSPH_PM3 or UFD_PM[123] or *STREAM PM[123]* and NUMOBS >= 5
+                                    (
+                                        (  # DSPH_PM3 or UFD_PM[123]
+                                            ((targets[mws_target] & mws_mask['MWS_DSPH_PM3']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
+                                        ) | (  # or if STREAM PM[123] but not also a DSPH or UFD target. *(Dwarfs always have priority over streams)*
+                                            (
+                                                ((targets[mws_target] & mws_mask['MWS_STREAM_PM1']) != 0)
+                                                | ((targets[mws_target] & mws_mask['MWS_STREAM_PM2']) != 0)
+                                                | ((targets[mws_target] & mws_mask['MWS_STREAM_PM3']) != 0)
+                                            )
+                                            & ((targets[mws_target] & mws_mask['MWS_DSPH_PM1']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_DSPH_PM2']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_DSPH_PM3']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_UFD_PM1']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_UFD_PM2']) == 0)
+                                            & ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) == 0)
+                                        )
+                                    )
+                                    & (zcat["NUMOBS"] >= 5)  # NOBS >= 5
+                                )
+                            )
+                        )
+                        atnumobs3 = (  # (DSPH_PM[123] or UFD_PM[123] or STREAM PM[123], NUMOBS >= 10, not DONE)
+                            (zcat["NUMOBS"] >= 10)   # NUMOBS >= 10
+                            & ~done   # not DONE
+                            & (
+                                ((targets[mws_target] & mws_mask['MWS_DSPH_PM1']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_DSPH_PM2']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_DSPH_PM3']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_STREAM_PM1']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_STREAM_PM2']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_STREAM_PM3']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_UFD_PM1']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_UFD_PM2']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
+                            )
+                        )
+                        # MWS_FAINT_CMD, MWS_FILLER, MWS_PM_ONLY do not use nummobs2
+                        atnumobs1 |= (  # (MWS_FAINT_CMD or MWS_FILLER, 0 < NUMOBS < 10, not DONE)
+                            (zcat["NUMOBS"] > 0)  # NUMOBS > 0
+                            & (zcat["NUMOBS"] < 10)  # NUMOBS < 10
+                            & ~done  # and not DONE
+                            & (  # and MWS_FAINT_CMD or MWS_FILLER
+                                ((targets[mws_target] & mws_mask['MWS_FAINT_CMD']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_FILLER']) != 0)
+                            )
+                        )
+                        atnumobs1 |= (  # (MWS_PM_ONLY, 0 < NUMOBS < 2, not DONE)
+                            (zcat["NUMOBS"] > 0)  # NUMOBS > 0
+                            & (zcat["NUMOBS"] < 2)  # NUMOBS < 2
+                            & ~done  # and not DONE
+                            & ((targets[mws_target] & mws_mask['MWS_PM_ONLY']) != 0)  # and MWS_PM_ONLY
+                        )
+                        atnumobs3 |= (  # (MWS_FAINT_CMD or MWS_FILLER, NUMOBS >= 10, not DONE)
+                            (zcat["NUMOBS"] >= 10)  # NUMOBS >= 10
+                            & ~done  # and not DONE
+                            & (  # and MWS_FAINT_CMD or MWS_FILLER
+                                ((targets[mws_target] & mws_mask['MWS_FAINT_CMD']) != 0)
+                                | ((targets[mws_target] & mws_mask['MWS_FILLER']) != 0)
+                            )
+                        )
+                        atnumobs3 |= (  # (MWS_PM_ONLY, NUMOBS >= 2, not DONE)
+                            (zcat["NUMOBS"] >= 2)   # NUMOBS >= 2
+                            & ~done  # and not DONE
+                            & ((targets[mws_target] & mws_mask['MWS_PM_ONLY']) != 0))  # and MWS_PM_ONLY
+                        # NRS all targets in MWS_EXT
+                        mws_ext = ((targets[mws_target] & mws_mask['MWS_EXT']) != 0)
+                        for sbool, sname in zip(
+                                [unobs & mws_ext, done & mws_ext, atnumobs1, atnumobs2, atnumobs3],
+                                ["UNOBS", "DONE", "MORE_NOB1", "MORE_NOB2", "MORE_NOB3"]
+                        ):
+                            # CMR use ADM's update priorities and target states.
+                            Mxp = mws_mask[name].priorities[sname]
+                            # CMR use ADM's update states BEFORE changing priorities.
+                            # CMR is worried about setting target_state to e.g. MORE_NOB1
+                            ts = "{}|{}".format(name, sname)
+                            target_state[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                            priority[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
                     else:
                         for sbool, sname in zip(
                                 [unobs, done, zgood, zwarn],

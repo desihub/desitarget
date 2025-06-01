@@ -156,4 +156,3 @@ class TestCMX(unittest.TestCase):
                                               nside=self.nside, pixlist=self.pix)
                 self.assertTrue('CMX_TARGET' in targets.dtype.names)
                 self.assertEqual(len(targets), np.count_nonzero(targets['CMX_TARGET']))
-
