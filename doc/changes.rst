@@ -5,10 +5,12 @@ desitarget Change Log
 2.8.1 (unreleased)
 ------------------
 
+* Add target selection for streams and dSphs for BRIGHT1B [`PR #835`_].
 * Fix installation when using desiutil/3.5.0, dropping support of
   `python setup.py test` as a side-effect [`PR #832`_]
 
 .. _`PR #832`: https://github.com/desihub/desitarget/pull/832
+.. _`PR #835`: https://github.com/desihub/desitarget/pull/835
 
 2.8.0 (2024-08-23)
 ------------------
