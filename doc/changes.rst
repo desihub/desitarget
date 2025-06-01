@@ -6,6 +6,7 @@ desitarget Change Log
 ------------------
 
 * Add target selection for streams and dSphs for BRIGHT1B [`PR #835`_].
+    * Also updates :func:`mtl.check_archiving()` for 1B ledger checks.
 
 .. _`PR #835`: https://github.com/desihub/desitarget/pull/835
 
