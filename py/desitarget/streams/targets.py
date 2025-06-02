@@ -91,8 +91,8 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
 
     # ADM set the initial PRIORITY and NUMOBS.
     # ADM populate bright/dark/backup separately.
-    ender = ["_DARK", "_BRIGHT", "_BACKUP"]
-    obscon = ["DARK|GRAY", "BRIGHT", "BACKUP"]
+    ender = ["_DARK", "_BRIGHT", "_BACKUP", "_DARK1B", "_BRIGHT1B"]
+    obscon = ["DARK|GRAY", "BRIGHT", "BACKUP", "DARK1B", "BRIGHT1B"]
     for edr, oc in zip(ender, obscon):
         cols += ["{}_INIT{}".format(pn, edr) for pn in ["PRIORITY", "NUMOBS"]]
         vals += [nodata, nodata]
