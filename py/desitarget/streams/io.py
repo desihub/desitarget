@@ -432,6 +432,10 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     if len(targs) == 0:
         return len(targs), None
 
+    # ADM limit to BRIGHT1B targets.
+    # ADM Ignore the filename output which we'll build later.
+    _, header, targs = io._bright_or_dark(dirname, header, targs, "BRIGHT1B")
+
     # ADM construct the output filename.
     drs = list(set(targs["RELEASE"]//1000))
     if len(drs) == 1:
@@ -483,7 +487,6 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     depend.setdep(header, 'photcat', drstr)
 
     # ADM add information to construct the filename to the header.
-    header["OBSCON"] = "BRIGHT1B"
     header["SURVEY"] = "main"
     header["RESOLVE"] = True
     header["DR"] = drint
