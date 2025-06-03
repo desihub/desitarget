@@ -695,13 +695,13 @@ def is_in_PAL5(objs, streamname):
     isobjs = objs[in_stream]
     log.info(f"Objects near stream: {len(in_stream)}...t={time()-start:.1f}s")
     del cobjs
-    
+
     # ADM rotate the position data into the coordinate system of the stream.
     fi1, fi2 = sphere_rotate(isobjs['RA'], isobjs['DEC'], rapol, decpol, ra_ref)
-    
-    # ADM distance of the stream 
+
+    # ADM distance of the stream.
     dist = stream_distance(fi1, stream_name, stream)
-    
+
     # ADM/CMR rotate the proper motions into the coordinate system of the stream.
     pmfi1, pmfi2 = rotate_pm(isobjs['RA'], isobjs['DEC'],
                              isobjs['PMRA'], isobjs['PMDEC'], rapol, decpol, ra_ref)
@@ -782,7 +782,7 @@ def is_in_PAL5(objs, streamname):
     # ADM overall faint selection.
     # CMR modified to use mag limts from yaml file
     faint_cmag_sel = betw(z, stream['FAINT_CMD_LIMIT'], stream['FAINT_LIMIT'])
-    faint_cmag_sel &= betw(np.abs(delta_cmd), 0, cmd_win)  
+    faint_cmag_sel &= betw(np.abs(delta_cmd), 0, cmd_win)
 
     # ADM "filler" selections.
     # (PSF type + blue in colour and not previously selected)
@@ -841,7 +841,7 @@ def is_in_PAL5(objs, streamname):
     f_filler = np.zeros(nobjs, dtype=bool)
     # return arrys for pm_only and for consistency with dSph and UFD targeting
     f_pm_only = np.zeros(nobjs, dtype=bool)
-    
+
     f_bright_pm1[in_stream] = bright_pm1
     f_bright_pm2[in_stream] = bright_pm2
     f_bright_pm3[in_stream] = bright_pm3

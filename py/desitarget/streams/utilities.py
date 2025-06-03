@@ -749,7 +749,7 @@ def stream_distance(fi1, stream_name, stream):
         DISTSP = UnivariateSpline(stream['DIST_PHI1T'], stream['DISTT'])
         return DISTSP(fi1)
     if stream_name.upper() == "PAL5":
-        DISTSP = UnivariateSpline(stream['DIST_PHI1T'],stream['DISTT'])
+        DISTSP = UnivariateSpline(stream['DIST_PHI1T'], stream['DISTT'])
         return DISTSP(fi1)
     else:
         msg = f"stream name {stream_name} not recognized"
