@@ -506,7 +506,7 @@ def pm12_distdep_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, dist, velpad
         Proper motion error in stream coordinates of possible targets,
         combined across `pmfi1` and `pmfi2` errors.
     pad: : :class:`float` or `int`
-        Width of PM selection in km/s, with `mult`*proper_motion_error
+        Width of PM selection in km/s, with `mult` * proper_motion_error
     mult : :class:`float` or `int`, defaults to 2.5
         Multiple of the proper motion error to use for padding.
 
@@ -533,7 +533,7 @@ def pm0_sel_func(pmra0, pmdec0, D, pad=2, mult=2.5):
         Numpy structured array of Gaia information that contains at least
         the columns `PMRA`, `PMDEC`, `PMRA_ERROR`, and `PMDEC_ERROR`.
     pad: : :class:`float` or `int`, defaults to 2
-        Extra offset with which to pad `mult`*proper_motion_error.
+        Extra offset with which to pad `mult` * proper_motion_error.
     mult : :class:`float` or `int`, defaults to 2.5
         Multiple of the proper motion error to use for padding.
 
@@ -622,7 +622,7 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
     plx_sys : :class:`float`
-        Extra offset with which to pad `mult`*parallax_error.
+        Extra offset with which to pad `mult` * parallax_error.
 
     Returns
     -------
@@ -654,7 +654,7 @@ def simple_plx_sel(dist, D, multfac, plxlim, plx_sys=0.05):
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
     plx_sys : :class:`float`
-        Extra offset with which to pad `mult`*parallax_error.
+        Extra offset with which to pad `mult` * parallax_error.
     plxlim : :class:`float` select possible stream members with plx < plx_lim, plus pad
 
     Returns
@@ -688,7 +688,7 @@ def dwarf_plx_sel_func(dist, D, plx_sys=0.05, mult=2.5, keep_all_neg=False, min_
         `PARALLAX_ERROR`. `PARALLAX_IVAR` will be used instead of
         `PARALLAX_ERROR` if `PARALLAX_ERROR` is not present.
     plx_sys : :class:`float`
-        Extra offset with which to pad `mult`*parallax_error.
+        Extra offset with which to pad `mult` * parallax_error.
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
     keep_all_neg : :class:`bool`
