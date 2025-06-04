@@ -445,8 +445,8 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
     Parameters
     ----------
     obscon : :class:`str`
-        A string matching ONE obscondition in the desitarget bitmask yaml
-        file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
+        A string matching ONE observing condition. Allowed options are
+        "DARK", "BRIGHT", "DARK1B" and "BRIGHT1B".
     survey : :class:`str`, optional, defaults to "main"
         Used to look up the correct ledger, in combination with `obscon`.
         Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
@@ -471,8 +471,9 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
     log.info("Checking archived tiles match tiles-specstatus file...")
 
     # ADM add a warning for non-standard cases:
-    if survey != "main" or obscon not in ["BRIGHT", "DARK"]:
-        msg = "Archiving checks are only valid for main/BRIGHT or main/DARK!"
+    ocsallowed = ["BRIGHT", "DARK", "BRIGHT1B", "DARK1B"]
+    if survey != "main" or obscon not in ocsallowed:
+        msg = f"Archiving checks are only valid for main/+{ocsallowed}!"
         msg += " If using run_mtl_loop, try passing --noarchivecheck"
         log.error(msg)
         raise ValueError(msg)

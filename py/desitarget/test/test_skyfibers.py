@@ -182,4 +182,3 @@ class TestSKYFIBERS(unittest.TestCase):
 
         # ADM check the wrapper generates a single brick correctly.
         self.assertTrue(np.all(ss == skies))
-
