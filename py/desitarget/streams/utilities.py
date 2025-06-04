@@ -1057,25 +1057,25 @@ def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibri
     - See ../data/targetmask.yaml for the definition of the target bits and targmwext_priority.
     - Smaller numbers are  higher priority.
     - Streams and dwarfs are selected in rank order and targets selected for lower ranking
-    streams that are also selected in higher ranking dwarfs are only selected if their
-    target subclass outranks the target subclass they were selected as for the higher ranking
-    object.  All dwarfs outrank streams. GD1 is the highest ranking stream, Orphan the second.
-    Ranking of subtarget classes: bright_pm1, bright_pm2, bright_pm3, pm_only, faint_cmd, filler
-    We make assumptions, which avoid the brute-force implementation of these priorities:
-    * brightpm[123] never overlap in magnitude, so an object can't be, e.g., pm1 and pm2 in different stream/dwarfs
-    * pm_only can only overlap with brightpm[12]
-    * faint_cmd and filler can only overlap with each other and bright_pm3
+      streams that are also selected in higher ranking dwarfs are only selected if their
+      target subclass outranks the target subclass they were selected as for the higher ranking
+      object.  All dwarfs outrank streams. GD1 is the highest ranking stream, Orphan the second.
+      Ranking of subtarget classes: bright_pm1, bright_pm2, bright_pm3, pm_only, faint_cmd, filler
+      We make assumptions, which avoid the brute-force implementation of these priorities:
+      * brightpm[123] never overlap in magnitude, so an object can't be, e.g., pm1 and pm2 in different stream/dwarfs
+      * pm_only can only overlap with brightpm[12]
+      * faint_cmd and filler can only overlap with each other and bright_pm3
 
-    The bright_pm1, bright_pm2 and bright_pm3 and pm_only outrank faint_cmd and filler.
-    The only overlaps possible and their relative rankings are:
-    1) bright_pm3 outranks faint_cmd and filler. bright_pm1 and bright_pm2 are too bright
-    to overlap with either of the faint selections.
-    2) faint_cmd outranks filler.
-    3) pm_only can only overlap bright_pm1 and bright_pm2 (and it is only used for dwarfs)
+      The bright_pm1, bright_pm2 and bright_pm3 and pm_only outrank faint_cmd and filler.
+      The only overlaps possible and their relative rankings are:
+      1) bright_pm3 outranks faint_cmd and filler. bright_pm1 and bright_pm2 are too bright
+      to overlap with either of the faint selections.
+      2) faint_cmd outranks filler.
+      3) pm_only can only overlap bright_pm1 and bright_pm2 (and it is only used for dwarfs)
 
-    Note that the mangnitude ranges of bright_pm[123] are always the same so that, e.g.,
-    bright_pm1 and  bright_pm2 can neve be set for the same object.
-    See <insert pointer to Nathan's document>.
+      Note that the magnitude ranges of bright_pm[123] are always the same so that, e.g.,
+      bright_pm1 and  bright_pm2 can neve be set for the same object.
+      See <insert pointer to Nathan's document>.
     """
 
     from desitarget.targetmask import mws_mask
