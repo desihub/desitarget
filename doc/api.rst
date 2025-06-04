@@ -47,9 +47,6 @@ desitarget API
 .. automodule:: desitarget.io
     :members:
 
-.. automodule:: desitarget.lyazcat
-    :members:
-
 .. automodule:: desitarget.mock
     :members:
 
@@ -57,9 +54,6 @@ desitarget API
     :members:
 
 .. automodule:: desitarget.mock.io
-    :members:
-
-.. automodule:: desitarget.mock.mockmaker
     :members:
 
 .. automodule:: desitarget.mock.sky
