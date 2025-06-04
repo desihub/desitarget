@@ -30,7 +30,7 @@ if __name__ == "__main__":
         wave = fx['WAVE'].read()
         hdr = fx['TRUTH'].read_header()
 
-        keep = np.in1d(truth['TARGETID'], keep_targetids)
+        keep = np.isin(truth['TARGETID'], keep_targetids)
 
         #- trim targets and downsample wavelength grid for smaller file
         truth_data['TRUTH'] = truth[keep]
@@ -49,7 +49,7 @@ if __name__ == "__main__":
         'PARALLAX', 'PMRA', 'PMDEC', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET',
         ]
     targets, hdr = fitsio.read(targetfile,'TARGETS',header=True,columns=columns)
-    keep = np.in1d(targets['TARGETID'], keep_targetids)
+    keep = np.isin(targets['TARGETID'], keep_targetids)
     targets = targets[keep]
     fitsio.write(test_targetsfile, targets, extname='TARGETS',
                  header=hdr, clobber=True)

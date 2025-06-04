@@ -665,7 +665,7 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
         if np.any(ii):
             meds.append(np.median(yy[ii]))
         else:
-            meds.append(np.NaN)
+            meds.append(np.nan)
 
     # ADM make the plot.
     plt.scatter(xx, yy, marker='.', color='b', alpha=0.8, s=0.8)

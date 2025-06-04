@@ -567,7 +567,7 @@ def apply_plx_zpt(D):
     # ADM load the Gaia zero points.
     gaia_zpt.load_tables()
 
-    subset = np.in1d(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
+    subset = np.isin(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
     plx_zpt_tmp = gaia_zpt.get_zpt(D['PHOT_G_MEAN_MAG'][subset],
                                    D['NU_EFF_USED_IN_ASTROMETRY'][subset],
                                    D['PSEUDOCOLOUR'][subset],

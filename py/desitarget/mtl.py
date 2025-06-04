@@ -649,7 +649,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # Trim targets from zcat that aren't in original targets table.
     # ADM or that didn't actually obtain an observation.
     if zcat is not None:
-        ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
+        ok = np.isin(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
         if num_extra > 0:
             log.info("Ignoring {} z entries that aren't in the input target list"
