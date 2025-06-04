@@ -153,8 +153,8 @@ class TestPriorities(unittest.TestCase):
         if 'MWS_FAINT_RED' in mws_names:
             mws_names.remove('MWS_FAINT_RED')
 
-        lowest_mws_priority_unobs = [mws_mask[n].priorities['UNOBS']
-                                     for n in mws_names]
+        lowest_mws_priority_unobs = [mws_mask[n].priorities['UNOBS'] for
+                                     n in mws_names if mws_mask[n].numobs != -1]
 
         lowest_bgs_priority_zgood = np.min(
             [bgs_mask[n].priorities['MORE_ZGOOD'] for n in bgs_names])

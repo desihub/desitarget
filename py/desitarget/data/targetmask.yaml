@@ -19,14 +19,14 @@ desi_mask:
     - [QSO_NORTH,         10, "QSO cuts tuned for Bok/Mosaic data",                                        {obsconditions: DARK}]
     - [ELG_LOP_NORTH,     11, "ELG at standard (ELG) priority tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
     - [ELG_VLO_NORTH,     12, "Very-low priority ELG (filler) tuned for Bok/Mosaic data",                  {obsconditions: DARK}]
-    - [LGE_NORTH,         13, "LRG extension cuts tuned for Bok/Mosaic data",                              {obsconditions: DARK1B}]
+    - [LGE_NORTH,         13, "LRG 1B cuts tuned for Bok/Mosaic data",                                     {obsconditions: DARK1B}]
 
     - [LRG_SOUTH,         16, "LRG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_SOUTH,         17, "ELG cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [QSO_SOUTH,         18, "QSO cuts tuned for DECam data",                                             {obsconditions: DARK}]
     - [ELG_LOP_SOUTH,     19, "ELG at standard (ELG) priority tuned for DECam data",                       {obsconditions: DARK}]
     - [ELG_VLO_SOUTH,     20, "Very-low priority ELG (filler) tuned for DECam data",                       {obsconditions: DARK}]
-    - [LGE_SOUTH,         21, "LRG extension cuts tuned for DECam data",                                   {obsconditions: DARK1B}]
+    - [LGE_SOUTH,         21, "LRG 1B cuts tuned for DECam data",                                          {obsconditions: DARK1B}]
 
     #- Calibration targets
     - [SKY,         32, "Blank sky locations",                                       {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -110,34 +110,38 @@ mws_mask:
     - [MWS_FAINT_RED,       17, "Milky Way Survey faint extension, red side",                 {obsconditions: BRIGHT}]
     - [MWS_FAINT_RED_NORTH, 18, "Milky Way Survey faint extension, red side (Bok/Mosaic)",    {obsconditions: BRIGHT}]
     - [MWS_FAINT_RED_SOUTH, 19, "Milky Way Survey faint extension, red side (DECam)",         {obsconditions: BRIGHT}]
-    - [MWS_EXT,             20, "DESI Extension stream or dSph target",                       {obsconditions: BRIGHT}]
-    - [MWS_STREAM_PM1,      21, "DESI Extension stream Gaia selection, 16<r<17.5",            {obsconditions: BRIGHT}]
-    - [MWS_STREAM_PM2,      22, "DESI Extension stream Gaia selection, 17.5<r<19",             {obsconditions: BRIGHT}]
-    - [MWS_STREAM_PM3,      23, "DESI Extension stream Gaia selection, 19<r<20.5",             {obsconditions: BRIGHT}]
-    - [MWS_DSPH_PM1,        24, "DESI Extension dSph Gaia selection, 16<r<17.5",              {obsconditions: BRIGHT}]
-    - [MWS_DSPH_PM2,        25, "DESI Extension dSph Gaia selection, 17.5<r<19",              {obsconditions: BRIGHT}]
-    - [MWS_DSPH_PM3,        26, "DESI Extension dSph Gaia selection, 19<r<20.5",              {obsconditions: BRIGHT}]
-    - [MWS_UFD_PM1,         27, "DESI Extension dSph Gaia selection, 16<r<17.5",              {obsconditions: BRIGHT}]
-    - [MWS_UFD_PM2,         28, "DESI Extension dSph Gaia selection, 17.5<r<19",              {obsconditions: BRIGHT}]
-    - [MWS_UFD_PM3,         29, "DESI Extension dSph Gaia selection, 19<r<20.5",              {obsconditions: BRIGHT}]
-    - [MWS_PM_ONLY,         30, "DESI Extension Gaia selection Gaia only, no cmd",            {obsconditions: BRIGHT}]
-    - [MWS_FAINT_NO_PM,     31, "DESI Extension, no Gaia data available",                     {obsconditions: BRIGHT}]
-    - [MWS_FILLER,          32, "DESI Extension filler target on stream or dSph tiles",       {obsconditions: BRIGHT}]
+
+    # ADM DESI 1B MWS targets part 1.
+    - [MWS_EXT,             20, "DESI 1B stream or dSph target",                              {obsconditions: BRIGHT1B}]
+    - [MWS_STREAM_PM1,      21, "DESI 1B stream Gaia selection, 16<r<17.5",                   {obsconditions: BRIGHT1B}]
+    - [MWS_STREAM_PM2,      22, "DESI 1B stream Gaia selection, 17.5<r<19",                   {obsconditions: BRIGHT1B}]
+    - [MWS_STREAM_PM3,      23, "DESI 1B stream Gaia selection, 19<r<20.5",                   {obsconditions: BRIGHT1B}]
+    - [MWS_DSPH_PM1,        24, "DESI 1B dSph Gaia selection, 16<r<17.5",                     {obsconditions: BRIGHT1B}]
+    - [MWS_DSPH_PM2,        25, "DESI 1B dSph Gaia selection, 17.5<r<19",                     {obsconditions: BRIGHT1B}]
+    - [MWS_DSPH_PM3,        26, "DESI 1B dSph Gaia selection, 19<r<20.5",                     {obsconditions: BRIGHT1B}]
+    - [MWS_UFD_PM1,         27, "DESI 1B dSph Gaia selection, 16<r<17.5",                     {obsconditions: BRIGHT1B}]
+    - [MWS_UFD_PM2,         28, "DESI 1B dSph Gaia selection, 17.5<r<19",                     {obsconditions: BRIGHT1B}]
+    - [MWS_UFD_PM3,         29, "DESI 1B dSph Gaia selection, 19<r<20.5",                     {obsconditions: BRIGHT1B}]
+    - [MWS_PM_ONLY,         30, "DESI 1B Gaia selection Gaia only, no cmd",                   {obsconditions: BRIGHT1B}]
+    - [MWS_FAINT_NO_PM,     31, "DESI 1B no Gaia data available",                             {obsconditions: BRIGHT1B}]
+    - [MWS_FILLER,          32, "DESI 1B filler target on stream or dSph tiles",              {obsconditions: BRIGHT1B}]
     
     # ADM Standard stars based only on Gaia.
     - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
     - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
-    - [MWS_GD1,             36, "DESI Extension GD1 stream target",                           {obsconditions: BRIGHT}]
-    - [MWS_ORPHAN,          37, "DESI Extension Orphan-Chenab stream target",                 {obsconditions: BRIGHT}]
-    - [MWS_BOOTES_1,        38, "DESI Extension Bootes I dSph target",                        {obsconditions: BRIGHT}]
-    - [MWS_CANES_VENATICI_1,39, "DESI Extension Canes Venetici I dSph target",                {obsconditions: BRIGHT}]
-    - [MWS_DRACO_1,         40, "DESI Extension Draco dSph target",                           {obsconditions: BRIGHT}]
-    - [MWS_SEXTANS_1,       41, "DESI Extension Sextans  dSph target",                        {obsconditions: BRIGHT}]
-    - [MWS_URSA_MINOR_1,    42, "DESI Extension Ursa Minor  dSph target",                     {obsconditions: BRIGHT}]
-    - [MWS_FAINT_CMD,       43, "DESI Extension cmd selection only, no Gaia info",            {obsconditions: BRIGHT}]
-    - [MWS_PAL5,            44, "DESI Extension Palomar 5 tidal stream target",               {obsconditions: BRIGHT}]    
+    # ADM DESI 1B MWS targets part 2.
+    - [MWS_GD1,             36, "DESI 1B GD1 stream target",                           {obsconditions: BRIGHT1B}]
+    - [MWS_ORPHAN,          37, "DESI 1B Orphan-Chenab stream target",                 {obsconditions: BRIGHT1B}]
+    - [MWS_BOOTES_1,        38, "DESI 1B Bootes I dSph target",                        {obsconditions: BRIGHT1B}]
+    - [MWS_CANES_VENATICI_1,39, "DESI 1B Canes Venetici I dSph target",                {obsconditions: BRIGHT1B}]
+    - [MWS_DRACO_1,         40, "DESI 1B Draco dSph target",                           {obsconditions: BRIGHT1B}]
+    - [MWS_SEXTANS_1,       41, "DESI 1B Sextans  dSph target",                        {obsconditions: BRIGHT1B}]
+    - [MWS_URSA_MINOR_1,    42, "DESI 1B Ursa Minor  dSph target",                     {obsconditions: BRIGHT1B}]
+    - [MWS_FAINT_CMD,       43, "DESI 1B cmd selection only, no Gaia info",            {obsconditions: BRIGHT1B}]
+    - [MWS_PAL5,            44, "DESI 1B Palomar 5 tidal stream target",               {obsconditions: BRIGHT1B}]    
+
     # ADM back-up targets for poor conditions and as filler.
     - [BACKUP_DIB,          57, "Diffuse interstellar bands (project 398)",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
     - [BACKUP_GIANT_LOP,    58, "Giant candidate backup targets",            {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -199,10 +203,6 @@ scnd_mask:
     - [DWF_BRIGHT_LO,          52, "See $SCND_DIR/docs/DWF_BRIGHT_LO.txt",        {obsconditions: BRIGHT,      filename: 'DWF_BRIGHT_LO',       flavor: 'SPARE', updatemws: True,  downsample: 1}]
     - [DWF_DARK_HI,            53, "See $SCND_DIR/docs/DWF_DARK_HI.txt",          {obsconditions: DARK,        filename: 'DWF_DARK_HI',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
     - [DWF_DARK_LO,            54, "See $SCND_DIR/docs/DWF_DARK_LO.txt",          {obsconditions: DARK,        filename: 'DWF_DARK_LO',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [GD1_BRIGHT_PM,          55, "Bright targets with Gaia in GD1 stream",      {obsconditions: BRIGHT,      filename: None,                  flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [GD1_FAINT_NO_PM,        56, "Faint targets without Gaia in GD1 stream",    {obsconditions: BRIGHT,      filename: None,                  flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [GD1_FILLER,             57, "Filler targets in GD1 stream",                {obsconditions: BRIGHT,      filename: None,                  flavor: 'SPARE', updatemws: True,  downsample: 1}]
-
 
 # ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
     - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
@@ -225,8 +225,8 @@ obsconditions:
     - [CLOSED,      7, "Nighttime but dome is closed due to rain, wind, dew..."]
     - [APOCALYPSE,  8, "Conditions are so bad that the world is ending anyway"]
     - [IGNORE,      9, "Used to indicate that obsconditions are set by a sub-bit rather than this bit"]
-    - [DARK1B,     10, "Moon is down, DESI extension survey"]
-    - [BRIGHT1B,   11, "Moon up and bright, DESI extension survey"]
+    - [DARK1B,     10, "Moon is down, DESI 1B survey"]
+    - [BRIGHT1B,   11, "Moon up and bright, DESI 1B survey"]
 
 #- Observation State
 #- if a target passes more than one target bit, it is possible that one bit
@@ -303,7 +303,7 @@ priorities:
 # ADM of 100 should only be higher than DONE (and secondary filler) targets.
         QSO: {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, MORE_MIDZQSO: 100, DONE: 2, OBS: 1, DONOTOBSERVE: 0}
 
-# ADM DESI extension LRGs. Cancun meeting conclusion was to have these a little higher than the Main Survey LRGs.
+# ADM DESI 1B LRGs. Cancun meeting conclusion was to have these a little higher than the Main Survey LRGs.
         LGE: {UNOBS: 3210, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM different priority ELGs.
@@ -476,9 +476,6 @@ priorities:
         BRIGHT_TOO_HIP:         {UNOBS: 9500, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
         DARK_TOO_HIP:           SAME_AS_BRIGHT_TOO_HIP
-        GD1_BRIGHT_PM:          {UNOBS: 1521, MORE_ZGOOD: 1520, MORE_ZWARN: 1520, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        GD1_FAINT_NO_PM:        {UNOBS: 1510, MORE_ZGOOD: 1511, MORE_ZWARN: 1511, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        GD1_FILLER:             {UNOBS: 49,   MORE_ZGOOD: 50,   MORE_ZWARN: 50,   DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM INITIAL number of observations (NUMOBS_INIT) for each target bit
 # ADM SAME_AS_XXX means to use the NUMOBS_INIT for bitname XXX
@@ -491,7 +488,7 @@ numobs:
         LRG: 2
         QSO: 4
 
-# ADM LRG targets for the DESI extension.
+# ADM LRG targets for DESI 1B.
         LGE: 2
 
 # ADM different flavors of ELGs.
@@ -560,7 +557,7 @@ numobs:
         MWS_FAINT_BLUE:               2
         MWS_FAINT_RED:                2
 
-# CMR initial number of observations for targets in the DESI Extension dSph or stream targets
+# CMR initial number of observations for targets in the DESI 1B dSph or stream targets
         MWS_EXT:                     -1
         MWS_STREAM_PM1:              13
         MWS_STREAM_PM2:              13
@@ -658,6 +655,3 @@ numobs:
         DWF_BRIGHT_LO:          10
         DWF_DARK_HI:            10
         DWF_DARK_LO:            10
-        GD1_BRIGHT_PM:          7
-        GD1_FAINT_NO_PM:        7
-        GD1_FILLER:             7

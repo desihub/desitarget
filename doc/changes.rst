@@ -5,9 +5,12 @@ desitarget Change Log
 3.0.1 (unreleased)
 ------------------
 
+* Finalize target files and initial MTL creation for BRIGHT1B [`PR #841`_].
 * Add target selection for streams and dSphs for BRIGHT1B [`PR #835`_].
+    * Also updates :func:`mtl.check_archiving()` for 1B ledger checks.
 
 .. _`PR #835`: https://github.com/desihub/desitarget/pull/835
+.. _`PR #841`: https://github.com/desihub/desitarget/pull/841
 
 3.0.0 (2025-04-25)
 ------------------
