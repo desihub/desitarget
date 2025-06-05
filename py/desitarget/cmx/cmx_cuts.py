@@ -2193,8 +2193,11 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM need to guard against the case of a single row being passed.
     # ADM initially every class has a priority shift of zero.
     if _is_row(objects):
-        primary = np.bool_(True)
-        priority_shift = np.array(0)
+        # BAW Promote to length-1 array for Numpy 2 compatibility.
+        # primary = np.bool_(True)
+        primary = np.ones_like([1,], dtype=bool)
+        # priority_shift = np.array(0)
+        priority_shift = np.zeros_like([0,], dtype=int)
     else:
         primary = np.ones_like(objects, dtype=bool)
         priority_shift = np.zeros_like(objects, dtype=int)

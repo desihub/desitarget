@@ -2937,6 +2937,7 @@ def apply_cuts(objects, qso_selection='randomforest',
     # ADM initially, every object passes the cuts (is True).
     # ADM need to guard against the case of a single row being passed.
     if _is_row(objects):
+        # BAW Promote to length-1 array for Numpy 2 compatibility.
         # primary = np.bool_(True)
         primary = np.ones_like([1,], dtype=bool)
     else:
