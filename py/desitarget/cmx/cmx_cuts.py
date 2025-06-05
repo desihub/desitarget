@@ -214,7 +214,10 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    sv0_bgs = np.zeros_like(rflux, dtype='?')
+    # BAW Most of the isXXX functions do primary.copy() here, which is
+    # fine for Numpy 2 compatibility, but for some reason this did not.
+    # sv0_bgs = np.zeros_like(rflux, dtype='?')
+    sv0_bgs = np.zeros_like(primary)
 
     for targtype in ["bright", "faint", "faint_ext", "fibmag"]:
         bgs = isBGS(
