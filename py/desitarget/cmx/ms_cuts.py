@@ -12,6 +12,7 @@ An old copy of the Main Survey cuts (../cuts.py) that were used for commissionin
 
 import numpy as np
 from importlib import resources
+from astropy.table import MaskedColumn
 from desitarget.geomask import imaging_mask
 from desitarget.cuts import _is_row  # This file previously contained a duplicate of _is_row
 
@@ -425,7 +426,11 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
     LX = bgs.copy()
     # ADM Could check on "L2" for DR8, need to check on "LX" post-DR8.
     if refcat is not None:
-        rc1d = np.atleast_1d(refcat)
+        if isinstance(refcat, MaskedColumn):
+            refcatf = refcat.filled('')
+        else:
+            refcatf = refcat.copy()
+        rc1d = np.atleast_1d(refcatf)
         if isinstance(rc1d[0], str):
             LX = [(rc[0] == "L") if len(rc) > 0 else False for rc in rc1d]
         else:

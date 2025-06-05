@@ -218,8 +218,13 @@ def get_utc_date(survey="sv3"):
     - The `survey` input defaults to `"sv3"` for backwards compatibility
       (we became stricter about the format for the main survey).
     """
+    try:
+        from datetime import UTC
+    except ImportError:
+        from pytz import UTC
     if survey[:2] == 'sv' or survey == 'cmx':
-        return datetime.utcnow().isoformat(timespec='seconds')
+        # return datetime.utcnow().isoformat(timespec='seconds')
+        return datetime.now(UTC).isoformat(timespec='seconds')
     elif survey == 'main':
         return get_utc_iso_date()
     else:

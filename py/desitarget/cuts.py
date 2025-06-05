@@ -2190,10 +2190,13 @@ def _prepare_gaia(objects, colnames=None):
     # ADM minimum value of REF_ID to identify Gaia sources. This will
     # ADM introduce a small number (< 0.001%) of Tycho-only sources.
     gaia = objects['REF_ID'] > 0
+    refcat = objects['REF_CAT']
+    if _is_row(objects):
+        refcat = np.array([refcat,])
     if "REF_CAT" in colnames:
-        gaia = (objects['REF_CAT'] == b'G2') | (objects['REF_CAT'] == 'G2')
+        gaia = (refcat == b'G2') | (refcat == 'G2')
         # ADM as of DR10, we use Gaia EDR3 rather than DR2.
-        gaia |= (objects['REF_CAT'] == b'GE') | (objects['REF_CAT'] == 'GE')
+        gaia |= (refcat == b'GE') | (refcat == 'GE')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     pmraivar = objects['PMRA_IVAR']
