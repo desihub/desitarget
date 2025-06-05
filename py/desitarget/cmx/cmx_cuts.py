@@ -1610,7 +1610,8 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     # ADM OK to clip, as these are all Gaia matches.
     rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
     prio = np.array((10*(25-rmag)).astype(int))
-
+    assert len(isdither) == len(primary)
+    assert len(prio) == len(primary)
     return isdither, prio
 
 
@@ -1716,6 +1717,8 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
 
     # ADM prioritize based on magnitude.
     prio = np.array((10*(25-rmag)).astype(int))
+    assert len(issdg) == len(primary)
+    assert len(prio) == len(primary)
 
     return issdg, prio
 
@@ -1769,7 +1772,8 @@ def isSTD_dither_spec(gaiagmag=None, gaiarmag=None, obs_rflux=None,
     # ADM OK to clip, as these are all Gaia matches.
     rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
     prio = np.array((10*(25-rmag)).astype(int))
-
+    assert len(isdither) == len(primary)
+    assert len(prio) == len(primary)
     return isdither, prio
 
 
