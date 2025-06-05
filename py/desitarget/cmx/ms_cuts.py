@@ -13,6 +13,7 @@ An old copy of the Main Survey cuts (../cuts.py) that were used for commissionin
 import numpy as np
 from importlib import resources
 from desitarget.geomask import imaging_mask
+from desitarget.cuts import _is_row  # This file previously contained a duplicate of _is_row
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -678,11 +679,14 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     # In case of call for a single object passed to the function with
     # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
-    if nbEntries == 1:
-        qso = qso[0]
-        qsohiz = qsohiz[0]
-        pqso = pqso[0]
-        pqsohiz = pqsohiz[0]
+    # if nbEntries == 1:
+    #     qso = qso[0]
+    #     qsohiz = qsohiz[0]
+    #     pqso = pqso[0]
+    #     pqsohiz = pqsohiz[0]
+    # BAW we don't want to catch the single-object case for Numpy 2 compatibility
+    # and, indeed, some other isSV0_XXX functions don't do this. It doesn't appear to
+    # be consistent really.
 
     # ADM if requested, return the probabilities as well.
     if return_probs:
@@ -739,17 +743,3 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     colors[:, 10] = r
 
     return colors, r, photOK
-
-
-def _is_row(table):
-    """Return True/False if this is a row of a table instead of a full table.
-
-    supports numpy.ndarray, astropy.io.fits.FITS_rec, and astropy.table.Table
-    """
-    import astropy.io.fits.fitsrec
-    import astropy.table.row
-    if isinstance(table, (astropy.io.fits.fitsrec.FITS_record, astropy.table.row.Row)) or \
-       np.isscalar(table):
-        return True
-    else:
-        return False

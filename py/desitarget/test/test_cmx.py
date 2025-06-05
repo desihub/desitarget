@@ -93,7 +93,9 @@ class TestCMX(unittest.TestCase):
 
         cmx, pshift = cuts.apply_cuts(targets[0],
                                       cmxdir=self.cmxdir)
-        self.assertTrue(isinstance(cmx, numbers.Integral), 'CMX_TARGET mask not an int')
+        # self.assertTrue(isinstance(cmx, numbers.Integral), 'CMX_TARGET mask not an int')
+        # For Numpy 2 compatibility, single row cuts return length-1 arrays.
+        self.assertEqual(len(cmx), 1)
 
     def test_astropy_fits(self):
         """Test astropy.fits I/O library
