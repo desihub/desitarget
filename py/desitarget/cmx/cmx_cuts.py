@@ -556,7 +556,8 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     # if _is_row(rflux):
     #     return lrg[0]
     # BAW we don't want to catch the single-object case for Numpy 2 compatibility
-    # and, indeed, other isSV0_XXX functions don't do this.
+    # and, indeed, some other isSV0_XXX functions don't do this. It doesn't appear to
+    # be consistent really.
     return lrg
 
 
@@ -774,8 +775,11 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM The individual routines return arrays, so we need
     # ADM a check to preserve the single-object case.
-    if _is_row(rflux):
-        return qso_north[0], qsoz5_north[0]
+    # if _is_row(rflux):
+    #     return qso_north[0], qsoz5_north[0]
+    # BAW we don't want to catch the single-object case for Numpy 2 compatibility
+    # and, indeed, some other isSV0_XXX functions don't do this. It doesn't appear to
+    # be consistent really.
 
     return qso_north, qsoz5_north
 

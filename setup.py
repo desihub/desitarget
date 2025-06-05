@@ -66,7 +66,7 @@ setup_keywords['package_data'] = {'desitarget': ['data/*',],
                                   'desitarget.sv1': ['data/*',],
                                   'desitarget.sv2': ['data/*',],
                                   'desitarget.sv3': ['data/*',],
-                                  'desitarget.test': ['t/*',],
+                                  'desitarget.test': ['dr6/*', 't/*', 't3/*', 't4/*', 'tgaia/*'],
                                   'desitarget.mock': [os.path.relpath(_,'py/desitarget/mock') for _ in [os.path.join(_[0],'*') for _ in os.walk('py/desitarget/mock/data')]],
                                   'desitarget.streams.gaia_dr3_parallax_zero_point': ['coefficients/*',],
                                   }
