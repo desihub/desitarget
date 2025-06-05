@@ -1,18 +1,21 @@
-# Based on desimodules/22.5.
-pytz
+# Based on the import statements in py/desitarget, these are the external
+# packages that are required.
+PyYAML
 requests
+scipy
+matplotlib
 astropy
-numba
 healpy
-speclite
-sqlalchemy
 fitsio
+# This pinned version could become problematic, especially if it is not Numpy 2 compatible.
 photutils==1.6.0
-# Install desiutil separately since it is needed for the other installs.
-# git+https://github.com/desihub/desiutil.git@3.5.1#egg=desiutil
+# This is imported in desitarget.train.train_test_RF, but previously escaped notice.
+joblib
+# This is imported in several modules in desitarget.train, but previously escaped notice.
+sklearn
+# DESI packages
+desiutil
+# specter is needed for full desimodel functionality.
 git+https://github.com/desihub/specter.git@0.10.1#egg=specter
 git+https://github.com/desihub/desimodel.git@0.19.3#egg=desimodel
 # Don't forget to install desimodel test data.
-git+https://github.com/desihub/desispec.git@0.69.0#egg=desispec
-git+https://github.com/desihub/desisim.git@0.38.2#egg=desisim
-git+https://github.com/desihub/redrock.git@0.20.4#egg=redrock

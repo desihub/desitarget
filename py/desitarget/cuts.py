@@ -2056,12 +2056,8 @@ def _is_row(table):
     """
     import astropy.io.fits.fitsrec
     import astropy.table.row
-    if isinstance(table, (astropy.io.fits.fitsrec.FITS_record,
-                          astropy.table.row.Row)) or \
-       np.isscalar(table):
-        return True
-    else:
-        return False
+    return (isinstance(table, (astropy.io.fits.fitsrec.FITS_record,
+                               astropy.table.row.Row)) or np.isscalar(table))
 
 
 def _get_colnames(objects):
@@ -2941,7 +2937,8 @@ def apply_cuts(objects, qso_selection='randomforest',
     # ADM initially, every object passes the cuts (is True).
     # ADM need to guard against the case of a single row being passed.
     if _is_row(objects):
-        primary = np.bool_(True)
+        # primary = np.bool_(True)
+        primary = np.ones_like([1,], dtype=bool)
     else:
         primary = np.ones_like(objects, dtype=bool)
 
@@ -2955,7 +2952,7 @@ def apply_cuts(objects, qso_selection='randomforest',
         targcuts = import_module(sv_module)
         assert targcuts.__name__ == sv_module
     else:
-        msg = "survey must be either 'main'or 'svX', not {}!!!".format(survey)
+        msg = "survey must be either 'main' or 'svX', not {}!!!".format(survey)
         log.critical(msg)
         raise ValueError(msg)
 

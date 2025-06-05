@@ -43,7 +43,8 @@ intersphinx_mapping = {
     'scipy': ('https://docs.scipy.org/doc/scipy/', None),
     'matplotlib': ('https://matplotlib.org/stable/', None),
     'astropy': ('https://docs.astropy.org/en/stable/', None),
-    'h5py': ('https://docs.h5py.org/en/latest/', None)
+    'healpy': ('https://healpy.readthedocs.io/en/stable/', None),
+    'joblib': ('https://joblib.readthedocs.io/en/stable/', None)
     }
 
 # Add any paths that contain templates here, relative to this directory.
@@ -123,10 +124,9 @@ napoleon_include_private_with_doc = True
 # some external dependencies are not met at build time and break the
 # building process.
 autodoc_mock_imports = []
-for missing in ('astropy', 'desimodel', 'desisim', 'desispec', 'desiutil',
-                'fitsio', 'healpy', 'joblib', 'matplotlib', 'numpy', 'photutils',
-                'scipy', 'sklearn', 'speclite', 'yaml',
-                'quasarnp', 'squeze', 'prospect'):
+for missing in ('astropy', 'desimodel', 'desiutil', 'fitsio', 'healpy',
+                'joblib', 'matplotlib', 'numpy', 'photutils', 'scipy', 'sklearn',
+                'yaml'):
     try:
         foo = import_module(missing)
     except ImportError:
