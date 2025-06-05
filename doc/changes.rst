@@ -2,10 +2,16 @@
 desitarget Change Log
 =====================
 
-3.0.1 (unreleased)
+3.2.0 (unreleased)
 ------------------
 
-* Finalize target files and initial MTL creation for BRIGHT1B [`PR #841`_].
+* No changes yet.
+
+3.1.0 (2025-06-05)
+------------------
+
+* This is the last tag that will include mockmaker.py and lyazcat.py.
+* Finalize target files, initial MTL creation for BRIGHT1B [`PR #841`_].
 * Add target selection for streams and dSphs for BRIGHT1B [`PR #835`_].
     * Also updates :func:`mtl.check_archiving()` for 1B ledger checks.
 
