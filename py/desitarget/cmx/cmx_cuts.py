@@ -553,9 +553,10 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     )
 
     # ADM isLRG_colors() forces arrays, so catch the single-object case.
-    if _is_row(rflux):
-        return lrg[0]
-
+    # if _is_row(rflux):
+    #     return lrg[0]
+    # BAW we don't want to catch the single-object case for Numpy 2 compatibility
+    # and, indeed, other isSV0_XXX functions don't do this.
     return lrg
 
 
