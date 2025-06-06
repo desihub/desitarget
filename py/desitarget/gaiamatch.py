@@ -1234,20 +1234,19 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
         nside = _get_gaia_nside()
         hpnum = radec2pix(nside, outdata["{}_RA".format(prefix)],
                           outdata["{}_DEC".format(prefix)])
-        # ADM int should fail if HEALPix in the file aren't unique.
-        # However int(np.unique(hpnum)) is invalid because np.unique() does not
-        # return a scalar.
+        # The code below ensures that the hp number is unique and that
+        # it is converted to an integer in a Numpy 2 safe way that is also
+        # backwards compatible.
         uhpnum = np.unique(hpnum)
         assert len(uhpnum) == 1
         newoutdata['{}_BRICKID'.format(prefix)] = int(uhpnum[0])
         outdata = newoutdata
 
+    fx.close()
     # ADM return data from the Gaia file, with the header if requested.
     if header:
-        fx.close()
         return outdata, hdr
     else:
-        fx.close()
         return outdata
 
 
