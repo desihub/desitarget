@@ -428,6 +428,8 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
     if refcat is not None:
         if isinstance(refcat, MaskedColumn):
             refcatf = refcat.filled('')
+        elif isinstance(refcat, np.ma.core.MaskedConstant):
+            refcatf = ''
         elif isinstance(refcat, (bytes, str)):
             refcatf = refcat
         else:
