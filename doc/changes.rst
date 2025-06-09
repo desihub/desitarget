@@ -5,7 +5,9 @@ desitarget Change Log
 3.3.0 (unreleased)
 ------------------
 
-* No changes yet.
+* Add numpy 2 compatibility; remove mockmaker.py and lyazcat.py [`PR #838`_].
+
+.. _`PR #838`: https://github.com/desihub/desitarget/pull/838
 
 3.2.0 (2025-06-08)
 ------------------
