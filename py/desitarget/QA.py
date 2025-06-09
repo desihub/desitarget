@@ -665,7 +665,7 @@ def qasystematics_scatterplot(pixmap, syscolname, targcolname, qadir='.',
         if np.any(ii):
             meds.append(np.median(yy[ii]))
         else:
-            meds.append(np.NaN)
+            meds.append(np.nan)
 
     # ADM make the plot.
     plt.scatter(xx, yy, marker='.', color='b', alpha=0.8, s=0.8)
@@ -1919,7 +1919,6 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
 #    mpl.rcParams['ytick.minor.width'] = 2
 #    mpl.rcParams['font.size'] = 13
 
-    from desispec.io.util import makepath
     # ADM set up the default logger from desiutil.
     log = get_logger()
 
@@ -1970,7 +1969,8 @@ def make_qa_page(targs, mocks=False, makeplots=True, max_bin_area=1.0, qadir='.'
     targdens = _load_targdens(tcnames=tcnames, bit_mask=masks)
 
     # ADM set up the html file and write preamble to it.
-    htmlfile = makepath(os.path.join(qadir, 'index.html'))
+    htmlfile = os.path.join(qadir, 'index.html')
+    os.makedirs(os.path.normpath(qadir), exist_ok=True)
 
     # ADM grab the magic string that writes the last-updated date to a webpage.
     js = _javastring()

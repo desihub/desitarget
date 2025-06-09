@@ -255,9 +255,14 @@ class TestCuts(unittest.TestCase):
         self.assertEqual(len(mws), len(targets))
 
         desi, bgs, mws = cuts.apply_cuts(targets[0], tcnames=tc)
-        self.assertTrue(isinstance(desi, numbers.Integral), 'DESI_TARGET mask not an int')
-        self.assertTrue(isinstance(bgs, numbers.Integral), 'BGS_TARGET mask not an int')
-        self.assertTrue(isinstance(mws, numbers.Integral), 'MWS_TARGET mask not an int')
+        # self.assertTrue(isinstance(desi, numbers.Integral), 'DESI_TARGET mask not an int')
+        # self.assertTrue(isinstance(bgs, numbers.Integral), 'BGS_TARGET mask not an int')
+        # self.assertTrue(isinstance(mws, numbers.Integral), 'MWS_TARGET mask not an int')
+        # For Numpy 2 compatibility, single row cuts return length-1 arrays.
+        self.assertEqual(len(desi), 1)
+        self.assertEqual(len(bgs), 1)
+        self.assertEqual(len(mws), 1)
+
 
     def test_astropy_fits(self):
         """Test astropy.fits I/O library

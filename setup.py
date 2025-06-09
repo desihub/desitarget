@@ -61,14 +61,16 @@ setup_keywords['test_suite']='{name}.test.{name}_test_suite.{name}_test_suite'.f
 #
 # Add internal data directories
 #
-setup_keywords['package_data'] = {'desitarget': ['data/*',],
+setup_keywords['package_data'] = {'desitarget': ['data/*', 'urat/*'],
                                   'desitarget.cmx': ['data/*',],
                                   'desitarget.sv1': ['data/*',],
                                   'desitarget.sv2': ['data/*',],
                                   'desitarget.sv3': ['data/*',],
-                                  'desitarget.test': ['t/*',],
+                                  'desitarget.test': ['dr6/*', 't/*', 't3/*', 't4/*', 'tgaia/*'],
                                   'desitarget.mock': [os.path.relpath(_,'py/desitarget/mock') for _ in [os.path.join(_[0],'*') for _ in os.walk('py/desitarget/mock/data')]],
-                                  'desitarget.streams.gaia_dr3_parallax_zero_point': ['coefficients/*',],
+                                  'desitarget.streams.gaia_dr3_parallax_zero_point': ['LICENSE', 'README.md', 'coefficients/*',],
+                                  'desitarget.train': ['README.md'],
+                                  'desitarget.train.data_preparation': ['ROSS4_tabR.txt'],
                                   }
 
 #

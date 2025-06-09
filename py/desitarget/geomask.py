@@ -117,7 +117,7 @@ def match(A, B, check_for_dups=True):
             log.error(msg)
             raise ValueError(msg)
 
-    # AR mask equivalent to np.in1d(A, B) for unique elements.
+    # AR mask equivalent to np.isin(A, B) for unique elements.
     maskA = (
         np.searchsorted(tmpB, tmpA, "right") - np.searchsorted(tmpB, tmpA, "left")
     ) == 1

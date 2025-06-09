@@ -15,7 +15,7 @@ from astropy.table import vstack, Table
 
 from desimodel.footprint import radec2pix
 
-def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.', 
+def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.',
                              seed=None, verbose=False):
     """Initialize various objects needed to generate mock targets.
 
@@ -59,7 +59,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
     if healpixels is None:
         log.fatal('HEALPIXELS input is required.')
         raise ValueError
-        
+
     if nside is None:
         log.fatal('NSIDE input is required.')
         raise ValueError
@@ -72,7 +72,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
         log = get_logger(DEBUG)
     else:
         log = get_logger()
-    
+
     npix = len(np.atleast_1d(healpixels))
 
     # Initialize the random seed
@@ -85,19 +85,19 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
             log.warning('Output directory {} is not empty.'.format(output_dir))
     else:
         log.info('Creating directory {}'.format(output_dir))
-        os.makedirs(output_dir)    
-    log.info('Writing to output directory {}'.format(output_dir))      
-        
+        os.makedirs(output_dir)
+    log.info('Writing to output directory {}'.format(output_dir))
+
     areaperpix = hp.nside2pixarea(nside, degrees=True)
     log.info('Processing {} healpixel(s) (nside = {}, {:.3f} deg2/pixel) spanning {:.3f} deg2.'.format(
         len(healpixels), nside, areaperpix, npix * areaperpix))
 
     return log, healpixseeds
-    
+
 def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
               nside=None, nside_chunk=128, MakeMock=None, dndz=None):
     """Read a mock catalog.
-    
+
     Parameters
     ----------
     params : :class:`dict`
@@ -106,7 +106,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     log : :class:`desiutil.logger`
         Logger object.
     target_name : :class:`str`
-        Target name; mock.mockmaker.[TARGET_NAME]Maker class to instantiate. 
+        Target name; mock.mockmaker.[TARGET_NAME]Maker class to instantiate.
     seed: :class:`int`, optional
         Seed for the random number generator.  Defaults to None.
     healpixels : :class:`numpy.ndarray` or `int`
@@ -119,7 +119,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     dndz : :class:`dict`, optional
         Expected redshift distributions for all target classes.  Defaults to
         None.
-            
+
     Returns
     -------
     data : :class:`dict`
@@ -166,7 +166,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
             add_metals=add_metals, add_lyb=add_lyb)
     else:
         MakeMock.seed = seed # updated seed
-        
+
     data = MakeMock.read(mockfile=mockfile, mockformat=mockformat,
                          healpixels=healpixels, nside=nside,
                          magcut=magcut, nside_lya=nside_lya,
@@ -180,7 +180,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
         if 'MOCK_DENSITY' not in data.keys():
             log.warning('Expected mock_density value not found!')
             raise ValueError
-        
+
         data['DENSITY'] = params['density']
 
         # Note: the tracer and Lya QSO target densities are defined relative to
@@ -203,11 +203,11 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
             extrafactor = 1.0
 
         data['DENSITY_FACTOR'] = extrafactor * data['DENSITY'] / data['MOCK_DENSITY']
-            
+
         if data['DENSITY_FACTOR'] > 1:
             log.warning('Density factor {} should not be > 1!'.format(data['DENSITY_FACTOR']))
             data['DENSITY_FACTOR'] = 1.0
-        
+
         data['MAXITER'] = 5
 
         log.info('Computed median mock density for {}s of {:.2f} targets/deg2.'.format(
@@ -287,7 +287,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
             data, indx=iterindx[itercount], seed=iterseeds[itercount], no_spectra=no_spectra)
 
         MakeMock.select_targets(chunktargets, chunktruth, targetname=data['TARGET_NAME'])
-        
+
         keep = np.where(chunktargets['DESI_TARGET'] != 0)[0]
         #if 'CONTAM_NAME' in data.keys():
         #    import pdb ; pdb.set_trace()
@@ -368,12 +368,12 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     Returns
     -------
     indxperchunk : :class:`list`
-        Indices (in data) of the mock targets to generate per healpixel chunk. 
+        Indices (in data) of the mock targets to generate per healpixel chunk.
     ntargperchunk : :class:`numpy.ndarray`
         Number of targets to generate per healpixel chunk.
     areaperpixel : :class:`float`
         Area per healpixel (used to construct useful log messages).
-    
+
     """
     rand = np.random.RandomState(seed)
 
@@ -384,13 +384,13 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     #model['ELG'] = (-0.55792, 3.380, 0.081)
     #model['QSO'] = (0.33321, 3.249, 0.112)
     #coeff = model.get(data['TARGET_NAME'])
-    
+
     # Chunk each healpixel into a smaller set of healpixels, for
     # parallelization.
     if nside >= nside_chunk:
         log.warning('Nside must be <= nside_chunk.')
         nside_chunk = nside
-        
+
     areaperpixel = hp.nside2pixarea(nside, degrees=True)
     areaperchunk = hp.nside2pixarea(nside_chunk, degrees=True)
 
@@ -408,13 +408,13 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     #else:
     #    density_factor = data.get('DENSITY_FACTOR')
 
-    density_factor = data.get('DENSITY_FACTOR')        
+    density_factor = data.get('DENSITY_FACTOR')
 
     indxperchunk, ntargperchunk = list(), list()
     for pixchunk in set(healpix_chunk):
 
         # Subsample the targets on this mini healpixel.
-        allindxthispix = np.where( np.in1d(healpix_chunk, pixchunk)*1 )[0]
+        allindxthispix = np.where( np.isin(healpix_chunk, pixchunk)*1 )[0]
 
         if 'CONTAM_NUMBER' in data.keys():
             ntargthispix = np.round( data['CONTAM_NUMBER'] / nchunk ).astype(int)
@@ -443,7 +443,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     # Special case when the number of targets is very small.
     if np.sum(ntargperchunk) == 0:
         ntargperchunk[0] = np.round( len(data['RA']) * density_factor ).astype('int')
-        
+
     return indxperchunk, ntargperchunk, areaperpixel
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
@@ -492,7 +492,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     from time import time
     #import multiprocessing
     from desitarget.internal import sharedmem
-    
+
     # Parallelize by chunking the sample into smaller healpixels and
     # determine the number of targets per chunk.
     indxperchunk, ntargperchunk, area = density_fluctuations(
@@ -528,7 +528,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
             log.debug('Healpixel chunk {} / {} ({:.1f} sec / chunk)'.format(nn, nchunk, rate))
         nn[...] += 1    # in-place modification
         return result
-    
+
     if nproc > 1:
         with sharedmem.MapReduce(np=nproc) as pool:
             results = pool.map(_get_spectra_onepixel, specargs,
@@ -545,7 +545,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
     #    results = list()
     #    for args in specargs:
     #        results.append(_get_spectra_onepixel(args))
-            
+
     ttime = time() - t0
 
     # Unpack the results and return; note that sky targets are a special case.
@@ -565,7 +565,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
                     log.warning('Mismatching targets and objtruth tables!')
                     raise ValueError
                 objtruth.append(objtru)
-               
+
     if len(targets) > 0:
         targets = vstack(targets)
         truth = vstack(truth)
@@ -702,7 +702,7 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                         mag = star_data['ZMAG']
                     else:
                         mag = star_data['MAG']
-                    
+
                     gmmout = ContamStarsMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                         isouth=star_data['SOUTH'],
                                                         seed=seed, prior_mag=mag)
@@ -766,7 +766,7 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                         mag = galaxy_data['ZMAG']
                     else:
                         mag = galaxy_data['MAG']
-                    
+
                     gmmout = ContamGalaxiesMock.sample_GMM(nobj, target=target_type, morph=morph,
                                                            isouth=galaxy_data['SOUTH'],
                                                            seed=seed, prior_mag=mag)
@@ -794,7 +794,7 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
     if len(stars_targets) > 0:
         targets = vstack( (targets, stars_targets) )
         truth = vstack( (truth, stars_truth) )
-        
+
     if len(galaxies_targets) > 0:
         targets = vstack( (targets, galaxies_targets) )
         truth = vstack( (truth, galaxies_truth) )
@@ -881,7 +881,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 survey=survey)
         else:
             ContamStarsMock = None
-                
+
         if 'galaxies' in params['contaminants']:
             log.info('Initializing and caching MockMaker class for extragalactic contaminants.')
             if len(params['contaminants']['galaxies'].keys()) > 1:
@@ -893,7 +893,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                 target_name='CONTAM_GALAXY', survey=survey)
         else:
             ContamGalaxiesMock = None
-            
+
     # Loop over each source / object type.
     for healpix, healseed in zip(healpixels, healpixseeds):
         log.info('Working on healpixel {}'.format(healpix))
@@ -914,7 +914,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                                        seed=healseed, healpixels=healpix,
                                        nside=nside, nside_chunk=nside_chunk,
                                        MakeMock=AllMakeMock[ii], dndz=dndz)
-            
+
             if not bool(data):
                 continue
 
@@ -927,7 +927,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                                                              nproc=nproc, sky=sky, no_spectra=no_spectra,
                                                              calib_only=calib_only)
             del data
-            
+
             if sky:
                 allskytargets.append(targets)
                 allskytruth.append(truth)
@@ -946,7 +946,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
 
         # Pack it all together and then add some final columns.
         if len(alltargets) > 0:
-            targets = vstack(alltargets) 
+            targets = vstack(alltargets)
             truth = vstack(alltruth)
             objtruth = allobjtruth
             trueflux = np.concatenate(alltrueflux)
@@ -977,7 +977,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         # dark-time targets.
         #outdir = mockio.get_healpix_dir(nside, healpix, basedir=output_dir)
         #os.makedirs(outdir, exist_ok=True)
-        
+
         nobj, nsky = len(targets), len(skytargets)
         if nobj > 0:
             for obscon in ['BRIGHT', 'DARK']:
@@ -988,7 +988,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                                                 nsidefile=nside, hpxlist=healpix, nchunks=None,
                                                 qso_selection='colorcuts', mockdata=mockdata)
                 log.info('{} targets written to {}'.format(ntargs, outfile))
-            
+
         skyfile = find_target_files(output_dir, flavor='sky', nside=nside,
                                     hp=healpix, mock=True)
         if nsky > 0:
@@ -998,16 +998,16 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         else:
             log.info('No SKY targets generated; {} not written.'.format(skyfile))
             log.info('  Sky file {} not written.'.format(skyfile))
-            
+
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None, survey='main'):
     """Add various mission-critical columns to the target catalog, including
     hpxpixel, brick_objid, targetid, subpriority, priority, and numobs.
-    
+
     Parameters
     ----------
     targets : :class:`astropy.table.Table`
-        Final set of targets. 
+        Final set of targets.
     truth : :class:`astropy.table.Table`
         Corresponding truth table for targets.
     objtruth : :class:`astropy.table.Table`
@@ -1037,7 +1037,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
     #from desitarget.targets import encode_targetid, initial_priority_numobs
 
     rand = np.random.RandomState(seed)
-    
+
     nobj = len(targets)
     nsky = len(skytargets)
     area = hp.nside2pixarea(nside, degrees=True)
@@ -1072,7 +1072,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
         targets = Table(finalize(targets.as_array(), desi_target, bgs_target, mws_target,
                                  survey=survey, darkbright=True, targetid=targetid[:nobj]))
-        
+
         targets['SUBPRIORITY'][:] = subpriority[:nobj]
 
         # Assign the appropriate TARGETID values to the objtruth tables.
@@ -1087,12 +1087,12 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
             if not np.all( (objtruth[obj]['TARGETID'] == truth['TARGETID'][these]) ) or \
               not np.all( (objtruth[obj]['TARGETID'] == targets['TARGETID'][these]) ):
                 log.warning('Mismatching TARGETIDs!')
-                raise ValueError                
-            
+                raise ValueError
+
         #targets['PRIORITY_INIT'], targets['NUMOBS_INIT'] = \
         #        initial_priority_numobs(targets)
         #targets = _rename_bysurvey(targets, survey=survey)
-        
+
         assert(len(targets['TARGETID']) == len(np.unique(targets['TARGETID'])))
 
     if nsky > 0:
@@ -1106,7 +1106,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
 
         skytargets = Table(finalize(skytargets.as_array(), desi_target, bgs_target, mws_target,
                                     survey=survey, darkbright=True, sky=1, targetid=targetid[nobj:]))
-        
+
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
 
     return targets, truth, objtruth, skytargets, skytruth
@@ -1130,7 +1130,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
     import glob
     from desiutil.log import get_logger
     log = get_logger()
-    
+
     if comm is not None:
         size = comm.Get_size()
         rank = comm.Get_rank()
@@ -1146,12 +1146,12 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
 
     if comm is not None:
         infiles = comm.bcast(infiles, root=0)
- 
+
     if len(infiles)==0:
         if rank == 0:
             log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
         return
-    
+
     #- Each rank reads and combines a different set of files
     data = list()
     for filename in infiles[rank::size]:
@@ -1198,7 +1198,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
         #- If appending, move file back to tmpout name
         if (not overwrite) and os.path.exists(outfile):
             os.rename(outfile, tmpout)
-        
+
         # Find duplicates
         vals, idx_start, count = np.unique(data['TARGETID'], return_index=True, return_counts=True)
         if len(vals) != len(data):
@@ -1245,7 +1245,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
         comm = None
         size = 1
         rank = 0
-    
+
     #- Use rank 0 to check pre-existing files to avoid N>>1 ranks hitting the disk
     if rank == 0:
         todo = dict()
@@ -1274,7 +1274,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
                                FIBERFLUX_IVAR_Z=130.0)
                            )
                            #addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
-        
+
     for obscon in ('bright', 'dark'):
         if todo['targets-{}'.format(obscon)]:
             _merge_file_tables(mockdir+'/*/*/{}/targets-*.fits'.format(obscon), 'TARGETS',
@@ -1285,7 +1285,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             _merge_file_tables(mockdir+'/*/*/{}/truth-*.fits'.format(obscon), 'TRUTH',
                                overwrite=overwrite,
                                outfile=outdir+'/truth-{}.fits'.format(obscon), comm=comm)
-            
+
             # append, not overwrite other per-subclass truth tables
             for templatetype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
                 extname = 'TRUTH_' + templatetype

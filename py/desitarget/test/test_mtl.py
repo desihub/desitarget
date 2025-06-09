@@ -200,7 +200,9 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
 
         # ADM repeat until QSOs should be done, check everything IS done.
-        passes = int(np.unique(zcat["NUMOBS"]))
+        unumobs = np.unique(zcat["NUMOBS"])
+        self.assertEqual(len(unumobs), 1)
+        passes = int(unumobs[0])
         for i in range(Mx["QSO"].numobs - passes):
             zcat["NUMOBS"] += 1
             mtl = make_mtl(mtl, "DARK", zcat=zcat, trim=False)
@@ -277,7 +279,9 @@ class TestMTL(unittest.TestCase):
 
         # ADM repeat MTL until the QSOs should be DONE. Everything should
         # ADM be DONE as usual, regardless of previous redshift changes.
-        passes = int(np.unique(modzcat["NUMOBS"]))
+        unumobs = np.unique(modzcat["NUMOBS"])
+        self.assertEqual(len(unumobs), 1)
+        passes = int(unumobs[0])
         for i in range(Mx["QSO"].numobs - passes):
             modzcat["NUMOBS"] += 1
             mtl = make_mtl(mtl, "DARK", zcat=modzcat, trim=False)

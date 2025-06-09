@@ -218,8 +218,13 @@ def get_utc_date(survey="sv3"):
     - The `survey` input defaults to `"sv3"` for backwards compatibility
       (we became stricter about the format for the main survey).
     """
+    try:
+        from datetime import UTC
+    except ImportError:
+        from pytz import UTC
     if survey[:2] == 'sv' or survey == 'cmx':
-        return datetime.utcnow().isoformat(timespec='seconds')
+        # return datetime.utcnow().isoformat(timespec='seconds')
+        return datetime.now(UTC).isoformat(timespec='seconds')
     elif survey == 'main':
         return get_utc_iso_date()
     else:
@@ -649,7 +654,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
     # Trim targets from zcat that aren't in original targets table.
     # ADM or that didn't actually obtain an observation.
     if zcat is not None:
-        ok = np.in1d(zcat['TARGETID'], targets['TARGETID'])
+        ok = np.isin(zcat['TARGETID'], targets['TARGETID'])
         num_extra = np.count_nonzero(~ok)
         if num_extra > 0:
             log.info("Ignoring {} z entries that aren't in the input target list"

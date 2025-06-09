@@ -3759,7 +3759,7 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
     # AR overlapping the tile.
     hpxpixelss = [fitsio.read(fn, columns=["HPXPIXEL"])["HPXPIXEL"]
                   for fn in fns]
-    iis = [np.where(np.in1d(hpxpixels, hpxpixs))[0] for hpxpixels in hpxpixelss]
+    iis = [np.where(np.isin(hpxpixels, hpxpixs))[0] for hpxpixels in hpxpixelss]
     if verbose:
         log.info(
             "{:.1f}s\tkeep {} objects with HPXPIXEL in {} (hpxnside={})".format(

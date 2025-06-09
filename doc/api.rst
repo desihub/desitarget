@@ -5,6 +5,12 @@ desitarget API
 .. automodule:: desitarget
     :members:
 
+.. automodule:: desitarget.QA
+    :members:
+
+.. automodule:: desitarget.ToO
+    :members:
+
 .. automodule:: desitarget.brightmask
     :members:
 
@@ -41,9 +47,6 @@ desitarget API
 .. automodule:: desitarget.io
     :members:
 
-.. automodule:: desitarget.lyazcat
-    :members:
-
 .. automodule:: desitarget.mock
     :members:
 
@@ -51,9 +54,6 @@ desitarget API
     :members:
 
 .. automodule:: desitarget.mock.io
-    :members:
-
-.. automodule:: desitarget.mock.mockmaker
     :members:
 
 .. automodule:: desitarget.mock.sky
@@ -68,9 +68,6 @@ desitarget API
 .. automodule:: desitarget.photo
     :members:
 
-.. automodule:: desitarget.QA
-    :members:
-
 .. automodule:: desitarget.randoms
     :members:
 
@@ -81,6 +78,9 @@ desitarget API
     :members:
 
 .. automodule:: desitarget.skyfibers
+    :members:
+
+.. automodule:: desitarget.skyhealpixs
     :members:
 
 .. automodule:: desitarget.skyutilities
@@ -96,6 +96,27 @@ desitarget API
     :members:
 
 .. automodule:: desitarget.skyutilities.legacypipe.util
+    :members:
+
+.. automodule:: desitarget.streams
+    :members:
+
+.. automodule:: desitarget.streams.cuts
+    :members:
+
+.. automodule:: desitarget.streams.gaia_dr3_parallax_zero_point
+    :members:
+
+.. automodule:: desitarget.streams.gaia_dr3_parallax_zero_point.zpt
+    :members:
+
+.. automodule:: desitarget.streams.io
+    :members:
+
+.. automodule:: desitarget.streams.targets
+    :members:
+
+.. automodule:: desitarget.streams.utilities
     :members:
 
 .. automodule:: desitarget.subpriority
@@ -134,21 +155,11 @@ desitarget API
 .. automodule:: desitarget.targets
     :members:
 
-.. automodule:: desitarget.ToO
-    :members:
-
 .. automodule:: desitarget.train
     :members:
 
 .. automodule:: desitarget.train.data_collection
     :members:
-
-.. automodule:: desitarget.train.data_collection.my_tractor_extract_batch
-    :members:
-
-.. This appears to be a script rather than a proper module.
-.. .. automodule:: desitarget.train.data_collection.my_tractor_extract
-..     :members:
 
 .. automodule:: desitarget.train.data_collection.QSOs_from_VI
     :members:
@@ -156,10 +167,20 @@ desitarget API
 .. automodule:: desitarget.train.data_collection.RA_DEC_MatchingClassModule
     :members:
 
+.. This appears to be a script rather than a proper module.
+.. .. automodule:: desitarget.train.data_collection.my_tractor_extract
+..     :members:
+
+.. automodule:: desitarget.train.data_collection.my_tractor_extract_batch
+    :members:
+
 .. automodule:: desitarget.train.data_collection.sweep_meta
     :members:
 
 .. automodule:: desitarget.train.data_preparation
+    :members:
+
+.. automodule:: desitarget.train.data_preparation.PredCountsFromQLF_ClassModule
     :members:
 
 .. automodule:: desitarget.train.data_preparation.funcs
@@ -171,9 +192,6 @@ desitarget API
 .. This appears to be a script rather than a proper module.
 .. .. automodule:: desitarget.train.data_preparation.make_training_samples
 ..     :members:
-
-.. automodule:: desitarget.train.data_preparation.PredCountsFromQLF_ClassModule
-    :members:
 
 .. automodule:: desitarget.train.train_test_RF
     :members:
@@ -193,15 +211,15 @@ desitarget API
 .. automodule:: desitarget.train.train_test_RF.util
     :members:
 
-.. automodule:: desitarget.train.train_test_RF.util.funcs
-    :members:
-
 .. automodule:: desitarget.train.train_test_RF.util.PredCountsFromQLF_ClassModule
     :members:
 
 .. This appears to be a script rather than a proper module.
 .. .. automodule:: desitarget.train.train_test_RF.util.Scikit_RF_TO_DESI_RF
 ..     :members:
+
+.. automodule:: desitarget.train.train_test_RF.util.funcs
+    :members:
 
 .. automodule:: desitarget.tychomatch
     :members:

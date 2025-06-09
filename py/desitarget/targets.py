@@ -222,7 +222,8 @@ def encode_negative_targetid(ra, dec, group=1):
     if not (1 <= group <= 15):
         raise ValueError(f'group {group} must be within 1-15')
 
-    group = np.int8(group)
+    # This used to be group = np.int8(group). Does not work with Numpy 2.
+    group = np.int64(group)
 
     # Convert to arrays to enable things like .astype(int).
     ra = np.atleast_1d(ra)

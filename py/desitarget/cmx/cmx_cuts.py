@@ -214,7 +214,10 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
     """
     if primary is None:
         primary = np.ones_like(rflux, dtype='?')
-    sv0_bgs = np.zeros_like(rflux, dtype='?')
+    # BAW Most of the isXXX functions do primary.copy() here, which is
+    # fine for Numpy 2 compatibility, but for some reason this did not.
+    # sv0_bgs = np.zeros_like(rflux, dtype='?')
+    sv0_bgs = np.zeros_like(primary)
 
     for targtype in ["bright", "faint", "faint_ext", "fibmag"]:
         bgs = isBGS(
@@ -550,9 +553,11 @@ def isSV0_LRG(gflux=None, rflux=None, zflux=None, w1flux=None,
     )
 
     # ADM isLRG_colors() forces arrays, so catch the single-object case.
-    if _is_row(rflux):
-        return lrg[0]
-
+    # if _is_row(rflux):
+    #     return lrg[0]
+    # BAW we don't want to catch the single-object case for Numpy 2 compatibility
+    # and, indeed, some other isSV0_XXX functions don't do this. It doesn't appear to
+    # be consistent really.
     return lrg
 
 
@@ -770,8 +775,11 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
 
     # ADM The individual routines return arrays, so we need
     # ADM a check to preserve the single-object case.
-    if _is_row(rflux):
-        return qso_north[0], qsoz5_north[0]
+    # if _is_row(rflux):
+    #     return qso_north[0], qsoz5_north[0]
+    # BAW we don't want to catch the single-object case for Numpy 2 compatibility
+    # and, indeed, some other isSV0_XXX functions don't do this. It doesn't appear to
+    # be consistent really.
 
     return qso_north, qsoz5_north
 
@@ -1600,9 +1608,16 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
 
     # ADM prioritize based on magnitude.
     # ADM OK to clip, as these are all Gaia matches.
-    rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
-    prio = np.array((10*(25-rmag)).astype(int))
-
+    if _is_row(obs_rflux):
+        rflux = np.zeros_like([obs_rflux,]) + obs_rflux
+    else:
+        rflux = obs_rflux.copy()
+    rmag = 22.5-2.5*np.log10(rflux.clip(1e-16))
+    prio = (10*(25-rmag)).astype(int)
+    # rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
+    # prio = np.array((10*(25-rmag)).astype(int))
+    assert len(isdither) == len(primary)
+    assert len(prio) == len(primary)
     return isdither, prio
 
 
@@ -1707,7 +1722,13 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
         issdg[ii_true[idsdg][badmag]] = False
 
     # ADM prioritize based on magnitude.
-    prio = np.array((10*(25-rmag)).astype(int))
+    if _is_row(rmag):
+        rmag_prio = np.zeros_like([rmag,]) + rmag
+    else:
+        rmag_prio = rmag.copy()
+    prio = (10*(25-rmag_prio)).astype(int)
+    assert len(issdg) == len(primary)
+    assert len(prio) == len(primary)
 
     return issdg, prio
 
@@ -1759,9 +1780,14 @@ def isSTD_dither_spec(gaiagmag=None, gaiarmag=None, obs_rflux=None,
 
     # ADM prioritize based on magnitude.
     # ADM OK to clip, as these are all Gaia matches.
-    rmag = 22.5-2.5*np.log10(obs_rflux.clip(1e-16))
-    prio = np.array((10*(25-rmag)).astype(int))
-
+    if _is_row(obs_rflux):
+        rflux = np.zeros_like([obs_rflux,]) + obs_rflux
+    else:
+        rflux = obs_rflux.copy()
+    rmag = 22.5-2.5*np.log10(rflux.clip(1e-16))
+    prio = (10*(25-rmag)).astype(int)
+    assert len(isdither) == len(primary)
+    assert len(prio) == len(primary)
     return isdither, prio
 
 
@@ -2193,8 +2219,11 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     # ADM need to guard against the case of a single row being passed.
     # ADM initially every class has a priority shift of zero.
     if _is_row(objects):
-        primary = np.bool_(True)
-        priority_shift = np.array(0)
+        # BAW Promote to length-1 array for Numpy 2 compatibility.
+        # primary = np.bool_(True)
+        primary = np.ones_like([1,], dtype=bool)
+        # priority_shift = np.array(0)
+        priority_shift = np.zeros_like([0,], dtype=int)
     else:
         primary = np.ones_like(objects, dtype=bool)
         priority_shift = np.zeros_like(objects, dtype=int)

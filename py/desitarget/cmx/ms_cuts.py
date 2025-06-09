@@ -12,7 +12,9 @@ An old copy of the Main Survey cuts (../cuts.py) that were used for commissionin
 
 import numpy as np
 from importlib import resources
+from astropy.table import MaskedColumn
 from desitarget.geomask import imaging_mask
+from desitarget.cuts import _is_row  # This file previously contained a duplicate of _is_row
 
 # ADM set up the DESI default logger
 from desiutil.log import get_logger
@@ -424,7 +426,15 @@ def isBGS_lslga(gflux=None, rflux=None, zflux=None, w1flux=None, refcat=None,
     LX = bgs.copy()
     # ADM Could check on "L2" for DR8, need to check on "LX" post-DR8.
     if refcat is not None:
-        rc1d = np.atleast_1d(refcat)
+        if isinstance(refcat, MaskedColumn):
+            refcatf = refcat.filled('')
+        elif isinstance(refcat, np.ma.core.MaskedConstant):
+            refcatf = ''
+        elif isinstance(refcat, (bytes, str)):
+            refcatf = refcat
+        else:
+            refcatf = refcat.copy()
+        rc1d = np.atleast_1d(refcatf)
         if isinstance(rc1d[0], str):
             LX = [(rc[0] == "L") if len(rc) > 0 else False for rc in rc1d]
         else:
@@ -678,11 +688,14 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
 
     # In case of call for a single object passed to the function with
     # scalar arguments. Return "numpy.bool_" instead of "~numpy.ndarray".
-    if nbEntries == 1:
-        qso = qso[0]
-        qsohiz = qsohiz[0]
-        pqso = pqso[0]
-        pqsohiz = pqsohiz[0]
+    # if nbEntries == 1:
+    #     qso = qso[0]
+    #     qsohiz = qsohiz[0]
+    #     pqso = pqso[0]
+    #     pqsohiz = pqsohiz[0]
+    # BAW we don't want to catch the single-object case for Numpy 2 compatibility
+    # and, indeed, some other isSV0_XXX functions don't do this. It doesn't appear to
+    # be consistent really.
 
     # ADM if requested, return the probabilities as well.
     if return_probs:
@@ -739,17 +752,3 @@ def _getColors(nbEntries, nfeatures, gflux, rflux, zflux, w1flux, w2flux):
     colors[:, 10] = r
 
     return colors, r, photOK
-
-
-def _is_row(table):
-    """Return True/False if this is a row of a table instead of a full table.
-
-    supports numpy.ndarray, astropy.io.fits.FITS_rec, and astropy.table.Table
-    """
-    import astropy.io.fits.fitsrec
-    import astropy.table.row
-    if isinstance(table, (astropy.io.fits.fitsrec.FITS_record, astropy.table.row.Row)) or \
-       np.isscalar(table):
-        return True
-    else:
-        return False

@@ -21,7 +21,7 @@ def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20, outfile=None):
     Generates sky locations that are more uniform than true random,
     such that every healpixel has a point within it.  Note that this
     should *not* be used for mock randoms.
-    
+
     nside=2048 corresponds to about half of a DESI positioner patrol area
     and results in ~18M sky locations over the full footprint.
 
@@ -41,7 +41,7 @@ def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20, outfile=None):
     #- all healpixels are covered
     for i in range(maxiter):
         skypix = hp.ang2pix(nside, theta, phi, nest=True)
-        missing = np.in1d(pix, skypix, invert=True)
+        missing = np.isin(pix, skypix, invert=True)
         ii = np.where(missing)[0]
         if len(ii) == 0:
             break

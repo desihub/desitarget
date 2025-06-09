@@ -24,20 +24,6 @@ from numpy.lib import recfunctions as rfn
 from desiutil.log import get_logger
 log = get_logger()
 
-# ADM start the clock.
-start = time()
-
-# ADM load the Gaia zero points.
-gaia_zpt.load_tables()
-
-# ADM Galactic reference frame. Use astropy v4.0 defaults.
-GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
-    "v4.0")['parameters']
-
-# ADM some standard units.
-kms = auni.km / auni.s
-masyr = auni.mas / auni.year
-
 
 def ivars_to_errors(objs, colnames=[]):
     """
@@ -357,6 +343,14 @@ def correct_pm(ra, dec, pmra, pmdec, dist):
     if len(ra) == 0:
         return pmra, pmdec
 
+    # ADM Galactic reference frame. Use astropy v4.0 defaults.
+    GCPARAMS = acoo.galactocentric_frame_defaults.get_from_registry(
+        "v4.0")['parameters']
+
+    # ADM some standard units.
+    kms = auni.km / auni.s
+    masyr = auni.mas / auni.year
+
     C = acoo.ICRS(ra=ra * auni.deg,
                   dec=dec * auni.deg,
                   radial_velocity=0 * kms,
@@ -437,7 +431,8 @@ def get_CMD_interpolator(stream_name):
 
     Returns
     -------
-    A scipy interpolated UnivariateSpline.
+    :class:`~scipy.interpolate.UnivariateSpline`
+        A scipy interpolated UnivariateSpline.
     """
     # ADM get information for the stream of interest.
     stream = get_targmwext_parameters(stream_name)
@@ -463,28 +458,28 @@ def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
 
     Parameters
     ----------
-    pm1track : :class:`~numpy.ndarray` or `float`
+    pm1track : :class:`~numpy.ndarray` or :class:`float`
         Allowed proper motions of stream targets, RA-sense.
-    pm2track : :class:`~numpy.ndarray` or `float`
+    pm2track : :class:`~numpy.ndarray` or :class:`float`
         Allowed proper motions of stream targets, Dec-sense.
-    pmfi1 : :class:`~numpy.ndarray` or `float`
+    pmfi1 : :class:`~numpy.ndarray` or :class:`float`
         Proper motion in stream coordinates of possible targets, derived
         from RA.
-    pmfi2 : :class:`~numpy.ndarray` or `float`
+    pmfi2 : :class:`~numpy.ndarray` or :class:`float`
         Proper motion in stream coordinates of possible targets, derived
         from Dec.
-    pm_err : :class:`~numpy.ndarray` or `float`
+    pm_err : :class:`~numpy.ndarray` or :class:`float`
         Proper motion error in stream coordinates of possible targets,
         combined across `pmfi1` and `pmfi2` errors.
-    pad: : :class:`float` or `int`, defaults to 2
-        Extra offset with which to pad `mult`*proper_motion_error.
-    mult : :class:`float` or `int`, defaults to 2.5
+    pad: : :class:`float` or :class:`int`, optional
+        Extra offset with which to pad `mult` times proper_motion_error.
+    mult : :class:`float` or :class:`int`, optional
         Multiple of the proper motion error to use for padding.
 
     Returns
     -------
-    :class:`array_like` or `boolean`
-        ``True`` for stream members.
+    array-like
+        An array with values that are ``True`` for stream members.
     """
 
     return np.sqrt((pmfi2 - pm2track)**2 +
@@ -511,7 +506,7 @@ def pm12_distdep_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, dist, velpad
         Proper motion error in stream coordinates of possible targets,
         combined across `pmfi1` and `pmfi2` errors.
     pad: : :class:`float` or `int`
-        Width of PM selection in km/s, with `mult`*proper_motion_error
+        Width of PM selection in km/s, with `mult` * proper_motion_error
     mult : :class:`float` or `int`, defaults to 2.5
         Multiple of the proper motion error to use for padding.
 
@@ -538,7 +533,7 @@ def pm0_sel_func(pmra0, pmdec0, D, pad=2, mult=2.5):
         Numpy structured array of Gaia information that contains at least
         the columns `PMRA`, `PMDEC`, `PMRA_ERROR`, and `PMDEC_ERROR`.
     pad: : :class:`float` or `int`, defaults to 2
-        Extra offset with which to pad `mult`*proper_motion_error.
+        Extra offset with which to pad `mult` * proper_motion_error.
     mult : :class:`float` or `int`, defaults to 2.5
         Multiple of the proper motion error to use for padding.
 
@@ -569,7 +564,10 @@ def apply_plx_zpt(D):
     :class:`array_like` or `float`
         Zero-point corrected parallax.
     """
-    subset = np.in1d(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
+    # ADM load the Gaia zero points.
+    gaia_zpt.load_tables()
+
+    subset = np.isin(D['ASTROMETRIC_PARAMS_SOLVED'], [31, 95])
     plx_zpt_tmp = gaia_zpt.get_zpt(D['PHOT_G_MEAN_MAG'][subset],
                                    D['NU_EFF_USED_IN_ASTROMETRY'][subset],
                                    D['PSEUDOCOLOUR'][subset],
@@ -624,7 +622,7 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
     plx_sys : :class:`float`
-        Extra offset with which to pad `mult`*parallax_error.
+        Extra offset with which to pad `mult` * parallax_error.
 
     Returns
     -------
@@ -641,7 +639,6 @@ def plx_sel_func(dist, D, mult, plx_sys=0.05):
 
 
 def simple_plx_sel(dist, D, multfac, plxlim, plx_sys=0.05):
-
     """Select stream members using a parallax upper limit, padded by some error.
 
     Parameters
@@ -657,12 +654,12 @@ def simple_plx_sel(dist, D, multfac, plxlim, plx_sys=0.05):
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
     plx_sys : :class:`float`
-        Extra offset with which to pad `mult`*parallax_error.
+        Extra offset with which to pad `mult` * parallax_error.
     plxlim : :class:`float` select possible stream members with plx < plx_lim, plus pad
 
     Returns
     -------
-    :class:`array_like` or `boolean1
+    :class:`array_like` or `boolean`
         ``True`` for stream members.
     """
     # CMR first block of code to fix zpt and ivars is identical to plx_sel
@@ -691,7 +688,7 @@ def dwarf_plx_sel_func(dist, D, plx_sys=0.05, mult=2.5, keep_all_neg=False, min_
         `PARALLAX_ERROR`. `PARALLAX_IVAR` will be used instead of
         `PARALLAX_ERROR` if `PARALLAX_ERROR` is not present.
     plx_sys : :class:`float`
-        Extra offset with which to pad `mult`*parallax_error.
+        Extra offset with which to pad `mult` * parallax_error.
     mult : :class:`float` or `int`
         Multiple of the parallax error to use for padding.
     keep_all_neg : :class:`bool`
@@ -976,7 +973,8 @@ def sort_targmwext_by_rank(in_targmwextlist):
     in_targmwextlist : :class:string`
         List of dwarf and stream objects to be sorted
 
-    Returns:
+    Returns
+    -------
     :class:`string`
         Sorted list of dwarf and stream objects
     """
@@ -1018,27 +1016,7 @@ def sort_targmwext_by_rank(in_targmwextlist):
 
 def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibright_pm3, ipm_only,
                       ifaint_cmd, ifiller):
-    """Resolve ambiguity with target subclass bits in the mwstarget mask
-       using TARGMWEXT_RANK from the yaml file. Smaller numbers are  higher priority.
-       Streams and dwarfs are selected in rank order and targets selected for lower ranking
-       streams that are also selected in higher ranking dwarfs are only selected if their
-       target subclass outranks the target subclass they were selected as for the higher ranking
-       object.  All dwarfs outrank streams. GD1 is the highest ranking stream, Orphan the second.
-       Ranking of subtarget classes: bright_pm1, bright_pm2, bright_pm3, pm_only, faint_cmd, filler
-       We make assumptions, which avoid the brute-force implementation of these priorities:
-       - brightpm[123] never overlap in magnitude, so an object can't be, e.g., pm1 and pm2 in different stream/dwarfs
-       - pm_only can only overlap with brightpm[12]
-       - faint_cmd and filler can only overlap with each other and bright_pm3
-
-       The bright_pm1, bright_pm2 and bright_pm3 and pm_only outrank faint_cmd and filler.
-       The only overlaps possible and their relative rankings are:
-       1) bright_pm3 outranks faint_cmd and filler. bright_pm1 and bright_pm2 are too bright
-          to overlap with either of the faint selections.
-       2) faint_cmd outranks filler.
-       3) pm_only can only overlap bright_pm1 and bright_pm2 (and it is only used for dwarfs)
-       Note that the mangnitude ranges of bright_pm[123] are always the same so that, e.g.,
-       bright_pm1 and  bright_pm2 can neve be set for the same object.
-       See <insert pointer to Nathan's document>.
+    """Resolve ambiguity with target subclass bits in the mwstarget mask using TARGMWEXT_RANK.
 
     Parameters
     ----------
@@ -1061,7 +1039,7 @@ def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibri
 
     Returns
     -------
-   :class:`array_like`
+    :class:`array_like`
         ``True`` if the object is a "BRIGHT_PM1" target and has priorty for duplicates
     :class:`array_like`
         ``True`` if the object is a "BRIGHT_PM2" target and has priorty for duplicates
@@ -1076,7 +1054,28 @@ def targmwext_resolve(targmwext_name, mws_target, ibright_pm1, ibright_pm2, ibri
 
     Notes
     -----
-    - See ../data/targetmask.yaml for the definition of the target bits and targmwext_priority
+    - See ../data/targetmask.yaml for the definition of the target bits and targmwext_priority.
+    - Smaller numbers are  higher priority.
+    - Streams and dwarfs are selected in rank order and targets selected for lower ranking
+      streams that are also selected in higher ranking dwarfs are only selected if their
+      target subclass outranks the target subclass they were selected as for the higher ranking
+      object.  All dwarfs outrank streams. GD1 is the highest ranking stream, Orphan the second.
+      Ranking of subtarget classes: bright_pm1, bright_pm2, bright_pm3, pm_only, faint_cmd, filler
+      We make assumptions, which avoid the brute-force implementation of these priorities:
+      * brightpm[123] never overlap in magnitude, so an object can't be, e.g., pm1 and pm2 in different stream/dwarfs
+      * pm_only can only overlap with brightpm[12]
+      * faint_cmd and filler can only overlap with each other and bright_pm3
+
+      The bright_pm1, bright_pm2 and bright_pm3 and pm_only outrank faint_cmd and filler.
+      The only overlaps possible and their relative rankings are:
+      1) bright_pm3 outranks faint_cmd and filler. bright_pm1 and bright_pm2 are too bright
+      to overlap with either of the faint selections.
+      2) faint_cmd outranks filler.
+      3) pm_only can only overlap bright_pm1 and bright_pm2 (and it is only used for dwarfs)
+
+      Note that the magnitude ranges of bright_pm[123] are always the same so that, e.g.,
+      bright_pm1 and  bright_pm2 can neve be set for the same object.
+      See <insert pointer to Nathan's document>.
     """
 
     from desitarget.targetmask import mws_mask

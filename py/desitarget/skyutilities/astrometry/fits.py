@@ -1,6 +1,6 @@
-# This code is from astrometry.net: 
-# https://github.com/dstndstn/astrometry.net 
-# as of version 0.74 (git hash a65e168d). 
+# This code is from astrometry.net:
+# https://github.com/dstndstn/astrometry.net
+# as of version 0.74 (git hash a65e168d).
 # This file (util/fits.py) is licensed under the BSD-3 license.
 """
 =======================================
@@ -22,7 +22,7 @@ def cut_array(val, I, name=None, to=None):
             val[I] = to
             return
 
-    if isinstance(val, (np.ndarray, np.core.defchararray.chararray)):
+    if isinstance(val, (np.ndarray, np.char.array)):
         # You can't slice a two-dimensional, length-zero, numpy array,
         # with an empty array.
         if len(val) == 0:
@@ -71,7 +71,7 @@ def cut_array(val, I, name=None, to=None):
             #[val[i] = t for i,t in zip(I,to)]
             for i,t in zip(I,to):
                 val[i] = t
-                
+
     if (np.isscalar(I) and hasattr(I, 'dtype') and
         I.dtype in inttypes):
         if to is None:
@@ -127,7 +127,7 @@ class tabledata(object):
                 len(self), len(self.columns()), ', '.join(['%s=%s' % (k,v) for k,v in zip(self.columns(), vals)]))
         return '<tabledata object with %i rows and %i columns: %s>' % (
             len(self), len(self.columns()), ', '.join(self.columns()))
-    
+
     def about(self):
         keys = [k for k in self.__dict__.keys() if not k.startswith('_')]
         print('tabledata object with %i rows and %i columns:' % (len(self),  len(keys)))
@@ -198,7 +198,7 @@ class tabledata(object):
     def rename(self, c_old, c_new):
         setattr(self, c_new, getattr(self, c_old))
         self.delete_column(c_old)
-        
+
     def __setitem__(self, I, O):
 
         #### TEST
@@ -210,7 +210,7 @@ class tabledata(object):
         return
         ####
 
-        
+
         if type(I) is slice:
             print('I:', I)
             # HACK... "[:]" -> slice(None, None, None)
@@ -254,7 +254,7 @@ class tabledata(object):
                 #print('copying scalar', name)
                 rtn.set(name, val)
                 continue
-            if type(val) in [np.ndarray, np.core.defchararray.chararray]:
+            if type(val) in [np.ndarray, np.char.array]:
                 #print('copying numpy array', name)
                 rtn.set(name, val.copy())
                 continue
@@ -321,7 +321,7 @@ class tabledata(object):
             except Exception:
                 print('exception appending element "%s"' % name)
                 raise
-                
+
     def write_to(self, fn, columns=None, header='default', primheader=None,
                  use_fitsio=True, append=False, append_to_hdu=None,
                  fits_object=None,
@@ -355,7 +355,7 @@ class tabledata(object):
                     else:
                         aa.append(a)
                 arrays = aa
-            
+
             if header == 'default':
                 header = None
             try:
@@ -423,7 +423,7 @@ class tabledata(object):
 
         if columns is None:
             columns = self.get_columns()
-                
+
         for name in columns:
             if not name in self.__dict__:
                 continue
@@ -610,7 +610,7 @@ def fits_table(dataorfn=None, rows=None, hdunum=1, hdu=None, ext=None,
             if lower:
                 c = c.lower()
             T.set(c, X)
-        
+
     else:
         if columns is None:
             columns = data.dtype.names
