@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-3.2.0 (unreleased)
+3.3.0 (unreleased)
+------------------
+
+* No changes yet.
+
+3.2.0 (2025-06-08)
 ------------------
 
 * This is the last tag that will include mockmaker.py and lyazcat.py.
