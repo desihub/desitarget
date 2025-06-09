@@ -5,12 +5,14 @@ desitarget Change Log
 3.2.0 (unreleased)
 ------------------
 
-* No changes yet.
+* This is the last tag that will include mockmaker.py and lyazcat.py.
+* Update BRIGHT1B data model to better match DARK1B [`PR #842`_].
+
+.. _`PR #842`: https://github.com/desihub/desitarget/pull/842
 
 3.1.0 (2025-06-05)
 ------------------
 
-* This is the last tag that will include mockmaker.py and lyazcat.py.
 * Finalize target files, initial MTL creation for BRIGHT1B [`PR #841`_].
 * Add target selection for streams and dSphs for BRIGHT1B [`PR #835`_].
     * Also updates :func:`mtl.check_archiving()` for 1B ledger checks.

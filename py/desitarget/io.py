@@ -492,7 +492,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
         memory. Send `None` to write everything at once.
     nside : :class:`int`, optional, defaults to `None`
         If passed, add a column to the targets array popluated
-        with HEALPixels at resolution `nside`.
+        with HEALPixels in the nested scheme at resolution `nside`.
     survey : :class:`str`, optional, defaults to "main"
         Written to output file header as the keyword `SURVEY`.
     nsidefile : :class:`int`, optional, defaults to `None`
