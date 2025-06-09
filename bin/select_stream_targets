@@ -4,6 +4,7 @@ import os, sys
 import numpy as np
 import fitsio
 
+from desitarget.io import desitarget_nside
 from desitarget.streams import io, cuts
 
 from time import time
@@ -93,6 +94,6 @@ targets = cuts.select_targets(
 
 # ADM note that we hard code for BRIGHT, which is hidden in write_targets.
 ntargs, outfile = io.write_targets(ns.dest, targets, hdr, nside=ns.nside,
-                                   pixint=ns.pixint)
+                                   pixint=ns.pixint, nsidecol=desitarget_nside())
 
 log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

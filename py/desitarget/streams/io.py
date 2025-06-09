@@ -12,6 +12,7 @@ import numpy as np
 import healpy as hp
 import astropy.coordinates as acoo
 import astropy.units as auni
+import numpy.lib.recfunctions as rfn
 
 from desitarget import io
 from desitarget.geomask import pixarea2nside, add_hp_neighbors, \
@@ -29,11 +30,18 @@ log = get_logger()
 
 # ADM the Legacy Surveys part of the data model for working with streams.
 streamcolsLS = np.array([], dtype=[
-    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('TYPE', 'U4'),
-    ('OBJID', '>i4'), ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
-    ('FLUX_G', '>f4'), ('FIBERTOTFLUX_G', '>f4'), ('FLUX_IVAR_G', '>f4'),
-    ('FLUX_R', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FLUX_IVAR_R', '>f4'),
-    ('FLUX_Z', '>f4'), ('FIBERTOTFLUX_Z', '>f4'), ('FLUX_IVAR_Z', '>f4'),
+    ('RELEASE', '>i2'), ('BRICKID', '>i4'), ('BRICKNAME', 'S8'),
+    ('OBJID', '>i4'), ('TYPE', 'U4'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('EBV', '>f4'),
+    ('FLUX_G', '>f4'), ('FLUX_R', '>f4'), ('FLUX_Z', '>f4'),
+    ('FLUX_IVAR_G', '>f4'), ('FLUX_IVAR_R', '>f4'), ('FLUX_IVAR_Z', '>f4'),
+    ('FLUX_W1', '>f4'), ('FLUX_W2', '>f4'),
+    ('FLUX_IVAR_W1', '>f4'), ('FLUX_IVAR_W2', '>f4'),
+    ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
+    ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
+    ('MASKBITS', '>i2'), ('SERSIC', '>f4'),
+    ('SHAPE_R', '>f4'), ('SHAPE_E1', '>f4'), ('SHAPE_E2', '>f4'),
+    ('REF_CAT', 'S2'), ('PHOTSYS', '<U1')
 ])
 
 # ADM the Gaia part of the data model for working with streams.
@@ -381,7 +389,7 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
 
 
 def write_targets(dirname, targs, header, nside=None, pixint=None,
-                  subpriority=True):
+                  subpriority=True, nsidecol=None):
     """Write stream and dwarf targets to a FITS file.
 
     Parameters
@@ -406,6 +414,9 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
         If ``True`` and a `SUBPRIORITY` column is in the input `targs`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
         in the range 0 to 1, using a seed of 816.
+    nsidecol : :class:`int`, optional, defaults to `None`
+        If passed, add a column to the targets array popluated
+        with HEALPixels in the nested scheme at resolution `nsidecol`.
 
     Returns
     -------
@@ -427,6 +438,8 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     - Units are automatically added from the desitarget units yaml file
       (see `/data/units.yaml`).
     - Mostly wraps :func:`~desitarget.io.write_with_units`.
+    - `nsidecol` and `nside` may be confusing as these are called `nside`
+       and `nsidefile` in :func:`~desitarget.io.write_targets`.
     """
     # ADM return sharply if there are no targets to be written.
     if len(targs) == 0:
@@ -453,6 +466,19 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
 
     outfn = io.find_target_files(dirname, dr=drstr, flavor="targets", survey="main",
                                  obscon="bright1b", hp=hpx, resolve=True)
+
+    # ADM add HEALPix column, if requested by input.
+    if nsidecol is not None:
+        theta, phi = np.radians(90-targs["DEC"]), np.radians(targs["RA"])
+        hppix = hp.ang2pix(nsidecol, theta, phi, nest=True)
+        flds, vals = [], []
+        flds.append("HPXPIXEL")
+        vals.append(hppix)
+        targs = rfn.append_fields(targs, flds, vals, usemask=False)
+        header.add_record(dict(name='HPXNSIDE', value=nsidecol,
+                               comment="HEALPix nside (column value)"))
+        header.add_record(dict(name='HPXNEST', value=True,
+                               comment="HEALPix nested (not ring) ordering"))
 
     # ADM check if any targets are too bright.
     maglim = 15
@@ -487,8 +513,15 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     depend.setdep(header, 'photcat', drstr)
 
     # ADM add information to construct the filename to the header.
+    # ADM many of these are not relevant to BRIGHT1B, they are added to
+    # ADM make the BRIGHT1B files resemble other main target files.
     header["SURVEY"] = "main"
     header["RESOLVE"] = True
+    header["MASKBITS"] = False
+    header["BACKUP"] = False
+    header["TCNAMES"] = None
+    header["GAIASUB"] = False
+    header["NOSEC"] = True
     header["DR"] = drint
     header["GAIADR"] = gaiadr
 
