@@ -560,7 +560,7 @@ def qasystematics_skyplot(pixmap, colname, qadir='.', downclip=None, upclip=None
         warnings.simplefilter('ignore')
         from desiutil.plots import init_sky, plot_healpix_map
         ax = init_sky(galactic_plane_color='k')
-        ax = plot_healpix_map(pixmap, nest=True,  cmap='jet', label=label, ax=ax)
+        ax = plot_healpix_map(pixmap, nest=True, cmap='jet', label=label, ax=ax)
 
     pngfile = os.path.join(qadir, '{}-{}.png'.format(fileprefix, colname))
     plt.savefig(pngfile, bbox_inches='tight')

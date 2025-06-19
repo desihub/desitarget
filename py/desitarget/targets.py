@@ -1180,7 +1180,7 @@ def _cmx_calc_priority(targets, priority, obscon,
         if (obsconditions.mask(obscon) & pricon) != 0:
             ii = (targets['CMX_TARGET'] & cmx_mask[name]) != 0
             priority[ii & unobs] = np.maximum(priority[ii & unobs], cmx_mask[name].priorities['UNOBS'])
-            priority[ii & done] = np.maximum(priority[ii & done],  cmx_mask[name].priorities['DONE'])
+            priority[ii & done] = np.maximum(priority[ii & done], cmx_mask[name].priorities['DONE'])
             priority[ii & zgood] = np.maximum(priority[ii & zgood], cmx_mask[name].priorities['MORE_ZGOOD'])
             priority[ii & zwarn] = np.maximum(priority[ii & zwarn], cmx_mask[name].priorities['MORE_ZWARN'])
 

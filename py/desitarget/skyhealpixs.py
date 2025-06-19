@@ -72,11 +72,11 @@ class Skyhealpixs(object):
             )
         )
         log.info('the code will look for {} files'.format(
-                os.path.join(self.skyhealpixs_dir, 'skymap-{}.fits.gz'.format(
-                    "".join(np.repeat("?", npadpix)),
-                    )
-                ),
+            os.path.join(self.skyhealpixs_dir, 'skymap-{}.fits.gz'.format(
+                "".join(np.repeat("?", npadpix)),
             )
+            ),
+        )
         )
 
         # handle non-array iterables (eg lists) as inputs

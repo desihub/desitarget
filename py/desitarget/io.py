@@ -73,7 +73,7 @@ basetsdatamodel = np.array([], dtype=[
     ('FIBERTOTFLUX_G', '>f4'), ('FIBERTOTFLUX_R', '>f4'), ('FIBERTOTFLUX_Z', '>f4'),
     ('REF_EPOCH', '>f4'), ('WISEMASK_W1', '|u1'), ('WISEMASK_W2', '|u1'),
     ('MASKBITS', '>i2')
-    ])
+])
 
 # ADM columns that have updated dtypes in the DR10 data model.
 dr10replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
@@ -104,7 +104,7 @@ dr8addedcols = np.array([], dtype=[
     ('SHAPEDEV_R_IVAR', '>f4'), ('SHAPEDEV_E1_IVAR', '>f4'), ('SHAPEDEV_E2_IVAR', '>f4'),
     ('SHAPEEXP_R', '>f4'), ('SHAPEEXP_E1', '>f4'), ('SHAPEEXP_E2', '>f4'),
     ('SHAPEEXP_R_IVAR', '>f4'), ('SHAPEEXP_E1_IVAR', '>f4'), ('SHAPEEXP_E2_IVAR', '>f4'),
-    ])
+])
 
 
 def desitarget_nside():
@@ -2349,7 +2349,7 @@ def read_external_file(filename, header=False, columns=["RA", "DEC"]):
     # ADM ...and fail if RA and DEC aren't columns.
     if not ("RA" in colnames and "DEC" in colnames):
         msg = 'Input file {} must contain both "RA" and "DEC" columns' \
-             .format(filename)
+            .format(filename)
         log.critical(msg)
         raise ValueError(msg)
 
