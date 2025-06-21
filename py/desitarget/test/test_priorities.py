@@ -131,7 +131,7 @@ class TestPriorities(unittest.TestCase):
         t[bgs_target] = bgs_mask.BGS_BRIGHT
         t["PRIORITY_INIT"], t["NUMOBS_INIT"] = initial_priority_numobs(t)
         z['NUMOBS'] = [0, 100, 100]
-        z['ZWARN'] = [1,   1,   0]
+        z['ZWARN'] = [1, 1, 0]
         p = calc_priority(t, z, "BRIGHT")
 
         self.assertEqual(p[0], bgs_mask.BGS_BRIGHT.priorities['UNOBS'])

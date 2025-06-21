@@ -263,7 +263,6 @@ class TestCuts(unittest.TestCase):
         self.assertEqual(len(bgs), 1)
         self.assertEqual(len(mws), 1)
 
-
     def test_astropy_fits(self):
         """Test astropy.fits I/O library
         """

@@ -51,7 +51,7 @@ skydatamodel = np.array([], dtype=[
     ('OBJID', '<i4'), ('RA', '>f8'), ('DEC', '>f8'), ('BLOBDIST', '>f4'),
     ('FIBERFLUX_G', '>f4'), ('FIBERFLUX_R', '>f4'), ('FIBERFLUX_Z', '>f4'),
     ('FIBERFLUX_IVAR_G', '>f4'), ('FIBERFLUX_IVAR_R', '>f4'), ('FIBERFLUX_IVAR_Z', '>f4')
-    ])
+])
 
 
 def get_brick_info(drdirs, counts=False, allbricks=False):
@@ -450,7 +450,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
 
     # Now, do aperture photometry at these points in the coadd images.
     for band in bands:
-        imfn = survey.find_file('image',  brick=brickname, band=band)
+        imfn = survey.find_file('image', brick=brickname, band=band)
         ivfn = survey.find_file('invvar', brick=brickname, band=band)
 
         # ADM set the apertures for every band regardless of whether
@@ -604,7 +604,7 @@ def sky_fiber_plots(survey, brickname, skyfibers, basefn, bands=['g', 'r', 'z'])
 
     imgs = []
     for band in bands:
-        fn = survey.find_file('image',  brick=brickname, band=band)
+        fn = survey.find_file('image', brick=brickname, band=band)
         imgs.append(fitsio.read(fn))
     rgb = get_rgb(imgs, bands, **rgbkwargs)
 
@@ -717,7 +717,7 @@ def plot_good_bad_skies(survey, brickname, skies,
     # ADM find the images from the survey object and plot them.
     imgs = []
     for band in bands:
-        fn = survey.find_file('image',  brick=brickname, band=band)
+        fn = survey.find_file('image', brick=brickname, band=band)
         imgs.append(fitsio.read(fn))
 
     rgbkwargs = dict(mnmx=(-1, 100.), arcsinh=1.)

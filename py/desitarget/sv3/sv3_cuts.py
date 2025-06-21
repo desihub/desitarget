@@ -177,7 +177,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         parallaxovererror=parallaxovererror, photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax, gaiagmag=gaiagmag,
         gaiabmag=gaiabmag, gaiarmag=gaiarmag, paramssolved=gaiaparamssolved
-        )
+    )
 
     # ADM apply the Gaia quality cuts for standards.
     std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=gaiaaen,
@@ -429,24 +429,24 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg &= (
             (gmag - rmag > 1.3) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.13)
             | (rmag - w1mag > 1.8)
-            )  # low-z cuts
+        )  # low-z cuts
         lrg &= (
             (rmag - w1mag > (w1mag - 17.26) * 1.8)
             & (rmag - w1mag > (w1mag - 16.36) * 1.)
             | (rmag - w1mag > 3.29)
-            )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension
     else:
         lrg &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg &= zfibermag < 21.72                   # faint limit
         lrg &= (
             (gmag - rmag > 1.34) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.23)
             | (rmag - w1mag > 1.8)
-            )  # low-z cuts
+        )  # low-z cuts
         lrg &= (
             (rmag - w1mag > (w1mag - 17.24) * 1.83)
             & (rmag - w1mag > (w1mag - 16.33) * 1.)
             | (rmag - w1mag > 3.39)
-            )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension
 
     # Selection of the lower density subset
     if south:
@@ -455,24 +455,24 @@ def isLRG_colors(gflux=None, rflux=None, zflux=None, w1flux=None,
         lrg_lowdens &= (
             (gmag - rmag > 1.3) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.13)
             | (rmag - w1mag > 1.8)
-            )  # low-z cuts
+        )  # low-z cuts
         lrg_lowdens &= (
             (rmag - w1mag > (w1mag - 17.07) * 1.8)
             & (rmag - w1mag > (w1mag - 16.17) * 1.)
             | (rmag - w1mag > 3.39)
-            )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension
     else:
         lrg_lowdens &= zmag - w1mag > 0.8 * (rmag - zmag) - 0.6  # non-stellar cut
         lrg_lowdens &= zfibermag < 21.72                   # faint limit
         lrg_lowdens &= (
             (gmag - rmag > 1.34) & ((gmag - rmag) > -1.55 * (rmag - w1mag)+3.23)
             | (rmag - w1mag > 1.8)
-            )  # low-z cuts
+        )  # low-z cuts
         lrg_lowdens &= (
             (rmag - w1mag > (w1mag - 17.05) * 1.83)
             & (rmag - w1mag > (w1mag - 16.14) * 1.)
             | (rmag - w1mag > 3.49)
-            )  # double sliding cuts and high-z extension
+        )  # double sliding cuts and high-z extension
 
     return lrg, lrg_lowdens
 
@@ -2200,27 +2200,27 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         mws_nearby &= ~too_bright
 
         mws_bhb = isMWS_bhb(
-                    primary=primary,
-                    objtype=objtype,
-                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
-                    gflux=gflux, rflux=rflux, zflux=zflux,
-                    w1flux=w1flux, w1snr=w1snr,
-                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                    gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
-             )
+            primary=primary,
+            objtype=objtype,
+            gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
+            gflux=gflux, rflux=rflux, zflux=zflux,
+            w1flux=w1flux, w1snr=w1snr,
+            gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+            parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
+        )
         # ADM impose bright limits for all MWS_BHB targets.
         mws_bhb &= ~too_bright
 
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
             mws_classes[int(south)] = isMWS_main(
-                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
-                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
-                    gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
-                    rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
-                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
-                    paramssolved=gaiaparamssolved, primary=primary, south=south
+                gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
+                gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
+                gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
+                rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
+                parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
+                paramssolved=gaiaparamssolved, primary=primary, south=south
             )
             # ADM impose bright limits for all MWS_MAIN targets.
             mws_classes[int(south)] &= ~too_bright

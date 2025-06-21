@@ -56,7 +56,7 @@ mtlprimdatamodel = np.array([], dtype=[
     ('TARGETID', '<i8'), ('DESI_TARGET', '<i8'), ('BGS_TARGET', '<i8'),
     ('MWS_TARGET', '<i8'), ('SUBPRIORITY', '<f8'), ('OBSCONDITIONS', '<i4'),
     ('PRIORITY_INIT', '<i8'), ('NUMOBS_INIT', '<i8'), ('SCND_TARGET', '<i8'),
-    ('NUMOBS_MORE', '<i8'), ('NUMOBS', '<i8'),  ('Z', '<f8'), ('ZWARN', '<i8'),
+    ('NUMOBS_MORE', '<i8'), ('NUMOBS', '<i8'), ('Z', '<f8'), ('ZWARN', '<i8'),
     ('ZTILEID', '<i4'), ('Z_QN', '<f8'), ('IS_QSO_QN', '<i2'),
     ('DELTACHI2', '<f8'), ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'),
     ('VERSION', '<U14'), ('PRIORITY', '<i8')
@@ -87,7 +87,7 @@ zcatdatamodel = np.array([], dtype=[
 
 mtltilefiledm = np.array([], dtype=[
     ('TILEID', '>i4'), ('TIMESTAMP', 'U25'), ('VERSION', 'U14'),
-    ('PROGRAM', 'U6'), ('ZDATE', '>i8'), ('ARCHIVEDATE', '>i8')
+    ('PROGRAM', 'U8'), ('ZDATE', '>i8'), ('ARCHIVEDATE', '>i8')
 ])
 
 

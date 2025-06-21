@@ -141,7 +141,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         parallaxovererror=parallaxovererror, photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax, gaiagmag=gaiagmag,
         gaiabmag=gaiabmag, gaiarmag=gaiarmag
-        )
+    )
 
     # ADM apply the Gaia quality cuts for standards.
     std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=gaiaaen,
@@ -1985,25 +1985,25 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         )
 
         mws_bhb = isMWS_bhb(
-                    primary=primary,
-                    objtype=objtype,
-                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
-                    gflux=gflux, rflux=rflux, zflux=zflux,
-                    w1flux=w1flux, w1snr=w1snr,
-                    gnobs=gnobs, rnobs=rnobs, znobs=znobs,
-                    gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
-                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
-             )
+            primary=primary,
+            objtype=objtype,
+            gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource, gaiagmag=gaiagmag,
+            gflux=gflux, rflux=rflux, zflux=zflux,
+            w1flux=w1flux, w1snr=w1snr,
+            gnobs=gnobs, rnobs=rnobs, znobs=znobs,
+            gfracmasked=gfracmasked, rfracmasked=rfracmasked, zfracmasked=zfracmasked,
+            parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits
+        )
 
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
             mws_classes[int(south)] = isMWS_main(
-                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
-                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
-                    gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
-                    rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
-                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
-                    paramssolved=gaiaparamssolved, primary=primary, south=south
+                gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
+                gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
+                gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
+                rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
+                parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
+                paramssolved=gaiaparamssolved, primary=primary, south=south
             )
     mws_broad_n, mws_red_n, mws_blue_n = mws_classes[0]
     mws_broad_s, mws_red_s, mws_blue_s = mws_classes[1]

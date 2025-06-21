@@ -5,9 +5,11 @@ desitarget Change Log
 3.3.0 (unreleased)
 ------------------
 
+* Expand program string in mtl-done file to allow BRIGHT1B [`PR #843`_].
 * Add numpy 2 compatibility; remove mockmaker.py and lyazcat.py [`PR #838`_].
 
 .. _`PR #838`: https://github.com/desihub/desitarget/pull/838
+.. _`PR #843`: https://github.com/desihub/desitarget/pull/843
 
 3.2.0 (2025-06-08)
 ------------------

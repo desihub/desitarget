@@ -220,7 +220,7 @@ def make_initial_ledger(toodir=None):
     data["TOO_TYPE"] = "TILE", "FIBER", "TILE"
     data["TOO_PRIO"] = "HI", "LO", "HI"
     data["MJD_BEGIN"] = 40811.04166667, 41811.14166667, 42811.14
-    data["MJD_END"] = 40811.95833333, 41811.85833333,  42811.85
+    data["MJD_END"] = 40811.95833333, 41811.85833333, 42811.85
     data["OCLAYER"] = "BRIGHT", "DARK", "DARK"
 
     # ADM write out the results.

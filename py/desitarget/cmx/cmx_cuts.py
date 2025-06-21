@@ -230,7 +230,7 @@ def isSV0_BGS(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
             gfluxivar=gfluxivar, rfluxivar=rfluxivar, zfluxivar=zfluxivar,
             maskbits=maskbits, Grr=Grr, w1snr=w1snr, gaiagmag=gaiagmag,
             objtype=objtype, primary=primary, south=False, targtype=targtype
-            )
+        )
         sv0_bgs |= bgs
 
     return sv0_bgs
@@ -734,7 +734,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, w1snr=w1snr, w2snr=w2snr,
         south=False
-        )
+    )
 
     qsorf_north = isQSO_randomforest(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
@@ -742,7 +742,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, south=False
-        )
+    )
 
     qsohizf_north = isQSO_highz_faint(
         primary=primary, zflux=zflux, rflux=rflux, gflux=gflux,
@@ -750,12 +750,12 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         gnobs=gnobs, rnobs=rnobs, znobs=znobs,
         dchisq=dchisq, maskbits=maskbits,
         objtype=objtype, south=False
-        )
+    )
 
     qsocolor_high_z_north = isQSO_color_high_z(
         gflux=gflux, rflux=rflux, zflux=zflux,
         w1flux=w1flux, w2flux=w2flux, south=False
-        )
+    )
 
     qsoz5_north = isQSOz5_cuts(
         primary=primary, gflux=gflux, rflux=rflux, zflux=zflux,
@@ -764,7 +764,7 @@ def isSV0_QSO(gflux=None, rflux=None, zflux=None, w1flux=None, w2flux=None,
         w1flux=w1flux, w2flux=w2flux, w1snr=w1snr, w2snr=w2snr,
         dchisq=dchisq, maskbits=maskbits, objtype=objtype,
         south=False
-        )
+    )
 
     qsocolor_highz_north = (qsocolor_north & qsocolor_high_z_north)
     qsorf_highz_north = (qsorf_north & qsocolor_high_z_north)
@@ -1151,9 +1151,9 @@ def isQSO_highz_faint(gflux=None, rflux=None, zflux=None, w1flux=None,
         # Compute optimized proba cut (all different for SV).
         # The probabilities may be different for the north and the south.
         if south:
-            pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
+            pcut = np.where(r_Reduced < 23.2, 0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
         else:
-            pcut = np.where(r_Reduced < 23.2,  0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
+            pcut = np.where(r_Reduced < 23.2, 0.40 + (r_Reduced-22.8)*.9, .76 + (r_Reduced-23.2)*.4)
 
         # Add rf proba test result to "qso" mask
         qso[colorsReducedIndex] = (tmp_rf_proba >= pcut)
@@ -1609,7 +1609,7 @@ def isSTD_dither(obs_gflux=None, obs_rflux=None, obs_zflux=None,
     # ADM prioritize based on magnitude.
     # ADM OK to clip, as these are all Gaia matches.
     if _is_row(obs_rflux):
-        rflux = np.zeros_like([obs_rflux,]) + obs_rflux
+        rflux = np.zeros_like([obs_rflux, ]) + obs_rflux
     else:
         rflux = obs_rflux.copy()
     rmag = 22.5-2.5*np.log10(rflux.clip(1e-16))
@@ -1723,7 +1723,7 @@ def isSTD_dither_gaia(ra=None, dec=None, gmag=None, rmag=None, aen=None,
 
     # ADM prioritize based on magnitude.
     if _is_row(rmag):
-        rmag_prio = np.zeros_like([rmag,]) + rmag
+        rmag_prio = np.zeros_like([rmag, ]) + rmag
     else:
         rmag_prio = rmag.copy()
     prio = (10*(25-rmag_prio)).astype(int)
@@ -1781,7 +1781,7 @@ def isSTD_dither_spec(gaiagmag=None, gaiarmag=None, obs_rflux=None,
     # ADM prioritize based on magnitude.
     # ADM OK to clip, as these are all Gaia matches.
     if _is_row(obs_rflux):
-        rflux = np.zeros_like([obs_rflux,]) + obs_rflux
+        rflux = np.zeros_like([obs_rflux, ]) + obs_rflux
     else:
         rflux = obs_rflux.copy()
     rmag = 22.5-2.5*np.log10(rflux.clip(1e-16))
@@ -2221,9 +2221,9 @@ def apply_cuts(objects, cmxdir=None, noqso=False):
     if _is_row(objects):
         # BAW Promote to length-1 array for Numpy 2 compatibility.
         # primary = np.bool_(True)
-        primary = np.ones_like([1,], dtype=bool)
+        primary = np.ones_like([1, ], dtype=bool)
         # priority_shift = np.array(0)
-        priority_shift = np.zeros_like([0,], dtype=int)
+        priority_shift = np.zeros_like([0, ], dtype=int)
     else:
         primary = np.ones_like(objects, dtype=bool)
         priority_shift = np.zeros_like(objects, dtype=int)

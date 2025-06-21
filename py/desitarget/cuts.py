@@ -263,7 +263,7 @@ def isGAIA_STD(ra=None, dec=None, galb=None, gaiaaen=None, pmra=None, pmdec=None
         parallaxovererror=parallaxovererror, photbprpexcessfactor=gaiabprpfactor,
         astrometricsigma5dmax=gaiasigma5dmax, gaiagmag=gaiagmag,
         gaiabmag=gaiabmag, gaiarmag=gaiarmag, paramssolved=gaiaparamssolved
-        )
+    )
 
     # ADM apply the Gaia quality cuts for standards.
     std &= isSTD_gaia(primary=primary, gaia=gaia, astrometricexcessnoise=gaiaaen,
@@ -2192,7 +2192,7 @@ def _prepare_gaia(objects, colnames=None):
     gaia = objects['REF_ID'] > 0
     refcat = objects['REF_CAT']
     if _is_row(objects):
-        refcat = np.array([refcat,])
+        refcat = np.array([refcat, ])
     if "REF_CAT" in colnames:
         gaia = (refcat == b'G2') | (refcat == 'G2')
         # ADM as of DR10, we use Gaia EDR3 rather than DR2.
@@ -2581,12 +2581,12 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
         # ADM run the MWS target types for (potentially) both north and south.
         for south in south_cuts:
             mws_classes[int(south)] = isMWS_main(
-                    gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
-                    gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
-                    gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
-                    rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
-                    parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
-                    paramssolved=gaiaparamssolved, primary=primary, south=south
+                gaia=gaia, gaiaaen=gaiaaen, gaiadupsource=gaiadupsource,
+                gflux=gflux, rflux=rflux, obs_rflux=obs_rflux, objtype=objtype,
+                gnobs=gnobs, rnobs=rnobs, gfracmasked=gfracmasked,
+                rfracmasked=rfracmasked, pmra=pmra, pmdec=pmdec,
+                parallax=parallax, parallaxerr=parallaxerr, maskbits=maskbits,
+                paramssolved=gaiaparamssolved, primary=primary, south=south
             )
 
             # ADM impose bright limits for all MWS_MAIN targets.
@@ -2942,7 +2942,7 @@ def apply_cuts(objects, qso_selection='randomforest',
     if _is_row(objects):
         # BAW Promote to length-1 array for Numpy 2 compatibility.
         # primary = np.bool_(True)
-        primary = np.ones_like([1,], dtype=bool)
+        primary = np.ones_like([1, ], dtype=bool)
     else:
         primary = np.ones_like(objects, dtype=bool)
 
@@ -2974,7 +2974,7 @@ def apply_cuts(objects, qso_selection='randomforest',
         gaiaparamssolved, gaiabprpfactor, gaiasigma5dmax, galb,
         tcnames, qso_optical_cuts, qso_selection,
         maskbits, Grr, refcat, primary, resolvetargs=resolvetargs,
-        )
+    )
 
     return desi_target, bgs_target, mws_target
 
