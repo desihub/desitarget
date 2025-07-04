@@ -1244,7 +1244,6 @@ def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
                     for col in reordered.dtype.names:
                         reordered[col] = mtlinpix[col]
                     oldmatches = np.concatenate([oldmatches, reordered])
-                # ADM append new state to bottom of existing file.
                 nt, fn = io.write_mtl(
                     mtldir, oldmatches, ecsv=True, survey="main", obscon=obscon,
                     nsidefile=nside, hpxlist=pix, scnd=scnd, extra=hdr,
@@ -1718,146 +1717,144 @@ def process_overrides(ledgerfn, tabform='ascii.basic'):
     return mtl
 
 
-def ledger_overrides(overfn, obscon, colsub=None, valsub=None,
-                     mtldir=None, secondary=False, numoverride=999):
+def update_lya_1b(obscon="DARK", mtldir=None, timestamp=None, donefile=True):
     """
-    Create (or append to) a ledger to override the standard ledgers.
+    Effectively add two observations for LyA quasars for DESI-1B.
 
     Parameters
     ----------
-    overfn : :class:`str`
-        Full path to the filename that contains the override information.
-        Must contain at least `RA`, `DEC`, `TARGETID` and be in a format
-        that can be read automatically by astropy.table.Table.read().
-    obscon : :class:`str`
+    obscon : :class:`str`, optional, defaults to DARK
         A string matching ONE obscondition in the desitarget bitmask yaml
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
         Used to construct the directory to find the Main Survey ledgers.
-    colsub : :class:`dict`, optional
-        If passed, each key should correspond to the name of a ledger
-        column and each value should correspond to the name of a column
-        in `overfn`. The ledger columns are overwritten by the
-        corresponding column in `overfn` (for the appropriate TARGETID).
-    valsub : :class:`dict`, optional
-        If passed, each key should correspond to the name of a ledger
-        column and each value to a single number or string. The "value"
-        will be overwritten into the "key" column of the ledger. Takes
-        precedence over colsub.
+        It's likely we'll only ever want to do this for DARK, but worth
+        retaining the option for BRIGHT, too.
     mtldir : :class:`str`, optional, defaults to ``None``
         Full path to the directory that hosts the MTL ledgers and the MTL
         tile file. If ``None``, then look up the MTL directory from the
         $MTL_DIR environment variable.
-    secondary : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then process secondary targets instead of primaries
-        for passed `obscon`.
-    numoverride : :class:`int`, optional, defaults to 999
-        The override ledger is read every time the MTL loop is run. This
-        is the number of times to override the standard results in the
-        MTL loop. Defaults to 999, i.e. essentially "always override."
+    timestamp : :class:`str`, defaults to ``None``
+        A date-like string or array of strings in either UTC or strict
+        UTC/ISO format. If ``None``, then the timestamp corresponding to
+        now is used.
+    donefile : :class:`bool`, defaults to ``True``
+        If ``True`` then update the mtl-done-overrides.ecsv (i.e the
+        OVERRIDE done file) to indicate the change. The special nature
+        of this update is that TILEID, ZDATE and ARCHIVEDATE are all set 
+        to -1.
 
     Returns
     -------
-    :class:`str`
-        The directory containing the ledgers that were updated.
+    Nothing, but relevant ledger files are updated.
 
     Notes
     -----
-    - Regardless of the inputs, the TIMESTAMP in the output override
-      ledger is always updated to now, the second part of TARGET_STATE is
-      always updated to OVERRIDE, the git VERSION is always updated and
-      the ZTILEID is always set to -1.
+    - This will only be run once but is coded as a standalone function so
+      it can be used by the alt-MTLs as well as the data MTLs.
+    - The algorithm is to look up the the highest-priority state (other 
+      than UNOBS) for each quasar target, revert to that state, and add 
+      two observations to NUMOBS_MORE and NUMOBS_INIT.
+    - Every ledger in the relevant MTL+obscon+main directory is updated.
     """
+    start = time()
+
+    # ADM get the current TIMESTAMP if one wasn't passed.
+    if timestamp is None:
+        timestamp = get_utc_date(survey="main")
+
     # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
     mtldir = get_mtl_dir(mtldir)
 
     # ADM construct the relevant sub-directory for this survey and
     # ADM set of observing conditions.
-    resolve = True
     msg = "running on {} ledgers with obscon={} and survey=main"
-    if secondary:
-        log.info(msg.format("SECONDARY", obscon))
-        resolve = None
-    else:
-        log.info(msg.format("PRIMARY", obscon))
-    outdir = io.find_target_files(mtldir, flavor="mtl", obscon=obscon,
-                                  survey="main", resolve=resolve, override=True)
-    # ADM and create the sub-directory if it doesn't exist.
-    os.makedirs(outdir, exist_ok=True)
+    log.info(msg.format("PRIMARY", obscon))
+    outdir = io.find_target_files(mtldir, flavor="mtl", obscon=obscon)
 
-    # ADM read in the file with override information.
-    objs = Table.read(overfn)
-    # ADM be somewhat forgiving and convert lower-case columns.
-    for colname in ["RA", "DEC", "TARGETID"]:
-        try:
-            objs.rename_column(colname.lower(), colname)
-        except KeyError:
-            pass
-        # ADM check all required columns are present.
-        if colname not in objs.colnames:
-            msg = "{} must be a column in {}!".format(colname, overfn)
-            log.error(msg)
-            raise IOError(msg)
+    # ADM retrieve all of the relative ledgers.
+    fns = sorted(glob(os.path.join(outdir, "*ecsv")))
 
-    # ADM retrieve the current ledger entry for each target to be overrode.
-    nside = _get_mtl_nside()
-    theta, phi = np.radians(90-objs["DEC"]), np.radians(objs["RA"])
-    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
-    for tid, pix in zip(objs["TARGETID"], pixnum):
-        # ADM construct the input/output ledger filenames.
-        infn = io.find_target_files(mtldir, flavor="mtl", survey="main", hp=pix,
-                                    resolve=resolve, obscon=obscon, ender="ecsv")
-        outfn = io.find_target_files(
-            mtldir, flavor="mtl", survey="main", hp=pix, resolve=resolve,
-            obscon=obscon, override=True, ender="ecsv")
+    # ADM we'll need the targeting mask information.
+    from desitarget.targetmask import desi_mask as dmx
 
-        ledger = Table(io.read_mtl_ledger(infn))
-        ii = ledger["TARGETID"] == tid
-        # ADM warn if one of the TARGETIDs seems incorrect.
-        if not np.any(ii):
-            msg = "TARGETID {} from {} not in file {}!".format(tid, overfn, infn)
-            log.warning(msg)
-        entry = ledger[ii]
+    # ADM loop through the ledgers and make the updates.
+    for fn in fns:
+        # ADM read in a ledger. Grab all entries to include full history.
+        ledger = io.read_mtl_ledger(fn, unique=False)
 
-        # ADM substitute the column entries, where requested.
-        ii = objs["TARGETID"] == tid
-        if colsub is not None:
-            for col in colsub:
-                if col not in ledger.colnames:
-                    msg = "column {} from colsub not in ledger!!!".format(col)
-                    log.error(msg)
-                    raise ValueError(msg)
-                entry[col] = objs[ii][colsub[col]]
-        # ADM overwrite ledger entries, where requested.
-        if valsub is not None:
-            for col, val in valsub.items():
-                if col not in ledger.colnames:
-                    msg = "column {} from valsub not in ledger!!!".format(col)
-                    log.error(msg)
-                    raise ValueError(msg)
-                entry[col] = val
+        # ADM restrict to just quasars.
+        ii = ledger["DESI_TARGET"] & dmx["QSO"] != 0
+        qsos = ledger[ii]
 
-        # ADM add the number of times to override to the ledger entry.
-        entry["NUMOVERRIDE"] = numoverride
-        # ADM add some other standardized column information.
-        entry = standard_override_columns(entry)
+        # ADM recover the entries for just OBSERVED quasars.
+        obs = qsos["PRIORITY"] != dmx["QSO"].priorities["UNOBS"]
 
-        # ADM finally write out the override ledger entry, after first
-        # ADM checking if the file exists.
-        if os.path.exists(outfn):
-            f = open(outfn, "a")
-            ascii.write(entry, f, format='no_header', formats=mtlformatdict)
-            f.close()
-            checkfn = outfn
-        else:
-            _, checkfn = io.write_mtl(
-                mtldir, entry.as_array(), indir=infn, ecsv=True, survey="main",
-                obscon=obscon, nsidefile=nside, hpxlist=pix, scnd=secondary,
-                override=True)
-        log.info('Wrote target {} from {} to {}'.format(tid, overfn, checkfn))
+        # ADM retrieve the unique TARGETIDs.
+        tids = np.unique(qsos["TARGETID"])
 
-    log.info("Touched pixels {}".format(",".join([str(pix) for pix in pixnum])))
+        # ADM to store all the updates for this ledger.
+        newentries = []
+        # ADM loop through and create a new entry for each TARGETID.
+        for tid in tids:
+            # ADM we won't want to consider some quasar types.
+            smells_like_lya = True
+            ii = qsos["TARGETID"] == tid
+            # ADM extract the final observation.
+            newentry = qsos[ii][-1]
+            newentry["NUMOBS_INIT"] += 2
+            newentry["NUMOBS_MORE"] += 2
+            newentry["TIMESTAMP"] = timestamp
+            newentry["VERSION"] = dt_version
+            # ADM have different handling for observed quasars.
+            if np.sum(ii) > 1:
+                # ADM extract the previous observation with the highest priority.
+                qsohi = qsos[ii & obs]
+                qsohi = qsohi[np.argmax(qsohi["PRIORITY"])]
+                # ADM only update quasars that were considered Ly-alpha.
+                if qsohi["PRIORITY"] in [dmx["QSO"].priorities["MORE_ZWARN"],
+                                         dmx["QSO"].priorities["MORE_ZGOOD"]]:
+                    # Assign the highest observed priority and state.
+                    newentry["PRIORITY"] = qsohi["PRIORITY"]
+                    newentry["TARGET_STATE"] = qsohi["TARGET_STATE"]
+                    # Assign a TILEID of -1.
+                    newentry["ZTILEID"] = -1
+                else:
+                    # ADM this isn't a LyA quasar.
+                    smells_like_lya = False
+            # ADM all done with creating a new entry for this quasar, if
+            # ADM it seems to be a Lyman-alpha quasar.
+            if smells_like_lya:
+                newentries.append(newentry)
 
-    return outdir
+        # ADM append the new entries to the ledger.
+        newentries = np.concatenate([newentries])
+        # ADM will need some keywords to know which file we read.
+        hpx = io.read_keyword_from_mtl_header(fn, "FILEHPX")
+        nside = io.read_keyword_from_mtl_header(fn, "FILENSID")
+
+        nt, filename = io.write_mtl(
+            mtldir, newentries, ecsv=True, survey="main", obscon=obscon,
+            nsidefile=nside, hpxlist=hpx, append=True)
+
+        log.info(f"Wrote {nt} new entries to {filename}..t={time()-start:.1f}s")
+
+    # ADM update the override tiles file to indicate this code was run.
+    mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(override=True))
+
+    # ADM initialize the output array and add the tiles.
+    mocktiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+    mocktiles["TILEID"] = -1
+    mocktiles["TIMESTAMP"] = timestamp
+    mocktiles["VERSION"] = dt_version
+    mocktiles["PROGRAM"] = obscon
+    mocktiles["ZDATE"] = -1
+    mocktiles["ARCHIVEDATE"] = -1
+
+    io.write_mtl_tile_file(mtltilefn, mocktiles)
+
+    log.info(f"Done..t={time()-start:.1f}s")
+
+    return
 
 
 def force_overrides(obscon, survey='main', secondary=False, mtldir=None,
