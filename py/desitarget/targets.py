@@ -747,7 +747,7 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
                         zwarn1b = zwarn & ~good_hiz
                         sbools = [unobs, done, zgood1b, zwarn1b, good_hiz]
                         snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN",
-                                  "LYA_1B_ELG"]
+                                  "LY_1B_ELG"]
                     else:
                         sbools = [unobs, done, zgood, zwarn]
                         snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
