@@ -241,6 +241,7 @@ obsmask:
     - [DONE,           2, "enough observations already obtained"]
     - [MORE_ZWARN,     3, "ambiguous redshift; need more observations"]
     - [MORE_ZGOOD,     4, "redshift known; need more observations"]
+    - [LYA_1B_ELG,     5, "ELG target from 1B program that has a LyA QSO redshift"]
     - [MORE_MIDZQSO,   8, "mid-z QSO; more observations at very low priority"]
     - [MORE_NOB1,      9, "good rv, reprioritize until reach NOBS1"]
     - [MORE_NOB2,     10, "reached first SN goal, reprioritize until reach NOBS2"]
@@ -295,7 +296,7 @@ priorities:
 #- Dark Survey: priorities 3000 - 3999
     desi_mask:
 
-        ELG: {UNOBS: 3000, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        ELG: {UNOBS: 3000, LYA_1B_ELG: 3340, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LRG: {UNOBS: 3200, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM The MORE_MIDZQSO priority is driven by secondary programs from Gontcho a Gontcho (1.4 < z < 2.1)
@@ -307,7 +308,7 @@ priorities:
         LGE: {UNOBS: 3210, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM different priority ELGs.
-        ELG_LOP: {UNOBS: 3100, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        ELG_LOP: {UNOBS: 3100, LYA_1B_ELG: 3340, MORE_ZGOOD: 2, MORE_ZWARN: 2, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         ELG_HIP: SAME_AS_LRG
         ELG_VLO: SAME_AS_ELG
 

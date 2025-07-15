@@ -547,8 +547,8 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
     return
 
 
-def make_mtl(targets, obscon, zcat=None, scnd=None,
-             trim=False, trimcols=False, trimtozcat=False):
+def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
+             trimcols=False, trimtozcat=False, ext=False):
     """Add zcat columns to a targets table, update priorities and NUMOBS.
 
     Parameters
@@ -591,6 +591,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
         Only return targets that have been UPDATED (i.e. the targets with
         a match in `zcat`). Returns all targets if `zcat` is ``None``.
         See important Notes about `trimtozcat`=``False``!!!
+    ext : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then we're operating in DESI 1B mode for DARK or
+        BRIGHT tiles. When calculating priorities and numbers of
+        observations special 1B rules will be used.
 
     Returns
     -------
@@ -742,12 +746,13 @@ def make_mtl(targets, obscon, zcat=None, scnd=None,
             targets_zmatcher["NUMOBS_INIT"][ii] = desi_mask["QSO"].numobs
 
     # ADM update the number of observations for the targets.
-    ztargets['NUMOBS_MORE'] = calc_numobs_more(targets_zmatcher, ztargets, obscon)
+    ztargets['NUMOBS_MORE'] = calc_numobs_more(targets_zmatcher, ztargets,
+                                               obscon, ext=ext)
 
     # ADM assign priorities. Only things in the zcat can have changed
     # ADM priorities. Anything else is assigned PRIORITY_INIT, below.
     priority, target_state = calc_priority(
-        targets_zmatcher, ztargets, obscon, state=True)
+        targets_zmatcher, ztargets, obscon, state=True, ext=ext)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then
     # NUMOBS_MORE should also be 0.
@@ -2251,7 +2256,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
 
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
-                  numobs_from_ledger=False, tabform='ascii.basic'):
+                  numobs_from_ledger=False, tabform='ascii.basic', ext=False):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -2282,6 +2287,10 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         Format to pass to the astropy Table.read() function. The default
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    ext : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then we're operating in DESI 1B mode for DARK or
+        BRIGHT tiles. When calculating priorities and numbers of
+        observations special 1B rules will be used.
 
     Returns
     -------
@@ -2321,7 +2330,8 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         zcat["NUMOBS"][zii] = targets["NUMOBS"][tii] + 1
 
     # ADM run MTL, only returning the targets that are updated.
-    mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True)
+    mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True,
+                   ext=ext)
 
     # ADM this is redundant if targets wasn't sent, but it's quick.
     nside = _get_mtl_nside()
@@ -2923,8 +2933,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         mtl-done-tiles file) instead of tiles that are newly done and
         process using special reprocessing logic.
     ext : :class:`bool`, optional, defaults to ``False``
-        If ``True`` then we're operating in DESI extension mode for DARK
-        or BRIGHT tiles. The tiles looked up will be, e.g., DARK1B tiles,
+        If ``True`` then we're operating in DESI 1B mode for DARK or
+        BRIGHT tiles. The tiles looked up will be, e.g., DARK1B tiles,
         but the ledgers (and rules) used for updating will be for DARK.
         In this mode, the tile file is not updated indicating that a tile
         has been considered, because, e.g., DARK1B tiles should only be
@@ -3022,7 +3032,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon)
     else:
         update_ledger(hpdirname, zcat, obscon=obscon,
-                      numobs_from_ledger=numobs_from_ledger)
+                      numobs_from_ledger=numobs_from_ledger, ext=ext)
 
     # ADM for the main survey "holding pen" method, ensure the TIMESTAMP
     # ADM in the mtl-done-tiles file is always later than in the ledgers.
