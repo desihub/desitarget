@@ -5,7 +5,9 @@ desitarget Change Log
 3.4.0 (unreleased)
 ------------------
 
-* No changes yet.
+* Facilitate running MTL updates for the BACKUP program [`PR #845`_].
+
+.. _`PR #845`: https://github.com/desihub/desitarget/pull/845
 
 3.3.0 (2025-06-21)
 ------------------
