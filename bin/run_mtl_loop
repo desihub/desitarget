@@ -36,11 +36,6 @@ ap.add_argument("--noarchivecheck", action='store_true',
 
 ns = ap.parse_args()
 
-if ns.obscon == "BACKUP" and ns.survey == "main":
-    msg = "Updating BACKUP ledgers is not yet supported for the Main Survey!!!"
-    raise RuntimeError(msg)
-    log.error(msg)
-
 if not ns.noarchivecheck:
     check_archiving(ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir,
                     mtldir=ns.mtldir)

@@ -476,7 +476,7 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
     log.info("Checking archived tiles match tiles-specstatus file...")
 
     # ADM add a warning for non-standard cases:
-    ocsallowed = ["BRIGHT", "DARK", "BRIGHT1B", "DARK1B"]
+    ocsallowed = ["BRIGHT", "DARK", "BRIGHT1B", "DARK1B", "BACKUP"]
     if survey != "main" or obscon not in ocsallowed:
         msg = f"Archiving checks are only valid for main/+{ocsallowed}!"
         msg += " If using run_mtl_loop, try passing --noarchivecheck"
