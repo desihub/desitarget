@@ -522,7 +522,7 @@ def initial_priority_numobs(targets, scnd=False,
     return outpriority, outnumobs
 
 
-def calc_numobs_more(targets, zcat, obscon):
+def calc_numobs_more(targets, zcat, obscon, ext=False):
     """
     Calculate target NUMOBS_MORE from masks, observation/redshift status.
 
@@ -544,6 +544,10 @@ def calc_numobs_more(targets, zcat, obscon):
         file (specifically in `desitarget.targetmask.obsconditions`), e.g.
         "DARK". Governs the behavior of how priorities are set based
         on "obsconditions" in the desitarget bitmask yaml file.
+    ext : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then we're operating in DESI 1B mode for DARK or
+        BRIGHT tiles. When calculating priorities and numbers of
+        observations special 1B rules will be used.
 
     Returns
     -------
@@ -573,6 +577,17 @@ def calc_numobs_more(targets, zcat, obscon):
     # ADM main case, just decrement by NUMOBS.
     numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
 
+    # ADM special case for ELGs that turn out to be LyA quasars in the
+    # ADM DESI 1B phase. Should be scheduled for 6 total observations.
+    if ext:
+        iselgnotqso = ( (targets[desi_target] & desi_mask.ELG != 0) &
+                        (targets[desi_target] & desi_mask.QSO == 0) )
+        hiz = (zcat['Z'] >= zcut) | (
+            (zcat['Z_QN'] >= zcut) & (zcat["IS_QSO_QN"] == 1))
+        # ADM so these targets need 6-N more observations to match the 6
+        # ADM observations for LyA quasars in DESI 1B.
+        numobs_more[iselgnotqso & hiz] = 6 - zcat[iselgnotqso & hiz]['NUMOBS']
+
     # ADM apply special QSO behavior, but only in dark time and after
     # ADM some observations have occurred.
     if survey == 'main' and np.any(zcat["NUMOBS"] > 0):
@@ -583,6 +598,7 @@ def calc_numobs_more(targets, zcat, obscon):
             isqso = targets[desi_target] & desi_mask.QSO != 0
             # ADM "lock in" the numobs state for existing Ly-Alpha QSOs.
             lya = targets["PRIORITY"] == desi_mask["QSO"].priorities["MORE_ZGOOD"]
+
             # ADM the mocks may not include the secondary targets.
             if scnd_target in targets.dtype.names:
                 for scxname in scnd_mask.names():
@@ -600,7 +616,7 @@ def calc_numobs_more(targets, zcat, obscon):
     return numobs_more
 
 
-def calc_priority(targets, zcat, obscon, state=False):
+def calc_priority(targets, zcat, obscon, state=False, ext=False):
     """
     Calculate target priorities from masks, observation/redshift status.
 
@@ -627,6 +643,10 @@ def calc_priority(targets, zcat, obscon, state=False):
         was set. The state is a string combining the observational
         state (e.g. "DONE", "MORE_ZGOOD") from the targeting yaml file
         and the target type (e.g. "ELG", "LRG").
+    ext : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then we're operating in DESI 1B mode for DARK or
+        BRIGHT tiles. When calculating priorities and numbers of
+        observations special 1B rules will be used.
 
     Returns
     -------
@@ -714,10 +734,25 @@ def calc_priority(targets, zcat, obscon, state=False):
                 pricon = obsconditions.mask(desi_mask[name].obsconditions)
                 if (obsconditions.mask(obscon) & pricon) != 0:
                     ii = (targets[desi_target] & desi_mask[name]) != 0
-                    for sbool, sname in zip(
-                        [unobs, done, zgood, zwarn],
-                        ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
-                    ):
+                    # ADM for the DARK 1B program, we treat ELG targets
+                    # ADM that have LyA QSO redshifts as LyA QSOs.
+                    if ext and "ELG" in name:
+                        good_hiz = (zcat['Z'] >= zcut) | (
+                            (zcat['Z_QN'] >= zcut) & (zcat["IS_QSO_QN"] == 1))
+                        # ADM ensure we don't change behavior for quasar targets.
+                        good_hiz &= (targets[desi_target] & desi_mask["QSO"]) == 0
+                        # ADM make sure there are no overlaps between the
+                        # ADM LyA-like ELGs and other ELG observations.
+                        zgood1b = zgood & ~good_hiz
+                        zwarn1b = zwarn & ~good_hiz
+                        sbools = [unobs, done, zgood1b, zwarn1b, good_hiz]
+                        snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN",
+                                  "LY_1B_ELG"]
+                    else:
+                        sbools = [unobs, done, zgood, zwarn]
+                        snames = ["UNOBS", "DONE", "MORE_ZGOOD", "MORE_ZWARN"]
+
+                    for sbool, sname in zip(sbools, snames):
                         # ADM update priorities and target states.
                         Mxp = desi_mask[name].priorities[sname]
                         # ADM tiered system in SV3. Decrement MORE_ZWARN
