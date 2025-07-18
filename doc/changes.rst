@@ -5,9 +5,16 @@ desitarget Change Log
 3.4.0 (unreleased)
 ------------------
 
-* Facilitate running MTL updates for the BACKUP program [`PR #845`_].
+* Facilitate running MTL updates for the BACKUP program [`PR #846`_].
+* Change LyA decisions for DESI 1B phase [`PR #845`_].
+    * Include function to add 2 observations for every LyA QSO.
+        * Also sets priority for these QSOs to most recent LyA-like one.
+    * MTL logic sets 6 observations for ELG targets that are LyA QSOs.
+        * And sets priority to just below a QSO target that is a LyA QSO.
+	* Introduces new priority level `LY_1B_ELG`.
 
 .. _`PR #845`: https://github.com/desihub/desitarget/pull/845
+.. _`PR #846`: https://github.com/desihub/desitarget/pull/846
 
 3.3.0 (2025-06-21)
 ------------------
