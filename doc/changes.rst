@@ -2,7 +2,13 @@
 desitarget Change Log
 =====================
 
-3.4.2 (unreleased)
+
+3.5.0 (unreleased)
+------------------
+
+* No changes yet.
+
+3.4.2 (2025-07-21)
 ------------------
 
 * Another bug fix related to `PR #845`_ [`PR #848`_].
