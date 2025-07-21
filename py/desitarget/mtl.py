@@ -1811,7 +1811,7 @@ def update_lya_1b(obscon="DARK", mtldir=None, timestamp=None, donefile=True):
             newentry["TIMESTAMP"] = timestamp
             newentry["VERSION"] = dt_version
             # ADM have different handling for observed quasars.
-            if np.sum(ii) > 1:
+            if np.sum(ii & obs) > 0:
                 # ADM extract the previous observation with the highest priority.
                 qsohi = qsos[ii & obs]
                 qsohi = qsohi[np.argmax(qsohi["PRIORITY"])]
