@@ -2,10 +2,13 @@
 desitarget Change Log
 =====================
 
-3.5.0 (unreleased)
+3.4.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Another bug fix related to `PR #845`_ [`PR #848`_].
+    * Reprocessed quasars can have two UNOBS entries in a ledger.
+
+.. _`PR #848`: https://github.com/desihub/desitarget/pull/848
 
 3.4.1 (2025-07-21)
 ------------------
