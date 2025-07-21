@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-3.4.0 (unreleased)
+3.5.0 (unreleased)
+------------------
+
+* No changes yet.
+
+3.4.0 (2025-07-21)
 ------------------
 
 * Facilitate running MTL updates for the BACKUP program [`PR #846`_].
