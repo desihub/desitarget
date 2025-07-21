@@ -1837,11 +1837,15 @@ def update_lya_1b(obscon="DARK", mtldir=None, timestamp=None, donefile=True):
         hpx = io.read_keyword_from_mtl_header(fn, "FILEHPX")
         nside = io.read_keyword_from_mtl_header(fn, "FILENSID")
 
-        nt, filename = io.write_mtl(
-            mtldir, newentries, ecsv=True, survey="main", obscon=obscon,
-            nsidefile=nside, hpxlist=hpx, append=True)
+        # ADM some ledgers don't contain any quasars, so only update
+        # ADM the MTLs where there some new entries.
+        nt = 0
+        if len(newentries) > 0:
+            nt, filename = io.write_mtl(
+                mtldir, newentries, ecsv=True, survey="main", obscon=obscon,
+                nsidefile=nside, hpxlist=hpx, append=True)
 
-        log.info(f"Wrote {nt} new entries to {filename}..t={time()-start:.1f}s")
+        log.info(f"Wrote {nt} new entries to {fn}...t={time()-start:.1f}s")
 
     # ADM update the override tiles file to indicate this code was run.
     mtltilefn = os.path.join(mtldir, get_mtl_tile_file_name(override=True))
