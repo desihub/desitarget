@@ -6,8 +6,8 @@ desitarget Change Log
 ------------------
 
 * Bug fix related to `PR #845`_ [`PR #847`_].
-  * The code crashed for MTLs that don't contain any quasars.
-  * As it didn't know how to append zero information to a ledger.
+    * The code crashed for MTLs that don't contain any quasars.
+    * As it didn't know how to append zero information to a ledger.
 
 .. _`PR #847`: https://github.com/desihub/desitarget/pull/847
 
