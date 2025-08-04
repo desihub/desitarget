@@ -3045,10 +3045,10 @@ def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         with open(filename) as f:
             for line in f:
                 if "name" in line:
-                    l = line.split()
-                    iname, iform = [i+1 for i, stringy in enumerate(l) if
+                    ll = line.split()
+                    iname, iform = [i+1 for i, stringy in enumerate(ll) if
                                     "name" in stringy or "datatype" in stringy]
-                    name, form = l[iname][:-1], l[iform][:-1]
+                    name, form = ll[iname][:-1], ll[iform][:-1]
                     names.append(name)
                     if 'string' in form:
                         forms.append(mtldm[name].dtype.str)

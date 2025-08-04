@@ -471,8 +471,9 @@ def is_in_dwarf(objs, dwarf_name):
         ASTROMETRIC_PARAMS_SOLVED, NU_EFF_USED_IN_ASTROMETRY,
         ECL_LAT, PHOT_G_MEAN_MAG.
     dwarf_name : :class:`str`
-        Name of a dwarf galaxy that appears in the ../data/dwarfs.yaml file.
-        Possibilities include 'BOOTES_1', 'CANES_VENATICI_1', 'DRACO_1', 'SEXTANS_1', and 'URSA_MINOR_1'.
+        Name of a dwarf galaxy that appears in the ../data/dwarfs.yaml
+        file. Possibilities include 'BOOTES_1', 'CANES_VENATICI_1',
+        'DRACO_1', 'SEXTANS_1', and 'URSA_MINOR_1'.
 
     Returns
     -------

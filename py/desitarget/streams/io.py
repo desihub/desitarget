@@ -430,8 +430,8 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     Notes
     -----
     - Must contain at least the columns:
-        PHOT_G_MEAN_MAG, PHOT_BP_MEAN_MAG, PHOT_RP_MEAN_MAG and
-        FIBERTOTFLUX_G, FIBERTOTFLUX_R, FIBERTOTFLUX_Z, RELEASE
+        GAIA_PHOT_G_MEAN_MAG, GAIA_PHOT_BP_MEAN_MAG, GAIA_PHOT_RP_MEAN_MAG
+        and FIBERTOTFLUX_G, FIBERTOTFLUX_R, FIBERTOTFLUX_Z, RELEASE
     - Always OVERWRITES existing files!
     - Writes atomically. Any output files that died mid-write will be
       appended by ".tmp".
