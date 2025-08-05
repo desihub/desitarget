@@ -55,8 +55,7 @@ def downsampler(ra, dec, gal_b, subset, p_15, p_35, m31_rad=2.5, m33_rad=.5):
 
 def insideM31disk(ra, dec):  # Added by Arjun
     """
-    Check whether the ra,dec points lie within the ellipse defining the M31
-    disk
+    Check if ra, dec locations lie in the ellipse defining the M31 disk.
     """
     # Define the center of M31
     m31ra, m31dec = 10.68470833, 41.26875
@@ -78,8 +77,7 @@ def insideM31disk(ra, dec):  # Added by Arjun
 
 def insideM33disk(ra, dec):
     """
-    Check whether the ra,dec points lie within the ellipse defining the M33
-    disk
+    Check if ra, dec locations lie in the ellipse defining the M33 disk.
     """
 
     # Define the center of M33
@@ -300,7 +298,6 @@ def select_targets(filename):
     Parameters
     ----------
     filename : :class:`str`
-    objs : :class:`~numpy.ndarray`
         Name of file containing input catalog. Made by Sergey Koposov.
         Typical file is available at $TARG_DIR/../sergey_m31/, which
         is also /global/cfs/cdirs/desi/target/sergey_m31/.
@@ -314,19 +311,6 @@ def select_targets(filename):
     """
     # ADM read in the targets.
     objs = atpy.Table().read(filename, mask_invalid=False)
-
-    # ADM check the data model.
-    from desitarget.streams.io import streamcolsLS, streamcolsGaia
-    Mdescr = streamcolsLS.dtype.descr + streamcolsGaia.dtype.descr
-    # ADM need to switch ERRORs to iVARs in the data model.
-    Mdescr = [(i[0], i[1]) if not "ERROR" in i[0] else
-              (i[0].replace("ERROR", "IVAR"), i[1]) for i in Mdescr]
-    mismatchdm = ~np.array([i in objs.dtype.descr for i in Mdescr])
-    if np.sum(mismatchdm) > 0:
-        badcols = np.array(Mdescr)[mismatchdm]
-        msg = f"Required data model wrong for:\n {badcols}\n"
-        msg += f"Compare to:\n {objs.dtype.descr}"
-        log.critical(msg)
 
     # ADM deterine the target classes.
     (rgblo_sel, rgbhi_sel, agb_sel, qso_sel, bright_sel, filler_sel,
