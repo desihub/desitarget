@@ -3,7 +3,11 @@ import astropy.coordinates as acoo
 import astropy.table as atpy
 import numpy as np
 import sys
+import fitsio
 from matplotlib.path import Path
+
+from desitarget.streams.targets import finalize
+from desitarget import io
 
 # ADM set up the DESI default logger.
 from desiutil.log import get_logger
@@ -292,7 +296,7 @@ def select_m31_all(objs, remove_observed=True):
     )
 
 
-def select_targets(filename):
+def select_targets(filename, test=False):
     """Process an input file to select M31/M33 1B targets.
 
     Parameters
@@ -301,18 +305,40 @@ def select_targets(filename):
         Name of file containing input catalog. Made by Sergey Koposov.
         Typical file is available at $TARG_DIR/../sergey_m31/, which
         is also /global/cfs/cdirs/desi/target/sergey_m31/.
+    test : :class:`bool`, optional, defaults to ``False``
+        If ``True`` only read the first 500 objects from `filename`
+        for testing purposes.
 
     Returns
     -------
     :class:`~numpy.ndarray`
-        Targets in the input `swdir` which pass the cuts with added
+        Targets in the input file which pass the cuts with added
         targeting columns such as ``TARGETID``, and ``DESI_TARGET``
         ``BGS_TARGET``, ``MWS_TARGET`` (i.e. target selection bitmasks).
     """
     # ADM read in the targets.
-    objs = atpy.Table().read(filename, mask_invalid=False)
+    if test:
+        inobjs = fitsio.read(filename, rows=np.arange(500))
+    else:
+        inobjs = fitsio.read(filename)
 
-    # ADM deterine the target classes.
+    # ADM input file has format issues. Update to correct data model.
+    newdt = [i if i[0] != 'RELEASE' else
+             ('RELEASE', '>i2') for i in inobjs.dtype.descr]
+    newdt = [i if i[0] != 'ASTROMETRIC_PARAMS_SOLVED' else
+             ('ASTROMETRIC_PARAMS_SOLVED', '|i1') for i in newdt ]
+    objs = np.empty(len(inobjs), dtype=newdt)
+    for col in objs.dtype.names:
+        objs[col] = inobjs[col]
+
+    # ADM a temporary hack as first versions of OBJID and BRICKID had
+    # ADM integers that were too high for the TARGETID bit-structure.
+    if np.max(objs["OBJID"]) > 2**22-1:
+        objs["OBJID"] = objs["OBJID"]//100
+    if np.max(objs["BRICKID"]) > 2**20-1:
+        objs["BRICKID"] = objs["BRICKID"]//640
+
+    # ADM determine the target classes.
     (rgblo_sel, rgbhi_sel, agb_sel, qso_sel, bright_sel, filler_sel,
      cluster_sel) = select_m31_all(objs)
 
@@ -339,24 +365,15 @@ def select_targets(filename):
     # ADM finalize the targets.
     # ADM anything with DESI_TARGET !=0 is truly a target.
     ii = (desi_target != 0)
-    objects = objects[ii]
+    objs = objs[ii]
     desi_target = desi_target[ii]
     bgs_target = bgs_target[ii]
     mws_target = mws_target[ii]
     scnd_target = scnd_target[ii]
 
-    # ADM add TARGETID and targeting bitmask columns.
-    targets = finalize(objects, desi_target, bgs_target, mws_target, scnd_target)
-
-    # ADM resolve any duplicates between imaging data releases.
-    # ADM shouldn't be necessary for M31/M33 targets but just in case.
-    targets = resolve(targets)
-
-    # ADM always prudent to check we don't have duplicate TARGETIDs
-    # ADM even though this should be impossible for M31/M33 targets.
-    if len(np.unique(targets["TARGETID"])) != len(targets):
-        msg = ("Targets must be unique but there are some duplicated TARGETIDs!")
-        log.error(msg)
+    # ADM add TARGETID and targeting bitmask columns. Note that
+    # ADM finalize includes a check for uniqueness of TARGETIDs.
+    targets = finalize(objs, desi_target, bgs_target, mws_target, scnd_target)
 
     # ADM a final sort on RA to mitigate reproducibility issues.
     # ADM for instance, we've had conflicting SUBPRIORITY in the past.

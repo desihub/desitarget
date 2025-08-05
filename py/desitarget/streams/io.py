@@ -451,7 +451,9 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
 
     # ADM construct the output filename.
     drs = list(set(targs["RELEASE"]//1000))
-    if len(drs) == 1:
+    # ADM note that we special case RELEASE=7777, which corresponds to
+    # ADM the M31/M33 BRIGHT1B program.
+    if len(drs) == 1 and not np.all(targs["RELEASE"] == 7777):
         drint = drs[0]
         drstr = f"dr{drint}"
     else:
