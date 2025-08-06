@@ -423,12 +423,12 @@ priorities:
         MWS_PAL5:                     {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 # ADM DESI 1B M31/M33 program targets.
-# ADM These have special handling in the MTL code such that PRIORITY = PRIORITY_INIT + NUMOBS, so only UNOBS and DONE are really relevant.
-        M31_GIANT:                    {UNOBS: 1950, DONE: 2}
-        M31_QSO:                      {UNOBS: 1900, DONE: 2}
-        M31_SPECIAL:                  {UNOBS: 1850, DONE: 2}
-        M31_BRIGHT:                   {UNOBS: 1800, DONE: 2}
-        M31_FILLER:                   {UNOBS: 1700, DONE: 2}
+# ADM These have special handling in the MTL code such that PRIORITY = UNOBS (PRIORITY_INIT) + NUMOBS once MOREZ is triggered.
+        M31_GIANT:                    {UNOBS: 1950, MORE_Z: 1951, DONE: 2}
+        M31_QSO:                      {UNOBS: 1900, MORE_Z: 1901, DONE: 2}
+        M31_SPECIAL:                  {UNOBS: 1850, MORE_Z: 1851, DONE: 2}
+        M31_BRIGHT:                   {UNOBS: 1800, MORE_Z: 1801, DONE: 2}
+        M31_FILLER:                   {UNOBS: 1700, MORE_Z: 1701, DONE: 2}
 
 # ADM backup targets.
         BACKUP_DIB:                   {UNOBS: 45, MORE_ZGOOD: 24, MORE_ZWARN: 24, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
