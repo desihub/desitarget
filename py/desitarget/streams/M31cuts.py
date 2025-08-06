@@ -322,21 +322,21 @@ def select_targets(filename, test=False):
     else:
         inobjs = fitsio.read(filename)
 
-    # ADM input file has format issues. Update to correct data model.
+    # ADM reorder input columns to conform to ordering in the MTLs.
+    firstcols = ["RA", "DEC", "REF_EPOCH", "PARALLAX", "PMRA", "PMDEC"]
+    firstentries = []
+    for col in firstcols:
+        firstentries += [i for i in inobjs.dtype.descr if i[0] == col]
+    lastentries = [i for i in inobjs.dtype.descr if i[0] not in firstcols]
+
+    # ADM also input file has format issues. Update to right data model.
     newdt = [i if i[0] != 'RELEASE' else
-             ('RELEASE', '>i2') for i in inobjs.dtype.descr]
+             ('RELEASE', '>i2') for i in firstentries + lastentries]
     newdt = [i if i[0] != 'ASTROMETRIC_PARAMS_SOLVED' else
              ('ASTROMETRIC_PARAMS_SOLVED', '|i1') for i in newdt ]
     objs = np.empty(len(inobjs), dtype=newdt)
     for col in objs.dtype.names:
         objs[col] = inobjs[col]
-
-    # ADM a temporary hack as first versions of OBJID and BRICKID had
-    # ADM integers that were too high for the TARGETID bit-structure.
-    if np.max(objs["OBJID"]) > 2**22-1:
-        objs["OBJID"] = objs["OBJID"]//100
-    if np.max(objs["BRICKID"]) > 2**20-1:
-        objs["BRICKID"] = objs["BRICKID"]//640
 
     # ADM determine the target classes.
     (rgblo_sel, rgbhi_sel, agb_sel, qso_sel, bright_sel, filler_sel,
