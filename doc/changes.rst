@@ -2,8 +2,12 @@
 desitarget Change Log
 =====================
 
+3.5.1 (unreleased)
+------------------
 
-3.5.0 (unreleased)
+* No changes yet.
+
+3.5.0 (2025-08-07)
 ------------------
 
 * Code to generate BRIGHT1B M31/M33 targets and update MTLs [`PR #849`_].
