@@ -196,8 +196,8 @@ def RecHyParamDictExplFunc(hyParamDict):
         if (type(value) == dict) or (type(value) == collections.OrderedDict):
 
             _dict = collections.OrderedDict([
-              (':'.join([key, _key]), _value)
-              for _key, _value in RecHyParamDictExplFunc(value).items()])
+                (':'.join([key, _key]), _value)
+                for _key, _value in RecHyParamDictExplFunc(value).items()])
 
             new_dict.update(_dict)
 

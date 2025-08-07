@@ -7,13 +7,15 @@ desitarget.mock.build
 Build truth and targets catalogs, including spectra, for the mocks.
 
 """
-import os, time
+import os
+import time
 import numpy as np
 import healpy as hp
 
 from astropy.table import vstack, Table
 
 from desimodel.footprint import radec2pix
+
 
 def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.',
                              seed=None, verbose=False):
@@ -94,6 +96,7 @@ def initialize_targets_truth(params, healpixels=None, nside=None, output_dir='.'
 
     return log, healpixseeds
 
+
 def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
               nside=None, nside_chunk=128, MakeMock=None, dndz=None):
     """Read a mock catalog.
@@ -145,7 +148,7 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
     zmin_lya = params.get('zmin_lya')
     zmax_qso = params.get('zmax_qso')
     use_simqso = params.get('use_simqso', True)
-    sqmodel = params.get('sqmodel','default')
+    sqmodel = params.get('sqmodel', 'default')
     balprob = params.get('balprob', 0.0)
     add_dla = params.get('add_dla', False)
     add_metals = params.get('add_metals', False)
@@ -220,9 +223,11 @@ def read_mock(params, log=None, target_name='', seed=None, healpixels=None,
 
     return data, MakeMock
 
+
 def _get_spectra_onepixel(specargs):
     """Filler function for the multiprocessing."""
     return get_spectra_onepixel(*specargs)
+
 
 #def get_spectra_onepixel(data):
 def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
@@ -348,6 +353,7 @@ def get_spectra_onepixel(data, indx, MakeMock, seed, log, ntarget,
 
     return [targets, truth, objtruth, trueflux]
 
+
 def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     """Determine the density of targets to generate, accounting for fluctuations due
     to reddening, imaging systematics, and large-scale structure.
@@ -377,13 +383,13 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
     """
     rand = np.random.RandomState(seed)
 
-    ## Fluctuations model coefficients from --
-    ##   https://github.com/desihub/desitarget/blob/master/doc/nb/target-fluctuations.ipynb
-    #model = dict()
-    #model['LRG'] = (0.27216, 2.631, 0.145) # slope, intercept, and scatter
-    #model['ELG'] = (-0.55792, 3.380, 0.081)
-    #model['QSO'] = (0.33321, 3.249, 0.112)
-    #coeff = model.get(data['TARGET_NAME'])
+    # Fluctuations model coefficients from --
+    #   https://github.com/desihub/desitarget/blob/master/doc/nb/target-fluctuations.ipynb
+    # model = dict()
+    # model['LRG'] = (0.27216, 2.631, 0.145) # slope, intercept, and scatter
+    # model['ELG'] = (-0.55792, 3.380, 0.081)
+    # model['QSO'] = (0.33321, 3.249, 0.112)
+    # coeff = model.get(data['TARGET_NAME'])
 
     # Chunk each healpixel into a smaller set of healpixels, for
     # parallelization.
@@ -399,7 +405,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         nside, areaperpixel, nchunk, nside_chunk, areaperchunk))
 
     # Assign targets to healpix chunks.
-    #ntarget = len(data['RA'])
+    # ntarget = len(data['RA'])
     healpix_chunk = radec2pix(nside_chunk, data['RA'], data['DEC'])
 
     #if 'CONTAM_FACTOR' in data.keys():
@@ -445,6 +451,7 @@ def density_fluctuations(data, log, nside, nside_chunk, seed=None):
         ntargperchunk[0] = np.round( len(data['RA']) * density_factor ).astype('int')
 
     return indxperchunk, ntargperchunk, areaperpixel
+
 
 def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
                 nproc=1, sky=False, no_spectra=False, calib_only=False,
@@ -521,6 +528,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
 
     nn = np.zeros((), dtype='i8')
     t0 = time()
+
     def _update_spectra_status(result):
         """Status update."""
         if nn % 2 == 0 and nn > 0:
@@ -596,6 +604,7 @@ def get_spectra(data, MakeMock, log, nside, nside_chunk, seed=None,
             data['TARGET_NAME'], ttime / 60, (ttime*nproc) / area ))
 
     return targets, truth, objtruth, trueflux
+
 
 def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
                               nside_chunk, targets, truth, objtruth, trueflux,
@@ -801,6 +810,7 @@ def get_contaminants_onepixel(params, healpix, nside, seed, nproc, log,
 
     return targets, truth, objtruth, trueflux
 
+
 def targets_truth(params, healpixels=None, nside=None, output_dir='.',
                   seed=None, nproc=1, nside_chunk=128, survey='main',
                   verbose=False, no_spectra=False):
@@ -857,7 +867,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
         target_type = params['targets'][target_name].get('target_type')
         calib_only = params['targets'][target_name].get('calib_only', False)
         use_simqso = params['targets'][target_name].get('use_simqso', True)
-        sqmodel=params['targets'][target_name].get('sqmodel', 'default')
+        sqmodel = params['targets'][target_name].get('sqmodel', 'default')
         balprob = params['targets'][target_name].get('balprob', 0.0)
         add_dla = params['targets'][target_name].get('add_dla', False)
         add_metals = params['targets'][target_name].get('add_metals', False)
@@ -999,6 +1009,7 @@ def targets_truth(params, healpixels=None, nside=None, output_dir='.',
             log.info('No SKY targets generated; {} not written.'.format(skyfile))
             log.info('  Sky file {} not written.'.format(skyfile))
 
+
 def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
                    nside, log, seed=None, survey='main'):
     """Add various mission-critical columns to the target catalog, including
@@ -1085,7 +1096,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         for obj in set(truth['TEMPLATETYPE']):
             these = obj == truth['TEMPLATETYPE']
             if not np.all( (objtruth[obj]['TARGETID'] == truth['TARGETID'][these]) ) or \
-              not np.all( (objtruth[obj]['TARGETID'] == targets['TARGETID'][these]) ):
+               not np.all( (objtruth[obj]['TARGETID'] == targets['TARGETID'][these]) ):
                 log.warning('Mismatching TARGETIDs!')
                 raise ValueError
 
@@ -1110,6 +1121,7 @@ def finish_catalog(targets, truth, objtruth, skytargets, skytruth, healpix,
         skytargets['SUBPRIORITY'][:] = subpriority[nobj:]
 
     return targets, truth, objtruth, skytargets, skytruth
+
 
 def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, overwrite=False):
     '''
@@ -1147,7 +1159,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
     if comm is not None:
         infiles = comm.bcast(infiles, root=0)
 
-    if len(infiles)==0:
+    if len(infiles) == 0:
         if rank == 0:
             log.info('Zero pixel files for extension {}. Skipping.'.format(ext))
         return
@@ -1157,7 +1169,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
     for filename in infiles[rank::size]:
         try:
             data.append(fitsio.read(filename, ext))
-        except OSError:  #- yep, OSError not IOError
+        except OSError:  # yep, OSError not IOError
             log.info('Extension {} not found in {}'.format(ext, filename))
             pass
 
@@ -1169,7 +1181,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
 
     if comm is not None:
         data = comm.gather(data, root=0)
-        if rank == 0 and size>1:
+        if rank == 0 and size > 1:
             data = [d for d in data if d is not None]
             data = np.hstack(data)
 
@@ -1220,6 +1232,7 @@ def _merge_file_tables(fileglob, ext, outfile=None, comm=None, addcols=None, ove
         os.rename(tmpout, outfile)
 
     return data
+
 
 def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
     '''
@@ -1273,7 +1286,7 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
                                FIBERFLUX_IVAR_R=900.0,
                                FIBERFLUX_IVAR_Z=130.0)
                            )
-                           #addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
+        # addcols=dict(OBSCONDITIONS=obsmask.mask('DARK|GRAY|BRIGHT')))
 
     for obscon in ('bright', 'dark'):
         if todo['targets-{}'.format(obscon)]:
@@ -1308,6 +1321,3 @@ def join_targets_truth(mockdir, outdir=None, overwrite=False, comm=None):
             mtl.meta['EXTNAME'] = 'MTL'
             mtl.write(tmpout, overwrite=True, format='fits')
             os.rename(tmpout, out_mtl)
-
-
-

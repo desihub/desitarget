@@ -1745,7 +1745,7 @@ def update_lya_1b(obscon="DARK", mtldir=None, timestamp=None, donefile=True):
     donefile : :class:`bool`, defaults to ``True``
         If ``True`` then update the mtl-done-overrides.ecsv (i.e the
         OVERRIDE done file) to indicate the change. The special nature
-        of this update is that TILEID, ZDATE and ARCHIVEDATE are all set 
+        of this update is that TILEID, ZDATE and ARCHIVEDATE are all set
         to -1.
 
     Returns
@@ -1756,8 +1756,8 @@ def update_lya_1b(obscon="DARK", mtldir=None, timestamp=None, donefile=True):
     -----
     - This will only be run once but is coded as a standalone function so
       it can be used by the alt-MTLs as well as the data MTLs.
-    - The algorithm is to look up the the highest-priority state (other 
-      than UNOBS) for each quasar target, revert to that state, and add 
+    - The algorithm is to look up the the highest-priority state (other
+      than UNOBS) for each quasar target, revert to that state, and add
       two observations to NUMOBS_MORE and NUMOBS_INIT.
     - Every ledger in the relevant MTL+obscon+main directory is updated.
     """

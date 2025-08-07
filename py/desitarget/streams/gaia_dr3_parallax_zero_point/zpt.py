@@ -229,7 +229,7 @@ def get_zpt(phot_g_mean_mag, nu_eff_used_in_astrometry, pseudocolour, ecl_lat, a
                 return np.nan
             else:
                 nueff_outofrange_ind = np.where((astrometric_params_solved == 31) & (
-                        (nu_eff_used_in_astrometry >= 1.9) | (nu_eff_used_in_astrometry <= 1.1)))
+                    (nu_eff_used_in_astrometry >= 1.9) | (nu_eff_used_in_astrometry <= 1.1)))
 
     if np.any(pseudocolour[sources_6p] >= 1.72) or np.any(pseudocolour[sources_6p] <= 1.24):
         if _warnings:

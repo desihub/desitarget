@@ -128,7 +128,7 @@ def select_m31_all(objs, remove_observed=True):
         AGB: (very red) Candidate RGB star; _GIANT target class.
         QSO: QSO candidates selected from Gaia/WISE; _QSO target class.
         BRIGHT: M31, or MW outer halo, stars from Gaia; _BRIGHT class.
-        FILLER: Filler sources selected from Gaia; _FILLER target class. 
+        FILLER: Filler sources selected from Gaia; _FILLER target class.
         CLUSTER: Special sources selected from a range of smaller
         catalogs (GCs, OCs, PNs, HII regions); _SPECIAL target class.
     """
@@ -156,7 +156,7 @@ def select_m31_all(objs, remove_observed=True):
 
     Tgz = (np.maximum(
         ((pandas_g - pandas_i) - 1.8) * 0.15, -(pandas_g - pandas_i) - 1.8) *
-           0.03) - 0.13 + 1.3 * (pandas_g - pandas_i)
+        0.03) - 0.13 + 1.3 * (pandas_g - pandas_i)
     zmag = pandas_g - Tgz
     # For the Gaia-only sources we use a different relation
     zmag[~np.isfinite(zmag)] = (
