@@ -1,0 +1,72 @@
+#!/usr/bin/env python
+
+import sys
+import numpy as np
+import fitsio
+import healpy as hp
+
+from desitarget.io import desitarget_nside
+from desitarget.streams import io, M31cuts
+
+from time import time
+start = time()
+
+from desiutil.log import get_logger
+log = get_logger()
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description=("Generates DESI target bits from special input"
+                                 " file for the 1B M31/M33 program.")
+                    )
+ap.add_argument("filename",
+                help=("Input file name. Typical file (made by Sergey Koposov) "
+                      "is available in $TARG_DIR/../sergey_m31/, which is "
+                      "/global/cfs/cdirs/desi/target/sergey_m31/ at NERSC.")
+                )
+ap.add_argument("dest",
+                help=("Output target selection directory (the file name is built"
+                      " on-the-fly from other inputs).")
+                )
+ap.add_argument("--test", action="store_true",
+                help=("If True only read the first 500 objects from filename "
+                "for testing purposes.")
+                )
+ap.add_argument("--nside", type=int, default=None,
+                help=("Write targets split by (NESTED) HEALPixel at this nside.")
+                )
+
+ns = ap.parse_args()
+
+# ADM build the list of command line arguments to
+# ADM write to the output header.
+hdr = fitsio.FITSHDR()
+nsdict = vars(ns)
+for k in nsdict:
+    # ADM we set the pixel information separately.
+    if k not in ["nside"]:
+        hdr[k.upper()] = nsdict[k]
+# ADM also explicitly add the command used, just in case.
+hdr["CMDLINE"] = ' '.join(sys.argv)
+
+targets = M31cuts.select_targets(
+    ns.filename, test=ns.test
+)
+
+# ADM if nside was passed, split into HEALPixels.
+hppix = [-1]
+if ns.nside is not None:
+    theta, phi = np.radians(90-targets["DEC"]), np.radians(targets["RA"])
+    hppix = hp.ang2pix(ns.nside, theta, phi, nest=True)
+
+for hpx in set(hppix):
+    # ADM note we hard code for BRIGHT, which is hidden in write_targets.
+    if hpx == -1:
+        ntargs, outfile = io.write_targets(ns.dest, targets, hdr,
+                                           nsidecol=desitarget_nside())
+    else:
+        ii = hppix == hpx
+        ntargs, outfile = io.write_targets(
+            ns.dest, targets[ii], hdr, nside=ns.nside,
+            pixint=hpx, nsidecol=desitarget_nside())
+
+    log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

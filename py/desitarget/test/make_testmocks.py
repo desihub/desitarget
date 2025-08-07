@@ -3,7 +3,8 @@
 
 #- make sure an import can't accidentally trigger this
 if __name__ == "__main__":
-    import os, sys
+    import os
+    import sys
     import numpy as np
     import fitsio
 
@@ -20,7 +21,7 @@ if __name__ == "__main__":
         keep_targetids = list()
         for objtype in ['BGS', 'ELG', 'LRG', 'QSO', 'STAR', 'WD']:
             extname = 'TRUTH_'+objtype
-            truth = fx[extname].read()[0:3]  #- keep 3 targets per class
+            truth = fx[extname].read()[0:3]  # keep 3 targets per class
             keep_targetids.extend(truth['TARGETID'])
             truth_data[extname] = truth
 
@@ -43,24 +44,23 @@ if __name__ == "__main__":
 
     #- Trim targets tile to match truth targets that are kept
     columns = ['TARGETID', 'RA', 'DEC', 'RELEASE',
-        'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2',
-        'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
-        'MW_TRANSMISSION_W1', 'MW_TRANSMISSION_W2',
-        'PARALLAX', 'PMRA', 'PMDEC', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET',
-        ]
-    targets, hdr = fitsio.read(targetfile,'TARGETS',header=True,columns=columns)
+               'FLUX_G', 'FLUX_R', 'FLUX_Z', 'FLUX_W1', 'FLUX_W2',
+               'MW_TRANSMISSION_G', 'MW_TRANSMISSION_R', 'MW_TRANSMISSION_Z',
+               'MW_TRANSMISSION_W1', 'MW_TRANSMISSION_W2',
+               'PARALLAX', 'PMRA', 'PMDEC', 'DESI_TARGET', 'BGS_TARGET', 'MWS_TARGET',
+               ]
+    targets, hdr = fitsio.read(targetfile, 'TARGETS', header=True, columns=columns)
     keep = np.isin(targets['TARGETID'], keep_targetids)
     targets = targets[keep]
     fitsio.write(test_targetsfile, targets, extname='TARGETS',
                  header=hdr, clobber=True)
 
     fitsio.write(test_truthfile, truth_data['TRUTH'], extname='TRUTH',
-        header=truth_hdr, clobber=True)
+                 header=truth_hdr, clobber=True)
 
     for extname in ['WAVE', 'FLUX', 'TRUTH_BGS', 'TRUTH_ELG',
                     'TRUTH_LRG', 'TRUTH_QSO', 'TRUTH_STAR', 'TRUTH_WD']:
         fitsio.write(test_truthfile, truth_data[extname],
-            extname=extname)
+                     extname=extname)
 
     print(f'Wrote {test_targetsfile} and {test_truthfile}')
-

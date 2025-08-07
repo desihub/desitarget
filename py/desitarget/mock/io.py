@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import os
 
+
 def get_healpix_dir(nside, pixnum, basedir='.'):
     '''
     Returns standardized path
@@ -26,6 +27,7 @@ def get_healpix_dir(nside, pixnum, basedir='.'):
     '''
     subdir = str(pixnum // 100)
     return os.path.abspath(os.path.join(basedir, subdir, str(pixnum)))
+
 
 def findfile(filetype, nside, pixnum, basedir='.', ext='fits', obscon=None):
     '''

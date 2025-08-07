@@ -867,6 +867,8 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
                         'MWS_DSPH_PM1', 'MWS_DSPH_PM2', 'MWS_DSPH_PM3',
                         'MWS_UFD_PM1', 'MWS_UFD_PM2', 'MWS_UFD_PM3',
                         'MWS_PM_ONLY', 'MWS_FAINT_CMD', 'MWS_FILLER')
+            m31names = ('M31_GIANT', 'M31_QSO', 'M31_SPECIAL', 'M31_BRIGHT',
+                        'M31_FILLER')
             for name in mws_mask.names():
                 # ADM only update priorities for passed observing conditions.
                 pricon = obsconditions.mask(mws_mask[name].obsconditions)
@@ -1007,6 +1009,24 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
                             Mxp = mws_mask[name].priorities[sname]
                             # CMR use ADM's update states BEFORE changing priorities.
                             # CMR is worried about setting target_state to e.g. MORE_NOB1
+                            ts = "{}|{}".format(name, sname)
+                            target_state[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])
+                            priority[ii & sbool] = np.where(
+                                priority[ii & sbool] < Mxp, Mxp, priority[ii & sbool])
+                    elif name in m31names:
+                        for sbool, sname in zip(
+                                [unobs, done, zgood | zwarn],
+                                ["UNOBS", "DONE", "MORE_Z"]
+                        ):
+                            # ADM update priorities and target states.
+                            Mxp = mws_mask[name].priorities[sname]
+                            # ADM special case M31/M33 1B program to add
+                            # ADM 1 to priority after every observation.
+                            if sname == "MORE_Z":
+                                Mxp = mws_mask[name].priorities["UNOBS"]
+                                Mxp += zcat[ii & sbool]["NUMOBS"]
+                            # ADM update states BEFORE changing priorities.
                             ts = "{}|{}".format(name, sname)
                             target_state[ii & sbool] = np.where(
                                 priority[ii & sbool] < Mxp, ts, target_state[ii & sbool])

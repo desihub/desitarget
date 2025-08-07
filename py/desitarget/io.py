@@ -865,7 +865,10 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         dr = np.atleast_1d(np.max(release//1000))
     else:
         dr = np.unique(release//1000)
-    if len(dr) == 0:
+
+    # ADM note that we special case RELEASE=7777, which corresponds to
+    # ADM the M31/M33 BRIGHT1B program.
+    if len(dr) == 0 or np.all(release == 7777):
         drint = 'X'
     else:
         try:
@@ -3045,10 +3048,10 @@ def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         with open(filename) as f:
             for line in f:
                 if "name" in line:
-                    l = line.split()
-                    iname, iform = [i+1 for i, stringy in enumerate(l) if
+                    ll = line.split()
+                    iname, iform = [i+1 for i, stringy in enumerate(ll) if
                                     "name" in stringy or "datatype" in stringy]
-                    name, form = l[iname][:-1], l[iform][:-1]
+                    name, form = ll[iname][:-1], ll[iform][:-1]
                     names.append(name)
                     if 'string' in form:
                         forms.append(mtldm[name].dtype.str)

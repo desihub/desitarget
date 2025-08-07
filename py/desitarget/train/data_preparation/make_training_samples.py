@@ -318,7 +318,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_Colors = ColorsFunc(n_STARS, n_colors, STARS_gmag, STARS_rmag, STARS_zmag, STARS_W1mag, STARS_W2mag)
 
     for i, col_name in enumerate(color_names):
-        col = pyfits.Column(name=col_name,  format='D', array=STARS_Colors[:, i])
+        col = pyfits.Column(name=col_name, format='D', array=STARS_Colors[:, i])
         list_cols.append(col)
 
     STARS_hdu = pyfits.BinTableHDU(data=STARS_data)
@@ -330,7 +330,7 @@ def make_training_samples(fpn_QSO_input, fpn_STARS_input, fpn_QSO_output, fpn_ST
     STARS_Colors = ColorsFunc(n_STARS_Highz, n_colors, STARS_gmag, STARS_rmag, STARS_zmag, STARS_W1mag, STARS_W2mag)
 
     for i, col_name in enumerate(color_names):
-        col = pyfits.Column(name=col_name,  format='D', array=STARS_Colors[:, i])
+        col = pyfits.Column(name=col_name, format='D', array=STARS_Colors[:, i])
         list_cols.append(col)
 
     STARS_Highz_hdu = pyfits.BinTableHDU(data=STARS_data_Highz)

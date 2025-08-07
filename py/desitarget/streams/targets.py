@@ -123,8 +123,11 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
         done[col][ii] = 0.
 
     # ADM change errors to IVARs.
-    done = errors_to_ivars(
-        done, colnames=["PARALLAX_ERROR", "PMRA_ERROR", "PMDEC_ERROR"])
+    # ADM assumes that if PARALLAX_ERROR is present then PMRA_ERROR and
+    # ADM PMDEC_ERROR are too. Fails if only PARALLAX_ERROR is present.
+    if "PARALLAX_ERROR" in done.dtype.names:
+        done = errors_to_ivars(
+            done, colnames=["PARALLAX_ERROR", "PMRA_ERROR", "PMDEC_ERROR"])
 
     # ADM some final checks that the targets conform to expectations...
     # ADM check that each target has a unique ID.
@@ -133,5 +136,6 @@ def finalize(targets, desi_target, bgs_target, mws_target, scnd_target):
                "sweep files one-by-one (as in desitarget.cuts.select_targets()) "
                "rather than caching each individual stream")
         log.critical(msg)
+        raise ValueError(msg)
 
     return done
