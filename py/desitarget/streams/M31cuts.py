@@ -4,6 +4,7 @@ import astropy.table as atpy
 import numpy as np
 import sys
 import fitsio
+import os
 from matplotlib.path import Path
 
 from desitarget.streams.targets import finalize
@@ -34,10 +35,93 @@ def betw(x, xmin, xmax):
 plx_pad, pm_pad = 0.05, 0.05
 
 
+def add_backup_standards(targs, backupdir=None, nside=None, pixnum=None):
+    """
+    Add GAIA_STD_BRIGHT and GAIA_STD_WD standards from the BACKUP survey.
+
+    Parameters
+    ----------
+    targs : :class:`~numpy.ndarray`
+        An array of targets in their final format (i.e. as they appear
+        when read in from a file or just before being written to file.
+    backupdir : :class:`str`, optional, defaults to `None`
+        Use this as the directory that is hosting the BACKUP target files
+        if nothing is passed, this defaults to:
+        $TARG_DIR/gaiadr2/2.2.0/targets/main/resolve/backup
+    nside : :class:`int`, optional, defaults to `None`
+        (NESTED) HEALPixel nside used with `pixint`.
+    pixint : :class:`int`, optional, defaults to `None`
+        If passed, limit the returned array of objects to lie within
+        (NESTED) HEALpixels at passed `nside`.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        The input `targs` array with the standard stars added.
+
+    Notes
+    -----
+      - The `OBSCONDITIONS` column is updated to use the latest version
+        for the GAIA_STD_BRIGHT and GAIA_STD_WD target classes. All
+        other information is just copied across.
+    """
+    # ADM If pixnum is passed we'll also need to know nside.
+    io.check_both_set(pixnum, nside)
+
+    # ADM retrieve the BACKUP directory if it wasn't passed.
+    if backupdir is None:
+        backupdir = os.path.join(os.getenv("TARG_DIR"), "gaiadr2", "2.2.0",
+                                 "targets", "main", "resolve", "backup")
+
+    # ADM get the NSIDE for the files in the BACKUP directory.
+    from glob import iglob
+    fns = iglob(os.path.join(backupdir, "*fits"))
+    fn = next(fns)
+    # ADM grab the FILENSID from one of the files.
+    filenside = fitsio.read_header(fn, 1)["FILENSID"]
+
+    # ADM find the HEALPixels covered by the targets at this nside.
+    import healpy as hp
+    theta, phi = np.radians(90-targs["DEC"]), np.radians(targs["RA"])
+    hppix = hp.ang2pix(filenside, theta, phi, nest=True)
+
+    # ADM read in the BACKUP targets in these HEALPixels.
+    # ADM limiting to just GAIA_STD_BRIGHT and GAIA_STD_WD targets.
+    from desitarget.targetmask import mws_mask, obsconditions
+    backups = []
+    for i in set(hppix):
+        fn = os.path.join(backupdir, f"targets-backup-hp-{i}.fits")
+        backup = fitsio.read(fn)
+        ii = backup["MWS_TARGET"] & mws_mask.GAIA_STD_BRIGHT != 0
+        ii |= backup["MWS_TARGET"] & mws_mask.GAIA_STD_WD != 0
+        backups.append(backup[ii])
+    backups = np.concatenate(backups)
+
+    # ADM change the observing conditions to the latest value.
+    # ADM this is basically to pick up the BRIGHT1B obscon.
+    from desitarget.targets import set_obsconditions
+    backups["OBSCONDITIONS"] = set_obsconditions(backups)
+
+    # ADM concatenate the standards with the original targets.
+    done = np.zeros_like(targs, shape=len(backups))
+    for col in set(targs.dtype.names).intersection(set(backups.dtype.names)):
+        done[col] = backups[col]
+    done = np.concatenate([targs, done])
+
+    # ADM limit standards to just the passed HEALPixels, if requested.
+    if nside is not None:
+        theta, phi = np.radians(90-done["DEC"]), np.radians(done["RA"])
+        hppix = hp.ang2pix(nside, theta, phi, nest=True)
+        ii = hppix == pixnum
+        done = done[ii]
+
+    return done
+
+
 def downsampler(ra, dec, gal_b, subset, p_15, p_35, m31_rad=2.5, m33_rad=.5):
     """
     Compute the probability for downsampling to select with p_15 prob
-    at b=-15 and p_35 at b=-35
+    at b=-15 and p_35 at b=-35.
     """
     prob_sel = np.ones(len(gal_b))
     p_m31_central = 1
