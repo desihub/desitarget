@@ -389,7 +389,8 @@ def read_data_per_stream(swdir, rapol, decpol, mind, maxd, stream_name,
 
 
 def write_targets(dirname, targs, header, nside=None, pixint=None,
-                  subpriority=True, nsidecol=None):
+                  subpriority=True, nsidecol=None, addstandards=False,
+                  backupdir=None):
     """Write stream and dwarf targets to a FITS file.
 
     Parameters
@@ -417,6 +418,13 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
     nsidecol : :class:`int`, optional, defaults to `None`
         If passed, add a column to the targets array popluated
         with HEALPixels in the nested scheme at resolution `nsidecol`.
+    addstandards : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then add standard stars from the BACKUP program by
+        reading them from a directory of BACKUP files.
+    backupdir : :class:`str`, optional, defaults to `None`
+        Use this as the directory that hosts the BACKUP target files if
+        `addstandards` is ``True``. If `None` is passed, defaults to:
+        $TARG_DIR/gaiadr2/2.2.0/targets/main/resolve/backup
 
     Returns
     -------
@@ -506,6 +514,12 @@ def write_targets(dirname, targs, header, nside=None, pixint=None,
         ii = targs["SUBPRIORITY"] == 0.0
         targs["SUBPRIORITY"][ii] = np.random.random(len(targs))[ii]
         header["SUBPSEED"] = subpseed
+
+    # ADM add standard stars for BACKUP program, if requested.
+    if addstandards:
+        from desitarget.streams.M31cuts import add_backup_standards
+        targs = add_backup_standards(targs, backupdir=backupdir,
+                                     nside=nside, pixnum=pixint)
 
     # ADM add the DESI dependencies.
     depend.add_dependencies(header)

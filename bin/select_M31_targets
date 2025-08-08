@@ -31,6 +31,15 @@ ap.add_argument("--test", action="store_true",
                 help=("If True only read the first 500 objects from filename "
                 "for testing purposes.")
                 )
+ap.add_argument("--addstandards", action="store_true",
+                help=("If True add standard stars from the BACKUP program by "
+                "reading them from a directory of BACKUP files.")
+                )
+ap.add_argument("--backupdir", default=None,
+                help=("Use this as the directory that hosts the BACKUP target"
+                " files if --addstandards is passed. Defaults to: "
+                "$TARG_DIR/gaiadr2/2.2.0/targets/main/resolve/backup")
+                )
 ap.add_argument("--nside", type=int, default=None,
                 help=("Write targets split by (NESTED) HEALPixel at this nside.")
                 )
@@ -61,12 +70,14 @@ if ns.nside is not None:
 for hpx in set(hppix):
     # ADM note we hard code for BRIGHT, which is hidden in write_targets.
     if hpx == -1:
-        ntargs, outfile = io.write_targets(ns.dest, targets, hdr,
-                                           nsidecol=desitarget_nside())
+        ntargs, outfile = io.write_targets(
+            ns.dest, targets, hdr, nsidecol=desitarget_nside(),
+            addstandards=ns.addstandards, backupdir=ns.backupdir)
     else:
         ii = hppix == hpx
         ntargs, outfile = io.write_targets(
-            ns.dest, targets[ii], hdr, nside=ns.nside,
-            pixint=hpx, nsidecol=desitarget_nside())
+            ns.dest, targets[ii], hdr, nside=ns.nside, pixint=hpx,
+            nsidecol=desitarget_nside(), addstandards=ns.addstandards,
+            backupdir=ns.backupdir)
 
     log.info(f"{ntargs} targets written to {outfile}...t={time()-start:.1f}s")

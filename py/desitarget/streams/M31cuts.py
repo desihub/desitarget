@@ -44,7 +44,7 @@ def add_backup_standards(targs, backupdir=None, nside=None, pixnum=None):
     targs : :class:`~numpy.ndarray`
         An array of targets in their final format (i.e. as they appear
         when read in from a file or just before being written to file.
-    backupdir : :class:`str`, optional, defaults to ``None``
+    backupdir : :class:`str`, optional, defaults to `None`
         Use this as the directory that is hosting the BACKUP target files
         if nothing is passed, this defaults to:
         $TARG_DIR/gaiadr2/2.2.0/targets/main/resolve/backup
