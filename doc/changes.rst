@@ -2,10 +2,12 @@
 desitarget Change Log
 =====================
 
-3.5.1 (unreleased)
+3.6.0 (unreleased)
 ------------------
 
-* No changes yet.
+* Add BACKUP standards to the BRIGHT1B M31/M33 target files [`PR #850`_].
+
+.. _`PR #850`: https://github.com/desihub/desitarget/pull/850
 
 3.5.0 (2025-08-07)
 ------------------
