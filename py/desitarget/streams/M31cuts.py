@@ -61,7 +61,7 @@ def add_backup_standards(targs, backupdir=None, nside=None, pixnum=None):
 
     Notes
     -----
-      - The `OBSCONDITIONS` column is updated to use the latest version 
+      - The `OBSCONDITIONS` column is updated to use the latest version
         for the GAIA_STD_BRIGHT and GAIA_STD_WD target classes. All
         other information is just copied across.
     """
