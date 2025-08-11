@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-3.6.1 (unreleased)
+3.6.2 (unreleased)
+------------------
+
+* No changes yet.
+
+3.6.1 (2025-08-11)
 ------------------
 
 * 3.6.0 facilitated combining M31 targets and calibrations [`PR #851`_].
