@@ -5,7 +5,11 @@ desitarget Change Log
 3.6.1 (unreleased)
 ------------------
 
-* No changes yet.
+* 3.6.0 facilitated combining M31 targets and calibrations [`PR #851`_].
+    * But these can't be combined in the MTLs as they have different DRs.
+    * This PR allows mixed DRs for MTLs when M31 targets are present.
+
+.. _`PR #851`: https://github.com/desihub/desitarget/pull/851
 
 3.6.0 (2025-08-08)
 ------------------
