@@ -868,7 +868,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
 
     # ADM note that we special case RELEASE=7777, which corresponds to
     # ADM the M31/M33 BRIGHT1B program.
-    if len(dr) == 0 or np.all(release == 7777):
+    if len(dr) == 0 or np.any(release == 7777):
         drint = 'X'
     else:
         try:
