@@ -5,7 +5,9 @@ desitarget Change Log
 3.6.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Set ``SKYHEALPIXS_DIR`` in etc/desitarget.module [`PR #853`_].
+
+.. _`PR #853`: https://github.com/desihub/desitarget/pull/853
 
 3.6.1 (2025-08-11)
 ------------------
