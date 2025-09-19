@@ -5,7 +5,9 @@ desitarget Change Log
 3.6.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Fix ordering bug when reading two MTL ledgers [`PR #856`_].
+
+.. _`PR #851`: https://github.com/desihub/desitarget/pull/851
 
 3.6.1 (2025-08-11)
 ------------------
