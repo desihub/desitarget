@@ -5,9 +5,11 @@ desitarget Change Log
 3.6.2 (unreleased)
 ------------------
 
+* Fix ordering bug when reading two MTL ledgers [`PR #856`_].
 * Set ``SKYHEALPIXS_DIR`` in etc/desitarget.module [`PR #853`_].
 
 .. _`PR #853`: https://github.com/desihub/desitarget/pull/853
+.. _`PR #856`: https://github.com/desihub/desitarget/pull/856
 
 3.6.1 (2025-08-11)
 ------------------
