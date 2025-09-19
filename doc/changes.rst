@@ -2,10 +2,17 @@
 desitarget Change Log
 =====================
 
-3.6.2 (unreleased)
+4.0.1 (unreleased)
+------------------
+
+* No changes yet.
+
+4.0.0 (2025-09-19)
 ------------------
 
 * Fix ordering bug when reading two MTL ledgers [`PR #856`_].
+    * Note that this fix is not backwards compatible.
+    * Specifically for the :func:`io.read_two_mtl_ledgers` function.
 * Set ``SKYHEALPIXS_DIR`` in etc/desitarget.module [`PR #853`_].
 
 .. _`PR #853`: https://github.com/desihub/desitarget/pull/853
