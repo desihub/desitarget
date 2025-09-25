@@ -140,7 +140,8 @@ mws_mask:
     - [MWS_SEXTANS_1,       41, "DESI 1B Sextans  dSph target",                        {obsconditions: BRIGHT1B}]
     - [MWS_URSA_MINOR_1,    42, "DESI 1B Ursa Minor  dSph target",                     {obsconditions: BRIGHT1B}]
     - [MWS_FAINT_CMD,       43, "DESI 1B cmd selection only, no Gaia info",            {obsconditions: BRIGHT1B}]
-    - [MWS_PAL5,            44, "DESI 1B Palomar 5 tidal stream target",               {obsconditions: BRIGHT1B}]    
+    - [MWS_PAL5,            44, "DESI 1B Palomar 5 tidal stream target",               {obsconditions: BRIGHT1B}]
+    - [MWS_C19,             45, "DESI 1B C-19 tidal stream target",                    {obsconditions: BRIGHT1B}]    
 
     # ADM back-up targets for poor conditions and as filler.
     - [BACKUP_DIB,          57, "Diffuse interstellar bands (project 398)",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -414,6 +415,7 @@ priorities:
         MWS_SEXTANS_1:                {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_URSA_MINOR_1:             {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_PAL5:                     {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MWS_C19:                      {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         
 # ADM backup targets.
         BACKUP_DIB:                   {UNOBS: 45, MORE_ZGOOD: 24, MORE_ZWARN: 24, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -581,6 +583,7 @@ numobs:
         MWS_SEXTANS_1:               -1
         MWS_URSA_MINOR_1:            -1
         MWS_PAL5:                    -1
+        MWS_C19:                     -1
 
 # ADM don't observe a N/S target if it doesn't have other bits set.
         MWS_BROAD_NORTH:              0
