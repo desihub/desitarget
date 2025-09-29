@@ -5,7 +5,9 @@ desitarget Change Log
 4.0.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Update :func:`read_one_mtl_ledger` to read gzipped files [`PR #858`_].
+
+.. _`PR #858`: https://github.com/desihub/desitarget/pull/858
 
 4.0.0 (2025-09-19)
 ------------------
