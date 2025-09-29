@@ -2,11 +2,44 @@
 desitarget Change Log
 =====================
 
-
-3.5.0 (unreleased)
+4.0.1 (unreleased)
 ------------------
 
 * No changes yet.
+
+4.0.0 (2025-09-19)
+------------------
+
+* Fix ordering bug when reading two MTL ledgers [`PR #856`_].
+    * Note that this fix is not backwards compatible.
+    * Specifically for the :func:`io.read_two_mtl_ledgers` function.
+* Set ``SKYHEALPIXS_DIR`` in etc/desitarget.module [`PR #853`_].
+
+.. _`PR #853`: https://github.com/desihub/desitarget/pull/853
+.. _`PR #856`: https://github.com/desihub/desitarget/pull/856
+
+3.6.1 (2025-08-11)
+------------------
+
+* 3.6.0 facilitated combining M31 targets and calibrations [`PR #851`_].
+    * But these can't be combined in the MTLs as they have different DRs.
+    * This PR allows mixed DRs for MTLs when M31 targets are present.
+
+.. _`PR #851`: https://github.com/desihub/desitarget/pull/851
+
+3.6.0 (2025-08-08)
+------------------
+
+* Add BACKUP standards to the BRIGHT1B M31/M33 target files [`PR #850`_].
+
+.. _`PR #850`: https://github.com/desihub/desitarget/pull/850
+
+3.5.0 (2025-08-07)
+------------------
+
+* Code to generate BRIGHT1B M31/M33 targets and update MTLs [`PR #849`_].
+
+.. _`PR #849`: https://github.com/desihub/desitarget/pull/849
 
 3.4.2 (2025-07-21)
 ------------------

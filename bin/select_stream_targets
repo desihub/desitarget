@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
-import os, sys
-import numpy as np
+import sys
 import fitsio
 
 from desitarget.io import desitarget_nside
@@ -15,7 +14,7 @@ log = get_logger()
 
 from argparse import ArgumentParser
 ap = ArgumentParser(description=("Generates DESI target bits from Legacy Surveys"
-                                 " sweep files for the MW extension targets.")
+                                 " sweep files for the MWS 1B targets.")
                     )
 ap.add_argument("sweepdir",
                 help=("Root directory of LS sweeps for a given data release for "
@@ -26,12 +25,12 @@ ap.add_argument("dest",
                       " on-the-fly from other inputs).")
                 )
 ap.add_argument('-t','--targnames_in', default=None,
-                help=("Comma-separated names of extension target classes to run "
+                help=("Comma-separated names of DESI 1B target classes to run "
                       " (e.g. x,y,z). Default is to run all MWS targets.")
                 )
 ap.add_argument("--readpertarg", action="store_true",
                 help=("Default is to read targets by looping over all sweeps. "
-                      "Pass to instead loop over MW extension target classes."
+                      "Pass to instead loop over DESI MWS 1B target classes."
                       )
                 )
 ap.add_argument("--donotaddnors", action="store_true",

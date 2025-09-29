@@ -1,12 +1,14 @@
 import numpy as np
 import healpy as hp
 
+
 def _random_theta_phi(nside, pix):
     theta, phi = hp.pix2ang(nside, pix, nest=True)
     dpix = np.sqrt(hp.nside2pixarea(nside))
     theta += np.random.uniform(-dpix/2, dpix/2, size=len(theta))
     phi += np.random.uniform(-dpix/2, dpix/2, size=len(phi)) * np.cos(np.pi/2 - theta)
     return theta % np.pi, phi % (2*np.pi)
+
 
 def random_sky(nside=2048, allsky=True, tiles=None, maxiter=20, outfile=None):
     '''Returns sky locations within healpixels covering tiles

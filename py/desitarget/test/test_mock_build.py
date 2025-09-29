@@ -18,6 +18,7 @@ from desitarget.mock.sky import random_sky
 from desitarget.mock.build import targets_truth
 from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 
+
 class TestMockBuild(unittest.TestCase):
 
     def setUp(self):
@@ -40,7 +41,7 @@ class TestMockBuild(unittest.TestCase):
             self.assertTrue(os.path.exists(mockfile), 'Missing {}'.format(mockfile))
 
         #- Test without spectra
-        targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=True)
+        targets_truth(params, healpixels=[99737, ], nside=256, output_dir=self.outdir, no_spectra=True)
         for obscon in ['bright', 'dark']:
             targetfile = self.outdir + '/997/99737/' + obscon + '/targets-{}-256-99737.fits'.format(obscon)
             truthfile = self.outdir + '/997/99737/' + obscon + '/truth-{}-256-99737.fits'.format(obscon)
@@ -56,7 +57,7 @@ class TestMockBuild(unittest.TestCase):
         #- Test with spectra
         shutil.rmtree(self.outdir+'/997')
 
-        targets_truth(params, healpixels=[99737,], nside=256, output_dir=self.outdir, no_spectra=False)
+        targets_truth(params, healpixels=[99737, ], nside=256, output_dir=self.outdir, no_spectra=False)
         for obscon in ['bright', 'dark']:
             targetfile = self.outdir + '/997/99737/' + obscon + '/targets-{}-256-99737.fits'.format(obscon)
             truthfile = self.outdir + '/997/99737/' + obscon + '/truth-{}-256-99737.fits'.format(obscon)
@@ -73,19 +74,19 @@ class TestMockBuild(unittest.TestCase):
         from desitarget.mock.build import add_mock_shapes_and_fluxes
         nreal = 40
         real = Table()
-        real['DESI_TARGET'] = 2**np.random.randint(0,3,size=nreal)
+        real['DESI_TARGET'] = 2**np.random.randint(0, 3, size=nreal)
         real['BGS_TARGET'] = np.zeros(nreal, dtype=int)
         real['BGS_TARGET'][0:5] = bgs_mask.BGS_BRIGHT
         real['BGS_TARGET'][5:10] = bgs_mask.BGS_FAINT
         real['DESI_TARGET'][0:10] = 0
         
-        real['DECAM_FLUX'] = np.random.uniform(size=(nreal,6))
+        real['DECAM_FLUX'] = np.random.uniform(size=(nreal, 6))
         real['SHAPEDEV_R'] = np.random.uniform(size=nreal)
         real['SHAPEEXP_R'] = np.random.uniform(size=nreal)
         
         nmock = 45
         mock = Table()
-        mock['DESI_TARGET'] = 2**np.random.randint(0,3,size=nmock)
+        mock['DESI_TARGET'] = 2**np.random.randint(0, 3, size=nmock)
         mock['BGS_TARGET'] = np.zeros(nmock, dtype=int)
         mock['BGS_TARGET'][10:15] = bgs_mask.BGS_BRIGHT
         mock['BGS_TARGET'][15:20] = bgs_mask.BGS_FAINT
@@ -105,4 +106,3 @@ class TestMockBuild(unittest.TestCase):
         phi = np.radians(ra)
         skypix = hp.ang2pix(nside, theta, phi, nest=True)
         self.assertEqual(set(surveypix), set(skypix))
-

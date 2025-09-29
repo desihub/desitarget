@@ -865,7 +865,10 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         dr = np.atleast_1d(np.max(release//1000))
     else:
         dr = np.unique(release//1000)
-    if len(dr) == 0:
+
+    # ADM note that we special case RELEASE=7777, which corresponds to
+    # ADM the M31/M33 BRIGHT1B program.
+    if len(dr) == 0 or np.any(release == 7777):
         drint = 'X'
     else:
         try:
@@ -2877,7 +2880,8 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
 
 
 def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
-                         leq=False, columns=None, tabform='ascii.basic'):
+                         leq=False, columns=None, tabform='ascii.basic',
+                         reorder=True):
     """Wrapper to read and merge two MTL ledger files.
 
     Parameters
@@ -2909,6 +2913,12 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
         Format to pass to the astropy Table.read() function. The default
         ('ascii.basic') is standard for reading and writing MTL files.
         But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
+    reorder : :class:`bool`, optional, defaults to ``True``
+        The original version of this function had a bug where if the two
+        passed ledgers had different column orders the output could be
+        mangled (see https://github.com/desihub/desitarget/issues/855).
+        If `reorder` is ``True``, then passed ledgers are first ordered
+        according to a fixed MTL data model to fix this bug.
 
     Returns
     -------
@@ -2931,6 +2941,22 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     mtl2 = read_one_mtl_ledger(
         fn2, unique=unique, isodate=isodate, initial=initial, leq=leq,
         columns=columns, tabform=tabform)
+
+    # ADM if requested, reorder both MTLs according to the primary MTL
+    # ADM data model to fix the reorder bug noted in the docstring.
+    if reorder:
+        from desitarget.mtl import mtlprimdatamodel
+        dt = mtlprimdatamodel.dtype.descr
+        if mtl1.dtype.descr != dt:
+            mtl1new = np.zeros(len(mtl1), dtype=dt)
+            for col in mtlprimdatamodel.dtype.names:
+                mtl1new[col] = mtl1[col]
+            mtl1 = mtl1new
+        if mtl2.dtype.descr != dt:
+            mtl2new = np.zeros(len(mtl2), dtype=dt)
+            for col in mtlprimdatamodel.dtype.names:
+                mtl2new[col] = mtl2[col]
+            mtl2 = mtl2new
 
     # ADM determine which program/obscon corresponds to each filename.
     oc1 = fn1.split("mtl-")[-1].split("-")[0].upper()
@@ -3045,10 +3071,10 @@ def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         with open(filename) as f:
             for line in f:
                 if "name" in line:
-                    l = line.split()
-                    iname, iform = [i+1 for i, stringy in enumerate(l) if
+                    ll = line.split()
+                    iname, iform = [i+1 for i, stringy in enumerate(ll) if
                                     "name" in stringy or "datatype" in stringy]
-                    name, form = l[iname][:-1], l[iform][:-1]
+                    name, form = ll[iname][:-1], ll[iform][:-1]
                     names.append(name)
                     if 'string' in form:
                         forms.append(mtldm[name].dtype.str)

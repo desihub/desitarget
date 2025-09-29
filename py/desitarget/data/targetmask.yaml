@@ -128,8 +128,8 @@ mws_mask:
     
     # ADM Standard stars based only on Gaia.
     - [GAIA_STD_FAINT,      33, "Standard stars for dark/gray conditions",   {obsconditions: DARK|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
-    - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [GAIA_STD_WD,         34, "White Dwarf stars",                         {obsconditions: DARK|BRIGHT|BRIGHT1B|BACKUP|TWILIGHT12|TWILIGHT18}]
+    - [GAIA_STD_BRIGHT,     35, "Standard stars for BRIGHT conditions",      {obsconditions: BRIGHT|BRIGHT1B|BACKUP|TWILIGHT12|TWILIGHT18}]
 
     # ADM DESI 1B MWS targets part 2.
     - [MWS_GD1,             36, "DESI 1B GD1 stream target",                           {obsconditions: BRIGHT1B}]
@@ -142,6 +142,13 @@ mws_mask:
     - [MWS_FAINT_CMD,       43, "DESI 1B cmd selection only, no Gaia info",            {obsconditions: BRIGHT1B}]
     - [MWS_PAL5,            44, "DESI 1B Palomar 5 tidal stream target",               {obsconditions: BRIGHT1B}]
     - [MWS_C19,             45, "DESI 1B C-19 tidal stream target",                    {obsconditions: BRIGHT1B}]    
+
+    # ADM DESI 1B MWS targets for M31/M33 program.
+    - [M31_GIANT,           50, "DESI 1B Candidate red-giant branch stars selected from PAndAS",       {obsconditions: BRIGHT1B}]
+    - [M31_QSO,             51, "DESI 1B QSO candidates selected based on Gaia and WISE",              {obsconditions: BRIGHT1B}]
+    - [M31_SPECIAL,         52, "DESI 1B Sources from smaller catalogs (GCs, OCs, PNs, HII regions)",  {obsconditions: BRIGHT1B}]
+    - [M31_BRIGHT,          53, "DESI 1B Candidate M31, or Milky Way outer halo, stars from Gaia",     {obsconditions: BRIGHT1B}]
+    - [M31_FILLER,          54, "DESI 1B Filler sources from Gaia with a mild astrometric cut",        {obsconditions: BRIGHT1B}]
 
     # ADM back-up targets for poor conditions and as filler.
     - [BACKUP_DIB,          57, "Diffuse interstellar bands (project 398)",  {obsconditions: BACKUP|TWILIGHT12|TWILIGHT18}]
@@ -417,6 +424,14 @@ priorities:
         MWS_PAL5:                     {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_C19:                      {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         
+# ADM DESI 1B M31/M33 program targets.
+# ADM These have special handling in the MTL code such that PRIORITY = UNOBS (PRIORITY_INIT) + NUMOBS once MOREZ is triggered.
+        M31_GIANT:                    {UNOBS: 1950, MORE_Z: 1951, DONE: 2}
+        M31_QSO:                      {UNOBS: 1900, MORE_Z: 1901, DONE: 2}
+        M31_SPECIAL:                  {UNOBS: 1850, MORE_Z: 1851, DONE: 2}
+        M31_BRIGHT:                   {UNOBS: 1800, MORE_Z: 1801, DONE: 2}
+        M31_FILLER:                   {UNOBS: 1700, MORE_Z: 1701, DONE: 2}
+
 # ADM backup targets.
         BACKUP_DIB:                   {UNOBS: 45, MORE_ZGOOD: 24, MORE_ZWARN: 24, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BACKUP_GIANT:                 {UNOBS: 35, MORE_ZGOOD: 23, MORE_ZWARN: 23, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -584,6 +599,13 @@ numobs:
         MWS_URSA_MINOR_1:            -1
         MWS_PAL5:                    -1
         MWS_C19:                     -1
+
+# ADM initial number of observations for DESI 1B M31/M33 program targets.
+        M31_GIANT:                   40
+        M31_QSO:                     10
+        M31_SPECIAL:                 10
+        M31_BRIGHT:                  10
+        M31_FILLER:                   3
 
 # ADM don't observe a N/S target if it doesn't have other bits set.
         MWS_BROAD_NORTH:              0
