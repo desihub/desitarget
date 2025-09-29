@@ -454,7 +454,8 @@ def get_CMD_interpolator(stream_name):
 
 
 def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
-    """Select stream members in stream coordinates, using proper motion, padded by some error.
+    """Select stream members in stream coordinates, using proper motion,
+       padded by some error. This works with PM_RA,PM_Dec, too
 
     Parameters
     ----------
@@ -746,6 +747,9 @@ def stream_distance(fi1, stream_name, stream):
         DISTSP = UnivariateSpline(stream['DIST_PHI1T'], stream['DISTT'])
         return DISTSP(fi1)
     if stream_name.upper() == "PAL5":
+        DISTSP = UnivariateSpline(stream['DIST_PHI1T'], stream['DISTT'])
+        return DISTSP(fi1)
+    if stream_name.upper() == "C19":
         DISTSP = UnivariateSpline(stream['DIST_PHI1T'], stream['DISTT'])
         return DISTSP(fi1)
     else:
