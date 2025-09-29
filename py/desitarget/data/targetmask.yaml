@@ -423,7 +423,7 @@ priorities:
         MWS_URSA_MINOR_1:             {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_PAL5:                     {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_C19:                      {UNOBS: 0, MORE_NOB1: 0, MORE_NOB2: 0, MORE_NOB3: 0, DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        
+
 # ADM DESI 1B M31/M33 program targets.
 # ADM These have special handling in the MTL code such that PRIORITY = UNOBS (PRIORITY_INIT) + NUMOBS once MOREZ is triggered.
         M31_GIANT:                    {UNOBS: 1950, MORE_Z: 1951, DONE: 2}

@@ -454,8 +454,8 @@ def get_CMD_interpolator(stream_name):
 
 
 def pm12_sel_func(pm1track, pm2track, pmfi1, pmfi2, pm_err, pad=2, mult=2.5):
-    """Select stream members in stream coordinates, using proper motion, padded by some error. 
-       This works with PM_RA,PM_Dec, too
+    """Select stream members in stream coordinates, using proper motion,
+       padded by some error. This works with PM_RA,PM_Dec, too
 
     Parameters
     ----------

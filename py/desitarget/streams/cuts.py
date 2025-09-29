@@ -956,8 +956,9 @@ def is_in_C19(objs, streamname):
 
     # ADM Gaia-based selection (proper motion and parallax).
     # CMR pm12_sel_func works with PMRA,PMDec, too
-    gaia_astrom_sel = pm12_sel_func(PMRATRACK(fi1), PMDECTRACK(fi1), isobjs['PMRA'],
-                                    isobjs['PMDEC'],pm_err,stream['PM_PAD'], stream['PM_NSIG'])
+    gaia_astrom_sel = pm12_sel_func(PMRATRACK(fi1), PMDECTRACK(fi1),
+                                    isobjs['PMRA'], isobjs['PMDEC'], pm_err,
+                                    stream['PM_PAD'], stream['PM_NSIG'])
     # CMR modified to use PLX_NSIG from yaml file. C19 is at mostly the same distance
     # so make a wide plx selection rather than try to do something distance dependent
     gaia_astrom_sel &= plx_sel_func(dist, isobjs, stream['PLX_NSIG'])

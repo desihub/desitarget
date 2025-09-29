@@ -5,7 +5,9 @@ desitarget Change Log
 4.0.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Add the BRIGHT1B targets for the C-19 stream in the SGC [`PR #857`_].
+
+.. _`PR #857`: https://github.com/desihub/desitarget/pull/857
 
 4.0.0 (2025-09-19)
 ------------------
