@@ -5,9 +5,11 @@ desitarget Change Log
 4.0.1 (unreleased)
 ------------------
 
+* Update :func:`read_one_mtl_ledger` to read gzipped files [`PR #858`_].
 * Add the BRIGHT1B targets for the C-19 stream in the SGC [`PR #857`_].
 
 .. _`PR #857`: https://github.com/desihub/desitarget/pull/857
+.. _`PR #858`: https://github.com/desihub/desitarget/pull/858
 
 4.0.0 (2025-09-19)
 ------------------
