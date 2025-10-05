@@ -5,7 +5,9 @@ desitarget Change Log
 4.1.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Extend [`PR #858`_] to also read override ledgers [`PR #859`_].
+
+.. _`PR #859`: https://github.com/desihub/desitarget/pull/859
 
 4.1.0 (2025-09-29)
 ------------------
