@@ -3065,11 +3065,15 @@ def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         prelim = Table.read(filename, comment='#', format=tabform)
         # ADM convoluted to ensure the data model remains identical.
         dtdict = {col: typ for (col, typ) in mtldm.dtype.descr}
+        # ADM special handling of override ledgers.
+        if "NUMOVERRIDE" in prelim.dtype.names:
+            xd = {n: d for (n, d) in prelim.dtype.descr if "NUMOVERRIDE" in n}
+            dtdict.update(xd)
+        # ADM assign columns according to the data model.
         dt = [(col, dtdict[col]) for col in prelim.dtype.names]
         mtl = np.zeros(len(prelim), dtype=dt)
         for col in mtl.dtype.names:
             mtl[col] = prelim[col]
-
     elif ".fits" in filename:
         mtl = fitsio.read(filename, extension="MTL")
     else:
