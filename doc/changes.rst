@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.1.1 (unreleased)
+4.1.2 (unreleased)
+------------------
+
+* No changes yet.
+
+4.1.1 (2025-10-06)
 ------------------
 
 * Extend [`PR #858`_] to also read override ledgers [`PR #859`_].
