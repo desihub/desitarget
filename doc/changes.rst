@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.1.2 (unreleased)
+4.2.1 (unreleased)
+------------------
+
+* No changes yet.
+
+4.2.0 (2025-10-08)
 ------------------
 
 * Allow target files with different data models to be read [`PR #860`_].
