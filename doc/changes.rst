@@ -5,7 +5,11 @@ desitarget Change Log
 4.1.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Allow target files with different data models to be read [`PR #860`_].
+    * Combined in a HEALPixel or a tile.
+    * But only for the very special case of M31-like target files.
+
+.. _`PR #860`: https://github.com/desihub/desitarget/pull/860
 
 4.1.1 (2025-10-06)
 ------------------
