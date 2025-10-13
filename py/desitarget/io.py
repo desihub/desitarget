@@ -3604,9 +3604,6 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
           grouped HEALPixels, as fewer files will need to be read.
         - If `mtl` is ``True`` then this is just a wrapper on
           read_mtl_in_hp().
-        - Will generally fail if the target files in a given `hpdirname`
-          are formatted differently BUT tries to allow a special DESI
-          case of an M31-program-like file and a standard DESI file.
     """
     # ADM if quick is True, use the quick-code.
     if quick:
@@ -3669,36 +3666,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                 return notargs, nohdr
             else:
                 return notargs
-
-        try:
-            targets = np.concatenate(targets)
-        except TypeError:
-            # ADM special casing to allow mixing of some very specific
-            # ADM files with different formats, which are M31 target
-            # ADM files and SGC stream target files.
-            check = (
-                np.any([t.dtype.names[0] == "RELEASE" for t in targets]) &
-                np.any(np.array(["W1MPRO" in t.dtype.names for t in targets])) &
-                np.any(np.array(["RVS_FLAG" in t.dtype.names for t in targets])) &
-                np.any(np.array(["PANDAS_G" in t.dtype.names for t in targets]))
-            )
-            if check:
-                dtforce = [t.dtype.descr for t in targets
-                           if t.dtype.names[0] == "RELEASE"][0]
-                nomforce = [t.dtype.names for t in targets
-                            if t.dtype.names[0] == "RELEASE"][0]
-                newtargets = []
-                for t in targets:
-                    done = np.zeros(len(t), dtype=dtforce)
-                    for col in nomforce:
-                        done[col] = t[col]
-                    newtargets.append(done)
-                targets = np.concatenate(newtargets)
-            else:
-                msg = f"Mismatched data models for files in {hpdirname}"
-                log.critical(msg)
-                raise TypeError(msg)
-
+        targets = np.concatenate(targets)
     # ADM ...otherwise just read in the targets.
     else:
         targets, hdr = read_target_files(
@@ -3764,9 +3732,6 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
           TARGETIDs from this function and that approach should be
           identical, although the output may be ordered differently.
         - Based on a suggestion from Anand Raichoor.
-        - Will generally fail if the target files in a given `hpdirname`
-          are formatted differently BUT tries to allow a special DESI
-          case of an M31-program-like file and a standard DESI file.
     """
     start = time()
     # ADM generator for the FITS files in the passed directory.
@@ -3835,34 +3800,7 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
         # ADM return a zero-length array with the correct data model.
         targets = np.zeros(0, dtype=targets.dtype)
     else:
-        try:
-            targets = np.concatenate(targets)
-        except TypeError:
-            # ADM special casing to allow mixing of some very specific
-            # ADM files with different formats, which are M31 target
-            # ADM files and SGC stream target files.
-            check = (
-                np.any([t.dtype.names[0] == "RELEASE" for t in targets]) &
-                np.any(np.array(["W1MPRO" in t.dtype.names for t in targets])) &
-                np.any(np.array(["RVS_FLAG" in t.dtype.names for t in targets])) &
-                np.any(np.array(["PANDAS_G" in t.dtype.names for t in targets]))
-            )
-            if check:
-                dtforce = [t.dtype.descr for t in targets
-                           if t.dtype.names[0] == "RELEASE"][0]
-                nomforce = [t.dtype.names for t in targets
-                            if t.dtype.names[0] == "RELEASE"][0]
-                newtargets = []
-                for t in targets:
-                    done = np.zeros(len(t), dtype=dtforce)
-                    for col in nomforce:
-                        done[col] = t[col]
-                    newtargets.append(done)
-                targets = np.concatenate(newtargets)
-            else:
-                msg = f"Mismatched data models for files in {hpdirname}"
-                log.critical(msg)
-                raise TypeError(msg)
+        targets = np.concatenate(targets)
 
     if header:
         return targets, hdr
@@ -3975,6 +3913,7 @@ def read_targets_in_quick(hpdirname, shape=None,
 
     # ADM determine the relevant HEALPixels for the file NSIDE.
     filepixlist = nside2nside(nside, filenside, pixlist)
+
     targets = []
     for pix in filepixlist:
         infile = formatter.format(pix)
