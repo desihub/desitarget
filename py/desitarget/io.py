@@ -3659,7 +3659,15 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
             targs, hdr = read_target_files(
                 infile, columns=columnscopy, header=True,
                 downsample=downsample, verbose=verbose)
-            targets.append(targs)
+            # ADM restrict immediately to the HEALPixels of interest.
+            # ADM This facilitates a check for HEALPixels that touch the
+            # ADM tiles of interest but that don't include any TARGETS
+            # ADM that touch the tiles of interest. This allows high-
+            # ADM separation programs such as the M31 and C-19 stream
+            # ADM BRIGHT1B programs to have different data models.
+            ii = is_in_hp(targs, nside, pixlist)
+            if np.any(ii):
+                targets.append(targs[ii])
         # ADM if targets is empty, return no targets.
         if len(targets) == 0:
             if header:
@@ -3673,7 +3681,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
             hpdirname, columns=columnscopy, header=True,
             downsample=downsample, verbose=verbose)
 
-    # ADM restrict the targets to the actual requested HEALPixels...
+    # ADM restrict targets to actual requested HEALPixels, just in case
+    # ADM (should be redundant with earlier is_in_hp() check)...
     ii = is_in_hp(targets, nside, pixlist)
     targets = targets[ii]
 
@@ -3787,8 +3796,13 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
         )
 
     # AR reading + concatenating.
+    # ADM adding the len(ii) > 0 as there's no need to read empty files.
+    # ADM But, also, allows high-separation programs such as the M31 and
+    # ADM C-19 stream BRIGHT1B programs to have different data models, as
+    # ADM one of these programs may touch a given HEALPixel/file without
+    # ADM any targets in that file touching a tile.
     targets = [fitsio.read(fn, rows=ii, columns=columns) for
-               fn, ii in zip(fns, iis)]
+               fn, ii in zip(fns, iis) if len(ii) > 0]
 
     # ADM if targets is empty, return no targets.
     if len(targets) == 0:
