@@ -3681,11 +3681,6 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
             hpdirname, columns=columnscopy, header=True,
             downsample=downsample, verbose=verbose)
 
-    # ADM restrict targets to actual requested HEALPixels, just in case
-    # ADM (should be redundant with earlier is_in_hp() check)...
-    ii = is_in_hp(targets, nside, pixlist)
-    targets = targets[ii]
-
     # ADM ...and remove RA/Dec columns if we added them.
     if len(addedcols) > 0:
         targets = rfn.drop_fields(targets, addedcols)
