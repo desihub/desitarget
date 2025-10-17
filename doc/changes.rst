@@ -21,6 +21,7 @@ desitarget Change Log
 4.2.0 (2025-10-08)
 ------------------
 
+* Version 4.2.0 was deprecated by [`PR #861`_] and should never be used!!
 * Allow target files with different data models to be read [`PR #860`_].
     * Combined in a HEALPixel or a tile.
     * But only for the very special case of M31-like target files.
