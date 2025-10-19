@@ -364,7 +364,7 @@ def get_zcat_dir(zcatdir=None):
     return zcatdir
 
 
-def get_mtl_tile_file_name(secondary=False, override=False):
+def get_mtl_tile_file_name(secondary=False, override=False, svnveto=False):
     """Convenience function to grab the name of the MTL tile file.
 
     Parameters
@@ -375,17 +375,33 @@ def get_mtl_tile_file_name(secondary=False, override=False):
     override : :class:`bool`, optional, defaults to ``False``
         If ``True`` return the name of the override tile file instead
         of the mtl tile file.
+    svnveto : :class:`bool`, optional, defaults to ``False``
+        If ``True`` return the name of the svn veto file instead of
+        the mtl tile file. This option always takes precedence when
+        passed as ``True``.
 
     Returns
     -------
     :class:`str`
         The name of the MTL tile file.
+
+    Notes
+    -----
+    - Only one of override or svnveto can be passed.
     """
+    # ADM a check that only one of override and svnveto was passed.
+    if override and svnveto:
+        msg = "Only one of the override and svnveto kwargs can be passed"
+        log.critical(msg)
+        raise ValueError(msg)
+
     fn = "mtl-done-tiles.ecsv"
     if secondary:
         fn = "scnd-mtl-done-tiles.ecsv"
     if override:
         fn = fn.replace("tiles", "overrides")
+    if svnveto:
+        fn = fn.replace("tiles", "svn-vetoes")
 
     return fn
 
