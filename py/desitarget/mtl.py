@@ -364,6 +364,35 @@ def get_zcat_dir(zcatdir=None):
     return zcatdir
 
 
+def get_svnveto_dir(obscon, survey="main", mtldir=None):
+    """Convenience function to grab the name of the ZTILE file.
+
+    obscon : :class:`str`
+        A string matching ONE observing condition. For example
+        "DARK", "BRIGHT", "DARK1B" and "BRIGHT.
+    survey : :class:`str`, optional, defaults to "main"
+        To look up the right veto directory. Examples might be``'main'``
+        or ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and
+        different iterations of SV, respectively.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+
+    Returns
+    -------
+    :class:`str`
+        The name of the svn veto directory.
+    """
+    # ADM look up or retain the MTL directory name.
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM construct the name of the svn veto directory.
+    vetodir = os.path.join(mtldir, survey, "veto", obscon.lower())
+
+    return vetodir
+
+
 def get_mtl_tile_file_name(secondary=False, override=False, svnveto=False):
     """Convenience function to grab the name of the MTL tile file.
 
@@ -467,7 +496,7 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
     ----------
     obscon : :class:`str`
         A string matching ONE observing condition. Allowed options are
-        "DARK", "BRIGHT", "DARK1B" and "BRIGHT1B".
+        "DARK", "BRIGHT", "DARK1B" and "BRIGHT1B", "BACKUP".
     survey : :class:`str`, optional, defaults to "main"
         Used to look up the correct ledger, in combination with `obscon`.
         Options are ``'main'`` and ``'svX``' (where X is 1, 2, 3 etc.)
