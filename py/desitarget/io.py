@@ -2762,7 +2762,7 @@ def read_mtl_svnveto_file(filename, survey="main"):
 
     # ADM grab the correct data model...
     from desitarget.mtl import mtldatamodel, survey_data_model
-    fullmtldm = survey_data_model(mtldatamodel, survey="main")
+    fullmtldm = survey_data_model(mtldatamodel, survey=survey)
     cols = ["RA", "DEC", "TARGETID", "TIMESTAMP"]
     mtldm = [col for col in fullmtldm.dtype.descr if col[0] in cols]
     # ADM ,,, and check the correct columns, with correct types, exist.

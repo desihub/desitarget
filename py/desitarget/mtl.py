@@ -1714,6 +1714,62 @@ def standard_override_columns(mtl):
     return mtl
 
 
+def process_vetoes(obscon, survey="main", mtldir=None):
+    """Stop observing targets in ledgers based on svn-updated veto files
+
+    obscon : :class:`str`
+        A string matching ONE observing condition. For example
+        "DARK", "BRIGHT", "DARK1B" and "BRIGHT.
+    survey : :class:`str`, optional, defaults to "main"
+        To look up the right veto directory. Examples might be``'main'``
+        or ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and
+        different iterations of SV, respectively.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTL ledgers and the MTL
+        tile file. If ``None``, then look up the MTL directory from the
+        $MTL_DIR environment variable.
+
+    Returns
+    -------
+    Nothing, but the relevant ledgers are updated based on the svn vetos.
+
+    Notes
+    -----
+    Nothing is done if veto files for the passed `obscon` don't exist.
+    """
+    log.info("Processing svn-based veto files")
+
+    # ADM get the name of the mtl directory.
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM grab the list of files in the veto directory.
+    vetodir = get_svnveto_dir(obscon, survey=survey, mtldir=mtldir)
+    fns = sorted(glob(os.path.join(vetodir, "*", "*ecsv")))
+
+    # ADM if the veto directory or files do not yet exist, skip.
+    if len(fns) == 0:
+        msg = f"No veto directory yet for {obscon.upper()}...continuing"
+        log.info(msg)
+        return
+
+    # ADM read the relevant mtl done file.
+    donefile = os.path.join(mtldir, get_mtl_tile_file_name(svnveto=True))
+
+    # ADM retrieve the final TIMESTAMP in the done file for the obscon.
+    # ADM if the file or obscon doesn't exist set the TIMESTAMP to zero.
+    try:
+        tsdone = read_mtl_tile_file(donefile)
+        ii = tsdone["PROGRAM"] == obscon
+        tszero = tsdone[ii]["TIMESTAMP"][-1]
+    except(FileNotFoundError, IndexError):
+        tszero = "0000-00-00T00:00:00+00:00"
+
+    # ADM read and concatenate the veto files, keeping only the relevant
+    # ADM columns and entries later than the most recent final TIMESTAMP.
+    stack = []
+    for fn in fns:
+        
+    
 def process_overrides(ledgerfn, tabform='ascii.basic'):
     """
     Recover MTL entries from override ledgers and update those ledgers.
