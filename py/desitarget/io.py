@@ -2727,6 +2727,73 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     return fn
 
 
+def read_mtl_svnveto_file(filename, survey="main"):
+    """Read an MTL veto file and perform basic checks on its format.
+
+    Parameters
+    ----------
+    filename : :class:`str`
+        The full path to the MTL veto file.
+    survey : :class:`str`, optional, defaults to "main"
+        To look up the right MTL data model. Examples might be``'main'``
+        or ``'svX``' (where X is 1, 2, 3 etc.) for the main survey and
+        different iterations of SV, respectively.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A structured numpy array of the MTL veto file.
+
+    Notes
+    -----
+        - The checks that are performed include:
+            - The file should include these columns (with correct type):
+                `RA`, `DEC`, `TARGETID`, `TIMESTAMP`
+            - No TARGETID should be duplicated.
+            - No TIMESTAMP lower down in the file should be earlier in
+              time that a TIMESTAMP higher up in the file.
+    """
+    # ADM set up a flag that will track problems with the file.
+    ok = True
+    okmsgs = []
+
+    # ADM read the file.
+    vetodata = Table.read(filename)
+
+    # ADM grab the correct data model...
+    from desitarget.mtl import mtldatamodel, survey_data_model
+    fullmtldm = survey_data_model(mtldatamodel, survey="main")
+    cols = ["RA", "DEC", "TARGETID", "TIMESTAMP"]
+    mtldm = [col for col in fullmtldm.dtype.descr if col[0] in cols]
+    # ADM ,,, and check the correct columns, with correct types, exist.
+    vetodm = [col for col in fullmtldm.dtype.descr if col[0] in cols]
+    if not mtldm == vetodm:
+        ok = False
+        okmsgs.append(f"{cols} not in veto file {filename}, or format is wrong")
+
+    # ADM check there are no duplicate TARGETIDs.
+    if len(set(vetodata["TARGETID"])) != len(vetodata):
+        ok = False
+        okmsgs.append(f"Duplicate TARGETIDs in veto file {filename}")
+
+    # ADM check the TIMESTAMPs are in order.
+    if not np.all(sorted(vetodata["TIMESTAMP"]) == vetodata["TIMESTAMP"]):
+        ok = False
+        okmsgs.append(f"TIMESTAMPs not in chronological order in {filename}")
+
+    # ADM log any errors.
+    if not ok:
+        okmsg = " AND ".join(okmsgs)
+        okmsg += f". Revert {filename} to previous version or delete it before "
+        okmsg += "running again. Please post this error in the #surveyops Slack "
+        okmsg += f"channel and contact whoever last svn committed {filename} to "
+        okmsg += "ask them to fix the file."
+        log.error(okmsg)
+        raise ValueError(okmsg)
+
+    return vetodata
+
+
 def read_mtl_tile_file(filename, unique=True):
     """Read which tiles have been processed by MTL from the tile file.
 
