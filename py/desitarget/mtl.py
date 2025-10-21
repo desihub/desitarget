@@ -1714,7 +1714,7 @@ def standard_override_columns(mtl):
     return mtl
 
 
-def process_vetoes(obscon, survey="main", mtldir=None):
+def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
     """Stop observing targets in ledgers based on svn-updated veto files
 
     obscon : :class:`str`
@@ -1728,6 +1728,10 @@ def process_vetoes(obscon, survey="main", mtldir=None):
         Full path to the directory that hosts the MTL ledgers and the MTL
         tile file. If ``None``, then look up the MTL directory from the
         $MTL_DIR environment variable.
+    tabform : :class:`str`, optional, defaults to 'ascii.basic'
+        Format to pass to the astropy Table.read() function. The default
+        ('ascii.basic') is standard for reading and writing MTL files.
+        But 'ascii.ecsv' is useful for some of the mock/alt-MTL work.
 
     Returns
     -------
@@ -1758,16 +1762,42 @@ def process_vetoes(obscon, survey="main", mtldir=None):
     # ADM retrieve the final TIMESTAMP in the done file for the obscon.
     # ADM if the file or obscon doesn't exist set the TIMESTAMP to zero.
     try:
-        tsdone = read_mtl_tile_file(donefile)
+        tsdone = io.read_mtl_tile_file(donefile)
         ii = tsdone["PROGRAM"] == obscon
-        tszero = tsdone[ii]["TIMESTAMP"][-1]
+        tslow = tsdone[ii]["TIMESTAMP"][-1]
     except(FileNotFoundError, IndexError):
-        tszero = "0000-00-00T00:00:00+00:00"
+        tslow = "0000-00-00T00:00:00+00:00"
 
     # ADM read and concatenate the veto files, keeping only the relevant
     # ADM columns and entries later than the most recent final TIMESTAMP.
-    stack = []
+    vetocat = []
     for fn in fns:
+        vetodat = io.read_mtl_svnveto_file(fn)
+        ii = vetodat["TIMESTAMP"] > tslow
+        vetocat.append(vetodat[ii]["TARGETID", "RA", "DEC", "TIMESTAMP"])
+
+    # ADM stack all the stacks of objects to be vetoed into one catalog.
+    vetocat = vstack(vetocat)
+
+    # ADM grab the location of the relevant pixel-based ledgers.
+    hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=True,
+                                     survey=survey, obscon=obscon)
+    # ADM loop through and veto MTL entries in the pixel-based ledgers.
+    nside = _get_mtl_nside()
+    theta, phi = np.radians(90-vetocat["DEC"]), np.radians(vetocat["RA"])
+    pixnum = hp.ang2pix(nside, theta, phi, nest=True)
+    pixnum = list(set(pixnum))
+    for hpx in pixnum:
+        targets = io.read_mtl_in_hp(hpdirname, nside, hpx, unique=True,
+                                    tabform=tabform)
+
+
+    #
+
+
+
+
+    return
         
     
 def process_overrides(ledgerfn, tabform='ascii.basic'):
