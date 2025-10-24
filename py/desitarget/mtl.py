@@ -1748,21 +1748,22 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
 
     # ADM grab the list of files in the veto directory.
     vetodir = get_svnveto_dir(obscon, survey=survey, mtldir=mtldir)
+    log.info(f"svn veto directory location is expected to be {vetodir}")
     fns = sorted(glob(os.path.join(vetodir, "*", "*ecsv")))
 
     # ADM if the veto directory or files do not yet exist, skip.
     if len(fns) == 0:
-        msg = f"No veto directory yet for {obscon.upper()}...continuing"
+        msg = f"No populated veto directory yet for {obscon.upper()}...ignoring"
         log.info(msg)
         return
 
     # ADM read the relevant mtl done file.
-    donefile = os.path.join(mtldir, get_mtl_tile_file_name(svnveto=True))
+    mtldonefn = os.path.join(mtldir, get_mtl_tile_file_name(svnveto=True))
 
     # ADM retrieve the final TIMESTAMP in the done file for the obscon.
     # ADM if the file or obscon doesn't exist set the TIMESTAMP to zero.
     try:
-        tsdone = io.read_mtl_tile_file(donefile)
+        tsdone = io.read_mtl_tile_file(mtldonefn)
         ii = tsdone["PROGRAM"] == obscon
         tslow = tsdone[ii]["TIMESTAMP"][-1]
     except(FileNotFoundError, IndexError):
@@ -1788,14 +1789,39 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
     pixnum = hp.ang2pix(nside, theta, phi, nest=True)
     pixnum = list(set(pixnum))
     for hpx in pixnum:
-        targets = io.read_mtl_in_hp(hpdirname, nside, hpx, unique=True,
-                                    tabform=tabform)
+        # ADM read each ledger that corresponds to a HEALPixel that
+        # ADM includes an RA, Dec in the veto catalog.
+        mtl = io.read_mtl_in_hp(hpdirname, nside, hpx, unique=True,
+                                tabform=tabform)
+        # ADM match ledger targets to those in the veto catalog.
+        mii, vii = match(mtl["TARGETID"], vetocat["TARGETID"])
+        # ADM create a new set of entries that are updates to "turn off"
+        # ADM the targets that match the veto catalog.
+        updates = mtl[mii]
+        updates["NUMOBS_MORE"] = 0
+        updates["PRIORITY"] = 2
+        updates["TARGET_STATE"] = "SVN_VETO|DONE"
+        updates["TIMESTAMP"] = get_utc_date(survey=survey)
+        updates["VERSION"] = dt_version
+        # ADM finally, append the new updates to the ledger.
+        nups, fn = io.write_mtl(
+            mtldir, updates, ecsv=True, survey="main", obscon=obscon,
+            nsidefile=nside, hpxlist=hpx, append=True)
 
+        log.info(f"Used svn to veto {nups} targets in {fn}")
 
-    #
-
-
-
+    # ADM finally, append the action to the svn veto MTL done file.
+    # ADM the sleep is important to ensure the done file entry is later
+    # ADM than any of the individual entries in the ledgers.
+    sleep(1)
+    svndone = np.zeros(1, dtype=mtltilefiledm.dtype)
+    svndone["TILEID"] = -1
+    svndone["TIMESTAMP"] = get_utc_date(survey=survey)
+    svndone["VERSION"] = dt_version
+    svndone["PROGRAM"] = obscon
+    svndone["ZDATE"] = -1
+    svndone["ARCHIVEDATE"] = -1
+    io.write_mtl_tile_file(mtldonefn, svndone)
 
     return
         
