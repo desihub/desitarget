@@ -1735,7 +1735,7 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
 
     Returns
     -------
-    Nothing, but the relevant ledgers are updated based on the svn vetos.
+    Nothing, but the relevant ledgers are updated based on svn vetoes.
 
     Notes
     -----
@@ -3060,7 +3060,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
                 numobs_from_ledger=True, secondary=False, reprocess=False,
-                ext=False):
+                ext=False, veto=True):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -3100,6 +3100,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         In this mode, the tile file is not updated indicating that a tile
         has been considered, because, e.g., DARK1B tiles should only be
         marked as considered once the DARK1B ledgers are done.
+    veto : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then veto targets based on files in the svn veto
+        directory. If ``False`` then skip the vetoing step.
 
     Returns
     -------
@@ -3194,6 +3197,12 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     else:
         update_ledger(hpdirname, zcat, obscon=obscon,
                       numobs_from_ledger=numobs_from_ledger, ext=ext)
+
+    # ADM process any svn veto files.
+    if veto:
+        process_vetoes(obscon, survey=survey, mtldir=mtldir)
+    else:
+        log.info(f"Skipping svn vetoes because veto={veto}")
 
     # ADM for the main survey "holding pen" method, ensure the TIMESTAMP
     # ADM in the mtl-done-tiles file is always later than in the ledgers.
