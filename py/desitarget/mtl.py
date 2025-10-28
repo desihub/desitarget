@@ -364,7 +364,7 @@ def get_zcat_dir(zcatdir=None):
     return zcatdir
 
 
-def get_svnveto_dir(obscon, survey="main", mtldir=None):
+def get_veto_dir(obscon, survey="main", mtldir=None):
     """Convenience function to grab the name of the ZTILE file.
 
     obscon : :class:`str`
@@ -382,18 +382,18 @@ def get_svnveto_dir(obscon, survey="main", mtldir=None):
     Returns
     -------
     :class:`str`
-        The name of the svn veto directory.
+        The name of the dynamic veto directory.
     """
     # ADM look up or retain the MTL directory name.
     mtldir = get_mtl_dir(mtldir)
 
-    # ADM construct the name of the svn veto directory.
+    # ADM construct the name of the veto directory.
     vetodir = os.path.join(mtldir, survey, "veto", obscon.lower())
 
     return vetodir
 
 
-def get_mtl_tile_file_name(secondary=False, override=False, svnveto=False):
+def get_mtl_tile_file_name(secondary=False, override=False, veto=False):
     """Convenience function to grab the name of the MTL tile file.
 
     Parameters
@@ -404,8 +404,8 @@ def get_mtl_tile_file_name(secondary=False, override=False, svnveto=False):
     override : :class:`bool`, optional, defaults to ``False``
         If ``True`` return the name of the override tile file instead
         of the mtl tile file.
-    svnveto : :class:`bool`, optional, defaults to ``False``
-        If ``True`` return the name of the svn veto file instead of
+    veto : :class:`bool`, optional, defaults to ``False``
+        If ``True`` return the name of the dynamic veto file instead of
         the mtl tile file. This option always takes precedence when
         passed as ``True``.
 
@@ -416,11 +416,11 @@ def get_mtl_tile_file_name(secondary=False, override=False, svnveto=False):
 
     Notes
     -----
-    - Only one of override or svnveto can be passed.
+    - Only one of override or veto can be passed.
     """
-    # ADM a check that only one of override and svnveto was passed.
-    if override and svnveto:
-        msg = "Only one of the override and svnveto kwargs can be passed"
+    # ADM a check that only one of override and veto was passed.
+    if override and veto:
+        msg = "Only one of the override and veto kwargs can be passed"
         log.critical(msg)
         raise ValueError(msg)
 
@@ -429,8 +429,8 @@ def get_mtl_tile_file_name(secondary=False, override=False, svnveto=False):
         fn = "scnd-mtl-done-tiles.ecsv"
     if override:
         fn = fn.replace("tiles", "overrides")
-    if svnveto:
-        fn = fn.replace("tiles", "svn-vetoes")
+    if veto:
+        fn = fn.replace("tiles", "vetoes")
 
     return fn
 
@@ -1715,7 +1715,7 @@ def standard_override_columns(mtl):
 
 
 def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
-    """Stop observing targets in ledgers based on svn-updated veto files
+    """Stop targets in ledgers based on dynamically updated veto files
 
     obscon : :class:`str`
         A string matching ONE observing condition. For example
@@ -1735,20 +1735,20 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
 
     Returns
     -------
-    Nothing, but the relevant ledgers are updated based on svn vetoes.
+    Nothing, but the relevant ledgers are updated based on vetoes.
 
     Notes
     -----
     Nothing is done if veto files for the passed `obscon` don't exist.
     """
-    log.info("Processing svn-based veto files")
+    log.info("Processing dynamic veto files")
 
     # ADM get the name of the mtl directory.
     mtldir = get_mtl_dir(mtldir)
 
     # ADM grab the list of files in the veto directory.
-    vetodir = get_svnveto_dir(obscon, survey=survey, mtldir=mtldir)
-    log.info(f"svn veto directory location is expected to be {vetodir}")
+    vetodir = get_veto_dir(obscon, survey=survey, mtldir=mtldir)
+    log.info(f"veto directory location is expected to be {vetodir}")
     fns = sorted(glob(os.path.join(vetodir, "*", "*ecsv")))
 
     # ADM if the veto directory or files do not yet exist, skip.
@@ -1758,7 +1758,7 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
         return
 
     # ADM read the relevant mtl done file.
-    mtldonefn = os.path.join(mtldir, get_mtl_tile_file_name(svnveto=True))
+    mtldonefn = os.path.join(mtldir, get_mtl_tile_file_name(veto=True))
 
     # ADM retrieve the final TIMESTAMP in the done file for the obscon.
     # ADM if the file or obscon doesn't exist set the TIMESTAMP to zero.
@@ -1773,7 +1773,7 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
     # ADM columns and entries later than the most recent final TIMESTAMP.
     vetocat = []
     for fn in fns:
-        vetodat = io.read_mtl_svnveto_file(fn)
+        vetodat = io.read_mtl_veto_file(fn)
         ii = vetodat["TIMESTAMP"] > tslow
         vetocat.append(vetodat[ii]["TARGETID", "RA", "DEC", "TIMESTAMP"])
 
@@ -1800,7 +1800,7 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
         updates = mtl[mii]
         updates["NUMOBS_MORE"] = 0
         updates["PRIORITY"] = 2
-        updates["TARGET_STATE"] = "SVN_VETO|DONE"
+        updates["TARGET_STATE"] = "VETO|DONE"
         updates["TIMESTAMP"] = get_utc_date(survey=survey)
         updates["VERSION"] = dt_version
         # ADM finally, append the new updates to the ledger.
@@ -1808,20 +1808,20 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
             mtldir, updates, ecsv=True, survey="main", obscon=obscon,
             nsidefile=nside, hpxlist=hpx, append=True)
 
-        log.info(f"Used svn to veto {nups} targets in {fn}")
+        log.info(f"Used dynamic files to veto {nups} targets in {fn}")
 
-    # ADM finally, append the action to the svn veto MTL done file.
+    # ADM finally, append the action to the veto MTL done file.
     # ADM the sleep is important to ensure the done file entry is later
     # ADM than any of the individual entries in the ledgers.
     sleep(1)
-    svndone = np.zeros(1, dtype=mtltilefiledm.dtype)
-    svndone["TILEID"] = -1
-    svndone["TIMESTAMP"] = get_utc_date(survey=survey)
-    svndone["VERSION"] = dt_version
-    svndone["PROGRAM"] = obscon
-    svndone["ZDATE"] = -1
-    svndone["ARCHIVEDATE"] = -1
-    io.write_mtl_tile_file(mtldonefn, svndone)
+    vetodone = np.zeros(1, dtype=mtltilefiledm.dtype)
+    vetodone["TILEID"] = -1
+    vetodone["TIMESTAMP"] = get_utc_date(survey=survey)
+    vetodone["VERSION"] = dt_version
+    vetodone["PROGRAM"] = obscon
+    vetodone["ZDATE"] = -1
+    vetodone["ARCHIVEDATE"] = -1
+    io.write_mtl_tile_file(mtldonefn, vetodone)
 
     return
         
@@ -3101,7 +3101,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         has been considered, because, e.g., DARK1B tiles should only be
         marked as considered once the DARK1B ledgers are done.
     veto : :class:`bool`, optional, defaults to ``True``
-        If ``True`` then veto targets based on files in the svn veto
+        If ``True`` then veto targets based on files in the veto
         directory. If ``False`` then skip the vetoing step.
 
     Returns
@@ -3198,11 +3198,11 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         update_ledger(hpdirname, zcat, obscon=obscon,
                       numobs_from_ledger=numobs_from_ledger, ext=ext)
 
-    # ADM process any svn veto files.
+    # ADM process any veto files.
     if veto:
         process_vetoes(obscon, survey=survey, mtldir=mtldir)
     else:
-        log.info(f"Skipping svn vetoes because veto={veto}")
+        log.info(f"Skipping vetoes because veto={veto}")
 
     # ADM for the main survey "holding pen" method, ensure the TIMESTAMP
     # ADM in the mtl-done-tiles file is always later than in the ledgers.

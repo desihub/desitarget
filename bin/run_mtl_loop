@@ -34,7 +34,7 @@ ap.add_argument("--reprocess", action='store_true',
 ap.add_argument("--noarchivecheck", action='store_true',
                 help="Do NOT check if tiles-specstatus and archived tiles match")
 ap.add_argument("--noveto", action='store_true',
-                help="Do NOT veto targets in the svn veto directory")
+                help="Do NOT veto targets using files in the veto directory")
 
 ns = ap.parse_args()
 

@@ -2727,7 +2727,7 @@ def find_target_files(targdir, dr='X', flavor="targets", survey="main",
     return fn
 
 
-def read_mtl_svnveto_file(filename, survey="main"):
+def read_mtl_veto_file(filename, survey="main"):
     """Read an MTL veto file and perform basic checks on its format.
 
     Parameters
@@ -2786,8 +2786,8 @@ def read_mtl_svnveto_file(filename, survey="main"):
         okmsg = " AND ".join(okmsgs)
         okmsg += f". Revert {filename} to previous version or delete it before "
         okmsg += "running again. Please post this error in the #surveyops Slack "
-        okmsg += f"channel and contact whoever last svn committed {filename} to "
-        okmsg += "ask them to fix the file."
+        okmsg += f"channel and contact whoever last updated the file {filename} "
+        okmsg += "to ask them to fix the file."
         log.error(okmsg)
         raise ValueError(okmsg)
 
