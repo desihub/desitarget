@@ -2742,7 +2742,8 @@ def read_mtl_veto_file(filename, survey="main"):
     Returns
     -------
     :class:`~numpy.ndarray`
-        A structured numpy array of the MTL veto file.
+        A structured array that only contains the relevant columns for
+        vetoing. These are: ["TARGETID", "RA", "DEC", "TIMESTAMP"].
 
     Notes
     -----
@@ -2791,7 +2792,7 @@ def read_mtl_veto_file(filename, survey="main"):
         log.error(okmsg)
         raise ValueError(okmsg)
 
-    return vetodata
+    return vetodata["TARGETID", "RA", "DEC", "TIMESTAMP"]
 
 
 def read_mtl_tile_file(filename, unique=True):

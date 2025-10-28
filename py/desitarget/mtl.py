@@ -1775,7 +1775,7 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
     for fn in fns:
         vetodat = io.read_mtl_veto_file(fn)
         ii = vetodat["TIMESTAMP"] > tslow
-        vetocat.append(vetodat[ii]["TARGETID", "RA", "DEC", "TIMESTAMP"])
+        vetocat.append(vetodat[ii])
 
     # ADM stack all the stacks of objects to be vetoed into one catalog.
     vetocat = vstack(vetocat)
