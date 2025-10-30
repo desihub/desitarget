@@ -2761,14 +2761,16 @@ def read_mtl_veto_file(filename, survey="main"):
     # ADM read the file.
     vetodata = Table.read(filename)
 
-    # ADM grab the correct data model...
+    # ADM grab the correct data model.
     from desitarget.mtl import mtldatamodel, survey_data_model
     fullmtldm = survey_data_model(mtldatamodel, survey=survey)
     cols = ["RA", "DEC", "TARGETID", "TIMESTAMP"]
+    # ADM first check if all of the necessary columns are provided.
+    checkcols = set(cols).intersection(set(vetodata.dtype.names)) == set(cols)
+    # ADM now check the columns have the correct types.
     mtldm = [col for col in fullmtldm.dtype.descr if col[0] in cols]
-    # ADM ,,, and check the correct columns, with correct types, exist.
     vetodm = [col for col in fullmtldm.dtype.descr if col[0] in cols]
-    if not mtldm == vetodm:
+    if not mtldm == vetodm or not checkcols:
         ok = False
         okmsgs.append(f"{cols} not in veto file {filename}, or format is wrong")
 
