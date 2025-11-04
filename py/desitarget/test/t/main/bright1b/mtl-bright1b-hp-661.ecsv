@@ -1,0 +1,35 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: RA, unit: deg, datatype: float64}
+# - {name: DEC, unit: deg, datatype: float64}
+# - {name: REF_EPOCH, unit: yr, datatype: float32}
+# - {name: PARALLAX, unit: mas, datatype: float32}
+# - {name: PMRA, unit: mas / yr, datatype: float32}
+# - {name: PMDEC, unit: mas / yr, datatype: float32}
+# - {name: TARGETID, datatype: int64}
+# - {name: DESI_TARGET, datatype: int64}
+# - {name: BGS_TARGET, datatype: int64}
+# - {name: MWS_TARGET, datatype: int64}
+# - {name: SCND_TARGET, datatype: int64}
+# - {name: SUBPRIORITY, datatype: float64}
+# - {name: OBSCONDITIONS, datatype: int32}
+# - {name: PRIORITY_INIT, datatype: int64}
+# - {name: NUMOBS_INIT, datatype: int64}
+# - {name: NUMOBS_MORE, datatype: int64}
+# - {name: NUMOBS, datatype: int64}
+# - {name: Z, datatype: float64}
+# - {name: ZWARN, datatype: int64}
+# - {name: ZTILEID, datatype: int32}
+# - {name: Z_QN, datatype: float64}
+# - {name: IS_QSO_QN, datatype: int16}
+# - {name: DELTACHI2, datatype: float64}
+# - {name: TARGET_STATE, datatype: string}
+# - {name: TIMESTAMP, unit: s, datatype: string}
+# - {name: VERSION, datatype: string}
+# - {name: PRIORITY, datatype: int64}
+# meta: {DR: X, EXTNAME: MTL, FILEHPX: 661, FILENEST: true, FILENSID: 32, OBSCON: bright1b, OVERRIDE: false, SCND: false, SURVEY: main}
+# schema: astropy-2.0
+RA DEC REF_EPOCH PARALLAX PMRA PMDEC TARGETID DESI_TARGET BGS_TARGET MWS_TARGET SCND_TARGET SUBPRIORITY OBSCONDITIONS PRIORITY_INIT NUMOBS_INIT NUMOBS_MORE NUMOBS Z ZWARN ZTILEID Z_QN IS_QSO_QN DELTACHI2 TARGET_STATE TIMESTAMP VERSION PRIORITY
+20.91128333333333 42.24111666666667 0.0 0.0 0.0 0.0 34207057787749937 2305843009213693952 0 1125899906842624 0 0.8537830038310089 2560 1950 40 40 0 -1.0 -1 -1 -1.0 -1 -1.0 M31_GIANT|UNOBS 2025-08-11T17:00:00+00:00 3.6.1 1950
+20.646224999999998 42.259119444444444 0.0 0.0 0.0 0.0 34207057796137988 2305843009213693952 0 1125899906842624 0 0.8979682234477441 2560 1950 40 40 0 -1.0 -1 -1 -1.0 -1 -1.0 M31_GIANT|UNOBS 2025-08-11T17:00:00+00:00 3.6.1 1950

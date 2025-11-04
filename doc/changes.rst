@@ -5,6 +5,8 @@ desitarget Change Log
 4.2.1 (unreleased)
 ------------------
 
+* Set up the capability to veto targets dynamically in svn [`PR #863`_].
+    * Initially for the M31 BRIGHT1B program.
 * Smarter read/merge of files with different data models [`PR #861`_].
     * This deprecates [`PR #860`_].
     * We don't actually need to merge the M31 and C-19 stream programs.
@@ -17,6 +19,7 @@ desitarget Change Log
     * This PR is also backward-compatible, where [`PR #860`_] was not.
 
 .. _`PR #861`: https://github.com/desihub/desitarget/pull/861
+.. _`PR #863`: https://github.com/desihub/desitarget/pull/863
 
 4.2.0 (2025-10-08)
 ------------------
