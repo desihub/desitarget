@@ -5,11 +5,23 @@ desitarget Change Log
 4.2.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Smarter read/merge of files with different data models [`PR #861`_].
+    * This deprecates [`PR #860`_].
+    * We don't actually need to merge the M31 and C-19 stream programs.
+    * Tiles can touch *HEALPixels* in these disparate programs...
+    * ...but can ever touch *targets* from both of these programs...
+    * ...as the programs are so widely separated on the sky.
+    * So, we can allow a read of both programs with careful checks on...
+    * ...whether *targets* are touched by a tile/HEALPixel rather than...
+    * ...whether *HEALPixels* are touched by a tile/HEALPixel.
+    * This PR is also backward-compatible, where [`PR #860`_] was not.
+
+.. _`PR #861`: https://github.com/desihub/desitarget/pull/861
 
 4.2.0 (2025-10-08)
 ------------------
 
+* Version 4.2.0 was deprecated by [`PR #861`_] and should never be used!!
 * Allow target files with different data models to be read [`PR #860`_].
     * Combined in a HEALPixel or a tile.
     * But only for the very special case of M31-like target files.
