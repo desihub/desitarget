@@ -5,19 +5,19 @@ desitarget Change Log
 4.2.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Set up the capability to veto targets dynamically in svn [`PR #863`_].
+    * Initially for the M31 BRIGHT1B program.
+
+.. _`PR #863`: https://github.com/desihub/desitarget/pull/863
 
 4.2.0 (2025-10-08)
 ------------------
 
-* Set up the capability to veto targets dynamically in svn [`PR #863`_].
-    * Initially for the M31 BRIGHT1B program.
 * Allow target files with different data models to be read [`PR #860`_].
     * Combined in a HEALPixel or a tile.
     * But only for the very special case of M31-like target files.
 
 .. _`PR #860`: https://github.com/desihub/desitarget/pull/860
-.. _`PR #863`: https://github.com/desihub/desitarget/pull/863
 
 4.1.1 (2025-10-06)
 ------------------
