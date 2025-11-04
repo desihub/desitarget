@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.2.1 (unreleased)
+4.3.1 (unreleased)
+------------------
+
+* No changes yet.
+
+4.3.0 (2025-11-04)
 ------------------
 
 * Set up the capability to veto targets dynamically in svn [`PR #863`_].
