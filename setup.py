@@ -95,7 +95,7 @@ setup_keywords = dict()
 #
 if os.path.isdir('bin'):
     setup_keywords['scripts'] = [fname for fname in glob.glob(os.path.join('bin', '*'))
-        if not os.path.basename(fname).endswith('.rst')]
+                                 if os.access(fname, os.X_OK)]
 #
 # Add internal data directories.
 #
