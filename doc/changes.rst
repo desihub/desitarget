@@ -5,7 +5,9 @@ desitarget Change Log
 4.3.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Add ``pyproject.toml`` file and update other top-level files [PR `#864`_].
+
+.. _`PR #864`: https://github.com/desihub/desitarget/pull/864
 
 4.3.0 (2025-11-04)
 ------------------
