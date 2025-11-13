@@ -386,7 +386,7 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     """
 
     # SB import photutils only if required instead of at module import time
-    import photutils
+    import photutils.aperture
 
     fn = survey.find_file('blobmap', brick=brickname)
     # ADM if the file doesn't exist, warn and return immediately.
