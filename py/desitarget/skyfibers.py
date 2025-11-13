@@ -12,7 +12,6 @@ import numpy as np
 import fitsio
 from astropy.wcs import WCS
 from time import time
-import photutils
 import healpy as hp
 from glob import glob
 from scipy.ndimage import binary_dilation, binary_erosion
@@ -385,6 +384,9 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
         - The generated sky fiber locations will cover the pixel-based brick
           grid, which extends beyond the "true" geometric brick boundaries.
     """
+
+    # SB import photutils only if required instead of at module import time
+    import photutils.aperture
 
     fn = survey.find_file('blobmap', brick=brickname)
     # ADM if the file doesn't exist, warn and return immediately.

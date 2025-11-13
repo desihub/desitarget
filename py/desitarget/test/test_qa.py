@@ -98,6 +98,7 @@ class TestQA(unittest.TestCase):
         # ADM there are only .html, .dat and .png files.
         self.assertEqual(pngs+htmls+dats, alls)
 
+    @unittest.skipIf('DESI_SURVEYOPS' not in os.environ, "$DESI_SURVEYOPS not set, needed for footprint")
     def test_qa_mocks(self):
         """Test mock QA plots/pages
         """
@@ -134,6 +135,7 @@ class TestQA(unittest.TestCase):
         self.assertTrue(set(with_all)-set(no_all) == {'ALL'})
         self.assertTrue(failed)
 
+    @unittest.skipIf('DESI_SURVEYOPS' not in os.environ, "$DESI_SURVEYOPS not set, needed for footprint")
     def test_in_footprint(self):
         """Test target class strings are parsed into lists.
         """

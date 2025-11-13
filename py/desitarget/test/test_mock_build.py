@@ -98,10 +98,16 @@ class TestMockBuild(unittest.TestCase):
         self.assertTrue('SHAPEEXP_R' in mock.colnames)
 
     def test_sky(self):
+        # fake set of tiles to avoid $DESI_SURVEYOPS dependency
+        tiles = Table()
+        ra, dec = np.meshgrid(np.arange(60,80,3), np.arange(-10,10,3))
+        tiles['TILERA'] = ra.ravel()
+        tiles['TILEDEC'] = dec.ravel()
+
         nside = 256
-        ra, dec, pix = random_sky(nside, allsky=False)
+        ra, dec, pix = random_sky(nside, tiles=tiles, allsky=False)
         self.assertEqual(len(ra), len(dec))
-        surveypix = desimodel.footprint.tiles2pix(nside)
+        surveypix = desimodel.footprint.tiles2pix(nside, tiles=tiles)
         theta = np.radians(90 - dec)
         phi = np.radians(ra)
         skypix = hp.ang2pix(nside, theta, phi, nest=True)

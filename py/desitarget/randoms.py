@@ -15,7 +15,6 @@ from astropy.wcs import WCS
 from time import time
 import healpy as hp
 import fitsio
-import photutils.aperture
 from glob import glob, iglob
 
 from desitarget.gaiamatch import get_gaia_dir
@@ -456,6 +455,9 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     -----
     - First version copied shamelessly from Anand Raichoor.
     """
+    # SB import photutils only if required instead of at module import time
+    import photutils.aperture
+
     # ADM guard against too low a density of random locations.
     npts = len(ras)
     if npts == 0:
