@@ -9,6 +9,13 @@ import numpy as np
 from glob import glob
 from os.path import basename
 
+# will skip some tests if photutils isn't installed
+try:
+    import photutils
+    photutils_installed = True
+except ImportError:
+    photutils_installed = False
+
 from desitarget import skyfibers
 from desitarget.targetmask import desi_mask
 
@@ -71,6 +78,7 @@ class TestSKYFIBERS(unittest.TestCase):
         self.assertTrue(modelhi/modello == 10)
         self.assertTrue(hi/lo == 5)
 
+    @unittest.skipUnless(photutils_installed, 'photutils not installed')
     def test_make_skies_for_a_brick(self):
         """
         Test the production of a few sky locations from a survey object
@@ -105,6 +113,7 @@ class TestSKYFIBERS(unittest.TestCase):
             np.all(skies["FIBERFLUX_IVAR_Z"] == skytable.apflux_ivar_z)
         )
 
+    @unittest.skipUnless(photutils_installed, 'photutils not installed')
     def test_make_skies_for_a_brick_per_band(self):
         """
         Test aperture fluxes at sky locations are correct for different bands
@@ -142,6 +151,7 @@ class TestSKYFIBERS(unittest.TestCase):
             np.all(gskies["FIBERFLUX_G"] == skies["FIBERFLUX_G"])
         )
 
+    @unittest.skipUnless(photutils_installed, 'photutils not installed')
     def test_target_bits(self):
         """
         Test that apertures that are in blobs have the BAD_SKY bit set
@@ -166,6 +176,7 @@ class TestSKYFIBERS(unittest.TestCase):
             np.all(gskies[wbad]["DESI_TARGET"] == desi_mask.BAD_SKY)
         )
 
+    @unittest.skipUnless(photutils_installed, 'photutils not installed')
     def test_select_skies(self):
         """
         Test the wrapper function for batch selection of skies
