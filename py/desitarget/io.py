@@ -86,6 +86,18 @@ dr10replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
                    ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (17,)),
                    ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (17,))}
 
+# ADM columns that have updated dtypes in the DR11 data model.
+dr11replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
+                   ('LC_FLUX_W1', '>f4', (15,)): ('LC_FLUX_W1', '>f4', (19,)),
+                   ('LC_FLUX_W2', '>f4', (15,)): ('LC_FLUX_W2', '>f4', (19,)),
+                   ('LC_FLUX_IVAR_W1', '>f4', (15,)): ('LC_FLUX_IVAR_W1', '>f4', (19,)),
+                   ('LC_FLUX_IVAR_W2', '>f4', (15,)): ('LC_FLUX_IVAR_W2', '>f4', (19,)),
+                   ('LC_NOBS_W1', '>i2', (15,)): ('LC_NOBS_W1', '>i2', (19,)),
+                   ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (19,)),
+                   ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (19,)),
+                   ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (19,))}
+
+
 # ADM columns that are new for the DR9 data model.
 dr9addedcols = np.array([], dtype=[
     ('LC_FLUX_W1', '>f4', (15,)), ('LC_FLUX_W2', '>f4', (15,)),
@@ -213,7 +225,9 @@ def read_tractor(filename, header=False, columns=None, gaiasub=False):
             [], dtype=basetsdatamodel.dtype.descr + dr8addedcols.dtype.descr)
     else:
         newdt = basetsdatamodel.dtype.descr + dr9addedcols.dtype.descr
-        if "FLUX_I" in indata.dtype.names:  # ADM i-fluxes were added for DR10.
+        if "LS_ID_DR11" in indata.dtype.names:  # ADM LS ID was added for DR11.
+            newdt = [dr11replacecols.get(tup, tup) for tup in newdt]
+        elif "FLUX_I" in indata.dtype.names:  # ADM i-fluxes were added for DR10.
             newdt = [dr10replacecols.get(tup, tup) for tup in newdt]
         tsdatamodel = np.array([], dtype=newdt)
 
