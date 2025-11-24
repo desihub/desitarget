@@ -9,10 +9,11 @@ desitarget Change Log
 The only changes are package metadata to support :command:`pip`
 installation, etc. This tag the first version of desitarget to appear on PyPI.
 
-* Add ``pyproject.toml`` file and update other top-level files [`PR #864`_].
 * Final preparation of package metadata for upload to PyPI [`PR #868`_].
+* Add ``pyproject.toml`` file and update other top-level files [`PR #864`_].
 
 .. _`PR #864`: https://github.com/desihub/desitarget/pull/864
+.. _`PR #868`: https://github.com/desihub/desitarget/pull/868
 
 4.3.0 (2025-11-04)
 ------------------
