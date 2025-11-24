@@ -26,29 +26,12 @@ from photometric catalogs.
 Installation
 ------------
 
-You can install these tools in a variety of ways.  Here are several that may be of interest:
+For most purposes `pip install desitarget` should work.
 
-1.  Manually running from the git checkout.  Add the "bin" directory to your
-    ``$PATH`` environment variable and add the "py" directory to your
-    ``$PYTHONPATH`` environment variable.
-2.  Install (and uninstall) a symlink to your live git checkout::
+For versions of desitarget prior to 4.4.0, the preferred installation method,
+assuming depedencies are already installed, would be::
 
-    $>  python setup.py develop --prefix=/path/to/somewhere
-    $>  python setup.py develop --prefix=/path/to/somewhere --uninstall
-
-3.  Install a fixed version of the tools::
-
-    $>  python setup.py install --prefix=/path/to/somewhere
-
-Versioning
-----------
-
-If you have tagged a version and wish to set the package version based on your
-current git location::
-
-    $>  python setup.py version
-
-And then install as usual
+    DESITARGET_VERSION=4.3.0 && python -m pip install --no-build-isolation git+https://github.com/desihub/desitarget.git@${DESITARGET_VERSION}
 
 Full Documentation
 ------------------
