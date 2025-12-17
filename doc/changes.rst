@@ -5,7 +5,9 @@ desitarget Change Log
 4.4.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Allow HI priority FIBER ToOs with minimal oversight [`PR #869`_].
+
+.. _`PR #869`: https://github.com/desihub/desitarget/pull/869
 
 4.4.0 (2025-11-24)
 ------------------
