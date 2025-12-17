@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.4.1 (unreleased)
+4.5.1 (unreleased)
+------------------
+
+* No changes yet.
+
+4.5.0 (2025-12-16)
 ------------------
 
 * Allow HI priority FIBER ToOs with minimal oversight [`PR #869`_].
