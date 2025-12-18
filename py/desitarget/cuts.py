@@ -2192,6 +2192,12 @@ def _prepare_gaia(objects, colnames=None):
     gaia = objects['REF_ID'] > 0
     refcat = objects['REF_CAT']
     if _is_row(objects):
+        # ADM A single-element masked array is converted to array([nan])
+        # ADM by np.array([]), which is fine for our purposes, but as of
+        # ADM Python 3.12 this triggers a warning. This workaround gets
+        # ADM the same outcome more explicitly without a warning.
+        if np.ma.is_masked(refcat):
+            refcat = np.array([np.nan])
         refcat = np.array([refcat, ])
     if "REF_CAT" in colnames:
         gaia = (refcat == b'G2') | (refcat == 'G2')
