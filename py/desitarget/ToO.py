@@ -10,7 +10,7 @@ Targets of Opportunity.
 import os
 import numpy as np
 from astropy.table import Table
-
+from astropy.time import Time
 from desiutil.log import get_logger
 
 from desitarget import io
@@ -43,7 +43,7 @@ release = 9999
 log = get_logger()
 
 
-def get_filename(toodir=None, ender="ecsv", outname=False):
+def get_filename(toodir=None, ender="ecsv", outname=False,subtable=False):
     """Construct the input/output ToO filenames (with full directory path).
 
     Parameters
@@ -71,6 +71,8 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
 
     if outname:
         return fn
+    if subtable:
+        return fn.replace(".{}".format(ender), "-subtable.{}".format(ender))
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
@@ -472,7 +474,7 @@ def finalize_too(inledger, survey="main"):
     return outdata
 
 
-def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
+def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtable=True):
     """Convert a ToO ledger to a file of ToO targets.
 
     Parameters
@@ -491,6 +493,9 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     outdir : :class:`str`, optional, defaults to ``None``
         If passed and not ``None``, then read the input ledger from
         `toodir` but write the file of targets to `outdir`.
+    subtable : :class:`bool`, optional, defaults to ``True``
+        If ``True``, create a subtable of the input ledger that only
+        contains entries that have MJD_END dates later than todays date.
 
     Returns
     -------
@@ -518,13 +523,20 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     # ADM add the output targeting columns.
     outdata = finalize_too(indata, survey=survey)
 
+    if subtable:
+        # JB create a subtable with only entries that have MJD_END
+        # JB dates later than todays date.
+        todaymjd = Time.now().mjd
+        log.info("Creating subtable with MJD_END >= {}".format(todaymjd))
+        outdata = outdata[outdata["MJD_END"] >= todaymjd]
+
     # ADM determine the output filename.
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     if outdir is None:
-        fn = get_filename(tdir, outname=True, ender=form)
+        fn = get_filename(tdir, subtable=True, ender=form)
     else:
-        fn = get_filename(outdir, outname=True, ender=form)
+        fn = get_filename(outdir, subtable=True, ender=form)
 
     # ADM write out the results.
     _write_too_files(fn, outdata, ecsv=ecsv)
