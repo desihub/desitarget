@@ -43,7 +43,7 @@ release = 9999
 log = get_logger()
 
 
-def get_filename(toodir=None, ender="ecsv", outname=False,subtable=False):
+def get_filename(toodir=None, ender="ecsv", outname=False):
     """Construct the input/output ToO filenames (with full directory path).
 
     Parameters
@@ -71,12 +71,10 @@ def get_filename(toodir=None, ender="ecsv", outname=False,subtable=False):
 
     if outname:
         return fn
-    if subtable:
-        return fn.replace(".{}".format(ender), "-subtable.{}".format(ender))
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True, survey="main"):
+def _write_too_files(filename, data, ecsv=True, survey="main",overwrite=False):
     """Write ToO ledgers and files.
 
     Parameters
@@ -112,14 +110,16 @@ def _write_too_files(filename, data, ecsv=True, survey="main"):
     # ADM append to the files.
     if survey == "main":
         # ADM the filename for FIBER observations.
-        fiberfn = filename.replace("ToO.", "ToO-fiber.")
+        # JB this just makes sure that the basename is changed and not the directory
+        fiberfn = os.path.join(os.path.dirname(filename), os.path.basename(filename).replace("ToO", "ToO-fiber"))
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
         # ADM write once for the FIBER ToOs, once for the TILE ToOs.
         for fn, isfibornot in zip([filename, fiberfn], [~isfiber, isfiber]):
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
-            if os.path.exists(fn):
+            # JB included an overwrite so certain files don't build up
+            if os.path.exists(fn) and overwrite==False:
                 olddata = Table.read(fn)
                 # ADM a second check that there is some old data.
                 if len(olddata) > 0:
@@ -525,20 +525,28 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtab
 
     if subtable:
         # JB create a subtable with only entries that have MJD_END
-        # JB dates later than todays date.
+        # dates later than todays date.
         todaymjd = Time.now().mjd
         log.info("Creating subtable with MJD_END >= {}".format(todaymjd))
-        outdata = outdata[outdata["MJD_END"] >= todaymjd]
+        subdata = outdata[outdata["MJD_END"] >= todaymjd]
 
     # ADM determine the output filename.
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     if outdir is None:
-        fn = get_filename(tdir, subtable=True, ender=form)
+        fn = get_filename(tdir, ender=form,outname=True)
     else:
-        fn = get_filename(outdir, subtable=True, ender=form)
+        fn = get_filename(outdir, ender=form,outname=True)
 
     # ADM write out the results.
-    _write_too_files(fn, outdata, ecsv=ecsv)
+    # JB added if statement for writing out a subtable
+    if subtable:
+        log.info('Writing subtable with {} ToOs'.format(len(subdata)))
+        _write_too_files(fn, subdata, ecsv=ecsv,overwrite=True)
+        all_fn=f'{tdir}/ToO-all.{form}'
+        log.info('Writing all ToOs to {}'.format(all_fn))
+        _write_too_files(all_fn, outdata, ecsv=ecsv)
+    else:
+        _write_too_files(fn, outdata, ecsv=ecsv)
 
     return outdata
