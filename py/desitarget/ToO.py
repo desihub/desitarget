@@ -74,7 +74,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True, survey="main",overwrite=False):
+def _write_too_files(filename, data, ecsv=True, survey="main", overwrite=False):
     """Write ToO ledgers and files.
 
     Parameters
@@ -111,7 +111,8 @@ def _write_too_files(filename, data, ecsv=True, survey="main",overwrite=False):
     if survey == "main":
         # ADM the filename for FIBER observations.
         # JB this just makes sure that the basename is changed and not the directory
-        fiberfn = os.path.join(os.path.dirname(filename), os.path.basename(filename).replace("ToO", "ToO-fiber"))
+        fiberfn = os.path.join(os.path.dirname(filename), 
+                               os.path.basename(filename).replace("ToO", "ToO-fiber"))
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
         # ADM write once for the FIBER ToOs, once for the TILE ToOs.
@@ -119,7 +120,7 @@ def _write_too_files(filename, data, ecsv=True, survey="main",overwrite=False):
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
             # JB included an overwrite so certain files don't build up
-            if os.path.exists(fn) and overwrite==False:
+            if os.path.exists(fn) and overwrite is False:
                 olddata = Table.read(fn)
                 # ADM a second check that there is some old data.
                 if len(olddata) > 0:
@@ -536,15 +537,15 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtab
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     if outdir is None:
-        fn = get_filename(tdir, ender=form,outname=True)
+        fn = get_filename(tdir, ender=form, outname=True)
     else:
-        fn = get_filename(outdir, ender=form,outname=True)
+        fn = get_filename(outdir, ender=form, outname=True)
 
     # ADM write out the results.
     # JB added if statement for writing out a subtable
     if subtable:
         log.info('Writing subtable with {} ToOs'.format(len(subdata)))
-        _write_too_files(fn, subdata, ecsv=ecsv,overwrite=True)
+        _write_too_files(fn, subdata, ecsv=ecsv, overwrite=True)
         all_fn=f'{tdir}/ToO-all.{form}'
         log.info('Writing all ToOs to {}'.format(all_fn))
         _write_too_files(all_fn, outdata, ecsv=ecsv)
