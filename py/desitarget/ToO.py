@@ -474,7 +474,7 @@ def finalize_too(inledger, survey="main"):
     return outdata
 
 
-def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtable=True):
+def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtable=False):
     """Convert a ToO ledger to a file of ToO targets.
 
     Parameters
@@ -523,10 +523,12 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtab
     # ADM add the output targeting columns.
     outdata = finalize_too(indata, survey=survey)
 
-    if subtable:
+    #JB enable subtables past a date (in this case corresponding to 2026/01/28)
+    todaymjd = Time.now().mjd
+    if todaymjd >= Time('2026-01-28').mjd:
+        subtable=True
         # JB create a subtable with only entries that have MJD_END
         # dates later than todays date.
-        todaymjd = Time.now().mjd
         log.info("Creating subtable with MJD_END >= {}".format(todaymjd))
         subdata = outdata[outdata["MJD_END"] >= todaymjd]
 
