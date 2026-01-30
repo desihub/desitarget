@@ -475,7 +475,7 @@ def finalize_too(inledger, survey="main"):
     return outdata
 
 
-def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtable=False):
+def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     """Convert a ToO ledger to a file of ToO targets.
 
     Parameters
@@ -494,9 +494,6 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtab
     outdir : :class:`str`, optional, defaults to ``None``
         If passed and not ``None``, then read the input ledger from
         `toodir` but write the file of targets to `outdir`.
-    subtable : :class:`bool`, optional, defaults to ``True``
-        If ``True``, create a subtable of the input ledger that only
-        contains entries that have MJD_END dates later than todays date.
 
     Returns
     -------
@@ -523,16 +520,6 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtab
 
     # ADM add the output targeting columns.
     outdata = finalize_too(indata, survey=survey)
-
-    #JB enable subtables past a date (in this case corresponding to 2026/01/28)
-    todaymjd = Time.now().mjd
-    if todaymjd >= Time('2026-01-28').mjd:
-        subtable=True
-        # JB create a subtable with only entries that have MJD_END
-        # dates later than todays date.
-        log.info("Creating subtable with MJD_END >= {}".format(todaymjd))
-        subdata = outdata[outdata["MJD_END"] >= todaymjd]
-
     # ADM determine the output filename.
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
@@ -543,7 +530,13 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, subtab
 
     # ADM write out the results.
     # JB added if statement for writing out a subtable
-    if subtable:
+     #JB enable subtables past a date (in this case corresponding to 2026/01/31)
+    todaymjd = Time.now().mjd
+    if todaymjd >= Time('2026-01-28').mjd:
+        # JB create a subtable with only entries that have MJD_END
+        # dates later than todays date.
+        log.info("Creating subtable with MJD_END >= {}".format(todaymjd))
+        subdata = outdata[outdata["MJD_END"] >= todaymjd]
         log.info('Writing subtable with {} ToOs'.format(len(subdata)))
         _write_too_files(fn, subdata, ecsv=ecsv, overwrite=True)
         all_fn=f'{tdir}/ToO-all.{form}'
