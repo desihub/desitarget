@@ -2,10 +2,17 @@
 desitarget Change Log
 =====================
 
-4.5.1 (unreleased)
+4.6.1 (unreleased)
 ------------------
 
 * No changes yet.
+
+4.6.0 (2026-01-30)
+------------------
+
+* Spin currently observable ToOs off into a smaller file [`PR #872`_].
+
+.. _`PR #872`: https://github.com/desihub/desitarget/pull/872
 
 4.5.0 (2025-12-16)
 ------------------
