@@ -130,9 +130,6 @@ def too_bright(objs, matchrad=5.):
             Right Ascension, Declination proper motions (Gaia DR3 units).
         REF_EPOCH:
             Reference epoch for coordinates (e.g. 2014.5).
-        GAIA_PHOT_G_MEAN_MAG, GAIA_PHOT_BP_MEAN_MAG, GAIA_PHOT_RP_MEAN_MAG:
-            Magnitudes in Gaia bands, or similar. Can be set to 0 or a
-            very high number for missing values.
         FLUX_G, FLUX_R, FLUX_Z
             Legacy Surveys fluxes, or similar. Can be set to zero or a
             very low number for missing values.
@@ -173,7 +170,7 @@ def too_bright(objs, matchrad=5.):
     toobright = np.zeros(len(objs), dtype="bool")
     for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
                 "GAIA_PHOT_RP_MEAN_MAG"]:
-        toobright |= (objs[col] != 0) & (objs[col] < maglim)
+        toobright |= (gobjs[col] != 0) & (gobjs[col] < maglim)
     for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
         toobright |= (objs[col] != 0) & (objs[col] > fluxlim)
 
