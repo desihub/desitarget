@@ -74,7 +74,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True, survey="main", overwrite=False):
+def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,date=None):
     """Write ToO ledgers and files.
 
     Parameters
@@ -120,7 +120,9 @@ def _write_too_files(filename, data, ecsv=True, survey="main", overwrite=False):
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
             # JB included an overwrite so certain files don't build up
-            if os.path.exists(fn) and overwrite is False:
+            print(fn)
+            print(os.path.exists(fn))
+            if os.path.exists(fn):
                 olddata = Table.read(fn)
                 # ADM a second check that there is some old data.
                 if len(olddata) > 0:
@@ -135,7 +137,18 @@ def _write_too_files(filename, data, ecsv=True, survey="main", overwrite=False):
             os.makedirs(os.path.dirname(fn), exist_ok=True)
             # ADM write the file.
             io.write_with_units(fn, done, extname="TOO", header=hdr, ecsv=ecsv)
-            log.info("Wrote {} ToOs to {}".format(len(done), fn))
+            log.info("Wrote {} All ToOs to {}".format(len(done), fn))
+            if subtable==True:
+                if date is None:
+                    date=Time.now().mjd
+                log.info(f'Writing subtable using MJD of {date} as a reference')
+                log.debug("Creating subtable with MJD_END >= {}".format(date))
+                subdata = done[done["MJD_END"] >= date]
+                log.debug("Creating subtable with MJD_BEGIN <= {}".format(date))
+                subdata = subdata[subdata["MJD_BEGIN"] <= date]
+                subfn=fn.replace('-all','')
+                log.info(f'Writing out {subfn}')
+                io.write_with_units(subfn, subdata, extname="TOO", header=hdr, ecsv=ecsv)
 
     # ADM if survey isn't main, just write out a monolithic file.
     else:
@@ -475,7 +488,7 @@ def finalize_too(inledger, survey="main"):
     return outdata
 
 
-def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
+def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None,date=Time.now().mjd):
     """Convert a ToO ledger to a file of ToO targets.
 
     Parameters
@@ -494,6 +507,8 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     outdir : :class:`str`, optional, defaults to ``None``
         If passed and not ``None``, then read the input ledger from
         `toodir` but write the file of targets to `outdir`.
+    date : :class:`float`, optional, defaults to `Time.now().mjd`
+        MJD date to use for creating a subtable of ToOs.
 
     Returns
     -------
@@ -531,17 +546,12 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
     # ADM write out the results.
     # JB added if statement for writing out a subtable
      #JB enable subtables past a date (in this case corresponding to 2026/01/31)
-    todaymjd = Time.now().mjd
-    if todaymjd >= Time('2026-01-28').mjd:
+    if date >= Time('2026-01-31').mjd:
         # JB create a subtable with only entries that have MJD_END
         # dates later than todays date.
-        log.info("Creating subtable with MJD_END >= {}".format(todaymjd))
-        subdata = outdata[outdata["MJD_END"] >= todaymjd]
-        log.info('Writing subtable with {} ToOs'.format(len(subdata)))
-        _write_too_files(fn, subdata, ecsv=ecsv, overwrite=True)
         all_fn=f'{tdir}/ToO-all.{form}'
         log.info('Writing all ToOs to {}'.format(all_fn))
-        _write_too_files(all_fn, outdata, ecsv=ecsv)
+        _write_too_files(all_fn, outdata, ecsv=ecsv,subtable=True,date=date)
     else:
         _write_too_files(fn, outdata, ecsv=ecsv)
 
