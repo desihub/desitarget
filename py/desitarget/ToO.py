@@ -74,7 +74,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,date=Time.now().mjd):
+def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False, date=Time.now().mjd):
     """Write ToO ledgers and files.
 
     Parameters
@@ -148,7 +148,7 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,da
                 log.debug("Creating subtable with MJD_BEGIN <= {}".format(date))
                 subdata = subdata[subdata["MJD_BEGIN"] <= date]
                 subfn=fn.replace('-all','')
-                log.info(f'Writing out {subfn}')
+                log.info(f'Writing {len(subdata)} ToOs out to {subfn}')
                 io.write_with_units(subfn, subdata, extname="TOO", header=hdr, ecsv=ecsv)
 
     # ADM if survey isn't main, just write out a monolithic file.
@@ -489,7 +489,7 @@ def finalize_too(inledger, survey="main"):
     return outdata
 
 
-def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None,date=Time.now().mjd):
+def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, date=Time.now().mjd):
     """Convert a ToO ledger to a file of ToO targets.
 
     Parameters
