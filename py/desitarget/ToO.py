@@ -74,7 +74,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,date=None):
+def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,date=Time.now().mjd):
     """Write ToO ledgers and files.
 
     Parameters
@@ -93,6 +93,11 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,da
         main append new entries to files rather than writing a full, new
         file. Performs a look up on TARGETID to find existing entries
         in the ToO. and Too-fiber. files to only append new entries.
+    subtable : :class:'bool', optional, defaults to False
+        Option to create a subtable of ToOs which are in the valid date 
+        range for a given date
+    date : :class:`float`, optional, defaults to `Time.now().mjd`
+        MJD date to use for creating a subtable of ToOs.
 
     Returns
     -------
@@ -120,8 +125,6 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,da
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
             # JB included an overwrite so certain files don't build up
-            print(fn)
-            print(os.path.exists(fn))
             if os.path.exists(fn):
                 olddata = Table.read(fn)
                 # ADM a second check that there is some old data.
@@ -139,8 +142,6 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False,da
             io.write_with_units(fn, done, extname="TOO", header=hdr, ecsv=ecsv)
             log.info("Wrote {} All ToOs to {}".format(len(done), fn))
             if subtable==True:
-                if date is None:
-                    date=Time.now().mjd
                 log.info(f'Writing subtable using MJD of {date} as a reference')
                 log.debug("Creating subtable with MJD_END >= {}".format(date))
                 subdata = done[done["MJD_END"] >= date]
@@ -549,6 +550,14 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None,date=Ti
     if date >= Time('2026-01-31').mjd:
         # JB create a subtable with only entries that have MJD_END
         # dates later than todays date.
+
+        # Check that the correct files exists
+        for file in ['ToO-all.ecsv','ToO-fiber-all.ecsv']:
+            if os.path.exists(f'{tdir}/{file}'):
+                continue
+            else:
+                os.system(f"cp {tdir}/{file.replace('-all','')} {tdir}/{file}")
+
         all_fn=f'{tdir}/ToO-all.{form}'
         log.info('Writing all ToOs to {}'.format(all_fn))
         _write_too_files(all_fn, outdata, ecsv=ecsv,subtable=True,date=date)
