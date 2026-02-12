@@ -560,7 +560,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, date=T
 
         all_fn=f'{tdir}/ToO-all.{form}'
         log.info('Writing all ToOs to {}'.format(all_fn))
-        _write_too_files(all_fn, outdata, ecsv=ecsv,subtable=True,date=date)
+        _write_too_files(all_fn, outdata, ecsv=ecsv, subtable=True, date=date)
     else:
         _write_too_files(fn, outdata, ecsv=ecsv)
 
