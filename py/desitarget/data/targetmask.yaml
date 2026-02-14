@@ -486,8 +486,8 @@ priorities:
         DC3R2_GAMA:             {UNOBS: 1010, MORE_ZGOOD: 1000, MORE_ZWARN: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 	MIR_OBSCURED_AGN:       {UNOBS: 95,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 	MOST_HOSTS_2024:        SAME_AS_BHB
-	RRL_EXTRA_BRIGHT:       SAME_AS_BHB
-	RRL_EXTRA_DARK:         SAME_AS_BHB
+	RRL_EXTRA_BRIGHT:       {UNOBS: 1950, MORE_ZGOOD: 1940, MORE_ZWARN: 1940, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0
+	RRL_EXTRA_DARK:         {UNOBS: 1950, MORE_ZGOOD: 1940, MORE_ZWARN: 1940, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0
         PSF_OUT_BRIGHT:         {UNOBS: 90,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PSF_OUT_DARK:           SAME_AS_PSF_OUT_BRIGHT
         HPM_SOUM:               SAME_AS_LOW_MASS_AGN
@@ -519,9 +519,9 @@ priorities:
         DWF_DARK_HI:            SAME_AS_DWF_BRIGHT_HI
         DWF_DARK_LO:            SAME_AS_DWF_BRIGHT_LO
         UCD:                    SAME_AS_BRIGHT_HPM
-        WD_BACKUP:              SAME_AS_WD_BINARIES_BRIGHT
-        WD_BRIGHT:              SAME_AS_WD_BINARIES_BRIGHT
-        WD_DARK:                SAME_AS_WD_BINARIES_BRIGHT
+        WD_BACKUP:              {UNOBS: 1998, MORE_ZGOOD: 900,  MORE_ZWARN: 900,  DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        WD_BRIGHT:              SAME_AS_WD_BACKUP
+        WD_DARK:                SAME_AS_WD_BACKUP
         BRIGHT_TOO_LOP:         {UNOBS: 950,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BRIGHT_TOO_HIP:         {UNOBS: 9500, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
@@ -669,17 +669,28 @@ numobs:
         VETO:                   1
         UDG:                    1
         FIRST_MALS:             1
+        BROAD_STARFORM:         1
+        DESI_STRONG_LENS:       1
         QSO_RED:                4
+        QSO_RED_FAINT:          4
+        GAIAXPEMP_BACKUP:       1
+        GAIAXPEMP_BRIGHT:       1
 #       MWS_DDOGIANTS:          1
         MWS_CLUS_GAL_DEEP:      1
         LOW_MASS_AGN:           1
         FAINT_HPM:              1
+        MERIAN:                 1
+        LOW_Z_TIER0:            1
         LOW_Z_TIER1:            1
         LOW_Z_TIER2:            1
         LOW_Z_TIER3:            1
         BHB:                    1
         SPCV:                   1
         DC3R2_GAMA:             1
+        MIR_OBSCURED_AGN:       1
+        MOST_HOSTS_2024:        1
+        RRL_EXTRA_BRIGHT:       3
+        RRL_EXTRA_DARK:         3
         PSF_OUT_BRIGHT:         1
         PSF_OUT_DARK:           1
         HPM_SOUM:               1
@@ -694,6 +705,7 @@ numobs:
         Z5_QSO:                 4
         MWS_RR_LYRAE:           1
         MWS_MAIN_CLUSTER_SV:    1
+        RVREPEAT:               1
         BRIGHT_HPM:             1
         WD_BINARIES_BRIGHT:     1
         WD_BINARIES_DARK:       1
@@ -713,3 +725,8 @@ numobs:
         DWF_BRIGHT_LO:          10
         DWF_DARK_HI:            10
         DWF_DARK_LO:            10
+        UCD:                    1
+        WD_BACKUP:              10
+        WD_BRIGHT:              10
+        WD_DARK:                10
+
