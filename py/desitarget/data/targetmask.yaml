@@ -191,7 +191,7 @@ scnd_mask:
     - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",         {obsconditions: DARK,        filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.085}]
     - [MIR_OBSCURED_AGN,       21, "See $SCND_DIR/docs/MIR_OBSCURED_AGN.txt",     {obsconditions: DARK,        filename: 'MIR_OBSCURED_AGN',    flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [MOST_HOSTS_2024,        22, "See $SCND_DIR/docs/MOST_HOSTS_2024.txt",      {obsconditions: DARK,        filename: 'MOST_HOSTS_2024',     flavor: 'SPARE', updatemws: False, downsample: 0.2}]
-    - [RRL_EXTRA_BRIGHT,       23, "See $SCND_DIR/docs/RRL_EXTRA_BRIGHT.txt",     {obsconditions: BRIGHT,      filename: 'RRL_EXTRA_BRIGHT',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [RRL_EXTRA_BRIGHT,       23, "See $SCND_DIR/docs/RRL_EXTRA_BRIGHT.txt",     {obsconditions: DARK|BRIGHT, filename: 'RRL_EXTRA_BRIGHT',    flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [RRL_EXTRA_DARK,         24, "See $SCND_DIR/docs/RRL_EXTRA_DARK.txt",       {obsconditions: DARK,        filename: 'RRL_EXTRA_DARK',      flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [PSF_OUT_BRIGHT,         25, "See $SCND_DIR/docs/PSF_OUT_BRIGHT.txt",       {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT',      flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [PSF_OUT_DARK,           26, "See $SCND_DIR/docs/PSF_OUT_DARK.txt",         {obsconditions: DARK,        filename: 'PSF_OUT_DARK',        flavor: 'SPARE', updatemws: False, downsample: 1}]
@@ -466,17 +466,28 @@ priorities:
         VETO:                   {UNOBS: 0,    MORE_ZGOOD: 0,    MORE_ZWARN: 0,    DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         UDG:                    {UNOBS: 1900, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         FIRST_MALS:             {UNOBS: 1025, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BROAD_STARFORM:         {UNOBS: 1775, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        DESI_STRONG_LENS:       {UNOBS: 4000, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 100}
+        QSO_RED_FAINT:          SAME_AS_QSO_RED_FAINT
+        GAIAXPEMP_BACKUP:       {UNOBS: 1850, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        GAIAXPEMP_BRIGHT:       SAME_AS_GAIAXPEMP_BACKUP
 #       MWS_DDOGIANTS:          {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_MASS_AGN:           {UNOBS: 1025, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         FAINT_HPM:              SAME_AS_LOW_MASS_AGN
+        MERIAN:                 {UNOBS: 1750, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        LOW_Z_TIER0:            {UNOBS: 1800, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_Z_TIER1:            {UNOBS: 80,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_Z_TIER2:            {UNOBS: 70,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_Z_TIER3:            {UNOBS: 60,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BHB:                    {UNOBS: 1950, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         SPCV:                   SAME_AS_LOW_MASS_AGN
         DC3R2_GAMA:             {UNOBS: 1010, MORE_ZGOOD: 1000, MORE_ZWARN: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+	MIR_OBSCURED_AGN:       {UNOBS: 95,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+	MOST_HOSTS_2024:        SAME_AS_BHB
+	RRL_EXTRA_BRIGHT:       SAME_AS_BHB
+	RRL_EXTRA_DARK:         SAME_AS_BHB
         PSF_OUT_BRIGHT:         {UNOBS: 90,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PSF_OUT_DARK:           SAME_AS_PSF_OUT_BRIGHT
         HPM_SOUM:               SAME_AS_LOW_MASS_AGN
@@ -491,6 +502,7 @@ priorities:
         Z5_QSO:                 SAME_AS_QSO_RED
         MWS_RR_LYRAE:           {UNOBS: 1950, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_MAIN_CLUSTER_SV:    {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+	RVREPEAT:               {UNOBS: 1525, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BRIGHT_HPM:             SAME_AS_STRONG_LENS
         WD_BINARIES_BRIGHT:     {UNOBS: 1998, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         WD_BINARIES_DARK:       {UNOBS: 1998, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -506,6 +518,10 @@ priorities:
         DWF_BRIGHT_LO:          {UNOBS: 1980, MORE_ZGOOD: 1960, MORE_ZWARN: 1960, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DWF_DARK_HI:            SAME_AS_DWF_BRIGHT_HI
         DWF_DARK_LO:            SAME_AS_DWF_BRIGHT_LO
+        UCD:                    SAME_AS_BRIGHT_HPM
+        WD_BACKUP:              SAME_AS_WD_BINARIES_BRIGHT
+        WD_BRIGHT:              SAME_AS_WD_BINARIES_BRIGHT
+        WD_DARK:                SAME_AS_WD_BINARIES_BRIGHT
         BRIGHT_TOO_LOP:         {UNOBS: 950,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BRIGHT_TOO_HIP:         {UNOBS: 9500, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
