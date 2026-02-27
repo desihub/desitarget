@@ -75,7 +75,7 @@ hdr["maskdir"] = mdcomp
 
 # ADM write out the secondary targets, with bright-time
 # ADM and dark-time targets written separately.
-obscons = ["BRIGHT", "DARK"]
+obscons = ["BACKUP", "BRIGHT", "DARK"]
 for obscon in obscons:
     ntargs, outfile = io.write_secondary(
         ns.dest, scx[~in_mask], primhdr=hdr, scxdir=scxdir,
