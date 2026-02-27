@@ -177,6 +177,7 @@ scnd_mask:
     - [QSO_RED_FAINT,           6, "See $SCND_DIR/docs/QSO_RED_FAINT.ipynb",      {obsconditions: DARK,        filename: 'QSO_RED_FAINT',       flavor: 'QSO',   updatemws: False, downsample: 1}]
     - [GAIAXPEMP_BACKUP,        7, "See $SCND_DIR/docs/GAIAXPEMP_BACKUP.txt",     {obsconditions: BACKUP,      filename: 'GAIAXPEMP_BACKUP',    flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [GAIAXPEMP_BRIGHT,        8, "See $SCND_DIR/docs/GAIAXPEMP_BRIGHT.txt",     {obsconditions: BRIGHT,      filename: 'GAIAXPEMP_BRIGHT',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [BGS_EXT,                 9, "See $SCND_DIR/docs/BGS_EXT.ipynb",            {obsconditions: DARK,        filename: 'BGS_EXT',             flavor: 'SPARE', updatemws: False, downsample: 1}] 
 #   - [MWS_DDOGIANTS,           9, "See $SCND_DIR",                               {obsconditions: BRIGHT,      filename: 'MWS_DDOGIANTS',       flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [MWS_CLUS_GAL_DEEP,      10, "See $SCND_DIR/docs/MWS_CLUS_GAL_DEEP.txt",    {obsconditions: DARK,        filename: 'MWS_CLUS_GAL_DEEP',   flavor: 'SPARE', updatemws: False, downsample: 1}]
     - [LOW_MASS_AGN,           11, "See $SCND_DIR/docs/LOW_MASS_AGN.txt",         {obsconditions: DARK,        filename: 'LOW_MASS_AGN',        flavor: 'SPARE', updatemws: False, downsample: 1}]
@@ -472,6 +473,7 @@ priorities:
         QSO_RED_FAINT:          SAME_AS_QSO_RED_FAINT
         GAIAXPEMP_BACKUP:       {UNOBS: 1850, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         GAIAXPEMP_BRIGHT:       SAME_AS_GAIAXPEMP_BACKUP
+        BGS_EXT:                {UNOBS: 85,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 #       MWS_DDOGIANTS:          {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_MASS_AGN:           {UNOBS: 1025, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -675,6 +677,7 @@ numobs:
         QSO_RED_FAINT:          4
         GAIAXPEMP_BACKUP:       1
         GAIAXPEMP_BRIGHT:       1
+        BGS_EXT:                1
 #       MWS_DDOGIANTS:          1
         MWS_CLUS_GAL_DEEP:      1
         LOW_MASS_AGN:           1
