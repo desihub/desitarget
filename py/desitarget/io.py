@@ -90,14 +90,14 @@ dr10replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
 
 # ADM columns that have updated dtypes in the DR11 data model.
 dr11replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
-                   ('LC_FLUX_W1', '>f4', (15,)): ('LC_FLUX_W1', '>f4', (19,)),
-                   ('LC_FLUX_W2', '>f4', (15,)): ('LC_FLUX_W2', '>f4', (19,)),
-                   ('LC_FLUX_IVAR_W1', '>f4', (15,)): ('LC_FLUX_IVAR_W1', '>f4', (19,)),
-                   ('LC_FLUX_IVAR_W2', '>f4', (15,)): ('LC_FLUX_IVAR_W2', '>f4', (19,)),
-                   ('LC_NOBS_W1', '>i2', (15,)): ('LC_NOBS_W1', '>i2', (19,)),
-                   ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (19,)),
-                   ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (19,)),
-                   ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (19,))}
+                   ('LC_FLUX_W1', '>f4', (15,)): ('LC_FLUX_W1', '>f4', (25,)),
+                   ('LC_FLUX_W2', '>f4', (15,)): ('LC_FLUX_W2', '>f4', (25,)),
+                   ('LC_FLUX_IVAR_W1', '>f4', (15,)): ('LC_FLUX_IVAR_W1', '>f4', (25,)),
+                   ('LC_FLUX_IVAR_W2', '>f4', (15,)): ('LC_FLUX_IVAR_W2', '>f4', (25,)),
+                   ('LC_NOBS_W1', '>i2', (15,)): ('LC_NOBS_W1', '>i2', (25,)),
+                   ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (25,)),
+                   ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (25,)),
+                   ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (25,))}
 
 
 # ADM columns that are new for the DR9 data model.
