@@ -310,7 +310,7 @@ def release_to_photsys(release):
 
     Parameters
     ----------
-    objects : :class:`int` or :class:`~numpy.ndarray`
+    release : :class:`int` or :class:`~numpy.ndarray`
         RELEASE column from a numpy rec array of targets.
 
     Returns
