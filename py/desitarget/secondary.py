@@ -526,8 +526,15 @@ def read_files(scxdir, scnd_mask, subset=False):
 
             # ADM otherwise it's a fits file, read it in.
             else:
-                scxin = fitsio.read(fn+'.fits',
-                                    columns=indatamodel.dtype.names)
+                # ADM allow updated data model but fall back to old one.
+                try:
+                    scxin = fitsio.read(fn+'.fits',
+                                        columns=newindatamodel.dtype.names)
+                    indatamodel = newindatamodel
+                except ValueError:
+                    log.info(f"Using old data model for {fn}")
+                    scxin = fitsio.read(fn+'.fits',
+                                        columns=indatamodel.dtype.names)
 
             # ADM ensure this is a properly constructed numpy array.
             scxin = np.atleast_1d(scxin)
@@ -560,9 +567,11 @@ def read_files(scxdir, scnd_mask, subset=False):
 
             # ADM add the other output columns.
             dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
+            dtnom = [row[0] for row in dt]
             scxout = np.zeros(len(scxin), dtype=dt)
             for col in indatamodel.dtype.names:
-                scxout[col] = scxin[col]
+                if col in dtnom:
+                    scxout[col] = scxin[col]
             scxout["SCND_TARGET"] = scnd_mask[name]
             scxout["SCND_TARGET_INIT"] = scnd_mask[name]
             scxout["SCND_ORDER"] = np.arange(len(scxin))
