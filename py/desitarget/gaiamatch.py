@@ -134,6 +134,12 @@ dr3datamodel = np.array([], dtype=[
     ('DR3_PMDEC', '>f4'), ('DR3_PMDEC_IVAR', '>f4')
 ])
 
+dr3datamodellight = np.array([], dtype=[
+    ('SOURCE_ID', '>i8'), ('REF_EPOCH', '>f4'), ('RA', '>f8'), ('DEC', '>f8'),
+    ('PMRA', '>f4'), ('PMDEC', '>f4'), ('PHOT_G_MEAN_MAG', '>f4'),
+    ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_MAG', '>f4')
+])
+
 # ADM the data model for reading ALL columns from Gaia DR3 files.
 indr3datamodelfull = np.array([], dtype=[
     ('SOLUTION_ID', '>i8'), ('DESIGNATION', '<U26'), ('SOURCE_ID', '>i8'),
@@ -554,6 +560,112 @@ def gaia_dr_from_ref_cat(refcat):
         return np.array([int(i[-1]) for i in refcat])
 
     return gaiadr
+
+
+def make_gaia_light_dr3(numproc=32):
+    """Make lightweight versions of the Gaia DR3 HEALPixel files.
+
+    Parameters
+    ----------
+    numproc : :class:`int`, optional, defaults to 32
+        The number of parallel processes to use.
+
+    Returns
+    -------
+    Nothing
+        But the lightweight files are written to
+        $GAIA_DIR/../gaia_dr3/lightweight.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+        - The lightweight files only contain objects brighter than 16th
+          mag in G, BP, or RP and are most useful to mask bright objects.
+        - The lightweight files only contain the columns:
+              SOURCE_ID, REF_EPOCH, RA, DEC, PMRA, PMDEC,
+              PHOT_G_MEAN_MAG, PHOT_RP_MEAN_MAG, PHOT_G_MEAN_MAG
+    """
+    t0 = time()
+
+    # ADM the resolution at which the Gaia HEALPix files should be stored.
+    nside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set.
+    dr = "dr3"
+    gaiadir = get_gaia_dir(dr)
+
+    # ADM construct the directories for reading/writing files.
+    hpxdir = os.path.join(gaiadir, 'healpix')
+    lwdir = os.path.join(gaiadir, 'lightweight')
+
+    # ADM make sure the output directory is empty.
+    if os.path.exists(lwdir):
+        if len(os.listdir(lwdir)) > 0:
+            msg = f"{lwdir} should be empty to make Gaia lightweight files!"
+            log.critical(msg)
+            raise ValueError(msg)
+    # ADM make the output directory, if needed.
+    else:
+        log.info('Making Gaia directory for storing HEALPix files')
+        os.makedirs(lwdir)
+
+    # ADM construct the list of input files.
+    infiles = sorted(glob(f"{hpxdir}/healpix*fits"))
+    nfiles = len(infiles)
+
+    # ADM the critical function to run on every file.
+    def _write_gaia_fits(infile):
+        """read name for healpix file and make the lightweight version"""
+        infilename = os.path.basename(infile)
+        outfilename = f"lightweight-{infilename}"
+        outfile = os.path.join(lwdir, outfilename)
+        inobjs = fitsio.read(infile)
+
+        # ADM construct and write the lightweight versions.
+        done = np.zeros(len(inobjs), dtype = dr3datamodellight.dtype)
+        for col in done.dtype.names:
+            done[col] = inobjs[col]
+
+        maglim = 16
+        bright = np.zeros(len(done), dtype="bool")
+        for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"]:
+            bright |= (done[col] != 0) & (done[col] < maglim)
+
+        fitsio.write(outfile, done[bright], extname="GAIAFITS")
+
+        return
+
+    # ADM this is just to count processed files in _update_status.
+    nfile = np.zeros((), dtype='i8')
+    t0 = time()
+    stepper = nfiles//600
+
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        if nfile % stepper == 0 and nfile > 0:
+            rate = nfile / (time() - t0)
+            elapse = time() - t0
+            log.info(
+                f"{nfile}/{nfiles} files; {rate:.1f} files/sec; {elapse/60.:.1f}"
+                + " total mins elapsed"
+            )
+        nfile[...] += 1    # this is an in-place modification
+        return result
+
+    # - Parallel process input files...
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            pool.map(_write_gaia_fits, infiles, reduce=_update_status)
+    # ADM ...or run in serial.
+    else:
+        for fn in infiles:
+            _update_status(_write_gaia_fits(fn))
+
+    log.info(f"Done...t={time()-t0:.1f}s")
+
+    return
 
 
 def scrape_gaia(dr="dr2", nfiletest=None):
@@ -1489,8 +1601,8 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
 
 
 def match_gaia_to_primary_post_dr3_quick(objs, matchrad=0.2, dr="dr3",
-                                         maglim=None, nside=None):
-    """Typically quicker version of match_gaia_to_primary_post_dr3().
+                                         maglim=None, nside=None, verbose=False):
+    """Version of match_gaia_to_primary_post_dr3() that might be quicker.
 
     Parameters
     ----------
@@ -1504,10 +1616,15 @@ def match_gaia_to_primary_post_dr3_quick(objs, matchrad=0.2, dr="dr3",
     maglim : :class:`float`, optional
         Only return Gaia objects brighter than maglim in any Gaia band.
         Speed-up that also saves memory when matching to bright objects.
-   nside : :class:`int`, optional
+        Objects for which there aren't matches will be returned with all
+        zero/null quantities.
+    nside : :class:`int`, optional
         The HEALPixel nside number used to sort and organize the match. Defaults
         to half the resolution of _get_gaia_nside() as the Gaia files are read
         at the _get_gaia_nside() resolution ((NESTED scheme).
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True``, log progress messages to screen.
+
     Returns
     -------
     :class:`~numpy.ndarray`
@@ -1541,12 +1658,15 @@ def match_gaia_to_primary_post_dr3_quick(objs, matchrad=0.2, dr="dr3",
     gaiainfo = np.zeros(len(objs), dtype=dr3datamodelfull.dtype)
 
     # ADM loop through the pixels and determine the matches.
-    for pix in allpix:
+    t0 = time()
+    for icnt, pix in enumerate(allpix):
         inpix = hpx == pix
         gi = match_gaia_to_primary_post_dr3(objs[inpix], matchrad=matchrad,
                                             dr=dr, maglim=maglim)
         # ADM populate the output array, retaining original order.
-        gaiainfo[tracker[inpix]] == gi
+        gaiainfo[tracker[inpix]] = gi
+        if icnt % 10 == 0 and verbose:
+            log.info(f"Done {icnt+1}/{len(allpix)}...t={time()-t0:.1f}s")
 
     return gaiainfo
 

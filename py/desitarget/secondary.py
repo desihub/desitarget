@@ -57,7 +57,7 @@ from desitarget.internal import sharedmem
 from desitarget.io import find_target_files
 from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp, \
     rewind_coords
-from desitarget.gaiamatch import gaiadatamodel, match_gaia_to_primary_post_dr3
+from desitarget.gaiamatch import gaiadatamodel, match_gaia_to_primary_post_dr3, match_gaia_to_primary_post_dr3_quick
 from desitarget.targets import encode_targetid, main_cmx_or_sv, resolve
 from desitarget.targets import set_obsconditions, initial_priority_numobs
 from desitarget.targetmask import obsconditions
@@ -147,7 +147,7 @@ def too_bright(objs, matchrad=5.):
     - The environment variable $GAIA_DIR must be set.
     """
     # ADM The match_gaia_to_primary_post_dr3 code assumes epoch 2015.5.
-    gaiaepoch = 2015.15
+    gaiaepoch = 2015.5
     # ADM to hold the matching coordinates at the gaiaepoch
     matcher = np.zeros(len(objs), dtype=[('RA', '>f8'), ('DEC', '>f8')])
 
@@ -162,14 +162,14 @@ def too_bright(objs, matchrad=5.):
 
     # ADM match to Gaia DR3 at 5" radius.
     gobjs = match_gaia_to_primary_post_dr3(matcher, matchrad=matchrad, dr="dr3")
-
+#    gobjs = match_gaia_to_primary_post_dr3_quick(matcher, matchrad=mathchrad,
+#                                                 dr="dr3", maglim=16)
     # ADM never let standalone secondaries be brighter than maglim.
     maglim = 16
     fluxlim = 10**((22.5-maglim)/2.5)
     # ADM find any standalone secondary that is too bright in any band.
     toobright = np.zeros(len(objs), dtype="bool")
-    for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
-                "GAIA_PHOT_RP_MEAN_MAG"]:
+    for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"]:
         toobright |= (gobjs[col] != 0) & (gobjs[col] < maglim)
     for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
         toobright |= (objs[col] != 0) & (objs[col] > fluxlim)
