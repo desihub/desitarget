@@ -116,7 +116,7 @@ suppdatamodel = np.array([], dtype=[
 ])
 
 
-def too_bright(objs, matchrad=5.):
+def too_bright(objs, matchrad=3.):
     """Check if secondary targets are too bright for DESI to observe.
 
     Parameters
@@ -133,7 +133,7 @@ def too_bright(objs, matchrad=5.):
         FLUX_G, FLUX_R, FLUX_Z
             Legacy Surveys fluxes, or similar. Can be set to zero or a
             very low number for missing values.
-    matchrad : :class:`float`, optional, defaults to 5 arcsec
+    matchrad : :class:`float`, optional, defaults to 3 arcsec
         The matching radius around very bright stars in arcseconds.
 
     Returns
@@ -160,10 +160,11 @@ def too_bright(objs, matchrad=5.):
     matcher["RA"] = newra
     matcher["DEC"] = newdec
 
-    # ADM match to Gaia DR3 at 5" radius.
-    gobjs = match_gaia_to_primary_post_dr3(matcher, matchrad=matchrad, dr="dr3")
-#    gobjs = match_gaia_to_primary_post_dr3_quick(matcher, matchrad=mathchrad,
-#                                                 dr="dr3", maglim=16)
+    # ADM match to Gaia DR3 at radius of matchrad.
+    gobjs = match_gaia_to_primary_post_dr3_quick(
+        matcher, matchrad=matchrad, dr="dr3", maglim=16, lightweight=True,
+        verbose=True)
+
     # ADM never let standalone secondaries be brighter than maglim.
     maglim = 16
     fluxlim = 10**((22.5-maglim)/2.5)
