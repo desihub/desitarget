@@ -2199,7 +2199,8 @@ def _prepare_gaia(objects, colnames=None):
         # ADM the same outcome more explicitly without a warning.
         if np.ma.is_masked(refcat):
             refcat = np.array([np.nan])
-        refcat = np.array([refcat, ])
+        else:
+            refcat = np.array([refcat, ])
     if "REF_CAT" in colnames:
         gaia = (refcat == b'G2') | (refcat == 'G2')
         # ADM as of DR10, we use Gaia EDR3 rather than DR2.
