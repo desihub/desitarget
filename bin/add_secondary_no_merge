@@ -37,6 +37,9 @@ ap.add_argument("--maskdir",
 ap.add_argument("--overlybright", action='store_true',
                 help="Run an additional, more rigorous, check that none of    \
                 the targets are near bright Gaia stars")
+ap.add_argument("--matchrad", type=float, default=3.,
+                help="Match radius around bright stars when using overlybright \
+                [defaults to 3 for 3 arcsec]")
 
 ns = ap.parse_args()
 do_mask = not(ns.nomasking)
@@ -76,6 +79,7 @@ if do_mask:
 hdr["masked"] = do_mask
 hdr["maskdir"] = mdcomp
 hdr["toobrite"] = ns.overlybright
+hdr["matchrad"] = ns.matchrad
 
 # ADM write out the secondary targets, with bright-time
 # ADM and dark-time targets written separately.
@@ -84,6 +88,8 @@ obscons = ["BACKUP", "BRIGHT", "DARK"]
 for obscon in obscons:
     ntargs, outfile = io.write_secondary(
         ns.dest, scx[~in_mask], primhdr=hdr, scxdir=scxdir, obscon=obscon,
-        drint=ns.drint, iteration=ns.iteration, overlybright=ns.overlybright)
+        drint=ns.drint, iteration=ns.iteration,
+        overlybright=ns.overlybright, matchrad=ns.matchrad
+    )
     log.info('{} standalone secondary targets written to {}...t={:.1f}mins'
              .format(ntargs, outfile, (time()-time0)/60.))

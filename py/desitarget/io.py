@@ -991,7 +991,7 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
                     drint='X', subpriority=True, iteration=None,
-                    overlybright=False):
+                    overlybright=False, matchrad=3.):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -1029,7 +1029,9 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         `SUBPRIORITY` is also augmented by adding `iteration` to it.
     overlybright : :class:`bool`, optional, defaults to ``False``
         If ``True`` then run an additional, more rigorous, check that no
-        targets are near bright Gaia stars.
+        targets are near bright (maglim < 16) Gaia stars.
+    matchrad : :class:`float`, optional, defaults to 3 arcsec
+        The match radius around bright stars when using `overlybright`.
 
     Returns
     -------
@@ -1168,7 +1170,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
             toobright |= (data[col] != 0) & (data[col] > fluxlim)
         from desitarget.secondary import too_bright
         log.info(f"Pre Gaia match found {np.sum(toobright)} too-bright targets")
-        toobright |= too_bright(data)
+        toobright |= too_bright(data, matchrad=matchrad)
         log.info(f"Post Gaia match found {np.sum(toobright)} too-bright targets")
     else:
         log.info(f"Observing conditions are {obscon}, assuming never too bright")
