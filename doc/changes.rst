@@ -6,7 +6,7 @@ desitarget Change Log
 ------------------
 
 * Circumvent warnings when running with Python >3.12 [`PR #870`_].
-    * Addresses `issue #865`_ and `issue #866`_.
+    * Should address `issue #865`_ and `issue #866`_.
 
 .. _`issue #865`: https://github.com/desihub/desitarget/issues/865
 .. _`issue #866`: https://github.com/desihub/desitarget/issues/866
