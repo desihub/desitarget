@@ -5,7 +5,12 @@ desitarget Change Log
 4.6.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Circumvent warnings when running with Python >3.12 [`PR #870`_].
+    * Should address `issue #865`_ and `issue #866`_.
+
+.. _`issue #865`: https://github.com/desihub/desitarget/issues/865
+.. _`issue #866`: https://github.com/desihub/desitarget/issues/866
+.. _`PR #870`: https://github.com/desihub/desitarget/pull/870
 
 4.6.0 (2026-01-30)
 ------------------

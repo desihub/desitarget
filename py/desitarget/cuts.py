@@ -2085,10 +2085,11 @@ def _prepare_optical_wise(objects, mask=True):
     # ADM flag whether we're using northen (BASS/MZLS) or
     # ADM southern (DECaLS) photometry.
     photsys_north = _isonnorthphotsys(objects["PHOTSYS"])
-    photsys_south = ~photsys_north
-    # ADM catch case where single object or row is passed.
+    # ADM make sure to catch the case of a single object or row.
     if isinstance(photsys_north, bool):
         photsys_south = not(photsys_north)
+    else:
+        photsys_south = ~photsys_north
 
     # ADM the observed r-band flux (used for F standards and MWS, below).
     # ADM make copies of values that we may reassign due to NaNs.
@@ -2192,7 +2193,14 @@ def _prepare_gaia(objects, colnames=None):
     gaia = objects['REF_ID'] > 0
     refcat = objects['REF_CAT']
     if _is_row(objects):
-        refcat = np.array([refcat, ])
+        # ADM A single-element masked array is converted to array([nan])
+        # ADM by np.array([]), which is fine for our purposes, but as of
+        # ADM Python 3.12 this triggers a warning. This workaround gets
+        # ADM the same outcome more explicitly without a warning.
+        if np.ma.is_masked(refcat):
+            refcat = np.array([np.nan])
+        else:
+            refcat = np.array([refcat, ])
     if "REF_CAT" in colnames:
         gaia = (refcat == b'G2') | (refcat == 'G2')
         # ADM as of DR10, we use Gaia EDR3 rather than DR2.
