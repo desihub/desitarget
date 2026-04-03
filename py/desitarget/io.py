@@ -1176,7 +1176,7 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         log.info(f"Observing conditions are {obscon}, assuming never too bright")
 
     # ADM just targets to be observed in "standard" conditions.
-    standardoc = "DARK|BRIGHT|BACKUP"
+    standardoc = "DARK|BRIGHT|BACKUP|DARK1B|BRIGHT1B"
     instandardoc = data["OBSCONDITIONS"] & obsconditions.mask(standardoc) != 0
 
     # ADM write out standalone secondaries that aren't too bright and

@@ -81,9 +81,9 @@ hdr["maskdir"] = mdcomp
 hdr["toobrite"] = ns.overlybright
 hdr["matchrad"] = ns.matchrad
 
-# ADM write out the secondary targets, with bright-time
-# ADM and dark-time targets written separately.
-obscons = ["BACKUP", "BRIGHT", "DARK"]
+# ADM write out the secondary targets, with targets from
+# ADM different programs written separately.
+obscons = ["BACKUP", "BRIGHT", "DARK", "BRIGHT1B", "DARK1B"]
 
 for obscon in obscons:
     ntargs, outfile = io.write_secondary(
