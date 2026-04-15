@@ -11,6 +11,8 @@ desitarget Change Log
     * Add `DARK` and `BRIGHT` targets for the new DR11 imaging area.
         * Likely include by adding `1B` targets to `DARK`/`BRIGHT` tiles.
 	* See related `fiberassign` `issue #503`_.
+    * Facilitate running the MTL loop for secondary 1B targets.
+        * Notably if we've already observed corresponding primary tiles.
     * Also includes new routines to make "lightweight" Gaia files.
         * These files can be used for fast matching to bright stars.
         * Routines to read and match to the lightweight files also added.
