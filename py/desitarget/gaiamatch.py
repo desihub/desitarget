@@ -134,6 +134,12 @@ dr3datamodel = np.array([], dtype=[
     ('DR3_PMDEC', '>f4'), ('DR3_PMDEC_IVAR', '>f4')
 ])
 
+dr3datamodellight = np.array([], dtype=[
+    ('SOURCE_ID', '>i8'), ('REF_EPOCH', '>f4'), ('RA', '>f8'), ('DEC', '>f8'),
+    ('PMRA', '>f4'), ('PMDEC', '>f4'), ('PHOT_G_MEAN_MAG', '>f4'),
+    ('PHOT_BP_MEAN_MAG', '>f4'), ('PHOT_RP_MEAN_MAG', '>f4')
+])
+
 # ADM the data model for reading ALL columns from Gaia DR3 files.
 indr3datamodelfull = np.array([], dtype=[
     ('SOLUTION_ID', '>i8'), ('DESIGNATION', '<U26'), ('SOURCE_ID', '>i8'),
@@ -554,6 +560,112 @@ def gaia_dr_from_ref_cat(refcat):
         return np.array([int(i[-1]) for i in refcat])
 
     return gaiadr
+
+
+def make_gaia_light_dr3(numproc=128):
+    """Make lightweight versions of the Gaia DR3 HEALPixel files.
+
+    Parameters
+    ----------
+    numproc : :class:`int`, optional, defaults to 128
+        The number of parallel processes to use.
+
+    Returns
+    -------
+    Nothing
+        But the lightweight version of the healpix files are written to
+        $GAIA_DIR/../gaia_dr3/lightweight.
+
+    Notes
+    -----
+        - The environment variable $GAIA_DIR must be set.
+        - The lightweight files only contain objects brighter than 16th
+          mag in G, BP, or RP and are most useful to mask bright objects.
+        - The lightweight files only contain the columns:
+              SOURCE_ID, REF_EPOCH, RA, DEC, PMRA, PMDEC,
+              PHOT_G_MEAN_MAG, PHOT_RP_MEAN_MAG, PHOT_G_MEAN_MAG
+        - Runs in about 5 minutes with numproc=128.
+    """
+    t0 = time()
+
+    # ADM the resolution at which the Gaia HEALPix files should be stored.
+    nside = _get_gaia_nside()
+
+    # ADM check that the GAIA_DIR is set.
+    dr = "dr3"
+    gaiadir = get_gaia_dir(dr)
+
+    # ADM construct the directories for reading/writing files.
+    hpxdir = os.path.join(gaiadir, 'healpix')
+    lwdir = os.path.join(gaiadir, 'lightweight')
+
+    # ADM make sure the output directory is empty.
+    if os.path.exists(lwdir):
+        if len(os.listdir(lwdir)) > 0:
+            msg = f"{lwdir} should be empty to make Gaia lightweight files!"
+            log.critical(msg)
+            raise ValueError(msg)
+    # ADM make the output directory, if needed.
+    else:
+        log.info('Making Gaia directory for storing HEALPix files')
+        os.makedirs(lwdir)
+
+    # ADM construct the list of input files.
+    infiles = sorted(glob(f"{hpxdir}/healpix*fits"))
+    nfiles = len(infiles)
+
+    # ADM the critical function to run on every file.
+    def _write_gaia_fits(infile):
+        """read name for healpix file and make the lightweight version"""
+        outfilename = os.path.basename(infile)
+        outfile = os.path.join(lwdir, outfilename)
+        inobjs = fitsio.read(infile)
+
+        # ADM construct and write the lightweight versions.
+        done = np.zeros(len(inobjs), dtype = dr3datamodellight.dtype)
+        for col in done.dtype.names:
+            done[col] = inobjs[col]
+
+        maglim = 16
+        bright = np.zeros(len(done), dtype="bool")
+        for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"]:
+            bright |= (done[col] != 0) & (done[col] < maglim)
+
+        fitsio.write(outfile, done[bright], extname="GAIAFITS")
+
+        return
+
+    # ADM this is just to count processed files in _update_status.
+    nfile = np.zeros((), dtype='i8')
+    t0 = time()
+    stepper = nfiles//600
+
+    def _update_status(result):
+        """wrapper function for the critical reduction operation,
+        that occurs on the main parallel process"""
+        if nfile % stepper == 0 and nfile > 0:
+            rate = nfile / (time() - t0)
+            elapse = time() - t0
+            log.info(
+                f"{nfile}/{nfiles} files; {rate:.1f} files/sec; {elapse/60.:.1f}"
+                + " total mins elapsed"
+            )
+        nfile[...] += 1    # this is an in-place modification
+        return result
+
+    # - Parallel process input files...
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            pool.map(_write_gaia_fits, infiles, reduce=_update_status)
+    # ADM ...or run in serial.
+    else:
+        for fn in infiles:
+            _update_status(_write_gaia_fits(fn))
+
+    log.info(f"Done...t={time()-t0:.1f}s")
+
+    return
 
 
 def scrape_gaia(dr="dr2", nfiletest=None):
@@ -1131,7 +1243,8 @@ def pop_gaia_columns(inarr, popcols):
     return rfn.drop_fields(inarr, popcols)
 
 
-def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
+def read_gaia_file(filename, header=False, addobjid=False, dr="dr2",
+                   lightweight=False):
     """Read in a Gaia healpix file in the appropriate format for desitarget.
 
     Parameters
@@ -1148,6 +1261,11 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
     dr : :class:`str`, optional, defaults to "dr2"
         Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
         Used to format the output data model.
+    lightweight : :class:`bool`, optional, defaults to ``False``
+        If ``True`` search for and use the "lightweight" version of the
+        Gaia files made by, e.g., :func:`make_gaia_light_dr3()`. These
+        only contain Gaia objects brighter than 16th mag so are speedier
+        for discarding objects near bright sources.
 
     Returns
     -------
@@ -1205,20 +1323,25 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
     # ADM hard to maintain. Instead try to pass Gaia DR in file headers.
     else:
         readcolumns = list(indr3datamodelfull.dtype.names)
+        if lightweight:
+            readcolumns = list(dr3datamodellight.dtype.names)
         outdata = fx[1].read(columns=readcolumns)
         # ADM basic check for mismatched files.
-        if 'G2' in outdata["REF_CAT"] or 'G3' in outdata["REF_CAT"]:
-            msg = "{} is a dr2/edr3 file, but dr set to {}".format(filename, dr)
-            log.error(msg)
-            raise ValueError(msg)
+        if not lightweight:
+            if 'G2' in outdata["REF_CAT"] or 'G3' in outdata["REF_CAT"]:
+                msg = f"{filename} is a dr2/edr3 file, but dr set to {dr}"
+                log.error(msg)
+                raise ValueError(msg)
         # ADM the output data model.
-        outdata.dtype.names = dr3datamodelfull.dtype.names
+        if not lightweight:
+            outdata.dtype.names = dr3datamodelfull.dtype.names
         # ADM some of the ERRORS need to be converted to IVARs.
         # ADM remember to leave 0 entries as 0.
-        for col in ['RA_IVAR', 'DEC_IVAR',
-                    'PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
-            w = np.where(outdata[col] != 0)[0]
-            outdata[col][w] = 1./(outdata[col][w]**2.)
+        if not lightweight:
+            for col in ['RA_IVAR', 'DEC_IVAR',
+                        'PMRA_IVAR', 'PMDEC_IVAR', 'PARALLAX_IVAR']:
+                w = np.where(outdata[col] != 0)[0]
+                outdata[col][w] = 1./(outdata[col][w]**2.)
 
     # ADM if requested, add an object identifier for each file row.
     if addobjid:
@@ -1250,7 +1373,8 @@ def read_gaia_file(filename, header=False, addobjid=False, dr="dr2"):
         return outdata
 
 
-def find_gaia_files(objs, neighbors=True, radec=False, dr="dr2"):
+def find_gaia_files(objs, neighbors=True, radec=False, dr="dr2",
+                    lightweight=False):
     """Find full paths to Gaia healpix files for objects by RA/Dec.
 
     Parameters
@@ -1266,6 +1390,11 @@ def find_gaia_files(objs, neighbors=True, radec=False, dr="dr2"):
         a rec array.
     dr : :class:`str`, optional, defaults to "dr2"
         Name of a Gaia data release. Options are "dr2", "edr3", "dr3".
+    lightweight : :class:`bool`, optional, defaults to ``False``
+        If ``True`` search for and use the "lightweight" version of the
+        Gaia files made by, e.g., :func:`make_gaia_light_dr3()`. These
+        only contain Gaia objects brighter than 16th mag so are speedier
+        for discarding objects near bright sources.
 
     Returns
     -------
@@ -1283,6 +1412,10 @@ def find_gaia_files(objs, neighbors=True, radec=False, dr="dr2"):
     # ADM check that the GAIA_DIR is set and retrieve it.
     gaiadir = get_gaia_dir(dr)
     hpxdir = os.path.join(gaiadir, 'healpix')
+
+    # ADM look for the lightweight version of the healpix files instead.
+    if lightweight:
+        hpxdir = os.path.join(gaiadir, 'lightweight')
 
     return io.find_star_files(objs, hpxdir, nside,
                               neighbors=neighbors, radec=radec)
@@ -1488,7 +1621,90 @@ def find_gaia_files_tiles(tiles=None, neighbors=True, dr="dr2"):
     return gaiafiles
 
 
-def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
+def match_gaia_to_primary_post_dr3_quick(objs, matchrad=0.2, dr="dr3",
+                                         maglim=None, nside=None,
+                                         lightweight=False, verbose=False):
+    """Version of match_gaia_to_primary_post_dr3() that might be quicker.
+
+    Parameters
+    ----------
+    objs : :class:`~numpy.ndarray`
+        Must contain at least "RA", "DEC". ASSUMED TO BE AT A REFERENCE
+        EPOCH OF 2015.5 and EQUINOX J2000/ICRS.
+    matchrad : :class:`float`, optional, defaults to 0.2 arcsec
+        The matching radius in arcseconds.
+    dr : :class:`str`, optional, defaults to "dr3"
+        Name of a Gaia data release. Specifies which REF_EPOCH to use.
+    maglim : :class:`float`, optional
+        Only return Gaia objects brighter than maglim in any Gaia band.
+        Speed-up that also saves memory when matching to bright objects.
+        Objects for which there aren't matches will be returned with all
+        zero/null quantities.
+    nside : :class:`int`, optional
+        The HEALPixel nside number used to organize the match. Defaults
+        to a sixteenth of the resolution of the _get_gaia_nside() used to
+        read Gaia files, which seems quick for lightweight=True.
+    lightweight : :class:`bool`, optional, defaults to ``False``
+        If ``True`` search for and use the "lightweight" version of the
+        Gaia files made by, e.g., :func:`make_gaia_light_dr3()`. These
+        only contain Gaia objects brighter than 16th mag so are speedier
+        for discarding objects near bright sources.
+    verbose : :class:`bool`, optional, defaults to ``False``
+        If ``True``, log progress messages to screen.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Gaia information for each matching object, in a format like
+        `dr3datamodelfull`.
+
+    Notes
+    -----
+        - Returned objects correspond row-by-row to `objs`.
+        - For objects that do NOT have a match in Gaia, the "REF_ID"
+          column is set to -1, and all other columns are zero.
+        - Passing maglim might return different objects as well as
+          speeding up the code. This is because matches will only be
+          performed to brighter objects and their could be a bright
+          object in the match radius farther away than a fainter object.
+    """
+    if nside is None:
+        # ADM the next-but-three-biggest resolution compared to the nside
+        # ADM at which the Gaia HEALPix files are stored.
+        nside = _get_gaia_nside()//16
+
+    # ADM the HEALPixel occupied by each catalog object.
+    hpx = hp.ang2pix(nside, objs["RA"], objs["DEC"], lonlat=True, nest=True)
+    # ADM the enture set of relevant HEALPixels.
+    allpix = sorted(set(hpx))
+
+    # ADM include a tracker to retain the input catalog order.
+    tracker = np.arange(len(objs))
+
+    # ADM set up the output array for Gaia information.
+    gaiainfo = np.zeros(len(objs), dtype=dr3datamodelfull.dtype)
+    if lightweight:
+        gaiainfo = np.zeros(len(objs), dtype=dr3datamodellight.dtype)
+
+    # ADM loop through the pixels and determine the matches.
+    t0 = time()
+    for icnt, pix in enumerate(allpix):
+        inpix = hpx == pix
+        gi = match_gaia_to_primary_post_dr3(
+            objs[inpix], matchrad=matchrad, dr=dr, maglim=maglim,
+            lightweight=lightweight
+        )
+        # ADM populate the output array, retaining original order.
+        gaiainfo[tracker[inpix]] = gi
+        step = len(allpix) // 10
+        if icnt % step == 0 and verbose:
+            log.info(f"Done {icnt}/{len(allpix)}...t={time()-t0:.1f}s")
+
+    return gaiainfo
+
+
+def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3", maglim=None,
+                                   lightweight=False):
     """Match objects to Gaia healpix files starting with Gaia DR3.
 
     Parameters
@@ -1500,6 +1716,14 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
         The matching radius in arcseconds.
     dr : :class:`str`, optional, defaults to "dr3"
         Name of a Gaia data release. Specifies which REF_EPOCH to use.
+    maglim : :class:`float`, optional
+        Only return Gaia objects brighter than maglim in any Gaia band.
+        Speed-up that also saves memory when matching to bright objects.
+    lightweight : :class:`bool`, optional, defaults to ``False``
+        If ``True`` search for and use the "lightweight" version of the
+        Gaia files made by, e.g., :func:`make_gaia_light_dr3()`. These
+        only contain Gaia objects brighter than 16th mag so are speedier
+        for discarding objects near bright sources.
 
     Returns
     -------
@@ -1516,6 +1740,10 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
           in Gaia that were discovered after running Main Survey targets
           (i.e. starting with Gaia DR3). To reproduce DESI Main Survey
           targets, :func:`match_gaia_to_primary()` should be used.
+        - Passing maglim might return different objects as well as
+          speeding up the code. This is because matches will only be
+          performed to brighter objects and their could be a bright
+          object in the match radius farther away than a fainter object.
     """
     # ADM issue a warning that this code is intended for use post-DR3.
     if dr in ["dr2", "edr3"]:
@@ -1528,12 +1756,30 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
     # ADM objects without matches should have REF_ID of -1.
     gaiainfo['REF_ID'] = -1
 
+    if lightweight:
+        gaiainfo = np.zeros(len(objs), dtype=dr3datamodellight.dtype)
+
     # ADM compile the list of relevant Gaia files.
-    gaiafiles = find_gaia_files(objs, dr=dr)
+    # ADM this is slightly buggy, as really we should find Gaia files by
+    # ADM matching the epoch of the objs and Gaia Data release. But the
+    # ADM HEALPix resolution for find_gaia_files() is more than a degree
+    # ADM and the time between DR3 (2016) and objs (2015.5) is tiny.
+    # ADM Even Barnard's Star only moves 5 microarcsec in 0.5 years.
+    if dr not in ["dr3"]:
+        msg = "Check above comment holds before allowing new DRs"
+        log.error(msg)
+        raise ValueError(msg)
+    gaiafiles = find_gaia_files(objs, dr=dr, lightweight=lightweight)
 
     gaia = []
     for fn in gaiafiles:
-        gaia.append(read_gaia_file(fn, dr=dr))
+        g = read_gaia_file(fn, dr=dr, lightweight=lightweight)
+        if maglim is not None:
+            ii = (g['PHOT_G_MEAN_MAG'] < maglim) & (g['PHOT_G_MEAN_MAG'] !=0)
+            ii |= (g['PHOT_BP_MEAN_MAG'] < maglim) & (g['PHOT_BP_MEAN_MAG'] !=0)
+            ii |= (g['PHOT_RP_MEAN_MAG'] < maglim) & (g['PHOT_RP_MEAN_MAG'] !=0)
+            g = g[ii]
+        gaia.append(g)
     gaia = np.concatenate(gaia)
 
     # ADM the name of the relevant RA/Dec columns in the Gaia data model.
@@ -1541,6 +1787,10 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3"):
     gpmracol, gpmdeccol = "PMRA", "PMDEC"
 
     # ADM rewind coordinates from the Gaia DR3 2016.0 epoch to 2015.5.
+    if dr not in ["dr3"]:
+        msg = "Will need to update code to allow epochs of later DRs"
+        log.error(msg)
+        raise ValueError(msg)
     rarew, decrew = rewind_coords(gaia[gracol], gaia[gdeccol],
                                   gaia[gpmracol], gaia[gpmdeccol],
                                   epochnow=2016.0, epochpast=2015.5)

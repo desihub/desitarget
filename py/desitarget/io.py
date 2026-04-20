@@ -990,7 +990,8 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
-                    drint='X', subpriority=True, iteration=None):
+                    drint='X', subpriority=True, iteration=None,
+                    overlybright=False, matchrad=3.):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -1008,13 +1009,13 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         sub-directory "outdata" and the `scxdir` is added to the
         header of the output `filename`.
     obscon : :class:`str`, optional, defaults to `None`
-        Can pass one of "DARK" or "BRIGHT". If passed, don't write the
-        full set of secondary targets that do not match a primary,
-        rather only write targets appropriate for "DARK" or
-        "BRIGHT" observing conditions. The relevant `PRIORITY_INIT`
-        and `NUMOBS_INIT` columns will be derived from
-        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
-        "dark" appended to the lowest DIRECTORY in the input `filename`.
+        Can pass one of "DARK", "BRIGHT" or "BACKUP". If passed, don't
+        write the full set of secondary targets that do not match a
+        primary, rather only write targets appropriate for passed
+        observing conditions. The relevant `PRIORITY_INIT`
+        and `NUMOBS_INIT` columns will be derived from, e.g.,
+        `PRIORITY_INIT_DARK`, etc. and `filename` will have "dark", etc.
+        appended to the lowest DIRECTORY in the input `filename`.
     drint : :class:`int`, optional, defaults to `X`
         The data release ("dr"`drint`"-") in the output filename.
     subpriority : :class:`bool`, optional, defaults to ``True``
@@ -1026,6 +1027,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         the context of the Main Survey but writing extra secondaries
         that can't be merged with primaries. The random seed for
         `SUBPRIORITY` is also augmented by adding `iteration` to it.
+    overlybright : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then run an additional, more rigorous, check that no
+        targets are near bright (maglim < 16) Gaia stars.
+    matchrad : :class:`float`, optional, defaults to 3 arcsec
+        The match radius around bright stars when using `overlybright`.
 
     Returns
     -------
@@ -1155,14 +1161,22 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     fluxlim = 10**((22.5-maglim)/2.5)
     # ADM find any standalone secondary that is too bright in any band.
     toobright = np.zeros(len(data), dtype="bool")
-    for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
-                "GAIA_PHOT_RP_MEAN_MAG"]:
-        toobright |= (data[col] != 0) & (data[col] < maglim)
-    for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
-        toobright |= (data[col] != 0) & (data[col] > fluxlim)
+    # ADM assume you can never be too bright in BACKUP conditions.
+    if obscon != "BACKUP":
+        for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
+                    "GAIA_PHOT_RP_MEAN_MAG"]:
+            toobright |= (data[col] != 0) & (data[col] < maglim)
+        for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
+            toobright |= (data[col] != 0) & (data[col] > fluxlim)
+        from desitarget.secondary import too_bright
+        log.info(f"Pre Gaia match found {np.sum(toobright)} too-bright targets")
+        toobright |= too_bright(data, matchrad=matchrad)
+        log.info(f"Post Gaia match found {np.sum(toobright)} too-bright targets")
+    else:
+        log.info(f"Observing conditions are {obscon}, assuming never too bright")
 
     # ADM just targets to be observed in "standard" conditions.
-    standardoc = "DARK|BRIGHT"
+    standardoc = "DARK|BRIGHT|BACKUP|DARK1B|BRIGHT1B"
     instandardoc = data["OBSCONDITIONS"] & obsconditions.mask(standardoc) != 0
 
     # ADM write out standalone secondaries that aren't too bright and

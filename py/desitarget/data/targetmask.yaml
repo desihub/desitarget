@@ -169,48 +169,65 @@ mws_mask:
 scnd_mask:
     - [VETO,                    0, "Never observe, even if a primary target bit is set.",
         {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18, filename: 'veto', flavor: 'SPARE', downsample: 1, updatemws: False}]
-    - [UDG,                     1, "See $SCND_DIR/docs/UDG.txt",                  {obsconditions: DARK,        filename: 'UDG',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [FIRST_MALS,              2, "See $SCND_DIR/docs/FIRST_MALS.txt",           {obsconditions: DARK,        filename: 'FIRST_MALS',          flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [QSO_RED,                 5, "See $SCND_DIR/docs/QSO_RED.ipynb",            {obsconditions: DARK,        filename: 'QSO_RED',             flavor: 'QSO',   updatemws: False, downsample: 1}]
-#   - [MWS_DDOGIANTS,           9, "See $SCND_DIR",                               {obsconditions: BRIGHT,      filename: 'MWS_DDOGIANTS',       flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [MWS_CLUS_GAL_DEEP,      10, "See $SCND_DIR/docs/MWS_CLUS_GAL_DEEP.txt",    {obsconditions: DARK,        filename: 'MWS_CLUS_GAL_DEEP',   flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_MASS_AGN,           11, "See $SCND_DIR/docs/LOW_MASS_AGN.txt",         {obsconditions: DARK,        filename: 'LOW_MASS_AGN',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [FAINT_HPM,              12, "See $SCND_DIR/docs/FAINT_HPM.txt",            {obsconditions: DARK,        filename: 'FAINT_HPM',           flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_Z_TIER1,            15, "See $SCND_DIR/docs/LOW_Z_TIER1.ipynb",        {obsconditions: DARK,        filename: 'LOW_Z_TIER1',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_Z_TIER2,            16, "See $SCND_DIR/docs/LOW_Z_TIER2.ipynb",        {obsconditions: DARK,        filename: 'LOW_Z_TIER2',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [LOW_Z_TIER3,            17, "See $SCND_DIR/docs/LOW_Z_TIER3.ipynb",        {obsconditions: DARK,        filename: 'LOW_Z_TIER3',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [BHB,                    18, "See $SCND_DIR/docs/BHB.txt",                  {obsconditions: DARK,        filename: 'BHB',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [SPCV,                   19, "See $SCND_DIR/docs/SPCV.txt",                 {obsconditions: DARK,        filename: 'SPCV',                flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",         {obsconditions: DARK,        filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.085}]
-    - [PSF_OUT_BRIGHT,         25, "See $SCND_DIR/docs/PSF_OUT_BRIGHT.txt",       {obsconditions: BRIGHT,      filename: 'PSF_OUT_BRIGHT',      flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PSF_OUT_DARK,           26, "See $SCND_DIR/docs/PSF_OUT_DARK.txt",         {obsconditions: DARK,        filename: 'PSF_OUT_DARK',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [HPM_SOUM,               27, "See $SCND_DIR/docs/HPM_SOUM.txt",             {obsconditions: DARK,        filename: 'HPM_SOUM',            flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [SN_HOSTS,               28, "See $SCND_DIR/docs/SN_HOSTS.txt",             {obsconditions: DARK,        filename: 'SN_HOSTS',            flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [GAL_CLUS_BCG,           29, "See $SCND_DIR/docs/GAL_CLUS_BCG.txt",         {obsconditions: DARK,        filename: 'GAL_CLUS_BCG',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [GAL_CLUS_2ND,           30, "See $SCND_DIR/docs/GAL_CLUS_2ND.txt",         {obsconditions: DARK,        filename: 'GAL_CLUS_2ND',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [GAL_CLUS_SAT,           31, "See $SCND_DIR/docs/GAL_CLUS_SAT.txt",         {obsconditions: DARK,        filename: 'GAL_CLUS_SAT',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [MWS_FAINT_BLUE,         32, "See $SCND_DIR/main2/docs/MWS_FAINT_BLUE.txt", {obsconditions: BRIGHT,      filename: 'MWS_FAINT_BLUE',      flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [MWS_FAINT_RED,          33, "See $SCND_DIR/main2/docs/MWS_FAINT_RED.txt",  {obsconditions: BRIGHT,      filename: 'MWS_FAINT_RED',       flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [STRONG_LENS,            34, "See $SCND_DIR/docs/STRONG_LENS.txt",          {obsconditions: DARK,        filename: 'STRONG_LENS',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [WISE_VAR_QSO,           35, "See $SCND_DIR/docs/WISE_VAR_QSO.txt",         {obsconditions: DARK,        filename: 'WISE_VAR_QSO',        flavor: 'QSO',   updatemws: False, downsample: 1}]
-    - [Z5_QSO,                 36, "See $SCND_DIR/docs/Z5_QSO.txt",               {obsconditions: DARK,        filename: 'Z5_QSO',              flavor: 'QSO',   updatemws: False, downsample: 1}]
-    - [MWS_RR_LYRAE,           37, "See $SCND_DIR/main2/docs/MWS_RR_LYRAE.txt",   {obsconditions: DARK|BRIGHT, filename: 'MWS_RR_LYRAE',        flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [MWS_MAIN_CLUSTER_SV,    38, "See $SCND_DIR/docs/MWS_MAIN_CLUSTER_SV.txt",  {obsconditions: DARK|BRIGHT, filename: 'MWS_MAIN_CLUSTER_SV', flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [BRIGHT_HPM,             40, "See $SCND_DIR/docs/BRIGHT_HPM.txt",           {obsconditions: BRIGHT,      filename: 'BRIGHT_HPM',          flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [WD_BINARIES_BRIGHT,     41, "See $SCND_DIR/docs/WD_BINARIES_BRIGHT.txt",   {obsconditions: BRIGHT,      filename: 'WD_BINARIES_BRIGHT',  flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [WD_BINARIES_DARK,       42, "See $SCND_DIR/docs/WD_BINARIES_DARK.txt",     {obsconditions: DARK,        filename: 'WD_BINARIES_DARK',    flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_BRIGHT_HIGH,         43, "See $SCND_DIR/docs/PV_BRIGHT_HIGH.ipynb",     {obsconditions: BRIGHT,      filename: 'PV_BRIGHT_HIGH',      flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_BRIGHT_MEDIUM,       44, "See $SCND_DIR/docs/PV_BRIGHT_MEDIUM.ipynb",   {obsconditions: BRIGHT,      filename: 'PV_BRIGHT_MEDIUM',    flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_BRIGHT_LOW,          45, "See $SCND_DIR/docs/PV_BRIGHT_LOW.ipynb",      {obsconditions: BRIGHT,      filename: 'PV_BRIGHT_LOW',       flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_DARK_HIGH,           46, "See $SCND_DIR/docs/PV_DARK_HIGH.ipynb",       {obsconditions: DARK,        filename: 'PV_DARK_HIGH',        flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_DARK_MEDIUM,         47, "See $SCND_DIR/docs/PV_DARK_MEDIUM.ipynb",     {obsconditions: DARK,        filename: 'PV_DARK_MEDIUM',      flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [PV_DARK_LOW,            48, "See $SCND_DIR/docs/PV_DARK_LOW.ipynb",        {obsconditions: DARK,        filename: 'PV_DARK_LOW',         flavor: 'SPARE', updatemws: False, downsample: 1}]
-    - [GC_BRIGHT,              49, "See $SCND_DIR/docs/GC_BRIGHT.txt",            {obsconditions: BRIGHT,      filename: 'GC_BRIGHT',           flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [GC_DARK,                50, "See $SCND_DIR/docs/GC_DARK.txt",              {obsconditions: DARK,        filename: 'GC_DARK',             flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [DWF_BRIGHT_HI,          51, "See $SCND_DIR/docs/DWF_BRIGHT_HI.txt",        {obsconditions: BRIGHT,      filename: 'DWF_BRIGHT_HI',       flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [DWF_BRIGHT_LO,          52, "See $SCND_DIR/docs/DWF_BRIGHT_LO.txt",        {obsconditions: BRIGHT,      filename: 'DWF_BRIGHT_LO',       flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [DWF_DARK_HI,            53, "See $SCND_DIR/docs/DWF_DARK_HI.txt",          {obsconditions: DARK,        filename: 'DWF_DARK_HI',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
-    - [DWF_DARK_LO,            54, "See $SCND_DIR/docs/DWF_DARK_LO.txt",          {obsconditions: DARK,        filename: 'DWF_DARK_LO',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [UDG,                     1, "See $SCND_DIR/docs/UDG.txt",                  {obsconditions: DARK,                         filename: 'UDG',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [FIRST_MALS,              2, "See $SCND_DIR/docs/FIRST_MALS.txt",           {obsconditions: DARK,                         filename: 'FIRST_MALS',          flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [BROAD_STARFORM,          3, "See $SCND_DIR/docs/BROAD_STARFORM.ipynb",     {obsconditions: DARK|DARK1B,                  filename: 'BROAD_STARFORM',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [DESI_STRONG_LENS,        4, "See $SCND_DIR/docs/DESI_STRONG_LENS.txt",     {obsconditions: DARK|DARK1B,                  filename: 'DESI_STRONG_LENS',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [QSO_RED,                 5, "See $SCND_DIR/docs/QSO_RED.ipynb",            {obsconditions: DARK|DARK1B,                  filename: 'QSO_RED',             flavor: 'QSO',   updatemws: False, downsample: 1}]
+    - [QSO_RED_FAINT,           6, "See $SCND_DIR/docs/QSO_RED_FAINT.ipynb",      {obsconditions: DARK|DARK1B,                  filename: 'QSO_RED_FAINT',       flavor: 'QSO',   updatemws: False, downsample: 1}]
+    - [GAIAXPEMP_BACKUP,        7, "See $SCND_DIR/docs/GAIAXPEMP_BACKUP.txt",     {obsconditions: BACKUP,                       filename: 'GAIAXPEMP_BACKUP',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GAIAXPEMP_BRIGHT,        8, "See $SCND_DIR/docs/GAIAXPEMP_BRIGHT.txt",     {obsconditions: BRIGHT|BRIGHT1B,              filename: 'GAIAXPEMP_BRIGHT',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [BGS_EXT,                 9, "See $SCND_DIR/docs/BGS_EXT.ipynb",            {obsconditions: DARK|DARK1B,                  filename: 'BGS_EXT',             flavor: 'SPARE', updatemws: False, downsample: 1}]
+#   - [MWS_DDOGIANTS,           9, "See $SCND_DIR",                               {obsconditions: BRIGHT,                       filename: 'MWS_DDOGIANTS',       flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [MWS_CLUS_GAL_DEEP,      10, "See $SCND_DIR/docs/MWS_CLUS_GAL_DEEP.txt",    {obsconditions: DARK,                         filename: 'MWS_CLUS_GAL_DEEP',   flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_MASS_AGN,           11, "See $SCND_DIR/docs/LOW_MASS_AGN.txt",         {obsconditions: DARK|DARK1B,                  filename: 'LOW_MASS_AGN',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [FAINT_HPM,              12, "See $SCND_DIR/docs/FAINT_HPM.txt",            {obsconditions: DARK,                         filename: 'FAINT_HPM',           flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [MERIAN,                 13, "See $SCND_DIR/docs/MERIAN.txt",               {obsconditions: DARK|DARK1B,                  filename: 'MERIAN',              flavor: 'SPARE', updatemws: False, downsample: 0.1}]
+    - [LOW_Z_TIER0,            14, "See $SCND_DIR/docs/LOW_Z_TIER0.txt",          {obsconditions: DARK|DARK1B,                  filename: 'LOW_Z_TIER0',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_Z_TIER1,            15, "See $SCND_DIR/docs/LOW_Z_TIER1.ipynb",        {obsconditions: DARK,                         filename: 'LOW_Z_TIER1',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_Z_TIER2,            16, "See $SCND_DIR/docs/LOW_Z_TIER2.ipynb",        {obsconditions: DARK,                         filename: 'LOW_Z_TIER2',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [LOW_Z_TIER3,            17, "See $SCND_DIR/docs/LOW_Z_TIER3.ipynb",        {obsconditions: DARK,                         filename: 'LOW_Z_TIER3',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [BHB,                    18, "See $SCND_DIR/docs/BHB.txt",                  {obsconditions: DARK|DARK1B,                  filename: 'BHB',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [SPCV,                   19, "See $SCND_DIR/docs/SPCV.txt",                 {obsconditions: DARK,                         filename: 'SPCV',                flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [DC3R2_GAMA,             20, "See $SCND_DIR/docs/DC3R2_GAMA.ipynb",         {obsconditions: DARK,                         filename: 'DC3R2_GAMA',          flavor: 'SPARE', updatemws: False, downsample: 0.085}]
+    - [MIR_OBSCURED_AGN,       21, "See $SCND_DIR/docs/MIR_OBSCURED_AGN.txt",     {obsconditions: DARK|DARK1B,                  filename: 'MIR_OBSCURED_AGN',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [MOST_HOSTS_2024,        22, "See $SCND_DIR/docs/MOST_HOSTS_2024.txt",      {obsconditions: DARK|DARK1B,                  filename: 'MOST_HOSTS_2024',     flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [RRL_EXTRA_BRIGHT,       23, "See $SCND_DIR/docs/RRL_EXTRA_BRIGHT.txt",     {obsconditions: DARK|DARK1B|BRIGHT|BRIGHT1B,  filename: 'RRL_EXTRA_BRIGHT',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [RRL_EXTRA_DARK,         24, "See $SCND_DIR/docs/RRL_EXTRA_DARK.txt",       {obsconditions: DARK|DARK1B,                  filename: 'RRL_EXTRA_DARK',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PSF_OUT_BRIGHT,         25, "See $SCND_DIR/docs/PSF_OUT_BRIGHT.txt",       {obsconditions: BRIGHT,                       filename: 'PSF_OUT_BRIGHT',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PSF_OUT_DARK,           26, "See $SCND_DIR/docs/PSF_OUT_DARK.txt",         {obsconditions: DARK,                         filename: 'PSF_OUT_DARK',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [HPM_SOUM,               27, "See $SCND_DIR/docs/HPM_SOUM.txt",             {obsconditions: DARK,                         filename: 'HPM_SOUM',            flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [SN_HOSTS,               28, "See $SCND_DIR/docs/SN_HOSTS.txt",             {obsconditions: DARK,                         filename: 'SN_HOSTS',            flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GAL_CLUS_BCG,           29, "See $SCND_DIR/docs/GAL_CLUS_BCG.txt",         {obsconditions: DARK,                         filename: 'GAL_CLUS_BCG',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GAL_CLUS_2ND,           30, "See $SCND_DIR/docs/GAL_CLUS_2ND.txt",         {obsconditions: DARK,                         filename: 'GAL_CLUS_2ND',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GAL_CLUS_SAT,           31, "See $SCND_DIR/docs/GAL_CLUS_SAT.txt",         {obsconditions: DARK,                         filename: 'GAL_CLUS_SAT',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [MWS_FAINT_BLUE,         32, "See $SCND_DIR/main2/docs/MWS_FAINT_BLUE.txt", {obsconditions: BRIGHT,                       filename: 'MWS_FAINT_BLUE',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [MWS_FAINT_RED,          33, "See $SCND_DIR/main2/docs/MWS_FAINT_RED.txt",  {obsconditions: BRIGHT,                       filename: 'MWS_FAINT_RED',       flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [STRONG_LENS,            34, "See $SCND_DIR/docs/STRONG_LENS.txt",          {obsconditions: DARK,                         filename: 'STRONG_LENS',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [WISE_VAR_QSO,           35, "See $SCND_DIR/docs/WISE_VAR_QSO.txt",         {obsconditions: DARK,                         filename: 'WISE_VAR_QSO',        flavor: 'QSO',   updatemws: False, downsample: 1}]
+    - [Z5_QSO,                 36, "See $SCND_DIR/docs/Z5_QSO.txt",               {obsconditions: DARK|DARK1B,                  filename: 'Z5_QSO',              flavor: 'QSO',   updatemws: False, downsample: 1}]
+    - [MWS_RR_LYRAE,           37, "See $SCND_DIR/main2/docs/MWS_RR_LYRAE.txt",   {obsconditions: DARK|BRIGHT,                  filename: 'MWS_RR_LYRAE',        flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [MWS_MAIN_CLUSTER_SV,    38, "See $SCND_DIR/docs/MWS_MAIN_CLUSTER_SV.txt",  {obsconditions: DARK|BRIGHT,                  filename: 'MWS_MAIN_CLUSTER_SV', flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [RVREPEAT,               39, "See $SCND_DIR/docs/RVREPEAT.txt",             {obsconditions: BRIGHT|BRIGHT1B,              filename: 'RVREPEAT',            flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [BRIGHT_HPM,             40, "See $SCND_DIR/docs/BRIGHT_HPM.txt",           {obsconditions: BRIGHT,                       filename: 'BRIGHT_HPM',          flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [WD_BINARIES_BRIGHT,     41, "See $SCND_DIR/docs/WD_BINARIES_BRIGHT.txt",   {obsconditions: BRIGHT,                       filename: 'WD_BINARIES_BRIGHT',  flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [WD_BINARIES_DARK,       42, "See $SCND_DIR/docs/WD_BINARIES_DARK.txt",     {obsconditions: DARK,                         filename: 'WD_BINARIES_DARK',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_BRIGHT_HIGH,         43, "See $SCND_DIR/docs/PV_BRIGHT_HIGH.ipynb",     {obsconditions: BRIGHT,                       filename: 'PV_BRIGHT_HIGH',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_BRIGHT_MEDIUM,       44, "See $SCND_DIR/docs/PV_BRIGHT_MEDIUM.ipynb",   {obsconditions: BRIGHT,                       filename: 'PV_BRIGHT_MEDIUM',    flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_BRIGHT_LOW,          45, "See $SCND_DIR/docs/PV_BRIGHT_LOW.ipynb",      {obsconditions: BRIGHT,                       filename: 'PV_BRIGHT_LOW',       flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_DARK_HIGH,           46, "See $SCND_DIR/docs/PV_DARK_HIGH.ipynb",       {obsconditions: DARK,                         filename: 'PV_DARK_HIGH',        flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_DARK_MEDIUM,         47, "See $SCND_DIR/docs/PV_DARK_MEDIUM.ipynb",     {obsconditions: DARK,                         filename: 'PV_DARK_MEDIUM',      flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [PV_DARK_LOW,            48, "See $SCND_DIR/docs/PV_DARK_LOW.ipynb",        {obsconditions: DARK,                         filename: 'PV_DARK_LOW',         flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [GC_BRIGHT,              49, "See $SCND_DIR/docs/GC_BRIGHT.txt",            {obsconditions: BRIGHT,                       filename: 'GC_BRIGHT',           flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [GC_DARK,                50, "See $SCND_DIR/docs/GC_DARK.txt",              {obsconditions: DARK,                         filename: 'GC_DARK',             flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_BRIGHT_HI,          51, "See $SCND_DIR/docs/DWF_BRIGHT_HI.txt",        {obsconditions: BRIGHT,                       filename: 'DWF_BRIGHT_HI',       flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_BRIGHT_LO,          52, "See $SCND_DIR/docs/DWF_BRIGHT_LO.txt",        {obsconditions: BRIGHT,                       filename: 'DWF_BRIGHT_LO',       flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_DARK_HI,            53, "See $SCND_DIR/docs/DWF_DARK_HI.txt",          {obsconditions: DARK,                         filename: 'DWF_DARK_HI',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [DWF_DARK_LO,            54, "See $SCND_DIR/docs/DWF_DARK_LO.txt",          {obsconditions: DARK,                         filename: 'DWF_DARK_LO',         flavor: 'SPARE', updatemws: True,  downsample: 1}]
+    - [UCD,                    55, "See $SCND_DIR/docs/UCD.txt",                  {obsconditions: DARK|DARK1B|BRIGHT|BRIGHT1B,  filename: 'UCD',                 flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [WD_BACKUP,              56, "See $SCND_DIR/docs/WD_BACKUP.txt",            {obsconditions: BACKUP,                       filename: 'WD_BACKUP',           flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [WD_BRIGHT,              57, "See $SCND_DIR/docs/WD_BRIGHT.txt",            {obsconditions: BRIGHT|BRIGHT1B,              filename: 'WD_BRIGHT',           flavor: 'SPARE', updatemws: False, downsample: 1}]
+    - [WD_DARK,                58, "See $SCND_DIR/docs/WD_DARK.txt",              {obsconditions: DARK|DARK1B,                  filename: 'WD_DARK',             flavor: 'SPARE', updatemws: False, downsample: 1}]
 
 # ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
     - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
@@ -450,17 +467,29 @@ priorities:
         VETO:                   {UNOBS: 0,    MORE_ZGOOD: 0,    MORE_ZWARN: 0,    DONE: 0, OBS: 0, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         UDG:                    {UNOBS: 1900, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         FIRST_MALS:             {UNOBS: 1025, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BROAD_STARFORM:         {UNOBS: 1775, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        DESI_STRONG_LENS:       {UNOBS: 4000, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         QSO_RED:                {UNOBS: 3400, MORE_ZGOOD: 3350, MORE_ZWARN: 3300, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 100}
+        QSO_RED_FAINT:          SAME_AS_QSO_RED
+        GAIAXPEMP_BACKUP:       {UNOBS: 1850, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        GAIAXPEMP_BRIGHT:       SAME_AS_GAIAXPEMP_BACKUP
+        BGS_EXT:                {UNOBS: 85,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 #       MWS_DDOGIANTS:          {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_CLUS_GAL_DEEP:      {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_MASS_AGN:           {UNOBS: 1025, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         FAINT_HPM:              SAME_AS_LOW_MASS_AGN
+        MERIAN:                 {UNOBS: 1750, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        LOW_Z_TIER0:            {UNOBS: 1800, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_Z_TIER1:            {UNOBS: 80,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_Z_TIER2:            {UNOBS: 70,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         LOW_Z_TIER3:            {UNOBS: 60,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BHB:                    {UNOBS: 1950, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         SPCV:                   SAME_AS_LOW_MASS_AGN
         DC3R2_GAMA:             {UNOBS: 1010, MORE_ZGOOD: 1000, MORE_ZWARN: 1000, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MIR_OBSCURED_AGN:       {UNOBS: 95,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        MOST_HOSTS_2024:        SAME_AS_BHB
+        RRL_EXTRA_BRIGHT:       {UNOBS: 1950, MORE_ZGOOD: 1940, MORE_ZWARN: 1940, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        RRL_EXTRA_DARK:         {UNOBS: 1950, MORE_ZGOOD: 1940, MORE_ZWARN: 1940, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PSF_OUT_BRIGHT:         {UNOBS: 90,   MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         PSF_OUT_DARK:           SAME_AS_PSF_OUT_BRIGHT
         HPM_SOUM:               SAME_AS_LOW_MASS_AGN
@@ -475,6 +504,7 @@ priorities:
         Z5_QSO:                 SAME_AS_QSO_RED
         MWS_RR_LYRAE:           {UNOBS: 1950, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         MWS_MAIN_CLUSTER_SV:    {UNOBS: 1450, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        RVREPEAT:               {UNOBS: 1525, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BRIGHT_HPM:             SAME_AS_STRONG_LENS
         WD_BINARIES_BRIGHT:     {UNOBS: 1998, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         WD_BINARIES_DARK:       {UNOBS: 1998, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
@@ -490,6 +520,10 @@ priorities:
         DWF_BRIGHT_LO:          {UNOBS: 1980, MORE_ZGOOD: 1960, MORE_ZWARN: 1960, DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DWF_DARK_HI:            SAME_AS_DWF_BRIGHT_HI
         DWF_DARK_LO:            SAME_AS_DWF_BRIGHT_LO
+        UCD:                    SAME_AS_BRIGHT_HPM
+        WD_BACKUP:              {UNOBS: 1998, MORE_ZGOOD: 900,  MORE_ZWARN: 900,  DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        WD_BRIGHT:              SAME_AS_WD_BACKUP
+        WD_DARK:                SAME_AS_WD_BACKUP
         BRIGHT_TOO_LOP:         {UNOBS: 950,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         BRIGHT_TOO_HIP:         {UNOBS: 9500, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
@@ -637,17 +671,29 @@ numobs:
         VETO:                   1
         UDG:                    1
         FIRST_MALS:             1
+        BROAD_STARFORM:         1
+        DESI_STRONG_LENS:       1
         QSO_RED:                4
+        QSO_RED_FAINT:          4
+        GAIAXPEMP_BACKUP:       1
+        GAIAXPEMP_BRIGHT:       1
+        BGS_EXT:                1
 #       MWS_DDOGIANTS:          1
         MWS_CLUS_GAL_DEEP:      1
         LOW_MASS_AGN:           1
         FAINT_HPM:              1
+        MERIAN:                 1
+        LOW_Z_TIER0:            1
         LOW_Z_TIER1:            1
         LOW_Z_TIER2:            1
         LOW_Z_TIER3:            1
         BHB:                    1
         SPCV:                   1
         DC3R2_GAMA:             1
+        MIR_OBSCURED_AGN:       1
+        MOST_HOSTS_2024:        1
+        RRL_EXTRA_BRIGHT:       3
+        RRL_EXTRA_DARK:         3
         PSF_OUT_BRIGHT:         1
         PSF_OUT_DARK:           1
         HPM_SOUM:               1
@@ -662,6 +708,7 @@ numobs:
         Z5_QSO:                 4
         MWS_RR_LYRAE:           1
         MWS_MAIN_CLUSTER_SV:    1
+        RVREPEAT:               1
         BRIGHT_HPM:             1
         WD_BINARIES_BRIGHT:     1
         WD_BINARIES_DARK:       1
@@ -681,3 +728,8 @@ numobs:
         DWF_BRIGHT_LO:          10
         DWF_DARK_HI:            10
         DWF_DARK_LO:            10
+        UCD:                    1
+        WD_BACKUP:              10
+        WD_BRIGHT:              10
+        WD_DARK:                10
+

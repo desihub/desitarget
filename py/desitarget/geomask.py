@@ -824,7 +824,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         to pass `maxpernode` bricks, delineated by the HEALPixels they
         occupy, parallelized across a set of nodes).
     nside : :class:`int`
-        The HEALPixel nside number thaat was used to generate `pixnum`
+        The HEALPixel nside number that was used to generate `pixnum`
         (NESTED scheme).
     brickspersec : :class:`float`, optional, defaults to 1.
         The rough number of bricks processed per second by the code

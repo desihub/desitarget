@@ -2800,6 +2800,30 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
             log.info(msg)
             log.info(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
 
+    # ADM the special case that we haven't yet observed secondaries for
+    # ADM some program for which we have observed primaries.
+    if obscon not in donetiles["PROGRAM"] and "scnd" in mtltilefn:
+        # ADM read the primary file and restrict to the relevnt program.
+        primtiles = io.read_mtl_tile_file(mtltilefn.replace("scnd-", ""))
+        ii = primtiles["PROGRAM"] == obscon
+        primtiles = primtiles[ii]
+
+        # ADM combine existing secondary tiles and done primary tiles
+        # ADM for the given program, circumventing any formatting issues.
+        ptemptiles = np.zeros(len(primtiles), dtype=mtltilefiledm.dtype)
+        dtemptiles = np.zeros(len(donetiles), dtype=mtltilefiledm.dtype)
+        for col in mtltilefiledm.dtype.names:
+            ptemptiles[col] = primtiles[col]
+            dtemptiles[col] = donetiles[col]
+        primtiles = ptemptiles
+        donetiles = dtemptiles
+        donetiles = np.concatenate([donetiles, primtiles])
+
+        # ADM write existing primary tiles at time "now" to secondary
+        # ADM tile file so there's a permanent record that they're done.
+        primtiles["TIMESTAMP"] = get_utc_date(survey=survey)
+        io.write_mtl_tile_file(mtltilefn, primtiles)
+
     # ADM extract the updated tiles.
     if donetiles is None:
         # ADM first time through, all tiles have yet to be processed...

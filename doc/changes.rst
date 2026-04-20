@@ -5,12 +5,27 @@ desitarget Change Log
 4.6.1 (unreleased)
 ------------------
 
+* Add new, `main4` secondary targets [`PR #877`_]. Includes:
+    * Add `BRIGHT1B` and `DARK1B` secondary targets.
+    * Allow and add `BACKUP` secondary targets.
+    * Add `DARK` and `BRIGHT` targets for the new DR11 imaging area.
+        * Likely include by adding `1B` targets to `DARK`/`BRIGHT` tiles.
+	* See related `fiberassign` `issue #503`_.
+    * Facilitate running the MTL loop for secondary 1B targets.
+        * Notably if we've already observed corresponding primary tiles.
+    * Also includes new routines to make "lightweight" Gaia files.
+        * These files can be used for fast matching to bright stars.
+        * Routines to read and match to the lightweight files also added.
+        * Can be used to flag secondaries that are close to bright stars.
+
 * Circumvent warnings when running with Python >3.12 [`PR #870`_].
     * Should address `issue #865`_ and `issue #866`_.
 
+.. _`issue #503`: https://github.com/desihub/fiberassign/issues/503
 .. _`issue #865`: https://github.com/desihub/desitarget/issues/865
 .. _`issue #866`: https://github.com/desihub/desitarget/issues/866
 .. _`PR #870`: https://github.com/desihub/desitarget/pull/870
+.. _`PR #877`: https://github.com/desihub/desitarget/pull/877
 
 4.6.0 (2026-01-30)
 ------------------
