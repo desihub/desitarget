@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.6.1 (unreleased)
+4.7.1 (unreleased)
+------------------
+
+* No changes yet.
+
+4.7.0 (2026-04-20)
 ------------------
 
 * Add new, `main4` secondary targets [`PR #877`_]. Includes:
@@ -17,7 +22,6 @@ desitarget Change Log
         * These files can be used for fast matching to bright stars.
         * Routines to read and match to the lightweight files also added.
         * Can be used to flag secondaries that are close to bright stars.
-
 * Circumvent warnings when running with Python >3.12 [`PR #870`_].
     * Should address `issue #865`_ and `issue #866`_.
 
