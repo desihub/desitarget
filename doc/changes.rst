@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.7.1 (unreleased)
+4.7.2 (unreleased)
+------------------
+
+* No changes yet.
+
+4.7.1 (2026-04-23)
 ------------------
 
 * Catch case where NUMOBS_MORE drops to -1 for LyA quasars [`PR #878`_].
