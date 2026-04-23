@@ -586,7 +586,8 @@ def calc_numobs_more(targets, zcat, obscon, ext=False):
             (zcat['Z_QN'] >= zcut) & (zcat["IS_QSO_QN"] == 1))
         # ADM so these targets need 6-N more observations to match the 6
         # ADM observations for LyA quasars in DESI 1B.
-        numobs_more[iselgnotqso & hiz] = 6 - zcat[iselgnotqso & hiz]['NUMOBS']
+        numobs_more[iselgnotqso & hiz] = np.maximum(
+            0, 6 - zcat[iselgnotqso & hiz]['NUMOBS'])
 
     # ADM apply special QSO behavior, but only in dark time and after
     # ADM some observations have occurred.
