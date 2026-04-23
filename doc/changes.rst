@@ -5,7 +5,9 @@ desitarget Change Log
 4.7.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Catch case where NUMOBS_MORE drops to -1 for LyA quasars [`PR #878`_].
+
+.. _`PR #878`: https://github.com/desihub/desitarget/pull/878
 
 4.7.0 (2026-04-20)
 ------------------
