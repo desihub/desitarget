@@ -5,7 +5,13 @@ desitarget Change Log
 4.7.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Catch reprocessing bug where 1B tile list can change size [`PR #879`_].
+    * The input tile list can be bigger than the output tile list.
+    * This is because not every 1B tile changes a 1A target.
+    * Notably M31 BRIGHT1B tiles which don't overlap any BRIGHT tiles.
+    * We don't write any tile information when `ext=True` anyway.
+
+.. _`PR #879`: https://github.com/desihub/desitarget/pull/879
 
 4.7.1 (2026-04-23)
 ------------------

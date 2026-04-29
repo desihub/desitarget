@@ -3233,7 +3233,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     if survey == "main":
         # ADM when re-processing, a delay was already added, so get the
         # ADM TIMESTAMP from the dictionary returned by reprocess_ledger.
-        if reprocess:
+        if reprocess and not ext:
             tiles["TIMESTAMP"] = [timedict[tid] for tid in tiles["TILEID"]]
             # ADM sort tiles chronologically when reprocessing.
             tiles = tiles[np.argsort(tiles["TIMESTAMP"])]
