@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.7.2 (unreleased)
+4.7.3 (unreleased)
+------------------
+
+* No changes yet.
+
+4.7.2 (2026-04-29)
 ------------------
 
 * Revert ToO changes between desitarget/4.5.0 and 4.6.0 [`PR #880`_].
