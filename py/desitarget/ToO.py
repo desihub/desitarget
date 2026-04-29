@@ -10,7 +10,7 @@ Targets of Opportunity.
 import os
 import numpy as np
 from astropy.table import Table
-from astropy.time import Time
+
 from desiutil.log import get_logger
 
 from desitarget import io
@@ -74,7 +74,7 @@ def get_filename(toodir=None, ender="ecsv", outname=False):
     return fn.replace(".{}".format(ender), "-input.{}".format(ender))
 
 
-def _write_too_files(filename, data, ecsv=True, survey="main", overwrite=False):
+def _write_too_files(filename, data, ecsv=True, survey="main"):
     """Write ToO ledgers and files.
 
     Parameters
@@ -110,17 +110,14 @@ def _write_too_files(filename, data, ecsv=True, survey="main", overwrite=False):
     # ADM append to the files.
     if survey == "main":
         # ADM the filename for FIBER observations.
-        # JB this just makes sure that the basename is changed and not the directory
-        fiberfn = os.path.join(os.path.dirname(filename), 
-                               os.path.basename(filename).replace("ToO", "ToO-fiber"))
+        fiberfn = filename.replace("ToO.", "ToO-fiber.")
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
         # ADM write once for the FIBER ToOs, once for the TILE ToOs.
         for fn, isfibornot in zip([filename, fiberfn], [~isfiber, isfiber]):
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
-            # JB included an overwrite so certain files don't build up
-            if os.path.exists(fn) and overwrite is False:
+            if os.path.exists(fn):
                 olddata = Table.read(fn)
                 # ADM a second check that there is some old data.
                 if len(olddata) > 0:
@@ -520,29 +517,16 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None):
 
     # ADM add the output targeting columns.
     outdata = finalize_too(indata, survey=survey)
+
     # ADM determine the output filename.
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     if outdir is None:
-        fn = get_filename(tdir, ender=form, outname=True)
+        fn = get_filename(tdir, outname=True, ender=form)
     else:
-        fn = get_filename(outdir, ender=form, outname=True)
+        fn = get_filename(outdir, outname=True, ender=form)
 
     # ADM write out the results.
-    # JB added if statement for writing out a subtable
-     #JB enable subtables past a date (in this case corresponding to 2026/01/31)
-    todaymjd = Time.now().mjd
-    if todaymjd >= Time('2026-01-28').mjd:
-        # JB create a subtable with only entries that have MJD_END
-        # dates later than todays date.
-        log.info("Creating subtable with MJD_END >= {}".format(todaymjd))
-        subdata = outdata[outdata["MJD_END"] >= todaymjd]
-        log.info('Writing subtable with {} ToOs'.format(len(subdata)))
-        _write_too_files(fn, subdata, ecsv=ecsv, overwrite=True)
-        all_fn=f'{tdir}/ToO-all.{form}'
-        log.info('Writing all ToOs to {}'.format(all_fn))
-        _write_too_files(all_fn, outdata, ecsv=ecsv)
-    else:
-        _write_too_files(fn, outdata, ecsv=ecsv)
+    _write_too_files(fn, outdata, ecsv=ecsv)
 
     return outdata
