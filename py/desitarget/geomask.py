@@ -15,6 +15,7 @@ import numpy as np
 import os
 import fitsio
 from time import time
+from glob import glob
 
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -149,7 +150,8 @@ def get_imaging_maskbits(bitnamelist=None):
     - For the definitions of the mask bits, see, e.g.,
       https://www.legacysurvey.org/dr8/bitmasks/#maskbits
     """
-    bitdict = {"BRIGHT": 1, "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
+    bitdict = {"NPRIMARY": 0, "BRIGHT": 1,
+               "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
                "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}
 
     # ADM look up the bit value for each passed bit name.
@@ -232,6 +234,158 @@ def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
         mb &= ((maskbits & 2**bit) == 0)
 
     return mb
+
+
+def dr_nexp_per_brick(brickpath):
+    """Find number of exposures in one brick of an imaging data release.
+
+    Parameters
+    ----------
+    brickpath : :class:`str`
+        Path to a brick directory from an LS imaging data release, e.g.
+        /global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/coadd/000/0001m322
+        at NERSC.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of information for the passed brick, including:
+        BRICKNAME: Name of the brick.
+        NPIXPRIM: Number of pixels in the primary LS area of the brick.
+        NGPIXPRIMGE1: Number of pixels in g filter with >= 1 exposure.
+        NGPIXPRIMGE2: Number of pixels in g filter with >= 2 exposures.
+        NGPIXPRIMGE3: Number of pixels in g filter with >= 3 exposures.
+        NRPIXPRIMGE1: Number of pixels in r filter with >= 1 exposure.
+        NRPIXPRIMGE2: Number of pixels in r filter with >= 2 exposures.
+        NRPIXPRIMGE3: Number of pixels in r filter with >= 3 exposures.
+        NZPIXPRIMGE1: Number of pixels in z filter with >= 1 exposure.
+        NZPIXPRIMGE2: Number of pixels in z filter with >= 2 exposures.
+        NZPIXPRIMGE3: Number of pixels in z filter with >= 3 exposures.
+        NALLPRIMGE1: Number of pixels in all filters with >= 1 exposure.
+        NALLPRIMGE2: Number of pixels in all filters with >= 2 exposures.
+        NALLPRIMGE3: Number of pixels in all filters with >= 3 exposures.
+        FALLPRIMGE1: Pixel fraction in all filters with >= 1 exposure.
+            (i.e. NALLPRIMGE1/NPIXPRIM).
+        FALLPRIMGE2: Pixel fraction in all filters with >= 2 exposures.
+        FALLPRIMGE3: Pixel fraction in all filters with >= 3 exposures.
+    """
+    # ADM filename formats for Legacy Surveys NEXP and MASKBITS files.
+    maskbitsform = "legacysurvey-{}-maskbits.fits.fz"
+    nform = "legacysurvey-{}-nexp-{}.fits.fz"
+
+    # ADM the datatype for the output information.
+    dt = [("BRICKNAME", "U8"), ("NPIXPRIM", "i4"),
+          ("NGPIXPRIMGE1", "i4"), ("NGPIXPRIMGE2", "i4"), ("NGPIXPRIMGE3", "i4"),
+          ("NRPIXPRIMGE1", "i4"), ("NRPIXPRIMGE2", "i4"), ("NRPIXPRIMGE3", "i4"),
+          ("NZPIXPRIMGE1", "i4"), ("NZPIXPRIMGE2", "i4"), ("NZPIXPRIMGE3", "i4"),
+          ("NALLPRIMGE1", "i4"), ("NALLPRIMGE2", "i4"), ("NALLPRIMGE3", "i4"),
+          ("FALLPRIMGE1", "f8"), ("FALLPRIMGE2", "f8"), ("FALLPRIMGE3", "f8")]
+
+    # ADM to store the output.
+    outrow = np.zeros(1, dt)
+    # ADM the brick name.
+    bn = os.path.basename(brickpath)
+    # ADM read the maskbits and filter files.
+    maskbits = fitsio.read(os.path.join(brickpath, maskbitsform.format(bn)))
+    # ADM the trys are as some files don't exist. When that is so,
+    # ADM assume we have zero exposures everywhere for that filter.
+    try:
+        nexpg = fitsio.read(os.path.join(brickpath, nform.format(bn, "g")))
+    except OSError:
+        nexpg = np.zeros_like(maskbits)
+    try:
+        nexpr = fitsio.read(os.path.join(brickpath, nform.format(bn, "r")))
+    except OSError:
+        nexpr = np.zeros_like(maskbits)
+    try:
+        nexpz = fitsio.read(os.path.join(brickpath, nform.format(bn, "z")))
+    except OSError:
+        nexpz = np.zeros_like(maskbits)
+
+    # ADM the (integer) bit that corresponds to a non-primary pixel.
+    notprim = 2**get_imaging_maskbits(bitnamelist=["NPRIMARY"])[0]
+    # ADM the mask of primary pixels
+    primpix = maskbits & notprim == 0
+    # ADM populate the output quantities.
+    outrow["BRICKNAME"] = bn
+    outrow["NPIXPRIM"] = np.sum(primpix)
+    for i in range(1, 4):
+        outrow[f"NGPIXPRIMGE{i}"] = np.sum((nexpg >= i) & primpix)
+        outrow[f"NRPIXPRIMGE{i}"] = np.sum((nexpr >= i) & primpix)
+        outrow[f"NZPIXPRIMGE{i}"] = np.sum((nexpz >= i) & primpix)
+        outrow[f"NALLPRIMGE{i}"] = np.sum((nexpg >= i) & (nexpr >= i) &
+                                          (nexpz >= i) & primpix)
+        outrow[f"FALLPRIMGE{i}"] = outrow[f"NALLPRIMGE{i}"] / outrow["NPIXPRIM"]
+
+    return outrow
+
+
+def dr_nexp_all_bricks(drdir, numproc=1, outfn=None):
+    """Find number of exposures in all bricks of an imaging data release.
+
+    Parameters
+    ----------
+    drdir : :class:`str`
+        Root path to an LS imaging data release directory, e.g.
+        /global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/ at NERSC.
+    numproc : :class:`int`, optional, defaults to 1
+        The number of parallel processes to use. `numproc`=128 results in
+        approximately 100 bricks being processed per second.
+    outfn : :class:`str`, optional, defaults to ``None``
+        If passed, write the output array to this file path.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Array of information for all bricks in the passed data release.
+        See :func:`dr_nexp_per_brick` for the returned columns.
+    """
+    t0 = time()
+    # ADM filename formats for Legacy Surveys NEXP and MASKBITS files.
+    maskbitsform = "legacysurvey-{}-maskbits.fits.fz"
+    nform = "legacysurvey-{}-nexp-{}.fits.fz"
+
+    # ADM all of the brick directories in the Data Release directory.
+    brickpaths = sorted(glob(os.path.join(drdir, "coadd", "*", "*")))
+
+    def _nexp_per_brick(brickpath):
+        """run dr_nexp_per_brick on the file path to a single brick"""
+
+        return dr_nexp_per_brick(brickpath)
+
+    # ADM to count the bricks and the passage of time.
+    nbrick = np.zeros((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrapper for the main parallelized reduction operation"""
+        if nbrick % 500 == 0 and nbrick > 0:
+            elapsed = time() - t0
+            rate = nbrick / elapsed
+            log.info("{}/{} bricks; {:.1f} bricks/sec; {:.1f} total mins elapsed"
+                     .format(nbrick, len(brickpaths), rate, elapsed/60.))
+
+        nbrick[...] += 1
+        return result
+
+    # ADM serial or parallel process the bricks.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            done = pool.map(_nexp_per_brick, brickpaths,
+                            reduce=_update_status)
+    else:
+        done = []
+        for brickpath in brickpaths:
+            done.append(_update_status(_nexp_per_brick(brickpath)))
+
+    done = np.concatenate(done)
+
+    # ADM if requested, write the output to somewhere.
+    if outfn is not None:
+        fitsio.write(outfn, done)
+
+    return done
 
 
 def ellipse_matrix(r, e1, e2):
