@@ -23,6 +23,8 @@ ap.add_argument("--numproc", type=int,
 
 ns = ap.parse_args()
 
+log.info(f"Running on {ns.numproc} processors")
+
 done = dr_nexp_all_bricks(ns.drdir, numproc=ns.numproc, outfn=ns.dest)
 
 nb = len(done)
