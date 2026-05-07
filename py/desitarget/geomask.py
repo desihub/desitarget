@@ -388,6 +388,145 @@ def dr_nexp_all_bricks(drdir, numproc=1, outfn=None):
     return done
 
 
+def dr9_or_dr11_brick_file(surveybrickfn, dr9nfn, dr9sfn, dr11fn,
+                           threshfrac=0.25, outfn=None):
+    """From DR9/DR11 brick files, determine which bricks are in DR9/DR11.
+
+    Parameters
+    ----------
+    surveybrickfn : :class:`str`
+        Root path to a Legacy Surveys general brick file, e.g., at NERSC,
+        /global/cfs/cdirs/cosmo/work/legacysurvey/dr11/survey-bricks.fits.gz
+    dr9nfn : :class:`str`
+        Root path to a DR9 north NEXP all bricks file, as made by
+        :func:`dr_nexp_all_bricks`
+    dr9sfn : :class:`str`
+        Root path to a DR9 south NEXP all bricks file, as made by
+        :func:`dr_nexp_all_bricks`
+    dr11fn : :class:`str`
+        Root path to a DR11 NEXP all bricks file, as made by
+        :func:`dr_nexp_all_bricks`
+    threshfrac : :class:`float`, optional, defaults to 0.25
+        Threshold by which a DR11 brick has to exceed a DR9 brick in the
+        fraction of area covered by at least one observation in all the
+        g, r, z filters (`FALLPRIMGE1` in the NEXP all bricks files).
+    outfn : :class:`str`, optional, defaults to ``None``
+        If passed, write the output array to this file path.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Brick file that resembles `surveybrickfn` but with `FALLPRIMGE1`
+        added for DR9 north (DR9N), DR9 south (DR9S) and DR11 (see
+        :func:`dr_nexp_per_brick` for an explanation of this parameter)
+        and `DRVERSION` added, which is (9) 11 for a DR9 (DR11) brick.
+    """
+    # ADM read in the various file names.
+    sbf = fitsio.read(surveybrickfn)
+    dr9n = fitsio.read(dr9nfn)
+    dr9s = fitsio.read(dr9sfn)
+    dr11 = fitsio.read(dr11fn)
+
+    # ADM the output version of the survey brick file.
+    newc = ["FALLPRIMGE1DR9N", "FALLPRIMGE1DR9S", "FALLPRIMGE1DR11", "DRVERSION"]
+    nsbf = len(sbf)
+    newv = [np.zeros(nsbf), np.zeros(nsbf), np.zeros(nsbf), np.zeros(nsbf)]
+    newd = [">f8", ">f8", ">f8", ">i2"]
+    sbfout = rfn.append_fields(sbf, newc, newv, newd, usemask=False)
+
+    # ADM add the FALLPRIMGE1 values to the output file.
+    # ADM this maps from BRICKNAME to row in the output file.
+    dlookup = {row["BRICKNAME"]: row["BRICKID"]-1 for row in sbfout}
+    # ADM add the values for dr9 north, dr9 south and dr11.
+    for dr, nom in zip([dr9n, dr9s, dr11], ["DR9N", "DR9S", "DR11"]):
+        ii = np.array([dlookup[bn] for bn in dr["BRICKNAME"]])
+        sbfout[f"FALLPRIMGE1{nom}"][ii] = dr["FALLPRIMGE1"]
+
+    # ADM restrict to official southern declinations, which requires
+    # ADM finding the declinations for the DR11 bricks.
+    from desitarget.io import desitarget_resolve_dec
+    ii = np.array([dlookup[bn] for bn in dr11["BRICKNAME"]])
+    sbfoutdr11 = sbfout[ii]
+    # ADM limit to southern declinations.
+    ii = sbfoutdr11["DEC"] < desitarget_resolve_dec()
+    dr11 = dr11[ii]
+
+    allbricknames = set(dr11["BRICKNAME"])
+    allbricknames |= set(dr9n["BRICKNAME"])
+    allbricknames |= set(dr9s["BRICKNAME"])
+
+    # ADM set any populated brick to DR9, initially.
+    ii = np.array([bn in allbricknames for bn in sbfout["BRICKNAME"]])
+    sbfout["DRVERSION"][ii] = 9
+
+    # ADM make look-ups for brick name and FALLPRIMGE1 for DR9 and DR11.
+    dr9nd = {d["BRICKNAME"]: d["FALLPRIMGE1"] for d in dr9n}
+    dr9sd = {d["BRICKNAME"]: d["FALLPRIMGE1"] for d in dr9s}
+    dr11d = {d["BRICKNAME"]: d["FALLPRIMGE1"] for d in dr11}
+    # ADM this hold the list of brick names that are in DR11.
+    dr11bns = []
+    # ADM spool through the DR11 bricks.
+    for bn in dr11d:
+        # ADM if a brick is in DR11 it's a DR11 brick...
+        isdr11 = True
+        # ADM ...unless it appears in DR9 north and doesn't improve
+        # ADM on the fractional completeness by at least 50%...
+        try:
+            if dr9nd[bn] > 0 and dr11d[bn] <= dr9nd[bn] + threshfrac:
+                isdr11 = False
+        except KeyError:
+            pass
+        # ADM ...or it appears in DR9 south and doesn't improve
+        # ADM on the fractional completeness by at least 50%...
+        try:
+            if dr9sd[bn] > 0 and dr11d[bn] <= dr9sd[bn] + threshfrac:
+                isdr11 = False
+        except KeyError:
+            pass
+        # ADM ...or it doesn't have FALL coverage in DR9 or DR11.
+        if dr11d[bn] == 0:
+            try:
+                if dr9nd[bn] == 0:
+                    isdr11 = False
+            except KeyError:
+                pass
+            try:
+                if dr9sd[bn] == 0:
+                    isdr11 = False
+            except KeyError:
+                pass
+        # ADM finally, append truly DR11 bricks to the list.
+        if isdr11:
+            dr11bns.append(bn)
+
+    # ADM add the DR11 bricks to the output brick file.
+    sdr11bns = set(dr11bns)
+    ii = np.array([bn in sdr11bns for bn in sbfout["BRICKNAME"]])
+    sbfout["DRVERSION"][ii] = 11
+
+    # ADM fill some missing areas in the NGC at
+    # ADM low declinations with DR11 bricks.
+    isngc = is_in_gal_box([sbfout["RA"], sbfout["DEC"]], [0., 360., 10., 90.], radec=True)
+    ii = isngc & (sbfout["DEC"] < -10.2)
+    sbfout["DRVERSION"][ii] = 11
+
+    # ADM special case one brick to make areas more contiguous.
+    ii = sbfout["BRICKNAME"] == "3227p290"
+    sbfout["DRVERSION"][ii] = 9
+
+    # ADM if requested, write the output to somewhere.
+    if outfn is not None:
+        hdr = fitsio.FITSHDR()
+        hdr["THRESH"] = threshfrac
+        hdr["SURVEYBF"] = surveybrickfn
+        hdr["DR9NBF"] = dr9nfn
+        hdr["DR9SBF"] = dr9sfn
+        hdr["DR11BF"] = dr11fn
+        fitsio.write(outfn, sbfout, header=hdr)
+
+    return sbfout
+
+
 def ellipse_matrix(r, e1, e2):
     """Calculate transformation matrix from half-light-radius to ellipse
 
