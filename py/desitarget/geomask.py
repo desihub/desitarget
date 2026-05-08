@@ -265,7 +265,7 @@ def dr_nexp_per_brick(brickpath):
         NALLPRIMGE2: Number of pixels in all filters with >= 2 exposures.
         NALLPRIMGE3: Number of pixels in all filters with >= 3 exposures.
         FALLPRIMGE1: Pixel fraction in all filters with >= 1 exposure.
-            (i.e. NALLPRIMGE1/NPIXPRIM).
+        (i.e. NALLPRIMGE1/NPIXPRIM).
         FALLPRIMGE2: Pixel fraction in all filters with >= 2 exposures.
         FALLPRIMGE3: Pixel fraction in all filters with >= 3 exposures.
     """
@@ -329,7 +329,7 @@ def dr_nexp_all_bricks(drdir, numproc=1, outfn=None):
         Root path to an LS imaging data release directory, e.g.
         /global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/ at NERSC.
     numproc : :class:`int`, optional, defaults to 1
-        The number of parallel processes to use. `numproc`=128 results in
+        The number of parallel processes to use. numproc=128 results in
         approximately 100 bricks being processed per second.
     outfn : :class:`str`, optional, defaults to ``None``
         If passed, write the output array to this file path.
