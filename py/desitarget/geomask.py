@@ -383,7 +383,7 @@ def dr_nexp_all_bricks(drdir, numproc=1, outfn=None):
 
     # ADM if requested, write the output to somewhere.
     if outfn is not None:
-        fitsio.write(outfn, done)
+        fitsio.write(outfn, done, clobber=True)
 
     return done
 
@@ -396,7 +396,7 @@ def dr9_or_dr11_brick_file(surveybrickfn, dr9nfn, dr9sfn, dr11fn,
     ----------
     surveybrickfn : :class:`str`
         Root path to a Legacy Surveys general brick file, e.g., at NERSC,
-        /global/cfs/cdirs/cosmo/work/legacysurvey/dr11/survey-bricks.fits.gz
+        /global/cfs/cdirs/cosmo/data/legacysurvey/dr11/survey-bricks.fits.gz
     dr9nfn : :class:`str`
         Root path to a DR9 north NEXP all bricks file, as made by
         :func:`dr_nexp_all_bricks`
@@ -407,9 +407,9 @@ def dr9_or_dr11_brick_file(surveybrickfn, dr9nfn, dr9sfn, dr11fn,
         Root path to a DR11 NEXP all bricks file, as made by
         :func:`dr_nexp_all_bricks`
     threshfrac : :class:`float`, optional, defaults to 0.25
-        Threshold by which a DR11 brick has to exceed a DR9 brick in the
-        fraction of area covered by at least one observation in all the
-        g, r, z filters (`FALLPRIMGE1` in the NEXP all bricks files).
+        Threshold by which a DR11 brick has to exceed a DR9 brick in terms
+        of the fraction of area covered by at least one observation in all
+        the g, r, z filters (`FALLPRIMGE1` in the NEXP all bricks files).
     outfn : :class:`str`, optional, defaults to ``None``
         If passed, write the output array to this file path.
 
@@ -522,7 +522,7 @@ def dr9_or_dr11_brick_file(surveybrickfn, dr9nfn, dr9sfn, dr11fn,
         hdr["DR9NBF"] = dr9nfn
         hdr["DR9SBF"] = dr9sfn
         hdr["DR11BF"] = dr11fn
-        fitsio.write(outfn, sbfout, header=hdr)
+        fitsio.write(outfn, sbfout, header=hdr, clobber=True)
 
     return sbfout
 
