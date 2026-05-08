@@ -5,7 +5,9 @@ desitarget Change Log
 4.7.3 (unreleased)
 ------------------
 
-* No changes yet.
+* Add code to make a DR9/DR11 bricks file [`PR #881`_].
+
+.. _`PR #881`: https://github.com/desihub/desitarget/pull/881
 
 4.7.2 (2026-04-29)
 ------------------
