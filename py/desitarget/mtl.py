@@ -2249,6 +2249,16 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     nuniq = len(set(targets["TARGETID"]))
     log.info("Retained {}/{} targets with {} unique TARGETIDs...t={:.1f}s"
              .format(len(targets), ntargs, nuniq, time()-t0))
+    # ADM there is a possible corner case where there are no secondary
+    # ADM targets that need reprocessed. For example, when running a 1B
+    # ADM tile from before secondary targets were assigned to 1B tiles.
+    # ADM In this case, the code will need run with the --nosec flag.
+    if len(targets) == 0 and "1B" in obscon:
+        msg = f"No targets to reprocess in {obscon} conditions. You may be "
+        msg += "reprocessing a tile from before secondaries were added to 1B "
+        msg += "tiles. If so, try re-running with the --nosec flag added."
+        log.error(msg)
+        raise ValueError(msg)
 
     # ADM split off the updated target states from the unobserved states.
     _, ii = np.unique(targets["TARGETID"], return_index=True)
