@@ -11,7 +11,9 @@ desitarget Change Log
     * This PR catches 2 new corner cases for such individual tiles.
     * The case caught in `PR #879`_.
     * The case for which a `1B` tile contains no secondary targets.
+* Add code to make a DR9/DR11 bricks file [`PR #881`_].
 
+.. _`PR #881`: https://github.com/desihub/desitarget/pull/881
 .. _`PR #882`: https://github.com/desihub/desitarget/pull/882
 
 4.7.2 (2026-04-29)

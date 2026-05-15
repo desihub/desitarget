@@ -622,7 +622,7 @@ def make_gaia_light_dr3(numproc=128):
         inobjs = fitsio.read(infile)
 
         # ADM construct and write the lightweight versions.
-        done = np.zeros(len(inobjs), dtype = dr3datamodellight.dtype)
+        done = np.zeros(len(inobjs), dtype=dr3datamodellight.dtype)
         for col in done.dtype.names:
             done[col] = inobjs[col]
 
@@ -1775,9 +1775,9 @@ def match_gaia_to_primary_post_dr3(objs, matchrad=0.2, dr="dr3", maglim=None,
     for fn in gaiafiles:
         g = read_gaia_file(fn, dr=dr, lightweight=lightweight)
         if maglim is not None:
-            ii = (g['PHOT_G_MEAN_MAG'] < maglim) & (g['PHOT_G_MEAN_MAG'] !=0)
-            ii |= (g['PHOT_BP_MEAN_MAG'] < maglim) & (g['PHOT_BP_MEAN_MAG'] !=0)
-            ii |= (g['PHOT_RP_MEAN_MAG'] < maglim) & (g['PHOT_RP_MEAN_MAG'] !=0)
+            ii = (g['PHOT_G_MEAN_MAG'] < maglim) & (g['PHOT_G_MEAN_MAG'] != 0)
+            ii |= (g['PHOT_BP_MEAN_MAG'] < maglim) & (g['PHOT_BP_MEAN_MAG'] != 0)
+            ii |= (g['PHOT_RP_MEAN_MAG'] < maglim) & (g['PHOT_RP_MEAN_MAG'] != 0)
             g = g[ii]
         gaia.append(g)
     gaia = np.concatenate(gaia)
