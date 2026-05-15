@@ -2177,7 +2177,6 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     :class:`dict`
         A dictionary where the keys are the integer TILEIDs and the values
         are the TIMESTAMP at which that tile was reprocessed.
-
     """
     t0 = time()
     log.info("Reprocessing based on zcat with {} entries...t={:.1f}s"
@@ -2221,6 +2220,16 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     pixnum = list(set(pixnum))
     targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=False)
 
+    # ADM there is a possible corner case where we are reprocessing a 1B
+    # ADM tile that includes no 1A targets. For example, an M31 tile that
+    # ADM doesn't overlap the DESI original survey. In the case of no
+    # ADM targets, return an empty timedict without maling updates.
+    if len(targets) == 0:
+        msg = "No targets need reprocessed. Should only happen when reprocessing"
+        msg += " 1A targets on 1B tiles that do not overlap the original survey!"
+        log.info(msg)
+        return timedict
+
     # ADM remove OVERRIDE entries, which should never need reprocessed.
     targets, _ = remove_overrides(targets)
 
@@ -2240,6 +2249,16 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     nuniq = len(set(targets["TARGETID"]))
     log.info("Retained {}/{} targets with {} unique TARGETIDs...t={:.1f}s"
              .format(len(targets), ntargs, nuniq, time()-t0))
+    # ADM there is a possible corner case where there are no secondary
+    # ADM targets that need reprocessed. For example, when running a 1B
+    # ADM tile from before secondary targets were assigned to 1B tiles.
+    # ADM In this case, the code will need run with the --nosec flag.
+    if len(targets) == 0 and "1B" in obscon:
+        msg = f"No targets to reprocess in {obscon} conditions. You may be "
+        msg += "reprocessing a tile from before secondaries were added to 1B "
+        msg += "tiles. If so, try re-running with the --nosec flag added."
+        log.error(msg)
+        raise ValueError(msg)
 
     # ADM split off the updated target states from the unobserved states.
     _, ii = np.unique(targets["TARGETID"], return_index=True)

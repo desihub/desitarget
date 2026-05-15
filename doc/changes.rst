@@ -5,9 +5,16 @@ desitarget Change Log
 4.7.3 (unreleased)
 ------------------
 
+* Catch further reprocessing bugs related to `PR #879`_ [`PR #882`_]:
+    * `PR #879`_ worked as buggy tiles were batched with other tiles.
+    * For individual buggy `1B` tiles, reprocessing can still fail.
+    * This PR catches 2 new corner cases for such individual tiles.
+    * The case caught in `PR #879`_.
+    * The case for which a `1B` tile contains no secondary targets.
 * Add code to make a DR9/DR11 bricks file [`PR #881`_].
 
 .. _`PR #881`: https://github.com/desihub/desitarget/pull/881
+.. _`PR #882`: https://github.com/desihub/desitarget/pull/882
 
 4.7.2 (2026-04-29)
 ------------------
