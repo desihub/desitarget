@@ -1241,24 +1241,6 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     if nnodes > 48:
         nnodes = 48
 
-    print("#######################################################")
-    print("Possible salloc command if you want to run on the Cori interactive queue:")
-    print("")
-    print("salloc -N {} -C haswell -t 0{}:00:00 --qos interactive -L SCRATCH,project"
-          .format(nnodes, maxeta))
-
-    print("")
-    print("#######################################################")
-    print('Example shell script for slurm:')
-    print('')
-    print('#!/bin/bash -l')
-    print('#SBATCH -q regular')
-    print('#SBATCH -N {}'.format(nnodes))
-    print('#SBATCH -t 0{}:00:00'.format(maxeta))
-    print('#SBATCH -L SCRATCH,project')
-    print('#SBATCH -C haswell')
-    print('')
-
     # ADM extract the Data Release number from the survey directory
     dr = surveydir.split("dr")[-1].split(os.path.sep)[0]
     # ADM if an integer can't be extracted, use X instead.
@@ -1266,6 +1248,23 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         drstr = "-dr{}".format(int(dr))
     except ValueError:
         drstr = ""
+
+    print("#######################################################")
+    print("Possible salloc command for Perlmutter interactive queue:")
+    print("")
+    print("salloc --nodes 4 --qos interactive --time 04:00:00 --constraint cpu")
+    print("")
+    print("#######################################################")
+    print('Example shell script for slurm:')
+    print('')
+    print('#!/bin/bash -l')
+    print('#SBATCH -q regular')
+    print(f'#SBATCH -N {nnodes}')
+    print(f'#SBATCH -t 0{maxeta}:00:00')
+    print('#SBATCH -L scratch,cfs')
+    print('#SBATCH -C cpu')
+    print(f'#SBATCH -o {prefix}{drstr}.log')
+    print('')
 
     # ADM to handle inputs that look like "svX_targets".
     prefix2 = prefix
