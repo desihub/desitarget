@@ -213,7 +213,7 @@ class LegacySurveyData(object):
             # ADM directory up. Assuming this is dr8+.
             basedir = basedir.rstrip('/')
             check = os.path.basename(os.path.dirname(basedir))
-            if check[:2] == 'dr' and int(check[-1]) >= 8:
+            if check[:2] == 'dr' and int(check.split('dr')[-1]) >= 8:
                 truebasedir = os.path.dirname(basedir)
             else:
                 truebasedir = basedir
