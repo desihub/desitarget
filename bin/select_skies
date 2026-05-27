@@ -151,6 +151,8 @@ else:
         skies = np.array(skies, dtype=object)
         ii = [sk is not None for sk in skies]
         skies = np.concatenate(skies[ii])
+    else:
+        skies = np.concatenate(skies)
 
     # ADM resolve any duplicates between imaging data releases. 
     resolved = resolve(skies)
