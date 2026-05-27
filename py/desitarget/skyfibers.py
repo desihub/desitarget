@@ -388,15 +388,31 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     # SB import photutils only if required instead of at module import time
     import photutils.aperture
 
+    # ADM the data model for blob maps changed after DR10.
+    # ADM so check the data release.
+    basedir = survey.survey_dir
+    # ADM Assuming this is dr8+, dr-name directory is one up.
+    basedir = basedir.rstrip('/')
+    drname = os.path.basename(os.path.dirname(basedir))
+    postdr10 = False
+    if drname[:2] == 'dr' and int(drname.split('dr')[-1]) >= 11:
+        postdr10 = True
+
     fn = survey.find_file('blobmap', brick=brickname)
     # ADM if the file doesn't exist, warn and return immediately.
     if not os.path.exists(fn):
         log.warning('blobmap {} does not exist!!!'.format(fn))
         return None
-    blobs = fitsio.read(fn)
+
+    if postdr10:
+        blobs = fitsio.read(fn, ext="BLOB-MAP")
+        header = fitsio.read_header(fn, ext="BLOB-MAP")
+    else:
+        blobs = fitsio.read(fn)
+        header = fitsio.read_header(fn)
+
     # log.info('Blob maximum value and minimum value in brick {}: {} {}'
     #         .format(brickname,blobs.min(),blobs.max()))
-    header = fitsio.read_header(fn)
     wcs = WCS(header)
 
     goodpix = (blobs == -1)
