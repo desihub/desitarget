@@ -12,9 +12,11 @@ desitarget Change Log
     * The case caught in `PR #879`_.
     * The case for which a `1B` tile contains no secondary targets.
 * Add code to make a DR9/DR11 bricks file [`PR #881`_].
+* Correct the concatenation of MTL ledgers in read_mtl_in_hp [`PR #884`_]
 
 .. _`PR #881`: https://github.com/desihub/desitarget/pull/881
 .. _`PR #882`: https://github.com/desihub/desitarget/pull/882
+.. _`PR #884`: https://github.com/desihub/desitarget/pull/884
 
 4.7.2 (2026-04-29)
 ------------------
