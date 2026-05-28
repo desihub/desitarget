@@ -5,7 +5,7 @@ desitarget Change Log
 4.7.3 (unreleased)
 ------------------
 
-* Update desitarget code to process targets and skies [`PR #885`_]:
+* Update code to process targets and skies from DR11 [`PR #885`_]:
     * Mostly handles updates to the DR11 imaging data model.
     * In particular, adds new `RELEASE` numbers for DR11/south.
     * Also updates the FITS extension from which the blob maps are read.
