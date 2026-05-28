@@ -1266,6 +1266,43 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print(f'#SBATCH -o {prefix}{drstr}.log')
     print('')
 
+    # ADM also write the various batch files needed for GNU parallel.
+    # ADM this counts the command line args, as parallel expects that.
+    argscnt = 6 + len(extra.split()) + int(surveydir2 != None) 
+    args = " ".join(["{"+str(i)+"}" for i in np.arange(argscnt)+1])
+    with open(f"{prefix}{drstr}-driver.sh", 'w') as driverfn:
+        driverfn.write("""#!/bin/bash\n""")
+        driverfn.write("""if [[ -z "${SLURM_NODEID}" ]]; then\n""")
+        driverfn.write("""    echo "need \$SLURM_NODEID set"\n""")
+        driverfn.write("""    exit\n""")
+        driverfn.write("""fi\n""")
+        driverfn.write("""if [[ -z "${SLURM_NNODES}" ]]; then\n""")
+        driverfn.write("""    echo "need \$SLURM_NNODES set"\n""")
+        driverfn.write("""    exit\n""")
+        driverfn.write("""fi\n""")
+        driverfn.write("""cat $1 |                                               \\""")
+        driverfn.write("\n")
+        driverfn.write('''awk -v NNODE="$SLURM_NNODES" -v NODEID="$SLURM_NODEID" \\''')
+        driverfn.write("\n")
+        driverfn.write("""'NR % NNODE == NODEID' |                               \\""")
+        driverfn.write("\n")
+        driverfn.write(f"parallel --colsep ' ' select_{prefix} {args}\n")
+
+    with open(f"{prefix}{drstr}-gnu-parallel.sh", 'w') as gpfn:
+        gpfn.write("""#!/bin/bash\n""")
+        gpfn.write('#SBATCH -q regular\n')
+        gpfn.write(f'#SBATCH -N 64\n')
+        gpfn.write(f'#SBATCH -t 00:30:00\n')
+        gpfn.write('#SBATCH -L scratch,cfs\n')
+        gpfn.write('#SBATCH -C cpu\n')
+        gpfn.write('#SBATCH --ntasks-per-node 1\n')
+        gpfn.write(f'#SBATCH -o {prefix}{drstr}.log\n')
+        gpfn.write(f"# Alternative for the Perlmutter interactive queue:\n")
+        gpfn.write(f"# salloc --nodes 4 --qos interactive --time 04:00:00 --constraint cpu\n")
+        gpfn.write(f"# srun --no-kill --ntasks=4 --ntasks-per-node 1 --wait=0 ./{prefix}{drstr}-driver.sh {prefix}{drstr}.tasks\n")
+        gpfn.write("\n")
+        gpfn.write(f"srun --no-kill --ntasks=64 --wait=0 ./{prefix}{drstr}-driver.sh $1")
+
     # ADM to handle inputs that look like "svX_targets".
     prefix2 = prefix
     if prefix[0:2] == "sv":
@@ -1273,7 +1310,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     s2 = ""
     if surveydir2 is not None:
-        s2 = "-s2 {}".format(surveydir2)
+        s2 = "-s2 {} ".format(surveydir2)
 
     cmd = "select"
     if prefix == "supp-skies":
@@ -1282,7 +1319,12 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     from desitarget.io import _check_hpx_length, find_target_files
 
+    # ADM expand the scratch directory as it's safer than batching on
+    # ADM the environment variable.
+    scratch = os.getenv("SCRATCH")
     pixtracker = []
+    # ADM taskstext holds the output tasks for gnu parallel.
+    taskstext = ""
     for bin in bins:
         num = np.array(bin)[:, 0]
         pix = np.array(bin)[:, 1]
@@ -1296,8 +1338,12 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             pixtracker.append(strgoodpix)
             if extra is not None:
                 strgoodpix += extra
-            print("srun -N 1 {}_{} {} $SCRATCH {} --nside {} --healpixels {} &"
-                  .format(cmd, prefix2, surveydir, s2, nside, strgoodpix))
+            taskstring = "{} {} {}--nside {} --healpixels {}".format(
+                surveydir, scratch, s2, nside, strgoodpix)
+            taskstext += f"{taskstring}\n"
+            print(f"srun -N 1 {cmd}_{prefix2} {taskstring} &")
+    with open(f"{prefix}{drstr}.tasks", 'w') as tasksfn:
+        tasksfn.write(taskstext)
     print("wait")
     print("")
     if gather:
@@ -1308,11 +1354,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             outfiles = []
             for pix in pixtracker:
                 outfn = find_target_files(
-                    "$SCRATCH", dr=ddrr, flavor=prefix, seed=seed, hp=pix,
+                    scratch, dr=ddrr, flavor=prefix, seed=seed, hp=pix,
                     resolve=resolve, region=region)
                 outfiles.append(outfn)
             outfn = find_target_files(
-                "$SCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
+                scratch, dr=ddrr, flavor=prefix, seed=seed, nohp=True,
                 resolve=resolve, region=region)
             print("")
             # ADM split each pixel-file into 10 smaller catalogs.
