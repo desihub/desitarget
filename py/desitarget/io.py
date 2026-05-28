@@ -4210,8 +4210,6 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
     if header and not mtl:
         return targets, hdr
 
-    print(f"BISCUITS, {targets.dtype}")
-    print(targets[0:5])
     return targets
 
 
