@@ -3094,7 +3094,10 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     done3["MTL_WANTED"] |= (mtl1match["PRIORITY"] > 2) * obsconditions[oc1]
     done3["MTL_WANTED"] |= (mtl2match["PRIORITY"] > 2) * obsconditions[oc2]
 
-    return np.concatenate([done1, done2, done3])
+    # DG - define output datatype to avoid the concatenate casting
+    # everything to big endian instead of maintaining the little endian
+    # type of all input MTLS.
+    return np.concatenate([done1, done2, done3], dtype=done3.dtype)
 
 
 def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
@@ -3580,7 +3583,10 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                 return outly, outfns
             return outly
 
-        mtl = np.concatenate(mtls)
+        # TODO Reproduce old behaviour with concatenate.
+        # mtl = np.concatenate(mtls)
+        mtl = rfn.stack_arrays(mtls, asrecarray=True, usemask=True)
+
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
         # ADM turn the list back into a string.
@@ -4203,6 +4209,9 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 
     if header and not mtl:
         return targets, hdr
+
+    print(f"BISCUITS, {targets.dtype}")
+    print(targets[0:5])
     return targets
 
 
