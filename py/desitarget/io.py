@@ -2944,11 +2944,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         # ADM need to catch cases where only one file actually exists.
         f1exists = os.path.isfile(filename[0])
         f2exists = os.path.isfile(filename[1])
-        if f1exists & ~f2exists:
+        if f1exists and (not f2exists):
             return read_one_mtl_ledger(
                 filename[0], unique=unique, isodate=isodate, initial=initial,
                 leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
-        elif f2exists & ~f1exists:
+        elif f2exists and (not f1exists):
             return read_one_mtl_ledger(
                 filename[1], unique=unique, isodate=isodate, initial=initial,
                 leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
