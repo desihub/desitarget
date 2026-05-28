@@ -5,6 +5,11 @@ desitarget Change Log
 4.7.3 (unreleased)
 ------------------
 
+* Update desitarget code to process targets and skies [`PR #885`_]:
+    * Mostly handles updates to the DR11 imaging data model.
+    * In particular, adds new `RELEASE` numbers for DR11/south.
+    * Also updates the FITS extension from which the blob maps are read.
+    * And adds some slurm scripts to improve batching using GNU parallel.
 * Catch further reprocessing bugs related to `PR #879`_ [`PR #882`_]:
     * `PR #879`_ worked as buggy tiles were batched with other tiles.
     * For individual buggy `1B` tiles, reprocessing can still fail.
@@ -15,6 +20,7 @@ desitarget Change Log
 
 .. _`PR #881`: https://github.com/desihub/desitarget/pull/881
 .. _`PR #882`: https://github.com/desihub/desitarget/pull/882
+.. _`PR #882`: https://github.com/desihub/desitarget/pull/885
 
 4.7.2 (2026-04-29)
 ------------------
