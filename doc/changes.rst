@@ -20,7 +20,7 @@ desitarget Change Log
 
 .. _`PR #881`: https://github.com/desihub/desitarget/pull/881
 .. _`PR #882`: https://github.com/desihub/desitarget/pull/882
-.. _`PR #882`: https://github.com/desihub/desitarget/pull/885
+.. _`PR #885`: https://github.com/desihub/desitarget/pull/885
 
 4.7.2 (2026-04-29)
 ------------------
