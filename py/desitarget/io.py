@@ -3453,7 +3453,8 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False,
 
 def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                    returnfn=False, initial=False, leq=False, columns=None,
-                   tabform='ascii.basic', maketwostyle=False):
+                   tabform='ascii.basic', maketwostyle=False,
+                   use_concatenate=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -3508,6 +3509,12 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
     maketwostyle : :class:`bool`, optional, defaults to ``False``
         If passed, add the extra columns that are added when running
         :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process.
 
     Returns
     -------
@@ -3583,9 +3590,30 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                 return outly, outfns
             return outly
 
-        # TODO Reproduce old behaviour with concatenate.
-        # mtl = np.concatenate(mtls)
-        mtl = rfn.stack_arrays(mtls, asrecarray=True, usemask=True)
+        # DG - Reproduce old behaviour with concatenate, explained in the ticket
+        # in the docstring.
+        if use_concatenate:
+            # DG - this was the version that changed concatenate, so
+            # above this version we have to manually recreate the behaviour
+            if np.__version__ >= "1.23.0":
+                # DG - We will have to concatenate each column individually to
+                # avoid field name clash errors.
+                # Previous behaviour used the last MTL to determine column naming.
+                chosen_dtype = mtls[-1].dtype
+                # Inner list comprehension pulls the column indixed by this index,
+                # by pulling the name of the column at this index from the dtype
+                # of that mtl.
+                mtl = np.zeros(np.sum([len(m) for m in mtls]), dtype=chosen_dtype)
+                for i, name in enumerate(chosen_dtype.names):
+                    mtl[name] = np.concatenate([m[m.dtype.names[i]] for m in mtls])
+
+            # DG - Below that version we can just call np.concatenate.
+            else:
+                mtl = np.concatenate(mtls)
+        else:
+            # DG - It is faster to have `usemask=True` and there are not adverse
+            # downstream effects, in my testing, so we are safe to use it.
+            mtl = rfn.stack_arrays(mtls, asrecarray=True, usemask=True)
 
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
