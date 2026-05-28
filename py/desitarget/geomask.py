@@ -1268,7 +1268,9 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     # ADM also write the various batch files needed for GNU parallel.
     # ADM this counts the command line args, as parallel expects that.
-    argscnt = 6 + len(extra.split()) + int(surveydir2 != None) 
+    argscnt = 6 + int(surveydir2 != None)
+    if extra is not None:
+        argscnt += len(extra.split())
     args = " ".join(["{"+str(i)+"}" for i in np.arange(argscnt)+1])
     with open(f"{prefix}{drstr}-driver.sh", 'w') as driverfn:
         driverfn.write("""#!/bin/bash\n""")
