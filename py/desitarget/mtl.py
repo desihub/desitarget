@@ -41,7 +41,7 @@ mtldatamodel = np.array([], dtype=[
     ('PMRA', '>f4'), ('PMDEC', '>f4'), ('REF_EPOCH', '>f4'),
     ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'), ('MWS_TARGET', '>i8'),
     ('SCND_TARGET', '>i8'), ('TARGETID', '>i8'),
-    ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
+    ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
     ('TIMESTAMP', 'U25'), ('VERSION', 'U14'), ('TARGET_STATE', 'U30'),
@@ -51,27 +51,27 @@ mtldatamodel = np.array([], dtype=[
 # ADM at some point the primary and secondary data models for the MTLs
 # ADM are trimmed and reordered. These record their exact format on disk.
 mtlprimdatamodel = np.array([], dtype=[
-    ('RA', '<f8'), ('DEC', '<f8'), ('REF_EPOCH', '<f4'),
-    ('PARALLAX', '<f4'), ('PMRA', '<f4'), ('PMDEC', '<f4'),
-    ('TARGETID', '<i8'), ('DESI_TARGET', '<i8'), ('BGS_TARGET', '<i8'),
-    ('MWS_TARGET', '<i8'), ('SUBPRIORITY', '<f8'), ('OBSCONDITIONS', '<i4'),
-    ('PRIORITY_INIT', '<i8'), ('NUMOBS_INIT', '<i8'), ('SCND_TARGET', '<i8'),
-    ('NUMOBS_MORE', '<i8'), ('NUMOBS', '<i8'), ('Z', '<f8'), ('ZWARN', '<i8'),
-    ('ZTILEID', '<i4'), ('Z_QN', '<f8'), ('IS_QSO_QN', '<i2'),
-    ('DELTACHI2', '<f8'), ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'),
-    ('VERSION', '<U14'), ('PRIORITY', '<i8')
+    ('RA', '>f8'), ('DEC', '>f8'), ('REF_EPOCH', '>f4'),
+    ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('TARGETID', '>i8'), ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'),
+    ('MWS_TARGET', '>i8'), ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i4'),
+    ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('SCND_TARGET', '>i8'),
+    ('NUMOBS_MORE', '>i8'), ('NUMOBS', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
+    ('ZTILEID', '>i4'), ('Z_QN', '>f8'), ('IS_QSO_QN', '>i2'),
+    ('DELTACHI2', '>f8'), ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'),
+    ('VERSION', '<U14'), ('PRIORITY', '>i8')
 ])
 
 mtlsecdatamodel = np.array([], dtype=[
-    ('RA', '<f8'), ('DEC', '<f8'), ('PMRA', '<f4'), ('PMDEC', '<f4'),
-    ('REF_EPOCH', '<f4'), ('PARALLAX', '<f4'), ('TARGETID', '<i8'),
-    ('DESI_TARGET', '<i8'), ('SCND_TARGET', '<i8'), ('SUBPRIORITY', '<f8'),
-    ('OBSCONDITIONS', '<i4'), ('PRIORITY_INIT', '<i8'), ('NUMOBS_INIT', '<i8'),
-    ('BGS_TARGET', '<i8'), ('MWS_TARGET', '<i8'), ('NUMOBS_MORE', '<i8'),
-    ('NUMOBS', '<i8'), ('Z', '<f8'), ('ZWARN', '<i8'), ('ZTILEID', '<i4'),
-    ('Z_QN', '<f8'), ('IS_QSO_QN', '<i2'), ('DELTACHI2', '<f8'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('TARGETID', '>i8'),
+    ('DESI_TARGET', '>i8'), ('SCND_TARGET', '>i8'), ('SUBPRIORITY', '>f8'),
+    ('OBSCONDITIONS', '>i4'), ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'),
+    ('BGS_TARGET', '>i8'), ('MWS_TARGET', '>i8'), ('NUMOBS_MORE', '>i8'),
+    ('NUMOBS', '>i8'), ('Z', '>f8'), ('ZWARN', '<i8'), ('ZTILEID', '>i4'),
+    ('Z_QN', '>f8'), ('IS_QSO_QN', '>i2'), ('DELTACHI2', '>f8'),
     ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'), ('VERSION', '<U14'),
-    ('PRIORITY', '<i8')
+    ('PRIORITY', '>i8')
 ])
 
 
@@ -1824,8 +1824,8 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
     io.write_mtl_tile_file(mtldonefn, vetodone)
 
     return
-        
-    
+
+
 def process_overrides(ledgerfn, tabform='ascii.basic'):
     """
     Recover MTL entries from override ledgers and update those ledgers.

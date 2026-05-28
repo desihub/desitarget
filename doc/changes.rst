@@ -10,6 +10,7 @@ desitarget Change Log
     * In particular, adds new `RELEASE` numbers for DR11/south.
     * Also updates the FITS extension from which the blob maps are read.
     * And adds some slurm scripts to improve batching using GNU parallel.
+* Correct the concatenation of MTL ledgers in read_mtl_in_hp [`PR #884`_].
 * Catch further reprocessing bugs related to `PR #879`_ [`PR #882`_]:
     * `PR #879`_ worked as buggy tiles were batched with other tiles.
     * For individual buggy `1B` tiles, reprocessing can still fail.
@@ -20,6 +21,7 @@ desitarget Change Log
 
 .. _`PR #881`: https://github.com/desihub/desitarget/pull/881
 .. _`PR #882`: https://github.com/desihub/desitarget/pull/882
+.. _`PR #884`: https://github.com/desihub/desitarget/pull/884
 .. _`PR #885`: https://github.com/desihub/desitarget/pull/885
 
 4.7.2 (2026-04-29)
