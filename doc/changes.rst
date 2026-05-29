@@ -5,7 +5,10 @@ desitarget Change Log
 5.0.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Update the default set of imaging mask bits for DR11 [`PR #886`_]:
+    * Now always include new `RESOLVED`, `MCLOUDS` and `WISE_GAIA` bits.
+
+.. _`PR #886`: https://github.com/desihub/desitarget/pull/886
 
 5.0.0 (2026-05-28)
 ------------------

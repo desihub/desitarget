@@ -188,7 +188,7 @@ def get_default_maskbits(bgs=False, mws=False):
         log.critical(msg)
         raise ValueError(msg)
 
-    # ADM use the updated maskbits, if they exist.
+    # ADM use the updated maskbits for DR11, if they exist.
     dr11extra = []
     if "RESOLVED" in get_imaging_maskbits():
         dr11extra = ["RESOLVED", "MCLOUDS", "WISE_GAIA"]
