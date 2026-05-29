@@ -1275,11 +1275,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     with open(f"{prefix}{drstr}-driver.sh", 'w') as driverfn:
         driverfn.write("""#!/bin/bash\n""")
         driverfn.write("""if [[ -z "${SLURM_NODEID}" ]]; then\n""")
-        driverfn.write("""    echo "need \$SLURM_NODEID set"\n""")
+        driverfn.write("""    echo "need \\$SLURM_NODEID set"\n""")
         driverfn.write("""    exit\n""")
         driverfn.write("""fi\n""")
         driverfn.write("""if [[ -z "${SLURM_NNODES}" ]]; then\n""")
-        driverfn.write("""    echo "need \$SLURM_NNODES set"\n""")
+        driverfn.write("""    echo "need \\$SLURM_NNODES set"\n""")
         driverfn.write("""    exit\n""")
         driverfn.write("""fi\n""")
         driverfn.write("""cat $1 |                                               \\""")
