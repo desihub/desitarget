@@ -42,10 +42,12 @@ log = get_logger()
 # ADM photometric system. This will expand with the definition of RELEASE in the
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
-releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
-               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
-               9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N',
-               9010: 'S', 9011: 'N', 9012: 'S', 9013: 'N', 10000: 'S'}
+releasedict = {
+    3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
+    8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
+    9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N',
+    9010: 'S', 9011: 'N', 9012: 'S', 9013: 'N', 10000: 'S', 10099: 'S',
+    11010: 'S'}
 
 # ADM This is an empty array of most of the TS data model columns and
 # ADM dtypes. Note that other columns are added in read_tractor and
@@ -85,6 +87,18 @@ dr10replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
                    ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (17,)),
                    ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (17,)),
                    ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (17,))}
+
+# ADM columns that have updated dtypes in the DR11 data model.
+dr11replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
+                   ('LC_FLUX_W1', '>f4', (15,)): ('LC_FLUX_W1', '>f4', (25,)),
+                   ('LC_FLUX_W2', '>f4', (15,)): ('LC_FLUX_W2', '>f4', (25,)),
+                   ('LC_FLUX_IVAR_W1', '>f4', (15,)): ('LC_FLUX_IVAR_W1', '>f4', (25,)),
+                   ('LC_FLUX_IVAR_W2', '>f4', (15,)): ('LC_FLUX_IVAR_W2', '>f4', (25,)),
+                   ('LC_NOBS_W1', '>i2', (15,)): ('LC_NOBS_W1', '>i2', (25,)),
+                   ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (25,)),
+                   ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (25,)),
+                   ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (25,))}
+
 
 # ADM columns that are new for the DR9 data model.
 dr9addedcols = np.array([], dtype=[
@@ -213,7 +227,9 @@ def read_tractor(filename, header=False, columns=None, gaiasub=False):
             [], dtype=basetsdatamodel.dtype.descr + dr8addedcols.dtype.descr)
     else:
         newdt = basetsdatamodel.dtype.descr + dr9addedcols.dtype.descr
-        if "FLUX_I" in indata.dtype.names:  # ADM i-fluxes were added for DR10.
+        if "LS_ID_DR11" in indata.dtype.names:  # ADM LS ID was added for DR11.
+            newdt = [dr11replacecols.get(tup, tup) for tup in newdt]
+        elif "FLUX_I" in indata.dtype.names:  # ADM i-fluxes were added for DR10.
             newdt = [dr10replacecols.get(tup, tup) for tup in newdt]
         tsdatamodel = np.array([], dtype=newdt)
 
@@ -294,7 +310,7 @@ def release_to_photsys(release):
 
     Parameters
     ----------
-    objects : :class:`int` or :class:`~numpy.ndarray`
+    release : :class:`int` or :class:`~numpy.ndarray`
         RELEASE column from a numpy rec array of targets.
 
     Returns
