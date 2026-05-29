@@ -152,7 +152,8 @@ def get_imaging_maskbits(bitnamelist=None):
     """
     bitdict = {"NPRIMARY": 0, "BRIGHT": 1,
                "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
-               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}
+               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13,
+               "RESOLVED": 17, "MCLOUDS": 18, "WISE_GAIA": 19}
 
     # ADM look up the bit value for each passed bit name.
     if bitnamelist is not None:
@@ -186,12 +187,18 @@ def get_default_maskbits(bgs=False, mws=False):
         msg = "Only one of bgs or mws can be passed as True"
         log.critical(msg)
         raise ValueError(msg)
-    if bgs:
-        return ["BRIGHT", "CLUSTER"]
-    if mws:
-        return ["BRIGHT", "GALAXY"]
 
-    return ["BRIGHT", "GALAXY", "CLUSTER"]
+    # ADM use the updated maskbits, if they exist.
+    dr11extra = []
+    if "RESOLVED" in get_imaging_maskbits():
+        dr11extra = ["RESOLVED", "MCLOUDS", "WISE_GAIA"]
+
+    if bgs:
+        return ["BRIGHT", "CLUSTER"] + dr11extra
+    if mws:
+        return ["BRIGHT", "GALAXY"] + dr11extra
+
+    return ["BRIGHT", "GALAXY", "CLUSTER"] + dr11extra
 
 
 def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
