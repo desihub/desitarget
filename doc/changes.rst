@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-4.7.3 (unreleased)
+5.0.1 (unreleased)
+------------------
+
+* No changes yet.
+
+5.0.0 (2026-05-28)
 ------------------
 
 * Update code to process targets and skies from DR11 [`PR #885`_]:
