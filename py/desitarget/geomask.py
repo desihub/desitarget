@@ -234,7 +234,7 @@ def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
     # ADM DR10. If it's type int32 instead of int16 it's safe to use the
     # ADM dr11 version of the MASKBITS cuts.
     dr11 = False
-    if basetsdatamodel.dtype['MASKBITS'].newbyteorder("=") == np.int32:
+    if maskbits.dtype['MASKBITS'].newbyteorder("=") == np.int32:
         dr11 = True
 
     # ADM now re-retrieve the default MASKBITS with all flags set.
