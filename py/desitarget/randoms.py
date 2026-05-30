@@ -543,7 +543,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     # ADM only process the WCS if there's a file for this filter.
     mnames = zip([extn_nb, extn_nb+1, extn_nb+2],
                  ['maskbits', 'wisemask_w1', 'wisemask_w2'],
-                 ['>i2', '|u1', '|u1'])
+                 ['>i4', '|u1', '|u1'])
     if justlist:
         fnlist.append(fn)
     else:
