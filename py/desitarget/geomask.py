@@ -230,9 +230,15 @@ def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
     -----
     - Only one of `bgsmask` or `mwsmask` can be ``True``.
     """
-    # ADM default for the BGS or MWS..
-    if bgsmask or mwsmask:
-        bitnamelist = get_default_maskbits(bgs=bgsmask, mws=mwsmask)
+    # ADM check the dtype of the maskbits column, as we expanded it for
+    # ADM DR10. If it's type int32 instead of int16 it's safe to use the
+    # ADM dr11 version of the MASKBITS cuts.
+    dr11 = False
+    if basetsdatamodel.dtype['MASKBITS'].newbyteorder("=") == np.int32:
+        dr11 = True
+
+    # ADM now re-retrieve the default MASKBITS with all flags set.
+    bitnamelist = get_default_maskbits(bgs=bgsmask, mws=mwsmask, dr11=dr11)
 
     # ADM get the bit values for the passed (or default) bit names.
     bits = get_imaging_maskbits(bitnamelist)
