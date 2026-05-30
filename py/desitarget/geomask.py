@@ -162,7 +162,7 @@ def get_imaging_maskbits(bitnamelist=None):
     return bitdict
 
 
-def get_default_maskbits(bgs=False, mws=False):
+def get_default_maskbits(bgs=False, mws=False, dr11=False):
     """Return the names of the default MASKBITS for targets.
 
     Parameters
@@ -173,6 +173,8 @@ def get_default_maskbits(bgs=False, mws=False):
     mws : :class:`bool`, defaults to ``False``.
         If ``True`` load the "default" scheme for Milky Way Survey
         targets. Otherwise, load the default for other target classes.
+    dr11 : :class:`bool`, defaults to ``False``.
+        If ``True`` use default MASKBITS for DR11 instead of pre-DR11.
 
     Returns
     -------
@@ -188,9 +190,9 @@ def get_default_maskbits(bgs=False, mws=False):
         log.critical(msg)
         raise ValueError(msg)
 
-    # ADM use the updated maskbits for DR11, if they exist.
+    # ADM use the updated maskbits for DR11, if requested..
     dr11extra = []
-    if "RESOLVED" in get_imaging_maskbits():
+    if dr11:
         dr11extra = ["RESOLVED", "MCLOUDS", "WISE_GAIA"]
 
     if bgs:
