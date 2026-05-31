@@ -1266,6 +1266,20 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     print(f'#SBATCH -o {prefix}{drstr}.log')
     print('')
 
+    # ADM to handle inputs that look like "svX_targets".
+    prefix2 = prefix
+    if prefix[0:2] == "sv":
+        prefix2 = "sv_targets"
+
+    s2 = ""
+    if surveydir2 is not None:
+        s2 = "-s2 {} ".format(surveydir2)
+
+    cmd = "select"
+    if prefix == "supp-skies":
+        cmd = "supplement"
+        prefix2 = "skies"
+
     # ADM also write the various batch files needed for GNU parallel.
     # ADM this counts the command line args, as parallel expects that.
     argscnt = 6 + int(surveydir2 != None)
@@ -1288,7 +1302,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         driverfn.write("\n")
         driverfn.write("""'NR % NNODE == NODEID' |                               \\""")
         driverfn.write("\n")
-        driverfn.write(f"parallel --colsep ' ' select_{prefix} {args}\n")
+        driverfn.write(f"parallel --colsep ' ' {cmd}_{prefix2} {args}\n")
 
     with open(f"{prefix}{drstr}-gnu-parallel.sh", 'w') as gpfn:
         gpfn.write("""#!/bin/bash\n""")
@@ -1304,20 +1318,6 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         gpfn.write(f"# srun --no-kill --ntasks=4 --ntasks-per-node 1 --wait=0 ./{prefix}{drstr}-driver.sh {prefix}{drstr}.tasks\n")
         gpfn.write("\n")
         gpfn.write(f"srun --no-kill --ntasks=64 --wait=0 ./{prefix}{drstr}-driver.sh $1")
-
-    # ADM to handle inputs that look like "svX_targets".
-    prefix2 = prefix
-    if prefix[0:2] == "sv":
-        prefix2 = "sv_targets"
-
-    s2 = ""
-    if surveydir2 is not None:
-        s2 = "-s2 {} ".format(surveydir2)
-
-    cmd = "select"
-    if prefix == "supp-skies":
-        cmd = "supplement"
-        prefix2 = "skies"
 
     from desitarget.io import _check_hpx_length, find_target_files
 
