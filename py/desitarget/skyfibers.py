@@ -935,7 +935,7 @@ def get_supp_skies(ras, decs, radius=2., dr="dr2"):
 
 def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
                      nside=None, pixlist=None, mindec=-30., mingalb=10.,
-                     radius=2.):
+                     radius=2., dr="dr2"):
     """Generate supplemental sky locations using Gaia-G-band avoidance.
 
     Parameters
@@ -962,6 +962,9 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
     radius : :class:`float`, optional, defaults to 2
         Radius at which to avoid (all) Gaia sources (arcseconds).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release from which to draw sources. Passed to
+        :func:`~desitarget.gaiamatch.find_gaia_files()`.
 
     Returns
     -------
@@ -985,7 +988,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         nskiespersqdeg = density_of_sky_fibers(margin=4)
 
     # ADM determine the HEALPixel nside of the standard Gaia files.
-    anyfiles = find_gaia_files([0, 0], radec=True)
+    anyfiles = find_gaia_files([0, 0], radec=True, dr=dr)
     hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
     nsidegaia = hdr["HPXNSIDE"]
 
@@ -1025,7 +1028,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     def _get_supp(pix):
         """wrapper on get_supp_skies() given a HEALPixel"""
         ii = (pixels == pix)
-        return get_supp_skies(ras[ii], decs[ii], radius=radius)
+        return get_supp_skies(ras[ii], decs[ii], radius=radius, dr=dr)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.zeros((), dtype='i8')
