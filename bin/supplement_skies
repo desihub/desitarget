@@ -136,7 +136,7 @@ if ns.bundlefiles is None:
     supp_skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
                                   gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
                                   pixlist=pixlist, mindec=ns.mindec,
-                                  mingalb=ns.mingalb, gaiadr=ns.gaiadr)
+                                  mingalb=ns.mingalb, dr=ns.gaiadr)
 
     # ADM mask the supplemental sky locations using a bright star mask.
     if do_mask:
