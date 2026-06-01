@@ -41,7 +41,7 @@ ap.add_argument("--gaiadir", type=str,
                 default=None)
 ap.add_argument("--gaiadr", type=str,
                 help="Name of a Gaia data release from which to draw sources. Defaults to dr2 for backward compatibility",
-                default="dr2")
+                choices=["dr2", "edr", "dr3"], default="dr2")
 ap.add_argument('--nside', type=int,
                 help="Process supplemental skies in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
                 default=None)
@@ -136,7 +136,7 @@ if ns.bundlefiles is None:
     supp_skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
                                   gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
                                   pixlist=pixlist, mindec=ns.mindec,
-                                  mingalb=ns.mingalb, gaiadr=gaiadr)
+                                  mingalb=ns.mingalb, gaiadr=ns.gaiadr)
 
     # ADM mask the supplemental sky locations using a bright star mask.
     if do_mask:
