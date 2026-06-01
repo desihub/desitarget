@@ -459,6 +459,18 @@ def get_ztile_file_name(survey='main'):
     return fn
 
 
+def get_bricks_file_name():
+    """Convenience function to get name of the dr9-or-dr11 brick file.
+
+    Returns
+    -------
+    :class:`str`
+        The name of the brick file.
+    """
+
+    return "survey-bricks-dr.fits"
+
+
 def _get_mtl_nside():
     """Grab the HEALPixel nside to be used for MTL ledger files.
 
@@ -1176,6 +1188,79 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
     return Table(np.concatenate(gonetargs)), gonetiles
 
 
+def turn_off_dr9_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
+                         obscon="DARK", verbose=True, updatedonefile=True):
+    """
+    Set DR9 targets in DR11 bricks to PRIORITY of 0 in MTLs.
+
+    Parameters
+    ----------
+    pixlist : :class:`list` or `int`
+        HEALPixels at :func:`_get_mtl_nside()` in which to process MTLs.
+    bricks : :class:`class`, optional, defaults to ``None``
+        Legacy Surveys bricks object. If parallelizing across multiple
+        pixels this can be passed as a speed-up as it takes a little time
+        to initialize. If not passed, the function initializes it.
+    dr11brickids : :class:`~numpy.array`, optional, defaults to ``None``
+        List of BRICKIDs that are in DR11. If this is not passed, then
+        these are read from the dr9-or-dr11 brick file in `mtldir`.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTLs. If ``None``, then
+        look up the MTL directory from the $MTL_DIR environment variable.
+        If `dr11brickids` is not passed then this directory must contain
+        the file of bricks that are in DR11, which should be named the
+        same as the output from :func:`get_bricks_file_name()`.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`).
+        Governs the sub-directory for which the ledgers are processed.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log target and file information.
+    updatedonefile: :class:`bool`, optional, defaults to ``True``
+        If ``False`` then do NOT write a timestamp to the MTL
+        dr11 "done" file indicating an update has occurred.
+
+    Returns
+    -------
+    Nothing, but updates the `targets` in the appropriate ledgers in
+    the `mtldir`.
+    """
+    t0 = time()
+
+    # ADM get the standard nside.
+    nside = _get_mtl_nside()
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM if bricks wasn't passed, set up Legacy Surveys bricks object.
+    if bricks is None:
+        from desiutil import brick
+        bricks = brick.Bricks(bricksize=0.25)
+
+    if dr11brickids is None:
+        brickfn = os.path.join(mtldir, get_bricks_file_name())
+        dr9ordr11bricks = fitsio.read(brickfn)
+        ii = dr9ordr11bricks["DRVERSION"] == 11
+        dr11brickids = dr9ordr11bricks[ii]["BRICKID"]
+
+    for pix in pixlist:
+        fn = io.find_target_files(mtldir, flavor="mtl", survey="main",
+                                  hp=pix, resolve=True, obscon=obscon,
+                                  ender="ecsv")
+        try:
+            mtl = io.read_mtl_ledger(fn)
+            # ADM the file may not exist, in which case there's nothing
+            # ADM to be done.
+        except FileNotFoundError:
+            return
+        brickid = bricks.brickid(mtl["RA"], mtl["DEC"])
+
+
+        
 def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
                          timestamp=None, verbose=True, updatedonefiles=False):
     """

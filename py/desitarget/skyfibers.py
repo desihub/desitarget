@@ -872,7 +872,7 @@ def repartition_skies(skydirname, numproc=1):
     return
 
 
-def get_supp_skies(ras, decs, radius=2.):
+def get_supp_skies(ras, decs, radius=2., dr="dr2"):
     """Random locations, avoid Gaia, format, return supplemental skies.
 
     Parameters
@@ -883,6 +883,9 @@ def get_supp_skies(ras, decs, radius=2.):
         Declinations of sky locations (degrees).
     radius : :class:`float`, optional, defaults to 2
         Radius at which to avoid (all) Gaia sources (arcseconds).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release from which to draw sources. Passed to
+        :func:`~desitarget.gaiamatch.find_gaia_files()`.
 
     Returns
     -------
@@ -896,7 +899,7 @@ def get_supp_skies(ras, decs, radius=2.):
           Gaia-file HEALPixel, but should work for all cases.
     """
     # ADM determine Gaia files of interest and read the RAs/Decs.
-    fns = find_gaia_files([ras, decs], neighbors=True, radec=True)
+    fns = find_gaia_files([ras, decs], neighbors=True, radec=True, dr=dr)
     gobjs = np.concatenate(
         [fitsio.read(fn, columns=["RA", "DEC"]) for fn in fns])
 
