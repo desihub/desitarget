@@ -1188,10 +1188,10 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
     return Table(np.concatenate(gonetargs)), gonetiles
 
 
-def turn_off_dr9_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
-                         obscon="DARK", verbose=True, updatedonefile=True):
+def turn_off_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
+                     obscon="DARK", verbose=True, updatedonefile=True):
     """
-    Set DR9 targets in DR11 bricks to PRIORITY of 0 in MTLs.
+    Set targets that are officially in DR11 bricks to PRIORITY 0 in MTLs.
 
     Parameters
     ----------
@@ -1241,11 +1241,16 @@ def turn_off_dr9_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
         from desiutil import brick
         bricks = brick.Bricks(bricksize=0.25)
 
+    # ADM if the BRICKIDs that are in DR11 weren't sent, read them from
+    # ADM the dr9-or-dr11 bricks file.
     if dr11brickids is None:
         brickfn = os.path.join(mtldir, get_bricks_file_name())
         dr9ordr11bricks = fitsio.read(brickfn)
         ii = dr9ordr11bricks["DRVERSION"] == 11
         dr11brickids = dr9ordr11bricks[ii]["BRICKID"]
+
+    # ADM using the set of dr11 BRICKIDs will be quicker for look-ups.
+    sdr11bids = set(dr11brickids)
 
     for pix in pixlist:
         fn = io.find_target_files(mtldir, flavor="mtl", survey="main",
@@ -1253,14 +1258,27 @@ def turn_off_dr9_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
                                   ender="ecsv")
         try:
             mtl = io.read_mtl_ledger(fn)
-            # ADM the file may not exist, in which case there's nothing
-            # ADM to be done.
+            # ADM determine the brick for each coordinate in the ledger.
+            brickids = bricks.brickid(mtl["RA"], mtl["DEC"])
+            # ADM update the relevant entries that are in DR11 bricks...
+            ii = np.array([bid in sdr11bids for bid in brickids])
+            newrows = standard_off_columns(mtl[~ii])
+            # ADM ...and write these updates to the end of the ledger.
+            if len(newrows) > 0:
+                nrows, filename = io.write_mtl(
+                    mtldir, newrows, ecsv=True, survey="main", obscon=obscon,
+                    nsidefile=nside, hpxlist=pix, append=True)
+
+        log.info(f"Turned off {nrows} DR11 entries in {filename}")
+
+        # ADM the file may not exist for this HEALPixel, in which case
+        # ADM there's nothing to be done.
         except FileNotFoundError:
-            return
-        brickid = bricks.brickid(mtl["RA"], mtl["DEC"])
+            pass
+
+    return
 
 
-        
 def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
                          timestamp=None, verbose=True, updatedonefiles=False):
     """
@@ -1784,7 +1802,7 @@ def standard_override_columns(mtl):
     Returns
     -------
     :class:`~astropy.table.Table`
-        The input table with IMESTAMP updated to now, the second part of
+        The input table with TIMESTAMP updated to now, the second part of
         TARGET_STATE updated to be OVERRIDE, the git VERSION updated, and
         ZTILEID set to -1.
     """
@@ -1795,6 +1813,35 @@ def standard_override_columns(mtl):
         mtl["TARGET_STATE"] = np.array(newts)
         mtl["VERSION"] = dt_version
         mtl["ZTILEID"] = -1
+
+    return mtl
+
+
+def standard_off_columns(mtl):
+    """
+    Add column entries to an mtl Table when turning off targets.
+
+    Parameters
+    ----------
+    mtl : :class:`~astropy.table.Table`
+        An astropy Table. Must contain the columns TIMESTAMP,
+        TARGET_STATE, VERSION, ZTILEID and PRIORITY.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        The input table with TIMESTAMP updated to now, the second part of
+        TARGET_STATE updated to be OFF, the git VERSION updated, the
+        ZTILEID set to -1 and the PRIORITY set to 0.
+    """
+    # ADM this ensures that data types are not altered for empty arrays.
+    if len(mtl) > 0:
+        mtl["TIMESTAMP"] = get_utc_date(survey="main")
+        newts = [f"{t.split("|")[0]}|OFF" for t in mtl["TARGET_STATE"]]
+        mtl["TARGET_STATE"] = np.array(newts)
+        mtl["VERSION"] = dt_version
+        mtl["ZTILEID"] = -1
+        mtl["PRIORITY"] = 0
 
     return mtl
 
