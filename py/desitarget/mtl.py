@@ -1302,13 +1302,16 @@ def turn_off_dr11_hp(pixlist, bricks=None, dr11brickids=None, mtldir=None,
     return
 
 
-def turn_off_dr11(mtldir=None, obscon="DARK", verbose=True, numproc=1,
-                  updatedonefile=True):
+def turn_off_dr11(pixlist=None, mtldir=None, obscon="DARK", verbose=True,
+                  numproc=1, updatedonefile=True):
     """
     Set targets in DR11 bricks to PRIORITY 0 in all MTLs, in parallel.
 
     Parameters
     ----------
+    pixlist : :class:`list` or `int`, optional, default to ``None``
+        HEALPixels at :func:`_get_mtl_nside()` in which to process MTLs.
+        Default is to run all HEALPixels at :func:`_get_mtl_nside()`.
     mtldir : :class:`str`, optional, defaults to ``None``
         Full path to the directory that hosts the MTLs. If ``None``, then
         look up the MTL directory from the $MTL_DIR environment variable.
@@ -1338,7 +1341,11 @@ def turn_off_dr11(mtldir=None, obscon="DARK", verbose=True, numproc=1,
     mtldir = get_mtl_dir(mtldir)
 
     # ADM a list of all pixels at the relevant nside.
-    pixlist = np.arange(hp.nside2npix(nside))
+    if pixlist is None:
+        pixlist = np.arange(hp.nside2npix(nside))
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
     npixels = len(pixlist)
 
     # ADM Set up the Legacy Surveys bricks object.
