@@ -1188,10 +1188,10 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
     return Table(np.concatenate(gonetargs)), gonetiles
 
 
-def turn_off_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
+def turn_off_dr11_hp(pixlist, bricks=None, dr11brickids=None, mtldir=None,
                      obscon="DARK", verbose=True, updatedonefile=True):
     """
-    Set targets that are officially in DR11 bricks to PRIORITY 0 in MTLs.
+    Set targets in DR11 bricks to PRIORITY 0 in MTLs, in HEALPixels.
 
     Parameters
     ----------
@@ -1252,7 +1252,7 @@ def turn_off_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
     # ADM using the set of dr11 BRICKIDs will be quicker for look-ups.
     sdr11bids = set(dr11brickids)
 
-    for pix in pixlist:
+    for npix, pix in enumerate(pixlist):
         fn = io.find_target_files(mtldir, flavor="mtl", survey="main",
                                   hp=pix, resolve=True, obscon=obscon,
                                   ender="ecsv")
@@ -1262,19 +1262,144 @@ def turn_off_in_dr11(pixlist, bricks=None, dr11brickids=None, mtldir=None,
             brickids = bricks.brickid(mtl["RA"], mtl["DEC"])
             # ADM update the relevant entries that are in DR11 bricks...
             ii = np.array([bid in sdr11bids for bid in brickids])
-            newrows = standard_off_columns(mtl[~ii])
+            newrows = standard_off_columns(mtl[ii])
             # ADM ...and write these updates to the end of the ledger.
             if len(newrows) > 0:
                 nrows, filename = io.write_mtl(
                     mtldir, newrows, ecsv=True, survey="main", obscon=obscon,
                     nsidefile=nside, hpxlist=pix, append=True)
 
-        log.info(f"Turned off {nrows} DR11 entries in {filename}")
+                msg = f"Turned off {nrows} DR11 entries in {filename}..."
+                msg += f"t={time()-t0:.1f}s"
+                log.info(msg)
 
         # ADM the file may not exist for this HEALPixel, in which case
         # ADM there's nothing to be done.
         except FileNotFoundError:
             pass
+
+    # ADM if requested, updated the "off" done tiles file.
+    if updatedonefile:
+        # ADM construct the full path to the "off" done file.
+        mtldonefn = os.path.join(mtldir, get_mtl_tile_file_name())
+        mtldonefn = mtldonefn.replace("tiles", "off")
+
+        # ADM populate the entries.
+        offtiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+        offtiles["TIMESTAMP"] = get_utc_date(survey="main")
+        # ADM add the version of desitarget.
+        offtiles["VERSION"] = dt_version
+        # ADM add the program/obscon.
+        offtiles["PROGRAM"] = obscon
+        # ADM other entires are "null".
+        offtiles["TILEID"] = -1
+        offtiles["ZDATE"] = -1
+        offtiles["ARCHIVEDATE"] = -1
+
+        # ADM write to file.
+        io.write_mtl_tile_file(mtldonefn, offtiles)
+
+    return
+
+
+def turn_off_dr11(mtldir=None, obscon="DARK", verbose=True, numproc=1,
+                  updatedonefile=True):
+    """
+    Set targets in DR11 bricks to PRIORITY 0 in all MTLs, in parallel.
+
+    Parameters
+    ----------
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTLs. If ``None``, then
+        look up the MTL directory from the $MTL_DIR environment variable.
+        If `dr11brickids` is not passed then this directory must contain
+        the file of bricks that are in DR11, which should be named the
+        same as the output from :func:`get_bricks_file_name()`.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`).
+        Governs the sub-directory for which the ledgers are processed.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log extra target and file information.
+    numproc : :class:`int`, optional, defaults to 1 for serial
+        Number of processes to parallelize across.
+    updatedonefile: :class:`bool`, optional, defaults to ``True``
+        If ``False`` then do NOT write a timestamp to the MTL
+        dr11 "done" file indicating an update has occurred.
+
+    Returns
+    -------
+    Nothing, but updates the `targets` in all ledgers in the `mtldir`.
+    """
+    # ADM get the standard nside.
+    nside = _get_mtl_nside()
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM a list of all pixels at the relevant nside.
+    pixlist = np.arange(hp.nside2npix(nside))
+    npixels = len(pixlist)
+
+    # ADM Set up the Legacy Surveys bricks object.
+    from desiutil import brick
+    bricks = brick.Bricks(bricksize=0.25)
+
+    # Determine the list of brickids that are in DR11.
+    brickfn = os.path.join(mtldir, get_bricks_file_name())
+    dr9ordr11bricks = fitsio.read(brickfn)
+    ii = dr9ordr11bricks["DRVERSION"] == 11
+    dr11brickids = dr9ordr11bricks[ii]["BRICKID"]
+
+    # ADM the common function that is actually parallelized across.
+    def _turn_off_dr11_hp(pixnum):
+        """set targets in DR11 bricks to PRIORTY 0 in one HEALPixel"""
+        return turn_off_dr11_hp(pixnum, bricks=bricks, dr11brickids=dr11brickids,
+                                mtldir=mtldir, obscon=obscon, verbose=verbose,
+                                updatedonefile=False)
+
+    # ADM this is just to count pixels in _update_status.
+    npix = np.ones((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrap key reduction operation on the main parallel process"""
+        if npix % 500 == 0 and npix > 0:
+            rate = (time() - t0) / npix
+            log.info(f"Updated {npix}/{npixels} HEALPixels; {rate:.1f}"
+                     f"secs/pixel...t = {(time()-t0)/60.:.1f} mins")
+        npix[...] += 1
+        return result
+
+    # ADM Parallel process across HEALPixels.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            pool.map(_turn_off_dr11_hp, pixlist, reduce=_update_status)
+    else:
+        for pixel in pixlist:
+            _update_status(_turn_off_dr11_hp(pixel))
+
+    # ADM if requested, updated the "off" done tiles file.
+    if updatedonefile:
+        # ADM construct the full path to the "off" done file.
+        mtldonefn = os.path.join(mtldir, get_mtl_tile_file_name())
+        mtldonefn = mtldonefn.replace("tiles", "off")
+
+        # ADM populate the entries.
+        offtiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+        offtiles["TIMESTAMP"] = get_utc_date(survey="main")
+        # ADM add the version of desitarget.
+        offtiles["VERSION"] = dt_version
+        # ADM add the program/obscon.
+        offtiles["PROGRAM"] = obscon
+        # ADM other entires are "null".
+        offtiles["TILEID"] = -1
+        offtiles["ZDATE"] = -1
+        offtiles["ARCHIVEDATE"] = -1
+
+        # ADM write to file.
+        io.write_mtl_tile_file(mtldonefn, offtiles)
 
     return
 
