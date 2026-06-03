@@ -152,7 +152,8 @@ def get_imaging_maskbits(bitnamelist=None):
     """
     bitdict = {"NPRIMARY": 0, "BRIGHT": 1,
                "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
-               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}
+               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13,
+               "RESOLVED": 17, "MCLOUDS": 18, "WISE_GAIA": 19}
 
     # ADM look up the bit value for each passed bit name.
     if bitnamelist is not None:
@@ -161,7 +162,7 @@ def get_imaging_maskbits(bitnamelist=None):
     return bitdict
 
 
-def get_default_maskbits(bgs=False, mws=False):
+def get_default_maskbits(bgs=False, mws=False, dr11=False):
     """Return the names of the default MASKBITS for targets.
 
     Parameters
@@ -172,6 +173,8 @@ def get_default_maskbits(bgs=False, mws=False):
     mws : :class:`bool`, defaults to ``False``.
         If ``True`` load the "default" scheme for Milky Way Survey
         targets. Otherwise, load the default for other target classes.
+    dr11 : :class:`bool`, defaults to ``False``.
+        If ``True`` use default MASKBITS for DR11 instead of pre-DR11.
 
     Returns
     -------
@@ -186,12 +189,18 @@ def get_default_maskbits(bgs=False, mws=False):
         msg = "Only one of bgs or mws can be passed as True"
         log.critical(msg)
         raise ValueError(msg)
-    if bgs:
-        return ["BRIGHT", "CLUSTER"]
-    if mws:
-        return ["BRIGHT", "GALAXY"]
 
-    return ["BRIGHT", "GALAXY", "CLUSTER"]
+    # ADM use the updated maskbits for DR11, if requested..
+    dr11extra = []
+    if dr11:
+        dr11extra = ["RESOLVED", "MCLOUDS", "WISE_GAIA"]
+
+    if bgs:
+        return ["BRIGHT", "CLUSTER"] + dr11extra
+    if mws:
+        return ["BRIGHT", "GALAXY"] + dr11extra
+
+    return ["BRIGHT", "GALAXY", "CLUSTER"] + dr11extra
 
 
 def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
@@ -221,9 +230,15 @@ def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
     -----
     - Only one of `bgsmask` or `mwsmask` can be ``True``.
     """
-    # ADM default for the BGS or MWS..
-    if bgsmask or mwsmask:
-        bitnamelist = get_default_maskbits(bgs=bgsmask, mws=mwsmask)
+    # ADM check the dtype of the maskbits column, as we expanded it for
+    # ADM DR10. If it's type int32 instead of int16 it's safe to use the
+    # ADM dr11 version of the MASKBITS cuts.
+    dr11 = False
+    if maskbits.dtype.newbyteorder("=") == np.int32:
+        dr11 = True
+
+    # ADM now re-retrieve the default MASKBITS with all flags set.
+    bitnamelist = get_default_maskbits(bgs=bgsmask, mws=mwsmask, dr11=dr11)
 
     # ADM get the bit values for the passed (or default) bit names.
     bits = get_imaging_maskbits(bitnamelist)
@@ -1275,11 +1290,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     with open(f"{prefix}{drstr}-driver.sh", 'w') as driverfn:
         driverfn.write("""#!/bin/bash\n""")
         driverfn.write("""if [[ -z "${SLURM_NODEID}" ]]; then\n""")
-        driverfn.write("""    echo "need \$SLURM_NODEID set"\n""")
+        driverfn.write("""    echo "need \\$SLURM_NODEID set"\n""")
         driverfn.write("""    exit\n""")
         driverfn.write("""fi\n""")
         driverfn.write("""if [[ -z "${SLURM_NNODES}" ]]; then\n""")
-        driverfn.write("""    echo "need \$SLURM_NNODES set"\n""")
+        driverfn.write("""    echo "need \\$SLURM_NNODES set"\n""")
         driverfn.write("""    exit\n""")
         driverfn.write("""fi\n""")
         driverfn.write("""cat $1 |                                               \\""")
