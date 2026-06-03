@@ -1249,7 +1249,7 @@ def turn_off_dr11_hp(pixlist, bricks=None, dr11brickids=None, mtldir=None,
         ii = dr9ordr11bricks["DRVERSION"] == 11
         dr11brickids = dr9ordr11bricks[ii]["BRICKID"]
 
-    # ADM using the set of dr11 BRICKIDs will be quicker for look-ups.
+    # ADM using the set of dr11 BRICKIDs will be quicker for look ups.
     sdr11bids = set(dr11brickids)
 
     for npix, pix in enumerate(pixlist):
@@ -1374,7 +1374,7 @@ def turn_off_dr11(pixlist=None, mtldir=None, obscon="DARK", verbose=True,
         if npix % 500 == 0 and npix > 0:
             rate = (time() - t0) / npix
             log.info(f"Updated {npix}/{npixels} HEALPixels; {rate:.1f}"
-                     f"secs/pixel...t = {(time()-t0)/60.:.1f} mins")
+                     f" secs/pixel...t = {(time()-t0)/60.:.1f} mins")
         npix[...] += 1
         return result
 
@@ -1636,7 +1636,7 @@ def add_to_ledgers(targs, mtldir=None, pixlist=None, obscon="DARK",
         if npix % 2 == 0 and npix > 0:
             rate = (time() - t0) / npix
             log.info(f"Updated {npix}/{npixels} HEALPixels; {rate:.1f}"
-                     f"secs/pixel...t = {(time()-t0)/60.:.1f} mins")
+                     f" secs/pixel...t = {(time()-t0)/60.:.1f} mins")
         npix[...] += 1
         return result
 
@@ -1754,8 +1754,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
     return
 
 
-def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
-                numproc=1, timestamp=None, append=False, tcnames=None):
+def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
+                timestamp=None, append=False, tcnames=None, dr=None):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -1791,6 +1791,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         ledgers for only those target classes. The passed classes
         must be from the DESI_TARGET column, which must exist in the
         target files associated with `hpdirname`.
+    dr : :class:`int`, optional, defaults to ``None``
+        If passed, limit targets to a Data Release of the Legacy Surveys.
+        For example, pass 11 to limit targets to official DR11 bricks.
+        Expects `outdirname`/survey-bricks-dr.fits to exist.
 
     Returns
     -------
@@ -1807,13 +1811,28 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     if tcnames is not None:
         from desitarget.targetmask import desi_mask
 
+    # ADM if a request was made to limit to a certain Legacy Surveys Data
+    # ADM Release then build the list of bricks for that DR.
+    if dr is not None:
+        # ADM initialize the object that records the brick areas.
+        from desiutil import brick
+        bricks = brick.Bricks(bricksize=0.25)
+        # ADM read which BRICKIDs are in a given Data Release.
+        brickfn = os.path.join(outdirname, get_bricks_file_name())
+        drbricks = fitsio.read(brickfn)
+        # ADM limit to the passed Data Release.
+        ii = drbricks["DRVERSION"] == dr
+        drbrickids = drbricks[ii]["BRICKID"]
+        # ADM using the set of BRICKIDs will be quicker for look ups.
+        sbids = set(drbrickids)
+
     # ADM grab information regarding how the targets were constructed.
     hdr, dt = io.read_targets_header(hpdirname, dtype=True)
     # ADM check the obscon for which the targets were made is
     # ADM consistent with the requested obscon.
     oc = hdr["OBSCON"]
     if obscon not in oc:
-        msg = "File is type {} but requested behavior is {}".format(oc, obscon)
+        msg = f"File is type {oc} but requested behavior is {obscon}"
         log.critical(msg)
         raise ValueError(msg)
 
@@ -1859,15 +1878,25 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     # ADM the common function that is actually parallelized across.
     def _make_ledger_in_hp(pixnum):
         """make initial ledger in a single HEALPixel"""
+
         # ADM construct a list of all pixels in pixnum at the MTL nside.
         setpix = set(nside2nside(nside, mtlnside, pixnum))
         pix = [p for p in pixlist if p in setpix]
         if len(pix) == 0:
             return
+
         # ADM read in the needed columns from the targets.
         targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
         if len(targs) == 0:
             return
+
+        # ADM if requested, limit to only bricks from a certain DR.
+        if dr is not None:
+            brickids = bricks.brickid(targs["RA"], targs["DEC"])
+            ii = np.array([bid in sbids for bid in brickids])
+            # ADM limit passed targets to bricks for Data Release.
+            targs = targs[ii]
+
         # ADM if requested, limit to only certain target classes.
         if tcnames is not None:
             ii = np.zeros(len(targs), dtype="?")
@@ -1885,6 +1914,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
             zerod = [np.zeros(len(targs)), np.zeros(len(targs))]
             targs = rfn.append_fields(
                 targs, misscols, data=zerod, dtypes=[dtdt, dtdt], usemask=False)
+
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
