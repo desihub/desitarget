@@ -10,6 +10,17 @@ desitarget Change Log
 5.0.0 (2026-05-28)
 ------------------
 
+* Final updates to run targeting files on DR11 [`PR #887`_]. Includes:
+    * New `RELEASE` number/schema for `SAFE` / `BAD_SKY` skies.
+        * They now get assigned a release number of `RELEASE`//1000.
+        * But only if `RELEASE`//1000 > 10 for backward compatibility.
+        * Prevents `TARGETID` duplication with DR9 supplemental skies.
+        * As `SAFE` / `BAD_SKY` skies used to receive `RELEASE==0`.
+    * Update supplemental skies to use Gaia DR3.
+        * This guarantees `SKY` targets won't duplicate a DR9 `TARGETID`.
+    * Add gnu parallel for supplemental skies in bundling function.
+    * Functionality to only add DR11 targets to MTLs in DR11 bricks.
+    * New code to turn off DR9 targets in DR11 bricks.
 * Update code to process targets and skies from DR11 [`PR #885`_]:
     * Mostly handles updates to the DR11 imaging data model.
     * In particular, adds new `RELEASE` numbers for DR11/south.
@@ -28,6 +39,7 @@ desitarget Change Log
 .. _`PR #882`: https://github.com/desihub/desitarget/pull/882
 .. _`PR #884`: https://github.com/desihub/desitarget/pull/884
 .. _`PR #885`: https://github.com/desihub/desitarget/pull/885
+.. _`PR #887`: https://github.com/desihub/desitarget/pull/887
 
 4.7.2 (2026-04-29)
 ------------------

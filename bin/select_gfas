@@ -24,8 +24,8 @@ ap.add_argument("surveydir",
 ap.add_argument("dest",
                 help="Output GFA targets directory (the file name is built on-the-fly from other inputs)")
 ap.add_argument("--gaiadr",
-                help="Gaia Data Release on which to base GFAs. Options are dr2 or edr3. Defaults to dr2.",
-                default="dr2")
+                help="Gaia Data Release on which to base GFAs. Defaults to dr2.",
+                default="dr2", choices=["dr2", "edr3"])
 ap.add_argument('-m', '--maglim', type=float,
                 help="Magnitude limit on GFA targets in Gaia G-band (defaults to [21])",
                 default=21)
