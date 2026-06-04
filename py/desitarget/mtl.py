@@ -1999,7 +1999,7 @@ def standard_off_columns(mtl):
     # ADM this ensures that data types are not altered for empty arrays.
     if len(mtl) > 0:
         mtl["TIMESTAMP"] = get_utc_date(survey="main")
-        newts = [f"{t.split("|")[0]}|OFF" for t in mtl["TARGET_STATE"]]
+        newts = [f'{t.split("|")[0]}|OFF' for t in mtl["TARGET_STATE"]]
         mtl["TARGET_STATE"] = np.array(newts)
         mtl["VERSION"] = dt_version
         mtl["ZTILEID"] = -1
