@@ -14,7 +14,7 @@ desitarget Change Log
     * New `RELEASE` number/schema for `SAFE` / `BAD_SKY` skies.
         * They now get assigned a release number of `RELEASE`//1000.
         * But only if `RELEASE`//1000 > 10 for backward compatibility.
-        * Prevents `TARGETID` duplication with DR9 supplemental skies.
+        * Prevents `TARGETID` duplication with DR9 `SAFE` locations.
         * As `SAFE` / `BAD_SKY` skies used to receive `RELEASE==0`.
     * Update supplemental skies to use Gaia DR3.
         * This guarantees `SKY` targets won't duplicate a DR9 `TARGETID`.
