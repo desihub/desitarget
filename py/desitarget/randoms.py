@@ -543,7 +543,7 @@ def quantities_at_positions_in_a_brick(ras, decs, brickname, drdir,
     # ADM only process the WCS if there's a file for this filter.
     mnames = zip([extn_nb, extn_nb+1, extn_nb+2],
                  ['maskbits', 'wisemask_w1', 'wisemask_w2'],
-                 ['>i2', '|u1', '|u1'])
+                 ['>i4', '|u1', '|u1'])
     if justlist:
         fnlist.append(fn)
     else:
@@ -1206,11 +1206,16 @@ def pixmap(randoms, targets, rand_density, nside=256, gaialoc=None):
     # ADM change target column names, and retrieve associated survey information.
     _, Mx, survey, targets = main_cmx_or_sv(targets, rename=True)
 
-    # ADM areal coverage for some combinations of MASKBITS.
+    # ADM check the dtype of the maskbits column, as we expanded it for
+    # ADM DR10. If it's type int32 instead of int16 it's safe to use the
+    # ADM dr11 version of the MASKBITS cuts.
+    dr11 = False
+    if randoms.dtype['MASKBITS'].newbyteorder("=") == np.int32:
+        dr11 = True
     mbcomb = []
     mbstore = []
-    for mb in [get_imaging_maskbits(get_default_maskbits()),
-               get_imaging_maskbits(get_default_maskbits(bgs=True))]:
+    for mb in [get_imaging_maskbits(get_default_maskbits(dr11=dr11)),
+               get_imaging_maskbits(get_default_maskbits(bgs=True, dr11=dr11))]:
         bitint = np.sum(2**np.array(mb))
         mbcomb.append(bitint)
         log.info('Determining footprint for maskbits not in {}...t = {:.1f}s'
