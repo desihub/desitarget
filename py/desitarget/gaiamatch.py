@@ -548,7 +548,7 @@ def gaia_dr_from_ref_cat(refcat):
 
     Notes
     -----
-        - In reality, only strips the final integer off strings like
+        - In reality, base code strips the final integer off strings like
           "X3". So, can generically be used for that purpose.
     """
     # ADM if an integer was passed.
@@ -557,7 +557,11 @@ def gaia_dr_from_ref_cat(refcat):
     if isinstance(refcat[0], bytes):
         return np.array([int(i.decode()[-1]) for i in refcat])
     else:
-        return np.array([int(i[-1]) for i in refcat])
+        try:
+            return np.array([int(i[-1]) for i in refcat])
+        except ValueError:
+            # ADM if there's a value error we likely hit "GW" (Gaia DR3).
+            return np.array([int("GW"[-1] == "W")*3])
 
     return gaiadr
 
