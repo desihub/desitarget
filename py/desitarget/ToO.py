@@ -367,7 +367,7 @@ def _check_ledger(inledger, survey="main"):
     # ADM and the priorities are all LO or HI.
     allowed = {"TOO_TYPE": {'FIBER', 'TILE'},
                "TOO_PRIO": {'LO', 'HI'},
-               "OCLAYER": {'BRIGHT', 'DARK'}}
+               "OCLAYER": {'BRIGHT', 'DARK','BACKUP'}}
     for col in allowed:
         if not set(inledger[col]).issubset(allowed[col]):
             msg = "Some {} entries in the ToO ledger are not one of {}!".format(
@@ -379,7 +379,7 @@ def _check_ledger(inledger, survey="main"):
     # ADM fiber-override observations.
     if survey == "main":
         ii = (inledger["TOO_TYPE"] == "FIBER") & (inledger["TOO_PRIO"] == "HI")
-        ok = (inledger["CHECKER"] == "ADMOK") | (inledger["CHECKER"] == "SYBOK")
+        ok = (inledger["CHECKER"] == "ADMOK") | (inledger["CHECKER"] == "SYBOK") | (inledger["CHECKER"]=="DESI_SNIa")
         if np.any(ii & ~ok):
             msg = "High-priority fiber-overrides disallowed in {} survey".format(
                 survey)
