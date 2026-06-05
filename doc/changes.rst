@@ -2,7 +2,13 @@
 desitarget Change Log
 =====================
 
-5.0.1 (unreleased)
+5.1.1 (unreleased)
+------------------
+
+* No changes yet.
+
+
+5.1.0 (2026-06-04)
 ------------------
 
 * Final updates to run targeting files on DR11 [`PR #887`_]. Includes:
