@@ -683,7 +683,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
         # ADM makes the seed depend on Data Release.
-        subpseed = 716 + 1e8*drint
+        subpseed = 716 + int(1e8)*drint
         if hpxlist is not None:
             subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
@@ -1343,9 +1343,9 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         # ADM ensure different SUBPRIORITIES for supp/standard files.
         if supp:
-            subpseed = hp.nside2npix(1024) + 719 + 1e8*gaiadr
+            subpseed = hp.nside2npix(1024) + 719 + int(1e8)*gaiadr
         else:
-            subpseed = 718 + 1e8*drint
+            subpseed = 718 + int(1e8)*drint
         if hpxlist is not None:
             subpseed += int(np.atleast_1d(hpxlist)[0])
             # ADM the way we construct different random seeds for the
