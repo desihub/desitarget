@@ -5,8 +5,9 @@ desitarget Change Log
 5.1.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Make target/sky subpriorities depend on Data Release [`PR #888`_].
 
+.. _`PR #888`: https://github.com/desihub/desitarget/pull/888
 
 5.1.0 (2026-06-04)
 ------------------
