@@ -1354,7 +1354,7 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         if supp:
             if gaiadr is None:
                 subpseed = hp.nside2npix(1024) + 719
-            elif gaidr < 3:
+            elif gaiadr < 3:
                 subpseed = hp.nside2npix(1024) + 719
             else:
                 subpseed = hp.nside2npix(1024) + 719 + int(1e8)*gaiadr
