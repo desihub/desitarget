@@ -557,8 +557,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
-        in the range 0 to 1, using either seed 716, or seed 716 + the first
-        value in `hpxlist`, if `hpxlist` is passed and not ``None``.
+        in the range 0 to 1, using either a seed of 716 + 1e8*drint, or
+        a seed of 716 + 1e8*drint + the first value in `hpxlist`,
+        if `hpxlist` is passed and not ``None``. Here drint is the Data
+        Release number derived by the function itself. If drint is less
+        than 10 or is None, then the 1e8*drint term is omitted.
 
     Returns
     -------
@@ -680,7 +683,13 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
-        subpseed = 716
+        # ADM makes the seed depend on Data Release.
+        if drint is None:
+            subpseed = 716
+        elif drint < 10:
+            subpseed = 716
+        else:
+            subpseed = 716 + int(1e8)*drint
         if hpxlist is not None:
             subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
@@ -1250,12 +1259,18 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         target catalogs.
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
-        then `SUBPRIORITY==0.0` entries are overwritten by a random float in
-        the range 0 to 1, using either (a) if `supp` is ``False``: seed 718, or
-        seed 718 + the first value in `hpxlist`, if `hpxlist` is passed
-        and not ``None`` or (b) if `supp` is ``True`` seed 719 or seed
-        719 + hp.nside2npix(1024) + the first value in `hpxlist`, if
-        `hpxlist` is passed and not ``None``.
+        then `SUBPRIORITY==0.0` entries are overwritten by a random float
+        in the range 0 to 1, using either (a) if `supp` is ``False``:
+        seed 718 + 1e8*drint, or seed 718 + 1e8*drint + the first value
+        in `hpxlist`, if `hpxlist` is passed and not ``None`` or (b) if
+        `supp` is ``True`` seed 719 + 1e8*gaiadr + hp.nside2npix(1024) or
+        seed 719 + 1e8*gaiadr + hp.nside2npix(1024) + first value in
+        `hpxlist`, if `hpxlist` is passed and not ``None``. Here, drint
+        and gaiadr are Data Release numbers from the Legacy Surveys or
+        Gaia that are derived by the code itself. If the drint term is
+        less than 10 or is None, then the 1e8*drint term is omitted.
+        Similarly if the gaiadr term is less than 3 or is None then the
+        1e8*drint term is omitted.
 
     Returns
     -------
@@ -1337,9 +1352,19 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         # ADM ensure different SUBPRIORITIES for supp/standard files.
         if supp:
-            subpseed = hp.nside2npix(1024) + 719
+            if gaiadr is None:
+                subpseed = hp.nside2npix(1024) + 719
+            elif gaidr < 3:
+                subpseed = hp.nside2npix(1024) + 719
+            else:
+                subpseed = hp.nside2npix(1024) + 719 + int(1e8)*gaiadr
         else:
-            subpseed = 718
+            if drint is None:
+                subpseed = 718
+            elif drint < 10:
+                subpseed = 718
+            else:
+                subpseed = 718 + int(1e8)*drint
         if hpxlist is not None:
             subpseed += int(np.atleast_1d(hpxlist)[0])
             # ADM the way we construct different random seeds for the
