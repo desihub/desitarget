@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-5.1.1 (unreleased)
+5.2.1 (unreleased)
+------------------
+
+* No changes yet.
+
+5.2.0 (2026-06-09)
 ------------------
 
 * Make target/sky subpriorities depend on Data Release [`PR #888`_].
