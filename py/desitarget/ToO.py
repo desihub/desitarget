@@ -429,7 +429,6 @@ def finalize_too(inledger, survey="main"):
     cols, Mxs, surv = main_cmx_or_sv(outdata, scnd=True)
     dcol, bcol, mcol, scol = cols
     dMx, bMx, mMx, sMx = Mxs
-
     # ADM add the input columns to the output table.
     for col in inledger.dtype.names:
         outdata[col] = inledger[col]
