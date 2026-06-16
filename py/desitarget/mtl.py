@@ -41,7 +41,7 @@ mtldatamodel = np.array([], dtype=[
     ('PMRA', '>f4'), ('PMDEC', '>f4'), ('REF_EPOCH', '>f4'),
     ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'), ('MWS_TARGET', '>i8'),
     ('SCND_TARGET', '>i8'), ('TARGETID', '>i8'),
-    ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', 'i4'),
+    ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i4'),
     ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('PRIORITY', '>i8'),
     ('NUMOBS', '>i8'), ('NUMOBS_MORE', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
     ('TIMESTAMP', 'U25'), ('VERSION', 'U14'), ('TARGET_STATE', 'U30'),
@@ -51,27 +51,27 @@ mtldatamodel = np.array([], dtype=[
 # ADM at some point the primary and secondary data models for the MTLs
 # ADM are trimmed and reordered. These record their exact format on disk.
 mtlprimdatamodel = np.array([], dtype=[
-    ('RA', '<f8'), ('DEC', '<f8'), ('REF_EPOCH', '<f4'),
-    ('PARALLAX', '<f4'), ('PMRA', '<f4'), ('PMDEC', '<f4'),
-    ('TARGETID', '<i8'), ('DESI_TARGET', '<i8'), ('BGS_TARGET', '<i8'),
-    ('MWS_TARGET', '<i8'), ('SUBPRIORITY', '<f8'), ('OBSCONDITIONS', '<i4'),
-    ('PRIORITY_INIT', '<i8'), ('NUMOBS_INIT', '<i8'), ('SCND_TARGET', '<i8'),
-    ('NUMOBS_MORE', '<i8'), ('NUMOBS', '<i8'), ('Z', '<f8'), ('ZWARN', '<i8'),
-    ('ZTILEID', '<i4'), ('Z_QN', '<f8'), ('IS_QSO_QN', '<i2'),
-    ('DELTACHI2', '<f8'), ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'),
-    ('VERSION', '<U14'), ('PRIORITY', '<i8')
+    ('RA', '>f8'), ('DEC', '>f8'), ('REF_EPOCH', '>f4'),
+    ('PARALLAX', '>f4'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('TARGETID', '>i8'), ('DESI_TARGET', '>i8'), ('BGS_TARGET', '>i8'),
+    ('MWS_TARGET', '>i8'), ('SUBPRIORITY', '>f8'), ('OBSCONDITIONS', '>i4'),
+    ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'), ('SCND_TARGET', '>i8'),
+    ('NUMOBS_MORE', '>i8'), ('NUMOBS', '>i8'), ('Z', '>f8'), ('ZWARN', '>i8'),
+    ('ZTILEID', '>i4'), ('Z_QN', '>f8'), ('IS_QSO_QN', '>i2'),
+    ('DELTACHI2', '>f8'), ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'),
+    ('VERSION', '<U14'), ('PRIORITY', '>i8')
 ])
 
 mtlsecdatamodel = np.array([], dtype=[
-    ('RA', '<f8'), ('DEC', '<f8'), ('PMRA', '<f4'), ('PMDEC', '<f4'),
-    ('REF_EPOCH', '<f4'), ('PARALLAX', '<f4'), ('TARGETID', '<i8'),
-    ('DESI_TARGET', '<i8'), ('SCND_TARGET', '<i8'), ('SUBPRIORITY', '<f8'),
-    ('OBSCONDITIONS', '<i4'), ('PRIORITY_INIT', '<i8'), ('NUMOBS_INIT', '<i8'),
-    ('BGS_TARGET', '<i8'), ('MWS_TARGET', '<i8'), ('NUMOBS_MORE', '<i8'),
-    ('NUMOBS', '<i8'), ('Z', '<f8'), ('ZWARN', '<i8'), ('ZTILEID', '<i4'),
-    ('Z_QN', '<f8'), ('IS_QSO_QN', '<i2'), ('DELTACHI2', '<f8'),
+    ('RA', '>f8'), ('DEC', '>f8'), ('PMRA', '>f4'), ('PMDEC', '>f4'),
+    ('REF_EPOCH', '>f4'), ('PARALLAX', '>f4'), ('TARGETID', '>i8'),
+    ('DESI_TARGET', '>i8'), ('SCND_TARGET', '>i8'), ('SUBPRIORITY', '>f8'),
+    ('OBSCONDITIONS', '>i4'), ('PRIORITY_INIT', '>i8'), ('NUMOBS_INIT', '>i8'),
+    ('BGS_TARGET', '>i8'), ('MWS_TARGET', '>i8'), ('NUMOBS_MORE', '>i8'),
+    ('NUMOBS', '>i8'), ('Z', '>f8'), ('ZWARN', '<i8'), ('ZTILEID', '>i4'),
+    ('Z_QN', '>f8'), ('IS_QSO_QN', '>i2'), ('DELTACHI2', '>f8'),
     ('TARGET_STATE', '<U30'), ('TIMESTAMP', '<U25'), ('VERSION', '<U14'),
-    ('PRIORITY', '<i8')
+    ('PRIORITY', '>i8')
 ])
 
 
@@ -457,6 +457,18 @@ def get_ztile_file_name(survey='main'):
         raise ValueError(msg)
 
     return fn
+
+
+def get_bricks_file_name():
+    """Convenience function to get name of the dr9-or-dr11 brick file.
+
+    Returns
+    -------
+    :class:`str`
+        The name of the brick file.
+    """
+
+    return "survey-bricks-dr.fits"
 
 
 def _get_mtl_nside():
@@ -1176,6 +1188,229 @@ def purge_tiles(tiles, obscon, mtldir=None, secondary=False, verbose=True):
     return Table(np.concatenate(gonetargs)), gonetiles
 
 
+def turn_off_dr11_hp(pixlist, bricks=None, dr11brickids=None, mtldir=None,
+                     obscon="DARK", verbose=True, updatedonefile=True):
+    """
+    Set targets in DR11 bricks to PRIORITY 0 in MTLs, in HEALPixels.
+
+    Parameters
+    ----------
+    pixlist : :class:`list` or `int`
+        HEALPixels at :func:`_get_mtl_nside()` in which to process MTLs.
+    bricks : :class:`class`, optional, defaults to ``None``
+        Legacy Surveys bricks object. If parallelizing across multiple
+        pixels this can be passed as a speed-up as it takes a little time
+        to initialize. If not passed, the function initializes it.
+    dr11brickids : :class:`~numpy.array`, optional, defaults to ``None``
+        List of BRICKIDs that are in DR11. If this is not passed, then
+        these are read from the dr9-or-dr11 brick file in `mtldir`.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTLs. If ``None``, then
+        look up the MTL directory from the $MTL_DIR environment variable.
+        If `dr11brickids` is not passed then this directory must contain
+        the file of bricks that are in DR11, which should be named the
+        same as the output from :func:`get_bricks_file_name()`.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`).
+        Governs the sub-directory for which the ledgers are processed.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log target and file information.
+    updatedonefile: :class:`bool`, optional, defaults to ``True``
+        If ``False`` then do NOT write a timestamp to the MTL
+        dr11 "done" file indicating an update has occurred.
+
+    Returns
+    -------
+    Nothing, but updates the `targets` in the appropriate ledgers in
+    the `mtldir`.
+    """
+    t0 = time()
+
+    # ADM get the standard nside.
+    nside = _get_mtl_nside()
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
+
+    # ADM if bricks wasn't passed, set up Legacy Surveys bricks object.
+    if bricks is None:
+        from desiutil import brick
+        bricks = brick.Bricks(bricksize=0.25)
+
+    # ADM if the BRICKIDs that are in DR11 weren't sent, read them from
+    # ADM the dr9-or-dr11 bricks file.
+    if dr11brickids is None:
+        brickfn = os.path.join(mtldir, get_bricks_file_name())
+        dr9ordr11bricks = fitsio.read(brickfn)
+        ii = dr9ordr11bricks["DRVERSION"] == 11
+        dr11brickids = dr9ordr11bricks[ii]["BRICKID"]
+
+    # ADM using the set of dr11 BRICKIDs will be quicker for look ups.
+    sdr11bids = set(dr11brickids)
+
+    for npix, pix in enumerate(pixlist):
+        fn = io.find_target_files(mtldir, flavor="mtl", survey="main",
+                                  hp=pix, resolve=True, obscon=obscon,
+                                  ender="ecsv")
+        try:
+            mtl = io.read_mtl_ledger(fn)
+            # ADM determine the brick for each coordinate in the ledger.
+            brickids = bricks.brickid(mtl["RA"], mtl["DEC"])
+            # ADM update the relevant entries that are in DR11 bricks...
+            ii = np.array([bid in sdr11bids for bid in brickids])
+            newrows = standard_off_columns(mtl[ii])
+            # ADM ...and write these updates to the end of the ledger.
+            if len(newrows) > 0:
+                nrows, filename = io.write_mtl(
+                    mtldir, newrows, ecsv=True, survey="main", obscon=obscon,
+                    nsidefile=nside, hpxlist=pix, append=True)
+
+                msg = f"Turned off {nrows} DR11 entries in {filename}..."
+                msg += f"t={time()-t0:.1f}s"
+                log.info(msg)
+
+        # ADM the file may not exist for this HEALPixel, in which case
+        # ADM there's nothing to be done.
+        except FileNotFoundError:
+            pass
+
+    # ADM if requested, updated the "off" done tiles file.
+    if updatedonefile:
+        # ADM construct the full path to the "off" done file.
+        mtldonefn = os.path.join(mtldir, get_mtl_tile_file_name())
+        mtldonefn = mtldonefn.replace("tiles", "off")
+
+        # ADM populate the entries.
+        offtiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+        offtiles["TIMESTAMP"] = get_utc_date(survey="main")
+        # ADM add the version of desitarget.
+        offtiles["VERSION"] = dt_version
+        # ADM add the program/obscon.
+        offtiles["PROGRAM"] = obscon
+        # ADM other entires are "null".
+        offtiles["TILEID"] = -1
+        offtiles["ZDATE"] = -1
+        offtiles["ARCHIVEDATE"] = -1
+
+        # ADM write to file.
+        io.write_mtl_tile_file(mtldonefn, offtiles)
+
+    return
+
+
+def turn_off_dr11(pixlist=None, mtldir=None, obscon="DARK", verbose=True,
+                  numproc=1, updatedonefile=True):
+    """
+    Set targets in DR11 bricks to PRIORITY 0 in all MTLs, in parallel.
+
+    Parameters
+    ----------
+    pixlist : :class:`list` or `int`, optional, default to ``None``
+        HEALPixels at :func:`_get_mtl_nside()` in which to process MTLs.
+        Default is to run all HEALPixels at :func:`_get_mtl_nside()`.
+    mtldir : :class:`str`, optional, defaults to ``None``
+        Full path to the directory that hosts the MTLs. If ``None``, then
+        look up the MTL directory from the $MTL_DIR environment variable.
+        If `dr11brickids` is not passed then this directory must contain
+        the file of bricks that are in DR11, which should be named the
+        same as the output from :func:`get_bricks_file_name()`.
+    obscon : :class:`str`, optional, defaults to "DARK"
+        A string matching ONE obscondition in the desitarget bitmask yaml
+        file (i.e. in `desitarget.targetmask.obsconditions`).
+        Governs the sub-directory for which the ledgers are processed.
+    verbose : :class:`bool`, optional, defaults to ``True``
+        If ``True`` then log extra target and file information.
+    numproc : :class:`int`, optional, defaults to 1 for serial
+        Number of processes to parallelize across.
+    updatedonefile: :class:`bool`, optional, defaults to ``True``
+        If ``False`` then do NOT write a timestamp to the MTL
+        dr11 "done" file indicating an update has occurred.
+
+    Returns
+    -------
+    Nothing, but updates the `targets` in all ledgers in the `mtldir`.
+    """
+    # ADM get the standard nside.
+    nside = _get_mtl_nside()
+
+    # ADM grab the MTL directory (in case we're relying on $MTL_DIR).
+    mtldir = get_mtl_dir(mtldir)
+
+    # ADM a list of all pixels at the relevant nside.
+    if pixlist is None:
+        pixlist = np.arange(hp.nside2npix(nside))
+
+    # ADM in case an integer was passed.
+    pixlist = np.atleast_1d(pixlist)
+    npixels = len(pixlist)
+
+    # ADM Set up the Legacy Surveys bricks object.
+    from desiutil import brick
+    bricks = brick.Bricks(bricksize=0.25)
+
+    # Determine the list of brickids that are in DR11.
+    brickfn = os.path.join(mtldir, get_bricks_file_name())
+    dr9ordr11bricks = fitsio.read(brickfn)
+    ii = dr9ordr11bricks["DRVERSION"] == 11
+    dr11brickids = dr9ordr11bricks[ii]["BRICKID"]
+
+    # ADM the common function that is actually parallelized across.
+    def _turn_off_dr11_hp(pixnum):
+        """set targets in DR11 bricks to PRIORTY 0 in one HEALPixel"""
+        return turn_off_dr11_hp(pixnum, bricks=bricks, dr11brickids=dr11brickids,
+                                mtldir=mtldir, obscon=obscon, verbose=verbose,
+                                updatedonefile=False)
+
+    # ADM this is just to count pixels in _update_status.
+    npix = np.ones((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrap key reduction operation on the main parallel process"""
+        if npix % 500 == 0 and npix > 0:
+            rate = (time() - t0) / npix
+            log.info(f"Updated {npix}/{npixels} HEALPixels; {rate:.1f}"
+                     f" secs/pixel...t = {(time()-t0)/60.:.1f} mins")
+        npix[...] += 1
+        return result
+
+    # ADM Parallel process across HEALPixels.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            pool.map(_turn_off_dr11_hp, pixlist, reduce=_update_status)
+    else:
+        for pixel in pixlist:
+            _update_status(_turn_off_dr11_hp(pixel))
+
+    # ADM if requested, updated the "off" done tiles file.
+    if updatedonefile:
+        # ADM construct the full path to the "off" done file.
+        mtldonefn = os.path.join(mtldir, get_mtl_tile_file_name())
+        mtldonefn = mtldonefn.replace("tiles", "off")
+
+        # ADM populate the entries.
+        offtiles = np.zeros(1, dtype=mtltilefiledm.dtype)
+        offtiles["TIMESTAMP"] = get_utc_date(survey="main")
+        # ADM add the version of desitarget.
+        offtiles["VERSION"] = dt_version
+        # ADM add the program/obscon.
+        offtiles["PROGRAM"] = obscon
+        # ADM other entires are "null".
+        offtiles["TILEID"] = -1
+        offtiles["ZDATE"] = -1
+        offtiles["ARCHIVEDATE"] = -1
+
+        # ADM write to file.
+        io.write_mtl_tile_file(mtldonefn, offtiles)
+
+    return
+
+
 def add_to_ledgers_in_hp(targets, pixlist, mtldir=None, obscon="DARK",
                          timestamp=None, verbose=True, updatedonefiles=False):
     """
@@ -1401,7 +1636,7 @@ def add_to_ledgers(targs, mtldir=None, pixlist=None, obscon="DARK",
         if npix % 2 == 0 and npix > 0:
             rate = (time() - t0) / npix
             log.info(f"Updated {npix}/{npixels} HEALPixels; {rate:.1f}"
-                     f"secs/pixel...t = {(time()-t0)/60.:.1f} mins")
+                     f" secs/pixel...t = {(time()-t0)/60.:.1f} mins")
         npix[...] += 1
         return result
 
@@ -1519,8 +1754,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
     return
 
 
-def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
-                numproc=1, timestamp=None, append=False, tcnames=None):
+def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
+                timestamp=None, append=False, tcnames=None, dr=None):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -1556,6 +1791,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
         ledgers for only those target classes. The passed classes
         must be from the DESI_TARGET column, which must exist in the
         target files associated with `hpdirname`.
+    dr : :class:`int`, optional, defaults to ``None``
+        If passed, limit targets to a Data Release of the Legacy Surveys.
+        For example, pass 11 to limit targets to official DR11 bricks.
+        Expects `outdirname`/survey-bricks-dr.fits to exist.
 
     Returns
     -------
@@ -1572,13 +1811,28 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     if tcnames is not None:
         from desitarget.targetmask import desi_mask
 
+    # ADM if a request was made to limit to a certain Legacy Surveys Data
+    # ADM Release then build the list of bricks for that DR.
+    if dr is not None:
+        # ADM initialize the object that records the brick areas.
+        from desiutil import brick
+        bricks = brick.Bricks(bricksize=0.25)
+        # ADM read which BRICKIDs are in a given Data Release.
+        brickfn = os.path.join(outdirname, get_bricks_file_name())
+        drbricks = fitsio.read(brickfn)
+        # ADM limit to the passed Data Release.
+        ii = drbricks["DRVERSION"] == dr
+        drbrickids = drbricks[ii]["BRICKID"]
+        # ADM using the set of BRICKIDs will be quicker for look ups.
+        sbids = set(drbrickids)
+
     # ADM grab information regarding how the targets were constructed.
     hdr, dt = io.read_targets_header(hpdirname, dtype=True)
     # ADM check the obscon for which the targets were made is
     # ADM consistent with the requested obscon.
     oc = hdr["OBSCON"]
     if obscon not in oc:
-        msg = "File is type {} but requested behavior is {}".format(oc, obscon)
+        msg = f"File is type {oc} but requested behavior is {obscon}"
         log.critical(msg)
         raise ValueError(msg)
 
@@ -1624,15 +1878,25 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
     # ADM the common function that is actually parallelized across.
     def _make_ledger_in_hp(pixnum):
         """make initial ledger in a single HEALPixel"""
+
         # ADM construct a list of all pixels in pixnum at the MTL nside.
         setpix = set(nside2nside(nside, mtlnside, pixnum))
         pix = [p for p in pixlist if p in setpix]
         if len(pix) == 0:
             return
+
         # ADM read in the needed columns from the targets.
         targs = io.read_targets_in_hp(hpdirname, nside, pixnum, columns=cols)
         if len(targs) == 0:
             return
+
+        # ADM if requested, limit to only bricks from a certain DR.
+        if dr is not None:
+            brickids = bricks.brickid(targs["RA"], targs["DEC"])
+            ii = np.array([bid in sbids for bid in brickids])
+            # ADM limit passed targets to bricks for Data Release.
+            targs = targs[ii]
+
         # ADM if requested, limit to only certain target classes.
         if tcnames is not None:
             ii = np.zeros(len(targs), dtype="?")
@@ -1650,6 +1914,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK",
             zerod = [np.zeros(len(targs)), np.zeros(len(targs))]
             targs = rfn.append_fields(
                 targs, misscols, data=zerod, dtypes=[dtdt, dtdt], usemask=False)
+
         # ADM write MTLs for the targs split over HEALPixels in pixlist.
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
@@ -1699,7 +1964,7 @@ def standard_override_columns(mtl):
     Returns
     -------
     :class:`~astropy.table.Table`
-        The input table with IMESTAMP updated to now, the second part of
+        The input table with TIMESTAMP updated to now, the second part of
         TARGET_STATE updated to be OVERRIDE, the git VERSION updated, and
         ZTILEID set to -1.
     """
@@ -1710,6 +1975,35 @@ def standard_override_columns(mtl):
         mtl["TARGET_STATE"] = np.array(newts)
         mtl["VERSION"] = dt_version
         mtl["ZTILEID"] = -1
+
+    return mtl
+
+
+def standard_off_columns(mtl):
+    """
+    Add column entries to an mtl Table when turning off targets.
+
+    Parameters
+    ----------
+    mtl : :class:`~astropy.table.Table`
+        An astropy Table. Must contain the columns TIMESTAMP,
+        TARGET_STATE, VERSION, ZTILEID and PRIORITY.
+
+    Returns
+    -------
+    :class:`~astropy.table.Table`
+        The input table with TIMESTAMP updated to now, the second part of
+        TARGET_STATE updated to be OFF, the git VERSION updated, the
+        ZTILEID set to -1 and the PRIORITY set to 0.
+    """
+    # ADM this ensures that data types are not altered for empty arrays.
+    if len(mtl) > 0:
+        mtl["TIMESTAMP"] = get_utc_date(survey="main")
+        newts = [f'{t.split("|")[0]}|OFF' for t in mtl["TARGET_STATE"]]
+        mtl["TARGET_STATE"] = np.array(newts)
+        mtl["VERSION"] = dt_version
+        mtl["ZTILEID"] = -1
+        mtl["PRIORITY"] = 0
 
     return mtl
 
@@ -1824,8 +2118,8 @@ def process_vetoes(obscon, survey="main", mtldir=None, tabform='ascii.basic'):
     io.write_mtl_tile_file(mtldonefn, vetodone)
 
     return
-        
-    
+
+
 def process_overrides(ledgerfn, tabform='ascii.basic'):
     """
     Recover MTL entries from override ledgers and update those ledgers.
@@ -2177,7 +2471,6 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     :class:`dict`
         A dictionary where the keys are the integer TILEIDs and the values
         are the TIMESTAMP at which that tile was reprocessed.
-
     """
     t0 = time()
     log.info("Reprocessing based on zcat with {} entries...t={:.1f}s"
@@ -2221,6 +2514,16 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     pixnum = list(set(pixnum))
     targets = io.read_mtl_in_hp(hpdirname, nside, pixnum, unique=False)
 
+    # ADM there is a possible corner case where we are reprocessing a 1B
+    # ADM tile that includes no 1A targets. For example, an M31 tile that
+    # ADM doesn't overlap the DESI original survey. In the case of no
+    # ADM targets, return an empty timedict without maling updates.
+    if len(targets) == 0:
+        msg = "No targets need reprocessed. Should only happen when reprocessing"
+        msg += " 1A targets on 1B tiles that do not overlap the original survey!"
+        log.info(msg)
+        return timedict
+
     # ADM remove OVERRIDE entries, which should never need reprocessed.
     targets, _ = remove_overrides(targets)
 
@@ -2240,6 +2543,16 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
     nuniq = len(set(targets["TARGETID"]))
     log.info("Retained {}/{} targets with {} unique TARGETIDs...t={:.1f}s"
              .format(len(targets), ntargs, nuniq, time()-t0))
+    # ADM there is a possible corner case where there are no secondary
+    # ADM targets that need reprocessed. For example, when running a 1B
+    # ADM tile from before secondary targets were assigned to 1B tiles.
+    # ADM In this case, the code will need run with the --nosec flag.
+    if len(targets) == 0 and "1B" in obscon:
+        msg = f"No targets to reprocess in {obscon} conditions. You may be "
+        msg += "reprocessing a tile from before secondaries were added to 1B "
+        msg += "tiles. If so, try re-running with the --nosec flag added."
+        log.error(msg)
+        raise ValueError(msg)
 
     # ADM split off the updated target states from the unobserved states.
     _, ii = np.unique(targets["TARGETID"], return_index=True)
@@ -2800,6 +3113,30 @@ def tiles_to_be_processed(zcatdir, mtltilefn, obscon, survey, reprocess=False):
             log.info(msg)
             log.info(set(donetiles["TILEID"]) - set(alltiles["TILEID"]))
 
+    # ADM the special case that we haven't yet observed secondaries for
+    # ADM some program for which we have observed primaries.
+    if obscon not in donetiles["PROGRAM"] and "scnd" in mtltilefn:
+        # ADM read the primary file and restrict to the relevnt program.
+        primtiles = io.read_mtl_tile_file(mtltilefn.replace("scnd-", ""))
+        ii = primtiles["PROGRAM"] == obscon
+        primtiles = primtiles[ii]
+
+        # ADM combine existing secondary tiles and done primary tiles
+        # ADM for the given program, circumventing any formatting issues.
+        ptemptiles = np.zeros(len(primtiles), dtype=mtltilefiledm.dtype)
+        dtemptiles = np.zeros(len(donetiles), dtype=mtltilefiledm.dtype)
+        for col in mtltilefiledm.dtype.names:
+            ptemptiles[col] = primtiles[col]
+            dtemptiles[col] = donetiles[col]
+        primtiles = ptemptiles
+        donetiles = dtemptiles
+        donetiles = np.concatenate([donetiles, primtiles])
+
+        # ADM write existing primary tiles at time "now" to secondary
+        # ADM tile file so there's a permanent record that they're done.
+        primtiles["TIMESTAMP"] = get_utc_date(survey=survey)
+        io.write_mtl_tile_file(mtltilefn, primtiles)
+
     # ADM extract the updated tiles.
     if donetiles is None:
         # ADM first time through, all tiles have yet to be processed...
@@ -3209,7 +3546,7 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     if survey == "main":
         # ADM when re-processing, a delay was already added, so get the
         # ADM TIMESTAMP from the dictionary returned by reprocess_ledger.
-        if reprocess:
+        if reprocess and not ext:
             tiles["TIMESTAMP"] = [timedict[tid] for tid in tiles["TILEID"]]
             # ADM sort tiles chronologically when reprocessing.
             tiles = tiles[np.argsort(tiles["TIMESTAMP"])]

@@ -13,6 +13,7 @@ import numpy as np
 from desitarget import io
 from desitarget.mtl import process_vetoes
 
+
 class TestVETO(unittest.TestCase):
 
     @classmethod
@@ -40,7 +41,7 @@ class TestVETO(unittest.TestCase):
         """Test a good veto file can be read but a bad one can't"""
         # ADM check the good data reads as expected.
         data = io.read_mtl_veto_file(self.test_goodfn)
-        self.assertTrue(type(data),  astropy.table.table.Table)
+        self.assertTrue(type(data), astropy.table.table.Table)
 
         # ADM check the bad data fails all of the ways.
         badmsg = "good so far!"
@@ -60,21 +61,21 @@ class TestVETO(unittest.TestCase):
 
         amtl1 = io.read_mtl_ledger(os.path.join(self.testdir, "main", "bright1b",
                                                 "mtl-bright1b-hp-661.ecsv"),
-                                                initial=True)
+                                   initial=True)
         amtl2 = io.read_mtl_ledger(os.path.join(self.testdir, "main", "bright1b",
                                                 "mtl-bright1b-hp-704.ecsv"),
-                                                initial=True)
+                                   initial=True)
         bmtl1 = io.read_mtl_ledger(os.path.join(self.testdir, "main", "bright1b",
                                                 "mtl-bright1b-hp-661.ecsv"))
         bmtl2 = io.read_mtl_ledger(os.path.join(self.testdir, "main", "bright1b",
                                                 "mtl-bright1b-hp-704.ecsv"))
 
         # ADM test all the initial states...
-        self.assertTrue(np.all(amtl1["TARGET_STATE"]==["M31_GIANT|UNOBS"]))
-        self.assertTrue(np.all(amtl2["TARGET_STATE"]==["M31_GIANT|UNOBS"]))
+        self.assertTrue(np.all(amtl1["TARGET_STATE"] == ["M31_GIANT|UNOBS"]))
+        self.assertTrue(np.all(amtl2["TARGET_STATE"] == ["M31_GIANT|UNOBS"]))
         # ADM ...have turned into the vetoed states.
-        self.assertTrue(np.all(bmtl1["TARGET_STATE"]==["VETO|DONE"]))
-        self.assertTrue(np.all(bmtl2["TARGET_STATE"]==["VETO|DONE"]))
+        self.assertTrue(np.all(bmtl1["TARGET_STATE"] == ["VETO|DONE"]))
+        self.assertTrue(np.all(bmtl2["TARGET_STATE"] == ["VETO|DONE"]))
 
         # ADM also check that the final priorities are the DONE priority
         # ADM and the initial priorities were higher than that.

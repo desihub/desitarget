@@ -15,6 +15,7 @@ import numpy as np
 import os
 import fitsio
 from time import time
+from glob import glob
 
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -149,8 +150,10 @@ def get_imaging_maskbits(bitnamelist=None):
     - For the definitions of the mask bits, see, e.g.,
       https://www.legacysurvey.org/dr8/bitmasks/#maskbits
     """
-    bitdict = {"BRIGHT": 1, "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
-               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13}
+    bitdict = {"NPRIMARY": 0, "BRIGHT": 1,
+               "ALLMASK_G": 5, "ALLMASK_R": 6, "ALLMASK_Z": 7,
+               "BAILOUT": 10, "MEDIUM": 11, "GALAXY": 12, "CLUSTER": 13,
+               "RESOLVED": 17, "MCLOUDS": 18, "WISE_GAIA": 19}
 
     # ADM look up the bit value for each passed bit name.
     if bitnamelist is not None:
@@ -159,7 +162,7 @@ def get_imaging_maskbits(bitnamelist=None):
     return bitdict
 
 
-def get_default_maskbits(bgs=False, mws=False):
+def get_default_maskbits(bgs=False, mws=False, dr11=False):
     """Return the names of the default MASKBITS for targets.
 
     Parameters
@@ -170,6 +173,8 @@ def get_default_maskbits(bgs=False, mws=False):
     mws : :class:`bool`, defaults to ``False``.
         If ``True`` load the "default" scheme for Milky Way Survey
         targets. Otherwise, load the default for other target classes.
+    dr11 : :class:`bool`, defaults to ``False``.
+        If ``True`` use default MASKBITS for DR11 instead of pre-DR11.
 
     Returns
     -------
@@ -184,12 +189,18 @@ def get_default_maskbits(bgs=False, mws=False):
         msg = "Only one of bgs or mws can be passed as True"
         log.critical(msg)
         raise ValueError(msg)
-    if bgs:
-        return ["BRIGHT", "CLUSTER"]
-    if mws:
-        return ["BRIGHT", "GALAXY"]
 
-    return ["BRIGHT", "GALAXY", "CLUSTER"]
+    # ADM use the updated maskbits for DR11, if requested..
+    dr11extra = []
+    if dr11:
+        dr11extra = ["RESOLVED", "MCLOUDS", "WISE_GAIA"]
+
+    if bgs:
+        return ["BRIGHT", "CLUSTER"] + dr11extra
+    if mws:
+        return ["BRIGHT", "GALAXY"] + dr11extra
+
+    return ["BRIGHT", "GALAXY", "CLUSTER"] + dr11extra
 
 
 def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
@@ -219,9 +230,15 @@ def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
     -----
     - Only one of `bgsmask` or `mwsmask` can be ``True``.
     """
-    # ADM default for the BGS or MWS..
-    if bgsmask or mwsmask:
-        bitnamelist = get_default_maskbits(bgs=bgsmask, mws=mwsmask)
+    # ADM check the dtype of the maskbits column, as we expanded it for
+    # ADM DR10. If it's type int32 instead of int16 it's safe to use the
+    # ADM dr11 version of the MASKBITS cuts.
+    dr11 = False
+    if maskbits.dtype.newbyteorder("=") == np.int32:
+        dr11 = True
+
+    # ADM now re-retrieve the default MASKBITS with all flags set.
+    bitnamelist = get_default_maskbits(bgs=bgsmask, mws=mwsmask, dr11=dr11)
 
     # ADM get the bit values for the passed (or default) bit names.
     bits = get_imaging_maskbits(bitnamelist)
@@ -232,6 +249,297 @@ def imaging_mask(maskbits, bitnamelist=get_default_maskbits(),
         mb &= ((maskbits & 2**bit) == 0)
 
     return mb
+
+
+def dr_nexp_per_brick(brickpath):
+    """Find number of exposures in one brick of an imaging data release.
+
+    Parameters
+    ----------
+    brickpath : :class:`str`
+        Path to a brick directory from an LS imaging data release, e.g.
+        /global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/coadd/000/0001m322
+        at NERSC.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        An array of information for the passed brick, including:
+        BRICKNAME: Name of the brick.
+        NPIXPRIM: Number of pixels in the primary LS area of the brick.
+        NGPIXPRIMGE1: Number of pixels in g filter with >= 1 exposure.
+        NGPIXPRIMGE2: Number of pixels in g filter with >= 2 exposures.
+        NGPIXPRIMGE3: Number of pixels in g filter with >= 3 exposures.
+        NRPIXPRIMGE1: Number of pixels in r filter with >= 1 exposure.
+        NRPIXPRIMGE2: Number of pixels in r filter with >= 2 exposures.
+        NRPIXPRIMGE3: Number of pixels in r filter with >= 3 exposures.
+        NZPIXPRIMGE1: Number of pixels in z filter with >= 1 exposure.
+        NZPIXPRIMGE2: Number of pixels in z filter with >= 2 exposures.
+        NZPIXPRIMGE3: Number of pixels in z filter with >= 3 exposures.
+        NALLPRIMGE1: Number of pixels in all filters with >= 1 exposure.
+        NALLPRIMGE2: Number of pixels in all filters with >= 2 exposures.
+        NALLPRIMGE3: Number of pixels in all filters with >= 3 exposures.
+        FALLPRIMGE1: Pixel fraction in all filters with >= 1 exposure.
+        (i.e. NALLPRIMGE1/NPIXPRIM).
+        FALLPRIMGE2: Pixel fraction in all filters with >= 2 exposures.
+        FALLPRIMGE3: Pixel fraction in all filters with >= 3 exposures.
+    """
+    # ADM filename formats for Legacy Surveys NEXP and MASKBITS files.
+    maskbitsform = "legacysurvey-{}-maskbits.fits.fz"
+    nform = "legacysurvey-{}-nexp-{}.fits.fz"
+
+    # ADM the datatype for the output information.
+    dt = [("BRICKNAME", "U8"), ("NPIXPRIM", "i4"),
+          ("NGPIXPRIMGE1", "i4"), ("NGPIXPRIMGE2", "i4"), ("NGPIXPRIMGE3", "i4"),
+          ("NRPIXPRIMGE1", "i4"), ("NRPIXPRIMGE2", "i4"), ("NRPIXPRIMGE3", "i4"),
+          ("NZPIXPRIMGE1", "i4"), ("NZPIXPRIMGE2", "i4"), ("NZPIXPRIMGE3", "i4"),
+          ("NALLPRIMGE1", "i4"), ("NALLPRIMGE2", "i4"), ("NALLPRIMGE3", "i4"),
+          ("FALLPRIMGE1", "f8"), ("FALLPRIMGE2", "f8"), ("FALLPRIMGE3", "f8")]
+
+    # ADM to store the output.
+    outrow = np.zeros(1, dt)
+    # ADM the brick name.
+    bn = os.path.basename(brickpath)
+    # ADM read the maskbits and filter files.
+    maskbits = fitsio.read(os.path.join(brickpath, maskbitsform.format(bn)))
+    # ADM the trys are as some files don't exist. When that is so,
+    # ADM assume we have zero exposures everywhere for that filter.
+    try:
+        nexpg = fitsio.read(os.path.join(brickpath, nform.format(bn, "g")))
+    except OSError:
+        nexpg = np.zeros_like(maskbits)
+    try:
+        nexpr = fitsio.read(os.path.join(brickpath, nform.format(bn, "r")))
+    except OSError:
+        nexpr = np.zeros_like(maskbits)
+    try:
+        nexpz = fitsio.read(os.path.join(brickpath, nform.format(bn, "z")))
+    except OSError:
+        nexpz = np.zeros_like(maskbits)
+
+    # ADM the (integer) bit that corresponds to a non-primary pixel.
+    notprim = 2**get_imaging_maskbits(bitnamelist=["NPRIMARY"])[0]
+    # ADM the mask of primary pixels
+    primpix = maskbits & notprim == 0
+    # ADM populate the output quantities.
+    outrow["BRICKNAME"] = bn
+    outrow["NPIXPRIM"] = np.sum(primpix)
+    for i in range(1, 4):
+        outrow[f"NGPIXPRIMGE{i}"] = np.sum((nexpg >= i) & primpix)
+        outrow[f"NRPIXPRIMGE{i}"] = np.sum((nexpr >= i) & primpix)
+        outrow[f"NZPIXPRIMGE{i}"] = np.sum((nexpz >= i) & primpix)
+        outrow[f"NALLPRIMGE{i}"] = np.sum((nexpg >= i) & (nexpr >= i) &
+                                          (nexpz >= i) & primpix)
+        outrow[f"FALLPRIMGE{i}"] = outrow[f"NALLPRIMGE{i}"] / outrow["NPIXPRIM"]
+
+    return outrow
+
+
+def dr_nexp_all_bricks(drdir, numproc=1, outfn=None):
+    """Find number of exposures in all bricks of an imaging data release.
+
+    Parameters
+    ----------
+    drdir : :class:`str`
+        Root path to an LS imaging data release directory, e.g.
+        /global/cfs/cdirs/cosmo/data/legacysurvey/dr9/south/ at NERSC.
+    numproc : :class:`int`, optional, defaults to 1
+        The number of parallel processes to use. numproc=128 results in
+        approximately 100 bricks being processed per second.
+    outfn : :class:`str`, optional, defaults to ``None``
+        If passed, write the output array to this file path.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Array of information for all bricks in the passed data release.
+        See :func:`dr_nexp_per_brick` for the returned columns.
+    """
+    t0 = time()
+    # ADM filename formats for Legacy Surveys NEXP and MASKBITS files.
+    maskbitsform = "legacysurvey-{}-maskbits.fits.fz"
+    nform = "legacysurvey-{}-nexp-{}.fits.fz"
+
+    # ADM all of the brick directories in the Data Release directory.
+    brickpaths = sorted(glob(os.path.join(drdir, "coadd", "*", "*")))
+
+    def _nexp_per_brick(brickpath):
+        """run dr_nexp_per_brick on the file path to a single brick"""
+
+        return dr_nexp_per_brick(brickpath)
+
+    # ADM to count the bricks and the passage of time.
+    nbrick = np.zeros((), dtype='i8')
+    t0 = time()
+
+    def _update_status(result):
+        """wrapper for the main parallelized reduction operation"""
+        if nbrick % 500 == 0 and nbrick > 0:
+            elapsed = time() - t0
+            rate = nbrick / elapsed
+            log.info("{}/{} bricks; {:.1f} bricks/sec; {:.1f} total mins elapsed"
+                     .format(nbrick, len(brickpaths), rate, elapsed/60.))
+
+        nbrick[...] += 1
+        return result
+
+    # ADM serial or parallel process the bricks.
+    if numproc > 1:
+        pool = sharedmem.MapReduce(np=numproc)
+        with pool:
+            done = pool.map(_nexp_per_brick, brickpaths,
+                            reduce=_update_status)
+    else:
+        done = []
+        for brickpath in brickpaths:
+            done.append(_update_status(_nexp_per_brick(brickpath)))
+
+    done = np.concatenate(done)
+
+    # ADM if requested, write the output to somewhere.
+    if outfn is not None:
+        fitsio.write(outfn, done, clobber=True)
+
+    return done
+
+
+def dr9_or_dr11_brick_file(surveybrickfn, dr9nfn, dr9sfn, dr11fn,
+                           threshfrac=0.25, outfn=None):
+    """From DR9/DR11 brick files, determine which bricks are in DR9/DR11.
+
+    Parameters
+    ----------
+    surveybrickfn : :class:`str`
+        Root path to a Legacy Surveys general brick file, e.g., at NERSC,
+        /global/cfs/cdirs/cosmo/data/legacysurvey/dr11/survey-bricks.fits.gz
+    dr9nfn : :class:`str`
+        Root path to a DR9 north NEXP all bricks file, as made by
+        :func:`dr_nexp_all_bricks`
+    dr9sfn : :class:`str`
+        Root path to a DR9 south NEXP all bricks file, as made by
+        :func:`dr_nexp_all_bricks`
+    dr11fn : :class:`str`
+        Root path to a DR11 NEXP all bricks file, as made by
+        :func:`dr_nexp_all_bricks`
+    threshfrac : :class:`float`, optional, defaults to 0.25
+        Threshold by which a DR11 brick has to exceed a DR9 brick in terms
+        of the fraction of area covered by at least one observation in all
+        the g, r, z filters (`FALLPRIMGE1` in the NEXP all bricks files).
+    outfn : :class:`str`, optional, defaults to ``None``
+        If passed, write the output array to this file path.
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        Brick file that resembles `surveybrickfn` but with `FALLPRIMGE1`
+        added for DR9 north (DR9N), DR9 south (DR9S) and DR11 (see
+        :func:`dr_nexp_per_brick` for an explanation of this parameter)
+        and `DRVERSION` added, which is (9) 11 for a DR9 (DR11) brick.
+    """
+    # ADM read in the various file names.
+    sbf = fitsio.read(surveybrickfn)
+    dr9n = fitsio.read(dr9nfn)
+    dr9s = fitsio.read(dr9sfn)
+    dr11 = fitsio.read(dr11fn)
+
+    # ADM the output version of the survey brick file.
+    newc = ["FALLPRIMGE1DR9N", "FALLPRIMGE1DR9S", "FALLPRIMGE1DR11", "DRVERSION"]
+    nsbf = len(sbf)
+    newv = [np.zeros(nsbf), np.zeros(nsbf), np.zeros(nsbf), np.zeros(nsbf)]
+    newd = [">f8", ">f8", ">f8", ">i2"]
+    sbfout = rfn.append_fields(sbf, newc, newv, newd, usemask=False)
+
+    # ADM add the FALLPRIMGE1 values to the output file.
+    # ADM this maps from BRICKNAME to row in the output file.
+    dlookup = {row["BRICKNAME"]: row["BRICKID"]-1 for row in sbfout}
+    # ADM add the values for dr9 north, dr9 south and dr11.
+    for dr, nom in zip([dr9n, dr9s, dr11], ["DR9N", "DR9S", "DR11"]):
+        ii = np.array([dlookup[bn] for bn in dr["BRICKNAME"]])
+        sbfout[f"FALLPRIMGE1{nom}"][ii] = dr["FALLPRIMGE1"]
+
+    # ADM restrict to official southern declinations, which requires
+    # ADM finding the declinations for the DR11 bricks.
+    from desitarget.io import desitarget_resolve_dec
+    ii = np.array([dlookup[bn] for bn in dr11["BRICKNAME"]])
+    sbfoutdr11 = sbfout[ii]
+    # ADM limit to southern declinations.
+    ii = sbfoutdr11["DEC"] < desitarget_resolve_dec()
+    dr11 = dr11[ii]
+
+    allbricknames = set(dr11["BRICKNAME"])
+    allbricknames |= set(dr9n["BRICKNAME"])
+    allbricknames |= set(dr9s["BRICKNAME"])
+
+    # ADM set any populated brick to DR9, initially.
+    ii = np.array([bn in allbricknames for bn in sbfout["BRICKNAME"]])
+    sbfout["DRVERSION"][ii] = 9
+
+    # ADM make look-ups for brick name and FALLPRIMGE1 for DR9 and DR11.
+    dr9nd = {d["BRICKNAME"]: d["FALLPRIMGE1"] for d in dr9n}
+    dr9sd = {d["BRICKNAME"]: d["FALLPRIMGE1"] for d in dr9s}
+    dr11d = {d["BRICKNAME"]: d["FALLPRIMGE1"] for d in dr11}
+    # ADM this hold the list of brick names that are in DR11.
+    dr11bns = []
+    # ADM spool through the DR11 bricks.
+    for bn in dr11d:
+        # ADM if a brick is in DR11 it's a DR11 brick...
+        isdr11 = True
+        # ADM ...unless it appears in DR9 north and doesn't improve
+        # ADM on the fractional completeness by at least 50%...
+        try:
+            if dr9nd[bn] > 0 and dr11d[bn] <= dr9nd[bn] + threshfrac:
+                isdr11 = False
+        except KeyError:
+            pass
+        # ADM ...or it appears in DR9 south and doesn't improve
+        # ADM on the fractional completeness by at least 50%...
+        try:
+            if dr9sd[bn] > 0 and dr11d[bn] <= dr9sd[bn] + threshfrac:
+                isdr11 = False
+        except KeyError:
+            pass
+        # ADM ...or it doesn't have FALL coverage in DR9 or DR11.
+        if dr11d[bn] == 0:
+            try:
+                if dr9nd[bn] == 0:
+                    isdr11 = False
+            except KeyError:
+                pass
+            try:
+                if dr9sd[bn] == 0:
+                    isdr11 = False
+            except KeyError:
+                pass
+        # ADM finally, append truly DR11 bricks to the list.
+        if isdr11:
+            dr11bns.append(bn)
+
+    # ADM add the DR11 bricks to the output brick file.
+    sdr11bns = set(dr11bns)
+    ii = np.array([bn in sdr11bns for bn in sbfout["BRICKNAME"]])
+    sbfout["DRVERSION"][ii] = 11
+
+    # ADM fill some missing areas in the NGC at
+    # ADM low declinations with DR11 bricks.
+    isngc = is_in_gal_box([sbfout["RA"], sbfout["DEC"]], [0., 360., 10., 90.], radec=True)
+    ii = isngc & (sbfout["DEC"] < -10.2)
+    sbfout["DRVERSION"][ii] = 11
+
+    # ADM special case one brick to make areas more contiguous.
+    ii = sbfout["BRICKNAME"] == "3227p290"
+    sbfout["DRVERSION"][ii] = 9
+
+    # ADM if requested, write the output to somewhere.
+    if outfn is not None:
+        hdr = fitsio.FITSHDR()
+        hdr["THRESH"] = threshfrac
+        hdr["SURVEYBF"] = surveybrickfn
+        hdr["DR9NBF"] = dr9nfn
+        hdr["DR9SBF"] = dr9sfn
+        hdr["DR11BF"] = dr11fn
+        fitsio.write(outfn, sbfout, header=hdr, clobber=True)
+
+    return sbfout
 
 
 def ellipse_matrix(r, e1, e2):
@@ -824,7 +1132,7 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
         to pass `maxpernode` bricks, delineated by the HEALPixels they
         occupy, parallelized across a set of nodes).
     nside : :class:`int`
-        The HEALPixel nside number thaat was used to generate `pixnum`
+        The HEALPixel nside number that was used to generate `pixnum`
         (NESTED scheme).
     brickspersec : :class:`float`, optional, defaults to 1.
         The rough number of bricks processed per second by the code
@@ -948,24 +1256,6 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     if nnodes > 48:
         nnodes = 48
 
-    print("#######################################################")
-    print("Possible salloc command if you want to run on the Cori interactive queue:")
-    print("")
-    print("salloc -N {} -C haswell -t 0{}:00:00 --qos interactive -L SCRATCH,project"
-          .format(nnodes, maxeta))
-
-    print("")
-    print("#######################################################")
-    print('Example shell script for slurm:')
-    print('')
-    print('#!/bin/bash -l')
-    print('#SBATCH -q regular')
-    print('#SBATCH -N {}'.format(nnodes))
-    print('#SBATCH -t 0{}:00:00'.format(maxeta))
-    print('#SBATCH -L SCRATCH,project')
-    print('#SBATCH -C haswell')
-    print('')
-
     # ADM extract the Data Release number from the survey directory
     dr = surveydir.split("dr")[-1].split(os.path.sep)[0]
     # ADM if an integer can't be extracted, use X instead.
@@ -974,6 +1264,23 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
     except ValueError:
         drstr = ""
 
+    print("#######################################################")
+    print("Possible salloc command for Perlmutter interactive queue:")
+    print("")
+    print("salloc --nodes 4 --qos interactive --time 04:00:00 --constraint cpu")
+    print("")
+    print("#######################################################")
+    print('Example shell script for slurm:')
+    print('')
+    print('#!/bin/bash -l')
+    print('#SBATCH -q regular')
+    print(f'#SBATCH -N {nnodes}')
+    print(f'#SBATCH -t 0{maxeta}:00:00')
+    print('#SBATCH -L scratch,cfs')
+    print('#SBATCH -C cpu')
+    print(f'#SBATCH -o {prefix}{drstr}.log')
+    print('')
+
     # ADM to handle inputs that look like "svX_targets".
     prefix2 = prefix
     if prefix[0:2] == "sv":
@@ -981,16 +1288,60 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
 
     s2 = ""
     if surveydir2 is not None:
-        s2 = "-s2 {}".format(surveydir2)
+        s2 = "-s2 {} ".format(surveydir2)
 
     cmd = "select"
     if prefix == "supp-skies":
         cmd = "supplement"
         prefix2 = "skies"
 
+    # ADM also write the various batch files needed for GNU parallel.
+    # ADM this counts the command line args, as parallel expects that.
+    argscnt = 6 + int(surveydir2 != None)
+    if extra is not None:
+        argscnt += len(extra.split())
+    args = " ".join(["{"+str(i)+"}" for i in np.arange(argscnt)+1])
+    with open(f"{prefix}{drstr}-driver.sh", 'w') as driverfn:
+        driverfn.write("""#!/bin/bash\n""")
+        driverfn.write("""if [[ -z "${SLURM_NODEID}" ]]; then\n""")
+        driverfn.write("""    echo "need \\$SLURM_NODEID set"\n""")
+        driverfn.write("""    exit\n""")
+        driverfn.write("""fi\n""")
+        driverfn.write("""if [[ -z "${SLURM_NNODES}" ]]; then\n""")
+        driverfn.write("""    echo "need \\$SLURM_NNODES set"\n""")
+        driverfn.write("""    exit\n""")
+        driverfn.write("""fi\n""")
+        driverfn.write("""cat $1 |                                               \\""")
+        driverfn.write("\n")
+        driverfn.write('''awk -v NNODE="$SLURM_NNODES" -v NODEID="$SLURM_NODEID" \\''')
+        driverfn.write("\n")
+        driverfn.write("""'NR % NNODE == NODEID' |                               \\""")
+        driverfn.write("\n")
+        driverfn.write(f"parallel --colsep ' ' {cmd}_{prefix2} {args}\n")
+
+    with open(f"{prefix}{drstr}-gnu-parallel.sh", 'w') as gpfn:
+        gpfn.write("""#!/bin/bash\n""")
+        gpfn.write('#SBATCH -q regular\n')
+        gpfn.write(f'#SBATCH -N 64\n')
+        gpfn.write(f'#SBATCH -t 00:30:00\n')
+        gpfn.write('#SBATCH -L scratch,cfs\n')
+        gpfn.write('#SBATCH -C cpu\n')
+        gpfn.write('#SBATCH --ntasks-per-node 1\n')
+        gpfn.write(f'#SBATCH -o {prefix}{drstr}.log\n')
+        gpfn.write(f"# Alternative for the Perlmutter interactive queue:\n")
+        gpfn.write(f"# salloc --nodes 4 --qos interactive --time 04:00:00 --constraint cpu\n")
+        gpfn.write(f"# srun --no-kill --ntasks=4 --ntasks-per-node 1 --wait=0 ./{prefix}{drstr}-driver.sh {prefix}{drstr}.tasks\n")
+        gpfn.write("\n")
+        gpfn.write(f"srun --no-kill --ntasks=64 --wait=0 ./{prefix}{drstr}-driver.sh $1")
+
     from desitarget.io import _check_hpx_length, find_target_files
 
+    # ADM expand the scratch directory as it's safer than batching on
+    # ADM the environment variable.
+    scratch = os.getenv("SCRATCH")
     pixtracker = []
+    # ADM taskstext holds the output tasks for gnu parallel.
+    taskstext = ""
     for bin in bins:
         num = np.array(bin)[:, 0]
         pix = np.array(bin)[:, 1]
@@ -1004,8 +1355,12 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             pixtracker.append(strgoodpix)
             if extra is not None:
                 strgoodpix += extra
-            print("srun -N 1 {}_{} {} $SCRATCH {} --nside {} --healpixels {} &"
-                  .format(cmd, prefix2, surveydir, s2, nside, strgoodpix))
+            taskstring = "{} {} {}--nside {} --healpixels {}".format(
+                surveydir, scratch, s2, nside, strgoodpix)
+            taskstext += f"{taskstring}\n"
+            print(f"srun -N 1 {cmd}_{prefix2} {taskstring} &")
+    with open(f"{prefix}{drstr}.tasks", 'w') as tasksfn:
+        tasksfn.write(taskstext)
     print("wait")
     print("")
     if gather:
@@ -1016,11 +1371,11 @@ def bundle_bricks(pixnum, maxpernode, nside, brickspersec=1., prefix='targets',
             outfiles = []
             for pix in pixtracker:
                 outfn = find_target_files(
-                    "$SCRATCH", dr=ddrr, flavor=prefix, seed=seed, hp=pix,
+                    scratch, dr=ddrr, flavor=prefix, seed=seed, hp=pix,
                     resolve=resolve, region=region)
                 outfiles.append(outfn)
             outfn = find_target_files(
-                "$SCRATCH", dr=ddrr, flavor=prefix, seed=seed, nohp=True,
+                scratch, dr=ddrr, flavor=prefix, seed=seed, nohp=True,
                 resolve=resolve, region=region)
             print("")
             # ADM split each pixel-file into 10 smaller catalogs.

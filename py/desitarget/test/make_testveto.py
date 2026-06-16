@@ -35,8 +35,8 @@ if __name__ == "__main__":
     badtable["TARGETID"] = tids[:2] + tids[:1]
     badtable["RA"] = [20.91128333333333, 20.646224999999998, 22.07405]
     badtable["TIMESTAMP"] = ['2025-10-09T20:21:10+00:00',
-                              '2025-10-13T23:33:13+00:00',
-                              '2025-10-07T23:20:13+00:00']
+                             '2025-10-13T23:33:13+00:00',
+                             '2025-10-07T23:20:13+00:00']
 
     # ADM write the good and bad test data.
     os.makedirs("t/main/veto/bright1b/good", exist_ok=True)
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     ii = np.array([tid in tids for tid in egmtl1["TARGETID"]])
     _, fn1 = io.write_mtl(mtldir, egmtl1[ii], ecsv=True, survey="main",
-                        obscon="bright1b", nsidefile=nside, hpxlist=661)
+                          obscon="bright1b", nsidefile=nside, hpxlist=661)
 
     ii = np.array([tid in tids for tid in egmtl2["TARGETID"]])
     _, fn2 = io.write_mtl(mtldir, egmtl2[ii], ecsv=True, survey="main",

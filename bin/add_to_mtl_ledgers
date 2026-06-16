@@ -19,12 +19,12 @@ ap.add_argument("targfile",
 ap.add_argument("--dest",
                 help="Full path to the output directory to host the ledger. The \
                 filename and full directory structure are built on-the-fly from \
-                file headers in targdirname. [defaults to {})".format(mtldir),
+                file headers in targdirname. [defaults to {}]".format(mtldir),
                 default=mtldir)
 ap.add_argument("--obscon",
                 help="String matching ONE obscondition in the bitmask yaml file \
                 (e.g. 'BRIGHT'). Controls priorities when merging targets and   \
-                where the ledger is written. [defaults to {})".format(obscon),
+                where the ledger is written. [defaults to {}]".format(obscon),
                 default=obscon)
 ap.add_argument("--numproc", type=int,
                 help='number of concurrent processes to use [defaults to {}]'.

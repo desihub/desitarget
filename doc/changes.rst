@@ -2,10 +2,104 @@
 desitarget Change Log
 =====================
 
-4.6.1 (unreleased)
+5.2.1 (unreleased)
 ------------------
 
 * No changes yet.
+
+5.2.0 (2026-06-09)
+------------------
+
+* Make target/sky subpriorities depend on Data Release [`PR #888`_].
+
+.. _`PR #888`: https://github.com/desihub/desitarget/pull/888
+
+5.1.0 (2026-06-04)
+------------------
+
+* Final updates to run targeting files on DR11 [`PR #887`_]. Includes:
+    * New `RELEASE` number/schema for `SAFE` / `BAD_SKY` skies.
+        * They now get assigned a release number of `RELEASE`//1000.
+        * But only if `RELEASE`//1000 > 10 for backward compatibility.
+        * Prevents `TARGETID` duplication with DR9 `SAFE` locations.
+        * As `SAFE` / `BAD_SKY` skies used to receive `RELEASE==0`.
+    * Update supplemental skies to use Gaia DR3.
+        * This guarantees `SKY` targets won't duplicate a DR9 `TARGETID`.
+    * Add gnu parallel for supplemental skies in bundling function.
+    * Functionality to only add DR11 targets to MTLs in DR11 bricks.
+    * New code to turn off DR9 targets in DR11 bricks.
+* Update the default set of imaging mask bits for DR11 [`PR #886`_]:
+    * Now always include new `RESOLVED`, `MCLOUDS` and `WISE_GAIA` bits.
+
+.. _`PR #886`: https://github.com/desihub/desitarget/pull/886
+.. _`PR #887`: https://github.com/desihub/desitarget/pull/887
+
+5.0.0 (2026-05-28)
+------------------
+
+* Update code to process targets and skies from DR11 [`PR #885`_]:
+    * Mostly handles updates to the DR11 imaging data model.
+    * In particular, adds new `RELEASE` numbers for DR11/south.
+    * Also updates the FITS extension from which the blob maps are read.
+    * And adds some slurm scripts to improve batching using GNU parallel.
+* Correct the concatenation of MTL ledgers in read_mtl_in_hp [`PR #884`_].
+* Catch further reprocessing bugs related to `PR #879`_ [`PR #882`_]:
+    * `PR #879`_ worked as buggy tiles were batched with other tiles.
+    * For individual buggy `1B` tiles, reprocessing can still fail.
+    * This PR catches 2 new corner cases for such individual tiles.
+    * The case caught in `PR #879`_.
+    * The case for which a `1B` tile contains no secondary targets.
+* Add code to make a DR9/DR11 bricks file [`PR #881`_].
+
+.. _`PR #881`: https://github.com/desihub/desitarget/pull/881
+.. _`PR #882`: https://github.com/desihub/desitarget/pull/882
+.. _`PR #884`: https://github.com/desihub/desitarget/pull/884
+.. _`PR #885`: https://github.com/desihub/desitarget/pull/885
+
+4.7.2 (2026-04-29)
+------------------
+
+* Revert ToO changes between desitarget/4.5.0 and 4.6.0 [`PR #880`_].
+    * This will allow a single tag for both ToO and MTL updates.
+* Catch reprocessing bug where 1B tile list can change size [`PR #879`_].
+    * The input tile list can be bigger than the output tile list.
+    * This is because not every 1B tile changes a 1A target.
+    * Notably M31 BRIGHT1B tiles which don't overlap any BRIGHT tiles.
+    * We don't write any tile information when `ext=True` anyway.
+
+.. _`PR #879`: https://github.com/desihub/desitarget/pull/879
+.. _`PR #880`: https://github.com/desihub/desitarget/pull/880
+
+4.7.1 (2026-04-23)
+------------------
+
+* Catch case where NUMOBS_MORE drops to -1 for LyA quasars [`PR #878`_].
+
+.. _`PR #878`: https://github.com/desihub/desitarget/pull/878
+
+4.7.0 (2026-04-20)
+------------------
+
+* Add new, `main4` secondary targets [`PR #877`_]. Includes:
+    * Add `BRIGHT1B` and `DARK1B` secondary targets.
+    * Allow and add `BACKUP` secondary targets.
+    * Add `DARK` and `BRIGHT` targets for the new DR11 imaging area.
+        * Likely include by adding `1B` targets to `DARK`/`BRIGHT` tiles.
+	* See related `fiberassign` `issue #503`_.
+    * Facilitate running the MTL loop for secondary 1B targets.
+        * Notably if we've already observed corresponding primary tiles.
+    * Also includes new routines to make "lightweight" Gaia files.
+        * These files can be used for fast matching to bright stars.
+        * Routines to read and match to the lightweight files also added.
+        * Can be used to flag secondaries that are close to bright stars.
+* Circumvent warnings when running with Python >3.12 [`PR #870`_].
+    * Should address `issue #865`_ and `issue #866`_.
+
+.. _`issue #503`: https://github.com/desihub/fiberassign/issues/503
+.. _`issue #865`: https://github.com/desihub/desitarget/issues/865
+.. _`issue #866`: https://github.com/desihub/desitarget/issues/866
+.. _`PR #870`: https://github.com/desihub/desitarget/pull/870
+.. _`PR #877`: https://github.com/desihub/desitarget/pull/877
 
 4.6.0 (2026-01-30)
 ------------------

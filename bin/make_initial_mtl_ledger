@@ -47,6 +47,10 @@ ap.add_argument('--append', action='store_true',
                 Particularly useful when adding new secondary targets")
 ap.add_argument('--tcnames', default=None,
                 help="Comma-separated names of target classes to run (e.g. QSO,LGE).")
+ap.add_argument('--dr', type=int, default=None,
+                help="Limit targets to a Legacy Surveys Data Release, e.g. pass \
+                11 to limit to DR11 bricks. Expects survey-bricks-dr.fits to    \
+                exist in the output directory.")
 
 
 ns = ap.parse_args()
@@ -64,4 +68,4 @@ else:
 
 make_ledger(ns.targdir, ns.dest, pixlist=pixlist, obscon=ns.obscon,
             numproc=ns.numproc, timestamp=ns.timestamp, append=ns.append,
-            tcnames=tcnames)
+            tcnames=tcnames, dr=ns.dr)
