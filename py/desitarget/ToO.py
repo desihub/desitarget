@@ -376,7 +376,7 @@ def _check_ledger(inledger, survey="main"):
     # ADM fiber-override observations.
     if survey == "main":
         ii = (inledger["TOO_TYPE"] == "FIBER") & (inledger["TOO_PRIO"] == "HI")
-        ok = (inledger["CHECKER"] == "ADMOK") | (inledger["CHECKER"] == "SYBOK") | (inledger["CHECKER"]=="DESI_SNIa")
+        ok = (inledger["CHECKER"] == "ADMOK") | (inledger["CHECKER"] == "SYBOK")
         if np.any(ii & ~ok):
             msg = "High-priority fiber-overrides disallowed in {} survey".format(
                 survey)
