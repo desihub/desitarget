@@ -5,7 +5,13 @@ desitarget Change Log
 5.2.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Update MTL loop for secondary `BACKUP` ledgers [`PR #890`_]. Includes:
+    * Add `BACKUP` as an option for processing secondary MTLs.
+    * Handle an endianness bug in newer versions of numpy/astropy.
+    * Restore the :func:`ledger_overrides` function.
+    * Add `BRIGHT1B` and `DARK1B` as options for override ledgers.
+
+.. _`PR #890`: https://github.com/desihub/desitarget/pull/890
 
 5.2.0 (2026-06-09)
 ------------------
