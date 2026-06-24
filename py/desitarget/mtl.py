@@ -3277,9 +3277,10 @@ def make_zcat(zcatdir, tiles, obscon, survey, allow_overlaps=False):
 
     # ADM write out the zcat as a file with the correct data model.
     dm = survey_data_model(zcatdatamodel, survey=survey)
-    qsozcat = Table(np.zeros(len(zs), dtype=dm.dtype))
+    qsozcat = np.zeros(len(zs), dtype=dm.dtype)
     for col in qsozcat.dtype.names:
         qsozcat[col] = zs[col]
+    qsozcat = Table(qsozcat)
 
     return qsozcat
 
