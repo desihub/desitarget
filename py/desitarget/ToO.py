@@ -364,7 +364,7 @@ def _check_ledger(inledger, survey="main"):
     # ADM and the priorities are all LO or HI.
     allowed = {"TOO_TYPE": {'FIBER', 'TILE'},
                "TOO_PRIO": {'LO', 'HI'},
-               "OCLAYER": {'BRIGHT', 'DARK','BACKUP'}}
+               "OCLAYER": {'BRIGHT', 'DARK', 'BACKUP'}}
     for col in allowed:
         if not set(inledger[col]).issubset(allowed[col]):
             msg = "Some {} entries in the ToO ledger are not one of {}!".format(
@@ -453,11 +453,16 @@ def finalize_too(inledger, survey="main"):
         for prio in set(outdata["TOO_PRIO"]):
             ii = (outdata["OCLAYER"] == oc) & (outdata["TOO_PRIO"] == prio)
             bitname = "{}_TOO_{}P".format(oc, prio)
-            outdata[scol][ii] = sMx[bitname]
-            outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities["UNOBS"]
-            outdata["NUMOBS_INIT"][ii] = sMx[bitname].numobs
+            mx = sMx
+            # JB: Due to lack of available bits in the Secondary Program,
+            # I added the BACKUP ToO bits to the BGS survey target mask
+            if oc == 'BACKUP':
+                mx = bMx
+            outdata[scol][ii] = mx[bitname]
+            outdata["PRIORITY_INIT"][ii] = mx[bitname].priorities["UNOBS"]
+            outdata["NUMOBS_INIT"][ii] = mx[bitname].numobs
             outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
-                sMx[bitname].obsconditions)
+                mx[bitname].obsconditions)
 
     # ADM assign a SUBPRIORITY.
     np.random.seed(616)
