@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-5.2.1 (unreleased)
+5.3.1 (unreleased)
+------------------
+
+* No updates yet.
+
+5.3.0 (2026-07-06)
 ------------------
 
 * Update MTL loop for secondary `BACKUP` ledgers [`PR #890`_]. Includes:
