@@ -12,7 +12,8 @@ ap = ArgumentParser(description='Force override ledgers to be processed and adde
 ap.add_argument("obscon",
                 help="String matching ONE obscondition in the bitmask yaml file \
                 (e.g. 'BRIGHT'). Controls priorities when merging targets,      \
-                which tiles to process, etc.", choices=["DARK", "BRIGHT", "BACKUP"])
+                which tiles to process, etc.",
+                choices=["DARK", "BRIGHT", "BACKUP", "DARK1B", "BRIGHT1B"])
 ap.add_argument("-s", "--survey",
                 help="Flavor of survey to run. Defaults to [{}]".format(survey),
                 default=survey, choices=["main", "sv3", "sv2"])

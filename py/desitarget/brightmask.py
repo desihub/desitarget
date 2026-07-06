@@ -856,7 +856,7 @@ def get_safe_targets(targs, sourcemask, bricks_are_hpx=False):
         raise ValueError(msg)
     release = release[0]
     if release <= 10:
-        release =0
+        release = 0
     safes["RELEASE"] = release
 
     safes["TARGETID"] = encode_targetid(objid=safes['BRICK_OBJID'],

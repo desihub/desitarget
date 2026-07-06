@@ -48,7 +48,7 @@ scndstates = [False]
 
 # ADM if nosecondary wasn't passed, also process the secondary ledger
 # ADM for programs that actually have secondary ledgers (BRIGHT/DARK).
-if ns.obscon in ["BRIGHT", "DARK", "BRIGHT1B", "DARK1B"]:
+if ns.obscon in ["BRIGHT", "DARK", "BRIGHT1B", "DARK1B", "BACKUP"]:
     if not(ns.nosecondary):
         scndstates = [True, False]
 
