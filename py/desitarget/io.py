@@ -3563,6 +3563,13 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         https://github.com/desihub/desitarget/issues/883, where different
         column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
         was ignored in the concatenation process.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process. Only works when reading in MTLs
+        rather than target files.
     reorder : :class:`bool`, optional, defaults to ``True``
         The original version of read_two_mtl_ledgers had a bug where if the two
         passed ledgers had different column orders the output could be
@@ -3628,7 +3635,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                 targs = read_mtl_ledger(fn, unique=unique, isodate=isodate,
                                         initial=initial, leq=leq,
                                         columns=columns, tabform=tabform,
-                                        maketwostyle=maketwostyle, reorder=reorder)
+                                        maketwostyle=maketwostyle,
+                                        reorder=reorder)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -3691,7 +3699,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False, mtl=False,
                        unique=True, isodate=None, initial=False, leq=False,
-                       tabform='ascii.basic', maketwostyle=False, reorder=True):
+                       tabform='ascii.basic', maketwostyle=False, use_concatenate=False,
+                       reorder=True):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -3763,6 +3772,13 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         If passed, add the extra columns that are added when running
         :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
         Only works when reading in MTLs rather than target files.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process. Only works when reading in MTLs
+        rather than target files.
     reorder : :class:`bool`, optional, defaults to ``True``
         The original version of read_two_mtl_ledgers had a bug where if the two
         passed ledgers had different column orders the output could be
@@ -3795,7 +3811,7 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         return read_mtl_in_hp(
             hpdirname, nside, pixlist, unique=unique, isodate=isodate,
             initial=initial, leq=leq, tabform=tabform, maketwostyle=maketwostyle,
-            reorder=reorder)
+            use_concatenate=use_concatenate, reorder=reorder)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -4142,7 +4158,8 @@ def read_targets_in_quick(hpdirname, shape=None,
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                           quick=False, mtl=False, oldstyle=False, verbose=False,
                           unique=True, isodate=None, initial=False, leq=False,
-                          tabform='ascii.basic', maketwostyle=False, reorder=True):
+                          tabform='ascii.basic', maketwostyle=False, use_concatenate=False,
+                          reorder=True):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
     Parameters
@@ -4213,6 +4230,13 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         If passed, add the extra columns that are added when running
         :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
         Only works when reading in MTLs rather than target files.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process. Only works when reading in MTLs
+        rather than target files.
     reorder : :class:`bool`, optional, defaults to ``True``
         The original version of read_two_mtl_ledgers had a bug where if the two
         passed ledgers had different column orders the output could be
@@ -4287,7 +4311,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist, columns=columnscopy, header=header,
             mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq,
-            tabform=tabform, maketwostyle=maketwostyle, reorder=reorder)
+            tabform=tabform, maketwostyle=maketwostyle, use_concatenate=use_concatenate,
+            reorder=reorder)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
