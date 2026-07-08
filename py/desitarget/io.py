@@ -3074,6 +3074,10 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
         fn2, unique=unique, isodate=isodate, initial=initial, leq=leq,
         columns=columns, tabform=tabform)
 
+    # DG - In cases where we do not reorder, we have to use the "emulate" function
+    # to gracefully handle the differing column names and reproduce
+    # the buggy behaviour
+    np_where = emulate_np_where
     # ADM if requested, reorder both MTLs according to the primary MTL
     # ADM data model to fix the reorder bug noted in the docstring.
     if reorder:
@@ -3089,6 +3093,9 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
             for col in mtlprimdatamodel.dtype.names:
                 mtl2new[col] = mtl2[col]
             mtl2 = mtl2new
+
+        # DG - in this case, when we DO reorder, we are safe to use default numpy where
+        np_where = np.where
 
     # ADM determine which program/obscon corresponds to each filename.
     oc1 = fn1.split("mtl-")[-1].split("-")[0].upper()
@@ -3125,12 +3132,14 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     mtl2match = mtl2[iimtl2]
     ii = mtl1match["PRIORITY"] + mtl1match["SUBPRIORITY"] > \
         mtl2match["PRIORITY"] + mtl2match["SUBPRIORITY"]
-    mtlmerged = np.where(ii, mtl1match, mtl2match)
+    mtlmerged = np_where(ii, mtl1match, mtl2match)
     # ADM generate the output for targets that are in both MTLs.
     done3 = np.zeros(np.sum(iimtl1), dtype=dt)
     for col in mtl1.dtype.names:
         done3[col] = mtlmerged[col]
     # ADM MTL_HIGHEST is whichever target won the priority battle, above.
+    # DG - This is a single column so doens't need to use the "fake"
+    # np.where that's used for full arrays.
     done3["MTL_HIGHEST"] = np.where(ii, obsconditions[oc1], obsconditions[oc2])
     # ADM MTL_CONTAINS is always both MTLs.
     oc = obsconditions[oc1] | obsconditions[oc2]
@@ -3147,6 +3156,7 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
         # numpy versions due to mismatched columns. To account for this,
         # use emulated concatenation function, which handles this gracefully.
         return emulate_np_concatenate([done1, done2, done3])
+
     # DG - define output datatype to avoid the concatenate casting
     # everything to big endian instead of maintaining the little endian
     # type of all input MTLS.
@@ -3720,6 +3730,45 @@ def emulate_np_concatenate(mtls):
     else:
         mtl = np.concatenate(mtls)
     return mtl
+
+def emulate_np_where(condition, x, y):
+    """Recreate old behaviour of np.where for joining from numpy structured arrays, choosing from `x` or `y` depending on condition.
+
+    This is a helper function to reproduce the buggy behaviour fixed in
+    https://github.com/desihub/desitarget/issues/883.
+
+    Parameters
+    ----------
+    condition : array_like, bool
+        Where True, yield `x`, otherwise yield `y`.
+    x, y : array_like
+        Values from which to choose. `x`, `y` and `condition` need to be
+        broadcastable to some shape.
+
+    Returns
+    -------
+    out : ndarray
+        An array with elements from `x` where `condition` is True, and elements
+        from `y` elsewhere.
+
+    """
+    condition = np.array(condition, dtype=bool) # In case it was a list, for some reason
+    # DG - this was the version that changed behaviour, so
+    # above this version we have to manually recreate the behaviour
+    if np.__version__ >= "1.23.0":
+        # DG - Previous behaviour used the x array to determine output dtype
+        chosen_dtype = x.dtype
+        # We can just put the values from x directly into the array.
+        z = np.zeros_like(x)
+        z = np.where(condition, x, z)
+        # For the other ones, we will have to pull out the raw values by column index, not name.
+        for i, name in enumerate(chosen_dtype.names):
+            z[name][~condition] = y[y.dtype.names[i]][~condition]
+
+    # DG - Below that version we can just call np.where.
+    else:
+        z = np.where(condition, x, y)
+    return z
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False, mtl=False,
