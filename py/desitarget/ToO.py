@@ -457,8 +457,8 @@ def finalize_too(inledger, survey="main"):
             # JB: Due to lack of available bits in the Secondary Program,
             # I added the BACKUP ToO bits to the BGS survey target mask
             if oc == 'BACKUP':
-                mx = bMx
-                outdata[dcol] = dMx["BGS_ANY"]
+                mx = dMx
+                outdata[dcol] = dMx[bitname]
             outdata[scol][ii] = mx[bitname]
             outdata["PRIORITY_INIT"][ii] = mx[bitname].priorities["UNOBS"]
             outdata["NUMOBS_INIT"][ii] = mx[bitname].numobs
