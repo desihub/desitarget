@@ -3142,6 +3142,11 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     done3["MTL_WANTED"] |= (mtl1match["PRIORITY"] > 2) * obsconditions[oc1]
     done3["MTL_WANTED"] |= (mtl2match["PRIORITY"] > 2) * obsconditions[oc2]
 
+    if not reorder:
+        # DG - If we didn't reorder, np.concatenate will fail on higher
+        # numpy versions due to mismatched columns. To account for this,
+        # use emulated concatenation function, which handles this gracefully.
+        return emulate_np_concatenate([done1, done2, done3])
     # DG - define output datatype to avoid the concatenate casting
     # everything to big endian instead of maintaining the little endian
     # type of all input MTLS.
@@ -3656,23 +3661,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         # DG - Reproduce old behaviour with concatenate, explained in the ticket
         # in the docstring.
         if use_concatenate:
-            # DG - this was the version that changed concatenate, so
-            # above this version we have to manually recreate the behaviour
-            if np.__version__ >= "1.23.0":
-                # DG - We will have to concatenate each column individually to
-                # avoid field name clash errors.
-                # Previous behaviour used the last MTL to determine column naming.
-                chosen_dtype = mtls[-1].dtype
-                # Inner list comprehension pulls the column indixed by this index,
-                # by pulling the name of the column at this index from the dtype
-                # of that mtl.
-                mtl = np.zeros(np.sum([len(m) for m in mtls]), dtype=chosen_dtype)
-                for i, name in enumerate(chosen_dtype.names):
-                    mtl[name] = np.concatenate([m[m.dtype.names[i]] for m in mtls])
-
-            # DG - Below that version we can just call np.concatenate.
-            else:
-                mtl = np.concatenate(mtls)
+            mtl = emulate_np_concatenate(mtls)
         else:
             # DG - It is faster to have `usemask=True` and there are not adverse
             # downstream effects, in my testing, so we are safe to use it.
@@ -3695,6 +3684,42 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         return mtl, outfns
     return mtl
 
+def emulate_np_concatenate(mtls):
+    """Recreate old behaviour of np.concatenate for joining a list of MTLs.
+
+    This is a helper function to reproduce the buggy behaviour fixed in
+    https://github.com/desihub/desitarget/issues/883.
+
+    Parameters
+    ----------
+    mtls : :class:`list`
+        A list of MTLs asstructured numpy arrays, such as those returned by
+        :func:`desitarget.io.read_one_mtl_ledger()`
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A numpy structured array of the MTL(s).
+
+    """
+    # DG - this was the version that changed concatenate, so
+    # above this version we have to manually recreate the behaviour
+    if np.__version__ >= "1.23.0":
+        # DG - We will have to concatenate each column individually to
+        # avoid field name clash errors.
+        # Previous behaviour used the last MTL to determine column naming.
+        chosen_dtype = mtls[-1].dtype
+        # Inner list comprehension pulls the column indixed by this index,
+        # by pulling the name of the column at this index from the dtype
+        # of that mtl.
+        mtl = np.zeros(np.sum([len(m) for m in mtls]), dtype=chosen_dtype)
+        for i, name in enumerate(chosen_dtype.names):
+            mtl[name] = np.concatenate([m[m.dtype.names[i]] for m in mtls])
+
+    # DG - Below that version we can just call np.concatenate.
+    else:
+        mtl = np.concatenate(mtls)
+    return mtl
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False, mtl=False,
