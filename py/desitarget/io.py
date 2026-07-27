@@ -3905,7 +3905,7 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
     # ADM "standard" format formatter for a file:
     formatter = fn.split("hp-")[0]+"hp-{}.fits"
 
-    # import only when needed to avoid desimodel required dependency
+    # import only when needed to avoid module-level desimodel dependency
     from desimodel.footprint import is_point_in_desi, tiles2pix
     # ADM closest nside to DESI tile area of ~7 deg.
     nside = pixarea2nside(7.)
@@ -4065,7 +4065,7 @@ def read_targets_in_quick(hpdirname, shape=None,
     notargs = np.zeros(0, dtype=notargs.dtype)
 
     if shape == 'tiles':
-        # import desimodel only when needed to avoid required dependency
+        # import only when needed to avoid module-level desimodel dependency
         # Note: `is_point_in_desi` will be used below
         from desimodel.footprint import is_point_in_desi, tiles2pix
         # ADM closest nside to DESI tile area of ~7 deg.
@@ -4250,7 +4250,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
     else:
         mtlmode = False
 
-    # import only when needed to avoid desimodel required dependency
+    # import only when needed to avoid module-level desimodel required dependency
     from desimodel.footprint import is_point_in_desi, tiles2pix
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     if mtlmode or mtl:
