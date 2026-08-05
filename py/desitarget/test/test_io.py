@@ -184,3 +184,26 @@ class TestIO(unittest.TestCase):
         self.assertTrue(np.all(bt['SUBPRIORITY'] > 0.0))
         self.assertEqual(bt['SUBPRIORITY'][0], 2.0)
         self.assertNotEqual(bt['SUBPRIORITY'][1], 0.0)
+
+    # Some tests for helper functions designed to reproduce buggy
+    # behavior from old versions of numpy. This ensures that those functions
+    # are continuing to reproduce the buggy behavior we want.
+    def test_emulate_np_concatenate(self):
+        a = np.array([(1.0, 2, 5), (3.0, 4, 6)], dtype=[('x', '<f8'), ('y', '<i8'), ('z', '<i8')])
+        b = np.array([(1.0, 2, 5), (3.0, 4, 6)], dtype=[('x', '<f8'), ('z', '<i8'), ('y', '<i8')])
+
+        observed = io.emulate_np_concatenate([a, b])
+        expected = np.array([(1.0, 2, 5), (3.0, 4, 6), (1.0, 2, 5), (3.0, 4, 6)], dtype=[('x', '<f8'), ('z', '<i8'), ('y', '<i8')])
+        # Strict = true checks dtypes in addition to values.
+        self.assertIsNone(np.testing.assert_array_equal(observed, expected, strict=True))
+
+    def test_emulate_np_where(self):
+        a = np.array([(1.0, 2, 5), (3.0, 4, 6)], dtype=[('x', '<f8'), ('y', '<i8'), ('z', '<i8')])
+        b = np.array([(3.0, 4, 6), (7.0, 8, 9)], dtype=[('x', '<f8'), ('z', '<i8'), ('y', '<i8')])
+
+        cond = np.array([True, False], dtype=bool)
+
+        observed = io.emulate_np_where(cond, a, b)
+        expected = np.array([(1.0, 2, 5), (7.0, 8, 9)], dtype=[('x', '<f8'), ('y', '<i8'), ('z', '<i8')])
+        self.assertIsNone(np.testing.assert_array_equal(observed, expected, strict=True))
+
