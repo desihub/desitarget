@@ -5,7 +5,9 @@ desitarget Change Log
 5.3.1 (unreleased)
 ------------------
 
-* No updates yet.
+* Increase the number of ToOs ingested each night [`PR #874`_].
+
+.. _`PR #874` : https://github.com/desihub/desitarget/pull/874
 
 5.3.0 (2026-07-06)
 ------------------
