@@ -5,7 +5,10 @@ desitarget Change Log
 5.3.1 (unreleased)
 ------------------
 
-* No updates yet.
+* Propagate arguments necessary to reproduce buggy MTL loading behavior [`PR #891`_].
+
+.. _`PR #891`: https://github.com/desihub/desitarget/pull/890
+
 
 5.3.0 (2026-07-06)
 ------------------
