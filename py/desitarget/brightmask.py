@@ -840,12 +840,28 @@ def get_safe_targets(targs, sourcemask, bricks_are_hpx=False):
     # ADM first, check the GAIA DR number for these skies.
     _, _, _, _, _, gdr = decode_targetid(targs["TARGETID"])
     if len(set(gdr)) != 1:
-        msg = "Skies are based on multiple Gaia Data Releases:".format(set(gdr))
+        msg = f"Skies are based on multiple Gaia Data Releases: {set(gdr)}"
         log.critical(msg)
         raise ValueError(msg)
 
+    # ADM we need to distinguish SAFE skies in different Data Releases.
+    # ADM So, starting with DR11 we'll encode the RELEASE as the imaging
+    # ADM RELEASE divided by 1000. This should make it distinct from the
+    # ADM skies which have the imaging RELEASE but NOT divided by 1000.
+    release = targs["RELEASE"]//1000
+    if len(set(release)) != 1:
+        msg = f"Targets for safe skies come from multiple DRs: {set(release)}."
+        msg += " Think harder about how to set the RELEASE for safe skies."
+        log.critical(msg)
+        raise ValueError(msg)
+    release = release[0]
+    if release <= 10:
+        release = 0
+    safes["RELEASE"] = release
+
     safes["TARGETID"] = encode_targetid(objid=safes['BRICK_OBJID'],
                                         brickid=safes['BRICKID'],
+                                        release=release,
                                         sky=1,
                                         gaiadr=gdr[0])
 

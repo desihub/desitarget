@@ -10,7 +10,7 @@ Targets of Opportunity.
 import os
 import numpy as np
 from astropy.table import Table
-from astropy.time import Time
+
 from desiutil.log import get_logger
 
 from desitarget import io
@@ -115,9 +115,7 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False, d
     # ADM append to the files.
     if survey == "main":
         # ADM the filename for FIBER observations.
-        # JB this just makes sure that the basename is changed and not the directory
-        fiberfn = os.path.join(os.path.dirname(filename), 
-                               os.path.basename(filename).replace("ToO", "ToO-fiber"))
+        fiberfn = filename.replace("ToO.", "ToO-fiber.")
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
         # ADM write once for the FIBER ToOs, once for the TILE ToOs.
@@ -536,13 +534,14 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, date=T
 
     # ADM add the output targeting columns.
     outdata = finalize_too(indata, survey=survey)
+
     # ADM determine the output filename.
     # ADM set output format to ecsv if passed, or fits otherwise.
     form = 'ecsv'*ecsv + 'fits'*(not(ecsv))
     if outdir is None:
-        fn = get_filename(tdir, ender=form, outname=True)
+        fn = get_filename(tdir, outname=True, ender=form)
     else:
-        fn = get_filename(outdir, ender=form, outname=True)
+        fn = get_filename(outdir, outname=True, ender=form)
 
     # ADM write out the results.
     # JB added if statement for writing out a subtable

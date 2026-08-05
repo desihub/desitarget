@@ -42,10 +42,12 @@ log = get_logger()
 # ADM photometric system. This will expand with the definition of RELEASE in the
 # ADM Data Model (e.g. https://desi.lbl.gov/trac/wiki/DecamLegacy/DR4sched).
 # ADM 7999 were the dr8a test reductions, for which only 'S' surveys were processed.
-releasedict = {3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
-               8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
-               9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N',
-               9010: 'S', 9011: 'N', 9012: 'S', 9013: 'N', 10000: 'S'}
+releasedict = {
+    3000: 'S', 4000: 'N', 5000: 'S', 6000: 'N', 7000: 'S', 7999: 'S',
+    8000: 'S', 8001: 'N', 9000: 'S', 9001: 'N', 9002: 'S', 9003: 'N',
+    9004: 'S', 9005: 'N', 9006: 'S', 9007: 'N', 9008: 'S', 9009: 'N',
+    9010: 'S', 9011: 'N', 9012: 'S', 9013: 'N', 10000: 'S', 10099: 'S',
+    11010: 'S'}
 
 # ADM This is an empty array of most of the TS data model columns and
 # ADM dtypes. Note that other columns are added in read_tractor and
@@ -85,6 +87,18 @@ dr10replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
                    ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (17,)),
                    ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (17,)),
                    ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (17,))}
+
+# ADM columns that have updated dtypes in the DR11 data model.
+dr11replacecols = {('MASKBITS', '>i2'): ('MASKBITS', '>i4'),
+                   ('LC_FLUX_W1', '>f4', (15,)): ('LC_FLUX_W1', '>f4', (25,)),
+                   ('LC_FLUX_W2', '>f4', (15,)): ('LC_FLUX_W2', '>f4', (25,)),
+                   ('LC_FLUX_IVAR_W1', '>f4', (15,)): ('LC_FLUX_IVAR_W1', '>f4', (25,)),
+                   ('LC_FLUX_IVAR_W2', '>f4', (15,)): ('LC_FLUX_IVAR_W2', '>f4', (25,)),
+                   ('LC_NOBS_W1', '>i2', (15,)): ('LC_NOBS_W1', '>i2', (25,)),
+                   ('LC_NOBS_W2', '>i2', (15,)): ('LC_NOBS_W2', '>i2', (25,)),
+                   ('LC_MJD_W1', '>f8', (15,)): ('LC_MJD_W1', '>f8', (25,)),
+                   ('LC_MJD_W2', '>f8', (15,)): ('LC_MJD_W2', '>f8', (25,))}
+
 
 # ADM columns that are new for the DR9 data model.
 dr9addedcols = np.array([], dtype=[
@@ -213,7 +227,9 @@ def read_tractor(filename, header=False, columns=None, gaiasub=False):
             [], dtype=basetsdatamodel.dtype.descr + dr8addedcols.dtype.descr)
     else:
         newdt = basetsdatamodel.dtype.descr + dr9addedcols.dtype.descr
-        if "FLUX_I" in indata.dtype.names:  # ADM i-fluxes were added for DR10.
+        if "LS_ID_DR11" in indata.dtype.names:  # ADM LS ID was added for DR11.
+            newdt = [dr11replacecols.get(tup, tup) for tup in newdt]
+        elif "FLUX_I" in indata.dtype.names:  # ADM i-fluxes were added for DR10.
             newdt = [dr10replacecols.get(tup, tup) for tup in newdt]
         tsdatamodel = np.array([], dtype=newdt)
 
@@ -294,7 +310,7 @@ def release_to_photsys(release):
 
     Parameters
     ----------
-    objects : :class:`int` or :class:`~numpy.ndarray`
+    release : :class:`int` or :class:`~numpy.ndarray`
         RELEASE column from a numpy rec array of targets.
 
     Returns
@@ -541,8 +557,11 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
         then `SUBPRIORITY==0.0` entries are overwritten by a random float
-        in the range 0 to 1, using either seed 716, or seed 716 + the first
-        value in `hpxlist`, if `hpxlist` is passed and not ``None``.
+        in the range 0 to 1, using either a seed of 716 + 1e8*drint, or
+        a seed of 716 + 1e8*drint + the first value in `hpxlist`,
+        if `hpxlist` is passed and not ``None``. Here drint is the Data
+        Release number derived by the function itself. If drint is less
+        than 10 or is None, then the 1e8*drint term is omitted.
 
     Returns
     -------
@@ -664,7 +683,13 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
     # ADM populate SUBPRIORITY with a reproducible random float.
     if "SUBPRIORITY" in data.dtype.names and mockdata is None and subpriority:
-        subpseed = 716
+        # ADM makes the seed depend on Data Release.
+        if drint is None:
+            subpseed = 716
+        elif drint < 10:
+            subpseed = 716
+        else:
+            subpseed = 716 + int(1e8)*drint
         if hpxlist is not None:
             subpseed += int(hpxlist[0])
         np.random.seed(subpseed)
@@ -990,7 +1015,8 @@ def write_in_chunks(filename, data, nchunks, extname=None, header=None):
 
 
 def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
-                    drint='X', subpriority=True, iteration=None):
+                    drint='X', subpriority=True, iteration=None,
+                    overlybright=False, matchrad=3.):
     """Write a catalogue of secondary targets.
 
     Parameters
@@ -1008,13 +1034,13 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         sub-directory "outdata" and the `scxdir` is added to the
         header of the output `filename`.
     obscon : :class:`str`, optional, defaults to `None`
-        Can pass one of "DARK" or "BRIGHT". If passed, don't write the
-        full set of secondary targets that do not match a primary,
-        rather only write targets appropriate for "DARK" or
-        "BRIGHT" observing conditions. The relevant `PRIORITY_INIT`
-        and `NUMOBS_INIT` columns will be derived from
-        `PRIORITY_INIT_DARK`, etc. and `filename` will have "bright" or
-        "dark" appended to the lowest DIRECTORY in the input `filename`.
+        Can pass one of "DARK", "BRIGHT" or "BACKUP". If passed, don't
+        write the full set of secondary targets that do not match a
+        primary, rather only write targets appropriate for passed
+        observing conditions. The relevant `PRIORITY_INIT`
+        and `NUMOBS_INIT` columns will be derived from, e.g.,
+        `PRIORITY_INIT_DARK`, etc. and `filename` will have "dark", etc.
+        appended to the lowest DIRECTORY in the input `filename`.
     drint : :class:`int`, optional, defaults to `X`
         The data release ("dr"`drint`"-") in the output filename.
     subpriority : :class:`bool`, optional, defaults to ``True``
@@ -1026,6 +1052,11 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
         the context of the Main Survey but writing extra secondaries
         that can't be merged with primaries. The random seed for
         `SUBPRIORITY` is also augmented by adding `iteration` to it.
+    overlybright : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then run an additional, more rigorous, check that no
+        targets are near bright (maglim < 16) Gaia stars.
+    matchrad : :class:`float`, optional, defaults to 3 arcsec
+        The match radius around bright stars when using `overlybright`.
 
     Returns
     -------
@@ -1155,14 +1186,22 @@ def write_secondary(targdir, data, primhdr=None, scxdir=None, obscon=None,
     fluxlim = 10**((22.5-maglim)/2.5)
     # ADM find any standalone secondary that is too bright in any band.
     toobright = np.zeros(len(data), dtype="bool")
-    for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
-                "GAIA_PHOT_RP_MEAN_MAG"]:
-        toobright |= (data[col] != 0) & (data[col] < maglim)
-    for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
-        toobright |= (data[col] != 0) & (data[col] > fluxlim)
+    # ADM assume you can never be too bright in BACKUP conditions.
+    if obscon != "BACKUP":
+        for col in ["GAIA_PHOT_G_MEAN_MAG", "GAIA_PHOT_BP_MEAN_MAG",
+                    "GAIA_PHOT_RP_MEAN_MAG"]:
+            toobright |= (data[col] != 0) & (data[col] < maglim)
+        for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
+            toobright |= (data[col] != 0) & (data[col] > fluxlim)
+        from desitarget.secondary import too_bright
+        log.info(f"Pre Gaia match found {np.sum(toobright)} too-bright targets")
+        toobright |= too_bright(data, matchrad=matchrad)
+        log.info(f"Post Gaia match found {np.sum(toobright)} too-bright targets")
+    else:
+        log.info(f"Observing conditions are {obscon}, assuming never too bright")
 
     # ADM just targets to be observed in "standard" conditions.
-    standardoc = "DARK|BRIGHT"
+    standardoc = "DARK|BRIGHT|BACKUP|DARK1B|BRIGHT1B"
     instandardoc = data["OBSCONDITIONS"] & obsconditions.mask(standardoc) != 0
 
     # ADM write out standalone secondaries that aren't too bright and
@@ -1220,12 +1259,18 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
         target catalogs.
     subpriority : :class:`bool`, optional, defaults to ``True``
         If ``True`` and a `SUBPRIORITY` column is in the input `data`,
-        then `SUBPRIORITY==0.0` entries are overwritten by a random float in
-        the range 0 to 1, using either (a) if `supp` is ``False``: seed 718, or
-        seed 718 + the first value in `hpxlist`, if `hpxlist` is passed
-        and not ``None`` or (b) if `supp` is ``True`` seed 719 or seed
-        719 + hp.nside2npix(1024) + the first value in `hpxlist`, if
-        `hpxlist` is passed and not ``None``.
+        then `SUBPRIORITY==0.0` entries are overwritten by a random float
+        in the range 0 to 1, using either (a) if `supp` is ``False``:
+        seed 718 + 1e8*drint, or seed 718 + 1e8*drint + the first value
+        in `hpxlist`, if `hpxlist` is passed and not ``None`` or (b) if
+        `supp` is ``True`` seed 719 + 1e8*gaiadr + hp.nside2npix(1024) or
+        seed 719 + 1e8*gaiadr + hp.nside2npix(1024) + first value in
+        `hpxlist`, if `hpxlist` is passed and not ``None``. Here, drint
+        and gaiadr are Data Release numbers from the Legacy Surveys or
+        Gaia that are derived by the code itself. If the drint term is
+        less than 10 or is None, then the 1e8*drint term is omitted.
+        Similarly if the gaiadr term is less than 3 or is None then the
+        1e8*drint term is omitted.
 
     Returns
     -------
@@ -1307,9 +1352,19 @@ def write_skies(targdir, data, indir=None, indir2=None, supp=False,
     if "SUBPRIORITY" in data.dtype.names and subpriority:
         # ADM ensure different SUBPRIORITIES for supp/standard files.
         if supp:
-            subpseed = hp.nside2npix(1024) + 719
+            if gaiadr is None:
+                subpseed = hp.nside2npix(1024) + 719
+            elif gaiadr < 3:
+                subpseed = hp.nside2npix(1024) + 719
+            else:
+                subpseed = hp.nside2npix(1024) + 719 + int(1e8)*gaiadr
         else:
-            subpseed = 718
+            if drint is None:
+                subpseed = 718
+            elif drint < 10:
+                subpseed = 718
+            else:
+                subpseed = 718 + int(1e8)*drint
         if hpxlist is not None:
             subpseed += int(np.atleast_1d(hpxlist)[0])
             # ADM the way we construct different random seeds for the
@@ -2930,11 +2985,11 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         # ADM need to catch cases where only one file actually exists.
         f1exists = os.path.isfile(filename[0])
         f2exists = os.path.isfile(filename[1])
-        if f1exists & ~f2exists:
+        if f1exists and (not f2exists):
             return read_one_mtl_ledger(
                 filename[0], unique=unique, isodate=isodate, initial=initial,
                 leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
-        elif f2exists & ~f1exists:
+        elif f2exists and (not f1exists):
             return read_one_mtl_ledger(
                 filename[1], unique=unique, isodate=isodate, initial=initial,
                 leq=leq, columns=columns, tabform=tabform, maketwostyle=True)
@@ -3080,7 +3135,10 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     done3["MTL_WANTED"] |= (mtl1match["PRIORITY"] > 2) * obsconditions[oc1]
     done3["MTL_WANTED"] |= (mtl2match["PRIORITY"] > 2) * obsconditions[oc2]
 
-    return np.concatenate([done1, done2, done3])
+    # DG - define output datatype to avoid the concatenate casting
+    # everything to big endian instead of maintaining the little endian
+    # type of all input MTLS.
+    return np.concatenate([done1, done2, done3], dtype=done3.dtype)
 
 
 def read_one_mtl_ledger(filename, unique=True, isodate=None, initial=False,
@@ -3436,7 +3494,8 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False,
 
 def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                    returnfn=False, initial=False, leq=False, columns=None,
-                   tabform='ascii.basic', maketwostyle=False):
+                   tabform='ascii.basic', maketwostyle=False,
+                   use_concatenate=False):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -3491,6 +3550,12 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
     maketwostyle : :class:`bool`, optional, defaults to ``False``
         If passed, add the extra columns that are added when running
         :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process.
 
     Returns
     -------
@@ -3566,7 +3631,31 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                 return outly, outfns
             return outly
 
-        mtl = np.concatenate(mtls)
+        # DG - Reproduce old behaviour with concatenate, explained in the ticket
+        # in the docstring.
+        if use_concatenate:
+            # DG - this was the version that changed concatenate, so
+            # above this version we have to manually recreate the behaviour
+            if np.__version__ >= "1.23.0":
+                # DG - We will have to concatenate each column individually to
+                # avoid field name clash errors.
+                # Previous behaviour used the last MTL to determine column naming.
+                chosen_dtype = mtls[-1].dtype
+                # Inner list comprehension pulls the column indixed by this index,
+                # by pulling the name of the column at this index from the dtype
+                # of that mtl.
+                mtl = np.zeros(np.sum([len(m) for m in mtls]), dtype=chosen_dtype)
+                for i, name in enumerate(chosen_dtype.names):
+                    mtl[name] = np.concatenate([m[m.dtype.names[i]] for m in mtls])
+
+            # DG - Below that version we can just call np.concatenate.
+            else:
+                mtl = np.concatenate(mtls)
+        else:
+            # DG - It is faster to have `usemask=True` and there are not adverse
+            # downstream effects, in my testing, so we are safe to use it.
+            mtl = rfn.stack_arrays(mtls, asrecarray=True, usemask=True)
+
     # ADM ...if a directory wasn't passed, just read in the targets.
     else:
         # ADM turn the list back into a string.
@@ -4189,6 +4278,7 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
 
     if header and not mtl:
         return targets, hdr
+
     return targets
 
 

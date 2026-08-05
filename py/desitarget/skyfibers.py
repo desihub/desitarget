@@ -388,15 +388,31 @@ def sky_fibers_for_brick(survey, brickname, nskies=144, bands=['g', 'r', 'z'],
     # SB import photutils only if required instead of at module import time
     import photutils.aperture
 
+    # ADM the data model for blob maps changed after DR10.
+    # ADM so check the data release.
+    basedir = survey.survey_dir
+    # ADM Assuming this is dr8+, dr-name directory is one up.
+    basedir = basedir.rstrip('/')
+    drname = os.path.basename(os.path.dirname(basedir))
+    postdr10 = False
+    if drname[:2] == 'dr' and int(drname.split('dr')[-1]) >= 11:
+        postdr10 = True
+
     fn = survey.find_file('blobmap', brick=brickname)
     # ADM if the file doesn't exist, warn and return immediately.
     if not os.path.exists(fn):
         log.warning('blobmap {} does not exist!!!'.format(fn))
         return None
-    blobs = fitsio.read(fn)
+
+    if postdr10:
+        blobs = fitsio.read(fn, ext="BLOB-MAP")
+        header = fitsio.read_header(fn, ext="BLOB-MAP")
+    else:
+        blobs = fitsio.read(fn)
+        header = fitsio.read_header(fn)
+
     # log.info('Blob maximum value and minimum value in brick {}: {} {}'
     #         .format(brickname,blobs.min(),blobs.max()))
-    header = fitsio.read_header(fn)
     wcs = WCS(header)
 
     goodpix = (blobs == -1)
@@ -856,7 +872,7 @@ def repartition_skies(skydirname, numproc=1):
     return
 
 
-def get_supp_skies(ras, decs, radius=2.):
+def get_supp_skies(ras, decs, radius=2., dr="dr2"):
     """Random locations, avoid Gaia, format, return supplemental skies.
 
     Parameters
@@ -867,6 +883,9 @@ def get_supp_skies(ras, decs, radius=2.):
         Declinations of sky locations (degrees).
     radius : :class:`float`, optional, defaults to 2
         Radius at which to avoid (all) Gaia sources (arcseconds).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release from which to draw sources. Passed to
+        :func:`~desitarget.gaiamatch.find_gaia_files()`.
 
     Returns
     -------
@@ -880,7 +899,7 @@ def get_supp_skies(ras, decs, radius=2.):
           Gaia-file HEALPixel, but should work for all cases.
     """
     # ADM determine Gaia files of interest and read the RAs/Decs.
-    fns = find_gaia_files([ras, decs], neighbors=True, radec=True)
+    fns = find_gaia_files([ras, decs], neighbors=True, radec=True, dr=dr)
     gobjs = np.concatenate(
         [fitsio.read(fn, columns=["RA", "DEC"]) for fn in fns])
 
@@ -916,7 +935,7 @@ def get_supp_skies(ras, decs, radius=2.):
 
 def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
                      nside=None, pixlist=None, mindec=-30., mingalb=10.,
-                     radius=2.):
+                     radius=2., dr="dr2"):
     """Generate supplemental sky locations using Gaia-G-band avoidance.
 
     Parameters
@@ -943,6 +962,9 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         (e.g. send 10 to limit to areas beyond -10o <= b < 10o).
     radius : :class:`float`, optional, defaults to 2
         Radius at which to avoid (all) Gaia sources (arcseconds).
+    dr : :class:`str`, optional, defaults to "dr2"
+        Name of a Gaia data release from which to draw sources. Passed to
+        :func:`~desitarget.gaiamatch.find_gaia_files()`.
 
     Returns
     -------
@@ -966,7 +988,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
         nskiespersqdeg = density_of_sky_fibers(margin=4)
 
     # ADM determine the HEALPixel nside of the standard Gaia files.
-    anyfiles = find_gaia_files([0, 0], radec=True)
+    anyfiles = find_gaia_files([0, 0], radec=True, dr=dr)
     hdr = fitsio.read_header(anyfiles[0], "GAIAHPX")
     nsidegaia = hdr["HPXNSIDE"]
 
@@ -1006,7 +1028,7 @@ def supplement_skies(nskiespersqdeg=None, numproc=16, gaiadir=None,
     def _get_supp(pix):
         """wrapper on get_supp_skies() given a HEALPixel"""
         ii = (pixels == pix)
-        return get_supp_skies(ras[ii], decs[ii], radius=radius)
+        return get_supp_skies(ras[ii], decs[ii], radius=radius, dr=dr)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.zeros((), dtype='i8')

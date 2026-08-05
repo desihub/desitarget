@@ -1,0 +1,43 @@
+#!/usr/bin/env python
+
+from desitarget.geomask import dr9_or_dr11_brick_file
+from time import time
+t0 = time()
+
+from desiutil.log import get_logger
+log = get_logger()
+
+tf = 0.25
+
+from argparse import ArgumentParser
+ap = ArgumentParser(description="From DR9/DR11 brick files, create survey file of which bricks are in DR9/DR11.")
+ap.add_argument("surveybrickfn",
+                help="Root path to a Legacy Surveys general brick file, e.g., at NERSC, \
+                /global/cfs/cdirs/cosmo/data/legacysurvey/dr11/survey-bricks.fits.gz")
+ap.add_argument("dr9nfn",
+                help="Root path to a DR9 north NEXP all bricks file, as made \
+                by, e.g., make_dr_nexp_brick_file")
+ap.add_argument("dr9sfn",
+                help="Root path to a DR9 south NEXP all bricks file, as made \
+                by, e.g., make_dr_nexp_brick_file")
+ap.add_argument("dr11fn",
+                help="Root path to a DR11 NEXP all bricks file, as made by, \
+                e.g., make_dr_nexp_brick_file")
+ap.add_argument("dest",
+                help="Output file name (full path)")
+ap.add_argument("--threshfrac", type=float,
+                help=f"Threshold by which a DR11 brick has to exceed a DR9 brick \
+                in terms of the fraction of area covered by at least one \
+                observation in all of the g, r, z filters (`FALLPRIMGE1` in the \
+                NEXP all bricks files) [defaults to {tf}].",
+                default=tf)
+
+ns = ap.parse_args()
+
+done = dr9_or_dr11_brick_file(ns.surveybrickfn, ns.dr9nfn, ns.dr9sfn, ns.dr11fn,
+                              threshfrac=ns.threshfrac, outfn=ns.dest)
+
+nb = len(done)
+elapsed = time() - t0
+
+log.info(f"Information for {nb} bricks written to {ns.dest}...t={elapsed:.1f}s")

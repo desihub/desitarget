@@ -39,6 +39,9 @@ ap.add_argument("--numproc", type=int,
 ap.add_argument("--gaiadir", type=str,
                 help="Pass to set the GAIA_DIR environment variable directly in the code (i.e. the input directory that stores Gaia files)",
                 default=None)
+ap.add_argument("--gaiadr", type=str,
+                help="Name of a Gaia data release from which to draw sources. Defaults to dr2 for backward compatibility",
+                choices=["dr2", "edr", "dr3"], default="dr2")
 ap.add_argument('--nside', type=int,
                 help="Process supplemental skies in HEALPixels at this resolution (defaults to None). See also the 'healpixels' input flag",
                 default=None)
@@ -96,6 +99,7 @@ log.info('Generating sky positions at a density of {}'.format(nskiespersqdeg))
 extra = " --numproc {}".format(ns.numproc)
 extra += " --nskiespersqdeg {}".format(nskiespersqdeg)
 extra += " --gaiadir {}".format(gaiadir)
+extra += " --gaiadr {}".format(ns.gaiadr)
 nsdict = vars(ns)
 for nskey in ["mindec", "mingalb", "radius", "nomasking", "maskdir",
               "sky_subpriorities"]:
@@ -132,7 +136,7 @@ if ns.bundlefiles is None:
     supp_skies = supplement_skies(nskiespersqdeg=nskiespersqdeg, numproc=ns.numproc,
                                   gaiadir=gaiadir, radius=ns.radius, nside=ns.nside,
                                   pixlist=pixlist, mindec=ns.mindec,
-                                  mingalb=ns.mingalb)
+                                  mingalb=ns.mingalb, dr=ns.gaiadr)
 
     # ADM mask the supplemental sky locations using a bright star mask.
     if do_mask:

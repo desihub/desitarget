@@ -55,8 +55,9 @@ from collections import defaultdict
 
 from desitarget.internal import sharedmem
 from desitarget.io import find_target_files
-from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp
-from desitarget.gaiamatch import gaiadatamodel
+from desitarget.geomask import radec_match_to, add_hp_neighbors, is_in_hp, \
+    rewind_coords
+from desitarget.gaiamatch import gaiadatamodel, match_gaia_to_primary_post_dr3, match_gaia_to_primary_post_dr3_quick
 from desitarget.targets import encode_targetid, main_cmx_or_sv, resolve
 from desitarget.targets import set_obsconditions, initial_priority_numobs
 from desitarget.targetmask import obsconditions
@@ -113,6 +114,68 @@ outdatamodel = np.array([], dtype=[
 suppdatamodel = np.array([], dtype=[
     ('SCND_TARGET_INIT', '>i8'), ('PRIM_MATCH', '?')
 ])
+
+
+def too_bright(objs, matchrad=3.):
+    """Check if secondary targets are too bright for DESI to observe.
+
+    Parameters
+    ----------
+    data : :class:`~numpy.ndarray`
+        Structured array of secondary targets. Must contain the columns:
+
+        RA, DEC:
+            Right Ascension, Declination in degrees.
+        PMRA, PMDEC:
+            Right Ascension, Declination proper motions (Gaia DR3 units).
+        REF_EPOCH:
+            Reference epoch for coordinates (e.g. 2014.5).
+        FLUX_G, FLUX_R, FLUX_Z
+            Legacy Surveys fluxes, or similar. Can be set to zero or a
+            very low number for missing values.
+    matchrad : :class:`float`, optional, defaults to 3 arcsec
+        The matching radius around very bright stars in arcseconds.
+
+    Returns
+    -------
+    :class:`~numpy.array`
+        A Boolean array where objects that are Too Bright are ``True``
+        and others are ``False``.
+
+    Notes
+    -----
+    - The environment variable $GAIA_DIR must be set.
+    """
+    # ADM The match_gaia_to_primary_post_dr3 code assumes epoch 2015.5.
+    gaiaepoch = 2015.5
+    # ADM to hold the matching coordinates at the gaiaepoch
+    matcher = np.zeros(len(objs), dtype=[('RA', '>f8'), ('DEC', '>f8')])
+
+    # ADM calculate the coordinates at the matching epoch of 2015.5
+    newra, newdec = rewind_coords(
+        objs["RA"], objs["DEC"], objs["PMRA"], objs["PMDEC"],
+        epochnow=objs["REF_EPOCH"], epochpast=gaiaepoch)
+
+    # ADM store coordinates of the passed objects at 2015.5 for matching.
+    matcher["RA"] = newra
+    matcher["DEC"] = newdec
+
+    # ADM match to Gaia DR3 at radius of matchrad.
+    gobjs = match_gaia_to_primary_post_dr3_quick(
+        matcher, matchrad=matchrad, dr="dr3", maglim=16, lightweight=True,
+        verbose=True)
+
+    # ADM never let standalone secondaries be brighter than maglim.
+    maglim = 16
+    fluxlim = 10**((22.5-maglim)/2.5)
+    # ADM find any standalone secondary that is too bright in any band.
+    toobright = np.zeros(len(objs), dtype="bool")
+    for col in ["PHOT_G_MEAN_MAG", "PHOT_BP_MEAN_MAG", "PHOT_RP_MEAN_MAG"]:
+        toobright |= (gobjs[col] != 0) & (gobjs[col] < maglim)
+    for col in ["FLUX_G", "FLUX_R", "FLUX_Z"]:
+        toobright |= (objs[col] != 0) & (objs[col] > fluxlim)
+
+    return toobright
 
 
 def match_to_main_survey(ras, decs, sep=1.):
@@ -464,8 +527,15 @@ def read_files(scxdir, scnd_mask, subset=False):
 
             # ADM otherwise it's a fits file, read it in.
             else:
-                scxin = fitsio.read(fn+'.fits',
-                                    columns=indatamodel.dtype.names)
+                # ADM allow updated data model but fall back to old one.
+                try:
+                    scxin = fitsio.read(fn+'.fits',
+                                        columns=newindatamodel.dtype.names)
+                    indatamodel = newindatamodel
+                except ValueError:
+                    log.info(f"Using old data model for {fn}")
+                    scxin = fitsio.read(fn+'.fits',
+                                        columns=indatamodel.dtype.names)
 
             # ADM ensure this is a properly constructed numpy array.
             scxin = np.atleast_1d(scxin)
@@ -498,9 +568,11 @@ def read_files(scxdir, scnd_mask, subset=False):
 
             # ADM add the other output columns.
             dt = outdatamodel.dtype.descr + suppdatamodel.dtype.descr
+            dtnom = [row[0] for row in dt]
             scxout = np.zeros(len(scxin), dtype=dt)
             for col in indatamodel.dtype.names:
-                scxout[col] = scxin[col]
+                if col in dtnom:
+                    scxout[col] = scxin[col]
             scxout["SCND_TARGET"] = scnd_mask[name]
             scxout["SCND_TARGET_INIT"] = scnd_mask[name]
             scxout["SCND_ORDER"] = np.arange(len(scxin))
