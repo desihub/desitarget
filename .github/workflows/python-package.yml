@@ -58,8 +58,7 @@ jobs:
             - name: Install Python dependencies
               run: |
                 python -m pip install --upgrade pip setuptools wheel
-                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
-                python -m pip install pytz healpy photutils
+                python -m pip install pytz healpy photutils 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
                 python -m pip cache remove fitsio
                 python -m pip cache remove numba
                 python -m pip install --no-deps --force-reinstall --ignore-installed fitsio 'numba${{ matrix.numba-version }}'
@@ -118,8 +117,7 @@ jobs:
             - name: Install Python dependencies
               run: |
                 python -m pip install --upgrade pip setuptools wheel
-                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
-                python -m pip install pytz healpy photutils==1.6.0
+                python -m pip install pytz healpy photutils==1.6.0 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
                 python -m pip cache remove fitsio
                 python -m pip cache remove numba
                 python -m pip install --no-deps --force-reinstall --ignore-installed fitsio numba\<0.60
