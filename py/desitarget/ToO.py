@@ -10,7 +10,7 @@ Targets of Opportunity.
 import os
 import numpy as np
 from astropy.table import Table
-
+from astropy.time import Time
 from desiutil.log import get_logger
 
 from desitarget import io
