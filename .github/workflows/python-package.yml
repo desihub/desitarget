@@ -79,7 +79,13 @@ jobs:
               env:
                 SURVEYOPS_VERSION: '2.0'
               run: |
-                wget -nv https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
+                echo "=== Egress IP ==="
+                curl -s https://ifconfig.me || curl -s https://ipinfo.io/ip || curl -s https://api.ipify.org
+                echo
+                echo "=== Download attempt (verbose) ==="
+                wget -v --timeout=10 --tries=1 https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
+                echo
+                echo "=== Unpacking ==="
                 tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
             - name: Run the test
               run: DESI_SURVEYOPS=$(pwd) pytest
