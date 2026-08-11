@@ -31,7 +31,6 @@ from desitarget.geomask import hp_in_box, box_area, is_in_box, match
 from desitarget.geomask import hp_in_cap, cap_area, is_in_cap, add_hp_neighbors
 from desitarget.geomask import is_in_hp, nside2nside, pixarea2nside
 from desitarget.targets import main_cmx_or_sv, decode_targetid
-from desimodel.footprint import is_point_in_desi, tiles2pix
 from desitarget.targetmask import obsconditions
 
 # ADM set up the DESI default logger
@@ -3906,6 +3905,8 @@ def read_targets_in_tiles_quick(hpdirname, tiles=None, columns=None,
     # ADM "standard" format formatter for a file:
     formatter = fn.split("hp-")[0]+"hp-{}.fits"
 
+    # import only when needed to avoid module-level desimodel dependency
+    from desimodel.footprint import is_point_in_desi, tiles2pix
     # ADM closest nside to DESI tile area of ~7 deg.
     nside = pixarea2nside(7.)
     # ADM determine the pixels that touch the tiles.
@@ -4064,6 +4065,9 @@ def read_targets_in_quick(hpdirname, shape=None,
     notargs = np.zeros(0, dtype=notargs.dtype)
 
     if shape == 'tiles':
+        # import only when needed to avoid module-level desimodel dependency
+        # Note: `is_point_in_desi` will be used below
+        from desimodel.footprint import is_point_in_desi, tiles2pix
         # ADM closest nside to DESI tile area of ~7 deg.
         nside = pixarea2nside(7.)
         # ADM determine the pixels that touch the tiles.
@@ -4246,6 +4250,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
     else:
         mtlmode = False
 
+    # import only when needed to avoid module-level desimodel required dependency
+    from desimodel.footprint import is_point_in_desi, tiles2pix
     # ADM if a directory was passed, do fancy HEALPixel parsing...
     if mtlmode or mtl:
         # ADM closest nside to DESI tile area of ~7 deg.
