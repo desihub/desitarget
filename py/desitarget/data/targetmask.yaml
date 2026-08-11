@@ -41,9 +41,8 @@ desi_mask:
     # - [STD_BRIGHT_BEST,   39, "High quality bright standard stars",                {obsconditions: BRIGHT}]
 
     # JB: BACKUP ToO Targets
-    - [BACKUP_TOO_HIP,    41, "Targets of Opportunity from rolling ledger",   {obsconditions: BACKUP,      flavor: 'TOO', updatemws: False}]
-    - [BACKUP_TOO_LOP,    42, "Targets of Opportunity from rolling ledger",   {obsconditions: BACKUP,      flavor: 'TOO', updatemws: False}]
-
+    - [BACKUP_TOO_HIP,    41, "Targets of Opportunity from rolling ledger",   {obsconditions: BACKUP}]
+    - [BACKUP_TOO_LOP,    42, "Targets of Opportunity from rolling ledger",   {obsconditions: BACKUP}]
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,           49, "No known target at this location",                  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 

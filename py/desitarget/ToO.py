@@ -455,7 +455,7 @@ def finalize_too(inledger, survey="main"):
             bitname = "{}_TOO_{}P".format(oc, prio)
             mx = sMx
             # JB: Due to lack of available bits in the Secondary Program,
-            # I added the BACKUP ToO bits to the BGS survey target mask
+            # I added the BACKUP ToO bits to the desi mask
             if oc == 'BACKUP':
                 mx = dMx
                 outdata[dcol] = dMx[bitname]
