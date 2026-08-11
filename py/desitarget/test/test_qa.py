@@ -19,6 +19,10 @@ log = get_logger()
 
 _macos = sys.platform == 'darwin'
 
+if ('DESI_SURVEYOPS' in os.environ) and os.path.exists(os.path.expandvars('$DESI_SURVEYOPS/ops/tiles-main.ecsv')):
+    surveyops_ok = True
+else:
+    surveyops_ok = False
 
 class TestQA(unittest.TestCase):
 
@@ -59,6 +63,7 @@ class TestQA(unittest.TestCase):
                 if os.path.exists(filename):
                     os.remove(filename)
 
+    @unittest.skipIf(not surveyops_ok, "Skipping QA test that needs $DESI_SURVEYOPS/ops/tiles-main.ecsv")
     @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_qa_main(self):
         """Test plots/pages made for some main survey target types.
@@ -84,6 +89,7 @@ class TestQA(unittest.TestCase):
         # ADM there are only .html, .dat and .png files.
         self.assertEqual(pngs+htmls+dats, alls)
 
+    @unittest.skipIf(not surveyops_ok, "Skipping QA test that needs $DESI_SURVEYOPS/ops/tiles-main.ecsv")
     @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_qa_cmx(self):
         """Test plots/pages are made for some commissioning targets.
@@ -98,7 +104,7 @@ class TestQA(unittest.TestCase):
         # ADM there are only .html, .dat and .png files.
         self.assertEqual(pngs+htmls+dats, alls)
 
-    @unittest.skipIf('DESI_SURVEYOPS' not in os.environ, "$DESI_SURVEYOPS not set, needed for footprint")
+    @unittest.skipIf(not surveyops_ok, "Skipping QA test that needs $DESI_SURVEYOPS/ops/tiles-main.ecsv")
     def test_qa_mocks(self):
         """Test mock QA plots/pages
         """
@@ -135,7 +141,7 @@ class TestQA(unittest.TestCase):
         self.assertTrue(set(with_all)-set(no_all) == {'ALL'})
         self.assertTrue(failed)
 
-    @unittest.skipIf('DESI_SURVEYOPS' not in os.environ, "$DESI_SURVEYOPS not set, needed for footprint")
+    @unittest.skipIf(not surveyops_ok, "Skipping _in_desi_footprint test that needs $DESI_SURVEYOPS/ops/tiles-main.ecsv")
     def test_in_footprint(self):
         """Test target class strings are parsed into lists.
         """
