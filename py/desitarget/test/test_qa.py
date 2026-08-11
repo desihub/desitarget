@@ -63,6 +63,7 @@ class TestQA(unittest.TestCase):
                 if os.path.exists(filename):
                     os.remove(filename)
 
+    @unittest.skipIf(not surveyops_ok, "Skipping QA test that needs $DESI_SURVEYOPS/ops/tiles-main.ecsv")
     @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_qa_main(self):
         """Test plots/pages made for some main survey target types.
@@ -88,6 +89,7 @@ class TestQA(unittest.TestCase):
         # ADM there are only .html, .dat and .png files.
         self.assertEqual(pngs+htmls+dats, alls)
 
+    @unittest.skipIf(not surveyops_ok, "Skipping QA test that needs $DESI_SURVEYOPS/ops/tiles-main.ecsv")
     @unittest.skipIf(_macos, "Skipping parallel test that fails on macOS.")
     def test_qa_cmx(self):
         """Test plots/pages are made for some commissioning targets.
