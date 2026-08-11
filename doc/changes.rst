@@ -5,7 +5,10 @@ desitarget Change Log
 5.3.1 (unreleased)
 ------------------
 
-* No updates yet.
+* Update github test config for healpy/numpy compatibility and
+  robustness to unavailable data.desi.lbl.gov [`PR #896`_].
+
+.. _`PR #896`: https://github.com/desihub/desitarget/pull/896
 
 5.3.0 (2026-07-06)
 ------------------
