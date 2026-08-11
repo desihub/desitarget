@@ -5,9 +5,11 @@ desitarget Change Log
 5.3.1 (unreleased)
 ------------------
 
+* Import desimodel only if needed in io.py [`PR #894`_].
 * Update github test config for healpy/numpy compatibility and
   robustness to unavailable data.desi.lbl.gov [`PR #896`_].
 
+.. _`PR #894`: https://github.com/desihub/desitarget/pull/894
 .. _`PR #896`: https://github.com/desihub/desitarget/pull/896
 
 5.3.0 (2026-07-06)
