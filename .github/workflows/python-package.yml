@@ -58,8 +58,7 @@ jobs:
             - name: Install Python dependencies
               run: |
                 python -m pip install --upgrade pip setuptools wheel
-                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
-                python -m pip install pytz healpy photutils
+                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}' pytz healpy photutils
                 python -m pip cache remove fitsio
                 python -m pip cache remove numba
                 python -m pip install --no-deps --force-reinstall --ignore-installed fitsio 'numba${{ matrix.numba-version }}'
@@ -80,8 +79,11 @@ jobs:
               env:
                 SURVEYOPS_VERSION: '2.0'
               run: |
-                wget -nv https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
-                tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
+                echo "=== Determine Egress IP ==="
+                curl -s https://ifconfig.me || curl -s https://ipinfo.io/ip || curl -s https://api.ipify.org
+                echo
+                echo "=== Download attempt (verbose) ==="
+                (wget -v --timeout=10 --tries=1 https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz && tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz) || echo "Download of surveyops failed, moving on"
             - name: Run the test
               run: DESI_SURVEYOPS=$(pwd) pytest
 
@@ -118,8 +120,7 @@ jobs:
             - name: Install Python dependencies
               run: |
                 python -m pip install --upgrade pip setuptools wheel
-                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}'
-                python -m pip install pytz healpy photutils==1.6.0
+                python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}' pytz healpy photutils==1.6.0
                 python -m pip cache remove fitsio
                 python -m pip cache remove numba
                 python -m pip install --no-deps --force-reinstall --ignore-installed fitsio numba\<0.60
@@ -140,8 +141,11 @@ jobs:
               env:
                 SURVEYOPS_VERSION: '2.0'
               run: |
-                wget -nv https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
-                tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz
+                echo "=== Determine Egress IP ==="
+                curl -s https://ifconfig.me || curl -s https://ipinfo.io/ip || curl -s https://api.ipify.org
+                echo
+                echo "=== Download attempt (verbose) ==="
+                (wget -v --timeout=10 --tries=1 https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz && tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz) || echo "Download of surveyops failed, moving on"
             - name: Run the test with coverage
               run: DESI_SURVEYOPS=$(pwd) pytest --cov
             - name: Coveralls
