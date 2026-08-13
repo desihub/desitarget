@@ -2925,7 +2925,7 @@ def write_mtl_tile_file(filename, data):
 
 def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
                     leq=False, columns=None, tabform='ascii.basic',
-                    maketwostyle=False):
+                    maketwostyle=False, reorder=True):
     """Read one or two MTL ledger files.
 
     Parameters
@@ -2969,6 +2969,13 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
     maketwostyle : :class:`bool`, optional, defaults to ``False``
         If passed, add the extra columns that are added when running
         :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
+    reorder : :class:`bool`, optional, defaults to ``True``
+        The original version of read_two_mtl_ledgers had a bug where if the two
+        passed ledgers had different column orders the output could be
+        mangled (see https://github.com/desihub/desitarget/issues/855).
+        If `reorder` is ``True``, then passed ledgers are first ordered
+        according to a fixed MTL data model to fix this bug.
+        Only works when reading in two MTLs.
 
     Returns
     -------
@@ -2996,7 +3003,7 @@ def read_mtl_ledger(filename, unique=True, isodate=None, initial=False,
         else:
             return read_two_mtl_ledgers(
                 filename, unique=unique, isodate=isodate, initial=initial,
-                leq=leq, columns=columns, tabform=tabform)
+                leq=leq, columns=columns, tabform=tabform, reorder=reorder)
     else:
         msg = f"Input filename={filename} should be a string or list"
         log.critical(msg)
@@ -3066,6 +3073,10 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
         fn2, unique=unique, isodate=isodate, initial=initial, leq=leq,
         columns=columns, tabform=tabform)
 
+    # DG - In cases where we do not reorder, we have to use the "emulate" function
+    # to gracefully handle the differing column names and reproduce
+    # the buggy behaviour
+    np_where = emulate_np_where
     # ADM if requested, reorder both MTLs according to the primary MTL
     # ADM data model to fix the reorder bug noted in the docstring.
     if reorder:
@@ -3081,6 +3092,9 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
             for col in mtlprimdatamodel.dtype.names:
                 mtl2new[col] = mtl2[col]
             mtl2 = mtl2new
+
+        # DG - in this case, when we DO reorder, we are safe to use default numpy where
+        np_where = np.where
 
     # ADM determine which program/obscon corresponds to each filename.
     oc1 = fn1.split("mtl-")[-1].split("-")[0].upper()
@@ -3117,12 +3131,14 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     mtl2match = mtl2[iimtl2]
     ii = mtl1match["PRIORITY"] + mtl1match["SUBPRIORITY"] > \
         mtl2match["PRIORITY"] + mtl2match["SUBPRIORITY"]
-    mtlmerged = np.where(ii, mtl1match, mtl2match)
+    mtlmerged = np_where(ii, mtl1match, mtl2match)
     # ADM generate the output for targets that are in both MTLs.
     done3 = np.zeros(np.sum(iimtl1), dtype=dt)
     for col in mtl1.dtype.names:
         done3[col] = mtlmerged[col]
     # ADM MTL_HIGHEST is whichever target won the priority battle, above.
+    # DG - This is a single column so doens't need to use the "fake"
+    # np.where that's used for full arrays.
     done3["MTL_HIGHEST"] = np.where(ii, obsconditions[oc1], obsconditions[oc2])
     # ADM MTL_CONTAINS is always both MTLs.
     oc = obsconditions[oc1] | obsconditions[oc2]
@@ -3133,6 +3149,12 @@ def read_two_mtl_ledgers(filelist, unique=True, isodate=None, initial=False,
     # ADM if the priority for either MTL is > 2/DONE then it's WANTED.
     done3["MTL_WANTED"] |= (mtl1match["PRIORITY"] > 2) * obsconditions[oc1]
     done3["MTL_WANTED"] |= (mtl2match["PRIORITY"] > 2) * obsconditions[oc2]
+
+    if not reorder:
+        # DG - If we didn't reorder, np.concatenate will fail on higher
+        # numpy versions due to mismatched columns. To account for this,
+        # use emulated concatenation function, which handles this gracefully.
+        return emulate_np_concatenate([done1, done2, done3])
 
     # DG - define output datatype to avoid the concatenate casting
     # everything to big endian instead of maintaining the little endian
@@ -3494,7 +3516,7 @@ def find_mtl_file_format_from_header(hpdirname, returnoc=False,
 def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                    returnfn=False, initial=False, leq=False, columns=None,
                    tabform='ascii.basic', maketwostyle=False,
-                   use_concatenate=False):
+                   use_concatenate=False, reorder=True):
     """Read Merged Target List ledgers in a set of HEALPixels.
 
     Parameters
@@ -3555,6 +3577,20 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         https://github.com/desihub/desitarget/issues/883, where different
         column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
         was ignored in the concatenation process.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process. Only works when reading in MTLs
+        rather than target files.
+    reorder : :class:`bool`, optional, defaults to ``True``
+        The original version of read_two_mtl_ledgers had a bug where if the two
+        passed ledgers had different column orders the output could be
+        mangled (see https://github.com/desihub/desitarget/issues/855).
+        If `reorder` is ``True``, then passed ledgers are first ordered
+        according to a fixed MTL data model to fix this bug.
+        Only works when reading in two MTLs.
 
     Returns
     -------
@@ -3613,7 +3649,8 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
                 targs = read_mtl_ledger(fn, unique=unique, isodate=isodate,
                                         initial=initial, leq=leq,
                                         columns=columns, tabform=tabform,
-                                        maketwostyle=maketwostyle)
+                                        maketwostyle=maketwostyle,
+                                        reorder=reorder)
                 mtls.append(targs)
                 outfns[pix] = fn
             except FileNotFoundError:
@@ -3633,23 +3670,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         # DG - Reproduce old behaviour with concatenate, explained in the ticket
         # in the docstring.
         if use_concatenate:
-            # DG - this was the version that changed concatenate, so
-            # above this version we have to manually recreate the behaviour
-            if np.__version__ >= "1.23.0":
-                # DG - We will have to concatenate each column individually to
-                # avoid field name clash errors.
-                # Previous behaviour used the last MTL to determine column naming.
-                chosen_dtype = mtls[-1].dtype
-                # Inner list comprehension pulls the column indixed by this index,
-                # by pulling the name of the column at this index from the dtype
-                # of that mtl.
-                mtl = np.zeros(np.sum([len(m) for m in mtls]), dtype=chosen_dtype)
-                for i, name in enumerate(chosen_dtype.names):
-                    mtl[name] = np.concatenate([m[m.dtype.names[i]] for m in mtls])
-
-            # DG - Below that version we can just call np.concatenate.
-            else:
-                mtl = np.concatenate(mtls)
+            mtl = emulate_np_concatenate(mtls)
         else:
             # DG - It is faster to have `usemask=True` and there are not adverse
             # downstream effects, in my testing, so we are safe to use it.
@@ -3672,11 +3693,87 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         return mtl, outfns
     return mtl
 
+def emulate_np_concatenate(mtls):
+    """Recreate old behaviour of np.concatenate for joining a list of MTLs.
+
+    This is a helper function to reproduce the buggy behaviour fixed in
+    https://github.com/desihub/desitarget/issues/883.
+
+    Parameters
+    ----------
+    mtls : :class:`list`
+        A list of MTLs asstructured numpy arrays, such as those returned by
+        :func:`desitarget.io.read_one_mtl_ledger()`
+
+    Returns
+    -------
+    :class:`~numpy.ndarray`
+        A numpy structured array of the MTL(s).
+
+    """
+    # DG - this was the version that changed concatenate, so
+    # above this version we have to manually recreate the behaviour
+    if np.__version__ >= "1.23.0":
+        # DG - We will have to concatenate each column individually to
+        # avoid field name clash errors.
+        # Previous behaviour used the last MTL to determine column naming.
+        chosen_dtype = mtls[-1].dtype
+        # Inner list comprehension pulls the column indixed by this index,
+        # by pulling the name of the column at this index from the dtype
+        # of that mtl.
+        mtl = np.zeros(np.sum([len(m) for m in mtls]), dtype=chosen_dtype)
+        for i, name in enumerate(chosen_dtype.names):
+            mtl[name] = np.concatenate([m[m.dtype.names[i]] for m in mtls])
+
+    # DG - Below that version we can just call np.concatenate.
+    else:
+        mtl = np.concatenate(mtls)
+    return mtl
+
+def emulate_np_where(condition, x, y):
+    """Recreate old behaviour of np.where for joining from numpy structured arrays, choosing from `x` or `y` depending on condition.
+
+    This is a helper function to reproduce the buggy behaviour fixed in
+    https://github.com/desihub/desitarget/issues/883.
+
+    Parameters
+    ----------
+    condition : array_like, bool
+        Where True, yield `x`, otherwise yield `y`.
+    x, y : array_like
+        Values from which to choose. `x`, `y` and `condition` need to be
+        broadcastable to some shape.
+
+    Returns
+    -------
+    out : ndarray
+        An array with elements from `x` where `condition` is True, and elements
+        from `y` elsewhere.
+
+    """
+    condition = np.array(condition, dtype=bool) # In case it was a list, for some reason
+    # DG - this was the version that changed behaviour, so
+    # above this version we have to manually recreate the behaviour
+    if np.__version__ >= "1.23.0":
+        # DG - Previous behaviour used the x array to determine output dtype
+        chosen_dtype = x.dtype
+        # We can just put the values from x directly into the array.
+        z = np.zeros_like(x)
+        z = np.where(condition, x, z)
+        # For the other ones, we will have to pull out the raw values by column index, not name.
+        for i, name in enumerate(chosen_dtype.names):
+            z[name][~condition] = y[y.dtype.names[i]][~condition]
+
+    # DG - Below that version we can just call np.where.
+    else:
+        z = np.where(condition, x, y)
+    return z
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False, mtl=False,
                        unique=True, isodate=None, initial=False, leq=False,
-                       tabform='ascii.basic', maketwostyle=False):
+                       tabform='ascii.basic', maketwostyle=False, use_concatenate=False,
+                       reorder=True):
     """Read in targets in a set of HEALPixels.
 
     Parameters
@@ -3748,6 +3845,20 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
         If passed, add the extra columns that are added when running
         :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
         Only works when reading in MTLs rather than target files.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process. Only works when reading in MTLs
+        rather than target files.
+    reorder : :class:`bool`, optional, defaults to ``True``
+        The original version of read_two_mtl_ledgers had a bug where if the two
+        passed ledgers had different column orders the output could be
+        mangled (see https://github.com/desihub/desitarget/issues/855).
+        If `reorder` is ``True``, then passed ledgers are first ordered
+        according to a fixed MTL data model to fix this bug.
+        Only works when reading in MTLs rather than target files.
 
     Returns
     -------
@@ -3772,7 +3883,8 @@ def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
     if mtl:
         return read_mtl_in_hp(
             hpdirname, nside, pixlist, unique=unique, isodate=isodate,
-            initial=initial, leq=leq, tabform=tabform, maketwostyle=maketwostyle)
+            initial=initial, leq=leq, tabform=tabform, maketwostyle=maketwostyle,
+            use_concatenate=use_concatenate, reorder=reorder)
 
     # ADM allow an integer instead of a list to be passed.
     if isinstance(pixlist, int):
@@ -4124,7 +4236,8 @@ def read_targets_in_quick(hpdirname, shape=None,
 def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
                           quick=False, mtl=False, oldstyle=False, verbose=False,
                           unique=True, isodate=None, initial=False, leq=False,
-                          tabform='ascii.basic', maketwostyle=False):
+                          tabform='ascii.basic', maketwostyle=False, use_concatenate=False,
+                          reorder=True):
     """Read targets in DESI tiles, assuming the "standard" data model.
 
     Parameters
@@ -4195,6 +4308,20 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         If passed, add the extra columns that are added when running
         :func:`read_two_mtl_ledgers()`, even if only reading one ledger.
         Only works when reading in MTLs rather than target files.
+    use_concatenate : :class:`bool`, optional, defaults to ``False``
+        If passed, use `np.concatenate()` rather than `stack_arrays` to stack
+        the list of mtls. This reproduces buggy behaviour described in
+        https://github.com/desihub/desitarget/issues/883, where different
+        column orders of `read_two_mtl_ledgers()` and `read_one_mtl_ledger()`
+        was ignored in the concatenation process. Only works when reading in MTLs
+        rather than target files.
+    reorder : :class:`bool`, optional, defaults to ``True``
+        The original version of read_two_mtl_ledgers had a bug where if the two
+        passed ledgers had different column orders the output could be
+        mangled (see https://github.com/desihub/desitarget/issues/855).
+        If `reorder` is ``True``, then passed ledgers are first ordered
+        according to a fixed MTL data model to fix this bug.
+        Only works when reading in MTLs rather than target files.
 
     Returns
     -------
@@ -4264,7 +4391,8 @@ def read_targets_in_tiles(hpdirname, tiles=None, columns=None, header=False,
         targets = read_targets_in_hp(
             hpdirname, nside, pixlist, columns=columnscopy, header=header,
             mtl=mtl, unique=unique, isodate=isodate, initial=initial, leq=leq,
-            tabform=tabform, maketwostyle=maketwostyle)
+            tabform=tabform, maketwostyle=maketwostyle, use_concatenate=use_concatenate,
+            reorder=reorder)
     # ADM ...otherwise just read in the targets.
     else:
         targets = read_target_files(hpdirname, columns=columnscopy,
