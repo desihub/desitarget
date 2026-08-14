@@ -19,18 +19,26 @@ log = get_logger()
 
 _macos = sys.platform == 'darwin'
 
+# ADM check whether the ops directory exists and contains the tiles file.
 surveyops_ok = ('DESI_SURVEYOPS' in os.environ) and os.path.exists(
     os.path.expandvars('$DESI_SURVEYOPS/ops/tiles-main.ecsv'))
-if not surveyops_ok:
-    os.environ["DESI_SURVEYOPS"] = str(
-        resources.files('desitarget').joinpath('test/t'))
-log.info(f'DESI_SURVEYOPS is set to {os.environ["DESI_SURVEYOPS"]}')
 
 
 class TestQA(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # ADM store the input DESI_SURVEYOPS variable to restore later.
+        cls.desi_surveyops = None
+        if 'DESI_SURVEYOPS' in os.environ:
+            cls.desi_surveyops = os.environ["DESI_SURVEYOPS"]
+
+        # ADM if the tiles file doesn't exist, use a local version.
+        if not surveyops_ok:
+            os.environ["DESI_SURVEYOPS"] = str(
+                resources.files('desitarget').joinpath('test/t'))
+        log.info(f'DESI_SURVEYOPS is set to {os.environ["DESI_SURVEYOPS"]}')
+
         cls.datadir = resources.files('desitarget').joinpath('test/t')
         cls.targfile = os.path.join(cls.datadir, 'targets.fits')
         cls.mocktargfile = os.path.join(cls.datadir, 'targets-mocks.fits')
@@ -43,6 +51,11 @@ class TestQA(unittest.TestCase):
 
     @classmethod
     def tearDownClass(cls):
+        # ADM restore the original DESI_SURVEYOPS variable.
+        del os.environ["DESI_SURVEYOPS"]
+        if cls.desi_surveyops is not None:
+            os.environ["DESI_SURVEYOPS"] = cls.desi_surveyops
+        log.info(f'DESI_SURVEYOPS set back to {cls.desi_surveyops}')
         # - Remove all test input and output files.
         os.chdir(cls.origdir)
         if os.path.exists(cls.testdir):
