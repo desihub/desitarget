@@ -36,7 +36,7 @@ class TestQA(unittest.TestCase):
         # ADM if the tiles file doesn't exist, use a local version.
         if not surveyops_ok:
             os.environ["DESI_SURVEYOPS"] = str(
-                resources.files('desitarget').joinpath('test/t'))
+                resources.files('desitarget').joinpath('test/t/surveyops'))
         log.info(f'DESI_SURVEYOPS is set to {os.environ["DESI_SURVEYOPS"]}')
 
         cls.datadir = resources.files('desitarget').joinpath('test/t')
