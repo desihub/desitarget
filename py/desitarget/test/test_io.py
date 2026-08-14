@@ -206,4 +206,3 @@ class TestIO(unittest.TestCase):
         observed = io.emulate_np_where(cond, a, b)
         expected = np.array([(1.0, 2, 5), (7.0, 8, 9)], dtype=[('x', '<f8'), ('y', '<i8'), ('z', '<i8')])
         self.assertIsNone(np.testing.assert_array_equal(observed, expected, strict=True))
-

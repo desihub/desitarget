@@ -1,0 +1,25 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: TILEID, datatype: int64}
+# - {name: PASS, datatype: int32, description: DESI layer}
+# - {name: RA, datatype: float64}
+# - {name: DEC, datatype: float64}
+# - {name: PROGRAM, datatype: string}
+# - {name: IN_DESI, datatype: bool}
+# - {name: PRIORITY, datatype: float64, format: '%10.3e', description: Tile observation priority}
+# - {name: STATUS, datatype: string, description: 'unobs, obsstart, obsend, done'}
+# - {name: EBV_MED, unit: mag, datatype: float32, format: '%6.3f', description: median E(B-V) on tile}
+# - {name: DESIGNHA, datatype: float64, format: '%7.2f', description: Design hour angles}
+# - {name: DONEFRAC, datatype: float32, format: '%7.4f', description: Tile completeness fraction}
+# - {name: AVAILABLE, datatype: bool, description: Fiberassign file is available}
+# - {name: PRIORITY_BOOSTFAC, datatype: float64, format: '%7.3f', description: Manual boost factor applied on top of computed priorities.}
+# meta: {EXTNAME: TILES}
+# schema: astropy-2.0
+TILEID PASS RA DEC PROGRAM IN_DESI PRIORITY STATUS EBV_MED DESIGNHA DONEFRAC AVAILABLE PRIORITY_BOOSTFAC
+1010 0 339.094 0.0 DARK True 1.4580000000000002 done 0.064 0.09000000357627869 0.97461283 True 1.0
+8112 4 338.273 -4.85 DARK True 1.4145470637822102 done 0.05 0.699999988079071 1.0047892 True 1.0
+11229 6 338.247 -2.234 DARK True 1.4378650130616824 done 0.054 1.809999942779541 1.1412694 True 1.0
+25569 3 338.56 -0.694 BRIGHT True 1.451771280366865 done 0.061 1.2000000476837158 1.1959013 True 1.0
+27114 4 313.691 -0.709 BRIGHT True 0.36290879579724633 done 0.091 -41.730960845947266 1.411825 True 0.25
+23837 2 39.137 7.529 BRIGHT True 1.3909811807947248 done 0.122 23.049999237060547 1.4836577 True 1.0
