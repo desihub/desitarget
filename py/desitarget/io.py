@@ -3693,6 +3693,7 @@ def read_mtl_in_hp(hpdirname, nside, pixlist, unique=True, isodate=None,
         return mtl, outfns
     return mtl
 
+
 def emulate_np_concatenate(mtls):
     """Recreate old behaviour of np.concatenate for joining a list of MTLs.
 
@@ -3729,6 +3730,7 @@ def emulate_np_concatenate(mtls):
     else:
         mtl = np.concatenate(mtls)
     return mtl
+
 
 def emulate_np_where(condition, x, y):
     """Recreate old behaviour of np.where for joining from numpy structured arrays, choosing from `x` or `y` depending on condition.
@@ -3768,6 +3770,7 @@ def emulate_np_where(condition, x, y):
     else:
         z = np.where(condition, x, y)
     return z
+
 
 def read_targets_in_hp(hpdirname, nside, pixlist, columns=None, header=False,
                        quick=False, downsample=None, verbose=False, mtl=False,

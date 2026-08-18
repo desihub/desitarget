@@ -75,17 +75,8 @@ jobs:
               env:
                 DESIMODEL_DATA: branches/test-0.20
               run: install_desimodel_data --desimodel-version ${DESIMODEL_DATA}
-            - name: Install surveyops snapshot
-              env:
-                SURVEYOPS_VERSION: '2.0'
-              run: |
-                echo "=== Determine Egress IP ==="
-                curl -s https://ifconfig.me || curl -s https://ipinfo.io/ip || curl -s https://api.ipify.org
-                echo
-                echo "=== Download attempt (verbose) ==="
-                (wget -v --timeout=10 --tries=1 https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz && tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz) || echo "Download of surveyops failed, moving on"
             - name: Run the test
-              run: DESI_SURVEYOPS=$(pwd) pytest
+              run: pytest
 
     # Try to set up the coverage test to be as similar to NERSC/DESI 25.3 as possible.
     coverage:
@@ -137,17 +128,8 @@ jobs:
               env:
                 DESIMODEL_DATA: branches/test-0.20
               run: install_desimodel_data --desimodel-version ${DESIMODEL_DATA}
-            - name: Install surveyops snapshot
-              env:
-                SURVEYOPS_VERSION: '2.0'
-              run: |
-                echo "=== Determine Egress IP ==="
-                curl -s https://ifconfig.me || curl -s https://ipinfo.io/ip || curl -s https://api.ipify.org
-                echo
-                echo "=== Download attempt (verbose) ==="
-                (wget -v --timeout=10 --tries=1 https://data.desi.lbl.gov/public/epo/example_files/surveyops_${SURVEYOPS_VERSION}_ops.tar.gz && tar xzf surveyops_${SURVEYOPS_VERSION}_ops.tar.gz) || echo "Download of surveyops failed, moving on"
             - name: Run the test with coverage
-              run: DESI_SURVEYOPS=$(pwd) pytest --cov
+              run: pytest --cov
             - name: Coveralls
               env:
                 COVERALLS_REPO_TOKEN: ${{ secrets.COVERALLS_REPO_TOKEN }}
