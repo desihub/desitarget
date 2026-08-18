@@ -5,7 +5,11 @@ desitarget Change Log
 5.3.1 (unreleased)
 ------------------
 
-* No updates yet.
+* Update desitarget to allow for `BACKUP` ToOs [`PR #889`_]. Includes:
+    * Changing `ToO.py` to accomodate `BACKUP` ToOs
+    * Add `BACKUP` ToOs to the desi nask
+
+.. _`PR #889`: https://github.com/desihub/desitarget/pull/889
 
 5.3.0 (2026-07-06)
 ------------------
