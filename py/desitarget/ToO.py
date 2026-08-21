@@ -115,7 +115,10 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False, d
     # ADM append to the files.
     if survey == "main":
         # ADM the filename for FIBER observations.
-        fiberfn = filename.replace("ToO", "ToO-fiber")
+        if 'all' in filename:
+            fiberfn = filename.replace("ToO-all", "ToO-fiber-all")
+        else:
+            fiberfn = filename.replace("ToO.", "ToO-fiber.")
         log.info(f'Fiber file is {fiberfn}')
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
