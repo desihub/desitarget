@@ -115,11 +115,13 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False, d
     # ADM append to the files.
     if survey == "main":
         # ADM the filename for FIBER observations.
-        fiberfn = filename.replace("ToO.", "ToO-fiber.")
+        fiberfn = filename.replace("ToO", "ToO-fiber")
+        log.info(f'Fiber file is {fiberfn}')
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
         # ADM write once for the FIBER ToOs, once for the TILE ToOs.
         for fn, isfibornot in zip([filename, fiberfn], [~isfiber, isfiber]):
+            log.info(f'Filename is {fn}')
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
             # JB included an overwrite so certain files don't build up
@@ -555,6 +557,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, date=T
             if os.path.exists(f'{tdir}/{file}'):
                 continue
             else:
+                log.info(f"Running: cp {tdir}/{file.replace('-all','')} {tdir}/{file}")
                 os.system(f"cp {tdir}/{file.replace('-all','')} {tdir}/{file}")
 
         all_fn=f'{tdir}/ToO-all.{form}'
