@@ -546,7 +546,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, date=T
     # ADM write out the results.
     # JB added if statement for writing out a subtable
      #JB enable subtables past a date (in this case corresponding to 2026/01/31)
-    if date >= Time('2026-09-01').mjd:
+    if date >= Time('2026-08-01').mjd:
         # JB create a subtable with only entries that have MJD_END
         # dates later than todays date.
 
