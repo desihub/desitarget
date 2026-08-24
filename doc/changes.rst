@@ -5,13 +5,17 @@ desitarget Change Log
 5.3.1 (unreleased)
 ------------------
 
+
 * Add a minimal tiles-main.ecsv file for use by test_qa.py [`PR #897`_].
     * So that the DESI_SURVEYOPS snapshot doesn't need to be downloaded.
 * Update github test config for healpy/numpy compatibility and
   robustness to unavailable data.desi.lbl.gov [`PR #896`_].
 * Import desimodel only if needed in io.py [`PR #894`_].
 * Propagate arguments necessary to reproduce buggy MTL loading behavior [`PR #891`_].
+* Increase the number of ToOs ingested each night [`PR #874`_].
+    * Incidentally updates coverage tests to more recent numpy version.
 
+.. _`PR #874`: https://github.com/desihub/desitarget/pull/874
 .. _`PR #891`: https://github.com/desihub/desitarget/pull/891
 .. _`PR #894`: https://github.com/desihub/desitarget/pull/894
 .. _`PR #896`: https://github.com/desihub/desitarget/pull/896
