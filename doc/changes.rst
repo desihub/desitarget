@@ -2,9 +2,13 @@
 desitarget Change Log
 =====================
 
-5.3.1 (unreleased)
+5.4.1 (unreleased)
 ------------------
 
+* No changes yet.
+
+5.4.0 (2026-08-24)
+------------------
 
 * Add a minimal tiles-main.ecsv file for use by test_qa.py [`PR #897`_].
     * So that the DESI_SURVEYOPS snapshot doesn't need to be downloaded.
