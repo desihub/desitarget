@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-5.3.1 (unreleased)
+5.4.1 (unreleased)
+------------------
+
+* No changes yet.
+
+5.4.0 (2026-08-24)
 ------------------
 
 * Update desitarget to allow for `BACKUP` ToOs [`PR #889`_]. Includes:
@@ -14,7 +19,10 @@ desitarget Change Log
   robustness to unavailable data.desi.lbl.gov [`PR #896`_].
 * Import desimodel only if needed in io.py [`PR #894`_].
 * Propagate arguments necessary to reproduce buggy MTL loading behavior [`PR #891`_].
+* Increase the number of ToOs ingested each night [`PR #874`_].
+    * Incidentally updates coverage tests to more recent numpy version.
 
+.. _`PR #874`: https://github.com/desihub/desitarget/pull/874
 .. _`PR #891`: https://github.com/desihub/desitarget/pull/891
 .. _`PR #894`: https://github.com/desihub/desitarget/pull/894
 .. _`PR #896`: https://github.com/desihub/desitarget/pull/896

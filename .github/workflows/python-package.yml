@@ -90,14 +90,14 @@ jobs:
                 python-version:
                     - '3.10'
                 numpy-version:
-                    - '<1.23'
+                    - '<2.0'
                 scipy-version:
-                    - '<1.9'
+                    - '<1.14'
                 matplotlib-version:
                     # later versions of matplotlib require later versions of numpy.
-                    - '<3.6.3'
+                    - '<3.10'
                 astropy-version:
-                    - '<6.1'
+                    - '<7.0'
 
         steps:
             - name: Install System Packages
@@ -114,7 +114,7 @@ jobs:
                 python -m pip install 'numpy${{ matrix.numpy-version }}' 'scipy${{ matrix.scipy-version }}' 'matplotlib${{ matrix.matplotlib-version }}' 'astropy${{ matrix.astropy-version }}' pytz healpy photutils==1.6.0
                 python -m pip cache remove fitsio
                 python -m pip cache remove numba
-                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio numba\<0.60
+                python -m pip install --no-deps --force-reinstall --ignore-installed fitsio 'numba${{ matrix.numba-version }}'
                 python -m pip install pytest pytest-cov coveralls
             - name: Install DESI dependencies
               env:
