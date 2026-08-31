@@ -119,12 +119,12 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False, d
             fiberfn = filename.replace("ToO-all", "ToO-fiber-all")
         else:
             fiberfn = filename.replace("ToO.", "ToO-fiber.")
-        log.info(f'Fiber file is {fiberfn}')
+        log.debug(f'Fiber file is {fiberfn}')
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
         # ADM write once for the FIBER ToOs, once for the TILE ToOs.
         for fn, isfibornot in zip([filename, fiberfn], [~isfiber, isfiber]):
-            log.info(f'Filename is {fn}')
+            log.debug(f'Filename is {fn}')
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
             # JB included an overwrite so certain files don't build up
@@ -478,7 +478,7 @@ def finalize_too(inledger, survey="main"):
             # I added the BACKUP ToO bits to the desi mask
             if oc == 'BACKUP':
                 mx = dMx
-                outdata[dcol] = dMx[bitname]
+                outdata[dcol][ii] = dMx[bitname]
             outdata[scol][ii] = mx[bitname]
             outdata["PRIORITY_INIT"][ii] = mx[bitname].priorities["UNOBS"]
             outdata["NUMOBS_INIT"][ii] = mx[bitname].numobs
@@ -556,7 +556,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, date=T
     # ADM write out the results.
     # JB added if statement for writing out a subtable
      #JB enable subtables past a date (in this case corresponding to 2026/01/31)
-    if date >= Time('2026-09-01').mjd:
+    if date >= Time('2026-08-01').mjd:
         # JB create a subtable with only entries that have MJD_END
         # dates later than todays date.
 
