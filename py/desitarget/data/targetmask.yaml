@@ -40,6 +40,9 @@ desi_mask:
     # - [STD_FAINT_BEST,    38, "High quality faint standard stars",                 {obsconditions: DARK}]
     # - [STD_BRIGHT_BEST,   39, "High quality bright standard stars",                {obsconditions: BRIGHT}]
 
+    # JB: BACKUP ToO Targets
+    - [BACKUP_TOO_HIP,    41, "Targets of Opportunity from rolling ledger",          {obsconditions: BACKUP}]
+    - [BACKUP_TOO_LOP,    42, "Targets of Opportunity from rolling ledger",          {obsconditions: BACKUP}]
     #- Reserved convenience bits that can, e.g., be set downstream of desitarget
     - [NO_TARGET,           49, "No known target at this location",                  {obsconditions: DARK|GRAY|BRIGHT|BACKUP|TWILIGHT12|TWILIGHT18}]
 
@@ -67,7 +70,7 @@ bgs_mask:
     - [BGS_FAINT_SOUTH,     16, "BGS faint cuts tuned for DECam",                  {obsconditions: BRIGHT}]
     - [BGS_BRIGHT_SOUTH,    17, "BGS bright cuts tuned for DECam",                 {obsconditions: BRIGHT}]
     - [BGS_WISE_SOUTH,      18, "BGS WISE cuts tuned for DECam",                   {obsconditions: BRIGHT}]
-
+    
 #- Milky Way Survey
 mws_mask:
 
@@ -234,7 +237,6 @@ scnd_mask:
     - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
     - [DARK_TOO_LOP,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
     - [DARK_TOO_HIP,      62, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
-
 #- Observing conditions
 #- These are a bitmask to allow target bits to specify multiple conditions
 #- in which they are allowed to be observed.
@@ -374,6 +376,9 @@ priorities:
         BGS_ANY: -1
         MWS_ANY: -1
         SCND_ANY: -1
+
+        BACKUP_TOO_HIP:  {UNOBS: 9500,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BACKUP_TOO_LOP:  {UNOBS: 10,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
 
 #- Bright Galaxy Survey: priorities 2000-2997
 # ADM reserve 2998 for MWS_WD (ensuring a priority below Dark Survey targets, just in case)
@@ -583,6 +588,8 @@ numobs:
         MWS_ANY:            -1
         SCND_ANY:           -1
 
+        BACKUP_TOO_HIP:      1
+        BACKUP_TOO_LOP:      1
 # ADM initial number of observations for targets in the Bright Galaxy Survey.
     bgs_mask:
         BGS_FAINT:     2
@@ -597,6 +604,7 @@ numobs:
         BGS_BRIGHT_NORTH: 0
         BGS_WISE_SOUTH:   0
         BGS_WISE_NORTH:   0
+
 
 # ADM initial number of observations for targets in the Bright Galaxy Survey.
     mws_mask:

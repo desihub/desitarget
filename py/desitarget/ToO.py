@@ -119,12 +119,12 @@ def _write_too_files(filename, data, ecsv=True, survey="main", subtable=False, d
             fiberfn = filename.replace("ToO-all", "ToO-fiber-all")
         else:
             fiberfn = filename.replace("ToO.", "ToO-fiber.")
-        log.info(f'Fiber file is {fiberfn}')
+        log.debug(f'Fiber file is {fiberfn}')
         # ADM whether an obervations is a FIBER observation.
         isfiber = data["TOO_TYPE"] == "FIBER"
         # ADM write once for the FIBER ToOs, once for the TILE ToOs.
         for fn, isfibornot in zip([filename, fiberfn], [~isfiber, isfiber]):
-            log.info(f'Filename is {fn}')
+            log.debug(f'Filename is {fn}')
             done = data[isfibornot]
             # ADM we only need to append to the old data if there is any.
             # JB included an overwrite so certain files don't build up
@@ -384,7 +384,7 @@ def _check_ledger(inledger, survey="main"):
     # ADM and the priorities are all LO or HI.
     allowed = {"TOO_TYPE": {'FIBER', 'TILE'},
                "TOO_PRIO": {'LO', 'HI'},
-               "OCLAYER": {'BRIGHT', 'DARK'}}
+               "OCLAYER": {'BRIGHT', 'DARK', 'BACKUP'}}
     for col in allowed:
         if not set(inledger[col]).issubset(allowed[col]):
             msg = "Some {} entries in the ToO ledger are not one of {}!".format(
@@ -449,7 +449,6 @@ def finalize_too(inledger, survey="main"):
     cols, Mxs, surv = main_cmx_or_sv(outdata, scnd=True)
     dcol, bcol, mcol, scol = cols
     dMx, bMx, mMx, sMx = Mxs
-
     # ADM add the input columns to the output table.
     for col in inledger.dtype.names:
         outdata[col] = inledger[col]
@@ -474,11 +473,17 @@ def finalize_too(inledger, survey="main"):
         for prio in set(outdata["TOO_PRIO"]):
             ii = (outdata["OCLAYER"] == oc) & (outdata["TOO_PRIO"] == prio)
             bitname = "{}_TOO_{}P".format(oc, prio)
-            outdata[scol][ii] = sMx[bitname]
-            outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities["UNOBS"]
-            outdata["NUMOBS_INIT"][ii] = sMx[bitname].numobs
+            mx = sMx
+            # JB: Due to lack of available bits in the Secondary Program,
+            # I added the BACKUP ToO bits to the desi mask
+            if oc == 'BACKUP':
+                mx = dMx
+                outdata[dcol][ii] = dMx[bitname]
+            outdata[scol][ii] = mx[bitname]
+            outdata["PRIORITY_INIT"][ii] = mx[bitname].priorities["UNOBS"]
+            outdata["NUMOBS_INIT"][ii] = mx[bitname].numobs
             outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
-                sMx[bitname].obsconditions)
+                mx[bitname].obsconditions)
 
     # ADM assign a SUBPRIORITY.
     np.random.seed(616)
@@ -551,7 +556,7 @@ def ledger_to_targets(toodir=None, survey="main", ecsv=True, outdir=None, date=T
     # ADM write out the results.
     # JB added if statement for writing out a subtable
      #JB enable subtables past a date (in this case corresponding to 2026/01/31)
-    if date >= Time('2026-09-01').mjd:
+    if date >= Time('2026-08-01').mjd:
         # JB create a subtable with only entries that have MJD_END
         # dates later than todays date.
 

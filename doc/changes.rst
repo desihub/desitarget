@@ -10,6 +10,9 @@ desitarget Change Log
 5.4.0 (2026-08-24)
 ------------------
 
+* Update desitarget to allow for `BACKUP` ToOs [`PR #889`_]. Includes:
+    * Changing `ToO.py` to accomodate `BACKUP` ToOs
+    * Add `BACKUP` ToOs to the desi nask
 * Add a minimal tiles-main.ecsv file for use by test_qa.py [`PR #897`_].
     * So that the DESI_SURVEYOPS snapshot doesn't need to be downloaded.
 * Update github test config for healpy/numpy compatibility and
@@ -24,6 +27,7 @@ desitarget Change Log
 .. _`PR #894`: https://github.com/desihub/desitarget/pull/894
 .. _`PR #896`: https://github.com/desihub/desitarget/pull/896
 .. _`PR #897`: https://github.com/desihub/desitarget/pull/897
+.. _`PR #889`: https://github.com/desihub/desitarget/pull/889
 
 5.3.0 (2026-07-06)
 ------------------
