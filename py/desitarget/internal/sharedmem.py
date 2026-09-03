@@ -145,6 +145,17 @@ import mmap
 #logger = multiprocessing.log_to_stderr()
 #logger.setLevel(multiprocessing.SUBDEBUG)
 
+#- This module relies on fork() semantics (e.g. closures and locals shared
+#- via copy-on-write memory instead of being pickled to worker processes).
+#- Since Python 3.14 the default multiprocessing start method on Linux is
+#- "forkserver" instead of "fork", which breaks that assumption. Force the
+#- "fork" context explicitly; this matches the pre-3.14 default on POSIX
+#- systems, which is the only platform this module supports anyway.
+if sys.platform != 'win32':
+    _mp = multiprocessing.get_context('fork')
+else:
+    _mp = multiprocessing
+
 __shmdebug__ = False
 
 def set_debug(flag):
@@ -246,7 +257,7 @@ class ProcessGroup(object):
         # each dead child releases one sempahore
         # when all dead guard will proceed to set guarddead
         self.semaphore = threading.Semaphore(0)
-        self.JoinedProcesses = multiprocessing.RawValue('l')
+        self.JoinedProcesses = _mp.RawValue('l')
         self.P = [
             backend.WorkerFactory(target=self._workerMain,
                 args=(rank,)) \
@@ -414,7 +425,7 @@ class Ordered(object):
       #  self.counter = lambda : None
         #multiprocessing.RawValue('l')
         self.event = backend.EventFactory()
-        self.counter = multiprocessing.RawValue('l')
+        self.counter = _mp.RawValue('l')
         self.tls = backend.StorageFactory()
 
     def reset(self):
@@ -449,13 +460,13 @@ class ThreadBackend:
         return worker
 
 class ProcessBackend:
-      QueueFactory = staticmethod(multiprocessing.Queue)
-      EventFactory = staticmethod(multiprocessing.Event)
-      LockFactory = staticmethod(multiprocessing.Lock)
+      QueueFactory = staticmethod(_mp.Queue)
+      EventFactory = staticmethod(_mp.Event)
+      LockFactory = staticmethod(_mp.Lock)
 
       @staticmethod
       def WorkerFactory(*args, **kwargs):
-        worker = multiprocessing.Process(*args, **kwargs)
+        worker = _mp.Process(*args, **kwargs)
         worker.daemon = True
         return worker
       @staticmethod
