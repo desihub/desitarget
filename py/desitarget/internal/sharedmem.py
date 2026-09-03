@@ -151,8 +151,11 @@ import mmap
 #- "forkserver" instead of "fork", which breaks that assumption. Force the
 #- "fork" context explicitly; this matches the pre-3.14 default on POSIX
 #- systems, which is the only platform this module supports anyway.
-if sys.platform != 'win32':
-    _mp = multiprocessing.get_context('fork')
+if os.name == 'posix':
+    try:
+        _mp = multiprocessing.get_context('fork')
+    except ValueError:
+        _mp = multiprocessing.get_context()
 else:
     _mp = multiprocessing
 
