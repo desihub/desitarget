@@ -7,8 +7,10 @@ desitarget Change Log
 
 * Python 3.14 support: Update multiprocessing to use fork instead of
   forkserver [`PR #898`_].
+* test_geomask clean up temporary files when done [`PR #899`_].
 
 .. _`PR #898`: https://github.com/desihub/desitarget/pull/898
+.. _`PR #899`: https://github.com/desihub/desitarget/pull/899
 
 5.4.0 (2026-08-24)
 ------------------
