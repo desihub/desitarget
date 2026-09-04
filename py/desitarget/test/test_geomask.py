@@ -5,6 +5,8 @@
 import unittest
 import numpy as np
 import os
+import shutil
+import tempfile
 
 from desitarget import geomask
 
@@ -16,6 +18,16 @@ class TestGEOMASK(unittest.TestCase):
         drdir = '/blat/foo'  # doesn't have to exist, just for paths
         self.surveydir = os.path.join(drdir, 'decam')
         self.surveydir2 = os.path.join(drdir, '90prime-mosaic')
+        # bundle_bricks writes its output scripts to the current
+        # working directory, so run from a temporary directory
+        # that is removed again in tearDown.
+        self.origdir = os.getcwd()
+        self.testdir = tempfile.mkdtemp()
+        os.chdir(self.testdir)
+
+    def tearDown(self):
+        os.chdir(self.origdir)
+        shutil.rmtree(self.testdir, ignore_errors=True)
 
     def test_bundle_bricks(self):
         """
