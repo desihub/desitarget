@@ -5,7 +5,10 @@ desitarget Change Log
 5.4.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Python 3.14 support: Update multiprocessing to use fork instead of
+  forkserver [`PR #898`_].
+
+.. _`PR #898`: https://github.com/desihub/desitarget/pull/898
 
 5.4.0 (2026-08-24)
 ------------------
