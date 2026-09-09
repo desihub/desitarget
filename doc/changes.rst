@@ -5,10 +5,15 @@ desitarget Change Log
 5.4.1 (unreleased)
 ------------------
 
+* Allow `BACKUP` Targets of Opportunity [`PR #900`_]:
+    * Introduces special attributes for observing conditions and
+      priorities for the `BRIGHT_TOO_LOP`/`HIP` targeting bits.
+    * Then special cases these attributes in :func:`ToO.py`.
 * Python 3.14 support: Update multiprocessing to use fork instead of
   forkserver [`PR #898`_].
 
 .. _`PR #898`: https://github.com/desihub/desitarget/pull/898
+.. _`PR #900`: https://github.com/desihub/desitarget/pull/900
 
 5.4.0 (2026-08-24)
 ------------------
