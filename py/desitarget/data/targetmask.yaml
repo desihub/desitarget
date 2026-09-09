@@ -230,8 +230,8 @@ scnd_mask:
     - [WD_DARK,                58, "See $SCND_DIR/docs/WD_DARK.txt",              {obsconditions: DARK|DARK1B,                  filename: 'WD_DARK',             flavor: 'SPARE', updatemws: False, downsample: 1}]
 
 # ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
-    - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
-    - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
+    - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, obsconbackup: BACKUP, flavor: 'TOO', updatemws: False}]
+    - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, obsconbackup: BACKUP, flavor: 'TOO', updatemws: False}]
     - [DARK_TOO_LOP,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
     - [DARK_TOO_HIP,      62, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
 
@@ -524,8 +524,8 @@ priorities:
         WD_BACKUP:              {UNOBS: 1998, MORE_ZGOOD: 900,  MORE_ZWARN: 900,  DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
         WD_BRIGHT:              SAME_AS_WD_BACKUP
         WD_DARK:                SAME_AS_WD_BACKUP
-        BRIGHT_TOO_LOP:         {UNOBS: 950,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
-        BRIGHT_TOO_HIP:         {UNOBS: 9500, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0}
+        BRIGHT_TOO_LOP:         {UNOBS: 950,  MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, UNOBS_BACKUP: 10}
+        BRIGHT_TOO_HIP:         {UNOBS: 9500, MORE_ZGOOD: 2,    MORE_ZWARN: 2,    DONE: 2, OBS: 1, DONOTOBSERVE: 0, MORE_MIDZQSO: 0, UNOBS_BACKUP: 9500}
         DARK_TOO_LOP:           SAME_AS_BRIGHT_TOO_LOP
         DARK_TOO_HIP:           SAME_AS_BRIGHT_TOO_HIP
 
