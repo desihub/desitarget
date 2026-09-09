@@ -13,7 +13,7 @@ desitarget Change Log
   forkserver [`PR #898`_].
 
 .. _`PR #898`: https://github.com/desihub/desitarget/pull/898
-.. _`PR #898`: https://github.com/desihub/desitarget/pull/900
+.. _`PR #900`: https://github.com/desihub/desitarget/pull/900
 
 5.4.0 (2026-08-24)
 ------------------
