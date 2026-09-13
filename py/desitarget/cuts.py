@@ -1910,6 +1910,8 @@ def isQSO_randomforest(gflux=None, rflux=None, zflux=None, maskbits=None,
     if maskbits is not None:
         # ADM default mask bits from the Legacy Surveys not set.
         preSelection &= imaging_mask(maskbits)
+        
+    preSelection = preSelection.astype('bool')
 
     # "qso" mask initialized to "preSelection" mask.
     qso = np.copy(preSelection)
