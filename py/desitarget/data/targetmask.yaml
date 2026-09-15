@@ -230,8 +230,8 @@ scnd_mask:
     - [WD_DARK,                58, "See $SCND_DIR/docs/WD_DARK.txt",              {obsconditions: DARK|DARK1B,                  filename: 'WD_DARK',             flavor: 'SPARE', updatemws: False, downsample: 1}]
 
 # ADM reserve 59-62 in scnd_mask for Targets of Opportunity in both SV and the Main Survey.
-    - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, obsconbackup: BACKUP, flavor: 'TOO', updatemws: False}]
-    - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, obsconbackup: BACKUP, flavor: 'TOO', updatemws: False}]
+    - [BRIGHT_TOO_LOP,    59, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, obsconbackup: BACKUP|BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
+    - [BRIGHT_TOO_HIP,    60, "Targets of Opportunity from rolling ledger",   {obsconditions: BRIGHT|DARK, obsconbackup: BACKUP|BRIGHT|DARK, flavor: 'TOO', updatemws: False}]
     - [DARK_TOO_LOP,      61, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
     - [DARK_TOO_HIP,      62, "Targets of Opportunity from rolling ledger",   {obsconditions: DARK,        flavor: 'TOO', updatemws: False}]
 
