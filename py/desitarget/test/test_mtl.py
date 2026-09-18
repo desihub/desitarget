@@ -319,8 +319,9 @@ class TestMTL(unittest.TestCase):
         # ADM the mid-z QSO should now look exactly like a tracer.
         pp = np.array(self.post_prio_duo)
         nom = np.array(self.post_nom_duo)
-        pp[iimidzmtl] = pp[iilowzmtl]
-        nom[iimidzmtl] = nom[iilowzmtl]
+        lowzind = np.flatnonzero(iilowzmtl)[0]
+        pp[iimidzmtl] = pp[lowzind]
+        nom[iimidzmtl] = nom[lowzind]
 
         self.assertTrue(np.all(mtl['PRIORITY'] == pp))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
