@@ -2,7 +2,12 @@
 desitarget Change Log
 =====================
 
-5.4.1 (unreleased)
+5.4.2 (unreleased)
+------------------
+
+* No changes yet.
+
+5.4.1 (2026-09-17)
 ------------------
 
 * Fix tests that wrote to the current directory instead of a tempdir,
