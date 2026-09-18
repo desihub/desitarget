@@ -843,8 +843,32 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
     zcols = ["NUMOBS_MORE", "NUMOBS", "Z", "ZWARN", "ZTILEID"]
     if survey == 'main':
         zcols += list(msaddcols.dtype.names)
-    for col in zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]:
-        mtl[col] = np.empty(len(mtl), dtype=mtldm[col].dtype)
+    initcols = zcols + ["TARGET_STATE", "TIMESTAMP", "VERSION"]
+
+    # columns that are guaranteed to be overwritten in full, for every
+    # row, immediately below -- so np.empty() is safe for them, even
+    # for targets that have no match in the zcat.
+    fullyoverwritten = {"NUMOBS_MORE", "TARGET_STATE", "TIMESTAMP", "VERSION"}
+
+    # every other column is only conditionally overwritten (via
+    # zmatcher), below, so needs a real default here. Otherwise a
+    # target with no match in the zcat (i.e. that was never observed)
+    # would be left with uninitialized memory in that column.
+    zcoldefaults = {"NUMOBS": 0, "Z": -1, "ZWARN": -1, "ZTILEID": -1,
+                     "Z_QN": -1, "IS_QSO_QN": -1, "DELTACHI2": -1}
+
+    # If `initcols` ever has a column that isn't in `fullyoverwritten`
+    # or `zcoldefaults`, then fail loudly rather than silently risking
+    # uninitialized memory in that column.
+    unaccounted = set(initcols) - set(zcoldefaults) - fullyoverwritten
+    assert not unaccounted, "No default for column(s): {}".format(unaccounted)
+
+    # proceed with initializing columns with the correct order and dtype
+    for col in initcols:
+        if col in fullyoverwritten:
+            mtl[col] = np.empty(len(mtl), dtype=mtldm[col].dtype)
+        else:
+            mtl[col] = np.full(len(mtl), zcoldefaults[col], dtype=mtldm[col].dtype)
 
     # ADM any target that wasn't matched to the ZCAT should retain its
     # ADM original (INIT) value of PRIORITY and NUMOBS.
@@ -856,6 +880,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
     mtl["VERSION"] = dt_version
 
     # ADM now populate the new mtl columns with the updated information.
+    # Note: unmatched targets will retain default values
     mtl['OBSCONDITIONS'] = obsconmask
     mtl['PRIORITY'][zmatcher] = priority
     mtl['TARGET_STATE'][zmatcher] = target_state

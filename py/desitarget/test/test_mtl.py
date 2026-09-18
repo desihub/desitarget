@@ -325,6 +325,33 @@ class TestMTL(unittest.TestCase):
         self.assertTrue(np.all(mtl['PRIORITY'] == pp))
         self.assertTrue(np.all(mtl['NUMOBS_MORE'] == nom))
 
+    def test_unmatched_target_defaults(self):
+        """Test zcat-unmatched targets get sensible column defaults.
+        """
+        # set up the MTL as for test_zcat. Note that self.zcat (see
+        # setUp) deliberately doesn't cover every target, which
+        # exercises the defaults for a "never observed" target.
+        t = self.reset_targets("")
+        t = self.update_data_model(t)
+        zcat = self.update_data_model(self.zcat.copy())
+        mtl = make_mtl(t, "DARK", zcat=zcat, trim=False)
+
+        # exactly one target should never be matched to the zcat.
+        unmatched = ~np.isin(mtl["TARGETID"], zcat["TARGETID"])
+        self.assertEqual(np.sum(unmatched), 1)
+
+        # that target was never observed, so should carry well
+        # defined defaults instead of uninitialized memory (which is
+        # usually, but not reliably, zero).
+        self.assertTrue(np.all(mtl["Z"][unmatched] == -1))
+        self.assertTrue(np.all(mtl["NUMOBS"][unmatched] == 0))
+        self.assertTrue(np.all(mtl["ZWARN"][unmatched] == -1))
+        self.assertTrue(np.all(mtl["ZTILEID"][unmatched] == -1))
+        if "Z_QN" in mtl.dtype.names:
+            self.assertTrue(np.all(mtl["Z_QN"][unmatched] == -1))
+            self.assertTrue(np.all(mtl["IS_QSO_QN"][unmatched] == -1))
+            self.assertTrue(np.all(mtl["DELTACHI2"][unmatched] == -1))
+
     def test_mtl_io(self):
         """Test MTL correctly handles masked NUMOBS quantities.
         """
