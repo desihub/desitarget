@@ -522,7 +522,7 @@ def initial_priority_numobs(targets, scnd=False,
     return outpriority, outnumobs
 
 
-def calc_numobs_more(targets, zcat, obscon, ext=False):
+def calc_numobs_more(targets, zcat, obscon, ext=False, restart2026=False):
     """
     Calculate target NUMOBS_MORE from masks, observation/redshift status.
 
@@ -548,6 +548,10 @@ def calc_numobs_more(targets, zcat, obscon, ext=False):
         If ``True`` then we're operating in DESI 1B mode for DARK or
         BRIGHT tiles. When calculating priorities and numbers of
         observations special 1B rules will be used.
+    restart2026 : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then apply similar rules to the, `ext` flag. This is
+        needed as near/after the shutdown in August/September 2026 we
+        started to apply additional 1B rules on DARK/BRIGHT tiles.
 
     Returns
     -------
@@ -577,9 +581,13 @@ def calc_numobs_more(targets, zcat, obscon, ext=False):
     # ADM main case, just decrement by NUMOBS.
     numobs_more = np.maximum(0, targets['NUMOBS_INIT'] - zcat['NUMOBS'])
 
+    # ADM number of additional observations to decrement for a low-z QSO
+    # ADM that captures NUMOBS_INIT=6 and =4 (and any other case).
+    numobs_less_qso = targets['NUMOBS_INIT'] - 2
+
     # ADM special case for ELGs that turn out to be LyA quasars in the
     # ADM DESI 1B phase. Should be scheduled for 6 total observations.
-    if ext:
+    if ext or restart2026:
         iselgnotqso = ( (targets[desi_target] & desi_mask.ELG != 0) &
                         (targets[desi_target] & desi_mask.QSO == 0) )
         hiz = (zcat['Z'] >= zcut) | (
@@ -612,12 +620,17 @@ def calc_numobs_more(targets, zcat, obscon, ext=False):
             loz = ((zcat['Z'] < midzcut) | (zcat['Z_QN'] < midzcut) |
                    (zcat["IS_QSO_QN"] != 1))
             ii = isqso & midz & loz & ~lya
-            numobs_more[ii] = np.maximum(0, numobs_more[ii] - 2)
+            if restart2026:
+                numobs_more[ii] = np.maximum(
+                    0, numobs_more[ii] - numobs_less_qso[ii])
+            else:
+                numobs_more[ii] = np.maximum(0, numobs_more[ii] - 2)
 
     return numobs_more
 
 
-def calc_priority(targets, zcat, obscon, state=False, ext=False):
+def calc_priority(targets, zcat, obscon, state=False, ext=False,
+                  restart2026=False):
     """
     Calculate target priorities from masks, observation/redshift status.
 
@@ -648,6 +661,10 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
         If ``True`` then we're operating in DESI 1B mode for DARK or
         BRIGHT tiles. When calculating priorities and numbers of
         observations special 1B rules will be used.
+    restart2026 : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then apply similar rules to the, `ext` flag. This is
+        needed as near/after the shutdown in August/September 2026 we
+        started to apply additional 1B rules on DARK/BRIGHT tiles.
 
     Returns
     -------
@@ -737,7 +754,7 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
                     ii = (targets[desi_target] & desi_mask[name]) != 0
                     # ADM for the DARK 1B program, we treat ELG targets
                     # ADM that have LyA QSO redshifts as LyA QSOs.
-                    if ext and "ELG" in name:
+                    if (ext or restart2026) and "ELG" in name:
                         good_hiz = (zcat['Z'] >= zcut) | (
                             (zcat['Z_QN'] >= zcut) & (zcat["IS_QSO_QN"] == 1))
                         # ADM ensure we don't change behavior for quasar targets.
