@@ -805,7 +805,7 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
               nsidefile=None, hpxlist=None, extra=None, override=False,
-              ecsv=True, mixed=False, nowrite=False, append=False):
+              ecsv=True, mixed=True, nowrite=False, append=False):
     """Write Merged Target List ledgers or files.
 
     Parameters
