@@ -155,6 +155,10 @@ class TestMTL(unittest.TestCase):
             mtlnames = sorted(mtl.dtype.names)
             self.assertEqual(refnames, mtlnames)
 
+            # confirm dtypes match data model (via dtype.type to not be confused by endianness)
+            for col in mtldm.dtype.names:
+                self.assertEqual(mtldm[col].dtype.type, mtl[col].dtype.type, f"column {col} dtype mismatch: {mtldm[col].dtype} != {mtl[col].dtype}")
+
     def test_numobs(self):
         """Test priorities, numobs, set correctly with no zcat.
         """
@@ -343,14 +347,14 @@ class TestMTL(unittest.TestCase):
         # that target was never observed, so should carry well
         # defined defaults instead of uninitialized memory (which is
         # usually, but not reliably, zero).
-        self.assertTrue(np.all(mtl["Z"][unmatched] == -1))
+        self.assertTrue(np.all(mtl["Z"][unmatched] == -1.0))
         self.assertTrue(np.all(mtl["NUMOBS"][unmatched] == 0))
         self.assertTrue(np.all(mtl["ZWARN"][unmatched] == -1))
         self.assertTrue(np.all(mtl["ZTILEID"][unmatched] == -1))
         if "Z_QN" in mtl.dtype.names:
-            self.assertTrue(np.all(mtl["Z_QN"][unmatched] == -1))
+            self.assertTrue(np.all(mtl["Z_QN"][unmatched] == -1.0))
             self.assertTrue(np.all(mtl["IS_QSO_QN"][unmatched] == -1))
-            self.assertTrue(np.all(mtl["DELTACHI2"][unmatched] == -1))
+            self.assertTrue(np.all(mtl["DELTACHI2"][unmatched] == -1.0))
 
     def test_mtl_io(self):
         """Test MTL correctly handles masked NUMOBS quantities.
