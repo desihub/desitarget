@@ -2202,9 +2202,11 @@ def _prepare_gaia(objects, colnames=None):
         else:
             refcat = np.array([refcat, ])
     if "REF_CAT" in colnames:
-        gaia = (refcat == b'G2') | (refcat == 'G2')
+        #gaia = (refcat == b'G2') | (refcat == 'G2')
         # ADM as of DR10, we use Gaia EDR3 rather than DR2.
-        gaia |= (refcat == b'GE') | (refcat == 'GE')
+        #gaia |= (refcat == b'GE') | (refcat == 'GE')
+        # ADM more general checking for any Gaia DR.
+        gaia = np.char.startswith(refcat.astype(str), 'G')
     pmra = objects['PMRA']
     pmdec = objects['PMDEC']
     pmraivar = objects['PMRA_IVAR']
