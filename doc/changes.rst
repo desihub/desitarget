@@ -5,6 +5,12 @@ desitarget Change Log
 5.4.1 (unreleased)
 ------------------
 
+* Update LyA decisions for 1a tiles in the 1b era [`PR #904`_]. Includes:
+    * Update function that changes visits for QSO targets from 4->6.
+        *  Now only updates targets that haven't YET been changed to 6.
+    * 1a ELGs that the MTL code finds are LyA QSOs now get 6 visits, too.
+    * Decrement QSOs that turn out to be low-z to only have 2 visits.
+    * Allow different Data Releases in a single ledger by default.
 * Fix tests that wrote to the current directory instead of a tempdir,
   so that tests pass on a read-only filesystem [`PR #901`_].
 * Python 3.14 support: Update multiprocessing to use fork instead of
@@ -12,6 +18,7 @@ desitarget Change Log
 
 .. _`PR #898`: https://github.com/desihub/desitarget/pull/898
 .. _`PR #901`: https://github.com/desihub/desitarget/pull/901
+.. _`PR #904`: https://github.com/desihub/desitarget/pull/904
 
 5.4.0 (2026-08-24)
 ------------------
@@ -21,7 +28,7 @@ desitarget Change Log
 * Update github test config for healpy/numpy compatibility and
   robustness to unavailable data.desi.lbl.gov [`PR #896`_].
 * Import desimodel only if needed in io.py [`PR #894`_].
-* Propagate arguments necessary to reproduce buggy MTL loading behavior [`PR #891`_].
+* Propagate arguments to reproduce buggy MTL loading [`PR #891`_].
 * Increase the number of ToOs ingested each night [`PR #874`_].
     * Incidentally updates coverage tests to more recent numpy version.
 
