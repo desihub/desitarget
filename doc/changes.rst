@@ -5,7 +5,9 @@ desitarget Change Log
 5.4.2 (unreleased)
 ------------------
 
-* No changes yet.
+* Fix operationally harmless uninitialized array MTL issue; add tests [`PR #903`_].
+
+.. _`PR #903`: https://github.com/desihub/desitarget/pull/903
 
 5.4.1 (2026-09-17)
 ------------------
