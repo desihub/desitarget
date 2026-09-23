@@ -1334,10 +1334,12 @@ def isMWS_WD(primary=None, gaia=None, galb=None, astrometricexcessnoise=None,
             photbprpexcessfactor[w] = 0.
         parallax[w] = 0.
         gaiagmag[w], gaiabmag[w], gaiarmag[w] = 0., 0., 0.
-        # ADM ...we'll turn off all bits here.
-        mws &= ~nans
-#        log.info('{}/{} NaNs in file...t = {:.1f}s'
-#                 .format(len(w), len(mws), time()-start))
+    # ADM for the LS catalogs (e.g. DR11), values are 0 not NaN.
+    nans = nans | (gaiabmag == 0) | (gaiarmag == 0)
+    # ADM ...we'll turn off all bits here.
+    mws &= ~nans
+#    log.info('{}/{} NaNs in file...t = {:.1f}s'
+#        .format(len(w), len(mws), time()-start))
 
     # ADM apply the selection for all MWS-WD targets
     # ADM must be a Legacy Surveys object that matches a Gaia source
@@ -2736,7 +2738,16 @@ def set_target_bits(photsys_north, photsys_south, obs_rflux,
     mws_target |= (mws_red_n & res_north) * mws_mask.MWS_MAIN_RED_NORTH
     mws_target |= (mws_red_s & res_south) * mws_mask.MWS_MAIN_RED_SOUTH
 
-    # Are any BGS or MWS bit set?  Tell desi_target too.
+    # ADM MWS main blue/red split for FAINT objects.
+    # ADM added as new for DR11. Previously these were secondary targets.
+    mws_target |= mws_faint_blue * mws_mask.MWS_FAINT_BLUE
+    mws_target |= (mws_faint_blue_n & res_north) * mws_mask.MWS_FAINT_BLUE_NORTH
+    mws_target |= (mws_faint_blue_s & res_south) * mws_mask.MWS_FAINT_BLUE_SOUTH
+    mws_target |= mws_faint_red * mws_mask.MWS_FAINT_RED
+    mws_target |= (mws_faint_red_n & res_north) * mws_mask.MWS_FAINT_RED_NORTH
+    mws_target |= (mws_faint_red_s & res_south) * mws_mask.MWS_FAINT_RED_SOUTH
+
+    # Are any BGS or MWS bits set?  Tell desi_target too.
     desi_target |= (bgs_target != 0) * desi_mask.BGS_ANY
     desi_target |= (mws_target != 0) * desi_mask.MWS_ANY
 
