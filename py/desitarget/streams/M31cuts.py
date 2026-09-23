@@ -129,7 +129,7 @@ def downsampler(ra, dec, gal_b, subset, p_15, p_35, m31_rad=2.5, m33_rad=.5):
     m31_dist = acoo.SkyCoord(ra=ra * auni.deg, dec=dec * auni.deg).separation(
         acoo.SkyCoord(ra=m31_ra * auni.deg, dec=m31_dec * auni.deg)).deg
     m33_dist = acoo.SkyCoord(ra=ra * auni.deg, dec=dec * auni.deg).separation(
-        acoo.SkyCoord(ra=m31_ra * auni.deg, dec=m31_dec * auni.deg)).deg
+        acoo.SkyCoord(ra=m33_ra * auni.deg, dec=m33_dec * auni.deg)).deg
     in_m31 = betw(m31_dist, 0, m31_rad)
     in_m33 = betw(m33_dist, 0, m33_rad)
     prob_sel[subset] = np.clip((20 * p_15 * p_35 / (20 * p_15 + (p_35 - p_15) *
