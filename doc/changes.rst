@@ -5,9 +5,13 @@ desitarget Change Log
 5.4.2 (unreleased)
 ------------------
 
+* Fix ``desitarget.io.write_mtl`` raising a misleading "Multiple data
+  releases" ``TypeError`` for single-DR inputs under numpy >= 2.4
+  [`PR #909`_].
 * Fix operationally harmless uninitialized array MTL issue; add tests [`PR #903`_].
 
 .. _`PR #903`: https://github.com/desihub/desitarget/pull/903
+.. _`PR #909`: https://github.com/desihub/desitarget/pull/909
 
 5.4.1 (2026-09-17)
 ------------------
