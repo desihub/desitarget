@@ -193,7 +193,7 @@ def get_default_maskbits(bgs=False, mws=False, dr11=False):
     # ADM use the updated maskbits for DR11, if requested..
     dr11extra = []
     if dr11:
-        dr11extra = ["RESOLVED", "MCLOUDS", "WISE_GAIA"]
+        dr11extra = ["MCLOUDS", "WISE_GAIA"]
 
     if bgs:
         return ["BRIGHT", "CLUSTER"] + dr11extra
