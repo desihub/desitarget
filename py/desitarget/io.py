@@ -805,7 +805,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
               nsidefile=None, hpxlist=None, extra=None, override=False,
-              ecsv=True, mixed=False, nowrite=False, append=False):
+              ecsv=True, mixed=False, nowrite=False, append=False,
+              newonly=False):
     """Write Merged Target List ledgers or files.
 
     Parameters
@@ -840,7 +841,7 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         "mtl" in the filename is replaced by "mtl-override" and the
         final part of the directory structure includes "override".
     ecsv : :class:`bool`, defaults to ``True``
-        If ``True`` write a .ecsv file, if ``False`` with a .fits file.
+        If ``True`` write a .ecsv file, if ``False`` write a .fits file.
     mixed : :class:`bool`, defaults to ``False``
         If ``True`` allow `data` to be from different Data Releases and
         write out the largest data release integer to the file headers.
@@ -855,6 +856,10 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         creating new ones. In this mode, if a ledger exists it will be
         appended to and if it doesn't exist it will be created. Only
         currently coded for .ecsv ledgers.
+    newonly : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then, when appending, only write targets with
+        TARGETIDs that do not already appear in the ledger. Only relevant
+        when `append` is ``True``.
 
     Returns
     -------
@@ -946,6 +951,14 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
                 msg = "Appending is only currently coded up for .ecsv ledgers"
                 log.error(msg)
                 raise IOError(msg)
+            # ADM if we only want to append new targets, we'll need to
+            # ADM read the MTL...
+            if newonly:
+                old = read_mtl_ledger(fn)
+                # ADM ...and extract only the new data entries.
+                notinold = set(data["TARGETID"]) - set(old["TARGETID"])
+                ii = np.array([tid in notinold for tid in data["TARGETID"]])
+                data = data[ii]
             # ADM append the data to the existing mtl ledger.
             f = open(fn, "a")
             from desitarget.mtl import mtlformatdict

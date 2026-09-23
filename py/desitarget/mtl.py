@@ -1676,7 +1676,7 @@ def add_to_ledgers(targs, mtldir=None, pixlist=None, obscon="DARK",
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
-                      timestamp=None, append=False):
+                      timestamp=None, append=False, newonly=False):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -1709,6 +1709,10 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         If ``True`` then append to any existing ledgers rather than
         creating new ones. In this mode, if a ledger exists it will be
         appended to and if it doesn't exist it will be created.
+    newonly : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then, when appending, only write targets with
+        TARGETIDs that do not already appear in the ledger. Only relevant
+        when `append` is ``True``.
 
     Returns
     -------
@@ -1745,7 +1749,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
             nt, fn = io.write_mtl(
                 outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
                 survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix,
-                scnd=scnd, extra=hdr, append=append)
+                scnd=scnd, extra=hdr, append=append, newonly=newonly)
             if verbose:
                 writ = int(append)*"appended" + int(not(append))*"written"
                 log.info('{} targets {} to {}...t={:.1f}s'.format(
@@ -1755,7 +1759,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
 
 def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
-                timestamp=None, append=False, tcnames=None, dr=None):
+                timestamp=None, append=False, tcnames=None, dr=None,
+                newonly=False):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -1795,6 +1800,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
         If passed, limit targets to a Data Release of the Legacy Surveys.
         For example, pass 11 to limit targets to official DR11 bricks.
         Expects `outdirname`/survey-bricks-dr.fits to exist.
+    newonly : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then, when appending, only write targets with
+        TARGETIDs that do not already appear in the ledger. Only relevant
+        when `append` is ``True``.
 
     Returns
     -------
@@ -1919,7 +1928,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
             indirname=hpdirname, verbose=False, scnd=scnd,
-            timestamp=timestamp, append=append)
+            timestamp=timestamp, append=append, newonly=newonly)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')
