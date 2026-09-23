@@ -894,13 +894,12 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
     # ADM the M31/M33 BRIGHT1B program.
     if len(dr) == 0 or np.any(release == 7777):
         drint = 'X'
+    elif len(dr) == 1:
+        drint = int(dr[0])
     else:
-        try:
-            drint = int(dr)
-        except TypeError:
-            msg = "Multiple data releases in MTL ({})".format(dr)
-            log.error(msg)
-            raise TypeError(msg)
+        msg = "Multiple data releases in MTL ({})".format(dr)
+        log.error(msg)
+        raise TypeError(msg)
     if obscon == "BACKUP":
         keys += ["GAIADR"]
         vals += [gaiadr[0]]
