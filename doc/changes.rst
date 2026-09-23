@@ -9,6 +9,11 @@ desitarget Change Log
 
 .. _`PR #903`: https://github.com/desihub/desitarget/pull/903
 
+* Fix the copy-paste error when targeting M33 center [`PR #910`_].
+
+.. _`PR #910`: https://github.com/desihub/desitarget/pull/910
+
+
 5.4.1 (2026-09-17)
 ------------------
 
