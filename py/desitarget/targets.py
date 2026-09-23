@@ -887,7 +887,8 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
                         # NUMOBS3 is after 10 observations except for PM_ONLY for which it is 2
                         # at NUMOBS2 and NUMOBS3 there is a priority reduction
                         # NRS All annotations of the atnumobs[123] assignments below are NRS
-                        atnumobs1 = (  # (DSPH_PM1 or DSPH_PM2, 0 < NUMOBS < 3, not DONE) or (DSPH_PM3 or UFD_PM[123] or STREAM PM[123], 0 < NUMOBS < 5, not DONE)
+                        atnumobs1 = (  # (DSPH_PM1 or DSPH_PM2, 0 < NUMOBS < 3, not DONE) or
+                                       # (DSPH_PM3 or UFD_PM[123] or STREAM PM[123], 0 < NUMOBS < 5, not DONE)
                             (zcat["NUMOBS"] > 0)  # NUMOBS > 0
                             & ~done  # and not DONE
                             & (
@@ -922,7 +923,8 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
                                 )
                             )
                         )
-                        atnumobs2 = (  # (DSPH_PM1 or DSPH_PM2, 3 <= NUMOBS < 10, not DONE) or (DSPH_PM3 or UFD_PM[123] or STREAM PM[123], 5 <= NUMOBS < 10, not DONE)
+                        atnumobs2 = (  # (DSPH_PM1 or DSPH_PM2, 3 <= NUMOBS < 10, not DONE) or
+                                       # (DSPH_PM3 or UFD_PM[123] or STREAM PM[123], 5 <= NUMOBS < 10, not DONE)
                             (zcat["NUMOBS"] < 10)  # NUMOBS < 10
                             & ~done  # and not DONE
                             & (
@@ -936,10 +938,11 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False):
                                     (
                                         (  # DSPH_PM3 or UFD_PM[123]
                                             ((targets[mws_target] & mws_mask['MWS_DSPH_PM3']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM1']) != 0)
+                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM2']) != 0)
                                             | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
-                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
-                                            | ((targets[mws_target] & mws_mask['MWS_UFD_PM3']) != 0)
-                                        ) | (  # or if STREAM PM[123] but not also a DSPH or UFD target. *(Dwarfs always have priority over streams)*
+                                        ) | (  # or if STREAM PM[123] but not also a DSPH or UFD target.
+                                               # *(Dwarfs always have priority over streams)*
                                             (
                                                 ((targets[mws_target] & mws_mask['MWS_STREAM_PM1']) != 0)
                                                 | ((targets[mws_target] & mws_mask['MWS_STREAM_PM2']) != 0)

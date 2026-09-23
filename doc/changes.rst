@@ -17,6 +17,10 @@ desitarget Change Log
 
 .. _`PR #910`: https://github.com/desihub/desitarget/pull/910
 
+* Fix the copy-paste error when asssinging NOBS for UFDs [`PR #911`_].
+
+.. _`PR #911`: https://github.com/desihub/desitarget/pull/911
+
 
 5.4.1 (2026-09-17)
 ------------------
