@@ -2598,7 +2598,7 @@ def remove_overrides(mtl):
     return mtl[ii], mtl[~ii]
 
 
-def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
+def reprocess_ledger(hpdirname, zcat, obscon="DARK", force=False):
     """
     Reprocess HEALPixel-split ledgers for targets with new redshifts.
 
@@ -2616,6 +2616,10 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
         Governs how priorities are set using "obsconditions". Basically a
         check on whether the files in `hpdirname` are as expected.
+    force : :class:`bool`
+        Reprocessing is turned off until fixes are made for the 1b era.
+        See https://github.com/desihub/desitarget/issues/912. For testing
+        or recreating old tiles, pass `force`=``True``.
 
     Returns
     -------
@@ -2623,6 +2627,13 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         A dictionary where the keys are the integer TILEIDs and the values
         are the TIMESTAMP at which that tile was reprocessed.
     """
+    if not force:
+        msg = "Reprocessing is turned off until fixes are made for the 1b era. "
+        msg += "See https://github.com/desihub/desitarget/issues/912. For "
+        msg += "testing or recreating old tiles, pass force=True."
+        log.critical(msg)
+        raise IOError(msg)
+
     t0 = time()
     log.info("Reprocessing based on zcat with {} entries...t={:.1f}s"
              .format(len(zcat), time()-t0))
@@ -3549,7 +3560,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
                 numobs_from_ledger=True, secondary=False, reprocess=False,
-                ext=False, veto=True):
+                ext=False, veto=True, forcereprocess=False):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -3592,6 +3603,10 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     veto : :class:`bool`, optional, defaults to ``True``
         If ``True`` then veto targets based on files in the veto
         directory. If ``False`` then skip the vetoing step.
+    forcereprocess : :class:`bool`, optional, defaults to ``False``
+        Reprocessing is turned off until fixes are made for the 1b era.
+        See https://github.com/desihub/desitarget/issues/912. For testing
+        or recreating old tiles, pass `forcereprocess`=``True``.
 
     Returns
     -------
@@ -3682,7 +3697,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM update the appropriate ledgers.
     if reprocess:
-        timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon)
+        timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon,
+                                    force=forcereprocess)
     else:
         update_ledger(hpdirname, zcat, obscon=obscon,
                       numobs_from_ledger=numobs_from_ledger, ext=ext)
