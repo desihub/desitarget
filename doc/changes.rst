@@ -9,6 +9,7 @@ desitarget Change Log
     * Update function that changes visits for QSO targets from 4->6.
         *  Now only updates targets that haven't YET been changed to 6.
     * 1a ELGs that the MTL code finds are LyA QSOs now get 6 visits, too.
+    * And, such ELGs will now reach the DONE priority (2) after 6 visits.
     * Decrement QSOs that turn out to be low-z to only have 2 visits.
     * Allow different Data Releases in a single ledger by default.
 * Fix tests that wrote to the current directory instead of a tempdir,
