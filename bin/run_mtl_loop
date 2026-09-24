@@ -35,6 +35,8 @@ ap.add_argument("--noarchivecheck", action='store_true',
                 help="Do NOT check if tiles-specstatus and archived tiles match")
 ap.add_argument("--noveto", action='store_true',
                 help="Do NOT veto targets using files in the veto directory")
+ap.add_argument("--forcereprocess", action='store_true',
+                help="Force reprocessing (it's broken as of the 1b era)")
 ap.add_argument("--norestart2026", action='store_true',
                 help="Do NOT use the new 1A/B rules for after the 2026 shutdown")
 
@@ -63,14 +65,16 @@ if "1B" in ns.obscon:
     obscon = ns.obscon.split("1B")[0]
     loop_ledger(
         obscon, survey='main', zcatdir=ns.zcatdir, mtldir=ns.mtldir,
-        secondary=False, reprocess=ns.reprocess, ext=True, veto=veto)
+        secondary=False, reprocess=ns.reprocess, ext=True, veto=veto,
+        forcereprocess=ns.forcereprocess
+    )
 
 for secondary in scndstates:
     # ADM run through the regular loop once.
     hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
         ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
         secondary=secondary, reprocess=ns.reprocess, veto=veto,
-        restart2026=restart2026)
+        forcereprocess=ns.forcereprocess, restart2026=restart2026)
 
     log.info("MTL ledger directory: {}".format(hpdirname))
     log.info("MTL tile file: {}".format(mtltilefn))

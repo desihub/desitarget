@@ -860,7 +860,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
     # target with no match in the zcat (i.e. that was never observed)
     # would be left with uninitialized memory in that column.
     zcoldefaults = {"NUMOBS": 0, "Z": -1.0, "ZWARN": -1, "ZTILEID": -1,
-                     "Z_QN": -1.0, "IS_QSO_QN": -1, "DELTACHI2": -1.0}
+                    "Z_QN": -1.0, "IS_QSO_QN": -1, "DELTACHI2": -1.0}
 
     # If `initcols` ever has a column that isn't in `fullyoverwritten`
     # or `zcoldefaults`, then fail loudly rather than silently risking
@@ -1706,7 +1706,7 @@ def add_to_ledgers(targs, mtldir=None, pixlist=None, obscon="DARK",
 
 def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
                       indirname=None, verbose=True, scnd=False,
-                      timestamp=None, append=False):
+                      timestamp=None, append=False, newonly=False):
     """
     Make an initial MTL ledger file for targets in a set of HEALPixels.
 
@@ -1739,6 +1739,10 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
         If ``True`` then append to any existing ledgers rather than
         creating new ones. In this mode, if a ledger exists it will be
         appended to and if it doesn't exist it will be created.
+    newonly : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then, when appending, only write targets with
+        TARGETIDs that do not already appear in the ledger. Only relevant
+        when `append` is ``True``.
 
     Returns
     -------
@@ -1775,7 +1779,7 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
             nt, fn = io.write_mtl(
                 outdirname, mtl[inpix].as_array(), indir=indirname, ecsv=ecsv,
                 survey=survey, obscon=obscon, nsidefile=nside, hpxlist=pix,
-                scnd=scnd, extra=hdr, append=append)
+                scnd=scnd, extra=hdr, append=append, newonly=newonly)
             if verbose:
                 writ = int(append)*"appended" + int(not(append))*"written"
                 log.info('{} targets {} to {}...t={:.1f}s'.format(
@@ -1785,7 +1789,8 @@ def make_ledger_in_hp(targets, outdirname, nside, pixlist, obscon="DARK",
 
 
 def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
-                timestamp=None, append=False, tcnames=None, dr=None):
+                timestamp=None, append=False, tcnames=None, dr=None,
+                newonly=False):
     """
     Make initial MTL ledger files for HEALPixels, in parallel.
 
@@ -1825,6 +1830,10 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
         If passed, limit targets to a Data Release of the Legacy Surveys.
         For example, pass 11 to limit targets to official DR11 bricks.
         Expects `outdirname`/survey-bricks-dr.fits to exist.
+    newonly : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then, when appending, only write targets with
+        TARGETIDs that do not already appear in the ledger. Only relevant
+        when `append` is ``True``.
 
     Returns
     -------
@@ -1949,7 +1958,7 @@ def make_ledger(hpdirname, outdirname, pixlist=None, obscon="DARK", numproc=1,
         return make_ledger_in_hp(
             targs, outdirname, mtlnside, pix, obscon=obscon,
             indirname=hpdirname, verbose=False, scnd=scnd,
-            timestamp=timestamp, append=append)
+            timestamp=timestamp, append=append, newonly=newonly)
 
     # ADM this is just to count pixels in _update_status.
     npix = np.ones((), dtype='i8')
@@ -2622,7 +2631,7 @@ def remove_overrides(mtl):
     return mtl[ii], mtl[~ii]
 
 
-def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
+def reprocess_ledger(hpdirname, zcat, obscon="DARK", force=False):
     """
     Reprocess HEALPixel-split ledgers for targets with new redshifts.
 
@@ -2640,6 +2649,10 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         file (i.e. in `desitarget.targetmask.obsconditions`), e.g. "DARK"
         Governs how priorities are set using "obsconditions". Basically a
         check on whether the files in `hpdirname` are as expected.
+    force : :class:`bool`
+        Reprocessing is turned off until fixes are made for the 1b era.
+        See https://github.com/desihub/desitarget/issues/912. For testing
+        or recreating old tiles, pass `force`=``True``.
 
     Returns
     -------
@@ -2647,6 +2660,13 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
         A dictionary where the keys are the integer TILEIDs and the values
         are the TIMESTAMP at which that tile was reprocessed.
     """
+    if not force:
+        msg = "Reprocessing is turned off until fixes are made for the 1b era. "
+        msg += "See https://github.com/desihub/desitarget/issues/912. For "
+        msg += "testing or recreating old tiles, pass force=True."
+        log.critical(msg)
+        raise IOError(msg)
+
     t0 = time()
     log.info("Reprocessing based on zcat with {} entries...t={:.1f}s"
              .format(len(zcat), time()-t0))
@@ -3578,7 +3598,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
                 numobs_from_ledger=True, secondary=False, reprocess=False,
-                ext=False, veto=True, restart2026=False):
+                ext=False, veto=True, forcereprocess=False, restart2026=False):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -3621,6 +3641,10 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     veto : :class:`bool`, optional, defaults to ``True``
         If ``True`` then veto targets based on files in the veto
         directory. If ``False`` then skip the vetoing step.
+    forcereprocess : :class:`bool`, optional, defaults to ``False``
+        Reprocessing is turned off until fixes are made for the 1b era.
+        See https://github.com/desihub/desitarget/issues/912. For testing
+        or recreating old tiles, pass `forcereprocess`=``True``.
     restart2026 : :class:`bool`, optional, defaults to ``False``
         If ``True`` then apply similar rules to the, `ext` flag. This is
         needed as near/after the shutdown in August/September 2026 we
@@ -3718,7 +3742,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
 
     # ADM update the appropriate ledgers.
     if reprocess:
-        timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon)
+        timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon,
+                                    force=forcereprocess)
     else:
         update_ledger(hpdirname, zcat, obscon=obscon,
                       numobs_from_ledger=numobs_from_ledger, ext=ext,

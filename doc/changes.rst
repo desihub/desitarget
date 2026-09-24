@@ -5,26 +5,20 @@ desitarget Change Log
 5.4.2 (unreleased)
 ------------------
 
+* Fix bugs and omissions when targeting from DR11 [`PR #912`_]. Includes:
+    * Actually target MWS objects by detecting Gaia Data Release 3.
+        * And any future Gaia Data Release.
+    * Make `MWS_FAINT` a primary target class.
+    * Detect zeros in certain columns that were previously NaNs.
+    * Turn off masking using the `RESOLVED` flag.
+        * Recovers ~0.8 sq. deg. in the region of MW dwarf spheroidals.
+    * Allow adding only NEW targets to MTLs (to add the new MWS targets).
+    * Turn off reprocessing of MTLs, which is broken as of the 1b era.
+* Fix the copy-paste error when asssinging NOBS for UFDs [`PR #911`_].
+* Fix the copy-paste error when targeting M33 center [`PR #910`_].
 * Fix ``desitarget.io.write_mtl`` raising a misleading "Multiple data
   releases" ``TypeError`` for single-DR inputs under numpy >= 2.4
   [`PR #909`_].
-* Fix operationally harmless uninitialized array MTL issue; add tests [`PR #903`_].
-
-.. _`PR #903`: https://github.com/desihub/desitarget/pull/903
-.. _`PR #909`: https://github.com/desihub/desitarget/pull/909
-
-* Fix the copy-paste error when targeting M33 center [`PR #910`_].
-
-.. _`PR #910`: https://github.com/desihub/desitarget/pull/910
-
-* Fix the copy-paste error when asssinging NOBS for UFDs [`PR #911`_].
-
-.. _`PR #911`: https://github.com/desihub/desitarget/pull/911
-
-
-5.4.1 (2026-09-17)
-------------------
-
 * Update LyA decisions for 1a tiles in the 1b era [`PR #904`_]. Includes:
     * Update function that changes visits for QSO targets from 4->6.
         *  Now only updates targets that haven't YET been changed to 6.
@@ -32,6 +26,19 @@ desitarget Change Log
     * And, such ELGs will now reach the DONE priority (2) after 6 visits.
     * Decrement QSOs that turn out to be low-z to only have 2 visits.
     * Allow different Data Releases in a single ledger by default.
+* Fix operationally harmless uninitialized MTLs; add tests [`PR #903`_].
+
+.. _`PR #903`: https://github.com/desihub/desitarget/pull/903
+.. _`PR #904`: https://github.com/desihub/desitarget/pull/904
+.. _`PR #909`: https://github.com/desihub/desitarget/pull/909
+.. _`PR #910`: https://github.com/desihub/desitarget/pull/910
+.. _`PR #911`: https://github.com/desihub/desitarget/pull/911
+.. _`PR #912`: https://github.com/desihub/desitarget/pull/912
+
+
+5.4.1 (2026-09-17)
+------------------
+
 * Fix tests that wrote to the current directory instead of a tempdir,
   so that tests pass on a read-only filesystem [`PR #901`_].
 * Python 3.14 support: Update multiprocessing to use fork instead of
@@ -39,7 +46,7 @@ desitarget Change Log
 
 .. _`PR #898`: https://github.com/desihub/desitarget/pull/898
 .. _`PR #901`: https://github.com/desihub/desitarget/pull/901
-.. _`PR #904`: https://github.com/desihub/desitarget/pull/904
+
 
 5.4.0 (2026-08-24)
 ------------------
