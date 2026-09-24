@@ -759,6 +759,10 @@ def calc_priority(targets, zcat, obscon, state=False, ext=False,
                             (zcat['Z_QN'] >= zcut) & (zcat["IS_QSO_QN"] == 1))
                         # ADM ensure we don't change behavior for quasar targets.
                         good_hiz &= (targets[desi_target] & desi_mask["QSO"]) == 0
+                        # ADM ensure ELGs that turn out to be LyA QSOs do
+                        # ADM not trump standard states like done/unobs.
+                        good_hiz &= ~done
+                        good_hiz &= ~unobs
                         # ADM make sure there are no overlaps between the
                         # ADM LyA-like ELGs and other ELG observations.
                         zgood1b = zgood & ~good_hiz
