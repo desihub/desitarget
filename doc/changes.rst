@@ -10,6 +10,15 @@ desitarget Change Log
 5.4.1 (2026-09-17)
 ------------------
 
+* Fix bugs and omissions when targeting from DR11 [`PR #912`_]. Includes:
+    * Actually target MWS objects by detecting Gaia Data Release 3.
+        * And any future Gaia Data Release.
+    * Make `MWS_FAINT` a primary target class.
+    * Detect zeros in certain columns that were previously NaNs.
+    * Turn off masking using the `RESOLVED` flag.
+        * Recovers ~0.8 sq. deg. in the region of MW dwarf spheroidals.
+    * Allow adding only NEW targets to MTLs (to add the new MWS targets).
+    * Turn off reprocessing of MTLs, which is broken as of the 1b era.
 * Fix tests that wrote to the current directory instead of a tempdir,
   so that tests pass on a read-only filesystem [`PR #901`_].
 * Python 3.14 support: Update multiprocessing to use fork instead of
@@ -17,6 +26,7 @@ desitarget Change Log
 
 .. _`PR #898`: https://github.com/desihub/desitarget/pull/898
 .. _`PR #901`: https://github.com/desihub/desitarget/pull/901
+.. _`PR #912`: https://github.com/desihub/desitarget/pull/912
 
 5.4.0 (2026-08-24)
 ------------------
