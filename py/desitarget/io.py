@@ -959,6 +959,9 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
                 notinold = set(data["TARGETID"]) - set(old["TARGETID"])
                 ii = np.array([tid in notinold for tid in data["TARGETID"]])
                 data = data[ii]
+                ntargs = len(data)
+                if ntargs == 0:
+                    return ntargs, fn
             # ADM append the data to the existing mtl ledger.
             f = open(fn, "a")
             from desitarget.mtl import mtlformatdict
