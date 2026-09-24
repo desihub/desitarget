@@ -184,6 +184,34 @@ class TestIO(unittest.TestCase):
         self.assertEqual(bt['SUBPRIORITY'][0], 2.0)
         self.assertNotEqual(bt['SUBPRIORITY'][1], 0.0)
 
+    def test_write_mtl(self):
+        """test io.write_mtl works for single- and multi-DR inputs.
+        """
+        from desitarget.mtl import mtldatamodel
+        from desitarget.targets import encode_targetid
+
+        # A single-DR MTL array should write out without raising, even
+        # under numpy >= 2.4 (regression test for issue #905).
+        d = np.zeros(1, dtype=mtldatamodel.dtype)
+        d["TARGETID"] = encode_targetid(objid=1, brickid=1, release=9000)
+        d["OBSCONDITIONS"] = 1
+        d["NUMOBS_MORE"] = 1
+        nt, filename = io.write_mtl(self.testdir, d, survey="main", ecsv=False)
+        self.assertEqual(nt, 1)
+        self.assertTrue(os.path.exists(filename))
+
+        # ADM An MTL array spanning multiple DRs should still raise a
+        # ADM TypeError when mixed=False is passed, as genuinely-mixed
+        # ADM DRs are not expected in that case.
+        d2 = np.zeros(2, dtype=mtldatamodel.dtype)
+        d2["TARGETID"][0] = encode_targetid(objid=1, brickid=1, release=9000)
+        d2["TARGETID"][1] = encode_targetid(objid=2, brickid=1, release=8000)
+        d2["OBSCONDITIONS"] = 1
+        d2["NUMOBS_MORE"] = 1
+        with self.assertRaises(TypeError):
+            io.write_mtl(self.testdir, d2, survey="main", ecsv=False,
+                         mixed=False)
+
     # Some tests for helper functions designed to reproduce buggy
     # behavior from old versions of numpy. This ensures that those functions
     # are continuing to reproduce the buggy behavior we want.

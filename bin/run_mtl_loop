@@ -37,10 +37,13 @@ ap.add_argument("--noveto", action='store_true',
                 help="Do NOT veto targets using files in the veto directory")
 ap.add_argument("--forcereprocess", action='store_true',
                 help="Force reprocessing (it's broken as of the 1b era)")
+ap.add_argument("--norestart2026", action='store_true',
+                help="Do NOT use the new 1A/B rules for after the 2026 shutdown")
 
 ns = ap.parse_args()
 
 veto = not(ns.noveto)
+restart2026 = not(ns.norestart2026)
 
 if not ns.noarchivecheck:
     check_archiving(ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir,
@@ -71,8 +74,7 @@ for secondary in scndstates:
     hpdirname, mtltilefn, tilefn, tiles = loop_ledger(
         ns.obscon, survey=ns.survey, zcatdir=ns.zcatdir, mtldir=ns.mtldir,
         secondary=secondary, reprocess=ns.reprocess, veto=veto,
-        forcereprocess=ns.forcereprocess
-    )
+        forcereprocess=ns.forcereprocess, restart2026=restart2026)
 
     log.info("MTL ledger directory: {}".format(hpdirname))
     log.info("MTL tile file: {}".format(mtltilefn))
