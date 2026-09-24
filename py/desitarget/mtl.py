@@ -605,7 +605,7 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
 
 
 def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
-             trimcols=False, trimtozcat=False, ext=False):
+             trimcols=False, trimtozcat=False, ext=False, restart2026=False):
     """Add zcat columns to a targets table, update priorities and NUMOBS.
 
     Parameters
@@ -652,6 +652,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
         If ``True`` then we're operating in DESI 1B mode for DARK or
         BRIGHT tiles. When calculating priorities and numbers of
         observations special 1B rules will be used.
+    restart2026 : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then apply similar rules to the, `ext` flag. This is
+        needed as near/after the shutdown in August/September 2026 we
+        started to apply additional 1B rules on DARK/BRIGHT tiles.
 
     Returns
     -------
@@ -803,13 +807,14 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
             targets_zmatcher["NUMOBS_INIT"][ii] = desi_mask["QSO"].numobs
 
     # ADM update the number of observations for the targets.
-    ztargets['NUMOBS_MORE'] = calc_numobs_more(targets_zmatcher, ztargets,
-                                               obscon, ext=ext)
+    ztargets['NUMOBS_MORE'] = calc_numobs_more(
+        targets_zmatcher, ztargets, obscon, ext=ext, restart2026=restart2026)
 
     # ADM assign priorities. Only things in the zcat can have changed
     # ADM priorities. Anything else is assigned PRIORITY_INIT, below.
     priority, target_state = calc_priority(
-        targets_zmatcher, ztargets, obscon, state=True, ext=ext)
+        targets_zmatcher, ztargets, obscon, state=True, ext=ext,
+        restart2026=restart2026)
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then
     # NUMOBS_MORE should also be 0.
@@ -2424,6 +2429,9 @@ def update_lya_1b(obscon="DARK", mtldir=None, timestamp=None, donefile=True):
             ii = qsos["TARGETID"] == tid
             # ADM extract the final observation.
             newentry = qsos[ii][-1]
+            # ADM Don't update if NUMOBS_INIT was already pushed by +2.
+            if newentry["NUMOBS_INIT"] == dmx["QSO"].numobs + 2:
+                smells_like_lya = False
             newentry["NUMOBS_INIT"] += 2
             newentry["NUMOBS_MORE"] += 2
             newentry["TIMESTAMP"] = timestamp
@@ -2897,7 +2905,8 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK"):
 
 
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
-                  numobs_from_ledger=False, tabform='ascii.basic', ext=False):
+                  numobs_from_ledger=False, tabform='ascii.basic',
+                  ext=False, restart2026=False):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -2932,6 +2941,10 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         If ``True`` then we're operating in DESI 1B mode for DARK or
         BRIGHT tiles. When calculating priorities and numbers of
         observations special 1B rules will be used.
+    restart2026 : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then apply similar rules to the, `ext` flag. This is
+        needed as near/after the shutdown in August/September 2026 we
+        started to apply additional 1B rules on DARK/BRIGHT tiles.
 
     Returns
     -------
@@ -2972,7 +2985,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
 
     # ADM run MTL, only returning the targets that are updated.
     mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True,
-                   ext=ext)
+                   ext=ext, restart2026=restart2026)
 
     # ADM this is redundant if targets wasn't sent, but it's quick.
     nside = _get_mtl_nside()
@@ -3565,7 +3578,7 @@ def make_zcat_rr_backstop(zcatdir, tiles, obscon, survey):
 
 def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
                 numobs_from_ledger=True, secondary=False, reprocess=False,
-                ext=False, veto=True):
+                ext=False, veto=True, restart2026=False):
     """Execute full MTL loop, including reading files, updating ledgers.
 
     Parameters
@@ -3608,6 +3621,10 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
     veto : :class:`bool`, optional, defaults to ``True``
         If ``True`` then veto targets based on files in the veto
         directory. If ``False`` then skip the vetoing step.
+    restart2026 : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then apply similar rules to the, `ext` flag. This is
+        needed as near/after the shutdown in August/September 2026 we
+        started to apply additional 1B rules on DARK/BRIGHT tiles.
 
     Returns
     -------
@@ -3648,6 +3665,9 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         log.info(msg.format("PRIMARY", obscon, survey))
     if ext:
         log.info(f"1B: Running on {obscon} ledgers but using {obscon}1B tiles")
+    if restart2026:
+        log.info(f"1B: Applying DARK/BRIGHT rules for after the 2026 restart")
+
     hpdirname = io.find_target_files(mtldir, flavor="mtl", resolve=resolve,
                                      survey=survey, obscon=obscon, ender=form)
     # ADM grab the zcat directory (in case we're relying on $ZCAT_DIR).
@@ -3701,7 +3721,8 @@ def loop_ledger(obscon, survey='main', zcatdir=None, mtldir=None,
         timedict = reprocess_ledger(hpdirname, zcat, obscon=obscon)
     else:
         update_ledger(hpdirname, zcat, obscon=obscon,
-                      numobs_from_ledger=numobs_from_ledger, ext=ext)
+                      numobs_from_ledger=numobs_from_ledger, ext=ext,
+                      restart2026=restart2026)
 
     # ADM process any veto files.
     if veto:
