@@ -860,7 +860,7 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
     # target with no match in the zcat (i.e. that was never observed)
     # would be left with uninitialized memory in that column.
     zcoldefaults = {"NUMOBS": 0, "Z": -1.0, "ZWARN": -1, "ZTILEID": -1,
-                     "Z_QN": -1.0, "IS_QSO_QN": -1, "DELTACHI2": -1.0}
+                    "Z_QN": -1.0, "IS_QSO_QN": -1, "DELTACHI2": -1.0}
 
     # If `initcols` ever has a column that isn't in `fullyoverwritten`
     # or `zcoldefaults`, then fail loudly rather than silently risking
