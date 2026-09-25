@@ -2,10 +2,15 @@
 desitarget Change Log
 =====================
 
-5.4.2 (unreleased)
+5.5.1 (unreleased)
 ------------------
 
-* Fix bugs and omissions when targeting from DR11 [`PR #912`_]. Includes:
+* No changes yet.
+
+5.5.0 (2026-09-25)
+------------------
+
+* Fix bugs and omissions when targeting from DR11 [`PR #913`_]. Includes:
     * Actually target MWS objects by detecting Gaia Data Release 3.
         * And any future Gaia Data Release.
     * Make `MWS_FAINT` a primary target class.
@@ -33,7 +38,7 @@ desitarget Change Log
 .. _`PR #909`: https://github.com/desihub/desitarget/pull/909
 .. _`PR #910`: https://github.com/desihub/desitarget/pull/910
 .. _`PR #911`: https://github.com/desihub/desitarget/pull/911
-.. _`PR #912`: https://github.com/desihub/desitarget/pull/912
+.. _`PR #912`: https://github.com/desihub/desitarget/pull/913
 
 
 5.4.1 (2026-09-17)
