@@ -5,7 +5,9 @@ desitarget Change Log
 5.5.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Update the SKYBRICKS_DIR to point at v5 instead of v3 [`PR #915`_].
+
+.. _`PR #915`: https://github.com/desihub/desitarget/pull/915
 
 5.5.0 (2026-09-25)
 ------------------
