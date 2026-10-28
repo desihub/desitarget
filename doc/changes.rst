@@ -6,8 +6,10 @@ desitarget Change Log
 ------------------
 
 * Update the SKYBRICKS_DIR to point at v5 instead of v3 [`PR #915`_].
+* Clarify location of secondary target bit docs in targetmask.yaml [`PR #916`_].
 
 .. _`PR #915`: https://github.com/desihub/desitarget/pull/915
+.. _`PR #916`: https://github.com/desihub/desitarget/pull/916
 
 5.5.0 (2026-09-25)
 ------------------
