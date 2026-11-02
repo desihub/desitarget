@@ -384,7 +384,7 @@ def _check_ledger(inledger, survey="main"):
     # ADM and the priorities are all LO or HI.
     allowed = {"TOO_TYPE": {'FIBER', 'TILE'},
                "TOO_PRIO": {'LO', 'HI'},
-               "OCLAYER": {'BRIGHT', 'DARK'}}
+               "OCLAYER": {'BACKUP', 'BRIGHT', 'DARK'}}
     for col in allowed:
         if not set(inledger[col]).issubset(allowed[col]):
             msg = "Some {} entries in the ToO ledger are not one of {}!".format(
@@ -473,12 +473,21 @@ def finalize_too(inledger, survey="main"):
         # ADM there are multiple possible priorities.
         for prio in set(outdata["TOO_PRIO"]):
             ii = (outdata["OCLAYER"] == oc) & (outdata["TOO_PRIO"] == prio)
-            bitname = "{}_TOO_{}P".format(oc, prio)
+            bitname = f"{oc}_TOO_{prio}P"
+            # ADM special casing for BACKUPs. They're like BRIGHT ToOs...
+            if oc == "BACKUP":
+                bitname = f"BRIGHT_TOO_{prio}P"
             outdata[scol][ii] = sMx[bitname]
             outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities["UNOBS"]
             outdata["NUMOBS_INIT"][ii] = sMx[bitname].numobs
             outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
                 sMx[bitname].obsconditions)
+            # ADM ...but with different priorities and obsconditions.
+            if oc == "BACKUP":
+                outdata["PRIORITY_INIT"][ii] = sMx[bitname].priorities[
+                    "UNOBS_BACKUP"]
+                outdata["OBSCONDITIONS"][ii] = obsconditions.mask(
+                    sMx[bitname].obsconbackup)
 
     # ADM assign a SUBPRIORITY.
     np.random.seed(616)

@@ -5,9 +5,14 @@ desitarget Change Log
 5.5.1 (unreleased)
 ------------------
 
-* Update the SKYBRICKS_DIR to point at v5 instead of v3 [`PR #915`_].
 * Clarify location of secondary target bit docs in targetmask.yaml [`PR #916`_].
+* Update the SKYBRICKS_DIR to point at v5 instead of v3 [`PR #915`_].
+* Allow `BACKUP` Targets of Opportunity [`PR #900`_]:
+    * Introduces special attributes for observing conditions and
+      priorities for the `BRIGHT_TOO_LOP`/`HIP` targeting bits.
+    * Then special cases these attributes in :func:`ToO.py`.
 
+.. _`PR #900`: https://github.com/desihub/desitarget/pull/900
 .. _`PR #915`: https://github.com/desihub/desitarget/pull/915
 .. _`PR #916`: https://github.com/desihub/desitarget/pull/916
 
