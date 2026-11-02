@@ -2,10 +2,15 @@
 desitarget Change Log
 =====================
 
-5.5.1 (unreleased)
+5.6.1 (unreleased)
 ------------------
 
-* Clarify location of secondary target bit docs in targetmask.yaml [`PR #916`_].
+* No changes yet.
+
+5.6.0 (2026-11-02)
+------------------
+
+* Clarify secondary target docs location in targetmask.yaml [`PR #916`_].
 * Update the SKYBRICKS_DIR to point at v5 instead of v3 [`PR #915`_].
 * Allow `BACKUP` Targets of Opportunity [`PR #900`_]:
     * Introduces special attributes for observing conditions and
