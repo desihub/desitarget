@@ -805,7 +805,8 @@ def write_targets(targdir, data, indir=None, indir2=None, nchunks=None,
 
 def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
               nsidefile=None, hpxlist=None, extra=None, override=False,
-              ecsv=True, mixed=False, nowrite=False, append=False):
+              ecsv=True, mixed=True, nowrite=False, append=False,
+              newonly=False):
     """Write Merged Target List ledgers or files.
 
     Parameters
@@ -840,12 +841,12 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         "mtl" in the filename is replaced by "mtl-override" and the
         final part of the directory structure includes "override".
     ecsv : :class:`bool`, defaults to ``True``
-        If ``True`` write a .ecsv file, if ``False`` with a .fits file.
-    mixed : :class:`bool`, defaults to ``False``
+        If ``True`` write a .ecsv file, if ``False`` write a .fits file.
+    mixed : :class:`bool`, defaults to ``True``
         If ``True`` allow `data` to be from different Data Releases and
         write out the largest data release integer to the file headers.
         Useful when writing targets from, e.g., DR9 of the Legacy Surveys
-        and DR2 of Gaia to the same file.
+        and DR11 of the Legacy Surveys to the same file.
     nowrite : :class:`bool`, defaults to ``False``
         If passed just return 0 and the name of the file. Don't actually
         write anything. Useful for retrieving the filename that WOULD
@@ -855,6 +856,10 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
         creating new ones. In this mode, if a ledger exists it will be
         appended to and if it doesn't exist it will be created. Only
         currently coded for .ecsv ledgers.
+    newonly : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then, when appending, only write targets with
+        TARGETIDs that do not already appear in the ledger. Only relevant
+        when `append` is ``True``.
 
     Returns
     -------
@@ -894,13 +899,12 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
     # ADM the M31/M33 BRIGHT1B program.
     if len(dr) == 0 or np.any(release == 7777):
         drint = 'X'
+    elif len(dr) == 1:
+        drint = int(dr[0])
     else:
-        try:
-            drint = int(dr)
-        except TypeError:
-            msg = "Multiple data releases in MTL ({})".format(dr)
-            log.error(msg)
-            raise TypeError(msg)
+        msg = "Multiple data releases in MTL ({})".format(dr)
+        log.error(msg)
+        raise TypeError(msg)
     if obscon == "BACKUP":
         keys += ["GAIADR"]
         vals += [gaiadr[0]]
@@ -946,6 +950,17 @@ def write_mtl(mtldir, data, indir=None, survey="main", obscon=None, scnd=False,
                 msg = "Appending is only currently coded up for .ecsv ledgers"
                 log.error(msg)
                 raise IOError(msg)
+            # ADM if we only want to append new targets, we'll need to
+            # ADM read the MTL...
+            if newonly:
+                old = read_mtl_ledger(fn)
+                # ADM ...and extract only the new data entries.
+                notinold = set(data["TARGETID"]) - set(old["TARGETID"])
+                ii = np.array([tid in notinold for tid in data["TARGETID"]])
+                data = data[ii]
+                ntargs = len(data)
+                if ntargs == 0:
+                    return ntargs, fn
             # ADM append the data to the existing mtl ledger.
             f = open(fn, "a")
             from desitarget.mtl import mtlformatdict

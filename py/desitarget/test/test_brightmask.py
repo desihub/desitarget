@@ -12,7 +12,6 @@ import numpy.lib.recfunctions as rfn
 from glob import glob
 import healpy as hp
 import tempfile
-import shutil
 
 from desitarget import brightmask, io
 from desitarget.targetmask import desi_mask, targetid_mask
@@ -36,7 +35,8 @@ class TestBRIGHTMASK(unittest.TestCase):
         os.environ["URAT_DIR"] = os.path.join(testdir, 't4', 'urat')
 
         # ADM a temporary output directory to test writing masks.
-        cls.maskdir = tempfile.mkdtemp()
+        cls._maskdir_obj = tempfile.TemporaryDirectory()
+        cls.maskdir = cls._maskdir_obj.name
 
         # ADM allowed HEALPixels in the Tycho directory.
         pixnum = []
@@ -85,8 +85,7 @@ class TestBRIGHTMASK(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         # ADM remove the temporary output directory.
-        if os.path.exists(cls.maskdir):
-            shutil.rmtree(cls.maskdir)
+        cls._maskdir_obj.cleanup()
 
         # ADM reset the environment variables.
         if cls.gaiadir_orig is not None:

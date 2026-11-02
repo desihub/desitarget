@@ -86,5 +86,5 @@ setenv URAT_DIR $env(DESI_ROOT)/target/urat_dr1
 setenv TYCHO_DIR $env(DESI_ROOT)/target/tycho_dr2
 setenv TOO_DIR  $env(DESI_ROOT)/target/ToO
 setenv ZCAT_DIR $env(DESI_ROOT)/spectro/redux/daily
-setenv SKYBRICKS_DIR $env(DESI_ROOT)/target/skybricks/v3
+setenv SKYBRICKS_DIR $env(DESI_ROOT)/target/skybricks/v5
 setenv SKYHEALPIXS_DIR $env(DESI_ROOT)/target/skyhealpixs/v1

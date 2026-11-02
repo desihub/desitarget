@@ -22,11 +22,11 @@ from desitarget.targetmask import desi_mask, bgs_mask, mws_mask
 class TestMockBuild(unittest.TestCase):
 
     def setUp(self):
-        self.outdir = tempfile.mkdtemp()
+        self._outdir_obj = tempfile.TemporaryDirectory()
+        self.outdir = self._outdir_obj.name
 
     def tearDown(self):
-        if os.path.exists(self.outdir):
-            shutil.rmtree(self.outdir)
+        self._outdir_obj.cleanup()
 
     @unittest.skipUnless('DESITARGET_RUN_MOCK_UNITTEST' in os.environ, '$DESITARGET_RUN_MOCK_UNITTEST not set; skipping expensive mock tests')
     def test_targets_truth(self):

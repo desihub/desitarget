@@ -51,6 +51,10 @@ ap.add_argument('--dr', type=int, default=None,
                 help="Limit targets to a Legacy Surveys Data Release, e.g. pass \
                 11 to limit to DR11 bricks. Expects survey-bricks-dr.fits to    \
                 exist in the output directory.")
+ap.add_argument('--newonly', action='store_true',
+                help="Only write new targets (new TARGETIDs) to the ledger when \
+                appending. Useful when updating with new targets to ensure any  \
+                additions are unique and don't affect existing target states.")
 
 
 ns = ap.parse_args()
@@ -68,4 +72,4 @@ else:
 
 make_ledger(ns.targdir, ns.dest, pixlist=pixlist, obscon=ns.obscon,
             numproc=ns.numproc, timestamp=ns.timestamp, append=ns.append,
-            tcnames=tcnames, dr=ns.dr)
+            tcnames=tcnames, dr=ns.dr, newonly=ns.newonly)

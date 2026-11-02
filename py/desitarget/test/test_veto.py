@@ -7,7 +7,7 @@ import shutil
 import os
 import astropy
 from importlib import resources
-from uuid import uuid4
+import tempfile
 import numpy as np
 
 from desitarget import io
@@ -22,7 +22,8 @@ class TestVETO(unittest.TestCase):
 
     def setUp(self):
         # ADM make an entire copy of the test MTL directory structure.
-        self.testdir = "test-{}".format(uuid4().hex)
+        self._testdir_obj = tempfile.TemporaryDirectory()
+        self.testdir = self._testdir_obj.name
         shutil.copytree(self.datadir, os.path.join(self.testdir, "main"))
         # ADM we need to remove the bad test file from the MTL mock
         # ADM directory, otherwise updates will fail on that file.
@@ -34,8 +35,7 @@ class TestVETO(unittest.TestCase):
             self.datadir, "veto/bright1b/bad/bad-veto-bright1b.ecsv")
 
     def tearDown(self):
-        if os.path.exists(self.testdir):
-            shutil.rmtree(self.testdir, ignore_errors=True)
+        self._testdir_obj.cleanup()
 
     def test_veto_file(self):
         """Test a good veto file can be read but a bad one can't"""

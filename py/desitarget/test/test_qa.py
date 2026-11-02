@@ -5,7 +5,6 @@
 import unittest
 import os
 import sys
-import shutil
 import tempfile
 import warnings
 import numpy as np
@@ -45,7 +44,8 @@ class TestQA(unittest.TestCase):
         cls.cmxfile = os.path.join(cls.datadir, 'cmx-targets.fits')
         cls.pixmapfile = os.path.join(cls.datadir, 'pixweight.fits')
         cls.origdir = os.getcwd()
-        cls.testdir = tempfile.mkdtemp()
+        cls._testdir_obj = tempfile.TemporaryDirectory()
+        cls.testdir = cls._testdir_obj.name
         log.info("working in {}...".format(cls.testdir))
         os.chdir(cls.testdir)
 
@@ -58,8 +58,7 @@ class TestQA(unittest.TestCase):
         log.info(f'DESI_SURVEYOPS set back to {cls.desi_surveyops}')
         # - Remove all test input and output files.
         os.chdir(cls.origdir)
-        if os.path.exists(cls.testdir):
-            shutil.rmtree(cls.testdir)
+        cls._testdir_obj.cleanup()
 
     def setUp(self):
         # Treat some specific warnings as errors so that we can find and fix

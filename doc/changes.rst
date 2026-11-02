@@ -2,18 +2,65 @@
 desitarget Change Log
 =====================
 
-5.4.1 (unreleased)
+5.5.1 (unreleased)
 ------------------
 
+* Clarify location of secondary target bit docs in targetmask.yaml [`PR #916`_].
+* Update the SKYBRICKS_DIR to point at v5 instead of v3 [`PR #915`_].
 * Allow `BACKUP` Targets of Opportunity [`PR #900`_]:
     * Introduces special attributes for observing conditions and
       priorities for the `BRIGHT_TOO_LOP`/`HIP` targeting bits.
     * Then special cases these attributes in :func:`ToO.py`.
+
+.. _`PR #900`: https://github.com/desihub/desitarget/pull/900
+.. _`PR #915`: https://github.com/desihub/desitarget/pull/915
+.. _`PR #916`: https://github.com/desihub/desitarget/pull/916
+
+5.5.0 (2026-09-25)
+------------------
+
+* Fix bugs and omissions when targeting from DR11 [`PR #913`_]. Includes:
+    * Actually target MWS objects by detecting Gaia Data Release 3.
+        * And any future Gaia Data Release.
+    * Make `MWS_FAINT` a primary target class.
+    * Detect zeros in certain columns that were previously NaNs.
+    * Turn off masking using the `RESOLVED` flag.
+        * Recovers ~0.8 sq. deg. in the region of MW dwarf spheroidals.
+    * Allow adding only NEW targets to MTLs (to add the new MWS targets).
+    * Turn off reprocessing of MTLs, which is broken as of the 1b era.
+* Fix the copy-paste error when asssinging NOBS for UFDs [`PR #911`_].
+* Fix the copy-paste error when targeting M33 center [`PR #910`_].
+* Fix ``desitarget.io.write_mtl`` raising a misleading "Multiple data
+  releases" ``TypeError`` for single-DR inputs under numpy >= 2.4
+  [`PR #909`_].
+* Update LyA decisions for 1a tiles in the 1b era [`PR #904`_]. Includes:
+    * Update function that changes visits for QSO targets from 4->6.
+        *  Now only updates targets that haven't YET been changed to 6.
+    * 1a ELGs that the MTL code finds are LyA QSOs now get 6 visits, too.
+    * And, such ELGs will now reach the DONE priority (2) after 6 visits.
+    * Decrement QSOs that turn out to be low-z to only have 2 visits.
+    * Allow different Data Releases in a single ledger by default.
+* Fix operationally harmless uninitialized MTLs; add tests [`PR #903`_].
+
+.. _`PR #903`: https://github.com/desihub/desitarget/pull/903
+.. _`PR #904`: https://github.com/desihub/desitarget/pull/904
+.. _`PR #909`: https://github.com/desihub/desitarget/pull/909
+.. _`PR #910`: https://github.com/desihub/desitarget/pull/910
+.. _`PR #911`: https://github.com/desihub/desitarget/pull/911
+.. _`PR #913`: https://github.com/desihub/desitarget/pull/913
+
+
+5.4.1 (2026-09-17)
+------------------
+
+* Fix tests that wrote to the current directory instead of a tempdir,
+  so that tests pass on a read-only filesystem [`PR #901`_].
 * Python 3.14 support: Update multiprocessing to use fork instead of
   forkserver [`PR #898`_].
 
 .. _`PR #898`: https://github.com/desihub/desitarget/pull/898
-.. _`PR #900`: https://github.com/desihub/desitarget/pull/900
+.. _`PR #901`: https://github.com/desihub/desitarget/pull/901
+
 
 5.4.0 (2026-08-24)
 ------------------
@@ -23,7 +70,7 @@ desitarget Change Log
 * Update github test config for healpy/numpy compatibility and
   robustness to unavailable data.desi.lbl.gov [`PR #896`_].
 * Import desimodel only if needed in io.py [`PR #894`_].
-* Propagate arguments necessary to reproduce buggy MTL loading behavior [`PR #891`_].
+* Propagate arguments to reproduce buggy MTL loading [`PR #891`_].
 * Increase the number of ToOs ingested each night [`PR #874`_].
     * Incidentally updates coverage tests to more recent numpy version.
 
