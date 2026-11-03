@@ -5,7 +5,9 @@ desitarget Change Log
 5.6.1 (unreleased)
 ------------------
 
-* No changes yet.
+* Added optional keyword to restore pre 5.5.0 MWS_UFD behavior [`PR #918`_].
+
+.. _`PR #918`: https://github.com/desihub/desitarget/pull/918
 
 5.6.0 (2026-11-02)
 ------------------
