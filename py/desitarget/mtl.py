@@ -605,7 +605,7 @@ def check_archiving(obscon, survey='main', zcatdir=None, mtldir=None):
 
 
 def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
-             trimcols=False, trimtozcat=False, ext=False, restart2026=False):
+             trimcols=False, trimtozcat=False, ext=False, restart2026=False, pre550_MWS_UFD=False):
     """Add zcat columns to a targets table, update priorities and NUMOBS.
 
     Parameters
@@ -656,6 +656,10 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
         If ``True`` then apply similar rules to the, `ext` flag. This is
         needed as near/after the shutdown in August/September 2026 we
         started to apply additional 1B rules on DARK/BRIGHT tiles.
+    pre550_MWS_UFD : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then apply pre 5.5.0 behavior to MWS_UFD_PM1 and
+        MWS_UFD_PM2 targets. This is needed to ensure compatibility with
+        the alternate mtl pipeline.
 
     Returns
     -------
@@ -815,6 +819,14 @@ def make_mtl(targets, obscon, zcat=None, scnd=None, trim=False,
     priority, target_state = calc_priority(
         targets_zmatcher, ztargets, obscon, state=True, ext=ext,
         restart2026=restart2026)
+
+    # LGN if pre550_MWS_UFD, find MWS_UFD_PM1|MORE_NOB2 and 
+    # LGN MWS_UFD_PM2|MORE_NOB2 targets, setting their TARGET_STATE
+    # LGN and priority values to match pre 5.5.0 behavior
+    if pre550_MWS_UFD:
+        ii = np.isin(target_state, ["MWS_UFD_PM1|MORE_NOB2", "MWS_UFD_PM2|MORE_NOB2"])
+        priority[ii] = 0
+        target_state[ii] = ""
 
     # If priority went to 0==DONOTOBSERVE or 1==OBS or 2==DONE, then
     # NUMOBS_MORE should also be 0.
@@ -2926,7 +2938,7 @@ def reprocess_ledger(hpdirname, zcat, obscon="DARK", force=False):
 
 def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
                   numobs_from_ledger=False, tabform='ascii.basic',
-                  ext=False, restart2026=False):
+                  ext=False, restart2026=False, pre550_MWS_UFD=False):
     """
     Update relevant HEALPixel-split ledger files for some targets.
 
@@ -2965,6 +2977,10 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
         If ``True`` then apply similar rules to the, `ext` flag. This is
         needed as near/after the shutdown in August/September 2026 we
         started to apply additional 1B rules on DARK/BRIGHT tiles.
+    pre550_MWS_UFD : :class:`bool`, optional, defaults to ``False``
+        If ``True`` then apply pre 5.5.0 behavior to MWS_UFD_PM1 and
+        MWS_UFD_PM2 targets. This is needed to ensure compatibility with
+        the alternate mtl pipeline.
 
     Returns
     -------
@@ -3005,7 +3021,7 @@ def update_ledger(hpdirname, zcat, targets=None, obscon="DARK",
 
     # ADM run MTL, only returning the targets that are updated.
     mtl = make_mtl(targets, oc, zcat=zcat, trimtozcat=True, trimcols=True,
-                   ext=ext, restart2026=restart2026)
+                   ext=ext, restart2026=restart2026, pre550_MWS_UFD=pre550_MWS_UFD)
 
     # ADM this is redundant if targets wasn't sent, but it's quick.
     nside = _get_mtl_nside()
